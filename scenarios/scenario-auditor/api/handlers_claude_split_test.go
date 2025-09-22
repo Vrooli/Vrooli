@@ -15,6 +15,7 @@ func TestClampAgentCount(t *testing.T) {
 		{"within limits", 3, 12, 3},
 		{"needs more agents", 1, 120, 3},
 		{"above max cap", 10, 200, maxBulkFixAgents},
+		{"caps when total exceeds capacity", 0, maxBulkFixAgents*maxIssuesPerAgent + 200, maxBulkFixAgents},
 	}
 
 	for _, tt := range tests {

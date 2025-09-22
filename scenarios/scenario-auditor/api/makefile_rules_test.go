@@ -11,22 +11,69 @@ func TestMakefileStructureRule(t *testing.T) {
 	rule := loadMakefileRule(t, "makefile_structure", "makefile_structure.go", "makefile")
 
 	valid := canonicalMakefile()
-	violations, err := rule.Check(valid, "scenarios/demo/Makefile", "demo")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(violations) != 0 {
-		t.Fatalf("expected no violations, got %d: %+v", len(violations), violations)
-	}
 
-	invalid := strings.Replace(valid, ".DEFAULT_GOAL := help", ".DEFAULT_GOAL := run", 1)
-	violations, err = rule.Check(invalid, "scenarios/demo/Makefile", "demo")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(violations) == 0 {
-		t.Fatalf("expected violations for incorrect default goal")
-	}
+	t.Run("valid canonical makefile", func(t *testing.T) {
+		violations, err := rule.Check(valid, "scenarios/demo/Makefile", "demo")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(violations) != 0 {
+			t.Fatalf("expected no violations, got %d: %+v", len(violations), violations)
+		}
+	})
+
+	t.Run("invalid default goal", func(t *testing.T) {
+		invalid := strings.Replace(valid, ".DEFAULT_GOAL := help", ".DEFAULT_GOAL := run", 1)
+		violations, err := rule.Check(invalid, "scenarios/demo/Makefile", "demo")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !violationsContain(violations, ".DEFAULT_GOAL must be set to 'help'") {
+			t.Fatalf("expected violation about default goal, got: %+v", violations)
+		}
+	})
+
+	t.Run("requires phony block before other directives", func(t *testing.T) {
+		needle := `.PHONY: help start stop test logs status clean build dev restart rebuild fmt fmt-go fmt-ui lint lint-go lint-ui check`
+		reordered := strings.Replace(valid,
+			needle+"\n\n# Default target - show help\n.DEFAULT_GOAL := help\n",
+			".DEFAULT_GOAL := help\n\n"+needle+"\n\n# Default target - show help\n",
+			1,
+		)
+		violations, err := rule.Check(reordered, "scenarios/demo/Makefile", "demo")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !violationsContain(violations, "First directive after header must be .PHONY target declaration") {
+			t.Fatalf("expected .PHONY ordering violation, got: %+v", violations)
+		}
+	})
+
+	t.Run("help target must be first", func(t *testing.T) {
+		withEarly := strings.Replace(valid,
+			"RESET := \\033[0m\n\nhelp:",
+			"RESET := \\033[0m\n\nearly:\n\t@echo \"early\"\n\nhelp:",
+			1,
+		)
+		violations, err := rule.Check(withEarly, "scenarios/demo/Makefile", "demo")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !violationsContain(violations, "help target must be defined before any other targets") {
+			t.Fatalf("expected help ordering violation, got: %+v", violations)
+		}
+	})
+
+	t.Run("shortcut section must terminate file", func(t *testing.T) {
+		invalid := valid + "\n.PHONY: make-executable\nmake-executable:\n\t@echo \"fix\"\n"
+		violations, err := rule.Check(invalid, "scenarios/demo/Makefile", "demo")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !violationsContain(violations, "Shortcut targets must be the final content in the Makefile") {
+			t.Fatalf("expected shortcut terminal violation, got: %+v", violations)
+		}
+	})
 }
 
 func TestMakefileLifecycleRule(t *testing.T) {
@@ -92,6 +139,15 @@ func loadMakefileRule(t *testing.T, id, fileName, category string) RuleInfo {
 	return info
 }
 
+func violationsContain(list []Violation, needle string) bool {
+	for _, v := range list {
+		if strings.Contains(v.Message, needle) || strings.Contains(v.Description, needle) {
+			return true
+		}
+	}
+	return false
+}
+
 func canonicalMakefile() string {
 	return `# Demo Scenario Makefile
 # 
@@ -106,7 +162,7 @@ func canonicalMakefile() string {
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop test logs status clean build dev restart rebuild fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -198,5 +254,12 @@ check: ## Format, lint, and test code
 	@$(MAKE) fmt
 	@$(MAKE) lint
 	@$(MAKE) test
+
+# Development shortcuts
+dev: start
+
+restart: stop start
+
+rebuild: clean build
 `
 }

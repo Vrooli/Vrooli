@@ -102,6 +102,200 @@ help: ## Show this help message
   <expected-message>Header must explain lifecycle requirement</expected-message>
 </test-case>
 
+<test-case id="structure-order-phony" should-fail="true">
+  <description>.PHONY must be the first directive after the header</description>
+  <input language="make">
+# Demo Scenario Makefile
+#
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/demo-api). ALWAYS use these commands.
+#
+# Usage:
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
+
+.DEFAULT_GOAL := help
+
+.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+
+SCENARIO_NAME := $(notdir $(CURDIR))
+
+GREEN := \033[1;32m
+YELLOW := \033[1;33m
+BLUE := \033[1;34m
+RED := \033[1;31m
+RESET := \033[0m
+
+help: ## Show this help message
+	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)Usage:$(RESET)"
+	@echo "  make <command>"
+	@echo ""
+	@echo "$(YELLOW)Commands:$(RESET)"
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
+  </input>
+  <expected-violations>2</expected-violations>
+  <expected-message>.PHONY target declaration</expected-message>
+</test-case>
+
+<test-case id="structure-help-first" should-fail="true">
+  <description>help target must be defined before other targets</description>
+  <input language="make">
+# Demo Scenario Makefile
+#
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/demo-api). ALWAYS use these commands.
+#
+# Usage:
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
+
+.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+
+.DEFAULT_GOAL := help
+
+SCENARIO_NAME := $(notdir $(CURDIR))
+
+GREEN := \033[1;32m
+YELLOW := \033[1;33m
+BLUE := \033[1;34m
+RED := \033[1;31m
+RESET := \033[0m
+
+logs:
+	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
+
+help: ## Show this help message
+	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)Usage:$(RESET)"
+	@echo "  make <command>"
+	@echo ""
+	@echo "$(YELLOW)Commands:$(RESET)"
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
+  </input>
+  <expected-violations>2</expected-violations>
+  <expected-message>help target must be defined before any other targets</expected-message>
+</test-case>
+
+<test-case id="structure-shortcuts-terminal" should-fail="true">
+  <description>Shortcut targets must be the final content in the Makefile</description>
+  <input language="make">
+# Demo Scenario Makefile
+#
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/demo-api). ALWAYS use these commands.
+#
+# Usage:
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
+
+.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+
+.DEFAULT_GOAL := help
+
+SCENARIO_NAME := $(notdir $(CURDIR))
+
+GREEN := \033[1;32m
+YELLOW := \033[1;33m
+BLUE := \033[1;34m
+RED := \033[1;31m
+RESET := \033[0m
+
+help: ## Show this help message
+	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)Usage:$(RESET)"
+	@echo "  make <command>"
+	@echo ""
+	@echo "$(YELLOW)Commands:$(RESET)"
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
+
+# Development shortcuts
+dev: start
+restart: stop start
+
+.PHONY: make-executable
+make-executable:
+	@echo "fix permissions"
+  </input>
+  <expected-violations>3</expected-violations>
+  <expected-message>Shortcut targets must be the final content in the Makefile</expected-message>
+</test-case>
+
+<test-case id="structure-shortcuts-valid" should-fail="false">
+  <description>Shortcut aliases are present and terminate the file</description>
+  <input language="make">
+# Demo Scenario Makefile
+#
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/demo-api). ALWAYS use these commands.
+#
+# Usage:
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
+
+.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+
+.DEFAULT_GOAL := help
+
+SCENARIO_NAME := $(notdir $(CURDIR))
+
+GREEN := \033[1;32m
+YELLOW := \033[1;33m
+BLUE := \033[1;34m
+RED := \033[1;31m
+RESET := \033[0m
+
+help: ## Show this help message
+	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)Usage:$(RESET)"
+	@echo "  make <command>"
+	@echo ""
+	@echo "$(YELLOW)Commands:$(RESET)"
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
+
+# Development shortcuts
+dev: start
+restart: stop start
+rebuild: clean build
+  </input>
+</test-case>
+
 */
 
 type MakefileStructureViolation struct {
@@ -112,16 +306,31 @@ type MakefileStructureViolation struct {
 }
 
 type structureMakefileData struct {
-	lines        []string
-	header       []string
-	phony        []string
-	defaultGoal  string
-	scenarioName string
-	colors       map[string]string
-	targets      map[string][]string
+	lines                []string
+	header               []string
+	phony                []string
+	defaultGoal          string
+	scenarioName         string
+	colors               map[string]string
+	targets              map[string][]string
+	targetRecipeLines    map[string][]int
+	colorLines           map[string]int
+	phonyLine            int
+	defaultLine          int
+	scenarioLine         int
+	helpLine             int
+	targetOrder          []string
+	targetLines          map[string]int
+	shortcutsCommentLine int
+	shortcutTargets      []string
+	shortcutTargetLines  []int
+	firstNonHeaderLine   int
+	headerEndLine        int
+	lastNonEmptyLine     int
 }
 
 var structureTargetRegexp = regexp.MustCompile(`^([A-Za-z0-9_.-]+)\s*:(.*)$`)
+var shortcutAliasPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+(?:\s+[A-Za-z0-9_.-]+)*$`)
 
 // CheckMakefileStructure ensures the Makefile conforms to the required structure scaffolding.
 func CheckMakefileStructure(content string, filepath string) ([]MakefileStructureViolation, error) {
@@ -133,6 +342,8 @@ func CheckMakefileStructure(content string, filepath string) ([]MakefileStructur
 	violations = append(violations, structureValidateDefaults(data, filepath)...)
 	violations = append(violations, structureValidateColors(data, filepath)...)
 	violations = append(violations, structureValidateHelp(data, filepath)...)
+	violations = append(violations, structureValidateOrdering(data, filepath)...)
+	violations = append(violations, structureValidateShortcuts(data, filepath)...)
 
 	return violations, nil
 }
@@ -312,25 +523,230 @@ func structureValidateHelp(data structureMakefileData, path string) []MakefileSt
 	return violations
 }
 
+func structureValidateOrdering(data structureMakefileData, path string) []MakefileStructureViolation {
+	var violations []MakefileStructureViolation
+
+	if data.firstNonHeaderLine > 0 {
+		firstLine := strings.TrimSpace(data.lines[data.firstNonHeaderLine-1])
+		if !strings.HasPrefix(firstLine, ".PHONY") {
+			violations = append(violations, MakefileStructureViolation{
+				Severity: "high",
+				Message:  "First directive after header must be .PHONY target declaration",
+				FilePath: path,
+				Line:     data.firstNonHeaderLine,
+			})
+		}
+	}
+
+	if data.phonyLine > 0 && data.defaultLine > 0 && data.defaultLine < data.phonyLine {
+		violations = append(violations, MakefileStructureViolation{
+			Severity: "high",
+			Message:  ".DEFAULT_GOAL must be defined after the .PHONY block",
+			FilePath: path,
+			Line:     data.defaultLine,
+		})
+	}
+
+	if data.defaultLine > 0 && data.scenarioLine > 0 && data.scenarioLine < data.defaultLine {
+		violations = append(violations, MakefileStructureViolation{
+			Severity: "high",
+			Message:  "SCENARIO_NAME definition must follow .DEFAULT_GOAL",
+			FilePath: path,
+			Line:     data.scenarioLine,
+		})
+	}
+
+	colorOrder := []string{"GREEN", "YELLOW", "BLUE", "RED", "RESET"}
+	prevLine := 0
+	prevName := ""
+	firstColorLine := 0
+	lastColorLine := 0
+	for _, name := range colorOrder {
+		line := data.colorLines[name]
+		if line == 0 {
+			continue
+		}
+		if prevLine > 0 && line < prevLine {
+			violations = append(violations, MakefileStructureViolation{
+				Severity: "high",
+				Message:  fmt.Sprintf("Color %s must be declared after %s to preserve palette order", name, prevName),
+				FilePath: path,
+				Line:     line,
+			})
+		}
+		if firstColorLine == 0 || line < firstColorLine {
+			firstColorLine = line
+		}
+		if line > lastColorLine {
+			lastColorLine = line
+		}
+		prevLine = line
+		prevName = name
+	}
+
+	if data.scenarioLine > 0 && firstColorLine > 0 {
+		for i := data.scenarioLine; i < firstColorLine-1; i++ {
+			if !structureIsCommentOrBlank(data.lines[i]) {
+				violations = append(violations, MakefileStructureViolation{
+					Severity: "high",
+					Message:  "Color palette must immediately follow SCENARIO_NAME declaration",
+					FilePath: path,
+					Line:     i + 1,
+				})
+				break
+			}
+		}
+	}
+
+	if lastColorLine > 0 && data.helpLine > 0 {
+		if data.helpLine < lastColorLine {
+			violations = append(violations, MakefileStructureViolation{
+				Severity: "high",
+				Message:  "help target must appear after color palette definitions",
+				FilePath: path,
+				Line:     data.helpLine,
+			})
+		} else {
+			for i := lastColorLine; i < data.helpLine-1; i++ {
+				if !structureIsCommentOrBlank(data.lines[i]) {
+					violations = append(violations, MakefileStructureViolation{
+						Severity: "high",
+						Message:  "No additional directives allowed between color palette and help target",
+						FilePath: path,
+						Line:     i + 1,
+					})
+					break
+				}
+			}
+		}
+	}
+
+	if len(data.targetOrder) > 0 && data.targetOrder[0] != "help" {
+		first := data.targetOrder[0]
+		line := data.targetLines[first]
+		if line == 0 {
+			line = data.firstNonHeaderLine
+		}
+		violations = append(violations, MakefileStructureViolation{
+			Severity: "high",
+			Message:  "help target must be defined before any other targets",
+			FilePath: path,
+			Line:     line,
+		})
+	}
+
+	return violations
+}
+
+func structureValidateShortcuts(data structureMakefileData, path string) []MakefileStructureViolation {
+	if data.shortcutsCommentLine == 0 {
+		return nil
+	}
+
+	var violations []MakefileStructureViolation
+	if len(data.shortcutTargets) == 0 {
+		violations = append(violations, MakefileStructureViolation{
+			Severity: "high",
+			Message:  "Shortcut section must define at least one shortcut target",
+			FilePath: path,
+			Line:     data.shortcutsCommentLine,
+		})
+		return violations
+	}
+
+	shortcutLines := make(map[int]struct{})
+	for idx, target := range data.shortcutTargets {
+		line := data.shortcutTargetLines[idx]
+		shortcutLines[line] = struct{}{}
+		if len(data.targetRecipeLines[target]) > 0 {
+			violations = append(violations, MakefileStructureViolation{
+				Severity: "high",
+				Message:  fmt.Sprintf("Shortcut target '%s' must be a single-line alias without its own recipe", target),
+				FilePath: path,
+				Line:     line,
+			})
+		}
+		for _, recipeLine := range data.targetRecipeLines[target] {
+			shortcutLines[recipeLine] = struct{}{}
+		}
+		for _, snippet := range data.targets[target] {
+			trimmed := strings.TrimSpace(strings.TrimPrefix(snippet, "\t"))
+			if trimmed == "" {
+				continue
+			}
+			if !shortcutAliasPattern.MatchString(trimmed) {
+				violations = append(violations, MakefileStructureViolation{
+					Severity: "high",
+					Message:  fmt.Sprintf("Shortcut target '%s' must only reference other targets", target),
+					FilePath: path,
+					Line:     line,
+				})
+				break
+			}
+		}
+	}
+
+	for i := data.shortcutsCommentLine + 1; i < len(data.lines); i++ {
+		trimmed := strings.TrimSpace(data.lines[i])
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := shortcutLines[i+1]; ok {
+			continue
+		}
+		violations = append(violations, MakefileStructureViolation{
+			Severity: "high",
+			Message:  "Shortcut targets must be the final content in the Makefile",
+			FilePath: path,
+			Line:     i + 1,
+		})
+		break
+	}
+
+	return violations
+}
+
 func parseStructureMakefile(content string) structureMakefileData {
 	lines := strings.Split(content, "\n")
+	header := structureExtractHeader(lines)
 	data := structureMakefileData{
-		lines:   lines,
-		header:  []string{},
-		colors:  map[string]string{},
-		targets: make(map[string][]string),
+		lines:             lines,
+		header:            header,
+		headerEndLine:     len(header),
+		colors:            map[string]string{},
+		colorLines:        make(map[string]int),
+		targets:           make(map[string][]string),
+		targetLines:       make(map[string]int),
+		targetRecipeLines: make(map[string][]int),
 	}
 
 	var currentTarget string
 	for i, raw := range lines {
 		trimmedLeft := strings.TrimLeft(raw, "\t ")
+		trimmed := strings.TrimSpace(raw)
 
-		if len(data.header) == 0 {
-			data.header = structureExtractHeader(lines)
+		if trimmed != "" {
+			data.lastNonEmptyLine = i + 1
+		}
+
+		if data.firstNonHeaderLine == 0 && i >= data.headerEndLine {
+			if !structureIsCommentOrBlank(raw) {
+				data.firstNonHeaderLine = i + 1
+			}
+		}
+
+		if strings.HasPrefix(strings.TrimLeft(raw, " \t"), "#") {
+			lower := strings.ToLower(trimmed)
+			if strings.Contains(lower, "shortcut") && data.shortcutsCommentLine == 0 {
+				data.shortcutsCommentLine = i + 1
+			}
 		}
 
 		if strings.HasPrefix(trimmedLeft, ".PHONY:") {
-			data.phony = structureParseList(trimmedLeft)
+			if data.phonyLine == 0 {
+				data.phony = structureParseList(trimmedLeft)
+				data.phonyLine = i + 1
+			}
 			continue
 		}
 
@@ -339,6 +755,9 @@ func parseStructureMakefile(content string) structureMakefileData {
 			if len(parts) == 2 {
 				data.defaultGoal = strings.TrimSpace(parts[1])
 			}
+			if data.defaultLine == 0 {
+				data.defaultLine = i + 1
+			}
 			continue
 		}
 
@@ -346,6 +765,9 @@ func parseStructureMakefile(content string) structureMakefileData {
 			parts := strings.Split(trimmedLeft, ":=")
 			if len(parts) == 2 {
 				data.scenarioName = strings.TrimSpace(parts[1])
+			}
+			if data.scenarioLine == 0 {
+				data.scenarioLine = i + 1
 			}
 			continue
 		}
@@ -358,12 +780,17 @@ func parseStructureMakefile(content string) structureMakefileData {
 				switch name {
 				case "GREEN", "YELLOW", "BLUE", "RED", "RESET", "CYAN":
 					data.colors[name] = value
+					if _, recorded := data.colorLines[name]; !recorded {
+						data.colorLines[name] = i + 1
+					}
 				}
 			}
+			continue
 		}
 
 		if strings.HasPrefix(raw, "\t") && currentTarget != "" {
 			data.targets[currentTarget] = append(data.targets[currentTarget], raw)
+			data.targetRecipeLines[currentTarget] = append(data.targetRecipeLines[currentTarget], i+1)
 			continue
 		}
 
@@ -377,11 +804,21 @@ func parseStructureMakefile(content string) structureMakefileData {
 			if remainder != "" {
 				data.targets[currentTarget] = append(data.targets[currentTarget], "\t"+remainder)
 			}
+			if _, seen := data.targetLines[currentTarget]; !seen {
+				data.targetLines[currentTarget] = i + 1
+				data.targetOrder = append(data.targetOrder, currentTarget)
+				if currentTarget == "help" {
+					data.helpLine = i + 1
+				}
+				if data.shortcutsCommentLine > 0 && i+1 > data.shortcutsCommentLine {
+					data.shortcutTargets = append(data.shortcutTargets, currentTarget)
+					data.shortcutTargetLines = append(data.shortcutTargetLines, i+1)
+				}
+			}
 			continue
 		}
 
 		currentTarget = ""
-		_ = i
 	}
 
 	return data
@@ -448,4 +885,12 @@ func structureContainsSnippet(lines []string, snippet string) bool {
 		}
 	}
 	return false
+}
+
+func structureIsCommentOrBlank(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return true
+	}
+	return strings.HasPrefix(trimmed, "#")
 }

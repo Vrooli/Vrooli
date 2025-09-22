@@ -13,11 +13,13 @@ import {
   Shield,
   Unlock
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { apiService } from '../services/api'
-import { AutomatedFix, AutomatedFixConfig, AutomatedFixJobSnapshot, AutomatedFixRescanResult } from '../types/api'
+import { AutomatedFix, AutomatedFixConfig, AutomatedFixJobSnapshot, AutomatedFixRescanResult, AutomationTriggerSummary } from '../types/api'
 import { Badge } from './common/Badge'
 import { Card } from './common/Card'
+
+type AutomationFormConfig = Pick<AutomatedFixConfig, 'violation_types' | 'severities' | 'strategy' | 'loop_delay_seconds' | 'timeout_seconds' | 'max_fixes' | 'model'>
 
 type FixStrategy = 'critical_first' | 'security_first' | 'standards_first' | 'low_first'
 
@@ -52,7 +54,7 @@ const MODEL_OPTIONS = MODEL_OPTION_BLUEPRINT.map(option =>
 
 export default function AutomatedFixPanel() {
   const [showEnableDialog, setShowEnableDialog] = useState(false)
-  const [enableConfig, setEnableConfig] = useState<Pick<AutomatedFixConfig, 'violation_types' | 'severities' | 'strategy' | 'loop_delay_seconds' | 'timeout_seconds' | 'max_fixes' | 'model'>>({
+  const [enableConfig, setEnableConfig] = useState<AutomationFormConfig>({
     violation_types: ['security'] as Array<'security' | 'standards'>,
     severities: ['critical', 'high'] as Array<'low' | 'medium' | 'high' | 'critical'>,
     strategy: 'critical_first' as FixStrategy,
@@ -62,6 +64,8 @@ export default function AutomatedFixPanel() {
     model: DEFAULT_AUTOMATION_MODEL,
   })
   const [confirmationChecked, setConfirmationChecked] = useState(false)
+  const [lastTriggerSummary, setLastTriggerSummary] = useState<AutomationTriggerSummary | null>(null)
+  const [optimisticEnabled, setOptimisticEnabled] = useState<boolean | null>(null)
 
   const queryClient = useQueryClient()
 
@@ -92,7 +96,9 @@ export default function AutomatedFixPanel() {
       max_fixes: Math.max(0, enableConfig.max_fixes),
       model: enableConfig.model,
     }),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setOptimisticEnabled(true)
+      setLastTriggerSummary(data.trigger_summary ?? null)
       queryClient.invalidateQueries({ queryKey: ['fixConfig'] })
       queryClient.invalidateQueries({ queryKey: ['automationJobs'] })
       setShowEnableDialog(false)
@@ -103,6 +109,8 @@ export default function AutomatedFixPanel() {
   const disableMutation = useMutation({
     mutationFn: apiService.disableAutomatedFixes,
     onSuccess: () => {
+      setOptimisticEnabled(false)
+      setLastTriggerSummary(null)
       queryClient.invalidateQueries({ queryKey: ['fixConfig'] })
     },
   })
@@ -168,6 +176,58 @@ export default function AutomatedFixPanel() {
     }
   }
 
+  const activeSummary = lastTriggerSummary ?? fixConfig?.trigger_summary ?? null
+  const skippedSummaryCount = activeSummary?.skipped ? Object.keys(activeSummary.skipped).length : 0
+
+  useEffect(() => {
+    if (!fixConfig) {
+      return
+    }
+
+    const nextConfig = {
+      violation_types: [...fixConfig.violation_types],
+      severities: [...fixConfig.severities],
+      strategy: fixConfig.strategy,
+      loop_delay_seconds: fixConfig.loop_delay_seconds,
+      timeout_seconds: fixConfig.timeout_seconds,
+      max_fixes: fixConfig.max_fixes,
+      model: fixConfig.model || DEFAULT_AUTOMATION_MODEL,
+    } as AutomationFormConfig
+
+    if (!showEnableDialog) {
+      setEnableConfig(nextConfig)
+      setLastTriggerSummary(fixConfig.trigger_summary ?? null)
+    }
+
+    setOptimisticEnabled(fixConfig.enabled)
+  }, [fixConfig, showEnableDialog])
+
+  const currentEnabled =
+    optimisticEnabled !== null ? optimisticEnabled : fixConfig?.enabled ?? false
+
+  const automationStatusLabel = isLoading && fixConfig === undefined && optimisticEnabled === null
+    ? 'Loading configuration…'
+    : currentEnabled
+      ? 'Automated Fixes are ENABLED'
+      : 'Automated Fixes are DISABLED'
+
+  const automationStatusBody = isLoading && fixConfig === undefined && optimisticEnabled === null
+    ? 'Fetching the latest automation settings…'
+    : currentEnabled
+      ? activeSummary && activeSummary.candidate_count === 0
+        ? 'Automation is active but no matching issues are currently queued.'
+        : '⚠️ System can automatically apply code fixes based on configuration'
+      : '✅ System is in safe mode - no automatic fixes will be applied'
+
+  const automationCardClass = clsx(
+    'border-2',
+    isLoading
+      ? 'border-dark-200 bg-white'
+      : currentEnabled
+        ? 'border-warning-500 bg-warning-50/30'
+        : 'border-success-500 bg-success-50/30'
+  )
+
   const safetyStatusVariant = (status?: string) => {
     switch (status) {
       case 'disabled':
@@ -229,11 +289,57 @@ export default function AutomatedFixPanel() {
         <p className="text-dark-500 mt-1">Configure and monitor automated vulnerability fixes</p>
       </div>
 
+      {activeSummary && (
+        <Card className="border border-dark-200 bg-dark-50">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <History className="h-5 w-5 text-primary-500" />
+              <div>
+                {activeSummary.candidate_count === 0 ? (
+                  <>
+                    <p className="text-sm font-semibold text-dark-800">No scenarios matched this configuration</p>
+                    <p className="text-xs text-dark-600">
+                      Adjust the enabled severities or violation types to schedule automated fixes.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-dark-800">
+                      Started {activeSummary.jobs_started} job{activeSummary.jobs_started === 1 ? '' : 's'} across {activeSummary.candidate_count}{' '}
+                      scenario{activeSummary.candidate_count === 1 ? '' : 's'}
+                    </p>
+                    <p className="text-xs text-dark-600">
+                      {skippedSummaryCount > 0
+                        ? `${skippedSummaryCount} scenario${skippedSummaryCount === 1 ? ' was' : 's were'} skipped — most commonly due to already running jobs or no matching violations.`
+                        : 'All eligible scenarios were queued for automated fixes.'}
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+            {activeSummary.skipped && skippedSummaryCount > 0 && (
+              <div className="rounded-md bg-white p-3 text-xs text-dark-600">
+                <p className="font-medium text-dark-700 mb-1">Latest skipped scenarios</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  {Object.entries(activeSummary.skipped)
+                    .slice(0, 3)
+                    .map(([scenario, reason]) => (
+                      <li key={scenario}>
+                        <span className="font-semibold text-dark-700">{scenario}</span>: {reason}
+                      </li>
+                    ))}
+                </ul>
+                {skippedSummaryCount > 3 && (
+                  <p className="mt-2 text-dark-500">{skippedSummaryCount - 3} more scenario{skippedSummaryCount - 3 === 1 ? ' was' : 's were'} skipped.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
       {/* Safety Status Card */}
-      <Card className={clsx(
-        'border-2',
-        fixConfig?.enabled ? 'border-warning-500 bg-warning-50/30' : 'border-success-500 bg-success-50/30'
-      )}>
+      <Card className={automationCardClass}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             {fixConfig?.enabled ? (
@@ -246,14 +352,8 @@ export default function AutomatedFixPanel() {
               </div>
             )}
             <div>
-              <h2 className="text-lg font-bold text-dark-900">
-                Automated Fixes are {fixConfig?.enabled ? 'ENABLED' : 'DISABLED'}
-              </h2>
-              <p className="text-sm text-dark-600">
-                {fixConfig?.enabled
-                  ? '⚠️ System can automatically apply code fixes based on configuration'
-                  : '✅ System is in safe mode - no automatic fixes will be applied'}
-              </p>
+              <h2 className="text-lg font-bold text-dark-900">{automationStatusLabel}</h2>
+              <p className="text-sm text-dark-600">{automationStatusBody}</p>
             </div>
           </div>
 
@@ -261,7 +361,7 @@ export default function AutomatedFixPanel() {
             {fixConfig?.enabled ? (
               <button
                 onClick={() => disableMutation.mutate()}
-                disabled={disableMutation.isPending}
+                disabled={disableMutation.isPending || isLoading}
                 className="flex items-center gap-2 rounded-lg bg-danger-500 px-4 py-2 text-sm font-medium text-white hover:bg-danger-600 transition-colors"
               >
                 {disableMutation.isPending ? (
@@ -287,6 +387,7 @@ export default function AutomatedFixPanel() {
                   }
                   setShowEnableDialog(true)
                 }}
+                disabled={isLoading}
                 className="flex items-center gap-2 rounded-lg bg-dark-700 px-4 py-2 text-sm font-medium text-white hover:bg-dark-800 transition-colors"
               >
                 <Settings className="h-4 w-4" />

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -204,6 +205,26 @@ func (ss *StandardsStore) GetViolations(scenarioName string) []StandardsViolatio
 	}
 
 	return nil
+}
+
+// ListScenarios returns the list of scenarios that currently have stored violations.
+func (ss *StandardsStore) ListScenarios() []string {
+	ss.mu.RLock()
+	defer ss.mu.RUnlock()
+
+	if len(ss.violations) == 0 {
+		return nil
+	}
+
+	names := make([]string, 0, len(ss.violations))
+	for scenario := range ss.violations {
+		if scenario == "all" {
+			continue
+		}
+		names = append(names, scenario)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // GetAllViolations returns all stored violations

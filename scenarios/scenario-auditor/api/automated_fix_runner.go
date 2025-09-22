@@ -15,6 +15,7 @@ import (
 
 const (
 	maxIssuesPerAutomationLoop = 200
+	maxConcurrentAutomatedJobs = 1
 )
 
 type fixQueue struct {
@@ -92,13 +93,15 @@ type AutomatedFixJobSnapshot struct {
 }
 
 type AutomatedFixRunner struct {
-	mu   sync.RWMutex
-	jobs map[string]*automatedFixJob
+	mu    sync.RWMutex
+	jobs  map[string]*automatedFixJob
+	slots chan struct{}
 }
 
 func newAutomatedFixRunner() *AutomatedFixRunner {
 	return &AutomatedFixRunner{
-		jobs: make(map[string]*automatedFixJob),
+		jobs:  make(map[string]*automatedFixJob),
+		slots: make(chan struct{}, maxConcurrentAutomatedJobs),
 	}
 }
 
@@ -123,14 +126,43 @@ func (r *AutomatedFixRunner) Start(options AutomatedFixJobOptions) (*automatedFi
 	r.jobs[job.id] = job
 	r.mu.Unlock()
 
-	go func() {
-		job.run()
+	go r.executeJob(job)
+
+	return job, nil
+}
+
+func (r *AutomatedFixRunner) executeJob(job *automatedFixJob) {
+	defer func() {
 		r.mu.Lock()
 		delete(r.jobs, job.id)
 		r.mu.Unlock()
 	}()
 
-	return job, nil
+	acquired := r.acquireSlot(job)
+	if !acquired {
+		return
+	}
+	defer func() {
+		<-r.slots
+	}()
+
+	job.run()
+}
+
+func (r *AutomatedFixRunner) acquireSlot(job *automatedFixJob) bool {
+	job.markQueued()
+	select {
+	case r.slots <- struct{}{}:
+		return true
+	case <-job.stopCh:
+		return false
+	case <-job.ctx.Done():
+		if job.isCancelled() {
+			return false
+		}
+		job.fail(job.ctx.Err())
+		return false
+	}
 }
 
 func (r *AutomatedFixRunner) Get(jobID string) (*AutomatedFixJobSnapshot, bool) {
@@ -167,6 +199,14 @@ func (r *AutomatedFixRunner) Cancel(jobID string) error {
 	return job.Cancel()
 }
 
+func (r *AutomatedFixRunner) RequestStopAll() {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, job := range r.jobs {
+		job.RequestStopAfterLoop()
+	}
+}
+
 type automatedFixJob struct {
 	id               string
 	scenario         string
@@ -197,6 +237,10 @@ type automatedFixJob struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	stopCh        chan struct{}
+	stopRequested bool
+	stopOnce      sync.Once
 
 	mu sync.RWMutex
 }
@@ -284,6 +328,7 @@ func newAutomatedFixJob(options AutomatedFixJobOptions) (*automatedFixJob, error
 		ctx:               ctx,
 		cancel:            cancel,
 		model:             model,
+		stopCh:            make(chan struct{}),
 	}
 
 	if err := job.refreshQueues(); err != nil {
@@ -321,6 +366,9 @@ func (job *automatedFixJob) Cancel() error {
 	if job.cancel != nil {
 		job.cancel()
 	}
+	job.stopOnce.Do(func() {
+		close(job.stopCh)
+	})
 	return nil
 }
 
@@ -328,6 +376,25 @@ func (job *automatedFixJob) isTerminal() bool {
 	job.mu.RLock()
 	defer job.mu.RUnlock()
 	return job.status == "completed" || job.status == "failed" || job.status == "cancelled"
+}
+
+func (job *automatedFixJob) RequestStopAfterLoop() {
+	job.mu.Lock()
+	if job.stopRequested || job.status == "completed" || job.status == "failed" || job.status == "cancelled" {
+		job.mu.Unlock()
+		return
+	}
+	job.stopRequested = true
+	job.mu.Unlock()
+	job.stopOnce.Do(func() {
+		close(job.stopCh)
+	})
+}
+
+func (job *automatedFixJob) shouldStop() bool {
+	job.mu.RLock()
+	defer job.mu.RUnlock()
+	return job.stopRequested
 }
 
 func (job *automatedFixJob) Snapshot() AutomatedFixJobSnapshot {
@@ -352,6 +419,20 @@ func (job *automatedFixJob) Snapshot() AutomatedFixJobSnapshot {
 	}
 	copy.Loops = cloneLoopHistory(job.loopHistory)
 	return copy
+}
+
+func (job *automatedFixJob) markQueued() {
+	job.mu.Lock()
+	if job.status == "pending" {
+		job.message = "Waiting for available automation slot"
+	}
+	job.mu.Unlock()
+}
+
+func (job *automatedFixJob) isCancelled() bool {
+	job.mu.RLock()
+	defer job.mu.RUnlock()
+	return job.status == "cancelled"
 }
 
 func cloneLoopHistory(records []automationLoopRecord) []automationLoopRecord {
@@ -492,6 +573,11 @@ func (job *automatedFixJob) run() {
 	}()
 
 	for {
+		if job.shouldStop() {
+			job.complete("Automation disabled by operator")
+			return
+		}
+
 		if err := job.ctx.Err(); err != nil {
 			job.fail(err)
 			return
@@ -504,8 +590,7 @@ func (job *automatedFixJob) run() {
 		}
 
 		if job.maxFixes > 0 && job.issuesAttempted >= job.maxFixes {
-			automatedFixStore.Disable()
-			job.complete("Maximum automated fixes reached - automation disabled")
+			job.complete("Maximum automated fixes reached for this job")
 			return
 		}
 
@@ -514,11 +599,19 @@ func (job *automatedFixJob) run() {
 			return
 		}
 
+		if job.shouldStop() {
+			job.complete("Automation disabled by operator")
+			return
+		}
+
 		if job.loopDelay > 0 {
 			select {
 			case <-time.After(job.loopDelay):
 			case <-job.ctx.Done():
 				job.fail(job.ctx.Err())
+				return
+			case <-job.stopCh:
+				job.complete("Automation disabled by operator")
 				return
 			}
 		}

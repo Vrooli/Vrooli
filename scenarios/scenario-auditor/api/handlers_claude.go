@@ -671,25 +671,33 @@ func clampAgentCount(requested, total int) int {
 	if total <= 0 {
 		return 0
 	}
+
+	maxCapacity := maxBulkFixAgents * maxIssuesPerAgent
+	if total > maxCapacity {
+		total = maxCapacity
+	}
+
 	minAgents := (total + maxIssuesPerAgent - 1) / maxIssuesPerAgent
 	if minAgents < 1 {
 		minAgents = 1
 	}
-	if requested < 1 {
-		requested = 1
-	}
+
 	if requested < minAgents {
 		requested = minAgents
 	}
-	if requested > total {
-		requested = total
-	}
+
 	if requested > maxBulkFixAgents {
 		requested = maxBulkFixAgents
 	}
-	if requested < minAgents {
-		requested = minAgents
+
+	if requested > total {
+		requested = total
 	}
+
+	if requested < 1 {
+		requested = 1
+	}
+
 	return requested
 }
 

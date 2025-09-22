@@ -94,8 +94,8 @@ const path = require('path');
 const http = require('http');  // Add for proxy
 
 const app = express();
-const PORT = process.env.PORT || process.env.UI_PORT || 3000;
-const API_PORT = process.env.API_PORT || 8080;
+const PORT = process.env.UI_PORT;
+const API_PORT = process.env.API_PORT;
 
 // === API PROXY IMPLEMENTATION ===
 function proxyToApi(req, res, apiPath) {
@@ -141,11 +141,6 @@ function proxyToApi(req, res, apiPath) {
 }
 
 // === PROXY ROUTES ===
-// Health endpoint proxy (if exists)
-app.use('/health', (req, res) => {
-    proxyToApi(req, res, '/health');
-});
-
 // API endpoints proxy
 app.use('/api', (req, res) => {
     // Express strips /api prefix, so add it back

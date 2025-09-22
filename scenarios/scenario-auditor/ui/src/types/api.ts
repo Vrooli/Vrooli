@@ -197,6 +197,12 @@ export interface PerformanceMetric {
   metadata?: Record<string, any>
 }
 
+export interface AutomationTriggerSummary {
+  candidate_count: number
+  jobs_started: number
+  skipped?: Record<string, string>
+}
+
 export interface AutomatedFixConfig {
   enabled: boolean
   violation_types: Array<'security' | 'standards'>
@@ -208,6 +214,7 @@ export interface AutomatedFixConfig {
   model: string
   safety_status: string
   updated_at?: string
+  trigger_summary?: AutomationTriggerSummary
 }
 
 export interface AutomatedFix {

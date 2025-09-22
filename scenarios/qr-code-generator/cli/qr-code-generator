@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# QR Code Generator CLI
+
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <text> [output.png]"
+    exit 1
+fi
+
+TEXT="$1"
+OUTPUT="${2:-qrcode.png}"
+
+echo "Generating QR code for: $TEXT"
+echo "Output file: $OUTPUT"
+
+# Placeholder for QR generation (in a real implementation, use qrencode or similar)
+# qrencode -o - "$TEXT" > "$OUTPUT"
+
+echo "QR code generated successfully (placeholder)."

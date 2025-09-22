@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -1226,10 +1227,25 @@ func getHealthSummaryHandler(w http.ResponseWriter, r *http.Request) {
 		hasScans = totalVulns > 0
 	}
 
-	// For now, no standards violations until we implement that
+	// Gather standards violations from the in-memory store so the UI reflects reality.
 	totalViolations := 0
 	criticalViolations := 0
 	highViolations := 0
+	standardsViolations := standardsStore.GetViolations("all")
+	if len(standardsViolations) == 0 {
+		standardsViolations = standardsStore.GetViolations("")
+	}
+	if len(standardsViolations) > 0 {
+		totalViolations = len(standardsViolations)
+		for _, violation := range standardsViolations {
+			switch strings.ToUpper(strings.TrimSpace(violation.Severity)) {
+			case "CRITICAL":
+				criticalViolations++
+			case "HIGH":
+				highViolations++
+			}
+		}
+	}
 
 	// Count scenarios with critical vulnerabilities
 	criticalScenarios := 0
@@ -1479,6 +1495,7 @@ func enableAutomatedFixesHandler(w http.ResponseWriter, r *http.Request) {
 		MaxFixes:       req.MaxFixes,
 		Model:          req.Model,
 	})
+	summary := triggerAutomatedFixJobs(cfg)
 	response := map[string]interface{}{
 		"enabled":            cfg.Enabled,
 		"violation_types":    cfg.ViolationTypes,
@@ -1490,6 +1507,7 @@ func enableAutomatedFixesHandler(w http.ResponseWriter, r *http.Request) {
 		"model":              cfg.Model,
 		"updated_at":         cfg.UpdatedAt,
 		"safety_status":      computeSafetyStatus(cfg),
+		"trigger_summary":    summary,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -1501,6 +1519,7 @@ func enableAutomatedFixesHandler(w http.ResponseWriter, r *http.Request) {
 
 func disableAutomatedFixesHandler(w http.ResponseWriter, r *http.Request) {
 	cfg := automatedFixStore.Disable()
+	automatedFixRunner.RequestStopAll()
 	response := map[string]interface{}{
 		"enabled":            cfg.Enabled,
 		"violation_types":    cfg.ViolationTypes,
@@ -1526,6 +1545,16 @@ func applyAutomatedFixWithSafetyHandler(w http.ResponseWriter, r *http.Request) 
 	scenarioName := strings.TrimSpace(vars["scenario"])
 	if scenarioName == "" {
 		HTTPError(w, "scenario name is required", http.StatusBadRequest, nil)
+		return
+	}
+
+	if filepath.IsAbs(scenarioName) || scenarioName == "." || scenarioName == ".." {
+		HTTPError(w, "invalid scenario name", http.StatusBadRequest, nil)
+		return
+	}
+
+	if strings.ContainsAny(scenarioName, "/\\:") {
+		HTTPError(w, "scenario name cannot contain path separators", http.StatusBadRequest, nil)
 		return
 	}
 
@@ -1559,7 +1588,20 @@ func applyAutomatedFixWithSafetyHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	scenarioPath := filepath.Clean(filepath.Join(getScenarioRoot(), "..", scenarioName))
+	scenarioRoot := getScenarioRoot()
+	scenariosDir := filepath.Clean(filepath.Join(scenarioRoot, ".."))
+	absBase, err := filepath.Abs(scenariosDir)
+	if err != nil {
+		HTTPError(w, "Failed to resolve scenarios root", http.StatusInternalServerError, err)
+		return
+	}
+
+	scenarioPath := filepath.Clean(filepath.Join(absBase, scenarioName))
+	if !isSubpath(absBase, scenarioPath) {
+		HTTPError(w, "scenario name resolved outside of scenarios directory", http.StatusBadRequest, nil)
+		return
+	}
+
 	info, err := os.Stat(scenarioPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -1711,6 +1753,106 @@ func cancelAutomatedFixJobHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type automationTriggerSummary struct {
+	CandidateCount int               `json:"candidate_count"`
+	JobsStarted    int               `json:"jobs_started"`
+	Skipped        map[string]string `json:"skipped,omitempty"`
+}
+
+func triggerAutomatedFixJobs(cfg AutomatedFixConfig) automationTriggerSummary {
+	logger := NewLogger()
+	summary := automationTriggerSummary{
+		Skipped: make(map[string]string),
+	}
+
+	severityAllow := make(map[string]struct{}, len(cfg.Severities))
+	for _, severity := range cfg.Severities {
+		severityAllow[strings.ToLower(strings.TrimSpace(severity))] = struct{}{}
+	}
+
+	typeAllow := make(map[string]struct{}, len(cfg.ViolationTypes))
+	for _, vt := range cfg.ViolationTypes {
+		value := strings.ToLower(strings.TrimSpace(vt))
+		if value != "" {
+			typeAllow[value] = struct{}{}
+		}
+	}
+
+	candidates := collectAutomationScenarioCandidates(typeAllow, severityAllow)
+	summary.CandidateCount = len(candidates)
+	if len(candidates) == 0 {
+		logger.Info("Automated fixes enabled but no matching scenarios were found for the current configuration")
+		return summary
+	}
+
+	logger.Info(fmt.Sprintf("Automated fixes enabled for %d scenario(s); starting background jobs", len(candidates)))
+
+	for _, scenario := range candidates {
+		_, err := automatedFixRunner.Start(AutomatedFixJobOptions{
+			Scenario:         scenario,
+			ActiveTypes:      append([]string(nil), cfg.ViolationTypes...),
+			ActiveSeverities: append([]string(nil), cfg.Severities...),
+			Strategy:         cfg.Strategy,
+			LoopDelaySeconds: cfg.LoopDelay,
+			TimeoutSeconds:   cfg.TimeoutSeconds,
+			MaxFixes:         cfg.MaxFixes,
+			Model:            cfg.Model,
+		})
+		if err != nil {
+			lower := strings.ToLower(err.Error())
+			if strings.Contains(lower, "already running") || strings.Contains(lower, "no matching violations") {
+				summary.Skipped[scenario] = err.Error()
+				continue
+			}
+			logger.Error(fmt.Sprintf("Failed to start automated fixes for scenario %s", scenario), err)
+			summary.Skipped[scenario] = err.Error()
+			continue
+		}
+		summary.JobsStarted++
+	}
+
+	if len(summary.Skipped) == 0 {
+		summary.Skipped = nil
+	}
+
+	return summary
+}
+
+func collectAutomationScenarioCandidates(typeAllow map[string]struct{}, severityAllow map[string]struct{}) []string {
+	if len(typeAllow) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{})
+
+	if _, ok := typeAllow["standards"]; ok {
+		for _, scenario := range standardsStore.ListScenarios() {
+			if len(filterStandardsBySeverity(scenario, severityAllow)) > 0 {
+				seen[scenario] = struct{}{}
+			}
+		}
+	}
+
+	if _, ok := typeAllow["security"]; ok {
+		for _, scenario := range vulnStore.ListScenarios() {
+			if len(filterVulnerabilitiesBySeverity(scenario, severityAllow)) > 0 {
+				seen[scenario] = struct{}{}
+			}
+		}
+	}
+
+	if len(seen) == 0 {
+		return nil
+	}
+
+	result := make([]string, 0, len(seen))
+	for scenario := range seen {
+		result = append(result, scenario)
+	}
+	sort.Strings(result)
+	return result
+}
+
 func containsViolationType(types []string, target string) bool {
 	target = strings.ToLower(strings.TrimSpace(target))
 	for _, value := range types {
@@ -1719,6 +1861,23 @@ func containsViolationType(types []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func isSubpath(base, target string) bool {
+	base = filepath.Clean(base)
+	target = filepath.Clean(target)
+	rel, err := filepath.Rel(base, target)
+	if err != nil {
+		return false
+	}
+	if rel == ".." {
+		return false
+	}
+	prefix := ".." + string(os.PathSeparator)
+	if strings.HasPrefix(rel, prefix) {
+		return false
+	}
+	return true
 }
 
 func filterVulnerabilitiesBySeverity(scenario string, allowed map[string]struct{}) []StoredVulnerability {

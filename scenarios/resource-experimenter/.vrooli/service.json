@@ -58,8 +58,7 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
-        }
-      ],
+        },\n        {\n          \"type\": \"binaries\",\n          \"targets\": [\n            \"api/resource-experimenter-api\"\n          ]\n        },\n        {\n          \"type\": \"cli\",\n          \"targets\": [\n            \"resource-experimenter\"\n          ]\n        }\n      ],
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 10000
@@ -71,7 +70,7 @@
            {
              "type": "binaries",
              "targets": [
-               "resource-experimenter-api"
+               "api/resource-experimenter-api"
              ]
            },
            {
