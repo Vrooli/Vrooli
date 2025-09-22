@@ -167,13 +167,15 @@
           {
             "type": "binaries",
             "targets": [
-              "api/fall-foliage-explorer-api"
+              "fall-foliage-explorer-api"
             ]
           },
-          {
-            "type": "cli",
-            "command": "fall-foliage-explorer"
-          },
+            {
+              "type": "cli",
+              "targets": [
+                "fall-foliage-explorer"
+              ]
+            },
           {
             "type": "resources",
             "populated": true
@@ -211,12 +213,15 @@
     "develop": {
       "description": "Start Fall Foliage Explorer app",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./foliage-api",
-          "description": "Start API server",
-          "background": true
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./fall-foliage-explorer-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/fall-foliage-explorer-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",

@@ -93,18 +93,20 @@
     },
     "setup": {
       "description": "Initialize Palette Gen",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/palette-gen-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "palette-gen"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "palette-gen-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "palette-gen"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -168,11 +170,11 @@
           "description": "Start UI server in background",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo -e '🎨 Palette Gen running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: palette-gen --help'",
-          "description": "Display running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo -e '🎨 Palette Gen running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: palette-gen --help'",
+           "description": "Display running service URLs"
+         }
       ]
     },
     "test": {

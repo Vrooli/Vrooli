@@ -1,10 +1,10 @@
-import React, { useMemo, useState, useEffect } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Shield, Plus, Terminal, X, Play, TestTube, Code, CheckCircle, XCircle, Clock, Eye, EyeOff, Brain, CircleStop, AlertTriangle, Info, ChevronDown } from 'lucide-react'
-import { Highlight, themes } from 'prism-react-renderer'
 import { AgentInfo, RuleImplementationStatus, RuleTestStatus } from '@/types/api'
-import { apiService } from '../services/api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { AlertTriangle, Brain, CheckCircle, ChevronDown, CircleStop, Clock, Code, Eye, EyeOff, Info, Play, Plus, Shield, Terminal, TestTube, X, XCircle } from 'lucide-react'
+import { Highlight, themes } from 'prism-react-renderer'
+import React, { useEffect, useMemo, useState } from 'react'
 import { CodeEditor } from '../components/CodeEditor'
+import { apiService } from '../services/api'
 
 const TARGET_CATEGORY_CONFIG: Array<{ id: string; label: string; description: string }> = [
   { id: 'api', label: 'API Files', description: 'Rules applied to files within the scenario\'s api/ directory.' },
@@ -33,23 +33,23 @@ const TARGET_BADGE_CLASSES: Record<string, string> = {
 // Code Block Component with syntax highlighting and line numbers
 function CodeBlock({ code }: { code: string }) {
   if (!code) return <div className="text-gray-500 italic">No code available</div>
-  
+
   return (
     <Highlight theme={themes.vsDark} code={code} language="go">
       {({ className, style, tokens, getLineProps, getTokenProps }) => (
         <div className="relative">
-          <pre 
-            className={`${className} text-sm rounded-lg p-4 overflow-auto max-h-[500px]`} 
+          <pre
+            className={`${className} text-sm rounded-lg p-4 overflow-auto max-h-[500px]`}
             style={style}
           >
             <code className="block">
               {tokens.map((line, i) => {
                 const lineProps = getLineProps({ line, key: i })
-                const { key: lineKey, className: lineClassName = '', ...restLineProps } = lineProps
+                const { className: lineClassName = '', ...restLineProps } = lineProps
 
                 return (
                   <div
-                    key={lineKey ?? i}
+                    key={i}
                     className={`table-row ${lineClassName}`.trim()}
                     {...restLineProps}
                   >
@@ -59,8 +59,8 @@ function CodeBlock({ code }: { code: string }) {
                     <span className="table-cell">
                       {line.map((token, key) => {
                         const tokenProps = getTokenProps({ token, key })
-                        const { key: tokenKey, ...restTokenProps } = tokenProps
-                        return <span key={tokenKey ?? key} {...restTokenProps} />
+                        const { className: tokenClassName = '', ...restTokenProps } = tokenProps
+                        return <span key={key} className={tokenClassName} {...restTokenProps} />
                       })}
                     </span>
                   </div>
@@ -161,7 +161,7 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
                 </div>
               </div>
             )}
-            <button 
+            <button
               className="text-gray-400 hover:text-gray-600 transition-colors"
               onClick={(event) => {
                 event.stopPropagation()
@@ -195,13 +195,12 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
             {missingTargets && (
               <span className="text-xs text-red-600">Add a Targets: metadata line to enable this rule.</span>
             )}
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              rule.severity === 'critical' ? 'bg-red-100 text-red-800' :
-              rule.severity === 'high' ? 'bg-orange-100 text-orange-800' :
-              rule.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-              rule.severity === 'low' ? 'bg-green-100 text-green-800' :
-              'bg-gray-100 text-gray-800'
-            }`}>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${rule.severity === 'critical' ? 'bg-red-100 text-red-800' :
+                rule.severity === 'high' ? 'bg-orange-100 text-orange-800' :
+                  rule.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                    rule.severity === 'low' ? 'bg-green-100 text-green-800' :
+                      'bg-gray-100 text-gray-800'
+              }`}>
               {rule.severity}
             </span>
           </div>
@@ -287,7 +286,7 @@ export default function RulesManager() {
     }
   }
 
-  const [showExecutionOutput, setShowExecutionOutput] = useState<{[key: number]: boolean}>({})
+  const [showExecutionOutput, setShowExecutionOutput] = useState<{ [key: number]: boolean }>({})
   const [executionInfoExpanded, setExecutionInfoExpanded] = useState(false)
 
   const { data: rulesData, isLoading, refetch } = useQuery({
@@ -301,7 +300,7 @@ export default function RulesManager() {
     enabled: !!selectedRule,
   })
 
-  const apiCategories = rulesData?.categories || {}
+  const apiCategories = (rulesData?.categories || {}) as Record<string, { name?: string }>
   const executionInfo = ruleDetail?.execution_info
 
   useEffect(() => {
@@ -330,19 +329,19 @@ export default function RulesManager() {
     }
     return false
   }, [testResults, currentRuleStatus])
-  const createCategoryEntries = Object.keys(apiCategories).length > 0
+  const createCategoryEntries: Array<[string, { name?: string }]> = Object.keys(apiCategories).length > 0
     ? Object.entries(apiCategories)
     : [
-        ['api', { name: 'API Standards' }],
-        ['config', { name: 'Configuration' }],
-        ['test', { name: 'Testing' }],
-        ['ui', { name: 'User Interface' }],
-      ]
+      ['api', { name: 'API Standards' }],
+      ['config', { name: 'Configuration' }],
+      ['test', { name: 'Testing' }],
+      ['ui', { name: 'User Interface' }],
+    ]
 
   // Run tests when rule is selected and tests tab is active
   const runRuleTests = async () => {
     if (!selectedRule) return
-    
+
     setIsRunningTests(true)
     try {
       const results = await apiService.testRule(selectedRule)
@@ -358,7 +357,7 @@ export default function RulesManager() {
   // Run playground code validation
   const runPlaygroundTest = async () => {
     if (!selectedRule || !playgroundCode.trim()) return
-    
+
     setIsRunningPlayground(true)
     try {
       const result = await apiService.validateRule(selectedRule, playgroundCode, 'go')
@@ -509,25 +508,25 @@ export default function RulesManager() {
     })
 
     rulesArray.forEach((rule: any) => {
-      const rawTargets = Array.isArray(rule?.targets) ? rule.targets : []
-      const normalizedTargets = Array.from(new Set(
+      const rawTargets: string[] = Array.isArray(rule?.targets) ? (rule.targets as string[]) : []
+      const normalizedTargets = Array.from(new Set<string>(
         rawTargets
-          .map((target: string) => (typeof target === 'string' ? target.toLowerCase().trim() : ''))
+          .map((target) => (typeof target === 'string' ? target.toLowerCase().trim() : ''))
           .filter(Boolean)
       ))
 
       const recognizedTargets = normalizedTargets.filter(target => target !== 'misc' && TARGET_CATEGORY_CONFIG.some(cfg => cfg.id === target && cfg.id !== 'misc'))
       const hasRecognizedTargets = recognizedTargets.length > 0
-      const bucketTargets = hasRecognizedTargets ? recognizedTargets : ['misc']
+      const bucketTargets: string[] = hasRecognizedTargets ? recognizedTargets : ['misc']
       const displayTargets = hasRecognizedTargets ? recognizedTargets : []
       const missingTargets = !hasRecognizedTargets
 
-      bucketTargets.forEach(targetId => {
-        const categoryId = TARGET_CATEGORY_CONFIG.some(cfg => cfg.id === targetId) ? targetId : 'misc'
-        if (!base[categoryId]) {
-          base[categoryId] = []
+      bucketTargets.forEach((targetId: string) => {
+        const categoryKey = TARGET_CATEGORY_CONFIG.some(cfg => cfg.id === targetId) ? targetId : 'misc'
+        if (!base[categoryKey]) {
+          base[categoryKey] = []
         }
-        base[categoryId].push({
+        base[categoryKey].push({
           ...rule,
           displayTargets,
           missingTargets,
@@ -581,7 +580,7 @@ export default function RulesManager() {
             Manage and configure auditing rules
           </p>
         </div>
-        <button 
+        <button
           type="button"
           className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           data-testid="create-rule-btn"
@@ -624,11 +623,11 @@ export default function RulesManager() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {selectedCategoryRules.length > 0 ? (
             selectedCategoryRules.map((rule: any) => (
-              <RuleCard 
-                key={`${rule.id}-${selectedCategory}`} 
+              <RuleCard
+                key={`${rule.id}-${selectedCategory}`}
                 rule={rule}
                 status={ruleStatuses[rule.id]}
-                onViewRule={setSelectedRule} 
+                onViewRule={setSelectedRule}
                 onToggleRule={handleToggleRule}
               />
             ))
@@ -656,14 +655,14 @@ export default function RulesManager() {
                   </div>
                   <span className="text-sm text-gray-400">{categoryRules.length} rule{categoryRules.length !== 1 ? 's' : ''}</span>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {categoryRules.map((rule: any) => (
-                    <RuleCard 
-                      key={`${rule.id}-${key}`} 
+                    <RuleCard
+                      key={`${rule.id}-${key}`}
                       rule={rule}
                       status={ruleStatuses[rule.id]}
-                      onViewRule={setSelectedRule} 
+                      onViewRule={setSelectedRule}
                       onToggleRule={handleToggleRule}
                     />
                   ))}
@@ -812,7 +811,7 @@ export default function RulesManager() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setSelectedRule(null)} />
-            
+
             <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6">
               <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
                 <button
@@ -824,7 +823,7 @@ export default function RulesManager() {
                   <X className="h-6 w-6" />
                 </button>
               </div>
-              
+
               <div className="sm:flex sm:items-start">
                 <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
                   <Terminal className="h-6 w-6 text-blue-600" />
@@ -854,17 +853,16 @@ export default function RulesManager() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Tab Navigation */}
               <div className="mt-5 border-b border-gray-200">
                 <div className="flex space-x-8">
                   <button
                     onClick={() => setActiveTab('implementation')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                      activeTab === 'implementation'
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'implementation'
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <Code className="h-4 w-4 inline-block mr-2" />
                     Implementation
@@ -874,31 +872,28 @@ export default function RulesManager() {
                       setActiveTab('tests')
                       if (!testResults && !isRunningTests) runRuleTests()
                     }}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                      activeTab === 'tests'
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'tests'
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <TestTube className="h-4 w-4 inline-block mr-2" />
                     Test Cases
                     {testResults && (
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        testResults.error ? 'bg-red-100 text-red-800' :
-                        testResults.failed > 0 ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${testResults.error ? 'bg-red-100 text-red-800' :
+                          testResults.failed > 0 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                        }`}>
                         {testResults.error ? 'Error' : `${testResults.passed}/${testResults.total_tests} correct`}
                       </span>
                     )}
                   </button>
                   <button
                     onClick={() => setActiveTab('playground')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                      activeTab === 'playground'
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'playground'
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <Play className="h-4 w-4 inline-block mr-2" />
                     Playground
@@ -1124,9 +1119,8 @@ export default function RulesManager() {
 
                         {testResults.tests.map((test: any, index: number) => (
                           <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
-                            <div className={`px-4 py-3 border-b border-gray-200 ${
-                              test.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-                            }`}>
+                            <div className={`px-4 py-3 border-b border-gray-200 ${test.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                              }`}>
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center">
                                   {test.passed ? (
@@ -1140,14 +1134,12 @@ export default function RulesManager() {
                                   </div>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                    test.test_case.should_fail ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'
-                                  }`}>
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${test.test_case.should_fail ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'
+                                    }`}>
                                     Expected: {test.test_case.should_fail ? 'Violations' : 'No Violations'}
                                   </span>
-                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                    test.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                  }`}>
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${test.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                    }`}>
                                     {test.passed ? '✅ BEHAVED CORRECTLY' : '❌ UNEXPECTED BEHAVIOR'}
                                   </span>
                                 </div>
@@ -1175,7 +1167,7 @@ export default function RulesManager() {
                                 )}
                               </div>
                             </div>
-                            
+
                             <div className="p-4 space-y-4">
                               <div>
                                 <h6 className="text-sm font-medium text-gray-900 mb-2">Test Input</h6>
@@ -1183,7 +1175,7 @@ export default function RulesManager() {
                                   <CodeBlock code={test.test_case.input} />
                                 </div>
                               </div>
-                              
+
                               {test.actual_violations && test.actual_violations.length > 0 && (
                                 <div>
                                   <h6 className="text-sm font-medium text-gray-900 mb-2">Violations Found</h6>
@@ -1192,12 +1184,11 @@ export default function RulesManager() {
                                       <div key={vIndex} className="bg-gray-50 rounded p-3 text-sm">
                                         <div className="flex items-start justify-between">
                                           <div>
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                              violation.severity === 'critical' ? 'bg-red-100 text-red-800' :
-                                              violation.severity === 'high' ? 'bg-orange-100 text-orange-800' :
-                                              violation.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                              'bg-blue-100 text-blue-800'
-                                            }`}>
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${violation.severity === 'critical' ? 'bg-red-100 text-red-800' :
+                                                violation.severity === 'high' ? 'bg-orange-100 text-orange-800' :
+                                                  violation.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-blue-100 text-blue-800'
+                                              }`}>
                                               {violation.severity}
                                             </span>
                                           </div>
@@ -1234,39 +1225,38 @@ export default function RulesManager() {
                                       )}
                                     </button>
                                   </div>
-                                  
+
                                   {showExecutionOutput[index] && (
                                     <div className="bg-gray-50 rounded p-3 text-xs space-y-2">
                                       <div className="flex items-center gap-2 text-gray-600">
                                         <span className="font-medium">Method:</span>
-                                        <span className={`px-2 py-0.5 rounded text-xs ${
-                                          test.execution_output.method === 'judge0' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
-                                        }`}>
+                                        <span className={`px-2 py-0.5 rounded text-xs ${test.execution_output.method === 'judge0' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                          }`}>
                                           {test.execution_output.method}
                                         </span>
                                       </div>
-                                      
+
                                       {test.execution_output.stdout && (
                                         <div>
                                           <span className="font-medium text-gray-700">Stdout:</span>
                                           <pre className="mt-1 bg-gray-900 text-gray-100 p-2 rounded text-xs whitespace-pre-wrap">{test.execution_output.stdout}</pre>
                                         </div>
                                       )}
-                                      
+
                                       {test.execution_output.stderr && (
                                         <div>
                                           <span className="font-medium text-gray-700">Stderr:</span>
                                           <pre className="mt-1 bg-red-900 text-red-100 p-2 rounded text-xs whitespace-pre-wrap">{test.execution_output.stderr}</pre>
                                         </div>
                                       )}
-                                      
+
                                       {test.execution_output.compile_output && (
                                         <div>
                                           <span className="font-medium text-gray-700">Compile Output:</span>
                                           <pre className="mt-1 bg-yellow-900 text-yellow-100 p-2 rounded text-xs whitespace-pre-wrap">{test.execution_output.compile_output}</pre>
                                         </div>
                                       )}
-                                      
+
                                       {test.execution_output.exit_code !== undefined && (
                                         <div className="text-gray-600">
                                           <span className="font-medium">Exit Code:</span> {test.execution_output.exit_code}
@@ -1328,13 +1318,12 @@ export default function RulesManager() {
 
                     {playgroundResult && (
                       <div className="border border-gray-200 rounded-lg overflow-hidden">
-                        <div className={`px-4 py-3 border-b border-gray-200 ${
-                          playgroundResult.error ? 'bg-red-50' :
-                          playgroundResult.actual_violations?.length > 0 ? 'bg-yellow-50' : 'bg-green-50'
-                        }`}>
+                        <div className={`px-4 py-3 border-b border-gray-200 ${playgroundResult.error ? 'bg-red-50' :
+                            playgroundResult.actual_violations?.length > 0 ? 'bg-yellow-50' : 'bg-green-50'
+                          }`}>
                           <h5 className="font-medium text-gray-900">Test Result</h5>
                         </div>
-                        
+
                         <div className="p-4">
                           {playgroundResult.error ? (
                             <div className="text-red-800">
@@ -1348,12 +1337,11 @@ export default function RulesManager() {
                               {playgroundResult.actual_violations.map((violation: any, index: number) => (
                                 <div key={index} className="bg-gray-50 rounded p-3">
                                   <div className="flex items-start justify-between">
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                      violation.severity === 'critical' ? 'bg-red-100 text-red-800' :
-                                      violation.severity === 'high' ? 'bg-orange-100 text-orange-800' :
-                                      violation.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                      'bg-blue-100 text-blue-800'
-                                    }`}>
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${violation.severity === 'critical' ? 'bg-red-100 text-red-800' :
+                                        violation.severity === 'high' ? 'bg-orange-100 text-orange-800' :
+                                          violation.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-blue-100 text-blue-800'
+                                      }`}>
                                       {violation.severity}
                                     </span>
                                   </div>
@@ -1367,7 +1355,7 @@ export default function RulesManager() {
                               <strong>No violations found!</strong> Your code follows this rule.
                             </div>
                           )}
-                          
+
                           {/* Execution Output for Playground */}
                           {playgroundResult.test_result?.execution_output && (
                             <div className="mt-4 pt-4 border-t border-gray-200">
@@ -1375,34 +1363,33 @@ export default function RulesManager() {
                               <div className="bg-gray-50 rounded p-3 text-xs space-y-2">
                                 <div className="flex items-center gap-2 text-gray-600">
                                   <span className="font-medium">Method:</span>
-                                  <span className={`px-2 py-0.5 rounded text-xs ${
-                                    playgroundResult.test_result.execution_output.method === 'judge0' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
-                                  }`}>
+                                  <span className={`px-2 py-0.5 rounded text-xs ${playgroundResult.test_result.execution_output.method === 'judge0' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                    }`}>
                                     {playgroundResult.test_result.execution_output.method}
                                   </span>
                                 </div>
-                                
+
                                 {playgroundResult.test_result.execution_output.stdout && (
                                   <div>
                                     <span className="font-medium text-gray-700">Stdout:</span>
                                     <pre className="mt-1 bg-gray-900 text-gray-100 p-2 rounded text-xs whitespace-pre-wrap">{playgroundResult.test_result.execution_output.stdout}</pre>
                                   </div>
                                 )}
-                                
+
                                 {playgroundResult.test_result.execution_output.stderr && (
                                   <div>
                                     <span className="font-medium text-gray-700">Stderr:</span>
                                     <pre className="mt-1 bg-red-900 text-red-100 p-2 rounded text-xs whitespace-pre-wrap">{playgroundResult.test_result.execution_output.stderr}</pre>
                                   </div>
                                 )}
-                                
+
                                 {playgroundResult.test_result.execution_output.compile_output && (
                                   <div>
                                     <span className="font-medium text-gray-700">Compile Output:</span>
                                     <pre className="mt-1 bg-yellow-900 text-yellow-100 p-2 rounded text-xs whitespace-pre-wrap">{playgroundResult.test_result.execution_output.compile_output}</pre>
                                   </div>
                                 )}
-                                
+
                                 {playgroundResult.test_result.execution_output.exit_code !== undefined && (
                                   <div className="text-gray-600">
                                     <span className="font-medium">Exit Code:</span> {playgroundResult.test_result.execution_output.exit_code}
@@ -1424,7 +1411,7 @@ export default function RulesManager() {
                   </div>
                 )}
               </div>
-              
+
               <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                 <button
                   type="button"

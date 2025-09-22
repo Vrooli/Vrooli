@@ -17,10 +17,10 @@
     ]
   },
   "ports": {
-    "app": {
+    "api": {
       "env_var": "API_PORT",
       "description": "Main application port",
-      "range": "35000-39999"
+      "range": "15000-19999"
     }
   },
   "resources": {
@@ -54,20 +54,22 @@
     },
     "setup": {
       "description": "Initialize Simple Test App",
-      "condition": {
-        "checks": [
-          {
-            "type": "dependencies",
-            "paths": [
-              "package.json"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "simple-test-api"
+             ]
+           },
+             {
+               "type": "cli",
+               "targets": [
+                 "simple-test"
+               ]
+             }
+         ]
+       },
       "steps": [
         {
           "name": "generate-embeddings",
@@ -86,20 +88,23 @@
         }
       ]
     },
-    "develop": {
-      "description": "Start development server",
-      "steps": [
-        {
-          "name": "start-app",
-          "run": "PORT=${API_PORT} node server.js",
-          "description": "Start the application server in background",
-          "background": true
-        },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Application: http://localhost:${API_PORT}'",
-          "description": "Display running service URLs"
-        }
+     "develop": {
+       "description": "Start development server",
+       "steps": [
+          {
+            "name": "start-api",
+            "run": "cd api && ./simple-test-api",
+            "description": "Start Go API server in background",
+            "background": true,
+            "condition": {
+              "file_exists": "api/simple-test-api"
+            }
+          },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Application: http://localhost:${API_PORT}'",
+           "description": "Display running service URLs"
+         }
       ]
     },
     "test": {

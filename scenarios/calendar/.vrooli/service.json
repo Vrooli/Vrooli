@@ -102,16 +102,18 @@
       "description": "Initialize Calendar system",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/calendar-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "calendar"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "calendar-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "calendar"
+             ]
+           },
           {
             "type": "directory",
             "path": "initialization/postgres"
@@ -152,15 +154,15 @@
           "run": "export VROOLI_LIFECYCLE_MANAGED=true",
           "description": "Set lifecycle environment flag"
         },
-        {
-          "name": "start-api",
-          "run": "cd api && VROOLI_LIFECYCLE_MANAGED=true ./calendar-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/calendar-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./calendar-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/calendar-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && VROOLI_LIFECYCLE_MANAGED=true npm run dev",
@@ -170,11 +172,11 @@
             "file_exists": "ui/package.json"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: calendar --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: calendar --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

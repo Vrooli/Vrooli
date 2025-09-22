@@ -92,18 +92,20 @@
     },
     "setup": {
       "description": "Initialize QR Code Generator",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/qr-code-generator-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "qr-code-generator"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "qr-code-generator-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "qr-code-generator"
+             ]
+           },
           {
             "type": "resources",
             "populated": true
@@ -146,23 +148,26 @@
     "develop": {
       "description": "Start QR code generator services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && echo 'Starting API on port ${API_PORT}...' && PORT=${API_PORT} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./qr-generator-api",
-          "description": "Start API server",
-          "background": true
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./qr-code-generator-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/qr-code-generator-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
-        {
-          "name": "show-running",
-          "run": "echo '🚀 QR Code Generator running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-          "description": "Display running services"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 QR Code Generator running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display running services"
+         }
       ]
     },
     "test": {

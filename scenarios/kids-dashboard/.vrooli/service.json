@@ -1,13 +1,28 @@
 {
-  "name": "kids-dashboard",
+  "service": {
+    "name": "kids-dashboard",
+    "displayName": "Kids Dashboard",
+    "description": "Safe, fun dashboard for children to access kid-friendly Vrooli scenarios",
+    "version": "1.0.0",
+    "tags": ["kids", "children", "family", "dashboard", "safe-browsing"]
+  },
   "version": "1.0.0",
-  "description": "Safe, fun dashboard for children to access kid-friendly Vrooli scenarios",
   "category": [
     "interface",
     "family"
   ],
-  "status": "active",
-  "metadata": {
+   "status": "active",
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "range": "35000-39999"
+     }
+   },
+   "metadata": {
     "author": "Vrooli Team",
     "created": "2025-01-06",
     "updated": "2025-01-06",
@@ -100,9 +115,73 @@
     "scanInterval": 60,
     "scenarioPattern": "../../scenarios/*/.vrooli/service.json",
     "method": "filesystem"
-  },
-  "lifecycle": {
-    "stop": {
+   },
+   "lifecycle": {
+     "setup": {
+       "description": "Initialize Kids Dashboard",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "kids-dashboard-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "kids-dashboard"
+             ]
+           }
+         ]
+       },
+       "steps": [
+         {
+           "name": "build-api",
+           "run": "cd api && go mod download && go build -o kids-dashboard-api .",
+           "description": "Build Go API binary"
+         },
+         {
+           "name": "setup-ui",
+           "run": "cd ui && npm install",
+           "description": "Install UI dependencies"
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🎮 Kids Dashboard initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display service access URLs"
+         }
+       ]
+     },
+      "develop": {
+       "description": "Start kids dashboard services",
+       "steps": [
+           {
+             "name": "start-api",
+             "run": "cd api && ./kids-dashboard-api",
+             "description": "Start Go API server in background",
+             "background": true,
+             "condition": {
+               "file_exists": "api/kids-dashboard-api"
+             }
+           },
+         {
+           "name": "start-ui",
+           "run": "cd ui && npm install && npm run dev",
+           "description": "Start React dashboard UI",
+           "background": true,
+           "condition": {
+             "file_exists": "ui/package.json"
+           }
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Kids Dashboard running:\\n  🎮 Dashboard: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT'",
+           "description": "Display service URLs"
+         }
+       ]
+     },
+     "stop": {
       "description": "Stop kids-dashboard services",
       "steps": [
         {

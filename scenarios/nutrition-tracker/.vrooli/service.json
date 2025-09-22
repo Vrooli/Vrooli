@@ -120,24 +120,26 @@
     },
     "setup": {
       "description": "Initialize Nutrition Tracker",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/nutrition-tracker-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "nutrition-tracker"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "nutrition-tracker-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "nutrition-tracker"
+             ]
+           },
+           {
+             "type": "resources",
+             "populated": true
+           }
+         ]
+       },
       "steps": [
         {
           "name": "generate-embeddings",
@@ -174,23 +176,26 @@
     "develop": {
       "description": "Start Nutrition Tracker services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./nutrition-tracker-api",
-          "description": "Start API server",
-          "background": true
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./nutrition-tracker-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/nutrition-tracker-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
-        {
-          "name": "show-running",
-          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
-          "description": "Display running services"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
+           "description": "Display running services"
+         }
       ]
     },
     "test": {

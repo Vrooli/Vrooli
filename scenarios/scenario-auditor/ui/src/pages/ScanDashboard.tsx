@@ -1,16 +1,16 @@
-import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { 
-  BarChart3, 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
-  TrendingUp,
-  Zap,
+import {
+  AlertTriangle,
+  BarChart3,
+  CheckCircle,
   Clock,
-  FileText
+  FileText,
+  Shield,
+  TrendingUp,
+  Zap
 } from 'lucide-react'
-import { apiService, DashboardData } from '../services/api'
+import { useState } from 'react'
+import { apiService } from '../services/api'
 
 export default function ScanDashboard() {
   const [selectedTimeRange, setSelectedTimeRange] = useState('7d')
@@ -87,7 +87,7 @@ export default function ScanDashboard() {
 
       {/* Quick Actions */}
       <div className="mb-6 flex space-x-4">
-        <button 
+        <button
           className="btn-primary"
           data-testid="scan-all-btn"
           onClick={() => {
@@ -98,7 +98,7 @@ export default function ScanDashboard() {
           <Zap className="h-4 w-4 mr-2" />
           Scan All Scenarios
         </button>
-        <button 
+        <button
           className="btn-secondary"
           data-testid="scan-current-btn"
           onClick={() => {
@@ -176,12 +176,11 @@ export default function ScanDashboard() {
             </div>
           </div>
           <div className="mt-4">
-            <div className={`text-sm ${
-              overview.average_score >= 90 ? 'text-green-600' :
-              overview.average_score >= 70 ? 'text-yellow-600' : 'text-red-600'
-            }`}>
+            <div className={`text-sm ${overview.average_score >= 90 ? 'text-green-600' :
+                overview.average_score >= 70 ? 'text-yellow-600' : 'text-red-600'
+              }`}>
               {overview.average_score >= 90 ? 'Excellent' :
-               overview.average_score >= 70 ? 'Good' : 'Needs Improvement'}
+                overview.average_score >= 70 ? 'Good' : 'Needs Improvement'}
             </div>
           </div>
         </div>
@@ -228,9 +227,8 @@ export default function ScanDashboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        scan.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                      }`}>
+                      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${scan.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
                         {scan.status}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">

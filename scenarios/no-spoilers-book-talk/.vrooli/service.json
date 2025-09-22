@@ -120,18 +120,20 @@
     },
     "setup": {
       "description": "Initialize No Spoilers Book Talk scenario",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/no-spoilers-book-talk-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "no-spoilers-book-talk"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "no-spoilers-book-talk-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "no-spoilers-book-talk"
+             ]
+           },
           {
             "type": "resources",
             "populated": true
@@ -183,11 +185,11 @@
             "file_exists": "api/no-spoilers-book-talk-api"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '📚 No Spoilers Book Talk running:\\n  API: http://localhost:$API_PORT\\n  Upload books: POST /api/v1/books/upload\\n  Start chat: POST /api/v1/books/{book_id}/chat\\n  CLI: no-spoilers-book-talk --help'",
-          "description": "Display running service information"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '📚 No Spoilers Book Talk running:\\n  API: http://localhost:$API_PORT\\n  Upload books: POST /api/v1/books/upload\\n  Start chat: POST /api/v1/books/{book_id}/chat\\n  CLI: no-spoilers-book-talk --help'",
+           "description": "Display running service information"
+         }
       ]
     },
     "test": {

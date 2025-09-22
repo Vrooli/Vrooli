@@ -126,24 +126,26 @@
     },
     "setup": {
       "description": "Initialize Knowledge Observatory",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/knowledge-observatory-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "knowledge-observatory"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "knowledge-observatory-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "knowledge-observatory"
+             ]
+           },
+           {
+             "type": "resources",
+             "populated": true
+           }
+         ]
+       },
       "steps": [
         {
           "name": "add-data",
@@ -175,26 +177,26 @@
     "develop": {
       "description": "Start Knowledge Observatory with API and UI",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && env QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} ./knowledge-observatory-api",
-          "description": "Start Go API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/knowledge-observatory-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./knowledge-observatory-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/knowledge-observatory-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm run start",
           "description": "Start UI dashboard server",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🔭 Knowledge Observatory running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: knowledge-observatory --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🔭 Knowledge Observatory running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: knowledge-observatory --help'",
+           "description": "Display service URLs and usage information"
+         }
       ]
     },
     "test": {

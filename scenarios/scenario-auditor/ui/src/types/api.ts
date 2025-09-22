@@ -8,11 +8,24 @@ export interface SystemStatus {
   timestamp: string
 }
 
+interface SummaryMetric {
+  total: number
+  trend?: 'up' | 'down' | 'stable'
+  healthy?: number
+  degraded?: number
+  unhealthy?: number
+  critical?: number
+  high?: number
+  medium?: number
+  low?: number
+  [key: string]: unknown
+}
+
 export interface HealthSummary {
   status: string
   system_health_score: number | null  // null when no scans have been performed
   health_trend?: 'up' | 'down' | 'stable'
-  scenarios: number // Updated to match API response
+  scenarios: number | SummaryMetric
   scenarios_detail?: {
     total: number
     available: number
@@ -20,16 +33,18 @@ export interface HealthSummary {
     healthy: number
     critical: number
   }
-  vulnerabilities: number // Updated to match API response
+  vulnerabilities: number | SummaryMetric
   vulnerabilities_detail?: {
     total: number
     critical: number
     high: number
+    medium?: number
+    low?: number
   }
   endpoints?: {
     total: number
     monitored: number
-    unmonitored: number
+    unmonitored?: number
   }
   scan_status?: {
     has_scans: boolean

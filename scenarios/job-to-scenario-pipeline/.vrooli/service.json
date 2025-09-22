@@ -19,16 +19,16 @@
     ]
   },
   "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Job pipeline API port",
-      "range": "15500-15599"
-    },
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "Pipeline dashboard UI port",
-      "range": "35500-35599"
-    }
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Job pipeline API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Pipeline dashboard UI port",
+       "range": "35000-39999"
+     }
   },
   "resources": {
     "postgres": {
@@ -91,31 +91,33 @@
     },
     "setup": {
       "description": "Initialize job-to-scenario pipeline",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/job-pipeline-api"
-            ]
-          },
-          {
-            "type": "directories",
-            "targets": [
-              "data/pending",
-              "data/researching",
-              "data/evaluated",
-              "data/approved",
-              "data/building",
-              "data/completed"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "job-to-scenario"
-          }
-        ]
-      },
+       "condition": {
+         "checks": [
+            {
+              "type": "binaries",
+              "targets": [
+                "job-to-scenario-pipeline-api"
+              ]
+            },
+            {
+              "type": "cli",
+              "targets": [
+                "job-to-scenario-pipeline"
+              ]
+            },
+           {
+             "type": "directories",
+             "targets": [
+               "data/pending",
+               "data/researching",
+               "data/evaluated",
+               "data/approved",
+               "data/building",
+               "data/completed"
+             ]
+           }
+         ]
+       },
       "steps": [
         {
           "name": "create-data-structure",
@@ -163,15 +165,15 @@
     "develop": {
       "description": "Start job pipeline services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./job-pipeline-api",
-          "description": "Start job pipeline API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/job-pipeline-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./job-to-scenario-pipeline-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/job-to-scenario-pipeline-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && npm install && npm run dev",
@@ -187,9 +189,9 @@
           "description": "Note about Huginn agent setup"
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "echo '🚀 Job Pipeline running:\\n  📊 Dashboard: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT\\n  🎯 CLI: job-to-scenario --help\\n\\n📝 Process jobs:\\n  job-to-scenario import manual --text \"Job description\"\\n  job-to-scenario research --batch-size 5\\n  job-to-scenario approve <job-id>\\n  job-to-scenario list --state evaluated\\n\\n📂 Monitor states:\\n  ls data/pending/*.yaml\\n  ls data/evaluated/*.yaml\\n  ls data/completed/*.yaml'",
-          "description": "Display running services and commands"
+          "description": "Display service URLs and usage information"
         }
       ]
     },

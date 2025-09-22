@@ -1,36 +1,36 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { 
-  Shield, 
-  Search, 
-  AlertCircle, 
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  FileCode,
-  AlertTriangle,
-  ChevronRight,
-  Play,
-  Info,
-  Zap,
-  Target,
-  X,
-  Award,
-  Settings,
-  TestTube,
-  Globe,
-  Code,
-  Bot,
-  Loader2
-} from 'lucide-react'
+import { AgentInfo, StandardsScanStatus, StandardsViolation } from '@/types/api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { format } from 'date-fns'
+import {
+  AlertCircle,
+  AlertTriangle,
+  Award,
+  Bot,
+  CheckCircle,
+  ChevronRight,
+  Code,
+  FileCode,
+  Globe,
+  Info,
+  Loader2,
+  Play,
+  RefreshCw,
+  Search,
+  Settings,
+  Shield,
+  Target,
+  TestTube,
+  X,
+  XCircle,
+  Zap
+} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { apiService } from '../services/api'
-import { Card } from './common/Card'
 import { Badge } from './common/Badge'
+import { Card } from './common/Card'
 import { Dialog } from './common/Dialog'
 import { VirtualizedList } from './common/VirtualizedList'
-import { AgentInfo, StandardsScanStatus, StandardsViolation } from '@/types/api'
 
 interface CompletedAgentStatus {
   agentId: string
@@ -40,15 +40,34 @@ interface CompletedAgentStatus {
   message?: string
 }
 
-const DEFAULT_MODEL_SLUG = 'openrouter/x-ai/grok-code-fast-1'
+const selectDefaultModel = (options: Array<{ value: string }>, fallback: string) => {
+  const freeOption = options.find(option => option.value.toLowerCase().endsWith(':free'))
+  return freeOption?.value ?? fallback
+}
 
-const BULK_FIX_MODEL_OPTIONS = [
+const FALLBACK_MODEL_SLUG = 'openrouter/x-ai/grok-code-fast-1'
+
+const BULK_MODEL_BLUEPRINT = [
   { value: 'default', label: 'Default (scenario setting)' },
-  { value: DEFAULT_MODEL_SLUG, label: 'x-ai/grok-code-fast-1' },
+  { value: FALLBACK_MODEL_SLUG, label: 'x-ai/grok-code-fast-1' },
   { value: 'openrouter/google/gemini-2.5-flash', label: 'google/gemini-2.5-flash' },
   { value: 'openrouter/openai/gpt-5', label: 'openai/gpt-5' },
   { value: 'openrouter/x-ai/grok-4-fast:free', label: 'x-ai/grok-4-fast:free' },
 ]
+
+const DEFAULT_MODEL_SLUG = selectDefaultModel(
+  BULK_MODEL_BLUEPRINT.filter(option => option.value !== 'default'),
+  FALLBACK_MODEL_SLUG,
+)
+
+const DEFAULT_BULK_FIX_SELECTION = (() => {
+  const freeOption = BULK_MODEL_BLUEPRINT.find(option => option.value.toLowerCase().endsWith(':free'))
+  return freeOption?.value ?? 'default'
+})()
+
+const BULK_FIX_MODEL_OPTIONS = BULK_MODEL_BLUEPRINT.map(option =>
+  option.value === DEFAULT_MODEL_SLUG ? { ...option, label: `${option.label} (default)` } : option,
+)
 
 export default function StandardsCompliance() {
   const [selectedScenario, setSelectedScenario] = useState<string>('')
@@ -71,7 +90,7 @@ export default function StandardsCompliance() {
   const [bulkFixError, setBulkFixError] = useState<string | null>(null)
   const [bulkFixSuccess, setBulkFixSuccess] = useState<string | null>(null)
   const [bulkFixNotes, setBulkFixNotes] = useState('')
-  const [bulkFixModel, setBulkFixModel] = useState<string>('default')
+  const [bulkFixModel, setBulkFixModel] = useState<string>(DEFAULT_BULK_FIX_SELECTION)
   const prevAgentsRef = useRef<Map<string, string>>(new Map())
   const queryClient = useQueryClient()
   const { data: activeAgentsData } = useQuery({
@@ -212,14 +231,14 @@ export default function StandardsCompliance() {
   useEffect(() => {
     const completedSuccessfully = Array.from(completedAgents.values())
       .filter(agent => agent.status === 'completed')
-    
+
     if (completedSuccessfully.length > 0) {
       const timer = setTimeout(() => {
         refetch()
         // Clear completed agents after refresh
         setCompletedAgents(new Map())
       }, 3000)
-      
+
       return () => clearTimeout(timer)
     }
   }, [completedAgents, refetch])
@@ -228,7 +247,7 @@ export default function StandardsCompliance() {
   const getElapsedTime = (startTime: Date): string => {
     const now = new Date()
     const elapsed = Math.floor((now.getTime() - startTime.getTime()) / 1000)
-    
+
     if (elapsed < 60) {
       return `${elapsed}s`
     } else if (elapsed < 3600) {
@@ -311,7 +330,7 @@ export default function StandardsCompliance() {
 
   const scenarioEntries = useMemo(() =>
     Object.entries(groupedViolations).map(([scenario, violations]) => ({ scenario, violations })),
-  [groupedViolations])
+    [groupedViolations])
 
   const maxBulkSelectable = Math.min(200, filteredViolations.length)
 
@@ -435,13 +454,13 @@ export default function StandardsCompliance() {
     setBulkFixError(null)
     setBulkFixSuccess(null)
     setBulkFixNotes('')
-    setBulkFixModel('default')
+    setBulkFixModel(DEFAULT_BULK_FIX_SELECTION)
     setBulkFixOpen(true)
   }, [filteredViolations])
 
   const closeBulkFixDialog = useCallback(() => {
     setBulkFixOpen(false)
-    setBulkFixModel('default')
+    setBulkFixModel(DEFAULT_BULK_FIX_SELECTION)
   }, [])
 
   const handleBulkFixConfirm = useCallback(async () => {
@@ -611,7 +630,7 @@ export default function StandardsCompliance() {
               ))}
             </select>
           </div>
-          
+
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-dark-700 mb-2">
               Check Type
@@ -640,9 +659,9 @@ export default function StandardsCompliance() {
               ))}
             </div>
           </div>
-          
+
           <div className="flex items-end gap-2">
-            <div 
+            <div
               className="relative"
               onMouseEnter={() => setShowDisabledTooltip(true)}
               onMouseLeave={() => setShowDisabledTooltip(false)}
@@ -676,7 +695,7 @@ export default function StandardsCompliance() {
                   </>
                 )}
               </button>
-              
+
               {/* Tooltip for disabled state (only for targeted checks without selection) */}
               {showDisabledTooltip && checkType === 'targeted' && !selectedScenario && !checkMutation.isPending && !activeScan && (
                 <div className="absolute z-10 left-0 bottom-full mb-2 w-56 p-2 bg-dark-900 text-white text-xs rounded-lg shadow-lg">
@@ -684,7 +703,7 @@ export default function StandardsCompliance() {
                   Targeted checks require a specific scenario. Please select one from the dropdown.
                 </div>
               )}
-              
+
               {/* Tooltip for checking state */}
               {showDisabledTooltip && (checkMutation.isPending || !!activeScan) && (
                 <div className="absolute z-10 left-0 bottom-full mb-2 w-40 p-2 bg-dark-900 text-white text-xs rounded-lg shadow-lg">
@@ -693,7 +712,7 @@ export default function StandardsCompliance() {
                 </div>
               )}
             </div>
-            
+
             <button
               onClick={() => refetch()}
               className="flex items-center justify-center rounded-lg bg-dark-100 p-2 text-dark-700 hover:bg-dark-200 transition-colors"
@@ -835,15 +854,15 @@ export default function StandardsCompliance() {
           onClick={() => setSeverityFilter(null)}
           className={clsx(
             "text-center p-4 rounded-lg border-2 transition-all",
-            severityFilter === null 
-              ? "border-primary-500 bg-primary-50 shadow-lg" 
+            severityFilter === null
+              ? "border-primary-500 bg-primary-50 shadow-lg"
               : "border-dark-200 bg-white hover:border-dark-300 hover:shadow-md"
           )}
         >
           <p className="text-2xl font-bold text-dark-900">{stats.total}</p>
           <p className="text-sm text-dark-500">Total</p>
         </button>
-        
+
         <button
           onClick={() => setSeverityFilter(severityFilter === 'critical' ? null : 'critical')}
           className={clsx(
@@ -856,7 +875,7 @@ export default function StandardsCompliance() {
           <p className="text-2xl font-bold text-danger-700">{stats.critical}</p>
           <p className="text-sm text-danger-600">Critical</p>
         </button>
-        
+
         <button
           onClick={() => setSeverityFilter(severityFilter === 'high' ? null : 'high')}
           className={clsx(
@@ -869,7 +888,7 @@ export default function StandardsCompliance() {
           <p className="text-2xl font-bold text-warning-700">{stats.high}</p>
           <p className="text-sm text-warning-600">High</p>
         </button>
-        
+
         <button
           onClick={() => setSeverityFilter(severityFilter === 'medium' ? null : 'medium')}
           className={clsx(
@@ -882,7 +901,7 @@ export default function StandardsCompliance() {
           <p className="text-2xl font-bold text-yellow-700">{stats.medium}</p>
           <p className="text-sm text-yellow-600">Medium</p>
         </button>
-        
+
         <button
           onClick={() => setSeverityFilter(severityFilter === 'low' ? null : 'low')}
           className={clsx(
@@ -924,7 +943,7 @@ export default function StandardsCompliance() {
                 )}
               </div>
             </div>
-            
+
             {/* Search Bar */}
             {allViolations.length > 0 && (
               <div className="relative">
@@ -950,7 +969,7 @@ export default function StandardsCompliance() {
                 )}
               </div>
             )}
-            
+
             {/* Filter/Search Results Info */}
             {(searchInput || severityFilter) && allViolations.length > 0 && (
               <div className="mt-2 text-sm text-dark-600">
@@ -961,7 +980,7 @@ export default function StandardsCompliance() {
               </div>
             )}
           </div>
-          
+
           {loadingViolations ? (
             <div className="space-y-3">
               {[1, 2, 3].map(i => (
@@ -990,19 +1009,19 @@ export default function StandardsCompliance() {
                           <span className="text-xs text-dark-500">
                             {scenarioViolations.length} violation{scenarioViolations.length !== 1 ? 's' : ''}
                           </span>
-                      <button
-                        onClick={async () => {
-                        if (!confirm(`Start automated fixes for ${scenarioViolations.length} violation${scenarioViolations.length !== 1 ? 's' : ''} in ${scenario}?`)) {
-                            return
-                          }
-                          void triggerStandardsFix(
-                            scenario,
-                            scenarioViolations.map(v => v.id)
-                          )
-                        }}
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Start automated fixes for ${scenarioViolations.length} violation${scenarioViolations.length !== 1 ? 's' : ''} in ${scenario}?`)) {
+                                return
+                              }
+                              void triggerStandardsFix(
+                                scenario,
+                                scenarioViolations.map(v => v.id)
+                              )
+                            }}
                             disabled={hasActiveAgent || isLaunching}
                             className="flex items-center gap-1 px-3 py-1 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs font-medium"
-                        title="Fix violations with AI agent"
+                            title="Fix violations with AI agent"
                           >
                             {hasActiveAgent ? (
                               <>
@@ -1118,17 +1137,17 @@ export default function StandardsCompliance() {
         {/* Violation Details */}
         <Card>
           <h2 className="text-lg font-semibold text-dark-900 mb-4">Violation Details</h2>
-          
+
           {selectedViolation ? (
             <div className="space-y-4">
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   {getSeverityIcon(selectedViolation.severity)}
-                  <Badge 
+                  <Badge
                     variant={
                       selectedViolation.severity === 'critical' ? 'danger' :
-                      selectedViolation.severity === 'high' ? 'warning' : 
-                      'default'
+                        selectedViolation.severity === 'high' ? 'warning' :
+                          'default'
                     }
                   >
                     {selectedViolation.severity}
@@ -1136,7 +1155,7 @@ export default function StandardsCompliance() {
                 </div>
                 <h3 className="font-medium text-dark-900">{selectedViolation.title}</h3>
               </div>
-              
+
               <div>
                 <p className="text-sm font-medium text-dark-700 mb-1">Description</p>
                 <p className="text-sm text-dark-600">{selectedViolation.description}</p>
@@ -1149,7 +1168,7 @@ export default function StandardsCompliance() {
                   {selectedViolation.standard}
                 </div>
               </div>
-              
+
               <div>
                 <p className="text-sm font-medium text-dark-700 mb-1">Location</p>
                 <div className="bg-dark-50 rounded-lg p-2">
@@ -1158,7 +1177,7 @@ export default function StandardsCompliance() {
                   </p>
                 </div>
               </div>
-              
+
               {selectedViolation.code_snippet && (
                 <div>
                   <p className="text-sm font-medium text-dark-700 mb-1">Code</p>
@@ -1167,12 +1186,12 @@ export default function StandardsCompliance() {
                   </pre>
                 </div>
               )}
-              
+
               <div>
                 <p className="text-sm font-medium text-dark-700 mb-1">Recommendation</p>
                 <p className="text-sm text-dark-600">{selectedViolation.recommendation}</p>
               </div>
-              
+
               <div className="pt-4 border-t border-dark-200">
                 {selectedViolation.discovered_at && !isNaN(new Date(selectedViolation.discovered_at).getTime()) && (
                   <p className="text-xs text-dark-500">
@@ -1437,7 +1456,7 @@ export default function StandardsCompliance() {
             <div className="flex items-start gap-2">
               <Info className="h-5 w-5 text-primary-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-primary-900">
-                <strong>Standards Checked:</strong> Lifecycle protection (VROOLI_LIFECYCLE_MANAGED), test file coverage, 
+                <strong>Standards Checked:</strong> Lifecycle protection (VROOLI_LIFECYCLE_MANAGED), test file coverage,
                 lightweight main.go structure, no hardcoded ports/URLs, and versioned API endpoints.
               </div>
             </div>

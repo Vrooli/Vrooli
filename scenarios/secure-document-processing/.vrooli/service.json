@@ -151,16 +151,18 @@
       "description": "Initialize Secure Document Processing Pipeline",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/secure-document-processing-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "secure-document-processing"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "secure-document-processing-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": [
+                "secure-document-processing"
+              ]
+            },
           {
             "type": "dependencies",
             "paths": [
@@ -209,26 +211,26 @@
     "develop": {
       "description": "Start secure document processing pipeline with Go API server",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./secure-document-processing-api",
-          "description": "Start Go coordination API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/secure-document-processing-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./secure-document-processing-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/secure-document-processing-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  UI: http://localhost:$UI_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  Vault: http://localhost:${RESOURCE_PORTS[vault]}\\n  CLI: secure-document-processing --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  UI: http://localhost:$UI_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  Vault: http://localhost:${RESOURCE_PORTS[vault]}\\n  CLI: secure-document-processing --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

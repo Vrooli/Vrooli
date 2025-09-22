@@ -23,16 +23,16 @@
     ]
   },
   "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Text Tools API port",
-      "range": "14000-14999"
-    },
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "Text Tools UI port",
-      "range": "24000-24999"
-    }
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Text Tools API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Text Tools UI port",
+       "range": "35000-39999"
+     }
   },
   "resources": {
     "postgres": {
@@ -121,16 +121,16 @@
       "description": "Initialize Text Tools platform",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/text-tools-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "text-tools"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "text-tools-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["text-tools"]
+           },
           {
             "type": "resources",
             "populated": true
@@ -178,15 +178,15 @@
     "develop": {
       "description": "Start Text Tools services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./text-tools-api",
-          "description": "Start Go API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/text-tools-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./text-tools-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/text-tools-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && npm run dev",
@@ -196,11 +196,11 @@
             "file_exists": "ui/package.json"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Text Tools running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nTry:\\n  text-tools diff file1.txt file2.txt\\n  text-tools search \"pattern\" *.txt\\n  text-tools extract document.pdf\\n  text-tools analyze --summary input.txt'",
-          "description": "Display running service URLs and examples"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Text Tools running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nTry:\\n  text-tools diff file1.txt file2.txt\\n  text-tools search \"pattern\" *.txt\\n  text-tools extract document.pdf\\n  text-tools analyze --summary input.txt'",
+           "description": "Display running service URLs and examples"
+         }
       ]
     },
     "test": {

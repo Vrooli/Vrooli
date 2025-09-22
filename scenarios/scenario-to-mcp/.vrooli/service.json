@@ -23,12 +23,12 @@
     "api": {
       "env_var": "API_PORT",
       "description": "Main API port for MCP management",
-      "range": "3290-3299"
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
       "description": "React dashboard UI port",
-      "range": "3290-3299"
+      "range": "35000-39999"
     },
     "registry": {
       "env_var": "REGISTRY_PORT",
@@ -99,17 +99,18 @@
       "description": "Initialize Scenario to MCP",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-to-mcp-api",
-              "cli/scenario-to-mcp"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "scenario-to-mcp"
-          },
+            {
+              "type": "binaries",
+              "targets": [
+                "scenario-to-mcp-api"
+              ]
+            },
+            {
+              "type": "cli",
+              "targets": [
+                "scenario-to-mcp"
+              ]
+            },
           {
             "type": "resources",
             "populated": true
@@ -152,15 +153,15 @@
     "develop": {
       "description": "Start Scenario to MCP services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./scenario-to-mcp-api",
-          "description": "Start Go API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/scenario-to-mcp-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./scenario-to-mcp-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/scenario-to-mcp-api"
+           }
+         },
         {
           "name": "start-registry",
           "run": "cd api && ./scenario-to-mcp-api --registry-mode",
@@ -179,11 +180,11 @@
             "file_exists": "ui/package.json"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Registry: http://localhost:${REGISTRY_PORT}/registry\\n  CLI: scenario-to-mcp --help\\n\\nKey endpoints:\\n  GET /api/v1/mcp/endpoints - List all MCP endpoints\\n  POST /api/v1/mcp/add - Add MCP to scenario\\n  GET /api/v1/mcp/registry - Service discovery'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Registry: http://localhost:${REGISTRY_PORT}/registry\\n  CLI: scenario-to-mcp --help\\n\\nKey endpoints:\\n  GET /api/v1/mcp/endpoints - List all MCP endpoints\\n  POST /api/v1/mcp/add - Add MCP to scenario\\n  GET /api/v1/mcp/registry - Service discovery'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

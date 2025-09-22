@@ -1,9 +1,21 @@
 {
-  "name": "quiz-generator",
+  "service": {
+    "name": "quiz-generator"
+  },
   "version": "1.0.0",
   "description": "AI-powered quiz generation and assessment platform",
   "category": "education",
   "status": "active",
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "35000-39999"
+    }
+  },
   "metadata": {
     "author": "AI Agent",
     "created": "2024-09-05",
@@ -217,7 +229,73 @@
       }
     ]
   },
-  "lifecycle": {
+   "lifecycle": {
+     "setup": {
+       "description": "Initialize Quiz Generator",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "quiz-generator-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": [
+                "quiz-generator"
+              ]
+            }
+         ]
+       },
+       "steps": [
+         {
+           "name": "build-api",
+           "run": "cd api && go mod download && go build -o quiz-generator-api .",
+           "description": "Build Go API binary"
+         },
+         {
+           "name": "install-cli",
+           "run": "cd cli && ./install.sh",
+           "description": "Install CLI command globally"
+         },
+         {
+           "name": "setup-ui",
+           "run": "cd ui && npm install",
+           "description": "Install UI dependencies"
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Quiz Generator initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: quiz-generator --help'",
+           "description": "Display service access URLs"
+         }
+       ]
+     },
+     "develop": {
+       "description": "Start development environment",
+       "steps": [
+          {
+            "name": "start-api",
+            "run": "cd api && ./quiz-generator-api",
+            "description": "Start Go API server in background",
+            "background": true,
+            "condition": {
+              "file_exists": "api/quiz-generator-api"
+            }
+          },
+          {
+            "name": "start-ui",
+            "run": "cd ui && npm run dev",
+            "description": "Start React UI development server",
+            "background": true
+          },
+         {
+           "name": "show-urls",
+           "run": "echo \"API: http://localhost:$API_PORT\" && echo \"UI: http://localhost:$UI_PORT\"",
+           "description": "Display service URLs"
+         }
+       ]
+     },
     "stop": {
       "description": "Stop quiz-generator services",
       "steps": [

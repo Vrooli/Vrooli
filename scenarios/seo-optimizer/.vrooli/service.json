@@ -109,16 +109,18 @@
       "description": "Initialize SEO Optimizer",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/seo-optimizer-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "seo-optimizer"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "seo-optimizer-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": [
+                "seo-optimizer"
+              ]
+            },
           {
             "type": "dependencies",
             "paths": [
@@ -167,26 +169,26 @@
     "develop": {
       "description": "Start SEO Optimizer services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./seo-optimizer-api",
-          "description": "Start API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/seo-optimizer-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./seo-optimizer-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/seo-optimizer-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
-        {
-          "name": "show-running",
-          "run": "echo '🚀 SEO Optimizer running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-          "description": "Display running services"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 SEO Optimizer running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display running services"
+         }
       ]
     },
     "test": {

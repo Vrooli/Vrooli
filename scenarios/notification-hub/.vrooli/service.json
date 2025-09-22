@@ -1,26 +1,29 @@
 {
-  "scenario": {
-    "name": "notification-hub",
-    "version": "1.0.0",
-    "description": "Multi-tenant notification management system for email, SMS, and push notifications across all Vrooli scenarios",
-    "tags": [
-      "notifications",
-      "multi-tenant",
-      "email",
-      "sms",
-      "push-notifications",
-      "infrastructure",
-      "communication",
-      "api",
-      "rate-limiting",
-      "analytics",
-      "compliance",
-      "go-api",
-      "nodejs-server",
-      "postgres-storage",
-      "redis-cache"
-    ]
-  },
+   "$schema": "../../../../.vrooli/schemas/service.schema.json",
+   "version": "1.0.0",
+   "service": {
+     "name": "notification-hub",
+     "displayName": "Notification Hub",
+     "description": "Multi-tenant notification management system for email, SMS, and push notifications across all Vrooli scenarios",
+     "version": "1.0.0",
+     "tags": [
+       "notifications",
+       "multi-tenant",
+       "email",
+       "sms",
+       "push-notifications",
+       "infrastructure",
+       "communication",
+       "api",
+       "rate-limiting",
+       "analytics",
+       "compliance",
+       "go-api",
+       "nodejs-server",
+       "postgres-storage",
+       "redis-cache"
+     ]
+   },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -32,32 +35,32 @@
       "description": "Notification Hub dashboard port",
       "range": "35000-39999"
     }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store profiles, contacts, templates, notifications, and delivery tracking",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Notification queues, rate limiting counters, and caching"
-    },
-  },
-  "lifecycle": {
+   },
+   "resources": {
+     "postgres": {
+       "type": "postgres",
+       "enabled": true,
+       "required": true,
+       "purpose": "Store profiles, contacts, templates, notifications, and delivery tracking",
+       "initialization": [
+         {
+           "file": "initialization/storage/postgres/schema.sql",
+           "type": "schema"
+         },
+         {
+           "file": "initialization/storage/postgres/seed.sql",
+           "type": "seed"
+         }
+       ]
+     },
+     "redis": {
+       "type": "redis",
+       "enabled": true,
+       "required": true,
+       "purpose": "Notification queues, rate limiting counters, and caching"
+     }
+   },
+   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Notification Hub health check configuration",
@@ -81,23 +84,22 @@
     },
     "setup": {
       "description": "Initialize Notification Hub with multi-tenant capabilities",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/notification-hub-api"
-            ]
-          },
-          {
-            "type": "files",
-            "targets": [
-              "ui/server.js",
-              "cli/notification-hub"
-            ]
-          }
-        ]
-      },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "notification-hub-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "notification-hub"
+             ]
+           }
+         ]
+       },
       "steps": [
         {
           "name": "install-cli",
@@ -145,11 +147,11 @@
             "file_exists": "ui/server.js"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🔔 Notification Hub running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  API: http://localhost:$API_PORT\\n  CLI: notification-hub --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🔔 Notification Hub running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  API: http://localhost:$API_PORT\\n  CLI: notification-hub --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

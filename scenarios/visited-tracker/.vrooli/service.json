@@ -55,18 +55,20 @@
     },
     "setup": {
       "description": "Initialize Visited Tracker",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/visited-tracker-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "visited-tracker"
-          },
+       "condition": {
+         "checks": [
+            {
+               "type": "binaries",
+               "targets": [
+                  "visited-tracker-api"
+               ]
+            },
+             {
+                "type": "cli",
+                "targets": [
+                   "visited-tracker"
+                ]
+             },
           {
             "type": "directory",
             "path": "data/campaigns"

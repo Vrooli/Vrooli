@@ -77,18 +77,20 @@
     },
     "setup": {
       "description": "Initialize Typing Test service",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/typing-test-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "typing-test"
-          },
+         "condition": {
+            "checks": [
+               {
+                  "type": "binaries",
+                  "targets": [
+                     "typing-test-api"
+                  ]
+               },
+                {
+                   "type": "cli",
+                   "targets": [
+                      "typing-test"
+                   ]
+                },
           {
             "type": "resources",
             "populated": true
@@ -146,11 +148,11 @@
           "description": "Start UI server in background",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: typing-test --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: typing-test --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

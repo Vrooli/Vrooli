@@ -79,16 +79,18 @@
       "description": "Initialize Secrets Manager",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/secrets-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "secrets-manager"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "secrets-manager-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": [
+                "secrets-manager"
+              ]
+            },
           {
             "type": "resources",
             "populated": true
@@ -126,15 +128,15 @@
     "develop": {
       "description": "Start secrets manager with API server and dark chrome UI",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./secrets-manager-api",
-          "description": "Start Go secrets manager API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/secrets-manager-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./secrets-manager-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/secrets-manager-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -149,11 +151,11 @@
           "run": "sleep 3 && ./cli/secrets-manager scan || echo \"Initial scan failed - run manually: secrets-manager scan\"",
           "description": "Perform initial resource secret discovery scan"
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🔐 Secrets Manager running:\\n  🌐 Dashboard: http://localhost:${UI_PORT}\\n  🔌 API: http://localhost:$API_PORT\\n  🔧 CLI: secrets-manager --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🔐 Secrets Manager running:\\n  🌐 Dashboard: http://localhost:${UI_PORT}\\n  🔌 API: http://localhost:$API_PORT\\n  🔧 CLI: secrets-manager --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

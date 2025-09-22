@@ -27,13 +27,13 @@
     ]
   },
   "ports": {
-    "api": {
-      "env_var": "HOME_AUTOMATION_API_PORT",
-      "description": "Home automation API server port",
-      "range": "15000-19999"
-    },
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Home automation API server port",
+       "range": "15000-19999"
+     },
     "ui": {
-      "env_var": "HOME_AUTOMATION_UI_PORT",
+      "env_var": "UI_PORT",
       "description": "Home automation UI server port",
       "range": "35000-39999"
     }
@@ -182,16 +182,18 @@
       "description": "Initialize Home Automation Intelligence System",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/home-automation-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "home-automation"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "home-automation-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "home-automation"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -268,26 +270,26 @@
     "develop": {
       "description": "Start Home Automation System with API and UI",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./home-automation-api",
-          "description": "Start home automation API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/home-automation-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./home-automation-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/home-automation-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start home automation UI server",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo 'Home Automation running - UI: http://localhost:${HOME_AUTOMATION_UI_PORT} - API: http://localhost:${HOME_AUTOMATION_API_PORT} - CLI: home-automation --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo 'Home Automation running - UI: http://localhost:${HOME_AUTOMATION_UI_PORT} - API: http://localhost:${HOME_AUTOMATION_API_PORT} - CLI: home-automation --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

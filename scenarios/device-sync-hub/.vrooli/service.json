@@ -19,18 +19,18 @@
       "scenario-authenticator-integration"
     ]
   },
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Device Sync Hub API port",
-      "range": "3300-3399"
-    },
-    "ui": {
-      "env_var": "UI_PORT", 
-      "description": "Device Sync Hub UI port",
-      "range": "3300-3399"
-    }
-  },
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Device Sync Hub API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Device Sync Hub UI port",
+       "range": "35000-39999"
+     }
+   },
   "resources": {
     "postgres": {
       "required": true,
@@ -79,16 +79,18 @@
       "description": "Initialize Device Sync Hub",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/device-sync-hub-api"
-            ]
-          },
-          {
-            "type": "cli", 
-            "command": "device-sync-hub"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "device-sync-hub-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": [
+                "device-sync-hub"
+              ]
+            },
           {
             "type": "directory",
             "path": "data/files"
@@ -136,15 +138,15 @@
         "THUMBNAIL_SIZE": "200"
       },
       "steps": [
-        {
-          "name": "start-api",
-          "run": "./api/device-sync-hub-api",
-          "description": "Start Go API server with WebSocket support",
-          "background": true,
-          "condition": {
-            "file_exists": "api/device-sync-hub-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./device-sync-hub-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/device-sync-hub-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -154,11 +156,11 @@
             "file_exists": "ui/server.js"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Device Sync Hub running:\\n  Web Interface: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: device-sync-hub --help\\n\\n📱 Mobile Access:\\n  Replace localhost with your IP address\\n  Example: http://192.168.1.100:${UI_PORT}'",
-          "description": "Display all running service URLs and mobile access instructions"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Device Sync Hub running:\\n  Web Interface: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: device-sync-hub --help\\n\\n📱 Mobile Access:\\n  Replace localhost with your IP address\\n  Example: http://192.168.1.100:${UI_PORT}'",
+           "description": "Display service access URLs"
+         }
       ]
     },
     "test": {

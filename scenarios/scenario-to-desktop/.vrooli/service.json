@@ -1,5 +1,7 @@
 {
-  "name": "scenario-to-desktop",
+  "service": {
+    "name": "scenario-to-desktop"
+  },
   "version": "1.0.0",
   "description": "Transform Vrooli scenarios into professional desktop applications using Electron and other frameworks",
   "type": "scenario",
@@ -283,9 +285,80 @@
     "repository": "https://github.com/vrooli/vrooli",
     "issues": "https://github.com/vrooli/vrooli/issues",
     "homepage": "https://vrooli.com/scenarios/scenario-to-desktop"
-  },
-  "lifecycle": {
-    "stop": {
+   },
+    "lifecycle": {
+      "setup": {
+        "description": "Initialize scenario-to-desktop",
+        "condition": {
+          "checks": [
+             {
+               "type": "binaries",
+               "targets": [
+                 "scenario-to-desktop-api"
+               ]
+             },
+             {
+               "type": "cli",
+               "targets": [
+                 "scenario-to-desktop"
+               ]
+             },
+            {
+              "type": "dependencies",
+              "paths": [
+                "ui/package.json"
+              ]
+            },
+            {
+              "type": "resources",
+              "populated": true
+            }
+          ]
+        },
+        "steps": [
+          {
+            "name": "install-cli",
+            "run": "cd cli && ./install.sh",
+            "description": "Install CLI command globally"
+          },
+          {
+            "name": "build-api",
+            "run": "cd api && go build -o scenario-to-desktop-api .",
+            "description": "Build Go API binary"
+          },
+          {
+            "name": "setup-ui",
+            "run": "cd ui && npm install",
+            "description": "Install UI dependencies"
+          }
+        ]
+      },
+      "develop": {
+       "description": "Start scenario-to-desktop services",
+       "steps": [
+          {
+            "name": "start-api",
+            "run": "cd api && ./scenario-to-desktop-api",
+            "description": "Start Go API server in background",
+            "background": true,
+            "condition": {
+              "file_exists": "api/scenario-to-desktop-api"
+            }
+          },
+         {
+           "name": "start-ui",
+           "run": "cd ui && node server.js",
+           "description": "Start UI server in background",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Scenario to Desktop running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display service access URLs"
+         }
+       ]
+     },
+     "stop": {
       "description": "Stop services",
       "steps": [
         {

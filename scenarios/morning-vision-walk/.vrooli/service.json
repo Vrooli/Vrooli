@@ -120,18 +120,20 @@
     },
     "setup": {
       "description": "Initialize Morning Vision Walk",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/morning-vision-walk-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "morning-vision-walk"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "morning-vision-walk-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "morning-vision-walk"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -180,26 +182,26 @@
     "develop": {
       "description": "Start Morning Vision Walk services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./vision-walk-api",
-          "description": "Start API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/vision-walk-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./morning-vision-walk-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/morning-vision-walk-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
-        {
-          "name": "show-running",
-          "run": "echo '🚀 Morning Vision Walk running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-          "description": "Display running services"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Morning Vision Walk running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display running services"
+         }
       ]
     },
     "test": {

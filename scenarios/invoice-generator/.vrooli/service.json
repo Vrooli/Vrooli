@@ -82,16 +82,18 @@
       "description": "Initialize Invoice Generator Pro",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/invoice-generator-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "invoice-generator"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "invoice-generator-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "invoice-generator"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -155,11 +157,11 @@
           "description": "Start UI server in background",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '💼 Services running:\\n  📄 UI Dashboard: http://localhost:$UI_PORT\\n  ⚙️ API: http://localhost:$API_PORT'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '💼 Services running:\\n  📄 UI Dashboard: http://localhost:$UI_PORT\\n  ⚙️ API: http://localhost:$API_PORT'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

@@ -1,23 +1,23 @@
-import { useMemo, useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  Shield,
-  AlertTriangle,
-  Lock,
-  Unlock,
-  RefreshCw,
-  History,
-  FileCode,
-  Settings,
-  Filter,
-  GitBranch
-} from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { format } from 'date-fns'
+import {
+  AlertTriangle,
+  FileCode,
+  Filter,
+  GitBranch,
+  History,
+  Lock,
+  RefreshCw,
+  Settings,
+  Shield,
+  Unlock
+} from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { apiService } from '../services/api'
 import { AutomatedFix, AutomatedFixConfig, AutomatedFixJobSnapshot, AutomatedFixRescanResult } from '../types/api'
-import { Card } from './common/Card'
 import { Badge } from './common/Badge'
+import { Card } from './common/Card'
 
 type FixStrategy = 'critical_first' | 'security_first' | 'standards_first' | 'low_first'
 
@@ -28,14 +28,27 @@ const STRATEGY_OPTIONS: Array<{ value: FixStrategy; label: string; description: 
   { value: 'low_first', label: 'Low priority first', description: 'Work upward from low severity issues for gradual clean-up.' },
 ]
 
-const DEFAULT_AUTOMATION_MODEL = 'openrouter/x-ai/grok-code-fast-1'
+const selectDefaultModel = (options: Array<{ value: string }>, fallback: string) => {
+  const freeOption = options.find(option => option.value.toLowerCase().endsWith(':free'))
+  return freeOption?.value ?? fallback
+}
 
-const MODEL_OPTIONS = [
-  { value: 'openrouter/x-ai/grok-code-fast-1', label: 'x-ai/grok-code-fast-1 (default)' },
+const FALLBACK_AUTOMATION_MODEL = 'openrouter/x-ai/grok-code-fast-1'
+
+const MODEL_OPTION_BLUEPRINT = [
+  { value: FALLBACK_AUTOMATION_MODEL, label: 'x-ai/grok-code-fast-1' },
   { value: 'openrouter/google/gemini-2.5-flash', label: 'google/gemini-2.5-flash' },
   { value: 'openrouter/openai/gpt-5', label: 'openai/gpt-5' },
   { value: 'openrouter/x-ai/grok-4-fast:free', label: 'x-ai/grok-4-fast:free' },
 ]
+
+const DEFAULT_AUTOMATION_MODEL = selectDefaultModel(MODEL_OPTION_BLUEPRINT, FALLBACK_AUTOMATION_MODEL)
+
+const MODEL_OPTIONS = MODEL_OPTION_BLUEPRINT.map(option =>
+  option.value === DEFAULT_AUTOMATION_MODEL
+    ? { ...option, label: `${option.label} (default)` }
+    : option,
+)
 
 export default function AutomatedFixPanel() {
   const [showEnableDialog, setShowEnableDialog] = useState(false)
@@ -49,7 +62,7 @@ export default function AutomatedFixPanel() {
     model: DEFAULT_AUTOMATION_MODEL,
   })
   const [confirmationChecked, setConfirmationChecked] = useState(false)
-  
+
   const queryClient = useQueryClient()
 
   const { data: fixConfig, isLoading, refetch } = useQuery({
@@ -237,13 +250,13 @@ export default function AutomatedFixPanel() {
                 Automated Fixes are {fixConfig?.enabled ? 'ENABLED' : 'DISABLED'}
               </h2>
               <p className="text-sm text-dark-600">
-                {fixConfig?.enabled 
+                {fixConfig?.enabled
                   ? '⚠️ System can automatically apply code fixes based on configuration'
                   : '✅ System is in safe mode - no automatic fixes will be applied'}
               </p>
             </div>
           </div>
-          
+
           <div className="flex gap-2">
             {fixConfig?.enabled ? (
               <button
@@ -379,7 +392,7 @@ export default function AutomatedFixPanel() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <h3 className="text-lg font-semibold text-dark-900 mb-4">Current Configuration</h3>
-          
+
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4].map(i => (
@@ -463,7 +476,7 @@ export default function AutomatedFixPanel() {
         {/* Safety Controls */}
         <Card>
           <h3 className="text-lg font-semibold text-dark-900 mb-4">Safety Controls</h3>
-          
+
           <div className="space-y-3">
             <div className="flex items-start gap-3 p-3 rounded-lg bg-dark-50">
               <Shield className="h-5 w-5 text-primary-500 mt-0.5" />
@@ -474,7 +487,7 @@ export default function AutomatedFixPanel() {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-start gap-3 p-3 rounded-lg bg-dark-50">
               <Filter className="h-5 w-5 text-primary-500 mt-0.5" />
               <div className="flex-1">
@@ -484,7 +497,7 @@ export default function AutomatedFixPanel() {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-start gap-3 p-3 rounded-lg bg-dark-50">
               <History className="h-5 w-5 text-primary-500 mt-0.5" />
               <div className="flex-1">
@@ -494,7 +507,7 @@ export default function AutomatedFixPanel() {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-start gap-3 p-3 rounded-lg bg-dark-50">
               <GitBranch className="h-5 w-5 text-primary-500 mt-0.5" />
               <div className="flex-1">
@@ -511,7 +524,7 @@ export default function AutomatedFixPanel() {
       {/* Fix History */}
       <Card>
         <h3 className="text-lg font-semibold text-dark-900 mb-4">Fix History</h3>
-        
+
         {fixHistory && fixHistory.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -612,11 +625,11 @@ export default function AutomatedFixPanel() {
               <AlertTriangle className="h-8 w-8 text-warning-500" />
               <h2 className="text-xl font-bold text-dark-900">Enable Automated Fixes</h2>
             </div>
-            
+
             <div className="mb-6 p-4 rounded-lg bg-warning-50 border border-warning-300">
               <p className="text-sm font-medium text-warning-900 mb-2">⚠️ Critical Safety Warning</p>
               <p className="text-sm text-warning-800">
-                Enabling automated fixes allows the system to modify your code automatically. 
+                Enabling automated fixes allows the system to modify your code automatically.
                 While policy guardrails are in place, you should understand the risks:
               </p>
               <ul className="mt-2 space-y-1 text-sm text-warning-700 list-disc list-inside">
@@ -626,7 +639,7 @@ export default function AutomatedFixPanel() {
                 <li>Use Git or dedicated backup scenarios to recover</li>
               </ul>
             </div>
-            
+
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-dark-700 mb-2">
@@ -658,7 +671,7 @@ export default function AutomatedFixPanel() {
                   ))}
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-dark-700 mb-2">
                   Target Severities
@@ -770,7 +783,7 @@ export default function AutomatedFixPanel() {
                 <p className="text-xs text-dark-500 mt-1">0 = unlimited automated fixes before disabling.</p>
               </div>
             </div>
-            
+
             <div className="mb-6 p-4 rounded-lg bg-danger-50 border border-danger-300">
               <label className="flex items-start gap-2">
                 <input
@@ -780,13 +793,13 @@ export default function AutomatedFixPanel() {
                   className="rounded text-danger-500 mt-1"
                 />
                 <span className="text-sm text-danger-900">
-                  I understand the risks and confirm that I want to enable automated fixes 
-                  with the above configuration. I have backups of my code and will test 
+                  I understand the risks and confirm that I want to enable automated fixes
+                  with the above configuration. I have backups of my code and will test
                   thoroughly after any fixes are applied.
                 </span>
               </label>
             </div>
-            
+
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => {

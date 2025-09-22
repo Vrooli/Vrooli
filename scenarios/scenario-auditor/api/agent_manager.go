@@ -397,11 +397,32 @@ func (am *AgentManager) StopAgent(agentID string) error {
 	am.mu.Unlock()
 
 	am.logger.Info(fmt.Sprintf("Stopping agent %s", agentID))
-	agent.cancel()
-	if agent.execCmd != nil && agent.execCmd.Process != nil {
-		_ = agent.execCmd.Process.Kill()
+	scenarioRoot := getScenarioRoot()
+	cmd := exec.Command("resource-opencode", "agents", "stop", agentID)
+	cmd.Dir = scenarioRoot
+	cmd.Env = os.Environ()
+
+	if output, err := cmd.CombinedOutput(); err != nil {
+		trimmed := strings.TrimSpace(string(output))
+		if trimmed != "" {
+			am.logger.Error(
+				fmt.Sprintf("resource-opencode agents stop failed for %s: %s", agentID, trimmed),
+				err,
+			)
+		} else {
+			am.logger.Error(
+				fmt.Sprintf("resource-opencode agents stop failed for %s", agentID),
+				err,
+			)
+		}
+		agent.cancel()
+		if agent.execCmd != nil && agent.execCmd.Process != nil {
+			_ = agent.execCmd.Process.Kill()
+		}
+		return fmt.Errorf("resource-opencode stop failed: %s", trimmed)
 	}
 
+	agent.cancel()
 	return nil
 }
 

@@ -25,16 +25,16 @@
     ]
   },
   "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Social media scheduler API port",
-      "range": "16000-19999"
-    },
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "Social media scheduler UI port",
-      "range": "36000-39999"
-    }
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Social media scheduler API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Social media scheduler UI port",
+       "range": "35000-39999"
+     }
   },
   "resources": {
     "postgres": {
@@ -125,16 +125,18 @@
       "description": "Initialize Social Media Scheduler with all dependencies",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/social-media-scheduler-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "social-media-scheduler"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "social-media-scheduler-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": [
+                "social-media-scheduler"
+              ]
+            },
           {
             "type": "resources",
             "populated": true
@@ -196,15 +198,15 @@
             "file_exists": "api/social-media-scheduler-api"
           }
         },
-        {
-          "name": "start-api",
-          "run": "cd api && ./social-media-scheduler-api --mode=server",
-          "description": "Start Go API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/social-media-scheduler-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./social-media-scheduler-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/social-media-scheduler-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && npm start",
@@ -214,11 +216,11 @@
             "file_exists": "ui/package.json"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Social Media Scheduler running:\\n  📅 Calendar UI: http://localhost:$UI_PORT\\n  🔗 API: http://localhost:$API_PORT\\n  📊 Analytics: http://localhost:$UI_PORT/analytics\\n  ⚙️  Job Queue: Redis on ${RESOURCE_PORTS[redis]}\\n  🛠️  CLI: social-media-scheduler --help'",
-          "description": "Display all running service URLs and status"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Social Media Scheduler running:\\n  📅 Calendar UI: http://localhost:$UI_PORT\\n  🔗 API: http://localhost:$API_PORT\\n  📊 Analytics: http://localhost:$UI_PORT/analytics\\n  ⚙️  Job Queue: Redis on ${RESOURCE_PORTS[redis]}\\n  🛠️  CLI: social-media-scheduler --help'",
+           "description": "Display all running service URLs and status"
+         }
       ]
     },
     "test": {

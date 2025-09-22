@@ -36,16 +36,16 @@
     }
   },
   "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "range": "8090-8999",
-      "description": "Main API port"
-    },
-    "ui": {
-      "env_var": "UI_PORT",
-      "range": "3000-3999",
-      "description": "Web UI dashboard port"
-    }
+     "api": {
+       "env_var": "API_PORT",
+       "range": "15000-19999",
+       "description": "Main API port"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "range": "35000-39999",
+       "description": "Web UI dashboard port"
+     }
   },
   "components": {
     "api": {
@@ -172,18 +172,20 @@
     },
     "setup": {
       "description": "Initialize Application",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/network-tools-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "network-tools"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "network-tools-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "network-tools"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -255,47 +257,31 @@
         }
       ]
     },
-    "develop": {
-      "description": "Start application services",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && env PORT=$API_PORT WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} ./network-tools-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/network-tools-api"
+     "develop": {
+       "description": "Start application services",
+       "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./network-tools-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/network-tools-api"
+           }
+         },
+         {
+           "name": "start-ui",
+           "run": "cd ui && npm run dev -- --port $UI_PORT --host 0.0.0.0",
+           "description": "Start UI development server",
+           "background": true
+         },
+          {
+            "name": "show-urls",
+            "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: network-tools --help'",
+            "description": "Display all running service URLs"
           }
-        },
-        {
-          "name": "start-ui-dev",
-          "run": "cd ui && npm run dev -- --port $UI_PORT --host 0.0.0.0",
-          "description": "Start UI development server",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/package.json",
-            "json_path_exists": "ui/package.json:scripts.dev"
-          }
-        },
-        {
-          "name": "start-ui-prod",
-          "run": "cd ui && npx serve -s build -l $UI_PORT",
-          "description": "Start UI production server",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/build/index.html",
-            "not": {
-              "json_path_exists": "ui/package.json:scripts.dev"
-            }
-          }
-        },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: network-tools --help'",
-          "description": "Display all running service URLs"
-        }
-      ]
-    },
+       ]
+     },
     "test": {
       "description": "Test application functionality",
       "steps": [

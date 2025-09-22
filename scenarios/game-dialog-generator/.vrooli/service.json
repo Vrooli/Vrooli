@@ -140,16 +140,18 @@
       "description": "Initialize Game Dialog Generator with jungle platformer theme",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/game-dialog-generator-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "game-dialog-generator"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "game-dialog-generator-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "game-dialog-generator"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -223,11 +225,11 @@
           "description": "Start jungle-themed UI server in background",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🌿 Services running! 🎮 Jungle UI: http://localhost:${UI_PORT} 🔧 Dialog API: http://localhost:${API_PORT} 💻 CLI: game-dialog-generator --help'",
-          "description": "Display all running service URLs with jungle theme"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🌿 Services running! 🎮 Jungle UI: http://localhost:${UI_PORT} 🔧 Dialog API: http://localhost:${API_PORT} 💻 CLI: game-dialog-generator --help'",
+           "description": "Display all running service URLs with jungle theme"
+         }
       ]
     },
     "test": {

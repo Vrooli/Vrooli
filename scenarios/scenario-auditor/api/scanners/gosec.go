@@ -30,7 +30,7 @@ func NewGosecScanner(logger Logger) *GosecScanner {
 			binPath = homeBinPath
 		}
 	}
-	
+
 	return &GosecScanner{
 		logger:  logger,
 		binPath: binPath,
@@ -55,7 +55,7 @@ type GosecIssue struct {
 
 // GosecReport represents the JSON output from gosec
 type GosecReport struct {
-	Issues []GosecIssue          `json:"Issues"`
+	Issues []GosecIssue           `json:"Issues"`
 	Stats  map[string]interface{} `json:"Stats"`
 }
 
@@ -78,14 +78,14 @@ func (g *GosecScanner) GetVersion() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Parse version from output
 	versionRegex := regexp.MustCompile(`Version:\s*([0-9.]+)`)
 	matches := versionRegex.FindSubmatch(output)
 	if len(matches) > 1 {
 		return string(matches[1]), nil
 	}
-	
+
 	return "unknown", nil
 }
 
@@ -216,13 +216,13 @@ func (g *GosecScanner) GetDefaultRules() []CustomRule {
 func (g *GosecScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 	startTime := time.Now()
 	scanID := generateScanID()
-	
+
 	g.logger.Info("Starting gosec scan on %s", opts.Path)
-	
+
 	// Build gosec command
 	args := g.buildGosecArgs(opts)
 	cmd := exec.Command(g.binPath, args...)
-	
+
 	// Set timeout if specified
 	if opts.Timeout > 0 {
 		timer := time.AfterFunc(opts.Timeout, func() {
@@ -230,20 +230,20 @@ func (g *GosecScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 		})
 		defer timer.Stop()
 	}
-	
+
 	// Capture output
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	
+
 	// Run gosec
 	err := cmd.Run()
-	
+
 	// Gosec returns non-zero exit code if issues are found, which is not an error
 	if err != nil && !strings.Contains(err.Error(), "exit status") {
 		return nil, fmt.Errorf("gosec execution failed: %v - stderr: %s", err, stderr.String())
 	}
-	
+
 	// Parse gosec output
 	report, parseErr := g.parseGosecOutput(stdout.Bytes())
 	if parseErr != nil {
@@ -251,13 +251,13 @@ func (g *GosecScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 		// Try to return partial results
 		report = &GosecReport{Issues: []GosecIssue{}}
 	}
-	
+
 	// Convert to our Finding format
 	findings := g.convertToFindings(report)
-	
+
 	// Count files and lines scanned
 	filesScanned, linesScanned := g.countScannedFiles(opts.Path)
-	
+
 	result := &ScanResult{
 		ScanID:       scanID,
 		ScannerType:  ScannerGosec,
@@ -269,14 +269,14 @@ func (g *GosecScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 		FilesScanned: filesScanned,
 		LinesScanned: linesScanned,
 	}
-	
+
 	// Get tool version
 	if version, err := g.GetVersion(); err == nil {
 		result.ToolVersion = version
 	}
-	
+
 	g.logger.Info("Gosec scan completed: %d issues found", len(findings))
-	
+
 	return result, nil
 }
 
@@ -288,7 +288,7 @@ func (g *GosecScanner) buildGosecArgs(opts ScanOptions) []string {
 		"-severity", "low", // Include all severity levels
 		"-quiet", // Suppress non-issue output
 	}
-	
+
 	// Handle scan type
 	switch opts.ScanType {
 	case "quick":
@@ -303,27 +303,27 @@ func (g *GosecScanner) buildGosecArgs(opts ScanOptions) []string {
 	default:
 		// Full scan - use all rules
 	}
-	
+
 	// Exclude vendor directories and test files for speed
 	args = append(args, "-exclude-dir=vendor")
 	args = append(args, "-exclude-dir=node_modules")
 	args = append(args, "-exclude-dir=.git")
-	
+
 	// Add additional excludes from options
 	for _, exclude := range opts.ExcludePatterns {
 		args = append(args, "-exclude="+exclude)
 	}
-	
+
 	// Add the path to scan
 	args = append(args, opts.Path+"/...")
-	
+
 	return args
 }
 
 // parseGosecOutput parses the JSON output from gosec
 func (g *GosecScanner) parseGosecOutput(output []byte) (*GosecReport, error) {
 	var report GosecReport
-	
+
 	// Find the JSON part of the output (gosec sometimes outputs text before JSON)
 	jsonStart := bytes.IndexByte(output, '{')
 	if jsonStart == -1 {
@@ -333,9 +333,9 @@ func (g *GosecScanner) parseGosecOutput(output []byte) (*GosecReport, error) {
 			return nil, fmt.Errorf("no JSON found in gosec output")
 		}
 	}
-	
+
 	jsonOutput := output[jsonStart:]
-	
+
 	if err := json.Unmarshal(jsonOutput, &report); err != nil {
 		// Try alternative format
 		var issues struct {
@@ -346,39 +346,39 @@ func (g *GosecScanner) parseGosecOutput(output []byte) (*GosecReport, error) {
 		}
 		report.Issues = issues.Issues
 	}
-	
+
 	return &report, nil
 }
 
 // convertToFindings converts gosec issues to our Finding format
 func (g *GosecScanner) convertToFindings(report *GosecReport) []Finding {
 	findings := make([]Finding, 0, len(report.Issues))
-	
+
 	for _, issue := range report.Issues {
 		finding := Finding{
-			ID:          fmt.Sprintf("gosec-%s-%s-%s", issue.RuleID, issue.File, issue.Line),
-			ScannerType: ScannerGosec,
-			RuleID:      issue.RuleID,
-			Severity:    g.mapGosecSeverity(issue.Severity),
-			Confidence:  strings.ToLower(issue.Confidence),
-			Title:       g.getRuleTitle(issue.RuleID),
-			Description: issue.Details,
-			Category:    g.getRuleCategory(issue.RuleID),
-			FilePath:    issue.File,
-			CodeSnippet: issue.Code,
+			ID:             fmt.Sprintf("gosec-%s-%s-%s", issue.RuleID, issue.File, issue.Line),
+			ScannerType:    ScannerGosec,
+			RuleID:         issue.RuleID,
+			Severity:       g.mapGosecSeverity(issue.Severity),
+			Confidence:     strings.ToLower(issue.Confidence),
+			Title:          g.getRuleTitle(issue.RuleID),
+			Description:    issue.Details,
+			Category:       g.getRuleCategory(issue.RuleID),
+			FilePath:       issue.File,
+			CodeSnippet:    issue.Code,
 			Recommendation: g.getRuleRecommendation(issue.RuleID),
 		}
-		
+
 		// Parse line number
 		if lineNum, err := strconv.Atoi(issue.Line); err == nil {
 			finding.LineNumber = lineNum
 		}
-		
+
 		// Parse column if available
 		if colNum, err := strconv.Atoi(issue.Column); err == nil {
 			finding.ColumnNumber = colNum
 		}
-		
+
 		// Add CWE if available
 		if issue.CWE.ID != "" {
 			if cweNum, err := strconv.Atoi(strings.TrimPrefix(issue.CWE.ID, "CWE-")); err == nil {
@@ -386,13 +386,13 @@ func (g *GosecScanner) convertToFindings(report *GosecReport) []Finding {
 			}
 			finding.References = append(finding.References, issue.CWE.URL)
 		}
-		
+
 		// Map to OWASP Top 10
 		finding.OWASP = g.mapToOWASP(issue.RuleID)
-		
+
 		findings = append(findings, finding)
 	}
-	
+
 	return findings
 }
 
@@ -431,7 +431,7 @@ func (g *GosecScanner) getRuleTitle(ruleID string) string {
 		"G504": "Blacklisted Import: net/http/cgi",
 		"G601": "Implicit Memory Aliasing in Loop",
 	}
-	
+
 	if title, exists := titles[ruleID]; exists {
 		return title
 	}
@@ -459,7 +459,7 @@ func (g *GosecScanner) getRuleCategory(ruleID string) string {
 		"G504": "Deprecated",
 		"G601": "Memory Safety",
 	}
-	
+
 	if category, exists := categories[ruleID]; exists {
 		return category
 	}
@@ -484,7 +484,7 @@ func (g *GosecScanner) getRuleRecommendation(ruleID string) string {
 		"G501": "Use crypto/sha256 or stronger instead of crypto/md5 for cryptographic purposes.",
 		"G601": "Be careful with implicit memory aliasing in loops. Use index to access elements or explicitly copy values.",
 	}
-	
+
 	if recommendation, exists := recommendations[ruleID]; exists {
 		return recommendation
 	}
@@ -509,7 +509,7 @@ func (g *GosecScanner) mapToOWASP(ruleID string) string {
 		"G501": "A02:2021 – Cryptographic Failures",
 		"G601": "A03:2021 – Injection",
 	}
-	
+
 	if owasp, exists := owaspMap[ruleID]; exists {
 		return owasp
 	}
@@ -520,30 +520,30 @@ func (g *GosecScanner) mapToOWASP(ruleID string) string {
 func (g *GosecScanner) countScannedFiles(path string) (int, int) {
 	fileCount := 0
 	lineCount := 0
-	
+
 	filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
-		
+
 		// Skip vendor and other excluded directories
 		if info.IsDir() && (info.Name() == "vendor" || info.Name() == "node_modules" || info.Name() == ".git") {
 			return filepath.SkipDir
 		}
-		
+
 		// Count Go files
 		if strings.HasSuffix(filePath, ".go") && !strings.Contains(filePath, "_test.go") {
 			fileCount++
-			
+
 			// Count lines
 			if content, err := os.ReadFile(filePath); err == nil {
 				lines := bytes.Count(content, []byte("\n"))
 				lineCount += lines
 			}
 		}
-		
+
 		return nil
 	})
-	
+
 	return fileCount, lineCount
 }

@@ -22,6 +22,7 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
+      "range": "15000-19999",
       "port": 8090,
       "description": "Component library API port for component CRUD and testing"
     },
@@ -109,33 +110,39 @@
       "interval": 30000,
       "startup_grace_period": 15000
     },
-    "setup": {
-      "description": "Initialize React Component Library",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/react-component-library-api"
-            ]
-          },
-          {
-            "type": "files",
-            "targets": [
-              "ui/package.json",
-              "initialization/storage/postgres/schema.sql"
-            ]
-          },
-          {
-            "type": "directories",
-            "targets": [
-              "initialization/automation/n8n",
-              "cli",
-              "ui/src"
-            ]
-          }
-        ]
-      },
+     "setup": {
+       "description": "Initialize React Component Library",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "react-component-library-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": [
+                "react-component-library"
+              ]
+            },
+           {
+             "type": "files",
+             "targets": [
+               "ui/package.json",
+               "initialization/storage/postgres/schema.sql"
+             ]
+           },
+           {
+             "type": "directories",
+             "targets": [
+               "initialization/automation/n8n",
+               "cli",
+               "ui/src"
+             ]
+           }
+         ]
+       },
       "steps": [
         {
           "name": "verify-structure",
@@ -187,7 +194,10 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && echo '🚀 Starting API server...' && ./react-component-library-api",
+          "run": "cd api && ./react-component-library-api",
+          "condition": {
+            "file_exists": "api/react-component-library-api"
+          },
           "background": true,
           "description": "Start Go API server in background"
         },
@@ -198,8 +208,9 @@
           "description": "Start React development server"
         },
         {
-          "name": "show-status",
-          "run": "sleep 3 && echo '✅ React Component Library is running!' && echo '  📚 Component Showcase: http://localhost:${UI_PORT}' && echo '  🔌 API Documentation: http://localhost:${API_PORT}/api/docs' && echo '  💻 CLI Help: react-component-library --help' && echo '  🧪 Create Component: react-component-library create MyButton form --interactive'"
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:$API_PORT\" && echo \"UI: http://localhost:$UI_PORT\"",
+          "description": "Display service URLs"
         }
       ]
     },

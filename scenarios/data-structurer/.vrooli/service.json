@@ -133,16 +133,16 @@
       "description": "Initialize Data Structurer with all dependencies",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/data-structurer-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "data-structurer"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "data-structurer-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["data-structurer"]
+           },
           {
             "type": "resources",
             "populated": true
@@ -194,11 +194,11 @@
             "file_exists": "api/data-structurer-api"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Data Structurer running:\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help\\n\\nExample usage:\\n  data-structurer create-schema \"contacts\" ./examples/contact-schema.json\\n  data-structurer process [schema-id] ./document.pdf'",
-          "description": "Display running service information and usage examples"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Data Structurer running:\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help\\n\\nExample usage:\\n  data-structurer create-schema \"contacts\" ./examples/contact-schema.json\\n  data-structurer process [schema-id] ./document.pdf'",
+           "description": "Display running service information and usage examples"
+         }
       ]
     },
     "test": {

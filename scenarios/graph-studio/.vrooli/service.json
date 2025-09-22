@@ -23,18 +23,18 @@
       "postgres-storage"
     ]
   },
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Graph Studio API port",
-      "range": "9100-9149"
-    },
-    "ui": {
-      "env_var": "UI_PORT", 
-      "description": "Graph Studio UI port",
-      "range": "9150-9199"
-    }
-  },
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Graph Studio API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Graph Studio UI port",
+       "range": "35000-39999"
+     }
+   },
   "resources": {
     "postgres": {
       "required": true,
@@ -100,16 +100,18 @@
       "description": "Initialize Graph Studio",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/graph-studio-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "graph-studio"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "graph-studio-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "graph-studio"
+             ]
+           },
           {
             "type": "file",
             "path": "initialization/postgres/schema.sql"
@@ -190,11 +192,11 @@
             "VITE_ENABLE_AI": "${resource.ollama.enabled}"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

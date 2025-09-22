@@ -25,11 +25,11 @@
       "description": "Symbol search API server port",
       "range": "15000-19999"
     },
-    "ui": {
-      "env_var": "UI_PORT", 
-      "description": "Symbol search UI server port",
-      "range": "3000-3999"
-    }
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Symbol search UI server port",
+       "range": "35000-39999"
+     }
   },
   "resources": {
     "postgres": {
@@ -74,16 +74,16 @@
       "description": "Initialize Symbol Search scenario",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/symbol-search-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "symbol-search"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "symbol-search-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["symbol-search"]
+           },
           {
             "type": "resources",
             "populated": true
@@ -121,15 +121,15 @@
     "develop": {
       "description": "Start symbol search with API and UI servers",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./symbol-search-api",
-          "description": "Start Go API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/symbol-search-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./symbol-search-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/symbol-search-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && npm run dev",
@@ -139,11 +139,11 @@
             "file_exists": "ui/package.json"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🔍 Symbol Search running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: symbol-search --help\\n\\nAPI Endpoints:\\n  GET /api/search - Search symbols\\n  GET /api/categories - List categories\\n  GET /api/blocks - List Unicode blocks\\n  GET /api/character/{codepoint} - Character details'",
-          "description": "Display running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🔍 Symbol Search running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: symbol-search --help\\n\\nAPI Endpoints:\\n  GET /api/search - Search symbols\\n  GET /api/categories - List categories\\n  GET /api/blocks - List Unicode blocks\\n  GET /api/character/{codepoint} - Character details'",
+           "description": "Display running service URLs"
+         }
       ]
     },
     "test": {

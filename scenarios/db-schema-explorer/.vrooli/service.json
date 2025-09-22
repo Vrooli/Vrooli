@@ -132,16 +132,16 @@
       "description": "Initialize Database Schema Explorer",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/db-schema-explorer-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "db-schema-explorer"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "db-schema-explorer-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": ["db-schema-explorer"]
+            },
           {
             "type": "resources",
             "populated": true
@@ -207,11 +207,11 @@
             "file_exists": "ui/package.json"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Schema Explorer UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: db-schema-explorer --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Schema Explorer UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: db-schema-explorer --help'",
+           "description": "Display service access URLs"
+         }
       ]
     },
     "test": {

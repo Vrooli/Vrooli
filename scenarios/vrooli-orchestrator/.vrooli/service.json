@@ -26,11 +26,11 @@
       "description": "Orchestrator management API port",
       "range": "15000-19999"
     },
-    "ui": {
-      "env_var": "UI_PORT", 
-      "description": "Profile management dashboard port",
-      "range": "3000-3999"
-    }
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Profile management dashboard port",
+       "range": "35000-39999"
+     }
   },
   "resources": {
     "postgres": {
@@ -89,24 +89,27 @@
     },
     "setup": {
       "description": "Initialize Vrooli Orchestrator",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/vrooli-orchestrator-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "vrooli-orchestrator"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
+       "condition": {
+         "checks": [
+            {
+              "type": "binaries",
+              "targets": [
+                "vrooli-orchestrator-api",
+                "vrooli-orchestrator"
+              ]
+            },
+           {
+             "type": "cli",
+             "targets": [
+               "vrooli-orchestrator"
+             ]
+           },
+           {
+             "type": "resources",
+             "populated": true
+           }
+         ]
+       },
       "steps": [
         {
           "name": "add-data",
@@ -149,15 +152,15 @@
     "develop": {
       "description": "Start orchestrator with API server and dashboard UI",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./vrooli-orchestrator-api",
-          "description": "Start Go orchestration API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/vrooli-orchestrator-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./vrooli-orchestrator-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/vrooli-orchestrator-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && npm start",
@@ -167,11 +170,11 @@
             "file_exists": "ui/package.json"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Orchestrator services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-orchestrator --help\\n\\nQuick Commands:\\n  vrooli-orchestrator status\\n  vrooli-orchestrator list-profiles\\n  vrooli-orchestrator activate <profile-name>'",
-          "description": "Display all running service URLs and commands"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Orchestrator services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-orchestrator --help\\n\\nQuick Commands:\\n  vrooli-orchestrator status\\n  vrooli-orchestrator list-profiles\\n  vrooli-orchestrator activate <profile-name>'",
+           "description": "Display all running service URLs and commands"
+         }
       ]
     },
     "test": {

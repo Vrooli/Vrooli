@@ -117,18 +117,20 @@
     },
     "setup": {
       "description": "Initialize Personal Digital Twin",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/personal-digital-twin-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "personal-digital-twin"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "personal-digital-twin-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "personal-digital-twin"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -192,11 +194,11 @@
           "description": "Start UI server in background",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: personal-digital-twin --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: personal-digital-twin --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

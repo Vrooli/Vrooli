@@ -184,8 +184,39 @@
       "elo-ratings"
     ]
   },
-  "lifecycle": {
-    "stop": {
+   "lifecycle": {
+     "setup": {
+       "description": "Initialize Elo Swipe",
+        "condition": {
+          "checks": [
+            {
+              "type": "binaries",
+              "targets": [
+                "elo-swipe-api"
+              ]
+            },
+             {
+               "type": "cli",
+               "targets": [
+                 "elo-swipe"
+               ]
+             }
+          ]
+        },
+       "steps": [
+         {
+           "name": "build-api",
+           "run": "cd api && go build -o elo-swipe-api .",
+           "description": "Build Go API binary"
+         },
+         {
+           "name": "install-cli",
+           "run": "cd cli && ./install.sh",
+           "description": "Install CLI command globally"
+         }
+       ]
+     },
+     "stop": {
       "description": "Stop services",
       "steps": [
         {
@@ -208,18 +239,26 @@
           "run": "cd api && go build -o elo-swipe-api .",
           "description": "Build API server"
         },
-        {
-          "name": "start-api",
-          "run": "cd api && ./elo-swipe-api",
-          "description": "Start API server",
-          "background": true
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && python -m http.server 8080",
-          "description": "Start UI server",
-          "background": true
-        }
+         {
+           "name": "start-api",
+           "run": "cd api && ./elo-swipe-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/elo-swipe-api"
+           }
+         },
+         {
+           "name": "start-ui",
+           "run": "cd ui && python -m http.server 8080",
+           "description": "Start UI server",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo 'Elo Swipe running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: elo-swipe --help'",
+           "description": "Display service access URLs"
+         }
       ]
     }
   }

@@ -1,15 +1,40 @@
 {
-  "name": "local-info-scout",
-  "version": "2.0.0",
-  "description": "Local information scout service with Go API",
-  "enabled": true,
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "range": "15000-19999"
-    }
-  },
-  "lifecycle": {
+   "$schema": "../../../../.vrooli/schemas/service.schema.json",
+   "version": "1.0.0",
+   "service": {
+     "name": "local-info-scout",
+     "displayName": "Local Info Scout",
+     "description": "Local information scout service with Go API",
+     "version": "1.0.0",
+     "tags": [
+       "go-api"
+     ]
+   },
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Local Info Scout API port",
+       "range": "15000-19999"
+     }
+   },
+   "resources": {
+     "redis": {
+       "type": "redis",
+       "enabled": false,
+       "required": false
+     },
+     "postgres": {
+       "type": "postgres",
+       "enabled": false,
+       "required": false
+     },
+     "searxng": {
+       "type": "searxng",
+       "enabled": false,
+       "required": false
+     }
+   },
+   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Local Info Scout health check configuration",
@@ -32,16 +57,22 @@
     },
     "setup": {
       "description": "Initialize Local Info Scout",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/local-info-scout-api"
-            ]
-          }
-        ]
-      },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "local-info-scout-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "local-info-scout"
+             ]
+           }
+         ]
+       },
       "steps": [
         {
           "name": "generate-embeddings",
@@ -67,23 +98,20 @@
     },
     "develop": {
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./local-info-scout-api",
-          "description": "Start API server",
-          "background": true
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server",
-          "background": true
-        },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: local-info-scout --help'",
-          "description": "Display running service URLs"
-        }
+           {
+             "name": "start-api",
+             "run": "cd api && ./local-info-scout-api",
+             "description": "Start Go API server in background",
+             "background": true,
+             "condition": {
+               "file_exists": "api/local-info-scout-api"
+             }
+           },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Local Info Scout running:\\n  API: http://localhost:${API_PORT}\\n  CLI: local-info-scout --help'",
+           "description": "Display service URLs and usage information"
+         }
       ]
     },
     "timeout": 60,
@@ -101,17 +129,6 @@
           "description": "Stop UI process"
         }
       ]
-    }
-  },
-  "resources": {
-    "redis": {
-      "required": false
-    },
-    "postgres": {
-      "required": false
-    },
-    "searxng": {
-      "required": false
-    }
-  }
-}
+     }
+   }
+ }

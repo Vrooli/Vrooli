@@ -86,18 +86,20 @@
     },
     "setup": {
       "description": "Initialize News Aggregator & Bias Analysis",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/news-aggregator-bias-analysis-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "news-aggregator-bias-analysis"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "news-aggregator-bias-analysis-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "news-aggregator-bias-analysis"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -146,26 +148,26 @@
     "develop": {
       "description": "Start News Aggregator services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./news-bias-api",
-          "description": "Start API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/news-bias-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./news-aggregator-bias-analysis-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/news-aggregator-bias-analysis-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
-        {
-          "name": "show-running",
-          "run": "echo \"🚀 News Aggregator running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
-          "description": "Display running services"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo \"🚀 News Aggregator running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
+           "description": "Display running services"
+         }
       ]
     },
     "test": {

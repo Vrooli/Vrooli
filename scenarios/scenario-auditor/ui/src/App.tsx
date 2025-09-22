@@ -1,59 +1,63 @@
-import { useState, useEffect } from 'react'
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { 
-  Shield, 
-  Activity, 
+import { AgentInfo } from '@/types/api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import clsx from 'clsx'
+import {
+  Activity,
   AlertTriangle,
-  Settings,
   BarChart3,
-  Terminal,
-  Zap,
-  Menu,
-  X,
+  Brain,
   ChevronLeft,
   ChevronRight,
-  Server,
   ClipboardList,
-  Brain
+  Loader2,
+  Menu,
+  Octagon,
+  Server,
+  Settings,
+  Shield,
+  Terminal,
+  X,
+  Zap
 } from 'lucide-react'
-import clsx from 'clsx'
+import { useCallback, useEffect, useState } from 'react'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import AutomatedFixPanel from './components/AutomatedFixPanel'
 import Dashboard from './components/Dashboard'
-import ScenariosList from './components/ScenariosList'
-import ScenarioDetail from './components/ScenarioDetail'
-import VulnerabilityScanner from './components/VulnerabilityScanner'
 import HealthMonitor from './components/HealthMonitor'
 import PerformanceMetrics from './components/PerformanceMetrics'
-import AutomatedFixPanel from './components/AutomatedFixPanel'
-import StandardsCompliance from './components/StandardsCompliance'
+import ScenarioDetail from './components/ScenarioDetail'
+import ScenariosList from './components/ScenariosList'
 import SettingsPanel from './components/SettingsPanel'
+import StandardsCompliance from './components/StandardsCompliance'
+import VulnerabilityScanner from './components/VulnerabilityScanner'
 import RulesManager from './pages/RulesManager'
 import { apiService } from './services/api'
-import { AgentInfo } from '@/types/api'
 
 export default function App() {
   const navigate = useNavigate()
   const location = useLocation()
-  
+
   // Load sidebar state from localStorage or default to true
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     const saved = localStorage.getItem('sidebarOpen')
     return saved !== null ? JSON.parse(saved) : true
   })
-  
+
   // Sidebar collapsed state (different from mobile open/close)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebarCollapsed')
     return saved !== null ? JSON.parse(saved) : false
   })
   const [agentsMenuOpen, setAgentsMenuOpen] = useState(false)
-  
-  const { 
-    data: systemStatus, 
-    error: systemStatusError, 
-    isLoading: systemStatusLoading,
+  const [stoppingAgents, setStoppingAgents] = useState<Set<string>>(() => new Set())
+  const [stopErrors, setStopErrors] = useState<Map<string, string>>(() => new Map())
+  const queryClient = useQueryClient()
+
+  const {
+    data: systemStatus,
+    error: systemStatusError,
     isError: systemStatusIsError,
-    isFetching: systemStatusIsFetching 
+    isFetching: systemStatusIsFetching
   } = useQuery({
     queryKey: ['systemStatus'],
     queryFn: () => apiService.getSystemStatus(),
@@ -80,7 +84,7 @@ export default function App() {
     { id: 'automated-fixes', name: 'Automated Fixes', icon: Terminal, path: '/fixes' },
     { id: 'settings', name: 'Settings', icon: Settings, path: '/settings' },
   ]
-  
+
   // Get current view based on location
   const currentView = navigation.find(n => n.path === location.pathname)?.id || 'dashboard'
 
@@ -105,11 +109,48 @@ export default function App() {
     }
   }
 
+  const handleStopAgent = useCallback(async (agentId: string) => {
+    setStopErrors(prev => {
+      const next = new Map(prev)
+      next.delete(agentId)
+      return next
+    })
+
+    setStoppingAgents(prev => {
+      const next = new Set(prev)
+      next.add(agentId)
+      return next
+    })
+
+    try {
+      const result = await apiService.stopAgent(agentId)
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to stop agent')
+      }
+    } catch (error) {
+      console.error('Failed to stop agent', error)
+      const message =
+        error instanceof Error && error.message ? error.message : 'Failed to stop agent'
+      setStopErrors(prev => {
+        const next = new Map(prev)
+        next.set(agentId, message)
+        return next
+      })
+    } finally {
+      setStoppingAgents(prev => {
+        const next = new Set(prev)
+        next.delete(agentId)
+        return next
+      })
+      void queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
+    }
+  }, [queryClient])
+
   // Save sidebar state to localStorage when it changes
   useEffect(() => {
     localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen))
   }, [sidebarOpen])
-  
+
   useEffect(() => {
     localStorage.setItem('sidebarCollapsed', JSON.stringify(sidebarCollapsed))
   }, [sidebarCollapsed])
@@ -156,7 +197,7 @@ export default function App() {
                     <p className="text-xs text-dark-500">Standards & Quality Assurance</p>
                   </div>
                 </div>
-                
+
                 {/* Desktop collapse toggle - expanded state */}
                 <button
                   className="hidden md:flex items-center justify-center h-8 w-8 rounded-lg hover:bg-dark-100 transition-colors"
@@ -165,7 +206,7 @@ export default function App() {
                 >
                   <ChevronLeft className="h-4 w-4 text-dark-600" />
                 </button>
-                
+
                 {/* Mobile close button */}
                 <button
                   className="md:hidden"
@@ -181,7 +222,7 @@ export default function App() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 text-white">
                     <Shield className="h-6 w-6" />
                   </div>
-                  
+
                   {/* Desktop expand toggle - collapsed state */}
                   <button
                     className="hidden md:flex items-center justify-center h-8 w-8 rounded-lg hover:bg-dark-100 transition-colors"
@@ -191,7 +232,7 @@ export default function App() {
                     <ChevronRight className="h-4 w-4 text-dark-600" />
                   </button>
                 </div>
-                
+
                 {/* Mobile close button - still needed when collapsed on mobile */}
                 <button
                   className="md:hidden absolute top-4 right-3"
@@ -210,15 +251,15 @@ export default function App() {
                 <div>
                   <p className="text-xs font-medium opacity-90">System Status</p>
                   <p className="text-2xl font-bold">
-                    {systemStatus?.health_score !== null && systemStatus?.health_score !== undefined ? 
+                    {systemStatus?.health_score !== null && systemStatus?.health_score !== undefined ?
                       Math.round(systemStatus.health_score * 10) / 10 : 0}%
                   </p>
                 </div>
                 <div className={clsx(
                   'flex h-12 w-12 items-center justify-center rounded-full',
                   systemStatus?.status === 'healthy' ? 'bg-success-500/20' :
-                  systemStatus?.status === 'degraded' ? 'bg-warning-500/20' :
-                  'bg-danger-500/20'
+                    systemStatus?.status === 'degraded' ? 'bg-warning-500/20' :
+                      'bg-danger-500/20'
                 )}>
                   {systemStatus?.status === 'healthy' ? (
                     <Activity className="h-6 w-6 text-white" />
@@ -247,8 +288,8 @@ export default function App() {
               <div className={clsx(
                 'flex h-10 w-10 items-center justify-center rounded-full',
                 systemStatus?.status === 'healthy' ? 'bg-success-500' :
-                systemStatus?.status === 'degraded' ? 'bg-warning-500' :
-                'bg-danger-500'
+                  systemStatus?.status === 'degraded' ? 'bg-warning-500' :
+                    'bg-danger-500'
               )} title={`System: ${systemStatus?.status || 'unknown'}`}>
                 {systemStatus?.status === 'healthy' ? (
                   <Activity className="h-5 w-5 text-white" />
@@ -267,7 +308,7 @@ export default function App() {
             {navigation.map((item) => {
               const Icon = item.icon
               const isActive = currentView === item.id
-              
+
               return (
                 <button
                   key={item.id}
@@ -283,8 +324,8 @@ export default function App() {
                     isActive
                       ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25'
                       : 'text-dark-700 hover:bg-dark-100 hover:text-dark-900',
-                    sidebarCollapsed 
-                      ? 'justify-center p-3 h-12 w-12 flex-shrink-0' 
+                    sidebarCollapsed
+                      ? 'justify-center p-3 h-12 w-12 flex-shrink-0'
                       : 'gap-x-3 px-3 py-2.5 w-full'
                   )}
                   title={sidebarCollapsed ? item.name : undefined}
@@ -352,13 +393,13 @@ export default function App() {
           >
             <Menu className="h-6 w-6 text-dark-600" />
           </button>
-          
+
           <div className="flex flex-1 items-center justify-between">
             <h1 className="text-lg font-semibold text-dark-900">
               {currentView === 'dashboard' ? 'Standards Enforcement Dashboard' :
-               navigation.find(n => n.id === currentView)?.name || 'Dashboard'}
+                navigation.find(n => n.id === currentView)?.name || 'Dashboard'}
             </h1>
-            
+
             <div className="flex items-center gap-4">
               {!!(activeAgentsData?.count) && (
                 <div
@@ -384,27 +425,57 @@ export default function App() {
                           const scenarioName = metadataScenarios.length > 0
                             ? `${metadataScenarios.slice(0, 3).join(', ')}${metadataScenarios.length > 3 ? '…' : ''}`
                             : agent.metadata?.scenario || agent.scenario || agent.rule_id
+                          const isStopping = stoppingAgents.has(agent.id)
+                          const stopError = stopErrors.get(agent.id)
                           return (
-                          <li key={agent.id} className="px-3 py-2 text-sm">
-                            <div className="font-medium text-dark-800">{agent.label || agent.name}</div>
-                            <div className="mt-1 flex items-center justify-between text-xs text-dark-500">
-                              <span>
-                                {describeAgentAction(agent.action)}
-                                {scenarioName ? ` • ${scenarioName}` : ''}
-                              </span>
-                              <span>{formatDuration(agent.duration_seconds)}</span>
-                            </div>
-                            {agent.status === 'failed' && (agent.error || agent.metadata?.failure_reason) && (
-                              <div className="mt-1 text-xs text-danger-600">
-                                Failure: {agent.error || agent.metadata?.failure_reason}
+                            <li key={agent.id} className="px-3 py-2 text-sm">
+                              <div className="font-medium text-dark-800">{agent.label || agent.name}</div>
+                              <div className="mt-1 flex items-center justify-between text-xs text-dark-500">
+                                <span>
+                                  {describeAgentAction(agent.action)}
+                                  {scenarioName ? ` • ${scenarioName}` : ''}
+                                </span>
+                                <span>{formatDuration(agent.duration_seconds)}</span>
                               </div>
-                            )}
-                            {agent.metadata?.log_path && (
-                              <div className="mt-1 text-[0.65rem] text-dark-400 break-all">
-                                Logs: {agent.metadata.log_path}
+                              {agent.status === 'failed' && (agent.error || agent.metadata?.failure_reason) && (
+                                <div className="mt-1 text-xs text-danger-600">
+                                  Failure: {agent.error || agent.metadata?.failure_reason}
+                                </div>
+                              )}
+                              {agent.metadata?.log_path && (
+                                <div className="mt-1 text-[0.65rem] text-dark-400 break-all">
+                                  Logs: {agent.metadata.log_path}
+                                </div>
+                              )}
+                              <div className="mt-3 flex items-center justify-end">
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1.5 rounded-md border border-danger-200 bg-white px-2 py-1 text-xs font-medium text-danger-600 shadow-sm hover:bg-danger-50 focus:outline-none focus:ring-2 focus:ring-danger-300 disabled:cursor-not-allowed disabled:opacity-60"
+                                  onClick={event => {
+                                    event.stopPropagation()
+                                    void handleStopAgent(agent.id)
+                                  }}
+                                  disabled={isStopping}
+                                >
+                                  {isStopping ? (
+                                    <>
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      <span>Stopping…</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Octagon className="h-3.5 w-3.5" />
+                                      <span>Stop agent</span>
+                                    </>
+                                  )}
+                                </button>
                               </div>
-                            )}
-                          </li>
+                              {stopError && (
+                                <div className="mt-1 text-xs text-danger-600">
+                                  {stopError}
+                                </div>
+                              )}
+                            </li>
                           )
                         })}
                       </ul>
@@ -418,17 +489,17 @@ export default function App() {
                   <div className={clsx(
                     'h-2 w-2 rounded-full animate-pulse',
                     systemStatus?.status === 'healthy' ? 'bg-success-500' :
-                    systemStatus?.status === 'degraded' ? 'bg-warning-500' :
-                    systemStatus?.status === 'unhealthy' ? 'bg-danger-500' :
-                    'bg-dark-400'
+                      systemStatus?.status === 'degraded' ? 'bg-warning-500' :
+                        systemStatus?.status === 'unhealthy' ? 'bg-danger-500' :
+                          'bg-dark-400'
                   )}></div>
                   <span className="text-sm text-dark-600">
                     {systemStatusIsFetching ? 'Loading...' :
-                     systemStatusIsError ? `Error: ${systemStatusError?.message || 'Unknown error'}` :
-                     systemStatus?.status === 'healthy' ? 'System Online' :
-                     systemStatus?.status === 'degraded' ? 'System Degraded' :
-                     systemStatus?.status === 'unhealthy' ? 'System Unhealthy' :
-                     'System Status Unknown'}
+                      systemStatusIsError ? `Error: ${systemStatusError?.message || 'Unknown error'}` :
+                        systemStatus?.status === 'healthy' ? 'System Online' :
+                          systemStatus?.status === 'degraded' ? 'System Degraded' :
+                            systemStatus?.status === 'unhealthy' ? 'System Unhealthy' :
+                              'System Status Unknown'}
                   </span>
                 </div>
               </div>

@@ -146,16 +146,18 @@
       "description": "Initialize Document Manager with all resources and integrations",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/document-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "document-manager"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "document-manager-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": [
+                "document-manager"
+              ]
+            },
           {
             "type": "resources",
             "populated": true
@@ -206,15 +208,15 @@
     "develop": {
       "description": "Start document manager with coordination API and monitoring",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./document-manager-api",
-          "description": "Start Go coordination API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/document-manager-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./document-manager-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/document-manager-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -229,11 +231,11 @@
           "run": "redis-cli -p ${RESOURCE_PORTS[redis]} CONFIG SET notify-keyspace-events Ex > /dev/null 2>&1 || echo 'Redis keyspace notifications configured'",
           "description": "Configure Redis for pub/sub notifications"
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Document Manager running:\\n  Web Interface: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Coordination API: http://localhost:$API_PORT\\n  Vector search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: document-manager --help\\n\\nNext steps:\\n  1. Open the web interface and create your first application\\n  2. Configure AI agents for your documentation\\n  3. Monitor the improvement queue for suggestions'",
-          "description": "Display all running service URLs and next steps"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Document Manager running:\\n  Web Interface: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Coordination API: http://localhost:$API_PORT\\n  Vector search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: document-manager --help'",
+           "description": "Display service access URLs"
+         }
       ]
     },
     "test": {

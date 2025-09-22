@@ -1,32 +1,30 @@
+import type { HealthSummary } from '@/types/api'
 import { useQuery } from '@tanstack/react-query'
-import { 
-  Activity,
-  Heart,
-  TrendingUp,
-  TrendingDown,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  Clock
-} from 'lucide-react'
 import clsx from 'clsx'
 import { format } from 'date-fns'
 import {
-  LineChart,
-  Line,
-  AreaChart,
+  Activity,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Heart,
+  RefreshCw,
+  TrendingDown,
+  TrendingUp,
+  XCircle
+} from 'lucide-react'
+import {
   Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend
 } from 'recharts'
 import { apiService } from '../services/api'
-import { Card } from './common/Card'
 import { Badge } from './common/Badge'
+import { Card } from './common/Card'
 
 export default function HealthMonitor() {
   const { data: summary, isLoading, refetch } = useQuery({
@@ -70,6 +68,15 @@ export default function HealthMonitor() {
     }
   }
 
+  const healthScoreValue = summary?.system_health_score ?? 0
+  const scenarioSummary = typeof summary?.scenarios === 'object' && summary?.scenarios !== null
+    ? summary.scenarios as Exclude<HealthSummary['scenarios'], number>
+    : undefined
+
+  const vulnerabilitySummary = typeof summary?.vulnerabilities === 'object' && summary?.vulnerabilities !== null
+    ? summary.vulnerabilities as Exclude<HealthSummary['vulnerabilities'], number>
+    : undefined
+
   return (
     <div className="space-y-6 animate-in">
       {/* Header */}
@@ -91,21 +98,21 @@ export default function HealthMonitor() {
       <Card>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-dark-900">System Health Score</h2>
-          <Badge variant={summary?.system_health_score >= 90 ? 'success' : summary?.system_health_score >= 70 ? 'warning' : 'danger'}>
+          <Badge variant={healthScoreValue >= 90 ? 'success' : healthScoreValue >= 70 ? 'warning' : 'danger'}>
             {summary?.status || 'Unknown'}
           </Badge>
         </div>
-        
+
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Score Display */}
           <div className="flex flex-col items-center justify-center">
             <div className={clsx(
               'relative flex h-32 w-32 items-center justify-center rounded-full bg-gradient-to-br text-white',
-              getHealthBg(summary?.system_health_score || 0)
+              getHealthBg(healthScoreValue)
             )}>
               <span className="text-4xl font-bold">
-                {summary?.system_health_score !== null && summary?.system_health_score !== undefined ? 
-                  Math.round(summary.system_health_score * 10) / 10 : 0}
+                {summary?.system_health_score !== null && summary?.system_health_score !== undefined ?
+                  Math.round(healthScoreValue * 10) / 10 : 0}
               </span>
               <span className="absolute -bottom-2 text-xs font-medium bg-white text-dark-700 px-2 py-1 rounded-full shadow-sm">
                 / 100
@@ -113,7 +120,7 @@ export default function HealthMonitor() {
             </div>
             <p className="mt-4 text-sm text-dark-600">Overall System Health</p>
           </div>
-          
+
           {/* Health Chart Placeholder */}
           <div className="lg:col-span-2">
             {hasHistoricalData ? (
@@ -122,18 +129,18 @@ export default function HealthMonitor() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="time" stroke="#6b7280" fontSize={12} />
                   <YAxis stroke="#6b7280" fontSize={12} />
-                  <Tooltip 
-                    contentStyle={{ 
+                  <Tooltip
+                    contentStyle={{
                       backgroundColor: 'white',
                       border: '1px solid #e5e7eb',
                       borderRadius: '8px'
                     }}
                   />
-                  <Area 
-                    type="monotone" 
-                    dataKey="score" 
-                    stroke="#0ea5e9" 
-                    fill="#0ea5e9" 
+                  <Area
+                    type="monotone"
+                    dataKey="score"
+                    stroke="#0ea5e9"
+                    fill="#0ea5e9"
                     fillOpacity={0.2}
                     strokeWidth={2}
                   />
@@ -159,34 +166,34 @@ export default function HealthMonitor() {
             <Heart className="h-5 w-5 text-success-500" />
             <span className="text-xs text-dark-500">Healthy</span>
           </div>
-          <p className="text-2xl font-bold text-dark-900">{summary?.scenarios?.healthy || 0}</p>
+          <p className="text-2xl font-bold text-dark-900">{scenarioSummary?.healthy ?? 0}</p>
           <p className="text-sm text-dark-600">Scenarios</p>
         </Card>
-        
+
         <Card padding="sm" className="border-warning-200 bg-warning-50/30">
           <div className="flex items-center justify-between mb-2">
             <AlertTriangle className="h-5 w-5 text-warning-500" />
             <span className="text-xs text-dark-500">Degraded</span>
           </div>
-          <p className="text-2xl font-bold text-warning-700">{summary?.scenarios?.degraded || 0}</p>
+          <p className="text-2xl font-bold text-warning-700">{scenarioSummary?.degraded ?? 0}</p>
           <p className="text-sm text-warning-600">Scenarios</p>
         </Card>
-        
+
         <Card padding="sm" className="border-danger-200 bg-danger-50/30">
           <div className="flex items-center justify-between mb-2">
             <XCircle className="h-5 w-5 text-danger-500" />
             <span className="text-xs text-dark-500">Unhealthy</span>
           </div>
-          <p className="text-2xl font-bold text-danger-700">{summary?.scenarios?.unhealthy || 0}</p>
+          <p className="text-2xl font-bold text-danger-700">{scenarioSummary?.unhealthy ?? 0}</p>
           <p className="text-sm text-danger-600">Scenarios</p>
         </Card>
-        
+
         <Card padding="sm">
           <div className="flex items-center justify-between mb-2">
             <Activity className="h-5 w-5 text-primary-500" />
             <span className="text-xs text-dark-500">Total</span>
           </div>
-          <p className="text-2xl font-bold text-dark-900">{summary?.scenarios?.total || 0}</p>
+          <p className="text-2xl font-bold text-dark-900">{scenarioSummary?.total ?? (typeof summary?.scenarios === 'number' ? summary.scenarios : 0)}</p>
           <p className="text-sm text-dark-600">Scenarios</p>
         </Card>
       </div>
@@ -195,7 +202,7 @@ export default function HealthMonitor() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <h2 className="text-lg font-semibold text-dark-900 mb-4">Scenario Health Status</h2>
-          
+
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map(i => (
@@ -240,10 +247,10 @@ export default function HealthMonitor() {
             <h2 className="text-lg font-semibold text-dark-900">Health Alerts</h2>
             <Badge variant="default" size="sm">{alerts?.count || 0}</Badge>
           </div>
-          
-          {alerts && alerts.alerts.length > 0 ? (
+
+          {(alerts?.alerts?.length ?? 0) > 0 ? (
             <div className="space-y-3">
-              {alerts.alerts.slice(0, 5).map((alert, idx) => (
+              {alerts!.alerts.slice(0, 5).map((alert, idx) => (
                 <div
                   key={idx}
                   className={clsx(
@@ -278,59 +285,59 @@ export default function HealthMonitor() {
       {/* Vulnerability Breakdown */}
       <Card>
         <h2 className="text-lg font-semibold text-dark-900 mb-4">Vulnerability Overview</h2>
-        
+
         <div className="grid gap-4 sm:grid-cols-4">
           <div className={clsx(
             'text-center p-4 rounded-lg',
-            summary?.vulnerabilities?.critical > 0 ? 'bg-danger-50' : 'bg-dark-50'
+            (vulnerabilitySummary?.critical ?? 0) > 0 ? 'bg-danger-50' : 'bg-dark-50'
           )}>
             <p className="text-3xl font-bold text-danger-700">
-              {summary?.vulnerabilities?.critical || 0}
+              {vulnerabilitySummary?.critical ?? 0}
             </p>
             <p className="text-sm text-danger-600 font-medium">Critical</p>
           </div>
-          
+
           <div className={clsx(
             'text-center p-4 rounded-lg',
-            summary?.vulnerabilities?.high > 0 ? 'bg-warning-50' : 'bg-dark-50'
+            (vulnerabilitySummary?.high ?? 0) > 0 ? 'bg-warning-50' : 'bg-dark-50'
           )}>
             <p className="text-3xl font-bold text-warning-700">
-              {summary?.vulnerabilities?.high || 0}
+              {vulnerabilitySummary?.high ?? 0}
             </p>
             <p className="text-sm text-warning-600 font-medium">High</p>
           </div>
-          
+
           <div className="text-center p-4 rounded-lg bg-dark-50">
             <p className="text-3xl font-bold text-yellow-700">
-              {summary?.vulnerabilities?.medium || 0}
+              {vulnerabilitySummary?.medium ?? 0}
             </p>
             <p className="text-sm text-yellow-600 font-medium">Medium</p>
           </div>
-          
+
           <div className="text-center p-4 rounded-lg bg-dark-50">
             <p className="text-3xl font-bold text-blue-700">
-              {summary?.vulnerabilities?.low || 0}
+              {vulnerabilitySummary?.low ?? 0}
             </p>
             <p className="text-sm text-blue-600 font-medium">Low</p>
           </div>
         </div>
-        
+
         <div className="mt-4 pt-4 border-t border-dark-200 flex items-center justify-between">
           <p className="text-sm text-dark-600">
             Total vulnerabilities: <span className="font-semibold text-dark-900">
-              {summary?.vulnerabilities?.total || 0}
+              {vulnerabilitySummary?.total ?? (typeof summary?.vulnerabilities === 'number' ? summary.vulnerabilities : 0)}
             </span>
           </p>
-          {summary?.vulnerabilities?.trend && (
+          {vulnerabilitySummary?.trend && (
             <div className="flex items-center gap-1">
-              {summary.vulnerabilities.trend === 'up' ? (
+              {vulnerabilitySummary.trend === 'up' ? (
                 <TrendingUp className="h-4 w-4 text-danger-500" />
-              ) : summary.vulnerabilities.trend === 'down' ? (
+              ) : vulnerabilitySummary.trend === 'down' ? (
                 <TrendingDown className="h-4 w-4 text-success-500" />
               ) : null}
               <span className="text-sm text-dark-600">
-                {summary.vulnerabilities.trend === 'up' ? 'Increasing' :
-                 summary.vulnerabilities.trend === 'down' ? 'Decreasing' : 'Stable'}
+                {vulnerabilitySummary.trend === 'up' ? 'Increasing' :
+                  vulnerabilitySummary.trend === 'down' ? 'Decreasing' : 'Stable'}
               </span>
             </div>
           )}

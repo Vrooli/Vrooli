@@ -1,14 +1,24 @@
 {
-  "name": "image-tools",
+  "service": {
+    "name": "image-tools",
+    "displayName": "Image Tools",
+    "description": "Comprehensive image manipulation toolkit with compression, resizing, format conversion, and metadata management",
+    "version": "1.0.0",
+    "tags": ["image", "compression", "optimization", "conversion", "developer-tools"]
+  },
   "version": "1.0.0",
-  "description": "Comprehensive image manipulation toolkit with compression, resizing, format conversion, and metadata management",
   "category": "utilities",
-  "tags": ["image", "compression", "optimization", "conversion", "developer-tools"],
   "author": "Vrooli",
   "status": "development",
   "ports": {
-    "api": "${service.ports.image-tools.api}",
-    "ui": "${service.ports.image-tools.ui}"
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "35000-39999"
+    }
   },
   "resources": {
     "required": ["minio"],
@@ -88,24 +98,92 @@
       "version"
     ]
   },
-  "plugins": {
-    "jpeg": {
-      "library": "mozjpeg-go",
-      "features": ["progressive", "optimize", "quality-control"]
-    },
-    "png": {
-      "library": "pngquant-go",
-      "features": ["color-reduction", "dithering", "transparency"]
-    },
-    "webp": {
-      "library": "libwebp-go",
-      "features": ["lossless", "quality", "alpha"]
-    },
-    "svg": {
-      "library": "svgo",
-      "features": ["minify", "optimize-paths", "remove-metadata"]
-    }
-  },
+   "plugins": {
+     "jpeg": {
+       "library": "mozjpeg-go",
+       "features": ["progressive", "optimize", "quality-control"]
+     },
+     "png": {
+       "library": "pngquant-go",
+       "features": ["color-reduction", "dithering", "transparency"]
+     },
+     "webp": {
+       "library": "libwebp-go",
+       "features": ["lossless", "quality", "alpha"]
+     },
+     "svg": {
+       "library": "svgo",
+       "features": ["minify", "optimize-paths", "remove-metadata"]
+     }
+   },
+    "lifecycle": {
+      "version": "2.0.0",
+      "setup": {
+        "description": "Initialize Image Tools",
+        "condition": {
+          "checks": [
+            {
+              "type": "binaries",
+              "targets": [
+                "image-tools-api"
+              ]
+            },
+             {
+               "type": "cli",
+               "targets": [
+                 "image-tools"
+               ]
+             },
+            {
+              "type": "resources",
+              "populated": true
+            }
+          ]
+        },
+        "steps": [
+          {
+            "name": "install-cli",
+            "run": "cd cli && ./install.sh",
+            "description": "Install CLI command globally"
+          },
+          {
+            "name": "build-api",
+            "run": "cd api && go mod download && go build -o image-tools-api .",
+            "description": "Build Go API binary"
+          },
+          {
+            "name": "show-urls",
+            "run": "echo '🖼️ Image Tools initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: image-tools --help'",
+            "description": "Display service access URLs"
+          }
+        ]
+      },
+      "develop": {
+       "description": "Start image tools with API and UI servers",
+       "steps": [
+          {
+            "name": "start-api",
+             "run": "cd api && ./image-tools-api",
+            "description": "Start Go API server in background",
+            "background": true,
+            "condition": {
+               "file_exists": "api/image-tools-api"
+            }
+          },
+         {
+           "name": "start-ui",
+           "run": "cd ui && node server.js",
+           "description": "Start UI server in background",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🖼️ Image Tools running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: image-tools --help'",
+           "description": "Display all running service URLs"
+         }
+       ]
+     }
+   },
   "performance": {
     "max_file_size_mb": 100,
     "concurrent_workers": 4,

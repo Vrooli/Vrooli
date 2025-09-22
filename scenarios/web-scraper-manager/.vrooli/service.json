@@ -139,24 +139,27 @@
     },
     "setup": {
       "description": "Initialize Web Scraper Manager",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/web-scraper-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "web-scraper-manager"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
+       "condition": {
+         "checks": [
+            {
+              "type": "binaries",
+              "targets": [
+                "web-scraper-manager-api",
+                "web-scraper-manager"
+              ]
+            },
+           {
+             "type": "cli",
+             "targets": [
+               "web-scraper-manager"
+             ]
+           },
+           {
+             "type": "resources",
+             "populated": true
+           }
+         ]
+       },
       "steps": [
         {
           "name": "base-setup",
@@ -211,15 +214,15 @@
     "develop": {
       "description": "Start web scraper manager with Go API server",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./web-scraper-manager-api",
-          "description": "Start Go coordination API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/web-scraper-manager-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./web-scraper-manager-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/web-scraper-manager-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -234,11 +237,11 @@
           "run": "redis-cli -h localhost -p ${RESOURCE_PORTS[redis]} LPUSH scraper:queue:init \"ready\" > /dev/null",
           "description": "Initialize Redis job queues"
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Web Scraper Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Web Scraper Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

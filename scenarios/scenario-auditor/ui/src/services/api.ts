@@ -40,11 +40,18 @@ class ApiService {
   // System Status
   async getSystemStatus(): Promise<SystemStatus> {
     const summary = await this.getHealthSummary()
+    const scenariosMetric = typeof summary.scenarios === 'object' && summary.scenarios !== null
+      ? summary.scenarios
+      : undefined
+    const vulnerabilitiesMetric = typeof summary.vulnerabilities === 'object' && summary.vulnerabilities !== null
+      ? summary.vulnerabilities
+      : undefined
+
     return {
       status: summary.status as any,
       health_score: summary.system_health_score || 0,
-      scenarios: (typeof summary.scenarios === 'object' ? summary.scenarios?.total : summary.scenarios) || 0,
-      vulnerabilities: (typeof summary.vulnerabilities === 'object' ? summary.vulnerabilities?.total : summary.vulnerabilities) || 0,
+      scenarios: scenariosMetric?.total ?? (typeof summary.scenarios === 'number' ? summary.scenarios : 0),
+      vulnerabilities: vulnerabilitiesMetric?.total ?? (typeof summary.vulnerabilities === 'number' ? summary.vulnerabilities : 0),
       standards_violations: (summary as any).standards_violations || 0,
       endpoints: 0, // This field doesn't exist in current API response
       timestamp: summary.timestamp || new Date().toISOString(),

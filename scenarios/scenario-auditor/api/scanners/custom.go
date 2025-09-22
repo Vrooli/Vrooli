@@ -67,7 +67,7 @@ func (c *CustomPatternScanner) initializePatterns() {
 			CWE:            89,
 			OWASP:          "A03:2021 – Injection",
 		},
-		
+
 		// Command Injection patterns
 		{
 			ID:             "CMD-001",
@@ -93,7 +93,7 @@ func (c *CustomPatternScanner) initializePatterns() {
 			CWE:            95,
 			OWASP:          "A03:2021 – Injection",
 		},
-		
+
 		// Path Traversal patterns
 		{
 			ID:             "PATH-001",
@@ -119,7 +119,7 @@ func (c *CustomPatternScanner) initializePatterns() {
 			CWE:            22,
 			OWASP:          "A01:2021 – Broken Access Control",
 		},
-		
+
 		// XSS patterns
 		{
 			ID:             "XSS-001",
@@ -145,7 +145,7 @@ func (c *CustomPatternScanner) initializePatterns() {
 			CWE:            79,
 			OWASP:          "A03:2021 – Injection",
 		},
-		
+
 		// Authentication/Authorization patterns
 		{
 			ID:             "AUTH-001",
@@ -171,7 +171,7 @@ func (c *CustomPatternScanner) initializePatterns() {
 			CWE:            798,
 			OWASP:          "A07:2021 – Identification and Authentication Failures",
 		},
-		
+
 		// Cryptography patterns
 		{
 			ID:             "CRYPTO-001",
@@ -197,7 +197,7 @@ func (c *CustomPatternScanner) initializePatterns() {
 			CWE:            338,
 			OWASP:          "A02:2021 – Cryptographic Failures",
 		},
-		
+
 		// Error Handling patterns
 		{
 			ID:             "ERROR-001",
@@ -223,7 +223,7 @@ func (c *CustomPatternScanner) initializePatterns() {
 			CWE:            209,
 			OWASP:          "A09:2021 – Security Logging and Monitoring Failures",
 		},
-		
+
 		// HTTP Security Headers
 		{
 			ID:             "HTTP-001",
@@ -249,7 +249,7 @@ func (c *CustomPatternScanner) initializePatterns() {
 			CWE:            942,
 			OWASP:          "A05:2021 – Security Misconfiguration",
 		},
-		
+
 		// Resource Management
 		{
 			ID:             "RES-001",
@@ -275,7 +275,7 @@ func (c *CustomPatternScanner) initializePatterns() {
 			CWE:            404,
 			OWASP:          "",
 		},
-		
+
 		// Debug/Development Code
 		{
 			ID:             "DEBUG-001",
@@ -346,19 +346,19 @@ func (c *CustomPatternScanner) GetDefaultRules() []CustomRule {
 func (c *CustomPatternScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 	startTime := time.Now()
 	scanID := generateScanID()
-	
+
 	c.logger.Info("Starting custom pattern scan on %s", opts.Path)
-	
+
 	findings := make([]Finding, 0)
 	filesScanned := 0
 	linesScanned := 0
-	
+
 	// Walk through all files
 	err := filepath.Walk(opts.Path, func(filePath string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // Skip files we can't access
 		}
-		
+
 		// Skip directories
 		if info.IsDir() {
 			// Skip vendor, node_modules, etc.
@@ -367,30 +367,30 @@ func (c *CustomPatternScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 			}
 			return nil
 		}
-		
+
 		// Check if we should scan this file
 		if !c.shouldScanFile(filePath, opts) {
 			return nil
 		}
-		
+
 		// Scan the file
 		fileFindings, lines, err := c.scanFile(filePath, opts)
 		if err != nil {
 			c.logger.Error("Error scanning file %s: %v", filePath, err)
 			return nil
 		}
-		
+
 		findings = append(findings, fileFindings...)
 		filesScanned++
 		linesScanned += lines
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("error walking directory: %v", err)
 	}
-	
+
 	result := &ScanResult{
 		ScanID:       scanID,
 		ScannerType:  ScannerCustom,
@@ -403,9 +403,9 @@ func (c *CustomPatternScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 		LinesScanned: linesScanned,
 		ToolVersion:  "1.0.0",
 	}
-	
+
 	c.logger.Info("Custom pattern scan completed: %d issues found", len(findings))
-	
+
 	return result, nil
 }
 
@@ -417,7 +417,7 @@ func (c *CustomPatternScanner) shouldScanFile(filePath string, opts ScanOptions)
 			return false
 		}
 	}
-	
+
 	// Check includes if specified
 	if len(opts.IncludePatterns) > 0 {
 		included := false
@@ -431,7 +431,7 @@ func (c *CustomPatternScanner) shouldScanFile(filePath string, opts ScanOptions)
 			return false
 		}
 	}
-	
+
 	// Check if it's a text file we can scan
 	ext := filepath.Ext(filePath)
 	return isTextFile(ext)
@@ -444,43 +444,43 @@ func (c *CustomPatternScanner) scanFile(filePath string, opts ScanOptions) ([]Fi
 		return nil, 0, err
 	}
 	defer file.Close()
-	
+
 	findings := make([]Finding, 0)
 	lineNumber := 0
 	fileExt := filepath.Ext(filePath)
-	
+
 	// Determine which patterns to use based on scan type
 	patterns := c.getPatternsForScanType(opts.ScanType, fileExt)
-	
+
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		lineNumber++
 		line := scanner.Text()
-		
+
 		// Check each pattern
 		for _, pattern := range patterns {
 			if c.shouldApplyPattern(pattern, fileExt) && pattern.Pattern.MatchString(line) {
 				finding := Finding{
-					ID:          fmt.Sprintf("custom-%s-%s-%d", pattern.ID, filepath.Base(filePath), lineNumber),
-					ScannerType: ScannerCustom,
-					RuleID:      pattern.ID,
-					Severity:    pattern.Severity,
-					Confidence:  "medium",
-					Title:       pattern.Name,
-					Description: pattern.Description,
-					Category:    pattern.Category,
-					FilePath:    filePath,
-					LineNumber:  lineNumber,
-					CodeSnippet: truncateCode(line, 200),
+					ID:             fmt.Sprintf("custom-%s-%s-%d", pattern.ID, filepath.Base(filePath), lineNumber),
+					ScannerType:    ScannerCustom,
+					RuleID:         pattern.ID,
+					Severity:       pattern.Severity,
+					Confidence:     "medium",
+					Title:          pattern.Name,
+					Description:    pattern.Description,
+					Category:       pattern.Category,
+					FilePath:       filePath,
+					LineNumber:     lineNumber,
+					CodeSnippet:    truncateCode(line, 200),
 					Recommendation: pattern.Recommendation,
-					CWE:        pattern.CWE,
-					OWASP:      pattern.OWASP,
+					CWE:            pattern.CWE,
+					OWASP:          pattern.OWASP,
 				}
 				findings = append(findings, finding)
 			}
 		}
 	}
-	
+
 	return findings, lineNumber, scanner.Err()
 }
 
@@ -510,7 +510,7 @@ func (c *CustomPatternScanner) shouldApplyPattern(pattern PatternRule, fileExt s
 	if len(pattern.FileExtensions) == 0 {
 		return true // Pattern applies to all files
 	}
-	
+
 	for _, ext := range pattern.FileExtensions {
 		if ext == fileExt {
 			return true
@@ -526,7 +526,7 @@ func shouldSkipDir(name string) bool {
 		"vendor", "node_modules", ".git", "dist", "build",
 		".cache", "coverage", ".nyc_output", ".pytest_cache",
 	}
-	
+
 	for _, skip := range skipDirs {
 		if name == skip {
 			return true
@@ -547,7 +547,7 @@ func isTextFile(ext string) bool {
 		".sh": true, ".bash": true, ".zsh": true, ".fish": true,
 		".sql": true, ".md": true, ".txt": true, ".dockerfile": true,
 	}
-	
+
 	return textExtensions[strings.ToLower(ext)]
 }
 

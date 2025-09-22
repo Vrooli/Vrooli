@@ -24,11 +24,11 @@
       "description": "Vrooli Bridge API port",
       "range": "15000-19999"
     },
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "Project management dashboard",
-      "range": "3000-3999"
-    }
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Project management dashboard",
+       "range": "35000-39999"
+     }
   },
   "resources": {
     "postgres": {
@@ -86,24 +86,27 @@
     },
     "setup": {
       "description": "Initialize Vrooli Bridge",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/vrooli-bridge-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "vrooli-bridge"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
+         "condition": {
+          "checks": [
+             {
+                "type": "binaries",
+                "targets": [
+                   "vrooli-bridge-api",
+                   "vrooli-bridge"
+                ]
+             },
+             {
+                "type": "cli",
+                "targets": [
+                   "vrooli-bridge"
+                ]
+             },
+            {
+              "type": "resources",
+              "populated": true
+            }
+          ]
+        },
       "steps": [
         {
           "name": "build-api",
@@ -143,11 +146,11 @@
             "file_exists": "ui/index.html"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-bridge --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-bridge --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

@@ -29,11 +29,11 @@
       "description": "Comment system REST API port",
       "range": "15000-19999"
     },
-    "ui": {
-      "env_var": "UI_PORT", 
-      "description": "Admin dashboard and SDK hosting port",
-      "range": "3000-3999"
-    }
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Admin dashboard and SDK hosting port",
+       "range": "35000-39999"
+     }
   },
   "resources": {
     "postgres": {
@@ -113,16 +113,18 @@
       "description": "Initialize Universal Comment System",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/comment-system-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "comment-system"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "comment-system-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "comment-system"
+             ]
+           },
           {
             "type": "resources",
             "populated": true
@@ -177,15 +179,15 @@
     "develop": {
       "description": "Start comment system with API server and admin UI",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./comment-system-api",
-          "description": "Start Go REST API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/comment-system-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./comment-system-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/comment-system-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && npm run dev -- --port ${UI_PORT}",
@@ -195,11 +197,11 @@
             "file_exists": "ui/package.json"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Admin Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  SDK: http://localhost:${UI_PORT}/sdk/vrooli-comments.js\\n  CLI: comment-system --help\\n\\nAPI Endpoints:\\n  GET /api/v1/comments/{scenario}\\n  POST /api/v1/comments/{scenario}\\n  PUT /api/v1/comments/{id}\\n  DELETE /api/v1/comments/{id}\\n  GET /api/v1/config/{scenario}\\n  POST /api/v1/config/{scenario}\\n\\nIntegration Examples:\\n  http://localhost:${UI_PORT}/docs/integration'",
-          "description": "Display all running service URLs and endpoints"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Admin Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  SDK: http://localhost:${UI_PORT}/sdk/vrooli-comments.js\\n  CLI: comment-system --help\\n\\nAPI Endpoints:\\n  GET /api/v1/comments/{scenario}\\n  POST /api/v1/comments/{scenario}\\n  PUT /api/v1/comments/{id}\\n  DELETE /api/v1/comments/{id}\\n  GET /api/v1/config/{scenario}\\n  POST /api/v1/config/{scenario}\\n\\nIntegration Examples:\\n  http://localhost:${UI_PORT}/docs/integration'",
+           "description": "Display all running service URLs and endpoints"
+         }
       ]
     },
     "test": {

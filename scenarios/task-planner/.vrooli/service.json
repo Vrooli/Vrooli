@@ -112,16 +112,16 @@
       "description": "Initialize Task Planner",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/task-planner-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "task-planner"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "task-planner-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["task-planner"]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -170,15 +170,15 @@
     "develop": {
       "description": "Start task planner with Go API server and UI",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./task-planner-api",
-          "description": "Start Go coordination API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/task-planner-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./task-planner-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/task-planner-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -188,11 +188,11 @@
             "file_exists": "ui/server.js"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Task Planner running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: task-planner --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Task Planner running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: task-planner --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

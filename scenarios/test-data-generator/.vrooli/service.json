@@ -1,25 +1,39 @@
 {
-  "name": "test-data-generator",
+  "service": {
+    "name": "test-data-generator"
+  },
   "version": "1.0.0",
   "description": "Universal test data generator for all formats - JSON, YAML, CSV, XML, images, audio, video, PDFs",
   "category": "generation",
   "status": "testing",
-  "metadata": {
-    "author": "AI Agent",
-    "created": "2024-01-09",
-    "updated": "2024-01-09",
-    "tags": [
-      "test",
-      "mock",
-      "data",
-      "generation",
-      "faker",
-      "media"
-    ],
-    "revenue_potential": "5000-10000",
-    "reusability_score": 10,
-    "complexity": "medium"
-  },
+    "metadata": {
+     "author": "AI Agent",
+     "created": "2024-01-09",
+     "updated": "2024-01-09",
+     "tags": [
+       "test",
+       "mock",
+       "data",
+       "generation",
+       "faker",
+       "media"
+     ],
+     "revenue_potential": "5000-10000",
+     "reusability_score": 10,
+     "complexity": "medium"
+   },
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Test data generator API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Test data generator UI port",
+       "range": "35000-39999"
+     }
+   },
   "capabilities": [
     "generate_json",
     "generate_yaml",
@@ -129,23 +143,23 @@
     "test_runner": "tests/run-tests.sh",
     "coverage_target": 80
   },
-  "monitoring": {
-    "health_check": {
-      "endpoint": "/health",
-      "interval": 30,
-      "timeout": 5
+    "monitoring": {
+      "health_check": {
+        "endpoint": "/health",
+        "interval": 30,
+        "timeout": 5
+      },
+      "metrics": {
+        "enabled": true,
+        "endpoint": "/metrics",
+        "track": [
+          "requests",
+          "cache_hits",
+          "generation_time",
+          "errors"
+        ]
+      }
     },
-    "metrics": {
-      "enabled": true,
-      "endpoint": "/metrics",
-      "track": [
-        "requests",
-        "cache_hits",
-        "generation_time",
-        "errors"
-      ]
-    }
-  },
   "security": {
     "rate_limiting": {
       "enabled": true,
@@ -166,21 +180,79 @@
     },
     "deprecations": []
   },
-  "lifecycle": {
-    "stop": {
-      "description": "Stop test-data-generator services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"test-data-generator-api\" || true; sleep 1; pkill -9 -f \"test-data-generator-api\" 2>/dev/null || true",
-          "description": "Stop API process"
+    "lifecycle": {
+      "setup": {
+        "description": "Initialize Test Data Generator",
+        "condition": {
+          "checks": [
+            {
+              "type": "binaries",
+              "targets": [
+                "test-data-generator-api"
+              ]
+            },
+            {
+              "type": "cli",
+              "targets": ["test-data-generator"]
+            }
+          ]
         },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/test-data-generator.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/test-data-generator.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
-    }
-  }
+        "steps": [
+          {
+            "name": "install-deps",
+            "run": "cd api && npm install && cd ../ui && npm install",
+            "description": "Install dependencies"
+          },
+          {
+            "name": "build-api",
+            "run": "cd api && npm run build",
+            "description": "Build API"
+          },
+          {
+            "name": "show-urls",
+            "run": "echo 'Test Data Generator initialized - API: http://localhost:${API_PORT} - UI: http://localhost:${UI_PORT}'",
+            "description": "Display service URLs"
+          }
+        ]
+      },
+      "develop": {
+       "description": "Start test-data-generator services",
+       "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./test-data-generator-api",
+            "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/test-data-generator-api"
+           }
+         },
+         {
+           "name": "start-ui",
+           "run": "cd ui && node server.js",
+           "description": "Start UI server in background",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo 'Test Data Generator running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'"
+         }
+       ]
+     },
+     "stop": {
+       "description": "Stop test-data-generator services",
+       "steps": [
+         {
+           "name": "stop-api",
+           "run": "pkill -f \"test-data-generator-api\" || true; sleep 1; pkill -9 -f \"test-data-generator-api\" 2>/dev/null || true",
+           "description": "Stop API process"
+         },
+         {
+           "name": "stop-ui",
+           "run": "pkill -f \"scenarios/test-data-generator.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/test-data-generator.*server\\.js\" 2>/dev/null || true",
+           "description": "Stop UI process"
+         }
+       ]
+     }
+   }
 }

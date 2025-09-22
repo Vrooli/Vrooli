@@ -93,18 +93,20 @@
     },
     "setup": {
       "description": "Initialize Make It Vegan app",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/make-it-vegan-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "make-it-vegan"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "make-it-vegan-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "make-it-vegan"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -153,26 +155,26 @@
     "develop": {
       "description": "Start Make It Vegan services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./make-it-vegan-api",
-          "description": "Start Go API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/make-it-vegan-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./make-it-vegan-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/make-it-vegan-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
-        {
-          "name": "show-running",
-          "run": "echo '🥬 Make It Vegan running:' && echo '  UI: http://localhost:'$UI_PORT && echo '  API: http://localhost:'$API_PORT && echo '  CLI: make-it-vegan --help'",
-          "description": "Display running services"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🥬 Make It Vegan running:' && echo '  UI: http://localhost:'$UI_PORT && echo '  API: http://localhost:'$API_PORT && echo '  CLI: make-it-vegan --help'",
+           "description": "Display service URLs and usage information"
+         }
       ]
     },
     "test": {

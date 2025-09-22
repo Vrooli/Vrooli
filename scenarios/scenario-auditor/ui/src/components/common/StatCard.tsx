@@ -1,8 +1,8 @@
-import { LucideIcon, TrendingUp, TrendingDown, Minus, AlertTriangle, Info } from 'lucide-react'
 import clsx from 'clsx'
+import { AlertTriangle, LucideIcon, Minus, TrendingDown, TrendingUp } from 'lucide-react'
 import { useState } from 'react'
 
-interface StatCardProps {
+export interface StatCardProps {
   title: string
   value: number | string | null
   unit?: string
@@ -15,12 +15,12 @@ interface StatCardProps {
   hasWarning?: boolean
 }
 
-export function StatCard({ 
-  title, 
-  value, 
-  unit, 
-  icon: Icon, 
-  trend, 
+export function StatCard({
+  title,
+  value,
+  unit,
+  icon: Icon,
+  trend,
   detail,
   color = 'primary',
   loading,

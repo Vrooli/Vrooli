@@ -173,16 +173,16 @@
       "description": "Initialize Date Night Planner",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/date-night-planner-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "date-night-planner"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "date-night-planner-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": ["date-night-planner"]
+            },
           {
             "type": "dependencies",
             "paths": [
@@ -251,11 +251,11 @@
           "description": "Start UI server in background",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '💕 Date Night Planner Services Running!\\n  💖 UI: http://localhost:${UI_PORT}\\n  🔗 API: http://localhost:${API_PORT}\\n  📱 CLI: date-night-planner --help\\n\\n🎯 Key Endpoints:\\n  POST /api/v1/dates/suggest - Generate date suggestions\\n  POST /api/v1/dates/plan - Create date plans\\n  GET /api/v1/couples/{id}/memories - Browse date memories\\n  POST /api/v1/preferences/update - Update couple preferences'",
-          "description": "Display all running service URLs and key endpoints"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '💕 Date Night Planner Services Running!\\n  💖 UI: http://localhost:${UI_PORT}\\n  🔗 API: http://localhost:${API_PORT}\\n  📱 CLI: date-night-planner --help'",
+           "description": "Display service access URLs"
+         }
       ]
     },
     "test": {

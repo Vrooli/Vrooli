@@ -86,18 +86,20 @@
     },
     "setup": {
       "description": "Initialize Personal Relationship Manager",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/personal-relationship-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "personal-relationship-manager"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "personal-relationship-manager-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "personal-relationship-manager"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -161,11 +163,11 @@
           "description": "Start UI server in background",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: relationship-manager --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: relationship-manager --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

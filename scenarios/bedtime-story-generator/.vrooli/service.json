@@ -44,16 +44,16 @@
     }
   },
   "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Story generation and management API",
-      "range": "20000-24999"
-    },
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "Interactive story reader UI",
-      "range": "40000-44999"
-    }
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Story generation and management API",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Interactive story reader UI",
+       "range": "35000-39999"
+     }
   },
   "resources": {
     "postgres": {
@@ -139,16 +139,18 @@
       "description": "Initialize Bedtime Story Generator",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/bedtime-story-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "bedtime-story"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "bedtime-story-generator-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "bedtime-story-generator"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -202,26 +204,26 @@
     "develop": {
       "description": "Start Bedtime Story Generator services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./bedtime-story-api",
-          "description": "Start API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/bedtime-story-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./bedtime-story-generator-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/bedtime-story-generator-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && npm run dev",
           "description": "Start UI development server",
           "background": true
         },
-        {
-          "name": "show-services",
-          "run": "echo 'Services running - Story Reader: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
-          "description": "Display running services"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo 'Services running - Story Reader: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
+           "description": "Display service URLs"
+         }
       ]
     },
     "test": {

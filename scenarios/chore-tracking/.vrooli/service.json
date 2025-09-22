@@ -85,16 +85,18 @@
       "description": "Initialize ChoreQuest",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/chore-tracking-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "chore-tracking"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "chore-tracking-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "chore-tracking"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -143,26 +145,26 @@
     "develop": {
       "description": "Start ChoreQuest services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./chore-tracker-api",
-          "description": "Start API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/chore-tracker-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./chore-tracking-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/chore-tracking-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
-        {
-          "name": "show-running",
-          "run": "echo '🚀 ChoreQuest running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-          "description": "Display running services"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 ChoreQuest running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display running services"
+         }
       ]
     },
     "test": {

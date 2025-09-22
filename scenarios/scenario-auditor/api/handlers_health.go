@@ -51,8 +51,8 @@ func getHealthMetricsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Build metrics response
 	metrics := map[string]interface{}{
-		"scenario":   scenarioName,
-		"timestamp":  time.Now().UTC(),
+		"scenario":     scenarioName,
+		"timestamp":    time.Now().UTC(),
 		"health_score": calculateHealthScore(criticalCount, highCount, mediumCount, lowCount),
 		"vulnerabilities": map[string]interface{}{
 			"critical": criticalCount,
@@ -63,7 +63,7 @@ func getHealthMetricsHandler(w http.ResponseWriter, r *http.Request) {
 		},
 		"performance": map[string]interface{}{
 			"avg_response_time_ms": avgResponseTime,
-			"error_rate":          errorRate,
+			"error_rate":           errorRate,
 		},
 		"last_scanned": lastScanned,
 	}

@@ -147,18 +147,20 @@
     },
     "setup": {
       "description": "Initialize SmartNotes",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/notes-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "notes"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "notes-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "notes"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -207,26 +209,26 @@
     "develop": {
       "description": "Start SmartNotes services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./notes-api",
-          "description": "Start API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/notes-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./notes-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/notes-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
-        {
-          "name": "show-running",
-          "run": "echo '🚀 SmartNotes running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-          "description": "Display running services"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 SmartNotes running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display running services"
+         }
       ]
     },
     "test": {

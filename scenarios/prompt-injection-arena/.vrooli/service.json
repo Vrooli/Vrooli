@@ -117,18 +117,20 @@
     },
     "setup": {
       "description": "Initialize Prompt Injection Arena",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/prompt-injection-arena-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "prompt-injection-arena"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "prompt-injection-arena-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "prompt-injection-arena"
+             ]
+           },
           {
             "type": "resources",
             "populated": true
@@ -189,11 +191,11 @@
             "file_exists": "ui/package.json"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Arena UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Arena UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

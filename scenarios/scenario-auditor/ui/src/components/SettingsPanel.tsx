@@ -1,25 +1,54 @@
-import { useState, useEffect } from 'react'
-import { 
-  Settings,
-  Save,
-  RefreshCw,
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import clsx from 'clsx'
+import {
+  AlertTriangle,
+  Bell,
+  Check,
+  Clock,
   Database,
   Globe,
+  RefreshCw,
+  Save,
+  Settings,
   Shield,
-  Bell,
-  Clock,
-  Check,
-  Sliders,
-  AlertTriangle
+  Sliders
 } from 'lucide-react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import clsx from 'clsx'
+import { useEffect, useState } from 'react'
 import { apiService } from '../services/api'
-import { Card } from './common/Card'
 import { Badge } from './common/Badge'
+import { Card } from './common/Card'
+
+type SettingsState = {
+  general: {
+    api_timeout: number
+    max_retries: number
+    debug_mode: boolean
+    log_level: string
+  }
+  scanning: {
+    auto_scan: boolean
+    scan_interval: number
+    scan_depth: string
+    parallel_scans: number
+  }
+  notifications: {
+    email_enabled: boolean
+    email_address: string
+    alert_critical: boolean
+    alert_high: boolean
+    alert_medium: boolean
+    alert_low: boolean
+  }
+  database: {
+    connection_pool: number
+    query_timeout: number
+    auto_backup: boolean
+    backup_interval: number
+  }
+}
 
 export default function SettingsPanel() {
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<SettingsState>({
     general: {
       api_timeout: 30,
       max_retries: 3,
@@ -94,7 +123,7 @@ export default function SettingsPanel() {
   const handleCategoryToggle = (categoryId: string, enabled: boolean) => {
     if (!preferencesState) return
     setPreferencesError(null)
-    setPreferencesState(prev => {
+    setPreferencesState((prev: any) => {
       if (!prev) return prev
       const nextCategories = { ...(prev.categories || {}) }
       if (enabled) {
@@ -113,7 +142,7 @@ export default function SettingsPanel() {
   const handleSeverityToggle = (severity: string, enabled: boolean) => {
     if (!preferencesState) return
     setPreferencesError(null)
-    setPreferencesState(prev => {
+    setPreferencesState((prev: any) => {
       if (!prev) return prev
       const nextSeverities = { ...(prev.severities || {}) }
       if (enabled) {
@@ -132,7 +161,7 @@ export default function SettingsPanel() {
   const handlePreferenceToggle = (key: 'auto_fix' | 'notifications', enabled: boolean) => {
     if (!preferencesState) return
     setPreferencesError(null)
-    setPreferencesState(prev => {
+    setPreferencesState((prev: any) => {
       if (!prev) return prev
       return {
         ...prev,
@@ -196,7 +225,7 @@ export default function SettingsPanel() {
             <Settings className="h-5 w-5 text-primary-500" />
             <h2 className="text-lg font-semibold text-dark-900">General Settings</h2>
           </div>
-          
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-dark-700 mb-2">
@@ -212,7 +241,7 @@ export default function SettingsPanel() {
                 className="w-full rounded-lg border border-dark-300 bg-white px-4 py-2 text-dark-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-dark-700 mb-2">
                 Max Retries
@@ -227,7 +256,7 @@ export default function SettingsPanel() {
                 className="w-full rounded-lg border border-dark-300 bg-white px-4 py-2 text-dark-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-dark-700 mb-2">
                 Log Level
@@ -246,7 +275,7 @@ export default function SettingsPanel() {
                 <option value="debug">Debug</option>
               </select>
             </div>
-            
+
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -268,7 +297,7 @@ export default function SettingsPanel() {
             <Shield className="h-5 w-5 text-primary-500" />
             <h2 className="text-lg font-semibold text-dark-900">Scanning Settings</h2>
           </div>
-          
+
           <div className="space-y-4">
             <label className="flex items-center gap-2">
               <input
@@ -282,7 +311,7 @@ export default function SettingsPanel() {
               />
               <span className="text-sm text-dark-700">Enable Automatic Scanning</span>
             </label>
-            
+
             <div>
               <label className="block text-sm font-medium text-dark-700 mb-2">
                 Scan Interval (seconds)
@@ -298,7 +327,7 @@ export default function SettingsPanel() {
                 className="w-full rounded-lg border border-dark-300 bg-white px-4 py-2 text-dark-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 disabled:opacity-50"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-dark-700 mb-2">
                 Scan Depth
@@ -316,7 +345,7 @@ export default function SettingsPanel() {
                 <option value="deep">Deep</option>
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-dark-700 mb-2">
                 Parallel Scans
@@ -342,7 +371,7 @@ export default function SettingsPanel() {
             <Bell className="h-5 w-5 text-primary-500" />
             <h2 className="text-lg font-semibold text-dark-900">Notification Settings</h2>
           </div>
-          
+
           <div className="space-y-4">
             <label className="flex items-center gap-2">
               <input
@@ -356,7 +385,7 @@ export default function SettingsPanel() {
               />
               <span className="text-sm text-dark-700">Enable Email Notifications</span>
             </label>
-            
+
             <div>
               <label className="block text-sm font-medium text-dark-700 mb-2">
                 Email Address
@@ -372,7 +401,7 @@ export default function SettingsPanel() {
                 className="w-full rounded-lg border border-dark-300 bg-white px-4 py-2 text-dark-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 disabled:opacity-50"
               />
             </div>
-            
+
             <div>
               <p className="text-sm font-medium text-dark-700 mb-2">Alert Levels</p>
               <div className="space-y-2">
@@ -389,7 +418,7 @@ export default function SettingsPanel() {
                   <span className="text-sm text-dark-700">Critical</span>
                   <Badge variant="danger" size="sm">High Priority</Badge>
                 </label>
-                
+
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -403,7 +432,7 @@ export default function SettingsPanel() {
                   <span className="text-sm text-dark-700">High</span>
                   <Badge variant="warning" size="sm">Important</Badge>
                 </label>
-                
+
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -416,7 +445,7 @@ export default function SettingsPanel() {
                   />
                   <span className="text-sm text-dark-700">Medium</span>
                 </label>
-                
+
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -440,7 +469,7 @@ export default function SettingsPanel() {
             <Database className="h-5 w-5 text-primary-500" />
             <h2 className="text-lg font-semibold text-dark-900">Database Settings</h2>
           </div>
-          
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-dark-700 mb-2">
@@ -458,7 +487,7 @@ export default function SettingsPanel() {
                 className="w-full rounded-lg border border-dark-300 bg-white px-4 py-2 text-dark-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-dark-700 mb-2">
                 Query Timeout (ms)
@@ -473,7 +502,7 @@ export default function SettingsPanel() {
                 className="w-full rounded-lg border border-dark-300 bg-white px-4 py-2 text-dark-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
               />
             </div>
-            
+
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -486,7 +515,7 @@ export default function SettingsPanel() {
               />
               <span className="text-sm text-dark-700">Enable Automatic Backups</span>
             </label>
-            
+
             <div>
               <label className="block text-sm font-medium text-dark-700 mb-2">
                 Backup Interval (seconds)
@@ -685,7 +714,7 @@ export default function SettingsPanel() {
           <Globe className="h-5 w-5 text-primary-500" />
           <h2 className="text-lg font-semibold text-dark-900">System Information</h2>
         </div>
-        
+
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <p className="text-sm font-medium text-dark-700">Version</p>

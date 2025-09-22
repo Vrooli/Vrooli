@@ -26,16 +26,16 @@
     ]
   },
   "ports": {
-    "api": {
-      "env_var": "PERIOD_TRACKER_API_PORT",
-      "description": "Period Tracker API port",
-      "range": "16000-16999"
-    },
-    "ui": {
-      "env_var": "PERIOD_TRACKER_UI_PORT",
-      "description": "Period Tracker UI port",
-      "range": "36000-36999"
-    }
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Period Tracker API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Period Tracker UI port",
+       "range": "35000-39999"
+     }
   },
   "resources": {
     "postgres": {
@@ -117,18 +117,20 @@
     },
     "setup": {
       "description": "Initialize Period Tracker with encrypted health data storage",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/period-tracker-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "period-tracker"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "period-tracker-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "period-tracker"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -182,14 +184,14 @@
     "develop": {
       "description": "Start Period Tracker services with privacy-first configuration",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./period-tracker-api",
-          "description": "Start encrypted API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/period-tracker-api"
-          },
+         {
+           "name": "start-api",
+           "run": "cd api && ./period-tracker-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/period-tracker-api"
+           },
           "environment": {
             "PRIVACY_MODE": "strict",
             "ENCRYPTION_ENABLED": "true",
@@ -202,11 +204,11 @@
           "description": "Start privacy-focused UI server",
           "background": true
         },
-        {
-          "name": "show-running",
-          "run": "echo '🚀 Period Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  🔐 All health data encrypted and stored locally only'",
-          "description": "Display running services with privacy notice"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Period Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  🔐 All health data encrypted and stored locally only'",
+           "description": "Display running services with privacy notice"
+         }
       ]
     },
     "test": {

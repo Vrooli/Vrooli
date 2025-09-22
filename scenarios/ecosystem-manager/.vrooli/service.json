@@ -92,12 +92,18 @@
       "description": "Initialize Ecosystem Manager",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/ecosystem-manager-api"
-            ]
-          },
+            {
+              "type": "binaries",
+              "targets": [
+                "ecosystem-manager-api"
+              ]
+            },
+            {
+              "type": "cli",
+              "targets": [
+                "ecosystem-manager"
+              ]
+            },
           {
             "type": "directories",
             "targets": [
@@ -148,15 +154,15 @@
     "develop": {
       "description": "Start Ecosystem Manager services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./ecosystem-manager-api",
-          "description": "Start Ecosystem Manager API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/ecosystem-manager-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./ecosystem-manager-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/ecosystem-manager-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && npm run dev",
@@ -167,10 +173,11 @@
             "json_path_exists": "ui/package.json:scripts.dev"
           }
         },
-        {
-          "name": "show-status",
-          "run": "echo \"🎉 Ecosystem Manager is running at http://localhost:${API_PORT}\" && echo \"📊 Dashboard: http://localhost:${UI_PORT}\" && echo \"🔌 API Base: http://localhost:${API_PORT}/api\""
-        }
+         {
+           "name": "show-urls",
+           "run": "echo \"🎉 Ecosystem Manager is running at http://localhost:${API_PORT}\" && echo \"📊 Dashboard: http://localhost:${UI_PORT}\" && echo \"🔌 API Base: http://localhost:${API_PORT}/api\"",
+           "description": "Display service access URLs"
+         }
       ]
     },
     "test": {

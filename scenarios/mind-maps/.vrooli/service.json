@@ -101,18 +101,20 @@
     },
     "setup": {
       "description": "Initialize Mind Maps service",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/mind-maps-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "mind-maps"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "mind-maps-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "mind-maps"
+             ]
+           },
           {
             "type": "resources",
             "populated": true
@@ -150,18 +152,26 @@
     "develop": {
       "description": "Start Mind Maps services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./mind-maps-api",
-          "description": "Start Go API server in background",
-          "background": true
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server in background",
-          "background": true
-        }
+         {
+           "name": "start-api",
+           "run": "cd api && ./mind-maps-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/mind-maps-api"
+           }
+         },
+         {
+           "name": "start-ui",
+           "run": "cd ui && node server.js",
+           "description": "Start UI server in background",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🧠 Mind Maps running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display service access URLs"
+         }
       ]
     },
     "test": {

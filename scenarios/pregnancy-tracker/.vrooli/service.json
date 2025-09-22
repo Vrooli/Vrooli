@@ -27,16 +27,16 @@
     ]
   },
   "ports": {
-    "api": {
-      "env_var": "PREGNANCY_TRACKER_API_PORT",
-      "description": "Pregnancy Tracker API port",
-      "range": "17000-17999"
-    },
-    "ui": {
-      "env_var": "PREGNANCY_TRACKER_UI_PORT",
-      "description": "Pregnancy Tracker UI port",
-      "range": "37000-37999"
-    }
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Pregnancy Tracker API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Pregnancy Tracker UI port",
+       "range": "35000-39999"
+     }
   },
   "resources": {
     "postgres": {
@@ -138,18 +138,20 @@
     },
     "setup": {
       "description": "Initialize Pregnancy Tracker with encrypted health data and evidence-based content",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/pregnancy-tracker-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "pregnancy-tracker"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "pregnancy-tracker-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "pregnancy-tracker"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -213,14 +215,14 @@
     "develop": {
       "description": "Start Pregnancy Tracker with privacy-first, evidence-based configuration",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./pregnancy-tracker-api",
-          "description": "Start encrypted API server with search",
-          "background": true,
-          "condition": {
-            "file_exists": "api/pregnancy-tracker-api"
-          },
+         {
+           "name": "start-api",
+           "run": "cd api && ./pregnancy-tracker-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/pregnancy-tracker-api"
+           },
           "environment": {
             "PRIVACY_MODE": "strict",
             "ENCRYPTION_ENABLED": "true",
@@ -235,11 +237,11 @@
           "description": "Start responsive UI server",
           "background": true
         },
-        {
-          "name": "show-running",
-          "run": "echo '🚀 Pregnancy Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PREGNANCY_TRACKER_UI_PORT}\\n  API: http://localhost:${PREGNANCY_TRACKER_API_PORT}\\n  🔐 All health data encrypted locally\\n  🔍 Full-text search available\\n  📚 Evidence-based content with citations'",
-          "description": "Display running services with features"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Pregnancy Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PREGNANCY_TRACKER_UI_PORT}\\n  API: http://localhost:${PREGNANCY_TRACKER_API_PORT}\\n  🔐 All health data encrypted locally\\n  🔍 Full-text search available\\n  📚 Evidence-based content with citations'",
+           "description": "Display running services with features"
+         }
       ]
     },
     "test": {

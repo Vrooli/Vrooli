@@ -19,13 +19,17 @@
       "ollama-ai"
     ]
   },
-  "ports": {
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "Web UI for document generation",
-      "range": "35000-39999"
-    }
-  },
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Web UI for document generation",
+       "range": "35000-39999"
+     }
+   },
   "resources": {
     "postgres": {
       "type": "postgres",
@@ -97,18 +101,26 @@
     },
     "setup": {
       "description": "Initialize Privacy & Terms Generator",
-      "condition": {
-        "checks": [
-          {
-            "type": "cli",
-            "command": "privacy-terms-generator"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "privacy-terms-generator-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "privacy-terms-generator"
+             ]
+           },
+           {
+             "type": "resources",
+             "populated": true
+           }
+         ]
+       },
       "steps": [
         {
           "name": "initialize-database",
@@ -132,22 +144,31 @@
         }
       ]
     },
-    "develop": {
-      "description": "Start privacy & terms generator UI",
-      "steps": [
-        {
-          "name": "start-ui",
-          "run": "cd ui && python3 -m http.server ${UI_PORT} 2>/dev/null",
-          "description": "Start web UI server",
-          "background": true
-        },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  CLI: privacy-terms-generator --help'",
-          "description": "Display running service URLs"
-        }
-      ]
-    },
+     "develop": {
+       "description": "Start privacy & terms generator UI",
+       "steps": [
+         {
+           "name": "start-api",
+           "run": "cd api && ./privacy-terms-generator-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/privacy-terms-generator-api"
+           }
+         },
+         {
+           "name": "start-ui",
+           "run": "cd ui && python3 -m http.server ${UI_PORT} 2>/dev/null",
+           "description": "Start web UI server",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  CLI: privacy-terms-generator --help'",
+           "description": "Display running service URLs"
+         }
+       ]
+     },
     "test": {
       "description": "Test privacy & terms generator",
       "steps": [

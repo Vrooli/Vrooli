@@ -91,18 +91,20 @@
     },
     "setup": {
       "description": "Initialize Prompt Manager",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/prompt-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "prompt-manager"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "prompt-manager-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "prompt-manager"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -166,11 +168,11 @@
           "description": "Start UI server in background",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}/api/v1 - CLI: prompt-manager --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}/api/v1 - CLI: prompt-manager --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

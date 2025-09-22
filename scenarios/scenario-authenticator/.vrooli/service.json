@@ -120,16 +120,16 @@
       "description": "Initialize Scenario Authenticator",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-authenticator-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "scenario-authenticator"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "scenario-authenticator-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": ["scenario-authenticator"]
+            },
           {
             "type": "dependencies",
             "paths": [
@@ -189,7 +189,7 @@
         {
           "name": "start-api",
           "run": "cd api && ./scenario-authenticator-api",
-          "description": "Start authentication API server",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/scenario-authenticator-api"
@@ -202,7 +202,7 @@
           "background": true
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "echo 'Auth Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: scenario-authenticator --help'",
           "description": "Display all running service URLs"
         }

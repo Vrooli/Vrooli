@@ -55,7 +55,7 @@
       "enabled": true,
       "required": true,
       "purpose": "Execution locks, distributed caching, pub/sub for real-time updates"
-    },
+    }
   },
   "lifecycle": {
     "version": "2.0.0",
@@ -80,24 +80,27 @@
     },
     "setup": {
       "description": "Initialize Workflow Scheduler platform",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/workflow-scheduler-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "workflow-scheduler"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
+       "condition": {
+         "checks": [
+            {
+              "type": "binaries",
+              "targets": [
+                "workflow-scheduler-api",
+                "workflow-scheduler"
+              ]
+            },
+           {
+             "type": "cli",
+             "targets": [
+               "workflow-scheduler"
+             ]
+           },
+           {
+             "type": "resources",
+             "populated": true
+           }
+         ]
+       },
       "steps": [
         {
           "name": "base-setup",
@@ -129,25 +132,34 @@
     "develop": {
       "description": "Start Workflow Scheduler with API server and scheduling engine",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./workflow-scheduler-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/workflow-scheduler-api"
-          }
-        },
-        {
-          "name": "configure-redis",
-          "run": "redis-cli -p ${RESOURCE_PORTS[redis]} CONFIG SET notify-keyspace-events Ex > /dev/null 2>&1 || true",
-          "description": "Configure Redis for keyspace notifications"
-        },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Workflow Scheduler running:\\n  API: http://localhost:$API_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://your-webhook-url'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "start-api",
+           "run": "cd api && ./workflow-scheduler-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/workflow-scheduler-api"
+           }
+         },
+         {
+           "name": "start-ui",
+           "run": "cd ui && node server.js",
+           "description": "Start UI server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "ui/server.js"
+           }
+         },
+         {
+           "name": "configure-redis",
+           "run": "redis-cli -p ${RESOURCE_PORTS[redis]} CONFIG SET notify-keyspace-events Ex > /dev/null 2>&1 || true",
+           "description": "Configure Redis for keyspace notifications"
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Workflow Scheduler running:\\n  API: http://localhost:$API_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://your-webhook-url'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

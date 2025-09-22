@@ -104,18 +104,20 @@
     },
     "setup": {
       "description": "Initialize Picker Wheel",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/picker-wheel-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "picker-wheel"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "picker-wheel-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "picker-wheel"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -179,11 +181,11 @@
           "description": "Start UI server in background",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: picker-wheel --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: picker-wheel --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

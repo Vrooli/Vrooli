@@ -91,20 +91,22 @@
     },
     "setup": {
       "description": "Initialize Maintenance Orchestrator",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/maintenance-orchestrator-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "maintenance-orchestrator"
-          }
-        ]
-      },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "maintenance-orchestrator-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "maintenance-orchestrator"
+             ]
+           }
+         ]
+       },
       "steps": [
         {
           "name": "install-cli",
@@ -149,11 +151,11 @@
             "file_exists": "ui/server.js"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
+           "description": "Display service URLs and usage information"
+         }
       ]
     },
     "test": {

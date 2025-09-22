@@ -1,5 +1,7 @@
 {
-  "name": "video-downloader",
+  "service": {
+    "name": "video-downloader"
+  },
   "version": "2.0.0",
   "description": "Video downloader service with Go API and React UI",
   "enabled": true,
@@ -37,20 +39,26 @@
     "setup": {
       "description": "Initialize Video Downloader",
       "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/video-downloader-api"
-            ]
-          },
-          {
-            "type": "dependencies",
-            "paths": [
-              "ui/package.json"
-            ]
-          }
-        ]
+         "checks": [
+            {
+               "type": "binaries",
+               "targets": [
+                  "video-downloader-api"
+               ]
+            },
+             {
+                "type": "cli",
+                "targets": [
+                   "video-downloader"
+                ]
+             },
+            {
+               "type": "dependencies",
+               "paths": [
+                  "ui/package.json"
+               ]
+            }
+         ]
       },
       "steps": [
         {
@@ -82,23 +90,26 @@
     },
     "develop": {
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./video-downloader-api",
-          "description": "Start API server",
-          "background": true
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./video-downloader-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/video-downloader-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: video-downloader --help'",
-          "description": "Display running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: video-downloader --help'",
+           "description": "Display running service URLs"
+         }
       ]
     },
     "timeout": 90,

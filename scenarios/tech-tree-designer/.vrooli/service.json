@@ -28,11 +28,11 @@
       "description": "Tech tree analysis and strategic planning API",
       "range": "15000-19999"
     },
-    "ui": {
-      "env_var": "UI_PORT", 
-      "description": "Interactive tech tree visualization interface",
-      "range": "3000-3999"
-    }
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Interactive tech tree visualization interface",
+       "range": "35000-39999"
+     }
   },
   "resources": {
     "postgres": {
@@ -105,16 +105,16 @@
       "description": "Initialize Tech Tree Designer with complete civilization roadmap",
       "condition": {
         "checks": [
-          {
-            "type": "binaries", 
-            "targets": [
-              "api/tech-tree-designer-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "tech-tree-designer"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "tech-tree-designer-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["tech-tree-designer"]
+           },
           {
             "type": "resources",
             "populated": true
@@ -157,15 +157,15 @@
     "develop": {
       "description": "Start tech tree designer with API server and visualization interface",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./tech-tree-designer-api",
-          "description": "Start strategic analysis API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/tech-tree-designer-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./tech-tree-designer-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/tech-tree-designer-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && npm run dev",
@@ -175,11 +175,11 @@
             "file_exists": "ui/package.json"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Strategic Intelligence System Online:\\n  📊 Tech Tree Dashboard: http://localhost:${UI_PORT}\\n  🧠 Analysis API: http://localhost:${API_PORT}\\n  📈 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\\n  🎯 Strategic CLI: tech-tree-designer --help\\n\\n🌟 Ready to guide Vrooli\\'s evolution toward superintelligence'",
-          "description": "Display all running strategic planning services"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Strategic Intelligence System Online:\\n  📊 Tech Tree Dashboard: http://localhost:${UI_PORT}\\n  🧠 Analysis API: http://localhost:${API_PORT}\\n  📈 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\\n  🎯 Strategic CLI: tech-tree-designer --help\\n\\n🌟 Ready to guide Vrooli\\'s evolution toward superintelligence'",
+           "description": "Display all running strategic planning services"
+         }
       ]
     },
     "test": {

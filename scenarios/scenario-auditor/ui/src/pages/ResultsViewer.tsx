@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, Search, Filter, AlertTriangle, CheckCircle } from 'lucide-react'
+import { AlertTriangle, FileText, Search } from 'lucide-react'
+import { useState } from 'react'
 import { apiService } from '../services/api'
 
 export default function ResultsViewer() {

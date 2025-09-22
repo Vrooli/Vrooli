@@ -1,27 +1,28 @@
+import type { HealthAlert, SecurityScan } from '@/types/api'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
-import { 
-  Shield,
-  TrendingUp,
-  AlertCircle,
-  CheckCircle,
-  Activity,
-  Server,
-  Zap,
-  GitBranch,
-  ArrowUpRight,
-  RefreshCw
-} from 'lucide-react'
 import clsx from 'clsx'
 import { format } from 'date-fns'
+import {
+  Activity,
+  AlertCircle,
+  ArrowUpRight,
+  CheckCircle,
+  GitBranch,
+  RefreshCw,
+  Server,
+  Shield,
+  Zap
+} from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { apiService } from '../services/api'
-import { StatCard } from './common/StatCard'
-import { Card } from './common/Card'
 import { Badge } from './common/Badge'
+import { Card } from './common/Card'
+import type { StatCardProps } from './common/StatCard'
+import { StatCard } from './common/StatCard'
 import Tooltip from './Tooltip'
 
 export default function Dashboard() {
-  const { data: summary, isLoading: loadingSummary, error: summaryError, refetch: refetchSummary } = useQuery({
+  const { data: summary, isLoading: loadingSummary, refetch: refetchSummary } = useQuery({
     queryKey: ['healthSummary', 'v4'], // Changed key to clear cache
     queryFn: () => apiService.getHealthSummary(), // Fixed: wrap in arrow function to preserve 'this'
     refetchInterval: 30000,
@@ -54,69 +55,68 @@ export default function Dashboard() {
 
   const hasScans = summary?.scan_status?.has_scans ?? false
   const scanWarningMessage = "No security scans performed yet. Run a scan to assess system health and detect vulnerabilities."
+  const alertItems = alerts?.alerts ?? []
 
-  const stats = [
+  const healthScore = summary?.system_health_score
+  const scenariosMetric = typeof summary?.scenarios === 'object' ? summary?.scenarios : undefined
+  const vulnerabilitiesMetric = typeof summary?.vulnerabilities === 'object' ? summary?.vulnerabilities : undefined
+
+  const stats: StatCardProps[] = [
     {
       title: 'System Health',
-      value: summary?.system_health_score !== null && summary?.system_health_score !== undefined ? 
-        Math.round(summary.system_health_score * 10) / 10 : null,
-      unit: summary?.system_health_score !== null && summary?.system_health_score !== undefined ? '%' : undefined,
+      value: healthScore !== null && healthScore !== undefined ?
+        Math.round(healthScore * 10) / 10 : null,
+      unit: healthScore !== null && healthScore !== undefined ? '%' : undefined,
       icon: Activity,
       trend: hasScans ? (summary?.health_trend || 'stable') : undefined,
-      color: !hasScans ? 'warning' : 
-             (summary?.system_health_score ?? 0) >= 80 ? 'success' : 
-             (summary?.system_health_score ?? 0) >= 60 ? 'warning' : 'danger',
+      color: !hasScans ? 'warning' :
+        (healthScore ?? 0) >= 80 ? 'success' :
+          (healthScore ?? 0) >= 60 ? 'warning' : 'danger',
       hasWarning: !hasScans,
       warningMessage: !hasScans ? scanWarningMessage : undefined,
     },
     {
       title: 'Scenarios',
-      value: summary?.scenarios || 0,
+      value: scenariosMetric?.total ?? (typeof summary?.scenarios === 'number' ? summary.scenarios : 0),
       icon: Server,
-      trend: 'up',
+      trend: scenariosMetric?.trend,
       color: 'primary',
     },
     {
       title: 'Vulnerabilities',
-      value: hasScans ? (summary?.vulnerabilities || 0) : null,
+      value: hasScans ? (
+        typeof summary?.vulnerabilities === 'number'
+          ? summary.vulnerabilities
+          : vulnerabilitiesMetric?.total ?? 0
+      ) : null,
       icon: Shield,
       detail: hasScans ? `${summary?.vulnerabilities_detail?.critical || 0} critical` : 'No scans performed',
-      trend: hasScans ? (summary?.vulnerabilities?.trend || 'stable') : undefined,
-      color: !hasScans ? 'warning' : 
-             (summary?.vulnerabilities_detail?.critical || 0) > 0 ? 'danger' : 'success',
+      trend: hasScans ? (vulnerabilitiesMetric?.trend || 'stable') : undefined,
+      color: !hasScans ? 'warning' :
+        (summary?.vulnerabilities_detail?.critical || 0) > 0 ? 'danger' : 'success',
       hasWarning: !hasScans,
       warningMessage: !hasScans ? scanWarningMessage : undefined,
     },
     {
       title: 'API Endpoints',
-      value: summary?.endpoints?.total || 0,
+      value: summary?.endpoints?.total ?? 0,
       icon: GitBranch,
-      detail: `${summary?.endpoints?.monitored || 0} monitored`,
+      detail: `${summary?.endpoints?.monitored ?? 0} monitored`,
       color: 'primary',
     },
     {
       title: 'Test Coverage',
-      value: testCoverage?.coverage_metrics?.coverage_percentage ? 
+      value: testCoverage?.coverage_metrics?.coverage_percentage ?
         Math.round(testCoverage.coverage_metrics.coverage_percentage) : 0,
       unit: '%',
       icon: CheckCircle,
-      detail: testCoverage ? 
-        `${testCoverage.coverage_metrics?.rules_with_tests || 0}/${testCoverage.coverage_metrics?.total_rules || 0} rules` : 
+      detail: testCoverage ?
+        `${testCoverage.coverage_metrics?.rules_with_tests || 0}/${testCoverage.coverage_metrics?.total_rules || 0} rules` :
         'Loading...',
-      color: testCoverage?.coverage_metrics?.coverage_percentage >= 80 ? 'success' : 
-             testCoverage?.coverage_metrics?.coverage_percentage >= 60 ? 'warning' : 'danger',
+      color: testCoverage?.coverage_metrics?.coverage_percentage >= 80 ? 'success' :
+        testCoverage?.coverage_metrics?.coverage_percentage >= 60 ? 'warning' : 'danger',
     },
   ]
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity.toLowerCase()) {
-      case 'critical': return 'danger'
-      case 'high': return 'warning'
-      case 'medium': return 'warning'
-      case 'low': return 'info'
-      default: return 'default'
-    }
-  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -166,7 +166,7 @@ export default function Dashboard() {
               <ArrowUpRight className="h-3 w-3" />
             </Link>
           </div>
-          
+
           {loadingScenarios ? (
             <div className="space-y-3">
               {[1, 2, 3].map(i => (
@@ -216,77 +216,90 @@ export default function Dashboard() {
             <h2 className="text-lg font-semibold text-dark-900">Active Alerts</h2>
             <span className="text-sm text-dark-500">{alerts?.count || 0} total</span>
           </div>
-          
-          {alerts?.alerts?.length > 0 ? (
+
+          {alertItems.length > 0 ? (
             <div className="space-y-3">
-              {alerts.alerts.slice(0, 5).map((alert: any, idx: number) => (
-                <div
-                  key={idx}
-                  className={clsx(
-                    'p-3 rounded-lg border-l-4',
-                    alert.level === 'critical' && 'bg-danger-50 border-danger-500',
-                    alert.level === 'warning' && 'bg-warning-50 border-warning-500',
-                    alert.level === 'info' && 'bg-primary-50 border-primary-500'
-                  )}
-                >
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className={clsx(
-                      'h-4 w-4 mt-0.5',
-                      alert.level === 'critical' && 'text-danger-600',
-                      alert.level === 'warning' && 'text-warning-600',
-                      alert.level === 'info' && 'text-primary-600'
-                    )} />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-dark-900">{alert.title}</p>
-                        <Tooltip 
-                          content={
-                            alert.title.includes('Stale Scenarios') 
-                              ? "Scenarios that haven't been scanned for security vulnerabilities in the last 48 hours. Regular scanning helps identify new vulnerabilities early."
-                              : alert.title.includes('Critical Vulnerabilities')
-                              ? "High-severity security issues that could be exploited by attackers. These should be addressed immediately."
-                              : alert.title.includes('Automated Fixes')
-                              ? "The system can automatically apply fixes for certain types of vulnerabilities when this feature is enabled."
-                              : alert.message || alert.description
-                          }
-                          position="right"
-                        />
-                      </div>
-                      <p className="text-xs text-dark-600 mt-0.5">{alert.message || alert.description}</p>
-                      
-                      {/* Show stale scenario links */}
-                      {alert.scenarios && alert.scenarios.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {alert.scenarios.map((scenario: string) => (
-                            <Link
-                              key={scenario}
-                              to={`/scenario/${scenario}`}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white border border-dark-200 text-dark-700 hover:bg-dark-50 hover:border-dark-300 transition-colors"
-                            >
-                              {scenario}
-                              <ArrowUpRight className="h-3 w-3" />
-                            </Link>
-                          ))}
-                          {alert.total_count > alert.scenarios.length && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-dark-100 text-dark-600">
-                              +{alert.total_count - alert.scenarios.length} more
-                            </span>
-                          )}
+              {alertItems.slice(0, 5).map((alert) => {
+                const extendedAlert = alert as HealthAlert & {
+                  scenarios?: string[]
+                  total_count?: number
+                  message?: string
+                  action?: string
+                }
+                const alertScenarios = Array.isArray(extendedAlert.scenarios) ? extendedAlert.scenarios : []
+                const totalScenarioCount = typeof extendedAlert.total_count === 'number'
+                  ? extendedAlert.total_count
+                  : alertScenarios.length
+
+                return (
+                  <div
+                    key={extendedAlert.id}
+                    className={clsx(
+                      'p-3 rounded-lg border-l-4',
+                      extendedAlert.level === 'critical' && 'bg-danger-50 border-danger-500',
+                      extendedAlert.level === 'warning' && 'bg-warning-50 border-warning-500',
+                      extendedAlert.level === 'info' && 'bg-primary-50 border-primary-500'
+                    )}
+                  >
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className={clsx(
+                        'h-4 w-4 mt-0.5',
+                        extendedAlert.level === 'critical' && 'text-danger-600',
+                        extendedAlert.level === 'warning' && 'text-warning-600',
+                        extendedAlert.level === 'info' && 'text-primary-600'
+                      )} />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-dark-900">{extendedAlert.title}</p>
+                          <Tooltip
+                            content={
+                              extendedAlert.title.includes('Stale Scenarios')
+                                ? "Scenarios that haven't been scanned for security vulnerabilities in the last 48 hours. Regular scanning helps identify new vulnerabilities early."
+                                : extendedAlert.title.includes('Critical Vulnerabilities')
+                                  ? "High-severity security issues that could be exploited by attackers. These should be addressed immediately."
+                                  : extendedAlert.title.includes('Automated Fixes')
+                                    ? "The system can automatically apply fixes for certain types of vulnerabilities when this feature is enabled."
+                                    : extendedAlert.message || extendedAlert.description
+                            }
+                            position="right"
+                          />
                         </div>
-                      )}
-                      
-                      {alert.action && (
-                        <p className="text-xs text-dark-500 mt-1 italic">{alert.action}</p>
-                      )}
-                      {alert.created_at && (
-                        <p className="text-xs text-dark-500 mt-1">
-                          {format(new Date(alert.created_at), 'MMM d, HH:mm')}
-                        </p>
-                      )}
+                        <p className="text-xs text-dark-600 mt-0.5">{extendedAlert.message || extendedAlert.description}</p>
+
+                        {/* Show stale scenario links */}
+                        {alertScenarios.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {alertScenarios.map((scenario) => (
+                              <Link
+                                key={scenario}
+                                to={`/scenario/${scenario}`}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white border border-dark-200 text-dark-700 hover:bg-dark-50 hover:border-dark-300 transition-colors"
+                              >
+                                {scenario}
+                                <ArrowUpRight className="h-3 w-3" />
+                              </Link>
+                            ))}
+                            {totalScenarioCount > alertScenarios.length && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-dark-100 text-dark-600">
+                                +{totalScenarioCount - alertScenarios.length} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {extendedAlert.action && (
+                          <p className="text-xs text-dark-500 mt-1 italic">{extendedAlert.action}</p>
+                        )}
+                        {extendedAlert.created_at && (
+                          <p className="text-xs text-dark-500 mt-1">
+                            {format(new Date(extendedAlert.created_at), 'MMM d, HH:mm')}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
             <div className="text-center py-8">
@@ -311,7 +324,7 @@ export default function Dashboard() {
               <ArrowUpRight className="h-3 w-3" />
             </Link>
           </div>
-          
+
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="text-center">
               <p className="text-2xl font-bold text-dark-900">
@@ -338,7 +351,7 @@ export default function Dashboard() {
               <p className="text-xs text-dark-600">Avg Tests/Rule</p>
             </div>
           </div>
-          
+
           {testCoverage.category_breakdown && (
             <div className="mt-4 pt-4 border-t border-dark-200">
               <p className="text-sm font-medium text-dark-700 mb-2">Coverage by Category</p>
@@ -353,8 +366,8 @@ export default function Dashboard() {
                       <span className={clsx(
                         'text-xs px-2 py-0.5 rounded-full',
                         (stats.with_tests / stats.total) >= 0.8 ? 'bg-success-100 text-success-700' :
-                        (stats.with_tests / stats.total) >= 0.6 ? 'bg-warning-100 text-warning-700' :
-                        'bg-danger-100 text-danger-700'
+                          (stats.with_tests / stats.total) >= 0.6 ? 'bg-warning-100 text-warning-700' :
+                            'bg-danger-100 text-danger-700'
                       )}>
                         {Math.round((stats.with_tests / stats.total) * 100)}%
                       </span>
@@ -379,10 +392,10 @@ export default function Dashboard() {
             <Zap className="h-3 w-3" />
           </Link>
         </div>
-        
+
         {loadingScans ? (
           <div className="h-32 bg-dark-100 rounded-lg animate-pulse" />
-        ) : recentScans?.length > 0 ? (
+        ) : (recentScans?.length ?? 0) > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -405,7 +418,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-100">
-                {recentScans.map((scan: any) => (
+                {(recentScans as SecurityScan[]).map((scan) => (
                   <tr key={scan.id} className="hover:bg-dark-50">
                     <td className="py-3 text-sm font-medium text-dark-900">
                       {scan.scenario_name}

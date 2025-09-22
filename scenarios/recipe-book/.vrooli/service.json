@@ -26,7 +26,7 @@
     "api": {
       "env_var": "API_PORT",
       "description": "Recipe Book API port",
-      "range": "3250-3299"
+      "range": "15000-19999"
     }
   },
   "resources": {
@@ -147,18 +147,20 @@
     },
     "setup": {
       "description": "Initialize Recipe Book scenario",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/recipe-book-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "recipe-book"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "recipe-book-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "recipe-book"
+             ]
+           },
           {
             "type": "resources",
             "populated": true
@@ -204,7 +206,7 @@
         {
           "name": "start-api",
           "run": "cd api && ./recipe-book-api",
-          "description": "Start Go API server",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/recipe-book-api"
@@ -217,9 +219,9 @@
           "background": true
         },
         {
-          "name": "show-running-services",
-          "run": "echo '🍳 Recipe Book running:\\n  UI: http://localhost:${API_PORT}\\n  API: http://localhost:${API_PORT}/api/v1\\n  CLI: recipe-book --help\\n\\nKey endpoints:\\n  GET  /api/v1/recipes - List recipes\\n  POST /api/v1/recipes/search - Semantic search\\n  POST /api/v1/recipes/generate - AI generation'",
-          "description": "Display running service information"
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:$API_PORT\"",
+          "description": "Display service URLs"
         }
       ]
     },

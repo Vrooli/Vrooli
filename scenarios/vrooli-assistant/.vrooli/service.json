@@ -81,19 +81,21 @@
     },
     "setup": {
       "description": "Initialize Vrooli Assistant with Electron app",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/vrooli-assistant-api",
-              "ui/electron/dist/vrooli-assistant"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "vrooli-assistant"
-          },
+         "condition": {
+            "checks": [
+               {
+                  "type": "binaries",
+                  "targets": [
+                     "vrooli-assistant-api",
+                     "ui/electron/dist/vrooli-assistant"
+                  ]
+               },
+                 {
+                    "type": "cli",
+                    "targets": [
+                      "vrooli-assistant"
+                    ]
+                 },
           {
             "type": "resources",
             "populated": true
@@ -151,11 +153,11 @@
           "description": "Start Electron overlay daemon",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Vrooli Assistant running:\\n  API: http://localhost:$API_PORT\\n  Overlay: Active (use hotkey to trigger)\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
-          "description": "Display running service info"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Vrooli Assistant running:\\n  API: http://localhost:$API_PORT\\n  Overlay: Active (use hotkey to trigger)\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
+           "description": "Display running service info"
+         }
       ]
     },
     "test": {

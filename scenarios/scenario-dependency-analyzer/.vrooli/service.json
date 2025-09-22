@@ -23,12 +23,12 @@
   },
   "ports": {
     "api": {
-      "env_var": "DEPENDENCY_ANALYZER_API_PORT",
+      "env_var": "API_PORT",
       "description": "Dependency analysis API port",
       "range": "15000-19999"
     },
     "ui": {
-      "env_var": "DEPENDENCY_ANALYZER_UI_PORT",
+      "env_var": "UI_PORT",
       "description": "Dependency graph visualization UI port",
       "range": "35000-39999"
     }
@@ -112,16 +112,16 @@
       "description": "Initialize Scenario Dependency Analyzer with all dependencies",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-dependency-analyzer-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "scenario-dependency-analyzer"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "scenario-dependency-analyzer-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": ["scenario-dependency-analyzer"]
+            },
           {
             "type": "resources",
             "populated": true
@@ -165,7 +165,7 @@
         {
           "name": "start-api",
           "run": "cd api && ./scenario-dependency-analyzer-api",
-          "description": "Start Go dependency analysis API server",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/scenario-dependency-analyzer-api"
@@ -181,7 +181,7 @@
           }
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "echo '🔍 Scenario Dependency Analyzer Services Running:\\n  Graph Visualization: http://localhost:${DEPENDENCY_ANALYZER_UI_PORT}\\n  Analysis API: http://localhost:${DEPENDENCY_ANALYZER_API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n\\n📋 CLI Usage: scenario-dependency-analyzer --help'",
           "description": "Display all running service URLs and CLI info"
         }

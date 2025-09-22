@@ -87,7 +87,7 @@
           {
             "type": "binaries",
             "targets": [
-              "scenario-auditor-api"
+              "api/scenario-auditor-api"
             ]
           },
           {

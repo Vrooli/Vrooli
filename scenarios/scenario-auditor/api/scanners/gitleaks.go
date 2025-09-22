@@ -28,7 +28,7 @@ func NewGitleaksScanner(logger Logger) *GitleaksScanner {
 			binPath = homeBinPath
 		}
 	}
-	
+
 	return &GitleaksScanner{
 		logger:  logger,
 		binPath: binPath,
@@ -75,7 +75,7 @@ func (g *GitleaksScanner) GetVersion() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Parse version from output (format: "vX.Y.Z")
 	version := strings.TrimSpace(string(output))
 	version = strings.TrimPrefix(version, "v")
@@ -178,17 +178,17 @@ func (g *GitleaksScanner) GetDefaultRules() []CustomRule {
 func (g *GitleaksScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 	startTime := time.Now()
 	scanID := generateScanID()
-	
+
 	g.logger.Info("Starting gitleaks scan on %s", opts.Path)
-	
+
 	// Create temporary report file
 	reportFile := filepath.Join(os.TempDir(), fmt.Sprintf("gitleaks-%s.json", scanID))
 	defer os.Remove(reportFile)
-	
+
 	// Build gitleaks command
 	args := g.buildGitleaksArgs(opts, reportFile)
 	cmd := exec.Command(g.binPath, args...)
-	
+
 	// Set timeout if specified
 	if opts.Timeout > 0 {
 		timer := time.AfterFunc(opts.Timeout, func() {
@@ -196,29 +196,29 @@ func (g *GitleaksScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 		})
 		defer timer.Stop()
 	}
-	
+
 	// Capture output
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	
+
 	// Run gitleaks
 	err := cmd.Run()
-	
+
 	// Gitleaks returns exit code 1 if leaks are found, which is expected
 	if err != nil && !strings.Contains(err.Error(), "exit status 1") {
 		return nil, fmt.Errorf("gitleaks execution failed: %v - stderr: %s", err, stderr.String())
 	}
-	
+
 	// Read and parse the report file
 	findings, parseErr := g.parseGitleaksReport(reportFile)
 	if parseErr != nil {
 		g.logger.Error("Failed to parse gitleaks report: %v", parseErr)
 		findings = []Finding{}
 	}
-	
+
 	// Count files and lines scanned
 	filesScanned, linesScanned := g.countScannedFiles(opts.Path)
-	
+
 	result := &ScanResult{
 		ScanID:       scanID,
 		ScannerType:  ScannerGitleaks,
@@ -230,14 +230,14 @@ func (g *GitleaksScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 		FilesScanned: filesScanned,
 		LinesScanned: linesScanned,
 	}
-	
+
 	// Get tool version
 	if version, err := g.GetVersion(); err == nil {
 		result.ToolVersion = version
 	}
-	
+
 	g.logger.Info("Gitleaks scan completed: %d secrets found", len(findings))
-	
+
 	return result, nil
 }
 
@@ -251,7 +251,7 @@ func (g *GitleaksScanner) buildGitleaksArgs(opts ScanOptions, reportFile string)
 		"--no-banner",
 		"--redact", // Redact secrets in output for safety
 	}
-	
+
 	// Handle scan type
 	switch opts.ScanType {
 	case "quick":
@@ -266,19 +266,19 @@ func (g *GitleaksScanner) buildGitleaksArgs(opts ScanOptions, reportFile string)
 		// Full scan - check everything including git history
 		args = append(args, "--log-opts", "--all")
 	}
-	
+
 	// Add excludes
 	for _, exclude := range opts.ExcludePatterns {
 		args = append(args, "--exclude-path", exclude)
 	}
-	
+
 	// Common excludes for performance
 	args = append(args, "--exclude-path", "**/vendor/**")
 	args = append(args, "--exclude-path", "**/node_modules/**")
 	args = append(args, "--exclude-path", "**/.git/**")
 	args = append(args, "--exclude-path", "**/dist/**")
 	args = append(args, "--exclude-path", "**/build/**")
-	
+
 	return args
 }
 
@@ -292,55 +292,55 @@ func (g *GitleaksScanner) parseGitleaksReport(reportFile string) ([]Finding, err
 		}
 		return nil, err
 	}
-	
+
 	// Handle empty file (no secrets found)
 	if len(data) == 0 {
 		return []Finding{}, nil
 	}
-	
+
 	var gitleaksFindings []GitleaksFinding
 	if err := json.Unmarshal(data, &gitleaksFindings); err != nil {
 		return nil, fmt.Errorf("failed to parse gitleaks JSON: %v", err)
 	}
-	
+
 	// Convert to our Finding format
 	findings := make([]Finding, 0, len(gitleaksFindings))
 	for _, gf := range gitleaksFindings {
 		finding := Finding{
-			ID:          fmt.Sprintf("gitleaks-%s-%d", gf.Fingerprint, gf.StartLine),
-			ScannerType: ScannerGitleaks,
-			RuleID:      gf.RuleID,
-			Severity:    g.getSecretSeverity(gf.RuleID),
-			Confidence:  "high", // Gitleaks has high confidence when it finds a match
-			Title:       g.getSecretTitle(gf.RuleID, gf.Description),
-			Description: fmt.Sprintf("Potential secret found: %s", gf.Description),
-			Category:    "Secret Exposure",
-			FilePath:    gf.File,
-			LineNumber:  gf.StartLine,
-			EndLine:     gf.EndLine,
-			ColumnNumber: gf.StartColumn,
-			CodeSnippet: g.redactSecret(gf.Match),
+			ID:             fmt.Sprintf("gitleaks-%s-%d", gf.Fingerprint, gf.StartLine),
+			ScannerType:    ScannerGitleaks,
+			RuleID:         gf.RuleID,
+			Severity:       g.getSecretSeverity(gf.RuleID),
+			Confidence:     "high", // Gitleaks has high confidence when it finds a match
+			Title:          g.getSecretTitle(gf.RuleID, gf.Description),
+			Description:    fmt.Sprintf("Potential secret found: %s", gf.Description),
+			Category:       "Secret Exposure",
+			FilePath:       gf.File,
+			LineNumber:     gf.StartLine,
+			EndLine:        gf.EndLine,
+			ColumnNumber:   gf.StartColumn,
+			CodeSnippet:    g.redactSecret(gf.Match),
 			Recommendation: g.getSecretRecommendation(gf.RuleID),
-			CWE:        798, // CWE-798: Use of Hard-coded Credentials
-			OWASP:      "A07:2021 – Identification and Authentication Failures",
+			CWE:            798, // CWE-798: Use of Hard-coded Credentials
+			OWASP:          "A07:2021 – Identification and Authentication Failures",
 		}
-		
+
 		// Add metadata
 		finding.Metadata = map[string]interface{}{
 			"entropy":     gf.Entropy,
 			"fingerprint": gf.Fingerprint,
 		}
-		
+
 		// Add commit info if available
 		if gf.Commit != "" {
 			finding.Metadata["commit"] = gf.Commit
 			finding.Metadata["author"] = gf.Author
 			finding.Metadata["date"] = gf.Date
 		}
-		
+
 		findings = append(findings, finding)
 	}
-	
+
 	return findings, nil
 }
 
@@ -354,7 +354,7 @@ func (g *GitleaksScanner) getSecretSeverity(ruleID string) Severity {
 		"gcp-api-key", "azure-api-key",
 		"jwt-secret", "jwt-base64",
 	}
-	
+
 	highSecrets := []string{
 		"api-key", "generic-api-key",
 		"slack-token", "slack-webhook",
@@ -362,19 +362,19 @@ func (g *GitleaksScanner) getSecretSeverity(ruleID string) Severity {
 		"firebase-api-key", "mailgun-api-key",
 		"twilio-api-key", "sendgrid-api-key",
 	}
-	
+
 	for _, critical := range criticalSecrets {
 		if strings.Contains(strings.ToLower(ruleID), critical) {
 			return SeverityCritical
 		}
 	}
-	
+
 	for _, high := range highSecrets {
 		if strings.Contains(strings.ToLower(ruleID), high) {
 			return SeverityHigh
 		}
 	}
-	
+
 	// Default to medium for other secrets
 	return SeverityMedium
 }
@@ -384,30 +384,30 @@ func (g *GitleaksScanner) getSecretTitle(ruleID, description string) string {
 	if description != "" {
 		return description
 	}
-	
+
 	titles := map[string]string{
-		"aws-access-key":       "AWS Access Key Exposed",
-		"aws-secret-key":       "AWS Secret Key Exposed",
-		"github-token":         "GitHub Token Exposed",
-		"github-pat":           "GitHub Personal Access Token Exposed",
-		"private-key":          "Private Key Exposed",
-		"api-key":              "API Key Exposed",
-		"jwt":                  "JWT Token Exposed",
-		"slack-token":          "Slack Token Exposed",
-		"stripe-secret-key":    "Stripe Secret Key Exposed",
-		"password-in-url":      "Password in URL",
-		"generic-secret":       "Potential Secret Exposed",
-		"firebase-api-key":     "Firebase API Key Exposed",
-		"gcp-api-key":          "Google Cloud API Key Exposed",
-		"azure-api-key":        "Azure API Key Exposed",
+		"aws-access-key":    "AWS Access Key Exposed",
+		"aws-secret-key":    "AWS Secret Key Exposed",
+		"github-token":      "GitHub Token Exposed",
+		"github-pat":        "GitHub Personal Access Token Exposed",
+		"private-key":       "Private Key Exposed",
+		"api-key":           "API Key Exposed",
+		"jwt":               "JWT Token Exposed",
+		"slack-token":       "Slack Token Exposed",
+		"stripe-secret-key": "Stripe Secret Key Exposed",
+		"password-in-url":   "Password in URL",
+		"generic-secret":    "Potential Secret Exposed",
+		"firebase-api-key":  "Firebase API Key Exposed",
+		"gcp-api-key":       "Google Cloud API Key Exposed",
+		"azure-api-key":     "Azure API Key Exposed",
 	}
-	
+
 	for key, title := range titles {
 		if strings.Contains(strings.ToLower(ruleID), key) {
 			return title
 		}
 	}
-	
+
 	return fmt.Sprintf("Secret Exposed: %s", ruleID)
 }
 
@@ -418,22 +418,22 @@ func (g *GitleaksScanner) getSecretRecommendation(ruleID string) string {
 		"3. Use environment variables or a secrets management system. " +
 		"4. Audit logs for any unauthorized access. " +
 		"5. Add the file to .gitignore if appropriate."
-	
+
 	specificRecommendations := map[string]string{
-		"aws": "Also review AWS CloudTrail logs for unauthorized API calls and enable MFA on the account.",
-		"github": "Revoke the token immediately in GitHub Settings > Developer Settings > Personal Access Tokens.",
-		"stripe": "Generate new keys in the Stripe Dashboard and update all applications using the old key.",
+		"aws":         "Also review AWS CloudTrail logs for unauthorized API calls and enable MFA on the account.",
+		"github":      "Revoke the token immediately in GitHub Settings > Developer Settings > Personal Access Tokens.",
+		"stripe":      "Generate new keys in the Stripe Dashboard and update all applications using the old key.",
 		"private-key": "Generate new key pairs and update all systems using the compromised key.",
-		"password": "Change the password immediately and enable two-factor authentication where possible.",
-		"jwt": "Rotate the JWT signing secret and invalidate all existing tokens.",
+		"password":    "Change the password immediately and enable two-factor authentication where possible.",
+		"jwt":         "Rotate the JWT signing secret and invalidate all existing tokens.",
 	}
-	
+
 	for key, specific := range specificRecommendations {
 		if strings.Contains(strings.ToLower(ruleID), key) {
 			return fmt.Sprintf("%s\n\nSpecific steps: %s", baseRecommendation, specific)
 		}
 	}
-	
+
 	return baseRecommendation
 }
 
@@ -442,10 +442,10 @@ func (g *GitleaksScanner) redactSecret(secret string) string {
 	if len(secret) <= 8 {
 		return "***REDACTED***"
 	}
-	
+
 	// Show first 3 and last 3 characters
-	return fmt.Sprintf("%s***REDACTED***%s", 
-		secret[:3], 
+	return fmt.Sprintf("%s***REDACTED***%s",
+		secret[:3],
 		secret[len(secret)-3:])
 }
 
@@ -453,7 +453,7 @@ func (g *GitleaksScanner) redactSecret(secret string) string {
 func (g *GitleaksScanner) countScannedFiles(path string) (int, int) {
 	fileCount := 0
 	lineCount := 0
-	
+
 	// Common text file extensions to count
 	textExtensions := map[string]bool{
 		".go": true, ".js": true, ".ts": true, ".tsx": true,
@@ -465,36 +465,36 @@ func (g *GitleaksScanner) countScannedFiles(path string) (int, int) {
 		".env": true, ".properties": true, ".sh": true, ".bash": true,
 		".sql": true, ".md": true, ".txt": true,
 	}
-	
+
 	filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
-		
+
 		// Skip vendor and other excluded directories
 		if info.IsDir() {
 			name := info.Name()
-			if name == "vendor" || name == "node_modules" || name == ".git" || 
-			   name == "dist" || name == "build" {
+			if name == "vendor" || name == "node_modules" || name == ".git" ||
+				name == "dist" || name == "build" {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		
+
 		// Check if it's a text file we should count
 		ext := filepath.Ext(filePath)
 		if textExtensions[ext] {
 			fileCount++
-			
+
 			// Count lines
 			if content, err := os.ReadFile(filePath); err == nil {
 				lines := bytes.Count(content, []byte("\n"))
 				lineCount += lines
 			}
 		}
-		
+
 		return nil
 	})
-	
+
 	return fileCount, lineCount
 }

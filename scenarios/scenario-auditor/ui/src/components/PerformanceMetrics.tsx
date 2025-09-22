@@ -1,39 +1,43 @@
-import { useState } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
-import { 
-  Zap, 
-  TrendingUp,
+import { useMutation, useQuery } from '@tanstack/react-query'
+import clsx from 'clsx'
+import { format } from 'date-fns'
+import {
+  Activity,
+  AlertCircle,
   Clock,
   Gauge,
-  BarChart3,
-  Activity,
-  RefreshCw,
   Play,
-  AlertCircle
+  RefreshCw,
+  TrendingUp,
+  Zap
 } from 'lucide-react'
+import { useState } from 'react'
 import {
-  LineChart,
-  Line,
-  BarChart,
   Bar,
-  XAxis,
-  YAxis,
+  BarChart,
   CartesianGrid,
-  Tooltip,
+  Legend,
+  Line,
+  LineChart,
   ResponsiveContainer,
-  Legend
+  Tooltip,
+  XAxis,
+  YAxis
 } from 'recharts'
-import { format } from 'date-fns'
 import { apiService } from '../services/api'
-import { Card } from './common/Card'
 import { Badge } from './common/Badge'
-import clsx from 'clsx'
+import { Card } from './common/Card'
+
+type BaselineConfig = {
+  duration_seconds: number
+  load_level: 'light' | 'moderate' | 'heavy'
+}
 
 export default function PerformanceMetrics() {
   const [selectedScenario, setSelectedScenario] = useState<string>('')
-  const [baselineConfig, setBaselineConfig] = useState({
+  const [baselineConfig, setBaselineConfig] = useState<BaselineConfig>({
     duration_seconds: 60,
-    load_level: 'light' as 'light' | 'moderate' | 'heavy',
+    load_level: 'light',
   })
 
   const { data: scenarios } = useQuery({
@@ -41,7 +45,7 @@ export default function PerformanceMetrics() {
     queryFn: apiService.getScenarios,
   })
 
-  const { data: metrics, refetch: refetchMetrics } = useQuery({
+  const { refetch: refetchMetrics } = useQuery({
     queryKey: ['performanceMetrics', selectedScenario],
     queryFn: () => apiService.getPerformanceMetrics(selectedScenario),
     enabled: !!selectedScenario,
@@ -54,7 +58,7 @@ export default function PerformanceMetrics() {
   })
 
   const baselineMutation = useMutation({
-    mutationFn: (scenario: string) => 
+    mutationFn: (scenario: string) =>
       apiService.createPerformanceBaseline(scenario, baselineConfig),
     onSuccess: () => {
       refetchMetrics()
@@ -110,7 +114,7 @@ export default function PerformanceMetrics() {
           <p className="text-3xl font-bold text-dark-900">{performanceScore}</p>
           <p className="text-sm text-dark-600">Performance Score</p>
         </Card>
-        
+
         <Card padding="sm">
           <div className="flex items-center justify-between mb-2">
             <Clock className="h-5 w-5 text-blue-500" />
@@ -118,7 +122,7 @@ export default function PerformanceMetrics() {
           <p className="text-3xl font-bold text-dark-900">52<span className="text-lg text-dark-500">ms</span></p>
           <p className="text-sm text-dark-600">Avg Response Time</p>
         </Card>
-        
+
         <Card padding="sm">
           <div className="flex items-center justify-between mb-2">
             <TrendingUp className="h-5 w-5 text-success-500" />
@@ -126,7 +130,7 @@ export default function PerformanceMetrics() {
           <p className="text-3xl font-bold text-dark-900">1.2k<span className="text-lg text-dark-500">/s</span></p>
           <p className="text-sm text-dark-600">Throughput</p>
         </Card>
-        
+
         <Card padding="sm">
           <div className="flex items-center justify-between mb-2">
             <Activity className="h-5 w-5 text-warning-500" />
@@ -139,7 +143,7 @@ export default function PerformanceMetrics() {
       {/* Baseline Configuration */}
       <Card>
         <h2 className="text-lg font-semibold text-dark-900 mb-4">Performance Baseline</h2>
-        
+
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <label className="block text-sm font-medium text-dark-700 mb-2">
@@ -158,16 +162,16 @@ export default function PerformanceMetrics() {
               ))}
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-dark-700 mb-2">
               Duration
             </label>
             <select
               value={baselineConfig.duration_seconds}
-              onChange={(e) => setBaselineConfig(prev => ({ 
-                ...prev, 
-                duration_seconds: parseInt(e.target.value) 
+              onChange={(e) => setBaselineConfig(prev => ({
+                ...prev,
+                duration_seconds: parseInt(e.target.value)
               }))}
               className="rounded-lg border border-dark-300 bg-white px-4 py-2 text-dark-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             >
@@ -177,7 +181,7 @@ export default function PerformanceMetrics() {
               <option value="1800">30 minutes</option>
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-dark-700 mb-2">
               Load Level
@@ -199,7 +203,7 @@ export default function PerformanceMetrics() {
               ))}
             </div>
           </div>
-          
+
           <div className="flex items-end">
             <button
               onClick={() => selectedScenario && baselineMutation.mutate(selectedScenario)}
@@ -220,7 +224,7 @@ export default function PerformanceMetrics() {
             </button>
           </div>
         </div>
-        
+
         {baselineMutation.isSuccess && (
           <div className="mt-4 flex items-center gap-2 rounded-lg bg-success-50 p-3 text-success-700">
             <Zap className="h-4 w-4" />
@@ -281,7 +285,7 @@ export default function PerformanceMetrics() {
           <h2 className="text-lg font-semibold text-dark-900">Performance Alerts</h2>
           <Badge variant="default">{performanceAlerts?.count || 0} active</Badge>
         </div>
-        
+
         {performanceAlerts && performanceAlerts.alerts.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -322,11 +326,11 @@ export default function PerformanceMetrics() {
                       {alert.scenario}
                     </td>
                     <td className="py-3">
-                      <Badge 
+                      <Badge
                         variant={
                           alert.severity === 'high' ? 'danger' :
-                          alert.severity === 'medium' ? 'warning' :
-                          'info'
+                            alert.severity === 'medium' ? 'warning' :
+                              'info'
                         }
                         size="sm"
                       >

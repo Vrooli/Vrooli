@@ -97,18 +97,20 @@
     },
     "setup": {
       "description": "Initialize Visitor Intelligence system",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/visitor-intelligence-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "visitor-intelligence"
-          },
+       "condition": {
+         "checks": [
+            {
+               "type": "binaries",
+               "targets": [
+                  "visitor-intelligence-api"
+               ]
+            },
+              {
+                 "type": "cli",
+                 "targets": [
+                   "visitor-intelligence"
+                 ]
+              },
           {
             "type": "resources",
             "populated": true
@@ -152,20 +154,20 @@
     "develop": {
       "description": "Start visitor intelligence with Go API server",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./visitor-intelligence-api",
-          "description": "Start Go tracking API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/visitor-intelligence-api"
-          }
-        },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Visitor Intelligence running:\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration: <script src=\"http://localhost:${API_PORT}/tracker.js\" data-scenario=\"your-scenario\"></script>\\n  CLI: visitor-intelligence --help'",
-          "description": "Display all running service URLs and integration example"
-        }
+         {
+           "name": "start-api",
+           "run": "cd api && ./visitor-intelligence-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/visitor-intelligence-api"
+           }
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Visitor Intelligence running:\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration: <script src=\"http://localhost:${API_PORT}/tracker.js\" data-scenario=\"your-scenario\"></script>\\n  CLI: visitor-intelligence --help'",
+           "description": "Display all running service URLs and integration example"
+         }
       ]
     },
     "test": {

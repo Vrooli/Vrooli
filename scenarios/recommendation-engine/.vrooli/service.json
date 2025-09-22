@@ -23,14 +23,14 @@
   },
   "ports": {
     "api": {
-      "env_var": "RECOMMENDATION_API_PORT",
+      "env_var": "API_PORT",
       "description": "Main recommendation API port",
       "range": "15000-19999"
     },
     "ui": {
-      "env_var": "RECOMMENDATION_UI_PORT",
+      "env_var": "UI_PORT",
       "description": "Management dashboard port",
-      "range": "3000-3999"
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -95,18 +95,20 @@
     },
     "setup": {
       "description": "Initialize Recommendation Engine",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/recommendation-engine-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "recommendation-engine"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "recommendation-engine-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "recommendation-engine"
+             ]
+           },
           {
             "type": "resources",
             "populated": true
@@ -152,7 +154,7 @@
         {
           "name": "start-api",
           "run": "cd api && ./recommendation-engine-api",
-          "description": "Start Go recommendation API server",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/recommendation-engine-api"
@@ -168,9 +170,9 @@
           }
         },
         {
-          "name": "show-running-services",
-          "run": "echo '🚀 Recommendation Engine running:\\n  Management Dashboard: http://localhost:${RECOMMENDATION_UI_PORT}\\n  API: http://localhost:${RECOMMENDATION_API_PORT}\\n  API Docs: http://localhost:${RECOMMENDATION_API_PORT}/docs\\n  CLI: recommendation-engine --help'",
-          "description": "Display all running service URLs"
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:$API_PORT\" && echo \"UI: http://localhost:$UI_PORT\"",
+          "description": "Display service URLs"
         }
       ]
     },

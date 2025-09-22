@@ -20,18 +20,18 @@
       "a-b-testing"
     ]
   },
-  "ports": {
-    "api": {
-      "env_var": "FUNNEL_API_PORT",
-      "description": "Funnel builder API port",
-      "range": "15000-19999"
-    },
-    "ui": {
-      "env_var": "FUNNEL_UI_PORT",
-      "description": "Funnel builder UI port",
-      "range": "20000-24999"
-    }
-  },
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Funnel builder API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Funnel builder UI port",
+       "range": "35000-39999"
+     }
+   },
   "resources": {
     "postgres": {
       "type": "postgres",
@@ -99,16 +99,18 @@
       "description": "Initialize Funnel Builder",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/funnel-builder-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "funnel-builder"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "funnel-builder-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "funnel-builder"
+             ]
+           },
           {
             "type": "resources",
             "populated": true
@@ -154,7 +156,7 @@
         {
           "name": "start-api",
           "run": "cd api && ./funnel-builder-api",
-          "description": "Start Go API server",
+           "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/funnel-builder-api"
@@ -169,11 +171,11 @@
             "file_exists": "ui/package.json"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${FUNNEL_UI_PORT}\\n  API: http://localhost:${FUNNEL_API_PORT}\\n  CLI: funnel-builder --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  UI: http://localhost:${FUNNEL_UI_PORT}\\n  API: http://localhost:${FUNNEL_API_PORT}\\n  CLI: funnel-builder --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

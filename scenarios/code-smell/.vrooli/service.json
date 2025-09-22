@@ -1,10 +1,33 @@
 {
-  "name": "code-smell",
-  "version": "1.0.0",
-  "description": "Self-improving code quality guardian with AI-powered smell detection and auto-fixing",
-  "category": "analysis",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
+  "service": {
+    "name": "code-smell",
+    "displayName": "Code Smell Detector",
+    "description": "Self-improving code quality guardian with AI-powered smell detection and auto-fixing",
+    "version": "1.0.0",
+    "tags": [
+      "analysis",
+      "quality",
+      "lint",
+      "smell",
+      "technical-debt",
+      "auto-fix",
+      "maintenance"
+    ]
+  },
   "enabled": true,
-  "metadata": {
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "range": "35000-39999"
+     }
+   },
+   "metadata": {
     "author": "AI Agent",
     "created": "2025-09-07",
     "keywords": [
@@ -253,7 +276,27 @@
     }
   },
   "lifecycle": {
-    "stop": {
+    "version": "2.0.0",
+    "setup": {
+      "description": "Initialize Code Smell Detector",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "code-smell-api"
+            ]
+          },
+           {
+             "type": "cli",
+             "targets": [
+               "code-smell"
+             ]
+           }
+        ]
+      }
+    },
+     "stop": {
       "description": "Stop code-smell services",
       "steps": [
         {
@@ -276,18 +319,26 @@
           "run": "cd api && go build -o code-smell-api .",
           "description": "Build API server"
         },
-        {
-          "name": "start-api",
-          "run": "cd api && ./code-smell-api",
-          "description": "Start API server",
-          "background": true
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && python -m http.server 8080",
-          "description": "Start UI server",
-          "background": true
-        }
+          {
+            "name": "start-api",
+             "run": "cd api && ./code-smell-api",
+            "description": "Start Go API server in background",
+            "background": true,
+            "condition": {
+               "file_exists": "api/code-smell-api"
+            }
+          },
+         {
+           "name": "start-ui",
+           "run": "cd ui && python -m http.server 8080",
+           "description": "Start UI server",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🔍 Code Smell Detector running:\\n  UI: http://localhost:8080\\n  API: http://localhost:${API_PORT}'",
+           "description": "Display service URLs"
+         }
       ]
     }
   }
