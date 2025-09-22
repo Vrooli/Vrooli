@@ -102,16 +102,16 @@
       "description": "Initialize ROI Fit Analysis",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/roi-fit-analysis-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "roi-fit-analysis"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "roi-fit-analysis-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": ["roi-fit-analysis"]
+            },
           {
             "type": "dependencies",
             "paths": [
@@ -176,7 +176,7 @@
           "background": true
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: roi-fit --help'",
           "description": "Display all running service URLs"
         }

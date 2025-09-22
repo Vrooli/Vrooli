@@ -184,29 +184,65 @@ export interface PerformanceMetric {
 
 export interface AutomatedFixConfig {
   enabled: boolean
-  allowed_categories: string[]
-  max_confidence: 'low' | 'medium' | 'high'
-  require_approval: boolean
-  backup_enabled: boolean
-  rollback_window: number
+  violation_types: Array<'security' | 'standards'>
+  severities: Array<'low' | 'medium' | 'high' | 'critical'>
+  strategy: 'critical_first' | 'low_first' | 'security_first' | 'standards_first'
+  loop_delay_seconds: number
+  timeout_seconds: number
+  max_fixes: number
+  model: string
   safety_status: string
+  updated_at?: string
 }
 
 export interface AutomatedFix {
   id: string
-  vulnerability_id: string
   scenario_name: string
-  category: string
-  confidence: 'low' | 'medium' | 'high'
-  status: 'pending' | 'approved' | 'applied' | 'rolled_back'
-  description: string
-  changes: {
-    file_path: string
-    before: string
-    after: string
-  }[]
+  violation_type: 'security' | 'standards'
+  severity: 'low' | 'medium' | 'high' | 'critical' | 'unknown'
+  issue_count: number
+  status: 'in_progress' | 'applied' | 'failed' | 'rolled_back'
   applied_at?: string
   rolled_back_at?: string
+  agent_id?: string
+  automation_run_id?: string
+}
+
+export interface AutomatedFixRescanResult {
+  type: 'security' | 'standards'
+  status: string
+  message?: string
+}
+
+export interface AutomatedFixLoop {
+  number: number
+  issues_dispatched: number
+  security_dispatched: number
+  standards_dispatched: number
+  rescan_triggered: boolean
+  rescan_results?: AutomatedFixRescanResult[]
+  duration_seconds: number
+  completed_at: string
+  message: string
+}
+
+export interface AutomatedFixJobSnapshot {
+  id: string
+  scenario: string
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+  strategy: 'critical_first' | 'low_first' | 'security_first' | 'standards_first'
+  active_types: Array<'security' | 'standards'>
+  active_severities: Array<'low' | 'medium' | 'high' | 'critical'>
+  started_at: string
+  completed_at?: string
+  loops_completed: number
+  issues_attempted: number
+  max_fixes: number
+  message: string
+  error?: string
+  automation_run_id: string
+  loops?: AutomatedFixLoop[]
+  model: string
 }
 
 export interface BreakingChange {

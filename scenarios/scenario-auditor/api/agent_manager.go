@@ -374,8 +374,10 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 		am.mu.Unlock()
 
 		if err != nil {
+			automatedFixStore.RecordCompletion(agentID, false)
 			am.logger.Error(fmt.Sprintf("agent %s exited with error", agentID), err)
 		} else {
+			automatedFixStore.RecordCompletion(agentID, true)
 			am.logger.Info(fmt.Sprintf("Agent %s completed", agentID))
 		}
 	}()

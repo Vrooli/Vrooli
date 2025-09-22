@@ -29,11 +29,11 @@
       "description": "Main bookmark intelligence API port",
       "range": "15000-19999"
     },
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "Bookmark management dashboard UI port",
-      "range": "3000-3999"
-    }
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Bookmark management dashboard UI port",
+       "range": "35000-39999"
+     }
   },
   "resources": {
     "postgres": {
@@ -142,16 +142,18 @@
       "description": "Initialize Bookmark Intelligence Hub",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/bookmark-intelligence-hub-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "bookmark-intelligence-hub"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "bookmark-intelligence-hub-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "bookmark-intelligence-hub"
+             ]
+           },
           {
             "type": "resources",
             "populated": true
@@ -215,11 +217,11 @@
             "file_exists": "ui/package.json"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🔖 Bookmark Intelligence Hub running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Huginn: http://localhost:${RESOURCE_PORTS[huginn]}\\n  Browserless: http://localhost:${RESOURCE_PORTS[browserless]}\\n  CLI: bookmark-intelligence-hub --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🔖 Bookmark Intelligence Hub running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Huginn: http://localhost:${RESOURCE_PORTS[huginn]}\\n  Browserless: http://localhost:${RESOURCE_PORTS[browserless]}\\n  CLI: bookmark-intelligence-hub --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

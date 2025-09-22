@@ -103,16 +103,18 @@
       "description": "Initialize App Personalizer",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/app-personalizer-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "app-personalizer"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "app-personalizer-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "app-personalizer"
+             ]
+           },
           {
             "type": "resources",
             "populated": true
@@ -159,11 +161,11 @@
             "file_exists": "api/app-personalizer-api"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 App Personalizer running:\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-personalizer --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 App Personalizer running:\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-personalizer --help'",
+           "description": "Display service URLs"
+         }
       ]
     },
     "test": {

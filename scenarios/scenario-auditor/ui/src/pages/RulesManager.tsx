@@ -13,6 +13,8 @@ const TARGET_CATEGORY_CONFIG: Array<{ id: string; label: string; description: st
   { id: 'cli', label: 'CLI Files', description: 'Rules covering the CLI implementation under cli/.' },
   { id: 'test', label: 'Test Files', description: 'Rules that target files under test/ and other testing utilities.' },
   { id: 'service_json', label: 'service.json', description: 'Rules that run against .vrooli/service.json lifecycle configuration.' },
+  { id: 'makefile', label: 'Makefile', description: 'Rules focused on the scenario Makefile lifecycle wrapper.' },
+  { id: 'structure', label: 'Scenario Structure', description: 'Rules that validate high-level scenario layout and required assets.' },
   { id: 'misc', label: 'Miscellaneous', description: 'Rules missing targets; update the rule metadata so it runs during scans.' },
 ]
 
@@ -23,6 +25,8 @@ const TARGET_BADGE_CLASSES: Record<string, string> = {
   cli: 'bg-green-100 text-green-800',
   test: 'bg-yellow-100 text-yellow-800',
   service_json: 'bg-purple-100 text-purple-800',
+  makefile: 'bg-orange-100 text-orange-800',
+  structure: 'bg-slate-100 text-slate-800',
   misc: 'bg-gray-100 text-gray-700 border border-gray-300',
 }
 

@@ -86,16 +86,18 @@
       "description": "Initialize App Debugger",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/app-debugger-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "app-debugger"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "app-debugger-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "app-debugger"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -147,7 +149,7 @@
         {
           "name": "start-api",
           "run": "cd api && ./app-debugger-api",
-          "description": "Start API server",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/app-debugger-api"
@@ -159,11 +161,11 @@
           "description": "Start UI server",
           "background": true
         },
-        {
-          "name": "show-running",
-          "run": "echo '🚀 App Debugger running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
-          "description": "Display running services"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 App Debugger running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
+           "description": "Display service URLs"
+         }
       ]
     },
     "test": {

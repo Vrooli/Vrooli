@@ -66,18 +66,18 @@
     },
     "setup": {
       "description": "Initialize Resource Experimenter",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/resource-experimenter-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "resource-experimenter"
-          },
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "resource-experimenter-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["resource-experimenter"]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -135,7 +135,10 @@
           "name": "start-api",
           "run": "cd api && ./resource-experimenter-api",
           "description": "Start Go API server in background",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "api/resource-experimenter-api"
+          }
         },
         {
           "name": "start-ui",
@@ -144,9 +147,9 @@
           "background": true
         },
         {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:3000\\n  CLI: resource-experimenter help'",
-          "description": "Display running service URLs"
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:$API_PORT\" && echo \"UI: http://localhost:$UI_PORT\"",
+          "description": "Display service URLs"
         }
       ]
     },

@@ -21,16 +21,16 @@
     ]
   },
   "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Browser Automation Studio API port",
-      "range": "20000-24999"
-    },
-    "ui": {
-      "env_var": "UI_PORT", 
-      "description": "Visual workflow builder UI port",
-      "range": "40000-44999"
-    },
+     "api": {
+       "env_var": "API_PORT",
+       "description": "Browser Automation Studio API port",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "description": "Visual workflow builder UI port",
+       "range": "35000-39999"
+     },
     "websocket": {
       "env_var": "WS_PORT",
       "description": "WebSocket port for real-time updates",
@@ -104,16 +104,18 @@
       "description": "Initialize Browser Automation Studio",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/browser-automation-studio-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "browser-automation-studio"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "browser-automation-studio-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "browser-automation-studio"
+             ]
+           },
           {
             "type": "directory",
             "path": "initialization/storage/postgres"
@@ -156,15 +158,15 @@
     "develop": {
       "description": "Start browser automation studio with API and UI servers",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && OPENROUTER_TIMEOUT=120 VROOLI_LIFECYCLE_MANAGED=true ./browser-automation-studio-api",
-          "description": "Start Go API server with workflow engine",
-          "background": true,
-          "condition": {
-            "file_exists": "api/browser-automation-studio-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./browser-automation-studio-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/browser-automation-studio-api"
+           }
+         },
         {
           "name": "start-ui", 
           "run": "cd ui && npm run dev",
@@ -174,11 +176,11 @@
             "file_exists": "ui/package.json"
           }
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Workflow Builder: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: browser-automation-studio --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Services running:\\n  Workflow Builder: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: browser-automation-studio --help'",
+           "description": "Display all running service URLs"
+         }
       ]
     },
     "test": {

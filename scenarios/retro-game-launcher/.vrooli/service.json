@@ -83,16 +83,16 @@
       "description": "Initialize Retro Game Launcher",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/retro-game-launcher-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "retro-game-launcher"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "retro-game-launcher-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": ["retro-game-launcher"]
+            },
           {
             "type": "dependencies",
             "paths": [
@@ -160,7 +160,7 @@
           }
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "echo '🚀 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: retro-game-launcher --help'",
           "description": "Display all running service URLs"
         }

@@ -127,7 +127,10 @@
           "name": "start-api",
           "run": "cd api && ./scenario-auditor-api",
           "background": true,
-          "description": "Start API server"
+          "description": "Start Go API server in background",
+          "condition": {
+            "file_exists": "api/scenario-auditor-api"
+          }
         },
         {
           "name": "start-ui",

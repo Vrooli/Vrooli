@@ -123,16 +123,18 @@
       "description": "Initialize Audio Intelligence Platform",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/audio-intelligence-platform-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "audio-intelligence-platform"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "audio-intelligence-platform-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "audio-intelligence-platform"
+             ]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -201,11 +203,11 @@
           "description": "Start Node.js UI server in background",
           "background": true
         },
-        {
-          "name": "show-running-services",
-          "run": "echo '🚀 Audio Intelligence Platform running:\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: audio-intelligence-platform --help'",
-          "description": "Display all running service URLs"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Audio Intelligence Platform running:\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: audio-intelligence-platform --help'",
+           "description": "Display service URLs"
+         }
       ]
     },
     "test": {

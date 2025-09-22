@@ -14,6 +14,7 @@ import {
   FixAgentResponse,
   StandardsViolation,
   StandardsScanStatus,
+  AutomatedFixJobSnapshot,
 } from '@/types/api'
 
 const API_BASE = '/api/v1'
@@ -157,21 +158,24 @@ class ApiService {
     return this.fetch('/fix/config')
   }
 
-  async enableAutomatedFixes(config: Partial<AutomatedFixConfig> & { confirmation_understood: boolean }): Promise<any> {
+  async enableAutomatedFixes(config: Pick<AutomatedFixConfig, 'violation_types' | 'severities' | 'strategy' | 'loop_delay_seconds' | 'timeout_seconds' | 'max_fixes' | 'model'>): Promise<AutomatedFixConfig> {
     return this.fetch('/fix/config/enable', {
       method: 'POST',
       body: JSON.stringify(config),
     })
   }
 
-  async disableAutomatedFixes(): Promise<any> {
+  async disableAutomatedFixes(): Promise<AutomatedFixConfig> {
     return this.fetch('/fix/config/disable', { method: 'POST' })
   }
 
-  async applyFix(scenario: string, vulnerabilityId: string): Promise<AutomatedFix> {
+  async applyFix(
+    scenario: string,
+    overrides?: Partial<Pick<AutomatedFixConfig, 'violation_types' | 'severities'>>
+  ): Promise<any> {
     return this.fetch(`/fix/apply/${scenario}`, {
       method: 'POST',
-      body: JSON.stringify({ vulnerability_id: vulnerabilityId }),
+      body: JSON.stringify(overrides || {}),
     })
   }
 
@@ -182,6 +186,23 @@ class ApiService {
   async getFixHistory(): Promise<AutomatedFix[]> {
     const response = await this.fetch<{ fixes: AutomatedFix[] }>('/fix/history')
     return response.fixes || []
+  }
+
+  async getFixJobs(): Promise<AutomatedFixJobSnapshot[]> {
+    const response = await this.fetch<{ jobs: AutomatedFixJobSnapshot[] }>('/fix/jobs')
+    return response.jobs || []
+  }
+
+  async getFixJob(jobId: string): Promise<AutomatedFixJobSnapshot> {
+    const response = await this.fetch<{ job: AutomatedFixJobSnapshot }>(`/fix/jobs/${encodeURIComponent(jobId)}`)
+    if (!response.job) {
+      throw new Error('Automation job not found')
+    }
+    return response.job
+  }
+
+  async cancelFixJob(jobId: string): Promise<{ success: boolean; message: string }> {
+    return this.fetch(`/fix/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' })
   }
 
   // Standards Compliance

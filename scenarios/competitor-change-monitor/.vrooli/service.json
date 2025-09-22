@@ -120,16 +120,16 @@
       "description": "Initialize Competitor Change Monitor",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/competitor-change-monitor-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "competitor-change-monitor"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "competitor-change-monitor-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["competitor-change-monitor"]
+           },
           {
             "type": "dependencies",
             "paths": [
@@ -178,26 +178,26 @@
     "develop": {
       "description": "Start Competitor Monitor services",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./competitor-monitor-api",
-          "description": "Start API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/competitor-monitor-api"
-          }
-        },
+         {
+           "name": "start-api",
+           "run": "cd api && ./competitor-change-monitor-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/competitor-change-monitor-api"
+           }
+         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
-        {
-          "name": "show-running",
-          "run": "echo '🚀 Competitor Monitor running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
-          "description": "Display running services"
-        }
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 Competitor Monitor running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
+           "description": "Display running services"
+         }
       ]
     },
     "test": {

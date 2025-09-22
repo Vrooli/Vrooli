@@ -114,16 +114,16 @@
       "description": "Initialize Resume Screening Assistant",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/resume-screening-assistant-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "resume-screening-assistant"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "resume-screening-assistant-api"
+             ]
+           },
+             {
+               "type": "cli",
+               "targets": ["resume-screening-assistant"]
+             },
           {
             "type": "dependencies",
             "paths": [
@@ -175,7 +175,7 @@
         {
           "name": "start-api",
           "run": "cd api && ./resume-screening-assistant-api",
-          "description": "Start Go coordination API server in background",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/resume-screening-assistant-api"
@@ -188,7 +188,7 @@
           "background": true
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "echo '🚀 Services running:\\n  🎨 UI Dashboard: http://localhost:$UI_PORT\\n  📊 n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ⚙️ API: http://localhost:$API_PORT\\n  🖥️ CLI: resume-screening-assistant --help'",
           "description": "Display all running service URLs"
         }

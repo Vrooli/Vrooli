@@ -105,16 +105,16 @@
       "description": "Initialize Data Backup Manager",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/data-backup-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "data-backup-manager"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "data-backup-manager-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": ["data-backup-manager"]
+           },
           {
             "type": "resources",
             "populated": true
@@ -152,20 +152,20 @@
     "develop": {
       "description": "Start Data Backup Manager API server",
       "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./data-backup-manager-api",
-          "description": "Start Go API server",
-          "background": true,
-          "condition": {
-            "file_exists": "api/data-backup-manager-api"
-          }
-        },
-        {
-          "name": "show-running-services",
-          "run": "echo 'Services running - API: http://localhost:${API_PORT} - CLI: data-backup-manager --help'",
-          "description": "Display running service URLs"
-        }
+         {
+           "name": "start-api",
+           "run": "cd api && ./data-backup-manager-api",
+           "description": "Start Go API server in background",
+           "background": true,
+           "condition": {
+             "file_exists": "api/data-backup-manager-api"
+           }
+         },
+         {
+           "name": "show-urls",
+           "run": "echo 'Services running - API: http://localhost:${API_PORT} - CLI: data-backup-manager --help'",
+           "description": "Display running service URLs"
+         }
       ]
     },
     "test": {

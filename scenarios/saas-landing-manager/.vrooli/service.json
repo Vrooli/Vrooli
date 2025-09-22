@@ -23,14 +23,14 @@
   },
   "ports": {
     "api": {
-      "env_var": "SAAS_LANDING_API_PORT",
+      "env_var": "API_PORT",
       "description": "SaaS Landing Manager API port",
       "range": "15000-19999"
     },
     "ui": {
-      "env_var": "SAAS_LANDING_UI_PORT",
+      "env_var": "UI_PORT",
       "description": "SaaS Landing Manager UI port",
-      "range": "20000-24999"
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -108,16 +108,16 @@
       "description": "Initialize SaaS Landing Manager",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/saas-landing-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "saas-landing-manager"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "saas-landing-manager-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": ["saas-landing-manager"]
+            },
           {
             "type": "resources",
             "populated": true
@@ -163,7 +163,7 @@
         {
           "name": "start-api",
           "run": "cd api && ./saas-landing-manager-api",
-          "description": "Start Go API server",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/saas-landing-manager-api"
@@ -176,7 +176,7 @@
           "background": true
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "echo '🚀 Services running:\\n  UI: http://localhost:${SAAS_LANDING_UI_PORT}\\n  API: http://localhost:${SAAS_LANDING_API_PORT}\\n  CLI: saas-landing-manager --help'",
           "description": "Display all running service URLs"
         }

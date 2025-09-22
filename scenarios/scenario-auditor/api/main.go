@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -321,7 +323,11 @@ func main() {
 	api.HandleFunc("/fix/config/enable", enableAutomatedFixesHandler).Methods("POST")
 	api.HandleFunc("/fix/config/disable", disableAutomatedFixesHandler).Methods("POST")
 	api.HandleFunc("/fix/apply/{scenario}", applyAutomatedFixWithSafetyHandler).Methods("POST")
+	api.HandleFunc("/fix/history", getAutomatedFixHistoryHandler).Methods("GET")
 	api.HandleFunc("/fix/rollback/{fixId}", rollbackAutomatedFixHandler).Methods("POST")
+	api.HandleFunc("/fix/jobs", listAutomatedFixJobsHandler).Methods("GET")
+	api.HandleFunc("/fix/jobs/{jobId}", getAutomatedFixJobHandler).Methods("GET")
+	api.HandleFunc("/fix/jobs/{jobId}/cancel", cancelAutomatedFixJobHandler).Methods("POST")
 
 	// Standards compliance endpoints
 	api.HandleFunc("/standards/check/jobs/{jobId}", getStandardsCheckStatusHandler).Methods("GET")
@@ -1428,23 +1434,383 @@ func getChangeHistoryHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAutomatedFixConfigHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Not implemented yet", http.StatusNotImplemented, nil)
+	cfg := automatedFixStore.GetConfig()
+	response := map[string]interface{}{
+		"enabled":            cfg.Enabled,
+		"violation_types":    cfg.ViolationTypes,
+		"severities":         cfg.Severities,
+		"strategy":           cfg.Strategy,
+		"loop_delay_seconds": cfg.LoopDelay,
+		"timeout_seconds":    cfg.TimeoutSeconds,
+		"max_fixes":          cfg.MaxFixes,
+		"model":              cfg.Model,
+		"updated_at":         cfg.UpdatedAt,
+		"safety_status":      computeSafetyStatus(cfg),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger := NewLogger()
+		logger.Error("Failed to encode automated fix config", err)
+	}
 }
 
 func enableAutomatedFixesHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Not implemented yet", http.StatusNotImplemented, nil)
+	var req struct {
+		ViolationTypes []string `json:"violation_types"`
+		Severities     []string `json:"severities"`
+		Strategy       string   `json:"strategy"`
+		LoopDelay      *int     `json:"loop_delay_seconds"`
+		TimeoutSeconds *int     `json:"timeout_seconds"`
+		MaxFixes       *int     `json:"max_fixes"`
+		Model          string   `json:"model"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+		HTTPError(w, "Invalid configuration payload", http.StatusBadRequest, err)
+		return
+	}
+
+	cfg := automatedFixStore.Enable(AutomatedFixConfigInput{
+		ViolationTypes: req.ViolationTypes,
+		Severities:     req.Severities,
+		Strategy:       req.Strategy,
+		LoopDelay:      req.LoopDelay,
+		TimeoutSeconds: req.TimeoutSeconds,
+		MaxFixes:       req.MaxFixes,
+		Model:          req.Model,
+	})
+	response := map[string]interface{}{
+		"enabled":            cfg.Enabled,
+		"violation_types":    cfg.ViolationTypes,
+		"severities":         cfg.Severities,
+		"strategy":           cfg.Strategy,
+		"loop_delay_seconds": cfg.LoopDelay,
+		"timeout_seconds":    cfg.TimeoutSeconds,
+		"max_fixes":          cfg.MaxFixes,
+		"model":              cfg.Model,
+		"updated_at":         cfg.UpdatedAt,
+		"safety_status":      computeSafetyStatus(cfg),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger := NewLogger()
+		logger.Error("Failed to encode automated fix enable response", err)
+	}
 }
 
 func disableAutomatedFixesHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Not implemented yet", http.StatusNotImplemented, nil)
+	cfg := automatedFixStore.Disable()
+	response := map[string]interface{}{
+		"enabled":            cfg.Enabled,
+		"violation_types":    cfg.ViolationTypes,
+		"severities":         cfg.Severities,
+		"strategy":           cfg.Strategy,
+		"loop_delay_seconds": cfg.LoopDelay,
+		"timeout_seconds":    cfg.TimeoutSeconds,
+		"max_fixes":          cfg.MaxFixes,
+		"model":              cfg.Model,
+		"updated_at":         cfg.UpdatedAt,
+		"safety_status":      computeSafetyStatus(cfg),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger := NewLogger()
+		logger.Error("Failed to encode automated fix disable response", err)
+	}
 }
 
 func applyAutomatedFixWithSafetyHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Not implemented yet", http.StatusNotImplemented, nil)
+	vars := mux.Vars(r)
+	scenarioName := strings.TrimSpace(vars["scenario"])
+	if scenarioName == "" {
+		HTTPError(w, "scenario name is required", http.StatusBadRequest, nil)
+		return
+	}
+
+	cfg := automatedFixStore.GetConfig()
+	if !cfg.Enabled {
+		HTTPError(w, "Automated fixes are currently disabled", http.StatusConflict, nil)
+		return
+	}
+
+	// Allow per-request overrides without mutating the persistent config.
+	var overrides struct {
+		ViolationTypes []string `json:"violation_types"`
+		Severities     []string `json:"severities"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&overrides); err != nil && !errors.Is(err, io.EOF) {
+		HTTPError(w, "Invalid override payload", http.StatusBadRequest, err)
+		return
+	}
+
+	activeTypes := cfg.ViolationTypes
+	if len(overrides.ViolationTypes) > 0 {
+		if normalised := normaliseViolationTypes(overrides.ViolationTypes); len(normalised) > 0 {
+			activeTypes = normalised
+		}
+	}
+
+	activeSeverities := cfg.Severities
+	if len(overrides.Severities) > 0 {
+		if normalised := normaliseSeverities(overrides.Severities); len(normalised) > 0 {
+			activeSeverities = normalised
+		}
+	}
+
+	scenarioPath := filepath.Clean(filepath.Join(getScenarioRoot(), "..", scenarioName))
+	info, err := os.Stat(scenarioPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			HTTPError(w, fmt.Sprintf("scenario %s not found", scenarioName), http.StatusNotFound, nil)
+			return
+		}
+		HTTPError(w, "Failed to resolve scenario path", http.StatusInternalServerError, err)
+		return
+	}
+	if !info.IsDir() {
+		HTTPError(w, fmt.Sprintf("scenario path %s is not a directory", scenarioPath), http.StatusBadRequest, nil)
+		return
+	}
+
+	safetyStatus := computeSafetyStatus(cfg)
+
+	job, err := automatedFixRunner.Start(AutomatedFixJobOptions{
+		Scenario:         scenarioName,
+		ActiveTypes:      activeTypes,
+		ActiveSeverities: activeSeverities,
+		Strategy:         cfg.Strategy,
+		LoopDelaySeconds: cfg.LoopDelay,
+		TimeoutSeconds:   cfg.TimeoutSeconds,
+		MaxFixes:         cfg.MaxFixes,
+		Model:            cfg.Model,
+	})
+	if err != nil {
+		HTTPError(w, err.Error(), http.StatusBadRequest, err)
+		return
+	}
+
+	snapshot := job.Snapshot()
+	response := map[string]interface{}{
+		"success":       true,
+		"scenario":      scenarioName,
+		"job":           snapshot,
+		"job_id":        snapshot.ID,
+		"safety_status": safetyStatus,
+		"configuration": map[string]interface{}{
+			"violation_types": activeTypes,
+			"severities":      activeSeverities,
+			"model":           cfg.Model,
+		},
+		"message": "Automated fix job started",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger := NewLogger()
+		logger.Error("Failed to encode automated fix response", err)
+	}
+}
+
+func getAutomatedFixHistoryHandler(w http.ResponseWriter, r *http.Request) {
+	history := automatedFixStore.History()
+	response := map[string]interface{}{
+		"fixes": history,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger := NewLogger()
+		logger.Error("Failed to encode automated fix history", err)
+	}
 }
 
 func rollbackAutomatedFixHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Not implemented yet", http.StatusNotImplemented, nil)
+	vars := mux.Vars(r)
+	fixID := strings.TrimSpace(vars["fixId"])
+	if fixID == "" {
+		HTTPError(w, "fixId is required", http.StatusBadRequest, nil)
+		return
+	}
+
+	record, err := automatedFixStore.RecordRollback(fixID)
+	if err != nil {
+		HTTPError(w, err.Error(), http.StatusNotFound, nil)
+		return
+	}
+
+	response := map[string]interface{}{
+		"success": true,
+		"message": "Fix marked as rolled back. Use git history if you need to undo file changes.",
+		"fix":     record,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger := NewLogger()
+		logger.Error("Failed to encode rollback response", err)
+	}
+}
+
+func listAutomatedFixJobsHandler(w http.ResponseWriter, r *http.Request) {
+	jobs := automatedFixRunner.List()
+	response := map[string]interface{}{
+		"jobs":  jobs,
+		"count": len(jobs),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger := NewLogger()
+		logger.Error("Failed to encode automated fix jobs response", err)
+	}
+}
+
+func getAutomatedFixJobHandler(w http.ResponseWriter, r *http.Request) {
+	jobID := strings.TrimSpace(mux.Vars(r)["jobId"])
+	if jobID == "" {
+		HTTPError(w, "jobId is required", http.StatusBadRequest, nil)
+		return
+	}
+	job, ok := automatedFixRunner.Get(jobID)
+	if !ok {
+		HTTPError(w, "automation job not found", http.StatusNotFound, nil)
+		return
+	}
+	response := map[string]interface{}{
+		"job": job,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger := NewLogger()
+		logger.Error("Failed to encode automated fix job response", err)
+	}
+}
+
+func cancelAutomatedFixJobHandler(w http.ResponseWriter, r *http.Request) {
+	jobID := strings.TrimSpace(mux.Vars(r)["jobId"])
+	if jobID == "" {
+		HTTPError(w, "jobId is required", http.StatusBadRequest, nil)
+		return
+	}
+	if err := automatedFixRunner.Cancel(jobID); err != nil {
+		HTTPError(w, err.Error(), http.StatusNotFound, err)
+		return
+	}
+	response := map[string]interface{}{
+		"success": true,
+		"message": "Automation job cancelled",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger := NewLogger()
+		logger.Error("Failed to encode automation cancel response", err)
+	}
+}
+
+func containsViolationType(types []string, target string) bool {
+	target = strings.ToLower(strings.TrimSpace(target))
+	for _, value := range types {
+		if strings.ToLower(strings.TrimSpace(value)) == target {
+			return true
+		}
+	}
+	return false
+}
+
+func filterVulnerabilitiesBySeverity(scenario string, allowed map[string]struct{}) []StoredVulnerability {
+	vulnerabilities := vulnStore.GetVulnerabilities(scenario)
+	if len(vulnerabilities) == 0 {
+		return nil
+	}
+	var filtered []StoredVulnerability
+	for _, vuln := range vulnerabilities {
+		severity := strings.ToLower(strings.TrimSpace(vuln.Severity))
+		if len(allowed) > 0 {
+			if _, ok := allowed[severity]; !ok {
+				continue
+			}
+		}
+		filtered = append(filtered, vuln)
+	}
+	return filtered
+}
+
+func collectVulnerabilityIDs(vulnerabilities []StoredVulnerability) []string {
+	ids := make([]string, 0, len(vulnerabilities))
+	seen := make(map[string]struct{}, len(vulnerabilities))
+	for _, vuln := range vulnerabilities {
+		id := strings.TrimSpace(vuln.ID)
+		if id == "" {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func extractVulnerabilitySeverities(vulnerabilities []StoredVulnerability) []string {
+	if len(vulnerabilities) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(vulnerabilities))
+	for _, vuln := range vulnerabilities {
+		result = append(result, vuln.Severity)
+	}
+	return result
+}
+
+func filterStandardsBySeverity(scenario string, allowed map[string]struct{}) []StandardsViolation {
+	violations := standardsStore.GetViolations(scenario)
+	if len(violations) == 0 {
+		return nil
+	}
+	var filtered []StandardsViolation
+	for _, violation := range violations {
+		severity := strings.ToLower(strings.TrimSpace(violation.Severity))
+		if len(allowed) > 0 {
+			if _, ok := allowed[severity]; !ok {
+				continue
+			}
+		}
+		filtered = append(filtered, violation)
+	}
+	return filtered
+}
+
+func collectStandardsIDs(violations []StandardsViolation) []string {
+	ids := make([]string, 0, len(violations))
+	seen := make(map[string]struct{}, len(violations))
+	for _, violation := range violations {
+		id := strings.TrimSpace(violation.ID)
+		if id == "" {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func extractStandardsSeverities(violations []StandardsViolation) []string {
+	if len(violations) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(violations))
+	for _, violation := range violations {
+		result = append(result, violation.Severity)
+	}
+	return result
 }
 
 func discoverScenariosHandler(w http.ResponseWriter, r *http.Request) {

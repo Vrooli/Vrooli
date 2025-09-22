@@ -122,16 +122,18 @@
       "description": "Initialize Algorithm Library with database and initial algorithms",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/algorithm-library-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "algorithm-library"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "algorithm-library-api"
+             ]
+           },
+           {
+             "type": "cli",
+             "targets": [
+               "algorithm-library"
+             ]
+           },
           {
             "type": "resources",
             "populated": true
@@ -182,7 +184,7 @@
         {
           "name": "start-api",
           "run": "cd api && ./algorithm-library-api",
-          "description": "Start Go API server",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/algorithm-library-api"
@@ -198,7 +200,7 @@
           }
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Judge0: http://localhost:${RESOURCE_PORTS[judge0]}\\n  CLI: algorithm-library --help'",
           "description": "Display all running service URLs"
         }

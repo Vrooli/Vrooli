@@ -83,7 +83,7 @@ func LoadRulesFromFiles() (map[string]RuleInfo, error) {
 	rulesDir := filepath.Join(vrooliRoot, "scenarios", "scenario-auditor", "rules")
 
 	// Walk through all subdirectories
-	categories := []string{"api", "cli", "config", "test", "ui"}
+	categories := []string{"api", "cli", "config", "test", "ui", "makefile", "structure"}
 
 	for _, category := range categories {
 		categoryDir := filepath.Join(rulesDir, category)

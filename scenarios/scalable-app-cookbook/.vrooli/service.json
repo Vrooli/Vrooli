@@ -103,16 +103,16 @@
       "description": "Initialize Scalable App Cookbook with database and pattern library",
       "condition": {
         "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scalable-app-cookbook-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "scalable-app-cookbook"
-          },
+           {
+             "type": "binaries",
+             "targets": [
+               "scalable-app-cookbook-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": ["scalable-app-cookbook"]
+            },
           {
             "type": "resources",
             "populated": true
@@ -158,7 +158,7 @@
         {
           "name": "start-api",
           "run": "cd api && ./scalable-app-cookbook-api",
-          "description": "Start Go API server",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/scalable-app-cookbook-api"
@@ -174,7 +174,7 @@
           }
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scalable-app-cookbook --help'",
           "description": "Display all running service URLs"
         }

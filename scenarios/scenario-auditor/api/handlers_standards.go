@@ -53,6 +53,8 @@ const (
 	targetCLI         = "cli"
 	targetTest        = "test"
 	targetServiceJSON = "service_json"
+	targetMakefile    = "makefile"
+	targetStructure   = "structure"
 )
 
 var (
@@ -112,6 +114,7 @@ var allowedExtensions = map[string]struct{}{
 	".css":  {},
 	".py":   {},
 	".java": {},
+	".md":   {},
 }
 
 func newStandardsScanManager() *StandardsScanManager {
@@ -489,6 +492,34 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 		return nil, 0, nil
 	}
 
+	type structureScenarioInfo struct {
+		files map[string]struct{}
+	}
+
+	structureData := make(map[string]*structureScenarioInfo)
+	structurePaths := make(map[string]string)
+	scenariosRoot := getScenariosRoot()
+	ensureStructureScenario := func(name string) *structureScenarioInfo {
+		if strings.TrimSpace(name) == "" {
+			return nil
+		}
+		info, ok := structureData[name]
+		if !ok {
+			info = &structureScenarioInfo{files: make(map[string]struct{})}
+			structureData[name] = info
+		}
+		if _, exists := structurePaths[name]; !exists {
+			structurePaths[name] = filepath.Join(scenariosRoot, name)
+		}
+		return info
+	}
+
+	rootScenario := filepath.Base(scanPath)
+	if rootScenario != "" {
+		ensureStructureScenario(rootScenario)
+		structurePaths[rootScenario] = scanPath
+	}
+
 	var violations []StandardsViolation
 	filesScanned := 0
 
@@ -515,6 +546,12 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 		}
 
 		scenarioName, scenarioRelative, targets := classifyFileTargets(path)
+		if scenarioName != "" && scenarioRelative != "" {
+			if info := ensureStructureScenario(scenarioName); info != nil {
+				relative := filepath.ToSlash(scenarioRelative)
+				info.files[relative] = struct{}{}
+			}
+		}
 		if len(targets) == 0 {
 			return nil
 		}
@@ -561,7 +598,50 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 		return violations, filesScanned, errStandardsScanCancelled
 	}
 
-	return violations, filesScanned, err
+	if err != nil {
+		return violations, filesScanned, err
+	}
+
+	structureRules := collectRulesForTargets([]string{targetStructure}, ruleBuckets)
+	if len(structureRules) > 0 {
+		for scenario, info := range structureData {
+			files := make([]string, 0, len(info.files))
+			for relative := range info.files {
+				files = append(files, relative)
+			}
+			sort.Strings(files)
+			payload := struct {
+				Scenario string   `json:"scenario"`
+				Files    []string `json:"files"`
+			}{
+				Scenario: scenario,
+				Files:    files,
+			}
+			encoded, marshalErr := json.Marshal(payload)
+			if marshalErr != nil {
+				logger.Error("Failed to encode structure payload", marshalErr)
+				continue
+			}
+			scenarioPath := structurePaths[scenario]
+			for _, rule := range structureRules {
+				if rule.executor == nil || !rule.Implementation.Valid {
+					continue
+				}
+
+				ruleViolations, execErr := rule.Check(string(encoded), scenarioPath, scenario)
+				if execErr != nil {
+					logger.Error(fmt.Sprintf("Structure rule %s execution failed for %s", rule.ID, scenario), execErr)
+					continue
+				}
+
+				for _, rv := range ruleViolations {
+					violations = append(violations, convertRuleViolationToStandards(rule, rv, scenario, rv.FilePath))
+				}
+			}
+		}
+	}
+
+	return violations, filesScanned, nil
 }
 
 func buildRuleBuckets(ruleInfos map[string]RuleInfo, specific []string) (map[string][]RuleInfo, map[string]RuleInfo) {
@@ -643,6 +723,10 @@ func defaultTargetsForRule(rule RuleInfo) []string {
 		return []string{targetTest}
 	case "config":
 		return []string{targetAPI, targetCLI}
+	case "makefile":
+		return []string{targetMakefile}
+	case "structure":
+		return []string{targetStructure}
 	default:
 		return nil
 	}
@@ -681,6 +765,9 @@ func classifyFileTargets(fullPath string) (string, string, []string) {
 	}
 
 	var targets []string
+	if scenarioRelative == "Makefile" {
+		targets = append(targets, targetMakefile)
+	}
 	if strings.HasPrefix(scenarioRelative, "api/") {
 		targets = append(targets, targetAPI)
 	}

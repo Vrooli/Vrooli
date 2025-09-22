@@ -1,21 +1,29 @@
-{
-  "name": "api-library",
-  "displayName": "API Library",
-  "description": "Semantic API discovery with pricing, gotchas, and integration patterns",
-  "version": "1.0.0",
-  "category": "research",
-  "tags": [
-    "api",
-    "discovery",
-    "integration",
-    "pricing",
-    "search"
-  ],
-  "status": "development",
-  "ports": {
-    "api": "${API_PORT}",
-    "ui": "${UI_PORT}"
-  },
+ {
+   "$schema": "../../../.vrooli/schemas/service.schema.json",
+   "version": "1.0.0",
+   "service": {
+     "name": "api-library",
+     "displayName": "API Library",
+     "description": "Semantic API discovery with pricing, gotchas, and integration patterns",
+     "version": "1.0.0",
+     "tags": [
+       "api",
+       "discovery",
+       "integration",
+       "pricing",
+       "search"
+     ]
+   },
+   "ports": {
+     "api": {
+       "env_var": "API_PORT",
+       "range": "15000-19999"
+     },
+     "ui": {
+       "env_var": "UI_PORT",
+       "range": "35000-39999"
+     }
+   },
   "dependencies": {
     "required": [
       "postgres",
@@ -53,8 +61,45 @@
       "purpose": "Generate embeddings for semantic search"
     }
   },
-  "lifecycle": {
-    "startup": {
+   "lifecycle": {
+     "version": "2.0.0",
+     "setup": {
+       "description": "Initialize API Library",
+       "condition": {
+         "checks": [
+           {
+             "type": "binaries",
+             "targets": [
+               "api-library-api"
+             ]
+           },
+            {
+              "type": "cli",
+              "targets": [
+                "api-library"
+              ]
+            }
+         ]
+       },
+       "steps": [
+         {
+           "name": "build-api",
+           "run": "cd api && go mod download && go build -o api-library-api .",
+           "description": "Build Go API binary"
+         },
+         {
+           "name": "install-cli",
+           "run": "cd cli && ./install.sh",
+           "description": "Install CLI command globally"
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 API Library initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+           "description": "Display service access URLs"
+         }
+       ]
+     },
+     "startup": {
       "order": [
         "postgres",
         "qdrant",
@@ -104,12 +149,31 @@
         }
       ]
     },
-    "develop": {
-      "description": "Development mode",
-      "phases": [
-        "startup"
-      ]
-    }
+     "develop": {
+       "description": "Development mode",
+       "steps": [
+          {
+            "name": "start-api",
+             "run": "cd api && ./api-library-api",
+            "description": "Start Go API server in background",
+            "background": true,
+            "condition": {
+               "file_exists": "api/api-library-api"
+            }
+          },
+         {
+           "name": "start-ui",
+           "run": "cd ui && npm start",
+           "description": "Start UI development server",
+           "background": true
+         },
+         {
+           "name": "show-urls",
+           "run": "echo '🚀 API Library running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+           "description": "Display running service URLs"
+         }
+       ]
+     }
   },
   "api": {
     "basePath": "/api/v1",

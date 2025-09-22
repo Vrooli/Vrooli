@@ -131,7 +131,7 @@ api_request() {
 
 cmd_scan() {
     local scenario="${1:-current}"
-    api_request "POST" "/api/v1/scan/$scenario" "{}"
+    api_request "POST" "/api/v1/scenarios/$scenario/scan" "{}"
 }
 
 cmd_rules() {
