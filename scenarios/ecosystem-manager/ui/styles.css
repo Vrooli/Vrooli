@@ -2306,6 +2306,205 @@ body.dark-mode .prompt-chip {
     color: var(--dark-text-color);
 }
 
+.prompt-sections-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.prompt-sections-header h5 {
+    margin: 0;
+}
+
+.prompt-sections-subtitle {
+    font-size: 0.85rem;
+    color: rgba(0, 0, 0, 0.45);
+}
+
+.prompt-section-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.prompt-section-card {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 6px 18px rgba(15, 30, 90, 0.08);
+    transition: box-shadow 0.2s ease;
+}
+
+.prompt-section-card[open] {
+    box-shadow: 0 12px 22px rgba(15, 30, 90, 0.12);
+}
+
+.prompt-section-card summary {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    padding: 1rem 1.25rem;
+    list-style: none;
+}
+
+.prompt-section-card summary::-webkit-details-marker {
+    display: none;
+}
+
+.prompt-section-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+}
+
+.prompt-section-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.prompt-section-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.prompt-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.85);
+}
+
+.prompt-section-path {
+    font-size: 0.85rem;
+    color: rgba(0, 0, 0, 0.45);
+    word-break: break-word;
+}
+
+.prompt-section-toggle {
+    color: rgba(0, 0, 0, 0.35);
+    transition: transform 0.2s ease;
+}
+
+.prompt-section-card[open] .prompt-section-toggle {
+    transform: rotate(180deg);
+}
+
+.prompt-section-meta {
+    padding: 0 1.25rem 1rem 1.25rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    background: rgba(0, 0, 0, 0.015);
+}
+
+.prompt-section-meta-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+}
+
+.prompt-section-meta-label {
+    min-width: 6.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.prompt-section-meta-value {
+    font-size: 0.9rem;
+    color: rgba(0, 0, 0, 0.75);
+}
+
+.prompt-section-meta-value.includes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.prompt-section-include {
+    padding: 0.25rem 0.5rem;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    font-size: 0.78rem;
+    color: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.prompt-section-include.empty {
+    background: rgba(0, 0, 0, 0.02);
+    border-style: dashed;
+}
+
+.prompt-section-content {
+    padding: 1.25rem;
+    background: #fff;
+}
+
+.prompt-section-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    gap: 0.5rem;
+}
+
+.prompt-section-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #3F51B5, #7986CB);
+    color: #fff;
+    border: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.prompt-section-copy:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 16px rgba(63, 81, 181, 0.25);
+}
+
+.prompt-section-copy i {
+    font-size: 0.85rem;
+}
+
+.prompt-section-length {
+    font-size: 0.8rem;
+    color: rgba(0, 0, 0, 0.45);
+}
+
+.prompt-section-content pre {
+    max-height: 320px;
+    overflow: auto;
+    background: rgba(98, 0, 234, 0.04);
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid rgba(98, 0, 234, 0.08);
+    font-size: 0.85rem;
+    color: rgba(0, 0, 0, 0.8);
+    line-height: 1.5;
+}
+
 .prompt-tester-actions {
     display: flex;
     flex-direction: column;

@@ -425,37 +425,37 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	var prompt string
-	var fromCache bool
+	fromCache := false
+	assembly, err := h.assembler.AssemblePromptForTask(*task)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
+		return
+	}
+	prompt := assembly.Prompt
 
-	// First check if we have a cached prompt in /tmp
+	// Check for cached prompt content (legacy behavior)
 	promptPath := fmt.Sprintf("/tmp/ecosystem-prompt-%s.txt", taskID)
 	if cachedPrompt, err := os.ReadFile(promptPath); err == nil {
 		prompt = string(cachedPrompt)
 		fromCache = true
 		log.Printf("Using cached prompt from %s", promptPath)
-	} else {
-		// Generate the full assembled prompt
-		prompt, err = h.assembler.AssemblePromptForTask(*task)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
-			return
-		}
-		fromCache = false
 	}
+
+	assembly.Prompt = prompt
 
 	// Get operation config for metadata
 	operationConfig, _ := h.assembler.SelectPromptAssembly(task.Type, task.Operation)
 
 	response := map[string]interface{}{
-		"task_id":          task.ID,
-		"operation":        fmt.Sprintf("%s-%s", task.Type, task.Operation),
-		"prompt":           prompt,
-		"prompt_length":    len(prompt),
-		"prompt_cached":    fromCache,
-		"operation_config": operationConfig,
-		"task_status":      status,
-		"task_details":     task,
+		"task_id":           task.ID,
+		"operation":         fmt.Sprintf("%s-%s", task.Type, task.Operation),
+		"prompt":            prompt,
+		"prompt_length":     len(prompt),
+		"prompt_cached":     fromCache,
+		"sections_detailed": assembly.Sections,
+		"operation_config":  operationConfig,
+		"task_status":       status,
+		"task_details":      task,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -657,27 +657,29 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	prompt, err := h.assembler.AssemblePromptForTask(tempTask)
+	assembly, err := h.assembler.AssemblePromptForTask(tempTask)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
 		return
 	}
+	prompt := assembly.Prompt
 
 	promptSize := len(prompt)
 	promptSizeKB := float64(promptSize) / 1024.0
 	promptSizeMB := promptSizeKB / 1024.0
 
 	response := map[string]interface{}{
-		"task_type":      tempTask.Type,
-		"operation":      tempTask.Operation,
-		"title":          tempTask.Title,
-		"sections":       sections,
-		"section_count":  len(sections),
-		"prompt_size":    promptSize,
-		"prompt_size_kb": fmt.Sprintf("%.2f", promptSizeKB),
-		"prompt_size_mb": fmt.Sprintf("%.3f", promptSizeMB),
-		"timestamp":      time.Now().Format(time.RFC3339),
-		"task":           tempTask,
+		"task_type":         tempTask.Type,
+		"operation":         tempTask.Operation,
+		"title":             tempTask.Title,
+		"sections":          sections,
+		"section_count":     len(sections),
+		"sections_detailed": assembly.Sections,
+		"prompt_size":       promptSize,
+		"prompt_size_kb":    fmt.Sprintf("%.2f", promptSizeKB),
+		"prompt_size_mb":    fmt.Sprintf("%.3f", promptSizeMB),
+		"timestamp":         time.Now().Format(time.RFC3339),
+		"task":              tempTask,
 	}
 
 	switch display {

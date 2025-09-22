@@ -57,8 +57,45 @@ check:
 <test-case id="quality-missing-lint-go" should-fail="true">
   <description>Lint target does not call lint-go</description>
   <input language="make">
+fmt:
+	@$(MAKE) fmt-go
+	@$(MAKE) fmt-ui
+
+fmt-go:
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		echo "Formatting Go code..."; \
+		if command -v gofumpt >/dev/null 2>&1; then \
+			cd api && gofumpt -w .; \
+		elif command -v gofmt >/dev/null 2>&1; then \
+			cd api && gofmt -w .; \
+		fi; \
+		echo "$(GREEN)✓ Go code formatted$(RESET)"; \
+	fi
+
+fmt-ui:
+	@echo "Formatting UI assets..."
+
 lint:
-	@echo "linting"
+	@$(MAKE) lint-ui
+
+lint-ui:
+	@echo "Linting UI code..."
+
+lint-go:
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		echo "Linting Go code..."; \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd api && golangci-lint run; \
+		else \
+			cd api && go vet ./...; \
+		fi; \
+		echo "$(GREEN)✓ Go code linted$(RESET)"; \
+	fi
+
+check:
+	@$(MAKE) fmt
+	@$(MAKE) lint
+	@$(MAKE) test
   </input>
   <expected-violations>1</expected-violations>
   <expected-message>lint target must include '@$(MAKE) lint-go'</expected-message>

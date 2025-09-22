@@ -17,34 +17,54 @@ Targets: makefile
 <test-case id="lifecycle-valid" should-fail="false">
   <description>Lifecycle commands use vrooli scenario CLI</description>
   <input language="make">
+SCENARIO_NAME := $(notdir $(CURDIR))
+
 start:
-	@echo "$(BLUE)🚀 Starting demo scenario...$(RESET)"
-	@vrooli scenario start demo
+	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario start $(SCENARIO_NAME)
 
 stop:
-	@echo "$(YELLOW)⏹️  Stopping demo scenario...$(RESET)"
-	@vrooli scenario stop demo
+	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario stop $(SCENARIO_NAME)
 
 test:
-	@echo "$(BLUE)🧪 Testing demo scenario...$(RESET)"
-	@vrooli scenario test demo
+	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario test $(SCENARIO_NAME)
 
 logs:
-	@echo "$(BLUE)📜 Logs for demo:$(RESET)"
-	@vrooli scenario logs demo --tail 50
+	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
+	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
 status:
-	@echo "$(BLUE)📊 Status of demo:$(RESET)"
-	@vrooli scenario status demo
+	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
+	@vrooli scenario status $(SCENARIO_NAME)
   </input>
 </test-case>
 
 <test-case id="lifecycle-legacy-run" should-fail="true">
   <description>Start command uses legacy run</description>
   <input language="make">
+SCENARIO_NAME := $(notdir $(CURDIR))
+
 start:
-	@echo "$(BLUE)🚀 Starting demo scenario...$(RESET)"
-	@vrooli scenario run demo
+	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario run $(SCENARIO_NAME)
+
+stop:
+	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario stop $(SCENARIO_NAME)
+
+test:
+	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario test $(SCENARIO_NAME)
+
+logs:
+	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
+	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
+
+status:
+	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
+	@vrooli scenario status $(SCENARIO_NAME)
   </input>
   <expected-violations>1</expected-violations>
   <expected-message>execute 'vrooli scenario start</expected-message>

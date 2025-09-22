@@ -41,13 +41,14 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 	timeoutDuration := time.Duration(currentSettings.TaskTimeout) * time.Minute
 
 	// Generate the full prompt for the task
-	prompt, err := qp.assembler.AssemblePromptForTask(task)
+	assembly, err := qp.assembler.AssemblePromptForTask(task)
 	if err != nil {
 		executionTime := time.Since(executionStartTime)
 		log.Printf("Failed to assemble prompt for task %s: %v", task.ID, err)
 		qp.handleTaskFailureWithTiming(&task, fmt.Sprintf("Prompt assembly failed: %v", err), "", executionStartTime, executionTime, timeoutDuration, nil)
 		return
 	}
+	prompt := assembly.Prompt
 
 	// Store the assembled prompt in /tmp for debugging
 	promptPath := filepath.Join("/tmp", fmt.Sprintf("ecosystem-prompt-%s.txt", task.ID))
@@ -171,7 +172,8 @@ func (qp *Processor) handleTaskFailureWithTiming(task *tasks.TaskItem, errorMsg 
 	isTimeout := strings.Contains(errorMsg, "timed out") || strings.Contains(errorMsg, "timeout")
 
 	// Get the prompt for size calculation (if available)
-	prompt, _ := qp.assembler.AssemblePromptForTask(*task)
+	assembly, _ := qp.assembler.AssemblePromptForTask(*task)
+	prompt := assembly.Prompt
 	promptSizeKB := float64(len(prompt)) / 1024.0
 
 	results := map[string]interface{}{

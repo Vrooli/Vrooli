@@ -61,10 +61,22 @@ help: ## Show this help message
   <description>Header lines missing required guidance</description>
   <input language="make">
 # Demo Scenario Makefile
+#
+# Missing lifecycle guidance on purpose
+# NEVER run scenarios directly (./api/demo-api). ALWAYS use these commands.
+#
+# Usage:
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
 
 .PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 .DEFAULT_GOAL := help
+
 SCENARIO_NAME := $(notdir $(CURDIR))
 
 GREEN := \033[1;32m
@@ -73,8 +85,18 @@ BLUE := \033[1;34m
 RED := \033[1;31m
 RESET := \033[0m
 
-help:
-	@echo "missing guidance"
+help: ## Show this help message
+	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)Usage:$(RESET)"
+	@echo "  make <command>"
+	@echo ""
+	@echo "$(YELLOW)Commands:$(RESET)"
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
   </input>
   <expected-violations>1</expected-violations>
   <expected-message>Header must explain lifecycle requirement</expected-message>

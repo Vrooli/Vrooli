@@ -25,6 +25,22 @@ type Assembler struct {
 	PromptsDir    string
 }
 
+// SectionDetail captures metadata for each assembled prompt section.
+type SectionDetail struct {
+	Index        int      `json:"index"`
+	Key          string   `json:"key"`
+	Title        string   `json:"title"`
+	RelativePath string   `json:"relative_path"`
+	Includes     []string `json:"includes,omitempty"`
+	Content      string   `json:"content"`
+}
+
+// PromptAssembly represents the fully assembled prompt and its section breakdown.
+type PromptAssembly struct {
+	Prompt   string          `json:"prompt"`
+	Sections []SectionDetail `json:"sections"`
+}
+
 // NewAssembler creates a new prompt assembler
 func NewAssembler(promptsDir string) (*Assembler, error) {
 	assembler := &Assembler{
@@ -145,7 +161,7 @@ func (a *Assembler) isCriticalInclude(includePath string) bool {
 }
 
 // resolveIncludes recursively resolves {{INCLUDE: path}} directives in content
-func (a *Assembler) resolveIncludes(content string, basePath string, depth int) (string, error) {
+func (a *Assembler) resolveIncludes(content string, basePath string, depth int, includeAccumulator *[]string) (string, error) {
 	// Prevent infinite recursion
 	if depth > 10 {
 		return content, fmt.Errorf("include depth exceeded (max 10)")
@@ -199,8 +215,16 @@ func (a *Assembler) resolveIncludes(content string, basePath string, depth int) 
 			}
 		}
 
+		if includeAccumulator != nil {
+			if rel, err := filepath.Rel(a.PromptsDir, fullPath); err == nil {
+				*includeAccumulator = append(*includeAccumulator, filepath.ToSlash(rel))
+			} else {
+				*includeAccumulator = append(*includeAccumulator, includePath)
+			}
+		}
+
 		// Recursively resolve includes in the included content
-		resolvedInclude, err := a.resolveIncludes(string(includeContent), filepath.Dir(fullPath), depth+1)
+		resolvedInclude, err := a.resolveIncludes(string(includeContent), filepath.Dir(fullPath), depth+1, includeAccumulator)
 		if err != nil {
 			errorMsg := fmt.Sprintf("Failed to resolve includes in %s: %v", includePath, err)
 			if isCritical {
@@ -230,8 +254,9 @@ func (a *Assembler) resolveIncludes(content string, basePath string, depth int) 
 }
 
 // AssemblePrompt reads and concatenates prompt sections into a full prompt
-func (a *Assembler) AssemblePrompt(sections []string) (string, error) {
+func (a *Assembler) AssemblePrompt(sections []string) (PromptAssembly, error) {
 	var promptBuilder strings.Builder
+	var sectionDetails []SectionDetail
 
 	promptBuilder.WriteString("# Ecosystem Manager Task Execution\n\n")
 	promptBuilder.WriteString("You are executing a task for the Vrooli Ecosystem Manager.\n\n")
@@ -269,11 +294,12 @@ func (a *Assembler) AssemblePrompt(sections []string) (string, error) {
 		// Read the file content
 		content, err := os.ReadFile(filePath)
 		if err != nil {
-			return "", fmt.Errorf("failed to read section %s: %v", section, err)
+			return PromptAssembly{}, fmt.Errorf("failed to read section %s: %v", section, err)
 		}
 
 		// Resolve any {{INCLUDE:}} directives in the content
-		resolvedContent, err := a.resolveIncludes(string(content), filepath.Dir(filePath), 0)
+		includeAccumulator := []string{}
+		resolvedContent, err := a.resolveIncludes(string(content), filepath.Dir(filePath), 0, &includeAccumulator)
 		if err != nil {
 			log.Printf("Warning: Include resolution had issues in %s: %v", section, err)
 			// Continue with partially resolved content
@@ -286,13 +312,59 @@ func (a *Assembler) AssemblePrompt(sections []string) (string, error) {
 		promptBuilder.WriteString(fmt.Sprintf("## Section %d: %s\n\n", i+1, sectionName))
 		promptBuilder.WriteString(resolvedContent)
 		promptBuilder.WriteString("\n\n---\n\n")
+
+		relPath := section
+		if filepath.IsAbs(filePath) {
+			if rel, err := filepath.Rel(a.PromptsDir, filePath); err == nil {
+				relPath = filepath.ToSlash(rel)
+			} else {
+				relPath = filepath.ToSlash(filePath)
+			}
+		} else {
+			if !strings.HasSuffix(relPath, ".md") {
+				relPath = relPath + ".md"
+			}
+			relPath = filepath.ToSlash(relPath)
+		}
+
+		if len(includeAccumulator) > 0 {
+			includeAccumulator = dedupeStrings(includeAccumulator)
+		}
+
+		sectionDetails = append(sectionDetails, SectionDetail{
+			Index:        i,
+			Key:          section,
+			Title:        sectionName,
+			RelativePath: relPath,
+			Includes:     includeAccumulator,
+			Content:      resolvedContent,
+		})
 	}
 
-	return promptBuilder.String(), nil
+	return PromptAssembly{
+		Prompt:   promptBuilder.String(),
+		Sections: sectionDetails,
+	}, nil
+}
+
+func dedupeStrings(values []string) []string {
+	if len(values) < 2 {
+		return values
+	}
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, v := range values {
+		if _, exists := seen[v]; exists {
+			continue
+		}
+		seen[v] = struct{}{}
+		result = append(result, v)
+	}
+	return result
 }
 
 // AssemblePromptForTask generates a complete prompt for a specific task
-func (a *Assembler) AssemblePromptForTask(task tasks.TaskItem) (string, error) {
+func (a *Assembler) AssemblePromptForTask(task tasks.TaskItem) (PromptAssembly, error) {
 	// Reload config to pick up changes (hot-reload capability)
 	configFile := filepath.Join(a.PromptsDir, "sections.yaml")
 	if err := a.loadConfig(configFile); err != nil {
@@ -301,12 +373,12 @@ func (a *Assembler) AssemblePromptForTask(task tasks.TaskItem) (string, error) {
 
 	sections, err := a.GeneratePromptSections(task)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate sections: %v", err)
+		return PromptAssembly{}, fmt.Errorf("failed to generate sections: %v", err)
 	}
 
-	prompt, err := a.AssemblePrompt(sections)
+	assembly, err := a.AssemblePrompt(sections)
 	if err != nil {
-		return "", fmt.Errorf("failed to assemble prompt: %v", err)
+		return PromptAssembly{}, fmt.Errorf("failed to assemble prompt: %v", err)
 	}
 
 	// Add task-specific context to the prompt
@@ -328,7 +400,16 @@ func (a *Assembler) AssemblePromptForTask(task tasks.TaskItem) (string, error) {
 		taskContext.WriteString(fmt.Sprintf("\n### Notes\n%s\n", task.Notes))
 	}
 
-	return prompt + taskContext.String(), nil
+	assembly.Prompt = assembly.Prompt + taskContext.String()
+	assembly.Sections = append(assembly.Sections, SectionDetail{
+		Index:        len(assembly.Sections),
+		Key:          "task-context",
+		Title:        "task_context",
+		RelativePath: "(generated)",
+		Content:      taskContext.String(),
+	})
+
+	return assembly, nil
 }
 
 // GetOperationNames returns all available operation names

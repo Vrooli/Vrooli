@@ -1768,7 +1768,79 @@ class EcosystemManager {
         metadataElement.hidden = false;
 
         const sections = Array.isArray(data.sections) ? data.sections : [];
-        if (sections.length > 0) {
+        const detailedSections = Array.isArray(data.sections_detailed) ? data.sections_detailed : [];
+
+        if (detailedSections.length > 0) {
+            const colorPalette = [
+                '#00897B', '#3949AB', '#6D4C41', '#AF3D4E', '#1E88E5', '#0081CF', '#455A64', '#6A1B9A'
+            ];
+
+            const cards = detailedSections.map((section, index) => {
+                const color = colorPalette[index % colorPalette.length];
+                const title = section.title || section.key || `Section ${index + 1}`;
+                const source = section.relative_path || section.key || '—';
+                const includes = Array.isArray(section.includes) && section.includes.length > 0
+                    ? section.includes
+                    : null;
+                const safeContent = this.escapeHtml(section.content || '');
+                const headerLabel = section.key === 'task-context' ? 'Task Context' : `Section ${index + 1}`;
+
+                const includeMarkup = includes
+                    ? includes.map(item => `<span class="prompt-section-include">${this.escapeHtml(item)}</span>`).join(' ')
+                    : '<span class="prompt-section-include empty">No nested includes</span>';
+
+                return `
+                    <details class="prompt-section-card" data-section-index="${index}">
+                        <summary>
+                            <span class="prompt-section-badge" style="background-color: ${color};">${index + 1}</span>
+                            <span class="prompt-section-summary">
+                                <span class="prompt-section-label">${this.escapeHtml(headerLabel)}</span>
+                                <span class="prompt-section-title">${this.escapeHtml(title)}</span>
+                                <span class="prompt-section-path">${this.escapeHtml(source)}</span>
+                            </span>
+                            <span class="prompt-section-toggle"><i class="fas fa-chevron-down"></i></span>
+                        </summary>
+                        <div class="prompt-section-meta">
+                            <div class="prompt-section-meta-row">
+                                <span class="prompt-section-meta-label">Source file</span>
+                                <span class="prompt-section-meta-value">${this.escapeHtml(source)}</span>
+                            </div>
+                            <div class="prompt-section-meta-row">
+                                <span class="prompt-section-meta-label">Includes</span>
+                                <span class="prompt-section-meta-value includes">${includeMarkup}</span>
+                            </div>
+                        </div>
+                        <div class="prompt-section-content">
+                            <div class="prompt-section-controls">
+                                <button type="button" class="prompt-section-copy" data-section-index="${index}">
+                                    <i class="fas fa-copy"></i>
+                                    <span>Copy Section</span>
+                                </button>
+                                <span class="prompt-section-length">${(section.content || '').length.toLocaleString()} chars</span>
+                            </div>
+                            <pre>${safeContent}</pre>
+                        </div>
+                    </details>
+                `;
+            }).join('');
+
+            sectionsElement.innerHTML = `
+                <div class="prompt-sections-header">
+                    <h5>Prompt Sections (${detailedSections.length})</h5>
+                    <span class="prompt-sections-subtitle">Expand a section to inspect its source content</span>
+                </div>
+                <div class="prompt-section-grid">${cards}</div>
+            `;
+
+            // Attach copy handlers after rendering
+            const copyButtons = sectionsElement.querySelectorAll('.prompt-section-copy');
+            copyButtons.forEach(button => {
+                button.addEventListener('click', event => {
+                    const idx = parseInt(event.currentTarget.dataset.sectionIndex, 10);
+                    this.handlePromptSectionCopy(idx);
+                });
+            });
+        } else if (sections.length > 0) {
             const items = sections.map(section => `<li>${this.escapeHtml(section)}</li>`).join('');
             sectionsElement.innerHTML = `<h5>Prompt Sections (${sections.length})</h5><ul>${items}</ul>`;
         } else {
@@ -1807,6 +1879,27 @@ class EcosystemManager {
         } catch (error) {
             console.error('Failed to copy prompt:', error);
             this.showToast('Failed to copy prompt', 'error');
+        }
+    }
+
+    async handlePromptSectionCopy(index) {
+        if (!this.lastPromptPreview || !Array.isArray(this.lastPromptPreview.sections_detailed)) {
+            this.showToast('Section data unavailable', 'warning');
+            return;
+        }
+
+        const section = this.lastPromptPreview.sections_detailed[index];
+        if (!section || !section.content) {
+            this.showToast('Section content unavailable', 'warning');
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(section.content);
+            this.showToast(`Copied section ${index + 1}`, 'success');
+        } catch (error) {
+            console.error('Failed to copy section content:', error);
+            this.showToast('Failed to copy section content', 'error');
         }
     }
 
