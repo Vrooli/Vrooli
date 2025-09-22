@@ -21,6 +21,12 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 
 ## 🎯 Understanding Vrooli's True Nature
 
+### Key Definitions
+- **Resources**: Core local services (AI/ML like claude-code, ollama; storage like postgres, redis, qdrant; development helpers like judge0, browserless, vault) that scenarios can compose.
+- **Scenarios**: Full applications—APIs, CLIs, UIs, workflows—that combine resources and other scenarios to deliver reusable business capabilities.
+- **Business Model**: Every scenario targets measurable value; deliverables can deploy directly, ship as SaaS, or serve enterprise installs, so revenue impact must be explicit.
+- **Execution Principles**: Memory-first, no duplicated work, incremental validated progress, cross-scenario synergy, quality over quantity, and relentless focus on business value.
+
 **CRITICAL CONTEXT:** Vrooli is not just an automation platform - it's a **self-improving intelligence system** where:
 
 ### The Core Vision

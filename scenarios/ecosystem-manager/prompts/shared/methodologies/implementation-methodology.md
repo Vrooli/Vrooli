@@ -1,7 +1,6 @@
 # Implementation Methodology
 
 ## Core Principles
-**Incremental**: One change at a time; test after each; never break working functionality
 **Standards**: Follow codebase patterns; maintain consistency; adhere to the lastest standards  
 **Validation**: Test continuously; ensure gates pass; document verification
 

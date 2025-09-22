@@ -9,7 +9,6 @@ description: Unified system for generating and improving resources and scenarios
 # Base sections used by all operations
 base_sections:
   # Core knowledge (all operations need these)
-  - shared/core/vrooli-context
   # Note: validation-gates are now operation-specific (see each operation below)
   - shared/core/prd-protocol
   - shared/core/security-requirements

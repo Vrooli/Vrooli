@@ -1,6 +1,6 @@
 # 📋 PRD Protocol: Single Source of Truth
 
-**The PRD is the PRIMARY DELIVERABLE** for generators (50% effort) and the PROGRESS TRACKER for improvers.
+**The PRD is the PRIMARY DELIVERABLE** for generators and the PROGRESS TRACKER for improvers.
 
 {{INCLUDE: ../patterns/prd-essentials.md}}
 
