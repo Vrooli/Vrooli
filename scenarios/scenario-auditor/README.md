@@ -145,6 +145,7 @@ scenario-auditor health
 - ✅ Executable test scripts
 
 ### API Security & Standards
+- ✅ Secure tunnel proxy enforces proxyToApi usage for tunnel deployments
 - ✅ Go module configuration
 - ✅ Health check endpoints
 - ✅ CORS configuration

@@ -19,22 +19,74 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Track lifecycle management
+AUDITOR_STARTED_BY_CLI=0
+
 ################################################################################
 # Port Discovery - Dynamic port lookup
 ################################################################################
-get_api_url() {
-    # Use vrooli scenario port command for dynamic port lookup
+try_get_api_url() {
     local api_port
-    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
-    
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null || true)
     if [[ -z "$api_port" ]]; then
-        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
-        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        return 1
+    fi
+    printf "http://localhost:%s" "$api_port"
+    return 0
+}
+
+get_api_url() {
+    local url
+    if url=$(try_get_api_url); then
+        echo "$url"
+        return 0
+    fi
+
+    echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+    echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+    exit 1
+}
+
+ensure_auditor_running() {
+    local url
+    if url=$(try_get_api_url); then
+        echo "$url"
+        return 0
+    fi
+
+    echo -e "${YELLOW}⚙️  Starting ${SCENARIO_NAME}...${NC}" >&2
+    if ! vrooli scenario run "${SCENARIO_NAME}" >/dev/null 2>&1; then
+        echo -e "${RED}❌ Failed to start ${SCENARIO_NAME}${NC}" >&2
         exit 1
     fi
-    
-    echo "http://localhost:${api_port}"
+
+    AUDITOR_STARTED_BY_CLI=1
+
+    local attempts=0
+    local max_attempts=30
+    local sleep_seconds=2
+    while (( attempts < max_attempts )); do
+        if url=$(try_get_api_url); then
+            echo "$url"
+            return 0
+        fi
+        sleep "$sleep_seconds"
+        attempts=$((attempts+1))
+    done
+
+    echo -e "${RED}❌ Timed out waiting for ${SCENARIO_NAME} to start${NC}" >&2
+    exit 1
 }
+
+cleanup_auditor() {
+    if [[ "$AUDITOR_STARTED_BY_CLI" == "1" ]]; then
+        echo -e "${BLUE}ℹ️  Stopping ${SCENARIO_NAME}...${NC}" >&2
+        vrooli scenario stop "${SCENARIO_NAME}" >/dev/null 2>&1 || true
+        AUDITOR_STARTED_BY_CLI=0
+    fi
+}
+
+trap cleanup_auditor EXIT
 
 ################################################################################
 # Helper Functions
@@ -47,6 +99,8 @@ show_help() {
     echo ""
     echo "Commands:"
     echo "  scan [scenario]        Scan scenario for standards violations"
+    echo "  audit [scenario] [--timeout SECONDS]"
+    echo "                        Run security + standards scans and wait for results"
     echo "  rules [--category]     List available rules"
     echo "  fix [scenario] [--auto] Generate fixes for violations"
     echo "  test <rule-id>         Run tests for a specific rule"
@@ -59,6 +113,7 @@ show_help() {
     echo ""
     echo "Examples:"
     echo "  scenario-auditor scan ecosystem-manager"
+    echo "  scenario-auditor audit ecosystem-manager --timeout 240"
     echo "  scenario-auditor rules --category config"
     echo "  scenario-auditor test content_type_headers"
     echo "  echo 'func handler(w http.ResponseWriter, r *http.Request) {...}' | scenario-auditor validate security_headers"
@@ -123,6 +178,56 @@ api_request() {
     # Output response body
     cat "$tmp_body"
     rm -f "$tmp_body"
+}
+
+wait_for_job() {
+    local endpoint="$1"
+    local timeout="${2:-300}"
+    local poll_interval="${3:-3}"
+    local start_ts
+    start_ts=$(date +%s)
+    local last_state=""
+    local last_message=""
+    local response=""
+
+    while true; do
+        response=$(api_request "GET" "$endpoint")
+
+        IFS=$'\t' read -r state message < <(printf '%s' "$response" | jq -r '[.status // .Status // .result.status // "unknown", .message // .result.message // ""] | @tsv')
+        state=${state,,}
+
+        if [[ "$state" != "$last_state" || "$message" != "$last_message" ]]; then
+            local display="$state"
+            if [[ -n "$message" && "$message" != "null" ]]; then
+                display+=" - $message"
+            fi
+            echo -e "${BLUE}   ↳ status: ${display}${NC}" >&2
+            last_state="$state"
+            last_message="$message"
+        fi
+
+        case "$state" in
+            completed)
+                echo "$response"
+                return 0
+                ;;
+            failed|error|errored|cancelled|canceled)
+                echo "$response"
+                return 1
+                ;;
+        esac
+
+        if [[ "$timeout" =~ ^[0-9]+$ ]]; then
+            local now
+            now=$(date +%s)
+            if (( now - start_ts >= timeout )); then
+                echo "$response"
+                return 2
+            fi
+        fi
+
+        sleep "$poll_interval"
+    done
 }
 
 ################################################################################
@@ -208,6 +313,202 @@ cmd_health() {
     api_request "GET" "/api/v1/health"
 }
 
+cmd_audit() {
+    local scenario="current"
+    local timeout=300
+    local run_security=1
+    local run_standards=1
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --timeout)
+                if [[ -z "$2" ]]; then
+                    echo -e "${RED}❌ Error: --timeout requires a value${NC}" >&2
+                    exit 1
+                fi
+                if ! [[ "$2" =~ ^[0-9]+$ ]]; then
+                    echo -e "${RED}❌ Error: timeout must be a non-negative integer${NC}" >&2
+                    exit 1
+                fi
+                timeout="$2"
+                shift 2
+                ;;
+            --security-only)
+                run_standards=0
+                shift
+                ;;
+            --standards-only)
+                run_security=0
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: scenario-auditor audit [scenario] [--timeout SECONDS] [--security-only|--standards-only]" >&2
+                return 0
+                ;;
+            --*)
+                echo -e "${RED}❌ Error: Unknown option $1${NC}" >&2
+                exit 1
+                ;;
+            *)
+                scenario="$1"
+                shift
+                ;;
+        esac
+    done
+
+    if (( run_security == 0 && run_standards == 0 )); then
+        echo -e "${RED}❌ Error: Both security and standards scans disabled${NC}" >&2
+        exit 1
+    fi
+
+    local api_url
+    api_url=$(ensure_auditor_running)
+    echo -e "${BLUE}ℹ️  Scenario Auditor API: ${api_url}${NC}" >&2
+
+    local security_job=""
+    local security_status=""
+    local security_rc=0
+    local security_outcome="skipped"
+
+    local standards_job=""
+    local standards_status=""
+    local standards_rc=0
+    local standards_outcome="skipped"
+
+    if (( run_security == 1 )); then
+        echo -e "${CYAN}🔐 Starting security scan for ${scenario}...${NC}" >&2
+        local security_start
+        security_start=$(api_request "POST" "/api/v1/scenarios/${scenario}/scan" "{}")
+        security_job=$(echo "$security_start" | jq -r '.job_id // .status.id // empty')
+        if [[ -z "$security_job" || "$security_job" == "null" ]]; then
+            echo -e "${RED}❌ Error: Failed to obtain security scan job id${NC}" >&2
+            echo "$security_start" | format_json >&2
+            exit 1
+        fi
+
+        echo -e "${BLUE}   ↳ job id: ${security_job}${NC}" >&2
+        local security_endpoint="/api/v1/scenarios/scan/jobs/${security_job}"
+
+        set +e
+        security_status=$(wait_for_job "$security_endpoint" "$timeout")
+        security_rc=$?
+        set -e
+
+        case "$security_rc" in
+            0)
+                security_outcome="completed"
+                echo -e "${GREEN}✅ Security scan completed${NC}" >&2
+                ;;
+            1)
+                security_outcome="failed"
+                echo -e "${RED}❌ Security scan failed${NC}" >&2
+                ;;
+            2)
+                security_outcome="timeout"
+                echo -e "${YELLOW}⏳ Security scan timed out after ${timeout}s${NC}" >&2
+                ;;
+            *)
+                security_outcome="unknown"
+                echo -e "${YELLOW}⚠️  Security scan finished with unexpected status (${security_rc})${NC}" >&2
+                ;;
+        esac
+    fi
+
+    if (( run_standards == 1 )); then
+        echo -e "${CYAN}📏 Starting standards scan for ${scenario}...${NC}" >&2
+        local standards_start
+        standards_start=$(api_request "POST" "/api/v1/standards/check/${scenario}" '{"type":"full"}')
+        standards_job=$(echo "$standards_start" | jq -r '.job_id // .status.id // empty')
+        if [[ -z "$standards_job" || "$standards_job" == "null" ]]; then
+            echo -e "${RED}❌ Error: Failed to obtain standards scan job id${NC}" >&2
+            echo "$standards_start" | format_json >&2
+            exit 1
+        fi
+
+        echo -e "${BLUE}   ↳ job id: ${standards_job}${NC}" >&2
+        local standards_endpoint="/api/v1/standards/check/jobs/${standards_job}"
+
+        set +e
+        standards_status=$(wait_for_job "$standards_endpoint" "$timeout")
+        standards_rc=$?
+        set -e
+
+        case "$standards_rc" in
+            0)
+                standards_outcome="completed"
+                echo -e "${GREEN}✅ Standards scan completed${NC}" >&2
+                ;;
+            1)
+                standards_outcome="failed"
+                echo -e "${RED}❌ Standards scan failed${NC}" >&2
+                ;;
+            2)
+                standards_outcome="timeout"
+                echo -e "${YELLOW}⏳ Standards scan timed out after ${timeout}s${NC}" >&2
+                ;;
+            *)
+                standards_outcome="unknown"
+                echo -e "${YELLOW}⚠️  Standards scan finished with unexpected status (${standards_rc})${NC}" >&2
+                ;;
+        esac
+    fi
+
+    local combined
+    combined=$(jq -n \
+        --arg scenario "$scenario" \
+        --argjson timeout "$timeout" \
+        '{scenario: $scenario, timeout_seconds: ($timeout|tonumber), security: null, standards: null}')
+
+    if (( run_security == 1 )); then
+        local security_status_json
+        if [[ -z "$security_status" ]]; then
+            security_status_json="null"
+        else
+            security_status_json="$security_status"
+        fi
+        combined=$(echo "$combined" | jq \
+            --arg outcome "$security_outcome" \
+            --arg job "$security_job" \
+            --arg endpoint "/api/v1/scenarios/scan/jobs/${security_job}" \
+            --argjson status "$security_status_json" \
+            '.security = {
+                job_id: $job,
+                poll_endpoint: $endpoint,
+                outcome: $outcome,
+                status: $status
+            }')
+    else
+        combined=$(echo "$combined" | jq --arg outcome "$security_outcome" '.security = {outcome: $outcome}')
+    fi
+
+    if (( run_standards == 1 )); then
+        local standards_status_json
+        if [[ -z "$standards_status" ]]; then
+            standards_status_json="null"
+        else
+            standards_status_json="$standards_status"
+        fi
+        combined=$(echo "$combined" | jq \
+            --arg outcome "$standards_outcome" \
+            --arg job "$standards_job" \
+            --arg endpoint "/api/v1/standards/check/jobs/${standards_job}" \
+            --argjson status "$standards_status_json" \
+            '.standards = {
+                job_id: $job,
+                poll_endpoint: $endpoint,
+                outcome: $outcome,
+                status: $status
+            }')
+    else
+        combined=$(echo "$combined" | jq --arg outcome "$standards_outcome" '.standards = {outcome: $outcome}')
+    fi
+
+    echo "$combined" | format_json
+
+    # If we started the scenario for this run, stop it now (trap will be a safety net)
+    cleanup_auditor
+}
+
 ################################################################################
 # Main
 ################################################################################
@@ -224,6 +525,9 @@ main() {
     case "$command" in
         scan)
             cmd_scan "$@"
+            ;;
+        audit)
+            cmd_audit "$@"
             ;;
         rules)
             cmd_rules "$@"

@@ -112,16 +112,18 @@
       "description": "Initialize Scenario Dependency Analyzer with all dependencies",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "scenario-dependency-analyzer-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": ["scenario-dependency-analyzer"]
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/scenario-dependency-analyzer-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "scenario-dependency-analyzer"
+            ]
+          },
           {
             "type": "resources",
             "populated": true

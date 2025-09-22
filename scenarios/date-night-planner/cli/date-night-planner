@@ -1,0 +1,12 @@
+#!/bin/bash
+echo "Date Night Planner CLI"
+echo "Usage: date-night-planner [command]"
+# Add CLI commands here
+case "$1" in
+  plan)
+    echo "Planning your date night..."
+    ;;
+  *)
+    echo "Unknown command: $1"
+    ;;
+esac

@@ -24,8 +24,8 @@ Validate documentation completeness:
 Run comprehensive test suite.
 **See: 'scenario-testing-reference' section for test commands**
 
-### 5. Memory 🧠
-Update Qdrant knowledge base with scenario details.
+### 5. Security & Standards 🔒
+Run Scenario Auditor scans per `security-requirements` and resolve/record all critical & high findings.
 
 ## Scenario Structure Validation
 **See: 'scenario-testing-reference' section for structure requirements and Makefile commands**
@@ -89,7 +89,7 @@ time curl -sf http://localhost:[PORT]/api/health
 2. **Integration** → Check connections and UI
 3. **Documentation** → Ensure completeness
 4. **Testing** → Validate thoroughly
-5. **Memory** → Update knowledge
+5. **Security & Standards** → Capture Scenario Auditor results
 
 **FAIL = STOP** - Fix issues before proceeding
 

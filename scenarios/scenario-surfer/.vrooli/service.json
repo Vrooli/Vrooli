@@ -83,7 +83,7 @@
            {
              "type": "binaries",
              "targets": [
-               "scenario-surfer-api"
+               "api/scenario-surfer-api"
              ]
            },
             {

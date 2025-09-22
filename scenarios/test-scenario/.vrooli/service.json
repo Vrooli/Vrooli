@@ -1,0 +1,13 @@
+{
+  "name": "test-scenario",
+  "version": "1.0.0",
+  "description": "Test scenario for Vrooli",
+  "lifecycle": {
+    "health": {
+      "endpoints": {
+        "api": "/api/v1/health",
+        "ui": "/"
+      }
+    }
+  }
+}
