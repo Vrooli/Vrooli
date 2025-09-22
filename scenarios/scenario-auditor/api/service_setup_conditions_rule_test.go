@@ -17,7 +17,7 @@ func TestServiceSetupConditionsRule(t *testing.T) {
 	}{
 		{
 			name:          "valid condition",
-			content:       `{"service":{"name":"scenario-auditor"},"lifecycle":{"setup":{"condition":{"checks":[{"type":"binaries","targets":["scenario-auditor-api"]},{"type":"cli","targets":["scenario-auditor"]},{"type":"custom","targets":["anything"]}]}}}}`,
+			content:       `{"service":{"name":"scenario-auditor"},"lifecycle":{"setup":{"condition":{"checks":[{"type":"binaries","targets":["api/scenario-auditor-api"]},{"type":"cli","targets":["scenario-auditor"]},{"type":"custom","targets":["anything"]}]}}}}`,
 			path:          ".vrooli/service.json",
 			expectedCount: 0,
 		},
@@ -30,7 +30,7 @@ func TestServiceSetupConditionsRule(t *testing.T) {
 		},
 		{
 			name:               "missing service name",
-			content:            `{"lifecycle":{"setup":{"condition":{"checks":[{"type":"binaries","targets":["scenario-auditor-api"]},{"type":"cli","targets":["scenario-auditor"]}]}}}}`,
+			content:            `{"lifecycle":{"setup":{"condition":{"checks":[{"type":"binaries","targets":["api/scenario-auditor-api"]},{"type":"cli","targets":["scenario-auditor"]}]}}}}`,
 			path:               ".vrooli/service.json",
 			expectedCount:      1,
 			expectedSubstrings: []string{"service.name"},
@@ -47,11 +47,11 @@ func TestServiceSetupConditionsRule(t *testing.T) {
 			content:            `{"service":{"name":"scenario-auditor"},"lifecycle":{"setup":{"condition":{"checks":[{"type":"binaries","targets":["other-api"]},{"type":"cli","targets":["scenario-auditor"]}]}}}}`,
 			path:               ".vrooli/service.json",
 			expectedCount:      1,
-			expectedSubstrings: []string{"scenario-auditor-api"},
+			expectedSubstrings: []string{"api/scenario-auditor-api"},
 		},
 		{
 			name:               "missing cli target",
-			content:            `{"service":{"name":"scenario-auditor"},"lifecycle":{"setup":{"condition":{"checks":[{"type":"binaries","targets":["scenario-auditor-api"]},{"type":"cli","targets":["other"]}]}}}}`,
+			content:            `{"service":{"name":"scenario-auditor"},"lifecycle":{"setup":{"condition":{"checks":[{"type":"binaries","targets":["api/scenario-auditor-api"]},{"type":"cli","targets":["other"]}]}}}}`,
 			path:               ".vrooli/service.json",
 			expectedCount:      1,
 			expectedSubstrings: []string{"scenario-auditor"},

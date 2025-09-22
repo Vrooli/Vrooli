@@ -45,7 +45,7 @@ Targets: service_json
           },
           {
             "type": "binaries",
-            "targets": ["scenario-auditor-api"]
+            "targets": ["api/scenario-auditor-api"]
           }
         ]
       }
@@ -68,7 +68,7 @@ Targets: service_json
         "checks": [
           {
             "type": "binaries",
-            "targets": ["scenario-auditor-api"]
+            "targets": ["api/scenario-auditor-api"]
           },
           {
             "type": "binaries",
@@ -95,7 +95,7 @@ Targets: service_json
         "checks": [
           {
             "type": "binaries",
-            "targets": ["another-api"]
+            "targets": ["api/another-api"]
           },
           {
             "type": "cli",
@@ -108,7 +108,7 @@ Targets: service_json
 }
   </input>
   <expected-violations>2</expected-violations>
-  <expected-message>scenario-auditor-api</expected-message>
+  <expected-message>api/scenario-auditor-api</expected-message>
 </test-case>
 
 <test-case id="valid-condition" should-fail="false">
@@ -122,7 +122,7 @@ Targets: service_json
         "checks": [
           {
             "type": "binaries",
-            "targets": ["scenario-auditor-api", "extra-api"]
+            "targets": ["api/scenario-auditor-api", "api/extra-api"]
           },
           {
             "type": "cli",
@@ -197,9 +197,10 @@ func CheckServiceSetupConditions(content []byte, filePath string) []Violation {
 		} else {
 			violations = append(violations, newSetupViolation(filePath, line, "First lifecycle.setup.condition check must be type 'binaries'"))
 		}
-		if firstValid && !containsTarget(firstCheck, serviceName+"-api") {
+		expectedBinary := fmt.Sprintf("api/%s-api", serviceName)
+		if firstValid && !containsTarget(firstCheck, expectedBinary) {
 			lineTargets := findJSONLineSetup(string(content), "\"checks\"", "\"targets\"")
-			violations = append(violations, newSetupViolation(filePath, lineTargets, fmt.Sprintf("Binaries check must include target '%s-api'", serviceName)))
+			violations = append(violations, newSetupViolation(filePath, lineTargets, fmt.Sprintf("Binaries check must include target '%s'", expectedBinary)))
 		}
 	}
 
