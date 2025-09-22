@@ -1,75 +1,47 @@
 # Failure Recovery
 
 ## Purpose
-Document failures clearly and know when to stop making changes. Failures teach us - capture the lessons.
+Capture failures fast, choose the right response, and record what the next agent must know.
 
-## Severity Levels
+## Severity Snapshot
+- **Level 1 – Trivial**: Cosmetic issues, non-blocking warnings, minor test flakes.
+- **Level 2 – Minor**: Single feature broken, <20% performance dip, recoverable errors.
+- **Level 3 – Major**: Core feature down, multiple failing tests, API contract break, data risk.
+- **Level 4 – Critical**: Service will not start, data corruption, exposed vulnerability.
+- **Level 5 – Catastrophic**: Active outage, data loss in progress, security breach.
 
-**Level 1: Trivial (Continue)**
-- Cosmetic issues
-- Non-critical warnings  
-- Minor test failures
-- Documentation typos
+## Response Decision Tree
+```
+Start
+└─ Assess severity level (1-5)
+    ├─ Levels 1-2 (Trivial/Minor)
+    │     └─ Action: Keep iterating → apply targeted fix → rerun tests
+    │            Documentation: Note quick fix in final summary (no formal failure log)
+    ├─ Level 3 (Major)
+    │     └─ Action: Stop feature work → stabilize scenario → verify regression removed
+    │            Documentation: Add Failure Log (template below) + reference impacted PRD items
+    └─ Levels 4-5 (Critical/Catastrophic)
+          └─ Action: Stop immediately → follow Task Completion Protocol → do NOT attempt git rollback
+                 Documentation: Complete Failure Log + highlight blockers + call out needed escalation
+```
 
-**Level 2: Minor (Fix and Continue)**  
-- Single feature broken
-- Performance degradation <20%
-- Non-blocking errors
-- Partial functionality loss
-
-**Level 3: Major (Stop and Fix)**
-- Core feature broken
-- Multiple test failures
-- API breakage
-- Data integrity risk
-
-**Level 4: Critical (Complete Task)**
-- System won't start
-- Data corruption
-- Security vulnerability exposed
-- Dependencies broken
-
-**Level 5: Catastrophic (Complete Task)**
-- Production system down
-- Data loss occurring
-- Security breach active
-
-## Recovery Approach
-
-### For Levels 1-3: Try to Fix
-Attempt to resolve through editing:
-- Make targeted fixes
-- Test incremental changes
-- Document what you try
-
-### For Levels 4-5: Stop and Complete Task
-❌ **DO NOT use git to undo files**
-❌ **DO NOT attempt complex rollbacks**
-
-✅ **If you cannot edit your way back to a working state:**
-1. Stop making further changes
-2. Document the failure clearly
-3. Follow the Task Completion Protocol section
-
-## Documenting Failures in Your Response
-
-Include this failure documentation format in your response:
+## Failure Log Template
+Use when severity ≥3 or the issue remains unresolved at handoff.
 
 ```
 ### Failure Summary
 - **Component**: [resource/scenario name]
-- **Severity Level**: [1-5] 
+- **Severity Level**: [1-5]
 - **What Happened**: [Clear description]
 - **Root Cause**: [If identified]
 
 ### What Was Attempted
-1. [First fix attempt] - Result: [Failed/Partial/Success]
-2. [Second fix attempt] - Result: [Failed/Partial/Success]
-3. [etc.]
+1. [First fix attempt] — Result: [Failed/Partial/Success]
+2. [Second fix attempt] — Result: [Failed/Partial/Success]
 
 ### Current State
 - **Status**: [Working/Degraded/Broken]
-- **Key Issues**: [List main problems]
+- **Key Issues**: [Main problems]
 - **Workaround**: [If any temporary fix was applied]
 
 ### Lessons Learned
@@ -77,11 +49,10 @@ Include this failure documentation format in your response:
 - [How to prevent similar issues]
 ```
 
-Refer to the Task Completion Protocol section for instructions on how to properly finish and document your work.
+Refer back to `shared/operational/task-completion-protocol` for wrap-up steps once the log is captured.
 
 ## Key Principles
-
-1. **Document everything** - Future agents learn from your experience
-2. **No git rollbacks** - Edit your way forward or stop
-3. **Know when to stop** - Don't make things worse
-4. **Capture lessons** - Every failure teaches something valuable
+- Document everything — future agents rely on your trail.
+- Edit forward — no git rollbacks; if it’s broken, stabilize or stop.
+- Know when to halt — unresolved severity ≥3 means step back and report.
+- Capture lessons — every failure should improve the ecosystem.

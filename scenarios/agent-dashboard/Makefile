@@ -1,17 +1,17 @@
-# Scenario Makefile
+# agent-dashboard Scenario Makefile
 # 
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
 # NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
 #
 # Usage:
 #   make       - Show help
-#   make run   - Start this scenario
+#   make start - Start this scenario
 #   make stop  - Stop this scenario
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -37,11 +37,11 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-10s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
-	@echo "    Always use 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
 run: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
@@ -49,7 +49,7 @@ stop: ## Stop this scenario
 
 dev: ## Start in development mode
 	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME) --dev
+	@vrooli scenario start $(SCENARIO_NAME) --dev
 
 test: ## Run tests for this scenario
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
@@ -85,12 +85,14 @@ build: ## Build the scenario (if applicable)
 # CODE QUALITY TARGETS
 # ============================================================================
 
-fmt: fmt-go fmt-ui ## Format all code
+fmt: ## Format all code
+	@$(MAKE) fmt-go
+	@$(MAKE) fmt-ui
 
 fmt-go: ## Format Go code
 	@echo "$(BLUE)🎨 Formatting Go code...$(RESET)"
 	@if [ -d api ] && [ -f api/go.mod ]; then \
-		cd api && find . -name '*.go' -exec gofumpt -w {} \; 2>/dev/null || find . -name '*.go' -exec go fmt {} \;; \
+		cd api && gofmt -w .; \
 		echo "$(GREEN)✓ Go code formatted$(RESET)"; \
 	else \
 		echo "$(YELLOW)No Go code to format$(RESET)"; \
@@ -104,12 +106,14 @@ fmt-ui: ## Format UI code (TypeScript/JavaScript/CSS)
 		echo "$(YELLOW)No UI code to format$(RESET)"; \
 	fi
 
-lint: lint-go lint-ui ## Run all linters
+lint: ## Run all linters
+	@$(MAKE) lint-go
+	@$(MAKE) lint-ui
 
 lint-go: ## Lint Go code
 	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
 	@if [ -d api ] && [ -f api/go.mod ]; then \
-		cd api && (golangci-lint run ./... 2>/dev/null || (go vet ./... && go fmt ./...) ); \
+		find api -name "*.go" && cd api && (golangci-lint run ./... 2>/dev/null || (go vet ./... && go fmt ./...) ); \
 		echo "$(GREEN)✓ Go code linted$(RESET)"; \
 	else \
 		echo "$(YELLOW)No Go code to lint$(RESET)"; \
@@ -123,7 +127,10 @@ lint-ui: ## Lint UI code (TypeScript/JavaScript)
 		echo "$(YELLOW)No UI code to lint$(RESET)"; \
 	fi
 
-check: lint test ## Run linters and tests
+check: ## Run quality checks (fmt, lint, test)
+	@$(MAKE) fmt
+	@$(MAKE) lint
+	@$(MAKE) test
 	@echo "$(GREEN)✓ All quality checks passed!$(RESET)"
 
 # ============================================================================
@@ -137,3 +144,7 @@ t: test
 l: logs
 c: clean
 b: build
+-e 
+start: ## Start this scenario (uses Vrooli lifecycle)
+	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario start $(SCENARIO_NAME)

@@ -1,9 +1,13 @@
 # Security & Standards Enforcement
-**Run the violation scanner CLI.**
+
+For resources:
 ```bash
-scenario-auditor audit <scenario-name> --timeout 240 > /tmp/audit.json
-jq '{security: .security.outcome, standards: .standards.outcome}' /tmp/audit.json
+resource-auditor audit <resource-name> --timeout 240 > /tmp/audit-<resource-name>.json
+jq '{security: .security.outcome, standards: .standards.outcome}' /tmp/audit-<resource-name>.json
 ```
-- The CLI command kicks off security (`/scenarios/<name>/scan`) and standards (`/standards/check/<name>`) jobs, polls until completion or timeout, and captures both results in one JSON blob.
-- Outcomes are `completed`, `failed`, `timeout`, or `unknown`; each block includes the raw API payload under `.status`, plus the job id and poll endpoint for later reference.
+
+For scenarios:
+```bash
+scenario-auditor audit <scenario-name> --timeout 240 > /tmp/audit-<scenario-name>.json
+jq '{security: .security.outcome, standards: .standards.outcome}' /tmp/audit-<scenario-name>.json
 ```

@@ -102,10 +102,10 @@ scenario-auditor health
 - **Dashboard Interface**: Provides comprehensive standards management UI
 
 ### Rule Categories
-1. **API Standards** (`rules/api/`): Go best practices, security patterns
-2. **Configuration Standards** (`rules/config/`): service.json compliance
-3. **UI Standards** (`rules/ui/`): Browserless testing best practices
-4. **Testing Standards** (`rules/testing/`): Phase-based testing structure
+1. **API Standards** (`api/rules/api/`): Go best practices, security patterns
+2. **Configuration Standards** (`api/rules/config/`): service.json compliance
+3. **UI Standards** (`api/rules/ui/`): Browserless testing best practices
+4. **Testing Standards** (`api/rules/testing/`): Phase-based testing structure
 
 ### Technology Stack
 - **Backend**: Go with Gorilla Mux, PostgreSQL
@@ -194,16 +194,15 @@ scenario-auditor/
 ├── api/                   # Go API server
 │   ├── main.go           # Server entry point
 │   ├── handlers_*.go     # API handlers
-│   ├── rules/            # Rule engine
+│   ├── rules/            # Interpreted rule sources (organized by category)
+│   │   ├── api/          # API standards
+│   │   ├── config/       # Configuration rules
+│   │   ├── ui/           # UI standards
+│   │   └── testing/      # Testing requirements
 │   └── storage/          # Data persistence
 ├── cli/                  # Command-line tool
 │   ├── main.go          # CLI entry point
 │   └── install.sh       # Installation script
-├── rules/               # Rule definitions
-│   ├── api/            # API standards
-│   ├── config/         # Configuration rules
-│   ├── ui/             # UI standards
-│   └── testing/        # Testing requirements
 ├── ui/                 # React dashboard
 │   ├── src/pages/      # Page components
 │   ├── src/components/ # Reusable components
