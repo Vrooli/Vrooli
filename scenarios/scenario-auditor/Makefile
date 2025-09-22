@@ -40,7 +40,6 @@ install:
 build:
 	@echo "🔨 Building binaries..."
 	@cd api && go build -o scenario-auditor-api .
-	@cd cli && go build -o scenario-auditor .
 	@echo "✅ Build complete"
 
 # Install CLI globally

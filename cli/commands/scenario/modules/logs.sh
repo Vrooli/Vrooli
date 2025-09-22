@@ -15,6 +15,7 @@ scenario::logs::view() {
         log::info "  --step <name>       View specific background step log"
         log::info "  --runtime           View all background process logs"
         log::info "  --lifecycle         View lifecycle log (default behavior)"
+        log::info "  --force-follow      Stream even in non-interactive environments"
         log::info ""
         log::info "Available scenarios with logs:"
         ls -1 "${HOME}/.vrooli/logs/scenarios/" 2>/dev/null || echo "  (none found)"
@@ -24,6 +25,7 @@ scenario::logs::view() {
     
     # Parse flags
     local follow=false
+    local force_follow=false
     local step_name=""
     local show_lifecycle=false
     local show_runtime=false
@@ -49,6 +51,11 @@ scenario::logs::view() {
                 show_runtime=true
                 shift
                 ;;
+            --force-follow)
+                follow=true
+                force_follow=true
+                shift
+                ;;
             *)
                 shift
                 ;;
@@ -57,24 +64,25 @@ scenario::logs::view() {
     
     # Show runtime logs if requested
     if [[ "$show_runtime" == "true" ]]; then
-        scenario::logs::show_runtime "$scenario_name" "$follow"
+        scenario::logs::show_runtime "$scenario_name" "$follow" "$force_follow"
         return $?
     fi
-    
+
     # Show specific step log if requested
     if [[ -n "$step_name" ]]; then
-        scenario::logs::show_step "$scenario_name" "$step_name" "$follow"
+        scenario::logs::show_step "$scenario_name" "$step_name" "$follow" "$force_follow"
         return $?
     fi
-    
+
     # Default behavior: show lifecycle log with discovery information
-    scenario::logs::show_lifecycle "$scenario_name" "$follow"
+    scenario::logs::show_lifecycle "$scenario_name" "$follow" "$force_follow"
 }
 
 # Show runtime logs for a scenario
 scenario::logs::show_runtime() {
     local scenario_name="$1"
     local follow="$2"
+    local force_follow="${3:-false}"
     
     local logs_dir="${HOME}/.vrooli/logs/scenarios/${scenario_name}"
     if [[ ! -d "$logs_dir" ]]; then
@@ -91,23 +99,27 @@ scenario::logs::show_runtime() {
     
     # Display runtime logs
     if [[ "$follow" == "true" ]]; then
-        log::info "Following runtime logs for scenario: $scenario_name"
-        log::info "Press Ctrl+C to stop viewing"
-        echo ""
-        tail -f "$logs_dir"/*.log
-    else
-        log::info "Showing recent runtime logs for scenario: $scenario_name"
-        echo ""
-        # Show last 50 lines from each log file
-        for log_file in "$logs_dir"/*.log; do
-            if [[ -f "$log_file" ]]; then
-                echo "==> $(basename "$log_file") <=="
-                tail -50 "$log_file"
-                echo ""
-            fi
-        done
-        log::info "Tip: Use --step <name> to view a specific background process log"
+        if scenario::logs::can_stream "$force_follow"; then
+            log::info "Following runtime logs for scenario: $scenario_name"
+            log::info "Press Ctrl+C to stop viewing"
+            echo ""
+            tail -f "$logs_dir"/*.log
+            return $?
+        fi
+        scenario::logs::warn_snapshot_fallback
     fi
+
+    log::info "Showing recent runtime logs for scenario: $scenario_name"
+    echo ""
+    # Show last 50 lines from each log file
+    for log_file in "$logs_dir"/*.log; do
+        if [[ -f "$log_file" ]]; then
+            echo "==> $(basename "$log_file") <=="
+            tail -50 "$log_file"
+            echo ""
+        fi
+    done
+    log::info "Tip: Use --step <name> to view a specific background process log"
 }
 
 # Show specific step log for a scenario
@@ -115,6 +127,7 @@ scenario::logs::show_step() {
     local scenario_name="$1"
     local step_name="$2"
     local follow="$3"
+    local force_follow="${4:-false}"
     
     local logs_dir="${HOME}/.vrooli/logs/scenarios/${scenario_name}"
     
@@ -142,23 +155,28 @@ scenario::logs::show_step() {
     fi
     
     if [[ "$follow" == "true" ]]; then
-        log::info "Following log for step '$step_name' in scenario: $scenario_name"
-        log::info "Press Ctrl+C to stop viewing"
-        echo ""
-        tail -f "$step_log"
-    else
-        log::info "Showing recent log for step '$step_name' in scenario: $scenario_name"
-        echo ""
-        echo "==> $(basename "$step_log") <=="
-        tail -100 "$step_log"
-        echo ""
+        if scenario::logs::can_stream "$force_follow"; then
+            log::info "Following log for step '$step_name' in scenario: $scenario_name"
+            log::info "Press Ctrl+C to stop viewing"
+            echo ""
+            tail -f "$step_log"
+            return $?
+        fi
+        scenario::logs::warn_snapshot_fallback
     fi
+
+    log::info "Showing recent log for step '$step_name' in scenario: $scenario_name"
+    echo ""
+    echo "==> $(basename "$step_log") <=="
+    tail -100 "$step_log"
+    echo ""
 }
 
 # Show lifecycle log with discovery information
 scenario::logs::show_lifecycle() {
     local scenario_name="$1"
     local follow="$2"
+    local force_follow="${3:-false}"
     
     local lifecycle_log="${HOME}/.vrooli/logs/${scenario_name}.log"
     local logs_dir="${HOME}/.vrooli/logs/scenarios/${scenario_name}"
@@ -180,22 +198,44 @@ scenario::logs::show_lifecycle() {
     
     # Display lifecycle log
     if [[ "$follow" == "true" ]]; then
-        log::info "Following lifecycle log for scenario: $scenario_name"
-        log::info "Press Ctrl+C to stop viewing"
-        echo ""
-        tail -f "$lifecycle_log"
-    else
-        log::info "Showing recent lifecycle execution for scenario: $scenario_name"
-        echo ""
-        echo "==> Lifecycle execution log <=="
-        echo "────────────────────────────────────────────────────────"
-        # Show more lines from lifecycle log to capture full execution flow
-        tail -100 "$lifecycle_log"
-        echo ""
-        
-        # Show discovery information
-        scenario::logs::show_discovery "$scenario_name"
+        if scenario::logs::can_stream "$force_follow"; then
+            log::info "Following lifecycle log for scenario: $scenario_name"
+            log::info "Press Ctrl+C to stop viewing"
+            echo ""
+            tail -f "$lifecycle_log"
+            return $?
+        fi
+        scenario::logs::warn_snapshot_fallback
     fi
+
+    log::info "Showing recent lifecycle execution for scenario: $scenario_name"
+    echo ""
+    echo "==> Lifecycle execution log <=="
+    echo "────────────────────────────────────────────────────────"
+    # Show more lines from lifecycle log to capture full execution flow
+    tail -100 "$lifecycle_log"
+    echo ""
+    
+    # Show discovery information
+    scenario::logs::show_discovery "$scenario_name"
+}
+
+# Determine if streaming logs is allowed in the current environment
+scenario::logs::can_stream() {
+    local force_follow="${1:-false}"
+
+    if [[ "$force_follow" == "true" ]]; then
+        return 0
+    fi
+
+    [[ -t 1 ]]
+}
+
+# Emit a warning when falling back to a static snapshot instead of streaming
+scenario::logs::warn_snapshot_fallback() {
+    log::warn "Non-interactive environment detected; showing a static snapshot instead of streaming logs"
+    log::info "Use --force-follow to stream anyway (may hang automation workflows)"
+    echo ""
 }
 
 # Show log discovery information

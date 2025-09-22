@@ -5,13 +5,13 @@
 #
 # Usage:
 #   make       - Show help
-#   make run   - Start this scenario
+#   make start   - Start this scenario
 #   make stop  - Stop this scenario
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -37,11 +37,11 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-10s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
-	@echo "    Always use 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
-run: ## Start this scenario (uses Vrooli lifecycle)
+start: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
@@ -49,7 +49,7 @@ stop: ## Stop this scenario
 
 dev: ## Start in development mode
 	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME) --dev
+	@vrooli scenario start $(SCENARIO_NAME) --dev
 
 test: ## Run tests for this scenario
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
@@ -91,12 +91,14 @@ fmt: ## Format all code
 	@$(MAKE) fmt-ui
 
 fmt-go: ## Format Go code  
+	@echo "$(BLUE)Formatting Go code...$(RESET)"
 	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
 		if command -v gofumpt >/dev/null 2>&1; then \
 			cd api && gofumpt -w .; \
 		elif command -v gofmt >/dev/null 2>&1; then \
 			cd api && gofmt -w .; \
 		fi; \
+		echo "$(GREEN)Go code formatted$(RESET)"; \
 	fi
 
 fmt-ui: ## Format TypeScript/JavaScript code
@@ -112,9 +114,11 @@ lint: ## Lint all code
 	@$(MAKE) lint-ui
 
 lint-go: ## Lint Go code
+	@echo "$(BLUE)Linting Go code...$(RESET)"
 	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
 		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && golangci-lint run; \
+			cd api && golangci-lint run && go vet ./... ; \
+			echo "$(GREEN)Go code linted$(RESET)"; \
 		fi; \
 	fi
 

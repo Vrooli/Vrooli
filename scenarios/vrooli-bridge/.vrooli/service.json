@@ -91,7 +91,7 @@
              {
                 "type": "binaries",
                 "targets": [
-                   "vrooli-bridge-api",
+                   "api/vrooli-bridge-api",
                    "vrooli-bridge"
                 ]
              },

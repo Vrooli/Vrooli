@@ -55,6 +55,7 @@ OPTIONS FOR LOGS:
     --step <name>           View specific background step log
     --runtime               View all background process logs
     --lifecycle             View lifecycle log (default behavior)
+    --force-follow          Stream even when non-interactive (may hang automation)
 
 EXAMPLES:
     vrooli scenario start make-it-vegan         # Start a specific scenario
