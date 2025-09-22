@@ -75,15 +75,47 @@ pm::logs() {
         return 1
     fi
     
-    if [[ "$follow" == "true" || "$follow" == "--follow" || "$follow" == "-f" ]]; then
-        echo -e "${BLUE}Following logs for: $name (Ctrl+C to stop)${NC}"
-        echo "────────────────────────────────────────────────────────"
-        tail -f "$log_file"
-    else
-        echo -e "${BLUE}Logs for: $name (last $lines lines)${NC}"
-        echo "────────────────────────────────────────────────────────"
-        tail -n "$lines" "$log_file"
+    local follow_requested=false
+    local force_follow=false
+    case "$follow" in
+        true|--follow|-f)
+            follow_requested=true
+            ;;
+        --force-follow)
+            follow_requested=true
+            force_follow=true
+            ;;
+    esac
+
+    if [[ "$follow_requested" == "true" ]]; then
+        if pm::can_stream "$force_follow"; then
+            echo -e "${BLUE}Following logs for: $name (Ctrl+C to stop)${NC}"
+            echo "────────────────────────────────────────────────────────"
+            tail -f "$log_file"
+            return $?
+        fi
+        pm::warn_snapshot_fallback
     fi
+
+    echo -e "${BLUE}Logs for: $name (last $lines lines)${NC}"
+    echo "────────────────────────────────────────────────────────"
+    tail -n "$lines" "$log_file"
+}
+
+pm::can_stream() {
+    local force_follow="${1:-false}"
+
+    if [[ "$force_follow" == "true" ]]; then
+        return 0
+    fi
+
+    [[ -t 1 ]]
+}
+
+pm::warn_snapshot_fallback() {
+    echo -e "${YELLOW}Non-interactive environment detected; showing a static snapshot instead of streaming logs${NC}"
+    echo -e "${YELLOW}Use --force-follow to stream anyway (may hang automation workflows)${NC}"
+    echo "────────────────────────────────────────────────────────"
 }
 
 ################################################################################
@@ -116,7 +148,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "  • Backward compatible function signatures"
     echo ""
     echo "Available functions:"
-    echo "  pm::logs <name> [lines] [--follow]"
+    echo "  pm::logs <name> [lines] [--follow|--force-follow]"
     echo "  pm::is_running <name>"
     exit 1
 fi
