@@ -11,7 +11,7 @@ required_dirs=(
     ".vrooli"
     "api"
     "cli" 
-    "rules"
+    "api/rules"
     "ui"
     "test"
     "test/phases"

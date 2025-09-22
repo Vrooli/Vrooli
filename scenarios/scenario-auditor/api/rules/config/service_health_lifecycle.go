@@ -145,13 +145,13 @@ Targets: service_json
 
 // CheckServiceHealthLifecycle validates lifecycle health configuration in service.json.
 func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
-	if !shouldCheckServiceJSON(filePath) {
+	if !shouldCheckHealthServiceJSON(filePath) {
 		return nil
 	}
 
 	source := string(content)
 	if strings.TrimSpace(source) == "" {
-		line := findJSONLine(source)
+		line := findHealthJSONLine(source)
 		return []Violation{newHealthViolation(filePath, line, "service.json is empty; expected lifecycle.health configuration")}
 	}
 
@@ -163,25 +163,25 @@ func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
 
 	lifecycleRaw, ok := payload["lifecycle"]
 	if !ok {
-		line := findJSONLine(source, "\"lifecycle\"")
+		line := findHealthJSONLine(source, "\"lifecycle\"")
 		return []Violation{newHealthViolation(filePath, line, "service.json must define lifecycle.health configuration")}
 	}
 
 	lifecycleMap, ok := lifecycleRaw.(map[string]interface{})
 	if !ok {
-		line := findJSONLine(source, "\"lifecycle\"")
+		line := findHealthJSONLine(source, "\"lifecycle\"")
 		return []Violation{newHealthViolation(filePath, line, "service.json lifecycle must be an object")}
 	}
 
 	healthRaw, ok := lifecycleMap["health"]
 	if !ok {
-		line := findJSONLine(source, "\"health\"", "\"lifecycle\"")
+		line := findHealthJSONLine(source, "\"health\"", "\"lifecycle\"")
 		return []Violation{newHealthViolation(filePath, line, "service.json must define lifecycle.health configuration")}
 	}
 
 	healthMap, ok := healthRaw.(map[string]interface{})
 	if !ok {
-		line := findJSONLine(source, "\"health\"")
+		line := findHealthJSONLine(source, "\"health\"")
 		return []Violation{newHealthViolation(filePath, line, "lifecycle.health must be an object")}
 	}
 
@@ -190,34 +190,34 @@ func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
 	hasUI := scenarioHasUIPort(payload)
 
 	// Validate endpoints
-	endpointLine := findJSONLine(source, "\"endpoints\"")
+	endpointLine := findHealthJSONLine(source, "\"endpoints\"")
 	endpointsRaw, endpointsOk := healthMap["endpoints"].(map[string]interface{})
 	if !endpointsOk {
 		violations = append(violations, newHealthViolation(filePath, endpointLine, "lifecycle.health must define endpoints"))
 	} else {
 		apiEndpoint, apiOk := endpointsRaw["api"].(string)
 		if !apiOk || strings.TrimSpace(apiEndpoint) == "" {
-			violations = append(violations, newHealthViolation(filePath, findJSONLine(source, "\"api\"", "\"endpoints\""), "lifecycle.health must define an api endpoint at '/health'"))
+			violations = append(violations, newHealthViolation(filePath, findHealthJSONLine(source, "\"api\"", "\"endpoints\""), "lifecycle.health must define an api endpoint at '/health'"))
 		} else if apiEndpoint != "/health" {
-			violations = append(violations, newHealthViolation(filePath, findJSONLine(source, "\"api\"", "\"endpoints\""), "lifecycle.health api endpoint must be '/health'"))
+			violations = append(violations, newHealthViolation(filePath, findHealthJSONLine(source, "\"api\"", "\"endpoints\""), "lifecycle.health api endpoint must be '/health'"))
 		}
 
 		if hasUI {
 			uiEndpoint, uiOk := endpointsRaw["ui"].(string)
 			if !uiOk || strings.TrimSpace(uiEndpoint) == "" {
-				violations = append(violations, newHealthViolation(filePath, findJSONLine(source, "\"ui\"", "\"endpoints\""), "lifecycle.health must define a ui endpoint at '/health' when UI ports are configured"))
+				violations = append(violations, newHealthViolation(filePath, findHealthJSONLine(source, "\"ui\"", "\"endpoints\""), "lifecycle.health must define a ui endpoint at '/health' when UI ports are configured"))
 			} else if uiEndpoint != "/health" {
-				violations = append(violations, newHealthViolation(filePath, findJSONLine(source, "\"ui\"", "\"endpoints\""), "lifecycle.health ui endpoint must be '/health' when UI ports are configured"))
+				violations = append(violations, newHealthViolation(filePath, findHealthJSONLine(source, "\"ui\"", "\"endpoints\""), "lifecycle.health ui endpoint must be '/health' when UI ports are configured"))
 			}
 		}
 	}
 
 	// Validate checks
-	checksLine := findJSONLine(source, "\"checks\"")
+	checksLine := findHealthJSONLine(source, "\"checks\"")
 	checksRaw, checksOk := healthMap["checks"].([]interface{})
 	if !checksOk {
 		violations = append(violations, newHealthViolation(filePath, checksLine, "lifecycle.health must define checks"))
-		return deduplicateViolations(violations)
+		return dedupeHealthViolations(violations)
 	}
 
 	apiCheck := findHealthCheck(checksRaw, "api_endpoint")
@@ -236,7 +236,7 @@ func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
 		}
 	}
 
-	return deduplicateViolations(violations)
+	return dedupeHealthViolations(violations)
 }
 
 func findHealthCheck(checks []interface{}, name string) map[string]interface{} {
@@ -255,7 +255,7 @@ func findHealthCheck(checks []interface{}, name string) map[string]interface{} {
 func validateCheck(check map[string]interface{}, filePath, source, name, portVar string) []Violation {
 	var violations []Violation
 
-	checkLine := findJSONLine(source, fmt.Sprintf("\"name\": \"%s\"", name))
+	checkLine := findHealthJSONLine(source, fmt.Sprintf("\"name\": \"%s\"", name))
 
 	// type must be http
 	if checkType, ok := check["type"].(string); !ok || strings.TrimSpace(checkType) == "" {
@@ -354,7 +354,7 @@ func newHealthViolation(filePath string, line int, message string) Violation {
 	}
 }
 
-func deduplicateViolations(list []Violation) []Violation {
+func dedupeHealthViolations(list []Violation) []Violation {
 	if len(list) == 0 {
 		return list
 	}
@@ -371,7 +371,7 @@ func deduplicateViolations(list []Violation) []Violation {
 	return deduped
 }
 
-func shouldCheckServiceJSON(path string) bool {
+func shouldCheckHealthServiceJSON(path string) bool {
 	if strings.TrimSpace(path) == "" {
 		return false
 	}
@@ -382,7 +382,7 @@ func shouldCheckServiceJSON(path string) bool {
 	return false
 }
 
-func findJSONLine(content string, tokens ...string) int {
+func findHealthJSONLine(content string, tokens ...string) int {
 	if len(tokens) == 0 {
 		return 1
 	}

@@ -10,6 +10,9 @@ import (
 	"sync"
 	"time"
 
+	re "scenario-auditor/internal/ruleengine"
+	rulespkg "scenario-auditor/rules"
+
 	"github.com/gorilla/mux"
 )
 
@@ -163,23 +166,13 @@ func (rs *RuleStateStore) GetAllStates() map[string]bool {
 }
 
 type Rule struct {
-	ID             string                   `json:"id"`
-	Name           string                   `json:"name"`
-	Description    string                   `json:"description"`
-	Category       string                   `json:"category"`
-	Severity       string                   `json:"severity"`
-	Enabled        bool                     `json:"enabled"`
-	Standard       string                   `json:"standard"`
-	Targets        []string                 `json:"targets,omitempty"`
-	TestStatus     *RuleTestStatus          `json:"test_status,omitempty"`
-	Implementation RuleImplementationStatus `json:"implementation"`
+	rulespkg.Rule
+	Targets        []string                `json:"targets,omitempty"`
+	TestStatus     *RuleTestStatus         `json:"test_status,omitempty"`
+	Implementation re.ImplementationStatus `json:"implementation"`
 }
 
-type RuleCategory struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-}
+type RuleCategory = re.Category
 
 type RuleTestStatus struct {
 	Total     int    `json:"total"`
@@ -195,26 +188,31 @@ func getRulesHandler(w http.ResponseWriter, r *http.Request) {
 	logger := NewLogger()
 	logger.Info("Fetching available rules")
 
-	// Load rules from files
-	ruleInfos, err := LoadRulesFromFiles()
+	svc, err := ruleService()
 	if err != nil {
-		logger.Error("Failed to load rules from files", err)
-		// Fall back to hardcoded rules if loading fails
-		ruleInfos = getDefaultRules()
+		logger.Error("Failed to initialise rule service", err)
+		HTTPError(w, "Failed to initialise rule engine", http.StatusInternalServerError, err)
+		return
 	}
 
-	// Convert RuleInfo to Rule and apply persisted enabled states
+	ruleInfos, err := svc.Load()
+	if err != nil {
+		logger.Error("Failed to load rules from service", err)
+		HTTPError(w, "Failed to load rules", http.StatusInternalServerError, err)
+		return
+	}
+
 	rules := make(map[string]Rule)
 	states := ruleStateStore.GetAllStates()
 	for id, info := range ruleInfos {
-		rule := ConvertRuleInfoToRule(info)
+		rule := convertInfoToRule(info)
 		if enabled, exists := states[id]; exists {
 			rule.Enabled = enabled
 		}
 		rules[id] = rule
 	}
 
-	testStatuses := computeRuleTestStatuses(ruleInfos)
+	testStatuses := computeRuleTestStatuses(svc, ruleInfos)
 	ruleStatusMap := make(map[string]RuleTestStatus)
 	for id, rule := range rules {
 		status, ok := testStatuses[id]
@@ -233,7 +231,7 @@ func getRulesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get categories
-	categories := GetRuleCategories()
+	categories := re.DefaultCategories()
 
 	// Filter by category if specified
 	categoryFilter := r.URL.Query().Get("category")
@@ -265,13 +263,11 @@ func getRulesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func computeRuleTestStatuses(ruleInfos map[string]RuleInfo) map[string]RuleTestStatus {
+func computeRuleTestStatuses(svc *re.Service, ruleInfos map[string]re.Info) map[string]RuleTestStatus {
 	statuses := make(map[string]RuleTestStatus)
 	if len(ruleInfos) == 0 {
 		return statuses
 	}
-
-	testRunner := NewTestRunner()
 
 	for ruleID, ruleInfo := range ruleInfos {
 		status := RuleTestStatus{}
@@ -287,7 +283,7 @@ func computeRuleTestStatuses(ruleInfos map[string]RuleInfo) map[string]RuleTestS
 			continue
 		}
 
-		results, err := testRunner.RunAllTests(ruleID, ruleInfo)
+		results, err := svc.RunTestsForInfo(ruleID, ruleInfo)
 		if err != nil {
 			status.Error = err.Error()
 			status.HasIssues = true
@@ -398,14 +394,20 @@ func getRuleHandler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info("Fetching rule details for " + ruleID)
 
-	// Load rules from files
-	ruleInfos, err := LoadRulesFromFiles()
+	svc, err := ruleService()
 	if err != nil {
-		logger.Error("Failed to load rules from files", err)
-		ruleInfos = getDefaultRules()
+		logger.Error("Failed to initialise rule service", err)
+		HTTPError(w, "Failed to initialise rule engine", http.StatusInternalServerError, err)
+		return
 	}
 
-	// Find the specific rule
+	ruleInfos, err := svc.Load()
+	if err != nil {
+		logger.Error("Failed to load rules from service", err)
+		HTTPError(w, "Failed to load rule", http.StatusInternalServerError, err)
+		return
+	}
+
 	ruleInfo, exists := ruleInfos[ruleID]
 	if !exists {
 		HTTPError(w, "Rule not found", http.StatusNotFound, nil)
@@ -424,17 +426,17 @@ func getRuleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert to rule and add file content
-	rule := ConvertRuleInfoToRule(ruleInfo)
+	rule := convertInfoToRule(ruleInfo)
 	if enabled, ok := ruleStateStore.GetState(ruleID); ok {
 		rule.Enabled = enabled
 	}
 
-	if status, ok := computeRuleTestStatuses(map[string]RuleInfo{ruleID: ruleInfo})[ruleID]; ok {
+	if status, ok := computeRuleTestStatuses(svc, map[string]re.Info{ruleID: ruleInfo})[ruleID]; ok {
 		s := status
 		rule.TestStatus = &s
 	}
 
-	executionInfo := buildRuleExecutionInfo(ruleInfo)
+	executionInfo := re.BuildExecutionInfo(ruleInfo)
 
 	response := map[string]interface{}{
 		"rule":           rule,
@@ -472,7 +474,7 @@ func createRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	categories := GetRuleCategories()
+	categories := re.DefaultCategories()
 	category := strings.TrimSpace(req.Category)
 	if category == "" {
 		category = "api"
@@ -559,8 +561,13 @@ func testRuleHandler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info("Running tests for rule: " + ruleID)
 
-	// Load rules to get the specific rule
-	ruleInfos, err := LoadRulesFromFiles()
+	svc, err := ruleService()
+	if err != nil {
+		HTTPError(w, "Failed to initialise rule engine", http.StatusInternalServerError, err)
+		return
+	}
+
+	ruleInfos, err := svc.Load()
 	if err != nil {
 		HTTPError(w, "Failed to load rules", http.StatusInternalServerError, err)
 		return
@@ -572,11 +579,8 @@ func testRuleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get or create test runner
-	testRunner := NewTestRunner()
-
 	// Run all tests for the rule
-	testResults, err := testRunner.RunAllTests(ruleID, ruleInfo)
+	testResults, err := svc.RunTestsForInfo(ruleID, ruleInfo)
 	if err != nil {
 		HTTPError(w, "Failed to run tests", http.StatusInternalServerError, err)
 		return
@@ -596,9 +600,10 @@ func testRuleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if results were cached
-	fileHash, _ := testRunner.GetFileHash(ruleInfo.FilePath)
-	cached, _ := testRunner.GetCachedResults(ruleID, fileHash)
-	wasCached := cached != nil
+	fileHash, wasCached, hashErr := svc.TestCacheInfo(ruleID, ruleInfo)
+	if hashErr != nil {
+		logger.Error("Failed to inspect test cache", hashErr)
+	}
 
 	// Determine if there's a warning (no tests)
 	warning := ""
@@ -659,24 +664,25 @@ func validateRuleHandler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info("Validating custom input for rule: " + ruleID)
 
-	// Load rules to get the specific rule
-	ruleInfos, err := LoadRulesFromFiles()
+	svc, err := ruleService()
+	if err != nil {
+		HTTPError(w, "Failed to initialise rule engine", http.StatusInternalServerError, err)
+		return
+	}
+
+	ruleInfos, err := svc.Load()
 	if err != nil {
 		HTTPError(w, "Failed to load rules", http.StatusInternalServerError, err)
 		return
 	}
 
-	ruleInfo, exists := ruleInfos[ruleID]
-	if !exists {
+	if _, exists := ruleInfos[ruleID]; !exists {
 		HTTPError(w, "Rule not found", http.StatusNotFound, nil)
 		return
 	}
 
-	// Get or create test runner
-	testRunner := NewTestRunner()
-
 	// Validate the custom input
-	result, err := testRunner.ValidateCustomInput(ruleID, ruleInfo, validateReq.Code, validateReq.Language)
+	result, err := svc.Validate(ruleID, validateReq.Code, validateReq.Language)
 	if err != nil {
 		HTTPError(w, "Failed to validate input", http.StatusInternalServerError, err)
 		return
@@ -704,12 +710,15 @@ func clearTestCacheHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	ruleID := vars["ruleId"]
 
-	// Get or create test runner
-	testRunner := NewTestRunner()
+	svc, err := ruleService()
+	if err != nil {
+		HTTPError(w, "Failed to initialise rule engine", http.StatusInternalServerError, err)
+		return
+	}
 
 	if ruleID != "" {
 		logger.Info("Clearing test cache for rule: " + ruleID)
-		testRunner.ClearCache(ruleID)
+		svc.ClearTestCache(ruleID)
 
 		response := map[string]interface{}{
 			"success": true,
@@ -720,7 +729,7 @@ func clearTestCacheHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(response)
 	} else {
 		logger.Info("Clearing all test cache")
-		testRunner.ClearAllCache()
+		svc.ClearTestCache("")
 
 		response := map[string]interface{}{
 			"success": true,
@@ -737,18 +746,20 @@ func getTestCoverageHandler(w http.ResponseWriter, r *http.Request) {
 	logger := NewLogger()
 	logger.Info("Fetching test coverage metrics")
 
-	// Load all rules
-	ruleInfos, err := LoadRulesFromFiles()
+	svc, err := ruleService()
+	if err != nil {
+		logger.Error("Failed to initialise rule engine", err)
+		HTTPError(w, "Failed to initialise rule engine", http.StatusInternalServerError, err)
+		return
+	}
+
+	ruleInfos, err := svc.Load()
 	if err != nil {
 		logger.Error("Failed to load rules", err)
 		HTTPError(w, "Failed to load rules", http.StatusInternalServerError, err)
 		return
 	}
 
-	// Get test runner
-	testRunner := NewTestRunner()
-
-	// Calculate coverage metrics
 	totalRules := len(ruleInfos)
 	rulesWithTests := 0
 	totalTestCases := 0
@@ -758,7 +769,7 @@ func getTestCoverageHandler(w http.ResponseWriter, r *http.Request) {
 	categoryCoverage := make(map[string]map[string]int)
 
 	// Initialize category maps
-	categories := GetRuleCategories()
+	categories := re.DefaultCategories()
 	for catID := range categories {
 		categoryCoverage[catID] = map[string]int{
 			"total":      0,
@@ -771,62 +782,58 @@ func getTestCoverageHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Process each rule
 	for ruleID, ruleInfo := range ruleInfos {
-		rule := ConvertRuleInfoToRule(ruleInfo)
+		rule := convertInfoToRule(ruleInfo)
 		category := rule.Category
-
-		// Increment total for category
-		if catStats, exists := categoryCoverage[category]; exists {
-			catStats["total"]++
+		catStats, exists := categoryCoverage[category]
+		if !exists {
+			catStats = map[string]int{
+				"total":      0,
+				"with_tests": 0,
+				"test_cases": 0,
+				"passing":    0,
+				"failing":    0,
+			}
+			categoryCoverage[category] = catStats
 		}
+		catStats["total"]++
 
-		// Read rule file to check for test cases
-		content, err := os.ReadFile(ruleInfo.FilePath)
+		testCases, err := svc.ExtractTestCases(ruleInfo)
 		if err != nil {
-			continue
-		}
-
-		// Extract test cases
-		testCases, err := testRunner.ExtractTestCases(string(content))
-		if err != nil {
-			continue
+			testCases = nil
 		}
 
 		hasTests := len(testCases) > 0
 		if hasTests {
 			rulesWithTests++
-			if catStats, exists := categoryCoverage[category]; exists {
-				catStats["with_tests"]++
-				catStats["test_cases"] += len(testCases)
-			}
+			catStats["with_tests"]++
+			catStats["test_cases"] += len(testCases)
 		}
 
 		totalTestCases += len(testCases)
 
-		// Run tests if cache is available (don't run new tests, just check cache)
-		fileHash, _ := testRunner.GetFileHash(ruleInfo.FilePath)
-		if cached, valid := testRunner.GetCachedResults(ruleID, fileHash); valid {
-			for _, result := range cached.TestResults {
+		results, err := svc.RunTestsForInfo(ruleID, ruleInfo)
+		ruleError := ""
+		if err != nil {
+			ruleError = err.Error()
+		} else {
+			for _, result := range results {
 				if result.Passed {
 					passingTests++
-					if catStats, exists := categoryCoverage[category]; exists {
-						catStats["passing"]++
-					}
+					catStats["passing"]++
 				} else {
 					failingTests++
-					if catStats, exists := categoryCoverage[category]; exists {
-						catStats["failing"]++
-					}
+					catStats["failing"]++
 				}
 			}
 		}
 
-		// Store rule-specific coverage
 		rulesCoverage[ruleID] = map[string]interface{}{
 			"has_tests":  hasTests,
 			"test_count": len(testCases),
 			"category":   category,
 			"severity":   rule.Severity,
 			"name":       rule.Name,
+			"error":      ruleError,
 		}
 	}
 
@@ -872,5 +879,14 @@ func getTestCoverageHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		logger.Error("Failed to encode test coverage response", err)
 		HTTPError(w, "Failed to encode response", http.StatusInternalServerError, err)
+	}
+}
+
+func convertInfoToRule(info re.Info) Rule {
+	copyTargets := append([]string(nil), info.Targets...)
+	return Rule{
+		Rule:           info.Rule,
+		Targets:        copyTargets,
+		Implementation: info.Implementation,
 	}
 }

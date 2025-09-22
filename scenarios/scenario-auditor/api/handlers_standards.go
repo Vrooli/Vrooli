@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	rulespkg "scenario-auditor/rules"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -570,7 +572,7 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 		rulesForFile := collectRulesForTargets(targets, ruleBuckets)
 
 		for _, rule := range rulesForFile {
-			if rule.executor == nil || !rule.Implementation.Valid {
+			if !rule.Implementation.Valid {
 				continue
 			}
 
@@ -624,7 +626,7 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 			}
 			scenarioPath := structurePaths[scenario]
 			for _, rule := range structureRules {
-				if rule.executor == nil || !rule.Implementation.Valid {
+				if !rule.Implementation.Valid {
 					continue
 				}
 
@@ -821,7 +823,7 @@ func toScenarioRelative(path string, scenarioName string) string {
 	return filepath.ToSlash(relative)
 }
 
-func convertRuleViolationToStandards(rule RuleInfo, violation Violation, scenarioName, fallbackPath string) StandardsViolation {
+func convertRuleViolationToStandards(rule RuleInfo, violation rulespkg.Violation, scenarioName, fallbackPath string) StandardsViolation {
 	severity := strings.ToLower(firstNonEmpty(violation.Severity, rule.Severity))
 	if severity == "" {
 		severity = "medium"

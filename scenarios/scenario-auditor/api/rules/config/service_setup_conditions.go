@@ -254,7 +254,7 @@ func CheckServiceSetupConditions(content []byte, filePath string) []Violation {
 		}
 	}
 
-	return deduplicateSetupViolations(violations)
+	return dedupeSetupConditionViolations(violations)
 }
 
 func extractServiceName(payload map[string]interface{}) (string, error) {
@@ -348,7 +348,7 @@ func findJSONLineSetup(content string, tokens ...string) int {
 	return 1
 }
 
-func deduplicateSetupViolations(list []Violation) []Violation {
+func dedupeSetupConditionViolations(list []Violation) []Violation {
 	if len(list) == 0 {
 		return list
 	}

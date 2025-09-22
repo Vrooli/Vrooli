@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+
+	re "scenario-auditor/internal/ruleengine"
 )
 
 type ruleAgentPromptData struct {
@@ -37,8 +39,7 @@ func buildRuleAgentPrompt(rule RuleInfo, action string) (string, string, map[str
 		return "", "", nil, fmt.Errorf("failed to read rule file: %w", err)
 	}
 
-	testRunner := NewTestRunner()
-	testCases, err := testRunner.ExtractTestCases(string(ruleSource))
+	testCases, err := extractRuleTestCases(rule)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to parse test cases: %w", err)
 	}
@@ -74,7 +75,7 @@ func buildRuleAgentPrompt(rule RuleInfo, action string) (string, string, map[str
 	}
 
 	// Always attempt to run tests so we can provide failing context (even if there are currently zero cases)
-	results, runErr := testRunner.RunAllTests(rule.ID, rule)
+	results, runErr := runRuleTests(rule.ID, rule)
 	if runErr != nil {
 		testRunErr = runErr
 	}
@@ -121,7 +122,7 @@ func buildRuleAgentPrompt(rule RuleInfo, action string) (string, string, map[str
 	return buffer.String(), label, metadata, nil
 }
 
-func describeExistingTests(ruleID string, tests []TestCase) string {
+func describeExistingTests(ruleID string, tests []re.TestCase) string {
 	if len(tests) == 0 {
 		return fmt.Sprintf("Rule %s currently has no embedded test cases.", ruleID)
 	}
@@ -129,7 +130,7 @@ func describeExistingTests(ruleID string, tests []TestCase) string {
 	return summary
 }
 
-func describeTestDetails(tests []TestCase) string {
+func describeTestDetails(tests []re.TestCase) string {
 	if len(tests) == 0 {
 		return ""
 	}
@@ -154,7 +155,7 @@ func describeTestDetails(tests []TestCase) string {
 	return builder.String()
 }
 
-func describeFailingTests(results []TestResult) string {
+func describeFailingTests(results []re.TestResult) string {
 	var builder strings.Builder
 	for _, result := range results {
 		if result.Passed {
@@ -173,21 +174,6 @@ func describeFailingTests(results []TestResult) string {
 			builder.WriteString("  Actual violations:\n")
 			for _, violation := range result.ActualViolations {
 				builder.WriteString(fmt.Sprintf("    - [%s] %s\n", safeFallback(violation.Severity, "unknown"), violation.Message))
-			}
-		}
-		if result.ExecutionOutput != nil && result.ExecutionOutput.Method != "" {
-			builder.WriteString(fmt.Sprintf("  Execution method: %s (exit_code=%d)\n", result.ExecutionOutput.Method, result.ExecutionOutput.ExitCode))
-		}
-		if result.ExecutionOutput != nil {
-			if trimmed := trimForPrompt(result.ExecutionOutput.Stdout); trimmed != "" {
-				builder.WriteString("  Stdout snippet:\n")
-				builder.WriteString(indentForPrompt(trimmed))
-				builder.WriteString("\n")
-			}
-			if trimmedErr := trimForPrompt(result.ExecutionOutput.Stderr); trimmedErr != "" {
-				builder.WriteString("  Stderr snippet:\n")
-				builder.WriteString(indentForPrompt(trimmedErr))
-				builder.WriteString("\n")
 			}
 		}
 		if result.Error != "" {

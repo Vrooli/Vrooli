@@ -1,4 +1,4 @@
-package main
+package ruleengine
 
 import (
 	"errors"
@@ -10,6 +10,9 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
+
+	rulespkg "scenario-auditor/rules"
 
 	"github.com/traefik/yaegi/interp"
 	"github.com/traefik/yaegi/stdlib"
@@ -17,16 +20,9 @@ import (
 
 var errorType = reflect.TypeOf((*error)(nil)).Elem()
 
-// RuleImplementationStatus captures whether a rule implementation was loaded successfully.
-type RuleImplementationStatus struct {
-	Valid   bool   `json:"valid"`
-	Error   string `json:"error,omitempty"`
-	Details string `json:"details,omitempty"`
-}
-
 // ruleExecutor defines the behaviour required to run a rule against supplied content.
 type ruleExecutor interface {
-	Execute(content string, pathHint string, scenario string) ([]Violation, error)
+	Execute(content string, pathHint string, scenario string) ([]rulespkg.Violation, error)
 }
 
 // dynamicGoRuleExecutor executes Go-based rules interpreted at runtime.
@@ -36,7 +32,7 @@ type dynamicGoRuleExecutor struct {
 	category string
 }
 
-func (e *dynamicGoRuleExecutor) Execute(content string, pathHint string, scenario string) ([]Violation, error) {
+func (e *dynamicGoRuleExecutor) Execute(content string, pathHint string, scenario string) ([]rulespkg.Violation, error) {
 	if !e.fn.IsValid() {
 		return nil, errors.New("rule function is not available")
 	}
@@ -69,8 +65,8 @@ func (e *dynamicGoRuleExecutor) Execute(content string, pathHint string, scenari
 }
 
 // compileGoRule attempts to interpret the rule implementation located at filePath.
-func compileGoRule(rule *RuleInfo) (ruleExecutor, RuleImplementationStatus) {
-	status := RuleImplementationStatus{Valid: false}
+func compileGoRule(rule *Info, moduleRoot string) (ruleExecutor, ImplementationStatus) {
+	status := ImplementationStatus{Valid: false}
 
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, rule.FilePath, nil, parser.SkipObjectResolution)
@@ -87,7 +83,20 @@ func compileGoRule(rule *RuleInfo) (ruleExecutor, RuleImplementationStatus) {
 
 	pkgName := file.Name.Name
 
-	interpreter := interp.New(interp.Options{})
+	goPath, gpErr := ensureYaegiGoPath(moduleRoot)
+	if gpErr != nil {
+		status.Error = fmt.Sprintf("failed to prepare yaegi GOPATH: %v", gpErr)
+		return nil, status
+	}
+
+	interpreter := interp.New(interp.Options{GoPath: goPath})
+	interpreter.Use(interp.Exports{
+		"scenario-auditor/rules": {
+			"Violation":    reflect.ValueOf((*rulespkg.Violation)(nil)),
+			"Rule":         reflect.ValueOf((*rulespkg.Rule)(nil)),
+			"RuleMetadata": reflect.ValueOf((*rulespkg.RuleMetadata)(nil)),
+		},
+	})
 	interpreter.Use(stdlib.Symbols)
 
 	loadSupportFile := func(path string) error {
@@ -119,7 +128,7 @@ func compileGoRule(rule *RuleInfo) (ruleExecutor, RuleImplementationStatus) {
 		return nil, status
 	}
 
-	wrapperName := fmt.Sprintf("__rule_wrapper_%s", rule.ID)
+	wrapperName := fmt.Sprintf("__rule_wrapper_%s", rule.Rule.ID)
 	wrapperCode, err := buildWrapperCode(wrapperName, pkgName, symbol)
 	if err != nil {
 		status.Error = err.Error()
@@ -147,8 +156,8 @@ func compileGoRule(rule *RuleInfo) (ruleExecutor, RuleImplementationStatus) {
 
 	executor := &dynamicGoRuleExecutor{
 		fn:       callableValue,
-		ruleID:   rule.ID,
-		category: rule.Category,
+		ruleID:   rule.Rule.ID,
+		category: rule.Rule.Category,
 	}
 
 	return executor, status
@@ -222,6 +231,8 @@ func buildWrapperCode(wrapperName, pkgName string, symbol ruleSymbol) (string, e
 	return code, nil
 }
 
+// --- symbol discovery helpers (copied from legacy implementation) ---
+
 type ruleSymbol struct {
 	FuncName         string
 	ReceiverName     string
@@ -241,13 +252,16 @@ const (
 	paramString
 )
 
-func discoverRuleSymbol(file *ast.File) ruleSymbol {
-	for _, decl := range file.Decls {
+func discoverRuleSymbol(node *ast.File) ruleSymbol {
+	for _, decl := range node.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Name == nil {
+		if !ok {
 			continue
 		}
-		if !fn.Name.IsExported() || !strings.HasPrefix(fn.Name.Name, "Check") {
+		if fn.Name == nil || fn.Name.IsExported() == false {
+			continue
+		}
+		if !strings.HasPrefix(fn.Name.Name, "Check") {
 			continue
 		}
 
@@ -271,7 +285,6 @@ func discoverRuleSymbol(file *ast.File) ruleSymbol {
 			if len(params) >= 1 {
 				symbol.ContentParam = classifyParam(params[0])
 				if symbol.ContentParam == paramNone && len(params) == 1 {
-					// treat single string parameter as path argument
 					symbol.HasPathParam = true
 				}
 			}
@@ -279,8 +292,6 @@ func discoverRuleSymbol(file *ast.File) ruleSymbol {
 				if classifyParam(params[1]) == paramString {
 					symbol.HasPathParam = true
 				}
-			} else if len(params) == 1 && symbol.ContentParam != paramNone {
-				// only content parameter supplied, no filepath
 			}
 			if len(params) >= 3 {
 				if classifyParam(params[2]) == paramString {
@@ -325,14 +336,14 @@ func isErrorType(expr ast.Expr) bool {
 	return ok && ident.Name == "error"
 }
 
-func convertInterpreterResult(value reflect.Value, ruleID, category string) ([]Violation, error) {
+func convertInterpreterResult(value reflect.Value, ruleID, category string) ([]rulespkg.Violation, error) {
 	value = reflectValue(value)
 
 	switch value.Kind() {
 	case reflect.Invalid:
 		return nil, nil
 	case reflect.Slice:
-		var violations []Violation
+		var violations []rulespkg.Violation
 		for i := 0; i < value.Len(); i++ {
 			v, err := convertStructViolation(value.Index(i), ruleID, category)
 			if err != nil {
@@ -348,7 +359,7 @@ func convertInterpreterResult(value reflect.Value, ruleID, category string) ([]V
 		if err != nil || v == nil {
 			return nil, err
 		}
-		return []Violation{*v}, nil
+		return []rulespkg.Violation{*v}, nil
 	case reflect.Ptr:
 		if value.IsNil() {
 			return nil, nil
@@ -364,7 +375,7 @@ func convertInterpreterResult(value reflect.Value, ruleID, category string) ([]V
 	}
 }
 
-func convertStructViolation(value reflect.Value, ruleID, category string) (*Violation, error) {
+func convertStructViolation(value reflect.Value, ruleID, category string) (*rulespkg.Violation, error) {
 	value = reflectValue(value)
 	if !value.IsValid() {
 		return nil, nil
@@ -385,7 +396,7 @@ func convertStructViolation(value reflect.Value, ruleID, category string) (*Viol
 		return nil, fmt.Errorf("expected violation struct, got %s", value.Kind())
 	}
 
-	v := Violation{
+	v := rulespkg.Violation{
 		RuleID:   ruleID,
 		Category: category,
 	}
@@ -449,6 +460,38 @@ func convertStructViolation(value reflect.Value, ruleID, category string) (*Viol
 	}
 
 	return &v, nil
+}
+
+var (
+	yaegiGoPathOnce sync.Once
+	yaegiGoPath     string
+	yaegiGoPathErr  error
+)
+
+func ensureYaegiGoPath(moduleRoot string) (string, error) {
+	yaegiGoPathOnce.Do(func() {
+		tempDir, err := os.MkdirTemp("", "yaegi-gopath-*")
+		if err != nil {
+			yaegiGoPathErr = err
+			return
+		}
+
+		srcDir := filepath.Join(tempDir, "src")
+		if err := os.MkdirAll(srcDir, 0o755); err != nil {
+			yaegiGoPathErr = err
+			return
+		}
+
+		target := filepath.Join(srcDir, "scenario-auditor")
+		if err := os.Symlink(moduleRoot, target); err != nil {
+			yaegiGoPathErr = err
+			return
+		}
+
+		yaegiGoPath = tempDir
+	})
+
+	return yaegiGoPath, yaegiGoPathErr
 }
 
 func reflectValue(value reflect.Value) reflect.Value {

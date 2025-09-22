@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	rules "scenario-auditor/rules"
 )
 
 /*
@@ -70,12 +72,7 @@ Targets: structure
 */
 
 // Violation captures missing structure elements.
-type Violation struct {
-	Severity       string `json:"severity"`
-	Message        string `json:"message"`
-	FilePath       string `json:"file_path"`
-	Recommendation string `json:"recommendation"`
-}
+type Violation = rules.Violation
 
 // Check validates the presence of required scenario files and directories.
 func Check(content string, scenarioPath string, scenario string) ([]Violation, error) {

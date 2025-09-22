@@ -820,8 +820,6 @@ func validateRulesBeforeScan(logger *Logger, includeUnstable bool) (unstableRule
 		return []string{}, 0
 	}
 
-	// Initialize test runner
-	testRunner := NewTestRunner()
 	unstableRulesList := []string{}
 	totalRules := len(ruleInfos)
 	stableRules := 0
@@ -831,7 +829,7 @@ func validateRulesBeforeScan(logger *Logger, includeUnstable bool) (unstableRule
 	// Test each rule
 	for ruleID, ruleInfo := range ruleInfos {
 		// Run all tests for this rule
-		testResults, err := testRunner.RunAllTests(ruleID, ruleInfo)
+		testResults, err := runRuleTests(ruleID, ruleInfo)
 		if err != nil {
 			logger.Info(fmt.Sprintf("WARNING: Failed to run tests for rule %s: %v", ruleID, err))
 			unstableRulesList = append(unstableRulesList, ruleID)

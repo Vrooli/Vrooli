@@ -207,7 +207,7 @@ Targets: service_json
 
 // CheckServicePortConfiguration validates that service.json declares expected port entries.
 func CheckServicePortConfiguration(content []byte, filePath string) []Violation {
-	if !shouldCheckServiceJSON(filePath) {
+	if !shouldCheckPortsServiceJSON(filePath) {
 		return nil
 	}
 
@@ -224,13 +224,13 @@ func CheckServicePortConfiguration(content []byte, filePath string) []Violation 
 
 	portsRaw, ok := payload["ports"]
 	if !ok {
-		line := findJSONLine(source, "\"ports\"")
+		line := findPortsJSONLine(source, "\"ports\"")
 		return []Violation{newPortsViolation(filePath, line, "service.json must define a top-level \"ports\" object")}
 	}
 
 	portsMap, ok := portsRaw.(map[string]interface{})
 	if !ok {
-		line := findJSONLine(source, "\"ports\"")
+		line := findPortsJSONLine(source, "\"ports\"")
 		return []Violation{newPortsViolation(filePath, line, "service.json ports must be an object of named port configurations")}
 	}
 
@@ -238,12 +238,12 @@ func CheckServicePortConfiguration(content []byte, filePath string) []Violation 
 
 	apiRaw, hasAPI := portsMap["api"]
 	if !hasAPI {
-		line := findJSONLine(source, "\"api\"", "\"ports\"")
+		line := findPortsJSONLine(source, "\"api\"", "\"ports\"")
 		violations = append(violations, newPortsViolation(filePath, line, "ports configuration must define an \"api\" entry"))
 	} else if apiMap, ok := apiRaw.(map[string]interface{}); ok {
 		validateAPIPort(apiMap, source, filePath, &violations)
 	} else {
-		line := findJSONLine(source, "\"api\"")
+		line := findPortsJSONLine(source, "\"api\"")
 		violations = append(violations, newPortsViolation(filePath, line, "ports.api must be an object with env_var and range fields"))
 	}
 
@@ -251,24 +251,24 @@ func CheckServicePortConfiguration(content []byte, filePath string) []Violation 
 		if uiMap, ok := uiRaw.(map[string]interface{}); ok {
 			validateUIPort(uiMap, source, filePath, &violations)
 		} else {
-			line := findJSONLine(source, "\"ui\"")
+			line := findPortsJSONLine(source, "\"ui\"")
 			violations = append(violations, newPortsViolation(filePath, line, "ports.ui must be an object when provided"))
 		}
 	}
 
-	return deduplicateViolations(violations)
+	return dedupePortViolations(violations)
 }
 
 func validateAPIPort(entry map[string]interface{}, source, filePath string, violations *[]Violation) {
 	envVar, ok := entry["env_var"].(string)
-	lineEnv := findJSONLine(source, "\"api\"", "\"env_var\"")
+	lineEnv := findPortsJSONLine(source, "\"api\"", "\"env_var\"")
 	if !ok || strings.TrimSpace(envVar) == "" {
 		*violations = append(*violations, newPortsViolation(filePath, lineEnv, "ports.api.env_var must be set to \"API_PORT\""))
 	} else if envVar != "API_PORT" {
 		*violations = append(*violations, newPortsViolation(filePath, lineEnv, "ports.api.env_var must be \"API_PORT\""))
 	}
 
-	rangeLine := findJSONLine(source, "\"api\"", "\"range\"")
+	rangeLine := findPortsJSONLine(source, "\"api\"", "\"range\"")
 	rangeVal, hasRange := entry["range"]
 	if !hasRange {
 		*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.api.range must be \"15000-19999\""))
@@ -287,14 +287,14 @@ func validateAPIPort(entry map[string]interface{}, source, filePath string, viol
 }
 
 func validateUIPort(entry map[string]interface{}, source, filePath string, violations *[]Violation) {
-	envVarLine := findJSONLine(source, "\"ui\"", "\"env_var\"")
+	envVarLine := findPortsJSONLine(source, "\"ui\"", "\"env_var\"")
 	envVar, ok := entry["env_var"].(string)
 	if !ok || strings.TrimSpace(envVar) == "" || envVar != "UI_PORT" {
 		*violations = append(*violations, newPortsViolation(filePath, envVarLine, "ports.ui.env_var must be \"UI_PORT\" when the ui port is defined"))
 	}
 
 	if rangeVal, hasRange := entry["range"]; hasRange {
-		rangeLine := findJSONLine(source, "\"ui\"", "\"range\"")
+		rangeLine := findPortsJSONLine(source, "\"ui\"", "\"range\"")
 		rangeStr, ok := rangeVal.(string)
 		if !ok || strings.TrimSpace(rangeStr) == "" {
 			*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.ui.range must be \"35000-39999\" when a range is specified"))
@@ -322,7 +322,7 @@ func newPortsViolation(filePath string, line int, message string) Violation {
 	}
 }
 
-func deduplicateViolations(list []Violation) []Violation {
+func dedupePortViolations(list []Violation) []Violation {
 	if len(list) == 0 {
 		return list
 	}
@@ -339,7 +339,7 @@ func deduplicateViolations(list []Violation) []Violation {
 	return deduped
 }
 
-func shouldCheckServiceJSON(path string) bool {
+func shouldCheckPortsServiceJSON(path string) bool {
 	if strings.TrimSpace(path) == "" {
 		return false
 	}
@@ -353,7 +353,7 @@ func shouldCheckServiceJSON(path string) bool {
 	return false
 }
 
-func findJSONLine(content string, tokens ...string) int {
+func findPortsJSONLine(content string, tokens ...string) int {
 	if len(tokens) == 0 {
 		return 1
 	}
