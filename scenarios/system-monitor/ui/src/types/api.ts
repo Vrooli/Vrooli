@@ -134,6 +134,35 @@ export interface DiskInfo {
   percent: number;
 }
 
+export interface DiskPartitionInfo {
+  device: string;
+  mount_point: string;
+  size_bytes: number;
+  size_human: string;
+  used_bytes: number;
+  used_human: string;
+  available_bytes: number;
+  available_human: string;
+  use_percent: number;
+}
+
+export interface DiskUsageEntry {
+  path: string;
+  size_bytes: number;
+  size_human: string;
+  category?: string;
+}
+
+export interface DiskDetailResponse {
+  partitions: DiskPartitionInfo[];
+  active_mount: string;
+  depth: number;
+  top_directories: DiskUsageEntry[];
+  largest_files: DiskUsageEntry[];
+  notes?: string[];
+  timestamp: string;
+}
+
 export interface PortUsageInfo {
   used: number;
   total: number;

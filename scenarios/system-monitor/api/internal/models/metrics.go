@@ -54,6 +54,38 @@ type SystemHealth struct {
 	Certificates    []CertificateInfo  `json:"certificates"`
 }
 
+// DiskPartitionInfo provides usage data for a mounted volume
+type DiskPartitionInfo struct {
+	Device         string  `json:"device"`
+	MountPoint     string  `json:"mount_point"`
+	SizeBytes      int64   `json:"size_bytes"`
+	SizeHuman      string  `json:"size_human"`
+	UsedBytes      int64   `json:"used_bytes"`
+	UsedHuman      string  `json:"used_human"`
+	AvailableBytes int64   `json:"available_bytes"`
+	AvailableHuman string  `json:"available_human"`
+	UsePercent     float64 `json:"use_percent"`
+}
+
+// DiskUsageEntry represents a directory or file contributing to disk usage
+type DiskUsageEntry struct {
+	Path      string `json:"path"`
+	SizeBytes int64  `json:"size_bytes"`
+	SizeHuman string `json:"size_human"`
+	Category  string `json:"category,omitempty"`
+}
+
+// DiskDetailResponse aggregates disk usage insights for the UI
+type DiskDetailResponse struct {
+	Partitions     []DiskPartitionInfo `json:"partitions"`
+	ActiveMount    string              `json:"active_mount"`
+	Depth          int                 `json:"depth"`
+	TopDirectories []DiskUsageEntry    `json:"top_directories"`
+	LargestFiles   []DiskUsageEntry    `json:"largest_files"`
+	Notes          []string            `json:"notes,omitempty"`
+	Timestamp      time.Time           `json:"timestamp"`
+}
+
 // ProcessInfo represents information about a system process
 type ProcessInfo struct {
 	PID         int     `json:"pid"`

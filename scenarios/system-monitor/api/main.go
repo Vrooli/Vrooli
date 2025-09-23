@@ -25,7 +25,9 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 
+	"system-monitor-api/internal/collectors"
 	"system-monitor-api/internal/handlers"
+	"system-monitor-api/internal/models"
 	"system-monitor-api/internal/services"
 )
 
@@ -770,6 +772,7 @@ func main() {
 	r.HandleFunc("/api/metrics/detailed", getDetailedMetricsHandler).Methods("GET")
 	r.HandleFunc("/api/metrics/processes", getProcessMonitorHandler).Methods("GET")
 	r.HandleFunc("/api/metrics/infrastructure", getInfrastructureMonitorHandler).Methods("GET")
+	r.HandleFunc("/api/metrics/disk/details", getDiskDetailsHandler).Methods("GET")
 
 	// Settings endpoints
 	r.HandleFunc("/api/settings", settingsHandler.GetSettings).Methods("GET")
@@ -3228,6 +3231,173 @@ func getInfrastructureMonitorHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(response)
+}
+
+func getDiskDetailsHandler(w http.ResponseWriter, r *http.Request) {
+	clientIP := r.RemoteAddr
+	if !detailedMetricsLimiter.Allow(clientIP) {
+		http.Error(w, "Rate limit exceeded. Please wait before making another request.", http.StatusTooManyRequests)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	partitionsRaw, err := collectors.GetDiskPartitions()
+	if err != nil {
+		log.Printf("Failed to gather disk partitions: %v", err)
+	}
+
+	partitions := make([]models.DiskPartitionInfo, 0, len(partitionsRaw))
+	mountLookup := make(map[string]struct{})
+	for _, raw := range partitionsRaw {
+		partition := models.DiskPartitionInfo{
+			Device:         toString(raw["device"]),
+			MountPoint:     toString(raw["mount_point"]),
+			SizeBytes:      toInt64(raw["size_bytes"]),
+			SizeHuman:      toString(raw["size_human"]),
+			UsedBytes:      toInt64(raw["used_bytes"]),
+			UsedHuman:      toString(raw["used_human"]),
+			AvailableBytes: toInt64(raw["available_bytes"]),
+			AvailableHuman: toString(raw["available_human"]),
+			UsePercent:     toFloat64(raw["use_percent"]),
+		}
+		if partition.MountPoint == "" {
+			partition.MountPoint = "/"
+		}
+		partitions = append(partitions, partition)
+		mountLookup[partition.MountPoint] = struct{}{}
+	}
+
+	mount := r.URL.Query().Get("mount")
+	if mount == "" {
+		if _, ok := mountLookup["/"]; ok {
+			mount = "/"
+		} else if len(partitions) > 0 {
+			mount = partitions[0].MountPoint
+		} else {
+			mount = "/"
+		}
+	} else {
+		if _, ok := mountLookup[mount]; !ok {
+			if len(partitions) > 0 {
+				mount = partitions[0].MountPoint
+			} else {
+				mount = "/"
+			}
+		}
+	}
+
+	depth := 2
+	if rawDepth := r.URL.Query().Get("depth"); rawDepth != "" {
+		if parsed, err := strconv.Atoi(rawDepth); err == nil && parsed >= 1 && parsed <= 5 {
+			depth = parsed
+		}
+	}
+
+	limit := 8
+	if rawLimit := r.URL.Query().Get("limit"); rawLimit != "" {
+		if parsed, err := strconv.Atoi(rawLimit); err == nil && parsed >= 3 && parsed <= 25 {
+			limit = parsed
+		}
+	}
+
+	includeFiles := false
+	if raw := r.URL.Query().Get("include_files"); raw != "" {
+		includeFiles = raw == "true" || raw == "1" || strings.EqualFold(raw, "yes")
+	}
+
+	directories, dirErr := collectors.GetLargestDirectories(mount, depth, limit)
+	if dirErr != nil {
+		log.Printf("Failed to analyze directories for %s: %v", mount, dirErr)
+	}
+
+	var files []models.DiskUsageEntry
+	if includeFiles {
+		var fileErr error
+		files, fileErr = collectors.GetLargestFiles(mount, limit)
+		if fileErr != nil {
+			log.Printf("Failed to analyze files for %s: %v", mount, fileErr)
+		}
+	}
+
+	response := models.DiskDetailResponse{
+		Partitions:     partitions,
+		ActiveMount:    mount,
+		Depth:          depth,
+		TopDirectories: directories,
+		LargestFiles:   files,
+		Timestamp:      time.Now(),
+	}
+
+	if dirErr != nil {
+		response.Notes = append(response.Notes, fmt.Sprintf("Directory scan error: %v", dirErr))
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode disk detail response: %v", err)
+	}
+}
+
+func toInt64(value interface{}) int64 {
+	switch v := value.(type) {
+	case int:
+		return int64(v)
+	case int32:
+		return int64(v)
+	case int64:
+		return v
+	case float32:
+		return int64(v)
+	case float64:
+		return int64(v)
+	case string:
+		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return parsed
+		}
+	case json.Number:
+		if parsed, err := v.Int64(); err == nil {
+			return parsed
+		}
+	}
+	return 0
+}
+
+func toFloat64(value interface{}) float64 {
+	switch v := value.(type) {
+	case float32:
+		return float64(v)
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	case int32:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case string:
+		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
+			return parsed
+		}
+	case json.Number:
+		if parsed, err := v.Float64(); err == nil {
+			return parsed
+		}
+	}
+	return 0
+}
+
+func toString(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	case fmt.Stringer:
+		return v.String()
+	case json.Number:
+		return v.String()
+	}
+	return fmt.Sprintf("%v", value)
 }
 
 // Additional helper functions for detailed metrics

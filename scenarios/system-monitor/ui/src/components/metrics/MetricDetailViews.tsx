@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import type { ReactNode, CSSProperties } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import type { ReactNode, CSSProperties, ChangeEvent } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -20,7 +20,10 @@ import type {
   MetricHistory,
   ChartDataPoint,
   StorageIOInfo,
-  DiskInfo
+  DiskInfo,
+  DiskDetailResponse,
+  DiskPartitionInfo,
+  DiskUsageEntry
 } from '../../types';
 
 interface MetricDetailLayoutProps {
@@ -261,11 +264,14 @@ const MetricLineChart = ({
   </div>
 );
 
-const buildDiskUsageCard = (diskUsage?: DiskInfo) => {
+const buildDiskUsageCard = (
+  diskUsage?: DiskInfo,
+  options?: { title?: string; subtitle?: string }
+) => {
   if (!diskUsage) {
     return (
       <div className="card" style={{ padding: 'var(--spacing-lg)' }}>
-        <h3 style={{ marginTop: 0, color: 'var(--color-text-bright)' }}>Disk Utilization</h3>
+        <h3 style={{ marginTop: 0, color: 'var(--color-text-bright)' }}>{options?.title ?? 'Disk Utilization'}</h3>
         <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em' }}>
           Disk usage metrics are unavailable.
         </div>
@@ -278,9 +284,9 @@ const buildDiskUsageCard = (diskUsage?: DiskInfo) => {
   return (
     <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
       <div>
-        <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Disk Utilization</h3>
+        <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>{options?.title ?? 'Disk Utilization'}</h3>
         <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em', fontSize: 'var(--font-size-sm)' }}>
-          Current usage across monitored volumes
+          {options?.subtitle ?? 'Current usage across monitored volumes'}
         </div>
       </div>
       <div style={{
@@ -693,6 +699,15 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
 };
 
 export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, diskLastUpdated, onBack }: DiskDetailViewProps) => {
+  const DEFAULT_DEPTH = 2;
+  const [diskDetails, setDiskDetails] = useState<DiskDetailResponse | null>(null);
+  const [selectedMount, setSelectedMount] = useState<string>('/');
+  const [depth, setDepth] = useState<number>(DEFAULT_DEPTH);
+  const [includeFiles, setIncludeFiles] = useState<boolean>(false);
+  const [detailsLoading, setDetailsLoading] = useState<boolean>(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const activeRequestRef = useRef<AbortController | null>(null);
+
   const diskUsage = detailedMetrics?.memory_details?.disk_usage;
   const diskIoHistory = useMemo(
     () => combineDiskSeries(metricHistory?.diskRead, metricHistory?.diskWrite),
@@ -700,18 +715,136 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
   );
   const diskUsageHistory = useMemo(() => buildSingleSeriesData(metricHistory?.diskUsage), [metricHistory?.diskUsage]);
 
-  const subhead = diskLastUpdated
-    ? `Storage I/O sampled ${formatTimeLabel(diskLastUpdated)}`
-    : detailedMetrics?.timestamp
-      ? `Updated ${formatTimeLabel(detailedMetrics.timestamp)}`
-      : undefined;
+  const fetchDiskDetails = useCallback(
+    async (mount: string, nextDepth: number, includeFilesValue: boolean) => {
+      if (activeRequestRef.current) {
+        activeRequestRef.current.abort();
+      }
+      setDetailsLoading(true);
+      setDetailsError(null);
+      const controller = new AbortController();
+      activeRequestRef.current = controller;
+      try {
+        const params = new URLSearchParams();
+        if (mount) {
+          params.set('mount', mount);
+        }
+        params.set('depth', String(nextDepth));
+        params.set('limit', '8');
+        if (includeFilesValue) {
+          params.set('include_files', 'true');
+        }
+
+        const response = await fetch(`/api/metrics/disk/details?${params.toString()}`, {
+          signal: controller.signal
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `request failed with status ${response.status}`);
+        }
+
+        const data: DiskDetailResponse = await response.json();
+        setDiskDetails(data);
+        setSelectedMount(data.active_mount || mount);
+        setDepth(data.depth);
+        setIncludeFiles(includeFilesValue);
+        setDetailsError(null);
+        activeRequestRef.current = null;
+      } catch (error) {
+        activeRequestRef.current = null;
+        if ((error as { name?: string })?.name === 'AbortError') {
+          setDetailsError('Scan cancelled');
+        } else {
+          setDetailsError(error instanceof Error ? error.message : String(error));
+        }
+      } finally {
+        setDetailsLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    fetchDiskDetails('/', DEFAULT_DEPTH, false);
+    return () => {
+      if (activeRequestRef.current) {
+        activeRequestRef.current.abort();
+      }
+    };
+  }, [fetchDiskDetails]);
+
+  const partitions = diskDetails?.partitions ?? [];
+  const activePartition = useMemo<DiskPartitionInfo | null>(() => {
+    if (partitions.length === 0) {
+      return null;
+    }
+    const exact = partitions.find(partition => partition.mount_point === selectedMount);
+    return exact ?? partitions[0];
+  }, [partitions, selectedMount]);
+
+  const summaryDiskInfo: DiskInfo | undefined = activePartition
+    ? {
+        used: activePartition.used_bytes,
+        total: activePartition.size_bytes,
+        percent: activePartition.use_percent
+      }
+    : diskUsage;
+
+  const selectedMountLabel = activePartition?.mount_point ?? selectedMount;
+  const deviceLabel = activePartition?.device ? `Device ${activePartition.device}` : undefined;
+
+  const lastUpdated = diskDetails?.timestamp
+    ? diskDetails.timestamp
+    : diskLastUpdated ?? detailedMetrics?.timestamp;
+
+  const subheadParts: string[] = [];
+  if (deviceLabel) {
+    subheadParts.push(deviceLabel);
+  }
+  if (lastUpdated) {
+    subheadParts.push(`Last scan ${formatTimeLabel(lastUpdated)}`);
+  }
+  if (detailsLoading) {
+    subheadParts.push('Analyzing…');
+  }
+
+  const topDirectories = diskDetails?.top_directories ?? [];
+  const largestFiles = diskDetails?.largest_files ?? [];
+
+  const handleMountSelect = (mountPoint: string) => {
+    setSelectedMount(mountPoint);
+    fetchDiskDetails(mountPoint, depth, includeFiles);
+  };
+
+  const handleDepthChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const nextDepth = Number(event.target.value);
+    setDepth(nextDepth);
+    fetchDiskDetails(selectedMount, nextDepth, includeFiles);
+  };
+
+  const handleRefresh = () => {
+    fetchDiskDetails(selectedMount, depth, includeFiles);
+  };
+
+  const handleScanLargestFiles = () => {
+    setIncludeFiles(true);
+    fetchDiskDetails(selectedMount, depth, true);
+  };
+
+  const handleStopScan = () => {
+    if (activeRequestRef.current) {
+      activeRequestRef.current.abort();
+      activeRequestRef.current = null;
+      setDetailsLoading(false);
+    }
+  };
 
   return (
     <MetricDetailLayout
       title="DISK PERFORMANCE"
       icon={<HardDrive size={22} />}
-      headline={diskUsage ? `${diskUsage.percent.toFixed(1)}% utilized` : 'Awaiting disk telemetry'}
-      subhead={subhead}
+      headline={summaryDiskInfo ? `${summaryDiskInfo.percent.toFixed(1)}% utilized on ${selectedMountLabel}` : 'Awaiting disk telemetry'}
+      subhead={subheadParts.length > 0 ? subheadParts.join(' • ') : undefined}
       onBack={onBack}
     >
       <MetricLineChart
@@ -728,7 +861,10 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--spacing-lg)' }}>
-        {buildDiskUsageCard(diskUsage)}
+        {buildDiskUsageCard(summaryDiskInfo, {
+          title: `Usage for ${selectedMountLabel}`,
+          subtitle: deviceLabel ?? 'Current usage across monitored volumes'
+        })}
 
         <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
           <div>
@@ -762,6 +898,228 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             </div>
           )}
         </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--spacing-lg)' }}>
+        <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+          <div>
+            <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Mounted Volumes</h3>
+            <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em', fontSize: 'var(--font-size-sm)' }}>
+              Select a mount to drill into its usage profile
+            </div>
+          </div>
+          {partitions.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+              {partitions.map(partition => {
+                const isActive = partition.mount_point === selectedMount;
+                const percent = Math.min(Math.max(partition.use_percent, 0), 100);
+                return (
+                  <button
+                    key={`${partition.device}-${partition.mount_point}`}
+                    type="button"
+                    onClick={() => handleMountSelect(partition.mount_point)}
+                    disabled={detailsLoading && isActive}
+                    style={{
+                      textAlign: 'left',
+                      border: `1px solid ${isActive ? 'var(--color-text-bright)' : 'rgba(0,255,0,0.2)'}`,
+                      background: 'rgba(0,0,0,0.4)',
+                      color: 'var(--color-text)',
+                      padding: 'var(--spacing-sm) var(--spacing-md)',
+                      borderRadius: 'var(--border-radius-md)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--spacing-xs)',
+                      cursor: detailsLoading && isActive ? 'not-allowed' : 'pointer',
+                      opacity: detailsLoading && isActive ? 0.6 : 1,
+                      letterSpacing: '0.04em'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ color: 'var(--color-text-bright)', fontWeight: 600 }}>{partition.mount_point}</span>
+                      <span style={{ color: 'var(--color-warning)', fontSize: 'var(--font-size-sm)' }}>{percent.toFixed(1)}%</span>
+                    </div>
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-dim)' }}>{partition.device}</div>
+                    <div style={{
+                      width: '100%',
+                      height: '6px',
+                      background: 'rgba(0, 255, 0, 0.1)',
+                      borderRadius: 'var(--border-radius-sm)'
+                    }}>
+                      <div
+                        style={{
+                          width: `${percent}%`,
+                          height: '100%',
+                          background: 'linear-gradient(90deg, var(--color-warning), var(--color-error))',
+                          borderRadius: 'var(--border-radius-sm)'
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-dim)' }}>
+                      <span>Used {partition.used_human}</span>
+                      <span>Free {partition.available_human}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em' }}>
+              Partition information is unavailable on this platform.
+            </div>
+          )}
+        </div>
+
+        <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+          <div>
+            <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Analysis Controls</h3>
+            <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em', fontSize: 'var(--font-size-sm)' }}>
+              Customize the depth and scope of disk analysis
+            </div>
+          </div>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)', color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)' }}>
+            Depth
+            <select
+              value={depth}
+              onChange={handleDepthChange}
+              disabled={detailsLoading}
+              style={{
+                background: 'rgba(0,0,0,0.6)',
+                color: 'var(--color-text)',
+                border: '1px solid var(--color-accent)',
+                borderRadius: 'var(--border-radius-md)',
+                padding: 'var(--spacing-xs) var(--spacing-sm)'
+              }}
+            >
+              <option value={1}>Top-level directories</option>
+              <option value={2}>Include first sub-level</option>
+              <option value={3}>Include two sub-levels</option>
+              <option value={4}>Deep scan (slower)</option>
+            </select>
+          </label>
+          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-action"
+              onClick={handleRefresh}
+              disabled={detailsLoading}
+            >
+              {detailsLoading ? 'Scanning…' : 'Refresh Scan'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-action"
+              onClick={handleScanLargestFiles}
+              disabled={detailsLoading}
+            >
+              {includeFiles ? 'Rescan Largest Files' : 'Find Largest Files (>50MB)'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-action"
+              onClick={handleStopScan}
+              disabled={!detailsLoading}
+            >
+              Stop Scan
+            </button>
+          </div>
+          <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)', letterSpacing: '0.06em' }}>
+            Deeper scans and file discovery may take longer on large volumes.
+          </div>
+        </div>
+      </div>
+
+      {detailsError && (
+        <div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)', letterSpacing: '0.08em' }}>
+          Failed to analyze disk usage: {detailsError}
+        </div>
+      )}
+
+      {diskDetails?.notes && diskDetails.notes.length > 0 && (
+        <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)', color: 'var(--color-warning)' }}>
+          {diskDetails.notes.map((note, index) => (
+            <div key={`${note}-${index}`} style={{ letterSpacing: '0.08em' }}>
+              • {note}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
+          <div>
+            <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Top Directories</h3>
+            <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em', fontSize: 'var(--font-size-sm)' }}>
+              Heaviest paths within {selectedMountLabel} (depth {depth})
+            </div>
+          </div>
+        </div>
+        {detailsLoading && topDirectories.length === 0 ? (
+          <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em' }}>Analyzing directory usage…</div>
+        ) : topDirectories.length > 0 ? (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-sm)' }}>
+              <thead>
+                <tr style={{ color: 'var(--color-text-dim)', textAlign: 'left' }}>
+                  <th style={{ padding: 'var(--spacing-xs)' }}>Path</th>
+                  <th style={{ padding: 'var(--spacing-xs)' }}>Size</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topDirectories.map((entry: DiskUsageEntry) => (
+                  <tr key={entry.path} style={{ borderTop: '1px solid rgba(0,255,0,0.15)' }}>
+                    <td style={{ padding: 'var(--spacing-xs)', color: 'var(--color-text-bright)' }}>{entry.path}</td>
+                    <td style={{ padding: 'var(--spacing-xs)', color: 'var(--color-accent)', whiteSpace: 'nowrap' }}>{entry.size_human}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em' }}>
+            No directories exceeded the scan threshold at this depth.
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+        <div>
+          <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Largest Files</h3>
+          <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em', fontSize: 'var(--font-size-sm)' }}>
+            Files larger than 50 MB within {selectedMountLabel}
+          </div>
+        </div>
+        {includeFiles ? (
+          largestFiles.length > 0 ? (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-sm)' }}>
+                <thead>
+                  <tr style={{ color: 'var(--color-text-dim)', textAlign: 'left' }}>
+                    <th style={{ padding: 'var(--spacing-xs)' }}>File</th>
+                    <th style={{ padding: 'var(--spacing-xs)' }}>Size</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {largestFiles.map(entry => (
+                    <tr key={entry.path} style={{ borderTop: '1px solid rgba(0,255,0,0.15)' }}>
+                      <td style={{ padding: 'var(--spacing-xs)', color: 'var(--color-text-bright)' }}>{entry.path}</td>
+                      <td style={{ padding: 'var(--spacing-xs)', color: 'var(--color-accent)', whiteSpace: 'nowrap' }}>{entry.size_human}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : detailsLoading ? (
+            <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em' }}>Scanning for large files…</div>
+          ) : (
+            <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em' }}>
+              No files above 50 MB were detected in this mount.
+            </div>
+          )
+        ) : (
+          <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em' }}>
+            Run the "Find Largest Files" scan to surface oversized artifacts.
+          </div>
+        )}
       </div>
 
       <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
