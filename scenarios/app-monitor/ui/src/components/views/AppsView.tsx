@@ -7,6 +7,7 @@ import type { App, AppViewMode } from '@/types';
 import AppCard from '../AppCard';
 import AppModal from '../AppModal';
 import { AppsGridSkeleton } from '../LoadingSkeleton';
+import { buildPreviewUrl, isRunningStatus, isStoppedStatus } from '@/utils/appPreview';
 import './AppsView.css';
 
 interface AppsViewProps {
@@ -42,12 +43,14 @@ ViewToggle.displayName = 'ViewToggle';
 const VirtualAppList = memo(({ 
   apps, 
   viewMode, 
-  onAppClick, 
-  onAppAction 
+  onPreview, 
+  onDetails,
+  onAppAction,
 }: {
   apps: App[];
   viewMode: AppViewMode;
-  onAppClick: (app: App) => void;
+  onPreview: (app: App) => void;
+  onDetails: (app: App) => void;
   onAppAction: (appId: string, action: 'start' | 'stop') => void;
 }) => {
   // For lists with many items, implement virtual scrolling
@@ -83,7 +86,8 @@ const VirtualAppList = memo(({
           key={app.id}
           app={app}
           viewMode={viewMode}
-          onClick={onAppClick}
+          onCardClick={onPreview}
+          onDetails={onDetails}
           onStart={(id) => onAppAction(id, 'start')}
           onStop={(id) => onAppAction(id, 'stop')}
         />
@@ -106,12 +110,12 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
   const [viewMode, setViewMode] = useState<AppViewMode>('grid');
   const [selectedApp, setSelectedApp] = useState<App | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
-  // Fetch apps on mount - memoized to prevent re-creation
   const fetchApps = useCallback(async () => {
     setLoading(true);
     logger.time('fetchApps');
-    
+
     try {
       const fetchedApps = await appService.getApps();
       setApps(fetchedApps);
@@ -128,7 +132,6 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
     fetchApps();
   }, [fetchApps]);
 
-  // Memoized filtered apps to prevent recalculation
   const filteredApps = useMemo(() => {
     const statusPriority: Record<string, number> = {
       running: 0,
@@ -162,14 +165,12 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
       });
   }, [apps, search]);
 
-  // Memoized app action handler
   const handleAppAction = useCallback(async (appId: string, action: 'start' | 'stop' | 'restart') => {
     logger.info(`App action: ${action} for ${appId}`);
-    
+
     try {
       const success = await appService.controlApp(appId, action);
       if (success) {
-        // Optimistically update local state
         setApps(prev => prev.map(app => {
           if (app.id === appId) {
             return {
@@ -187,29 +188,49 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
     }
   }, [setApps]);
 
-  // Memoized app click handler
-  const handleAppClick = useCallback((app: App) => {
+  const handleAppDetails = useCallback((app: App) => {
     setSelectedApp(app);
     setModalOpen(true);
   }, []);
 
-  // Memoized view logs handler
+  const handleAppPreview = useCallback((app: App) => {
+    if (!isRunningStatus(app.status) || isStoppedStatus(app.status)) {
+      setInfoMessage(null);
+      setSelectedApp(app);
+      setModalOpen(true);
+      return;
+    }
+
+    const url = buildPreviewUrl(app);
+    if (!url) {
+      setInfoMessage('This application does not expose a UI port. Opening details instead.');
+      setSelectedApp(app);
+      setModalOpen(true);
+      return;
+    }
+
+    setInfoMessage(null);
+    navigate(`/apps/${encodeURIComponent(app.id)}/preview`);
+  }, [navigate]);
+
   const handleViewLogs = useCallback((appId: string) => {
     setModalOpen(false);
+    setSelectedApp(null);
     navigate(`/logs/${appId}`);
   }, [navigate]);
 
-  // Memoized view toggle handler
   const toggleViewMode = useCallback(() => {
     setViewMode(prev => prev === 'grid' ? 'list' : 'grid');
   }, []);
 
-  // Memoized search handler with debouncing
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
   }, []);
 
-  // Determine whether to use virtual scrolling
+  const dismissInfoMessage = useCallback(() => {
+    setInfoMessage(null);
+  }, []);
+
   const useVirtualScrolling = filteredApps.length > 100;
 
   return (
@@ -241,7 +262,8 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
         <VirtualAppList
           apps={filteredApps}
           viewMode={viewMode}
-          onAppClick={handleAppClick}
+          onPreview={handleAppPreview}
+          onDetails={handleAppDetails}
           onAppAction={handleAppAction}
         />
       ) : (
@@ -251,7 +273,8 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
               key={app.id}
               app={app}
               viewMode={viewMode}
-              onClick={handleAppClick}
+              onCardClick={handleAppPreview}
+              onDetails={handleAppDetails}
               onStart={(id) => handleAppAction(id, 'start')}
               onStop={(id) => handleAppAction(id, 'stop')}
             />
@@ -259,13 +282,25 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
         </div>
       )}
 
+      {infoMessage && (
+        <div className="apps-view-message">
+          <span>{infoMessage}</span>
+          <button className="apps-view-message__dismiss" onClick={dismissInfoMessage}>
+            DISMISS
+          </button>
+        </div>
+      )}
+
       {modalOpen && selectedApp && (
         <AppModal
           app={selectedApp}
           isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
+          onClose={() => {
+            setModalOpen(false);
+            setSelectedApp(null);
+          }}
           onAction={handleAppAction}
-          onViewLogs={(appId) => handleViewLogs(appId)}
+          onViewLogs={handleViewLogs}
         />
       )}
     </div>

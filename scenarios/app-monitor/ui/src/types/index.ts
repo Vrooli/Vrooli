@@ -78,7 +78,7 @@ export interface TerminalCommand {
 }
 
 // View Types
-export type ViewType = 'apps' | 'metrics' | 'logs' | 'resources' | 'terminal';
+export type ViewType = 'apps' | 'logs' | 'resources' | 'terminal';
 export type AppViewMode = 'grid' | 'list';
 
 // Filter/Sort Options

@@ -79,7 +79,7 @@ ui/
 │   │   ├── AppModal.tsx  # App details modal
 │   │   └── views/        # Page views
 │   │       ├── AppsView.tsx
-│   │       ├── MetricsView.tsx
+│   │       ├── AppPreviewView.tsx
 │   │       ├── LogsView.tsx
 │   │       ├── ResourcesView.tsx
 │   │       └── TerminalView.tsx
@@ -103,6 +103,7 @@ ui/
 - **Hot Module Replacement**: Instant updates without page refresh
 - **TypeScript**: Full type safety and IntelliSense
 - **React Router**: Client-side routing with browser history
+- **Inline Previews**: Launch running scenarios on a dedicated preview route with embedded iframe panels
 - **WebSocket Hook**: Real-time updates with automatic reconnection
 - **API Service Layer**: Centralized error handling and logging
 - **Responsive Design**: Mobile-friendly Matrix theme

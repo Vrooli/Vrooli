@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import AppsView from '@/components/views/AppsView';
-import MetricsView from '@/components/views/MetricsView';
+import AppPreviewView from '@/components/views/AppPreviewView';
 import LogsView from '@/components/views/LogsView';
 import ResourcesView from '@/components/views/ResourcesView';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -76,7 +76,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/apps" replace />} />
               <Route path="/apps" element={<AppsView apps={apps} setApps={setApps} />} />
-              <Route path="/metrics" element={<MetricsView />} />
+              <Route path="/apps/:appId/preview" element={<AppPreviewView apps={apps} setApps={setApps} />} />
               <Route path="/logs" element={<LogsView />} />
               <Route path="/logs/:appId" element={<LogsView />} />
               <Route path="/resources" element={<ResourcesView />} />

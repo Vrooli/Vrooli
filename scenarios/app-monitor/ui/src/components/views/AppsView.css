@@ -98,6 +98,38 @@
   gap: 1.5rem;
 }
 
+.apps-view-message {
+  margin-top: 1.5rem;
+  padding: 0.85rem 1.1rem;
+  border: 1px dashed rgba(0, 255, 255, 0.4);
+  background: rgba(0, 64, 80, 0.18);
+  color: var(--matrix-cyan);
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.apps-view-message__dismiss {
+  padding: 0.3rem 0.8rem;
+  border: 1px solid rgba(0, 255, 255, 0.4);
+  background: transparent;
+  color: var(--matrix-cyan);
+  font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.apps-view-message__dismiss:hover {
+  background: rgba(0, 255, 255, 0.15);
+  color: var(--matrix-bg);
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.35);
+}
+
 /* List View */
 .apps-list {
   width: 100%;

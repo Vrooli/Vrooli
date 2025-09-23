@@ -5,10 +5,12 @@ import './AppCard.css';
 
 interface AppCardProps {
   app: App;
-  onClick: (app: App) => void;
+  onCardClick: (app: App) => void;
+  onDetails: (app: App) => void;
   onStart: (appId: string) => void;
   onStop: (appId: string) => void;
   viewMode?: 'grid' | 'list';
+  isActive?: boolean;
 }
 
 // Memoized status badge component
@@ -75,15 +77,22 @@ const orderedPortMetrics = (app: App) => {
 // Main AppCard component with memoization
 const AppCard = memo<AppCardProps>(({ 
   app, 
-  onClick, 
+  onCardClick, 
+  onDetails, 
   onStart, 
   onStop, 
-  viewMode = 'grid' 
+  viewMode = 'grid',
+  isActive = false,
 }) => {
   // Memoize event handlers to prevent re-creation
   const handleClick = useCallback(() => {
-    onClick(app);
-  }, [onClick, app]);
+    onCardClick(app);
+  }, [onCardClick, app]);
+
+  const handleDetails = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDetails(app);
+  }, [onDetails, app]);
 
   const handleStart = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -134,7 +143,7 @@ const AppCard = memo<AppCardProps>(({
   
   return (
     <div 
-      className={clsx('app-card', viewMode, app.status.toLowerCase())}
+      className={clsx('app-card', viewMode, app.status.toLowerCase(), { active: isActive })}
       onClick={handleClick}
     >
       <div className="app-header">
@@ -158,7 +167,7 @@ const AppCard = memo<AppCardProps>(({
             START
           </button>
         )}
-        <button className="action-btn details" onClick={handleClick}>
+        <button className="action-btn details" onClick={handleDetails}>
           DETAILS
         </button>
       </div>
@@ -173,6 +182,7 @@ const AppCard = memo<AppCardProps>(({
     prevProps.app.runtime === nextProps.app.runtime &&
     prevProps.app.created_at === nextProps.app.created_at &&
     prevProps.viewMode === nextProps.viewMode &&
+    prevProps.isActive === nextProps.isActive &&
     JSON.stringify(prevProps.app.port_mappings) === JSON.stringify(nextProps.app.port_mappings)
   );
 });

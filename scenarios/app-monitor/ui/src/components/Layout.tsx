@@ -72,7 +72,6 @@ export default function Layout({ children, isConnected }: LayoutProps) {
 
   const menuItems = [
     { path: '/apps', label: 'APPLICATIONS', icon: '▶' },
-    { path: '/metrics', label: 'METRICS', icon: '▶' },
     { path: '/logs', label: 'SYSTEM LOGS', icon: '▶' },
     { path: '/resources', label: 'RESOURCES', icon: '▶' },
   ];

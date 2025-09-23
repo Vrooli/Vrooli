@@ -28,6 +28,16 @@
   box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
 }
 
+.app-card.active {
+  border-color: rgba(0, 255, 255, 0.65);
+  box-shadow: 0 0 22px rgba(0, 255, 255, 0.35);
+}
+
+.app-card.active::before {
+  transform: scaleX(1);
+  background: rgba(0, 255, 255, 0.8);
+}
+
 .app-card.running,
 .app-card.healthy {
   border-width: 2px;
