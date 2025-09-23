@@ -285,7 +285,7 @@ export const InvestigationsSection = ({
                     fontWeight: autoFixEnabled ? 'bold' : 'normal',
                     color: autoFixEnabled ? 'var(--color-text-bright)' : 'inherit'
                   }}>
-                    Auto-fix safe issues
+                    Adaptive auto-fix & recovery
                   </span>
                 </label>
 
@@ -460,6 +460,14 @@ export const InvestigationsSection = ({
                 )}
               </div>
 
+              <div style={{
+                marginTop: 'var(--spacing-xs)',
+                color: 'var(--color-text-dim)',
+                fontSize: 'var(--font-size-xs)'
+              }}>
+                Auto-fix prioritizes reversible fixes and only escalates to critical recovery steps when the system is in a verified dire state.
+              </div>
+
               {/* Agent Note Field */}
               {showNoteField && (
                 <div style={{
@@ -522,9 +530,10 @@ export const InvestigationsSection = ({
                   fontSize: 'var(--font-size-xs)',
                   color: 'var(--color-text-dim)'
                 }}>
-                  <strong>Auto-fix mode:</strong> The agent will automatically resolve issues it deems safe to fix, 
-                  such as clearing cache, restarting stuck services, or optimizing configurations. 
-                  Destructive operations will never be performed automatically.
+                  <strong>Adaptive auto-fix:</strong> The agent will still perform routine safe fixes (cache clears,
+                  service restarts, configuration tuning), and when metrics confirm a dire state it may execute
+                  documented recovery steps like terminating a runaway process or restarting non-primary workers.
+                  It will never make irreversible changes such as data deletion, credential updates, or full system reboots.
                 </div>
               )}
             </div>

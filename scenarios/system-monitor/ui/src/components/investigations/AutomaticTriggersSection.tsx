@@ -676,7 +676,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
               lineHeight: '1.4'
             }}>
               <strong>Note:</strong> Triggers respect the cooldown period to prevent investigation spam. 
-              Auto-fix mode only applies to safe operations like cache clearing and service restarts.
+              Auto-fix still favors safe operations first, and only escalates to documented recovery steps when metrics prove the system is in a dire state.
             </span>
           </div>
         </div>
