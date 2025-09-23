@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Settings, Shield, Clock, RefreshCw, AlertCircle, Cpu, HardDrive, Network, Database, Zap, X, Save } from 'lucide-react';
 
 interface TriggerConfig {
@@ -11,6 +11,22 @@ interface TriggerConfig {
   threshold: number;
   unit: string;
   condition: 'above' | 'below';
+  currentValue?: number;
+  progress?: number;
+}
+
+interface TriggerApiResponse {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  enabled: boolean;
+  auto_fix: boolean;
+  threshold: number;
+  unit: string;
+  condition: 'above' | 'below';
+  current_value?: number;
+  progress?: number;
 }
 
 interface AutomaticTriggersSectionProps {
@@ -30,11 +46,6 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
   const [loading, setLoading] = useState(true);
   const [editingTrigger, setEditingTrigger] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{ [key: string]: number }>({});
-
-  // Load data from API on mount
-  useEffect(() => {
-    loadData();
-  }, []);
 
   // Update cooldown timer
   useEffect(() => {
@@ -60,10 +71,24 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
     };
   }, []);
 
-  const loadData = async () => {
+  const getIconComponent = useCallback((iconName: string): React.ElementType => {
+    switch (iconName) {
+      case 'cpu': return Cpu;
+      case 'database': return Database;
+      case 'hard-drive': return HardDrive;
+      case 'network': return Network;
+      case 'zap': return Zap;
+      default: return AlertCircle;
+    }
+  }, []);
+
+  const loadData = useCallback(async (options: { suppressLoading?: boolean } = {}) => {
+    const { suppressLoading = false } = options;
     try {
-      setLoading(true);
-      
+      if (!suppressLoading) {
+        setLoading(true);
+      }
+
       // Load triggers and cooldown status
       const [triggersResponse, cooldownResponse] = await Promise.all([
         fetch('/api/investigations/triggers'),
@@ -71,9 +96,9 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
       ]);
       
       if (triggersResponse.ok) {
-        const triggersData = await triggersResponse.json();
+        const triggersData: Record<string, TriggerApiResponse> = await triggersResponse.json();
         // Convert API data to UI format
-        const uiTriggers = Object.values(triggersData).map((trigger: any) => ({
+        const uiTriggers = Object.values(triggersData).map((trigger) => ({
           id: trigger.id,
           name: trigger.name,
           description: trigger.description,
@@ -82,7 +107,9 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
           autoFix: trigger.auto_fix,
           threshold: trigger.threshold,
           unit: trigger.unit,
-          condition: trigger.condition
+          condition: trigger.condition,
+          currentValue: typeof trigger.current_value === 'number' ? trigger.current_value : undefined,
+          progress: typeof trigger.progress === 'number' ? trigger.progress : undefined
         }));
         setTriggers(uiTriggers as TriggerConfig[]);
       }
@@ -100,20 +127,22 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
     } catch (error) {
       console.error('Failed to load trigger data:', error);
     } finally {
-      setLoading(false);
+      if (!suppressLoading) {
+        setLoading(false);
+      }
     }
-  };
+  }, [getIconComponent]);
 
-  const getIconComponent = (iconName: string): React.ElementType => {
-    switch (iconName) {
-      case 'cpu': return Cpu;
-      case 'database': return Database;
-      case 'hard-drive': return HardDrive;
-      case 'network': return Network;
-      case 'zap': return Zap;
-      default: return AlertCircle;
-    }
-  };
+  // Load data from API on mount and refresh periodically for live progress updates
+  useEffect(() => {
+    loadData();
+
+    const refreshInterval = setInterval(() => {
+      loadData({ suppressLoading: true });
+    }, 5000);
+
+    return () => clearInterval(refreshInterval);
+  }, [loadData]);
 
   const handleToggleTrigger = async (triggerId: string) => {
     try {
@@ -407,6 +436,8 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
           }}>
             {triggers.map(trigger => {
               const Icon = trigger.icon;
+              const progressValue = Math.min(Math.max(trigger.progress ?? 0, 0), 1);
+              const showProgress = trigger.enabled && typeof trigger.progress === 'number';
               return (
                 <div
                   key={trigger.id}
@@ -544,6 +575,28 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                     }}>
                       {trigger.description}
                     </span>
+                    {showProgress && (
+                      <div
+                        style={{
+                          marginTop: 'var(--spacing-sm)',
+                          background: 'rgba(0, 255, 0, 0.08)',
+                          borderRadius: '999px',
+                          overflow: 'hidden',
+                          height: '6px',
+                          boxShadow: '0 0 8px rgba(0, 255, 0, 0.2)'
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${progressValue * 100}%`,
+                            height: '100%',
+                            background: 'linear-gradient(90deg, rgba(0, 255, 0, 0.3) 0%, rgba(0, 255, 0, 0.8) 100%)',
+                            transition: 'width 0.4s ease',
+                            boxShadow: progressValue > 0.95 ? '0 0 12px rgba(0, 255, 0, 0.6)' : 'none'
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ 

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import type { ErrorInfo } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Header } from './components/common/Header';
-import { StatusIndicator } from './components/common/StatusIndicator';
 import { MetricsGrid } from './components/metrics/MetricsGrid';
 import { CpuDetailView, MemoryDetailView, NetworkDetailView, DiskDetailView } from './components/metrics/MetricDetailViews';
 import { InfrastructureMonitor } from './components/monitoring/InfrastructureMonitor';
@@ -109,11 +108,6 @@ function App() {
       ...prev,
       terminalVisible: !prev.terminalVisible
     }));
-  };
-
-  const refreshDashboard = () => {
-    // Trigger refresh of all data
-    window.location.reload();
   };
 
   // Modal handler functions
@@ -267,19 +261,9 @@ function App() {
         <Header 
           isOnline={dashboardState.isOnline}
           unreadErrorCount={dashboardState.unreadErrorCount}
-          onRefresh={refreshDashboard}
           onToggleTerminal={toggleTerminal}
+          onOpenSettings={() => setSystemSettingsModalOpen(true)}
         />
-
-        {/* System Status Indicator */}
-        <div style={{
-          position: 'fixed',
-          top: '80px',
-          right: '20px',
-          zIndex: 100
-        }}>
-          <StatusIndicator onOpenSettings={() => setSystemSettingsModalOpen(true)} />
-        </div>
 
         <main className="main-content">
           <div className="container" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>

@@ -97,6 +97,12 @@ type TriggerConfig struct {
 	Condition   string  `json:"condition"`
 }
 
+type triggerWithStatus struct {
+	TriggerConfig
+	CurrentValue float64 `json:"current_value"`
+	Progress     float64 `json:"progress"`
+}
+
 type investigationScriptManifestEntry struct {
 	Name                  string   `json:"name"`
 	Description           string   `json:"description"`
@@ -1995,10 +2001,130 @@ func updateCooldownPeriodHandler(w http.ResponseWriter, r *http.Request) {
 // getTriggersHandler returns all trigger configurations
 func getTriggersHandler(w http.ResponseWriter, r *http.Request) {
 	triggersMutex.RLock()
-	defer triggersMutex.RUnlock()
+	snapshot := make(map[string]*TriggerConfig, len(triggers))
+	for id, cfg := range triggers {
+		copyCfg := *cfg
+		snapshot[id] = &copyCfg
+	}
+	triggersMutex.RUnlock()
+
+	// Lazily sample system metrics needed for trigger progress calculations.
+	var (
+		cpuUsageSample        float64
+		memoryUsageSample     float64
+		availableMemorySample float64
+		diskUsageSample       float64
+		tcpConnectionSample   float64
+		processAnomalySample  float64
+		cpuSampled            bool
+		memorySampled         bool
+		diskSampled           bool
+		tcpSampled            bool
+		processAnomalySampled bool
+	)
+
+	response := make(map[string]triggerWithStatus, len(snapshot))
+
+	for id, cfg := range snapshot {
+		var currentValue float64
+
+		switch id {
+		case "high_cpu":
+			if !cpuSampled {
+				cpuUsageSample = sanitizeTriggerMetric(getCPUUsage())
+				cpuSampled = true
+			}
+			currentValue = cpuUsageSample
+		case "memory_pressure":
+			if !memorySampled {
+				memoryUsageSample = sanitizeTriggerMetric(getMemoryUsage())
+				available := 100.0 - memoryUsageSample
+				if available < 0 {
+					available = 0
+				}
+				availableMemorySample = available
+				memorySampled = true
+			}
+			currentValue = availableMemorySample
+		case "disk_space":
+			if !diskSampled {
+				diskUsageSample = sanitizeTriggerMetric(getDiskUsage().Percent)
+				diskSampled = true
+			}
+			currentValue = diskUsageSample
+		case "network_connections":
+			if !tcpSampled {
+				tcpConnectionSample = sanitizeTriggerMetric(float64(getTCPConnections()))
+				tcpSampled = true
+			}
+			currentValue = tcpConnectionSample
+		case "process_anomaly":
+			if !processAnomalySampled {
+				zombieCount := len(getZombieProcesses())
+				highThreadCount := len(getHighThreadCountProcesses())
+				leakCandidateCount := len(getResourceLeakCandidates())
+				processAnomalySample = sanitizeTriggerMetric(float64(zombieCount + highThreadCount + leakCandidateCount))
+				processAnomalySampled = true
+			}
+			currentValue = processAnomalySample
+		default:
+			currentValue = 0
+		}
+
+		progress := calculateTriggerProgress(cfg.Condition, cfg.Threshold, currentValue)
+
+		response[id] = triggerWithStatus{
+			TriggerConfig: *cfg,
+			CurrentValue:  currentValue,
+			Progress:      progress,
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(triggers)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode trigger response: %v", err)
+	}
+}
+
+func calculateTriggerProgress(condition string, threshold float64, value float64) float64 {
+	if threshold <= 0 {
+		return 0
+	}
+
+	var progress float64
+	switch condition {
+	case "below":
+		if value <= 0 {
+			progress = 1
+		} else {
+			progress = threshold / value
+		}
+	default:
+		progress = value / threshold
+	}
+
+	if math.IsNaN(progress) || math.IsInf(progress, 0) {
+		return 0
+	}
+
+	if progress < 0 {
+		progress = 0
+	}
+	if progress > 1 {
+		progress = 1
+	}
+
+	return progress
+}
+
+func sanitizeTriggerMetric(value float64) float64 {
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0
+	}
+	if value < 0 {
+		return 0
+	}
+	return value
 }
 
 // updateTriggerHandler updates a trigger configuration
