@@ -50,6 +50,7 @@ function App() {
     processMonitorData,
     infrastructureData,
     investigations,
+    metricHistory,
     isLoading,
     error
   } = useSystemMonitor();
@@ -275,12 +276,13 @@ function App() {
             
             {/* Real-time Metrics Grid */}
             <section className="mb-lg">
-              <MetricsGrid 
-                metrics={metrics}
-                detailedMetrics={detailedMetrics}
-                expandedCards={dashboardState.expandedCards}
-                onToggleCard={toggleCard}
-              />
+      <MetricsGrid
+        metrics={metrics}
+        detailedMetrics={detailedMetrics}
+        expandedCards={dashboardState.expandedCards}
+        onToggleCard={toggleCard}
+        metricHistory={metricHistory}
+      />
             </section>
 
             {/* Process Monitor Panel */}

@@ -26,7 +26,7 @@ type MonitorService struct {
 // NewMonitorService creates a new monitor service
 func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, alertSvc interface{}) *MonitorService {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	svc := &MonitorService{
 		config:     cfg,
 		repo:       repo,
@@ -35,10 +35,10 @@ func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, al
 		ctx:        ctx,
 		cancel:     cancel,
 	}
-	
+
 	// Register collectors
 	svc.registerCollectors()
-	
+
 	return svc
 }
 
@@ -54,10 +54,10 @@ func (s *MonitorService) registerCollectors() {
 // Start begins the monitoring service
 func (s *MonitorService) Start() error {
 	log.Println("Starting monitor service...")
-	
+
 	// Start collection loop
 	go s.collectionLoop()
-	
+
 	log.Println("Monitor service started")
 	return nil
 }
@@ -73,7 +73,7 @@ func (s *MonitorService) Stop() {
 func (s *MonitorService) collectionLoop() {
 	ticker := time.NewTicker(s.config.Monitoring.MetricsInterval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -88,15 +88,15 @@ func (s *MonitorService) collectionLoop() {
 func (s *MonitorService) collectMetrics() {
 	ctx, cancel := context.WithTimeout(s.ctx, 30*time.Second)
 	defer cancel()
-	
+
 	// Collect from all collectors
 	metricsData, errors := s.collectors.CollectAll(ctx)
-	
+
 	// Log any collection errors
 	for _, err := range errors {
 		log.Printf("Metric collection error: %v", err)
 	}
-	
+
 	// Store metrics
 	for _, data := range metricsData {
 		if err := s.repo.SaveMetrics(ctx, data.CollectorName, data.Values); err != nil {
@@ -113,7 +113,7 @@ func (s *MonitorService) GetCurrentMetrics(ctx context.Context) (*models.Metrics
 		// Fallback to real-time collection
 		return s.collectCurrentMetrics(ctx)
 	}
-	
+
 	return metrics, nil
 }
 
@@ -122,32 +122,32 @@ func (s *MonitorService) collectCurrentMetrics(ctx context.Context) (*models.Met
 	cpuCollector := collectors.NewCPUCollector()
 	memCollector := collectors.NewMemoryCollector()
 	netCollector := collectors.NewNetworkCollector()
-	
+
 	cpuData, _ := cpuCollector.Collect(ctx)
 	memData, _ := memCollector.Collect(ctx)
 	netData, _ := netCollector.Collect(ctx)
-	
+
 	cpuUsage := 0.0
 	if cpuData != nil {
 		if val, ok := cpuData.Values["usage_percent"].(float64); ok {
 			cpuUsage = val
 		}
 	}
-	
+
 	memUsage := 0.0
 	if memData != nil {
 		if val, ok := memData.Values["usage_percent"].(float64); ok {
 			memUsage = val
 		}
 	}
-	
+
 	tcpConnections := 0
 	if netData != nil {
 		if val, ok := netData.Values["tcp_connections"].(int); ok {
 			tcpConnections = val
 		}
 	}
-	
+
 	return &models.MetricsResponse{
 		CPUUsage:       cpuUsage,
 		MemoryUsage:    memUsage,
@@ -164,43 +164,43 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 	netCollector := collectors.NewNetworkCollector()
 	diskCollector := collectors.NewDiskCollector()
 	processCollector := collectors.NewProcessCollector()
-	
+
 	cpuData, _ := cpuCollector.Collect(ctx)
 	memData, _ := memCollector.Collect(ctx)
 	netData, _ := netCollector.Collect(ctx)
 	diskData, _ := diskCollector.Collect(ctx)
 	_, _ = processCollector.Collect(ctx) // Collected but not used here
-	
+
 	// Get top processes
 	topCPUProcs, _ := collectors.GetTopProcessesByCPU(5)
 	topMemProcs, _ := collectors.GetTopProcessesByMemory(5)
-	
+
 	// Build detailed metrics response
 	detailed := &models.DetailedMetrics{
 		Timestamp: time.Now(),
 	}
-	
+
 	// CPU Details
 	if cpuData != nil {
 		detailed.CPUDetails = models.CPUMetrics{
-			Usage:        getFloat64Value(cpuData.Values, "usage_percent"),
-			LoadAverage:  getFloat64Slice(cpuData.Values, "load_average"),
+			Usage:           getFloat64Value(cpuData.Values, "usage_percent"),
+			LoadAverage:     getFloat64Slice(cpuData.Values, "load_average"),
 			ContextSwitches: getInt64Value(cpuData.Values, "context_switches"),
-			Goroutines:   getIntValue(cpuData.Values, "goroutines"),
+			Goroutines:      getIntValue(cpuData.Values, "goroutines"),
 		}
-		
+
 		// Convert top processes
 		for _, proc := range topCPUProcs {
 			detailed.CPUDetails.TopProcesses = append(detailed.CPUDetails.TopProcesses, convertToProcessInfo(proc))
 		}
 	}
-	
+
 	// Memory Details
 	if memData != nil {
 		detailed.MemoryDetails = models.MemoryMetrics{
 			Usage: getFloat64Value(memData.Values, "usage_percent"),
 		}
-		
+
 		// Add swap info
 		if swapInfo, ok := memData.Values["swap"].(map[string]interface{}); ok {
 			detailed.MemoryDetails.SwapUsage = models.SwapInfo{
@@ -209,18 +209,18 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 				Percent: getFloat64Value(swapInfo, "percent"),
 			}
 		}
-		
+
 		// Add top memory processes
 		for _, proc := range topMemProcs {
 			detailed.MemoryDetails.TopProcesses = append(detailed.MemoryDetails.TopProcesses, convertToProcessInfo(proc))
 		}
-		
+
 		// Add mock growth patterns
 		detailed.MemoryDetails.GrowthPatterns = []models.MemoryGrowth{
 			{Process: "scenario-api-1", GrowthMBPerHour: 15.0, RiskLevel: "medium"},
 		}
 	}
-	
+
 	// Network Details
 	if netData != nil {
 		// TCP States
@@ -233,7 +233,7 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 				Total:       states["total"],
 			}
 		}
-		
+
 		// Port Usage
 		if portUsage, ok := netData.Values["port_usage"].(map[string]int); ok {
 			detailed.NetworkDetails.PortUsage = models.PortUsageInfo{
@@ -241,7 +241,7 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 				Total: portUsage["total"],
 			}
 		}
-		
+
 		// Network Stats
 		detailed.NetworkDetails.NetworkStats = models.NetworkStatistics{
 			BandwidthInMbps:  12.5,
@@ -251,7 +251,7 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 			DNSLatencyMs:     15.0,
 		}
 	}
-	
+
 	// System Details
 	if diskData != nil {
 		if fdInfo, ok := diskData.Values["file_descriptors"].(map[string]interface{}); ok {
@@ -262,10 +262,10 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 			}
 		}
 	}
-	
+
 	// Add service dependencies check
 	detailed.SystemDetails.ServiceDependencies = s.checkServiceDependencies()
-	
+
 	return detailed, nil
 }
 
@@ -276,24 +276,24 @@ func (s *MonitorService) GetProcessMonitorData(ctx context.Context) (*models.Pro
 	if err != nil {
 		return nil, err
 	}
-	
+
 	result := &models.ProcessMonitorData{
 		Timestamp: time.Now(),
 	}
-	
+
 	// Extract process health information
 	if healthData, ok := data.Values["process_health"].(map[string]interface{}); ok {
 		result.ProcessHealth = models.ProcessHealthInfo{
 			TotalProcesses: getIntValue(healthData, "total_count"),
 		}
-		
+
 		// Add zombie processes
 		if zombies, ok := data.Values["zombie_processes"].([]map[string]interface{}); ok {
 			for _, zombie := range zombies {
 				result.ProcessHealth.ZombieProcesses = append(result.ProcessHealth.ZombieProcesses, convertToProcessInfo(zombie))
 			}
 		}
-		
+
 		// Add high thread count processes
 		if highThread, ok := data.Values["high_thread_count"].([]map[string]interface{}); ok {
 			for _, proc := range highThread {
@@ -301,14 +301,14 @@ func (s *MonitorService) GetProcessMonitorData(ctx context.Context) (*models.Pro
 			}
 		}
 	}
-	
+
 	// Add top processes as resource matrix
 	if topProcs, ok := data.Values["top_by_cpu"].([]map[string]interface{}); ok {
 		for _, proc := range topProcs {
 			result.ResourceMatrix = append(result.ResourceMatrix, convertToProcessInfo(proc))
 		}
 	}
-	
+
 	return result, nil
 }
 
@@ -317,7 +317,7 @@ func (s *MonitorService) GetInfrastructureMonitorData(ctx context.Context) (*mod
 	result := &models.InfrastructureMonitorData{
 		Timestamp: time.Now(),
 	}
-	
+
 	// Get connection pools
 	result.DatabasePools = []models.ConnectionPool{
 		{
@@ -330,7 +330,7 @@ func (s *MonitorService) GetInfrastructureMonitorData(ctx context.Context) (*mod
 			LeakRisk: "low",
 		},
 	}
-	
+
 	result.HTTPClientPools = []models.ConnectionPool{
 		{
 			Name:     "scenario-api-1->ollama",
@@ -342,7 +342,7 @@ func (s *MonitorService) GetInfrastructureMonitorData(ctx context.Context) (*mod
 			LeakRisk: "low",
 		},
 	}
-	
+
 	// Message queue stats
 	result.MessageQueues = models.MessageQueueInfo{
 		RedisPubSub: models.RedisPubSubInfo{
@@ -355,7 +355,7 @@ func (s *MonitorService) GetInfrastructureMonitorData(ctx context.Context) (*mod
 			Failed:  0,
 		},
 	}
-	
+
 	// Storage I/O stats
 	result.StorageIO = models.StorageIOInfo{
 		DiskQueueDepth: 0.2,
@@ -363,7 +363,7 @@ func (s *MonitorService) GetInfrastructureMonitorData(ctx context.Context) (*mod
 		ReadMBPerSec:   15.0,
 		WriteMBPerSec:  8.0,
 	}
-	
+
 	return result, nil
 }
 
@@ -385,6 +385,13 @@ func (s *MonitorService) checkServiceDependencies() []models.ServiceHealth {
 			Endpoint:  "localhost:6379",
 		},
 		{
+			Name:      "qdrant",
+			Status:    "healthy",
+			LatencyMs: 4.1,
+			LastCheck: time.Now(),
+			Endpoint:  "localhost:6333",
+		},
+		{
 			Name:      "ollama",
 			Status:    "healthy",
 			LatencyMs: 15.2,
@@ -392,7 +399,7 @@ func (s *MonitorService) checkServiceDependencies() []models.ServiceHealth {
 			Endpoint:  "localhost:11434",
 		},
 	}
-	
+
 	return services
 }
 
@@ -443,13 +450,13 @@ func getFloat64Slice(m map[string]interface{}, key string) []float64 {
 
 func convertToProcessInfo(proc map[string]interface{}) models.ProcessInfo {
 	return models.ProcessInfo{
-		PID:         getIntValue(proc, "pid"),
-		Name:        getStringValue(proc, "name"),
-		CPUPercent:  getFloat64Value(proc, "cpu_percent"),
-		MemoryMB:    getFloat64Value(proc, "memory_mb"),
-		Threads:     getIntValue(proc, "threads"),
-		FDs:         getIntValue(proc, "fd_count"),
-		Status:      getStringValue(proc, "status"),
+		PID:        getIntValue(proc, "pid"),
+		Name:       getStringValue(proc, "name"),
+		CPUPercent: getFloat64Value(proc, "cpu_percent"),
+		MemoryMB:   getFloat64Value(proc, "memory_mb"),
+		Threads:    getIntValue(proc, "threads"),
+		FDs:        getIntValue(proc, "fd_count"),
+		Status:     getStringValue(proc, "status"),
 	}
 }
 

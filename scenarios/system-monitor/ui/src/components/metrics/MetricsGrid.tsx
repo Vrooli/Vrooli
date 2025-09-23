@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { MetricsResponse, DetailedMetrics, CardType } from '../../types';
+import type { MetricsResponse, DetailedMetrics, CardType, MetricHistory } from '../../types';
 import { MetricCard } from './MetricCard';
 
 interface MetricsGridProps {
@@ -7,9 +7,10 @@ interface MetricsGridProps {
   detailedMetrics: DetailedMetrics | null;
   expandedCards: Set<CardType>;
   onToggleCard: (cardType: string) => void;
+  metricHistory: MetricHistory | null;
 }
 
-export const MetricsGrid = ({ metrics, detailedMetrics, expandedCards, onToggleCard }: MetricsGridProps) => {
+export const MetricsGrid = ({ metrics, detailedMetrics, expandedCards, onToggleCard, metricHistory }: MetricsGridProps) => {
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   
   useEffect(() => {
@@ -61,6 +62,9 @@ export const MetricsGrid = ({ metrics, detailedMetrics, expandedCards, onToggleC
         onToggle={() => handleCardToggle('cpu')}
         details={detailedMetrics?.cpu_details}
         alertCount={0} // TODO: Calculate based on thresholds
+        history={metricHistory?.cpu}
+        historyWindowSeconds={metricHistory?.windowSeconds}
+        valueDomain={[0, 100]}
       />
 
       {/* Memory & Storage Card */}
@@ -73,6 +77,9 @@ export const MetricsGrid = ({ metrics, detailedMetrics, expandedCards, onToggleC
         onToggle={() => handleCardToggle('memory')}
         details={detailedMetrics?.memory_details}
         alertCount={0} // TODO: Calculate based on thresholds
+        history={metricHistory?.memory}
+        historyWindowSeconds={metricHistory?.windowSeconds}
+        valueDomain={[0, 100]}
       />
 
       {/* Network & Connections Card */}
@@ -85,6 +92,8 @@ export const MetricsGrid = ({ metrics, detailedMetrics, expandedCards, onToggleC
         onToggle={() => handleCardToggle('network')}
         details={detailedMetrics?.network_details}
         alertCount={0} // TODO: Calculate based on thresholds
+        history={metricHistory?.network}
+        historyWindowSeconds={metricHistory?.windowSeconds}
       />
 
       {/* System Health Card */}

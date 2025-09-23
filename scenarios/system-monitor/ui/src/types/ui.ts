@@ -75,6 +75,14 @@ export interface ChartDataPoint {
   label?: string;
 }
 
+export interface MetricHistory {
+  windowSeconds: number;
+  sampleIntervalSeconds: number;
+  cpu: ChartDataPoint[];
+  memory: ChartDataPoint[];
+  network: ChartDataPoint[];
+}
+
 export interface MetricThresholds {
   cpu: {
     warning: number;

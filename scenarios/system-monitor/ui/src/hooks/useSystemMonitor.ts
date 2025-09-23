@@ -5,7 +5,9 @@ import type {
   ProcessMonitorData,
   InfrastructureMonitorData,
   Investigation,
-  APIError
+  APIError,
+  MetricsTimelineResponse,
+  MetricHistory
 } from '../types';
 
 interface UseSystemMonitorReturn {
@@ -14,6 +16,7 @@ interface UseSystemMonitorReturn {
   processMonitorData: ProcessMonitorData | null;
   infrastructureData: InfrastructureMonitorData | null;
   investigations: Investigation[];
+  metricHistory: MetricHistory | null;
   isLoading: boolean;
   error: APIError | null;
   refresh: () => void;
@@ -28,10 +31,11 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   const [processMonitorData, setProcessMonitorData] = useState<ProcessMonitorData | null>(null);
   const [infrastructureData, setInfrastructureData] = useState<InfrastructureMonitorData | null>(null);
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
+  const [metricHistory, setMetricHistory] = useState<MetricHistory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<APIError | null>(null);
 
-  const handleApiCall = async <T>(url: string): Promise<T | null> => {
+  const handleApiCall = useCallback(async <T,>(url: string): Promise<T | null> => {
     try {
       const response = await fetch(`${API_BASE}${url}`);
       
@@ -66,7 +70,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       }
       return null;
     }
-  };
+  }, []);
 
   const checkHealth = useCallback(async (): Promise<boolean> => {
     try {
@@ -83,44 +87,67 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       setMetrics(data);
       setError(null);
     }
-  }, []);
+  }, [handleApiCall]);
 
   const fetchDetailedMetrics = useCallback(async () => {
     const data = await handleApiCall<DetailedMetrics>('/api/metrics/detailed');
     if (data) {
       setDetailedMetrics(data);
     }
-  }, []);
+  }, [handleApiCall]);
+
+  const fetchMetricsTimeline = useCallback(async (windowSeconds = 120) => {
+    const data = await handleApiCall<MetricsTimelineResponse>(`/api/metrics/timeline?window=${windowSeconds}`);
+    if (!data || !data.samples) {
+      return;
+    }
+
+    setMetricHistory({
+      windowSeconds: data.window_seconds,
+      sampleIntervalSeconds: data.sample_interval_seconds,
+      cpu: data.samples.map(sample => ({
+        timestamp: sample.timestamp,
+        value: sample.cpu_usage
+      })),
+      memory: data.samples.map(sample => ({
+        timestamp: sample.timestamp,
+        value: sample.memory_usage
+      })),
+      network: data.samples.map(sample => ({
+        timestamp: sample.timestamp,
+        value: sample.tcp_connections
+      }))
+    });
+  }, [handleApiCall]);
 
   const fetchProcessMonitorData = useCallback(async () => {
     const data = await handleApiCall<ProcessMonitorData>('/api/metrics/processes');
     if (data) {
       setProcessMonitorData(data);
     }
-  }, []);
+  }, [handleApiCall]);
 
   const fetchInfrastructureData = useCallback(async () => {
     const data = await handleApiCall<InfrastructureMonitorData>('/api/metrics/infrastructure');
     if (data) {
       setInfrastructureData(data);
     }
-  }, []);
+  }, [handleApiCall]);
 
   const fetchInvestigations = useCallback(async () => {
     const data = await handleApiCall<Investigation>('/api/investigations/latest');
     if (data) {
       setInvestigations([data]); // For now, just latest investigation
     }
-  }, []);
+  }, [handleApiCall]);
 
   const refreshMetrics = useCallback(async () => {
-    setIsLoading(true);
     await Promise.all([
       fetchMetrics(),
-      fetchDetailedMetrics()
+      fetchDetailedMetrics(),
+      fetchMetricsTimeline()
     ]);
-    setIsLoading(false);
-  }, [fetchMetrics, fetchDetailedMetrics]);
+  }, [fetchDetailedMetrics, fetchMetrics, fetchMetricsTimeline]);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
@@ -143,12 +170,14 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       fetchDetailedMetrics(),
       fetchProcessMonitorData(),
       fetchInfrastructureData(),
-      fetchInvestigations()
+      fetchInvestigations(),
+      fetchMetricsTimeline(120)
     ]);
     
     setIsLoading(false);
   }, [
     checkHealth,
+    fetchMetricsTimeline,
     fetchMetrics,
     fetchDetailedMetrics,
     fetchProcessMonitorData,
@@ -161,9 +190,9 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     refresh();
   }, [refresh]);
 
-  // Set up polling for metrics (every 30 seconds)
+  // Set up polling for metrics (every 5 seconds for responsive graphs)
   useEffect(() => {
-    const metricsInterval = setInterval(refreshMetrics, 30000);
+    const metricsInterval = setInterval(refreshMetrics, 5000);
     return () => clearInterval(metricsInterval);
   }, [refreshMetrics]);
 
@@ -186,6 +215,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     processMonitorData,
     infrastructureData,
     investigations,
+    metricHistory,
     isLoading,
     error,
     refresh,

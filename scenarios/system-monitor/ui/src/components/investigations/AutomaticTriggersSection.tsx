@@ -19,7 +19,7 @@ interface AutomaticTriggersSectionProps {
 
 export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersSectionProps) => {
   const [triggers, setTriggers] = useState<TriggerConfig[]>([]);
-  const cooldownUpdateTimeoutRef = useRef<NodeJS.Timeout>();
+  const cooldownUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cooldownStatus, setCooldownStatus] = useState({
     cooldownPeriodSeconds: 300,
     remainingSeconds: 0,

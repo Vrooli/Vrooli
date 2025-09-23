@@ -8,6 +8,19 @@ export interface MetricsResponse {
   timestamp: string;
 }
 
+export interface MetricTimelineSample {
+  timestamp: string;
+  cpu_usage: number;
+  memory_usage: number;
+  tcp_connections: number;
+}
+
+export interface MetricsTimelineResponse {
+  window_seconds: number;
+  sample_interval_seconds: number;
+  samples: MetricTimelineSample[];
+}
+
 export interface DetailedMetrics {
   cpu_details: CPUMetrics;
   memory_details: MemoryMetrics;

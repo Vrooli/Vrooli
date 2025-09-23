@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { CardType, CPUMetrics, MemoryMetrics, NetworkMetrics, SystemHealth } from '../../types';
+import type { CardType, CPUMetrics, MemoryMetrics, NetworkMetrics, SystemHealth, ChartDataPoint } from '../../types';
+import { MetricSparkline } from './MetricSparkline';
 
 interface MetricCardProps {
   type: CardType;
@@ -11,6 +12,10 @@ interface MetricCardProps {
   details?: CPUMetrics | MemoryMetrics | NetworkMetrics | SystemHealth;
   alertCount: number;
   isStatusCard?: boolean;
+  history?: ChartDataPoint[];
+  historyWindowSeconds?: number;
+  valueDomain?: [number, number];
+  threshold?: number;
 }
 
 export const MetricCard = ({ 
@@ -22,7 +27,11 @@ export const MetricCard = ({
   onToggle, 
   details, 
   alertCount,
-  isStatusCard = false 
+  isStatusCard = false,
+  history,
+  historyWindowSeconds,
+  valueDomain,
+  threshold
 }: MetricCardProps) => {
   
   const getProgressValue = (): number => {
@@ -42,6 +51,48 @@ export const MetricCard = ({
     if (numValue >= 70) return 'var(--color-warning)';
     return 'var(--color-text-bright)';
   };
+
+  const sparklineColor = (() => {
+    switch (type) {
+      case 'cpu':
+        return 'var(--color-accent)';
+      case 'memory':
+        return 'var(--color-warning)';
+      case 'network':
+        return 'var(--color-accent)';
+      default:
+        return 'var(--color-accent)';
+    }
+  })();
+
+  const defaultThresholds: Partial<Record<CardType, number>> = {
+    cpu: 75,
+    memory: 80
+  };
+
+  const sparklineThreshold = typeof threshold === 'number' ? threshold : defaultThresholds[type];
+
+  const formatWindowLabel = (seconds?: number): string | undefined => {
+    if (!seconds) return undefined;
+    if (seconds < 60) {
+      return `Past ${seconds}s`;
+    }
+    const minutes = seconds / 60;
+    if (Number.isInteger(minutes)) {
+      return `Past ${minutes.toFixed(0)}m`;
+    }
+    return `Past ${minutes.toFixed(1)}m`;
+  };
+
+  const sparklineUnit = (() => {
+    if (type === 'network') {
+      return ' connections';
+    }
+    if (unit === '%') {
+      return '%';
+    }
+    return unit;
+  })();
 
   const renderExpandedContent = () => {
     if (!isExpanded || !details) return null;
@@ -384,24 +435,35 @@ export const MetricCard = ({
       </div>
 
       {!isStatusCard && (
-        <div className="metric-bar" style={{
-          width: '100%',
-          height: '4px',
-          background: 'rgba(0, 255, 0, 0.2)',
-          borderRadius: '2px',
-          overflow: 'hidden'
-        }}>
-          <div 
-            className="metric-fill" 
-            style={{
-              height: '100%',
-              width: `${getProgressValue()}%`,
-              background: 'linear-gradient(90deg, var(--color-accent), var(--color-text-bright))',
-              transition: 'width var(--transition-normal)',
-              boxShadow: '0 0 10px var(--color-matrix-green)'
-            }}
+        history && history.length > 0 ? (
+          <MetricSparkline
+            data={history}
+            color={sparklineColor}
+            valueDomain={valueDomain}
+            threshold={sparklineThreshold}
+            unit={sparklineUnit}
+            windowLabel={formatWindowLabel(historyWindowSeconds)}
           />
-        </div>
+        ) : (
+          <div className="metric-bar" style={{
+            width: '100%',
+            height: '4px',
+            background: 'rgba(0, 255, 0, 0.2)',
+            borderRadius: '2px',
+            overflow: 'hidden'
+          }}>
+            <div 
+              className="metric-fill" 
+              style={{
+                height: '100%',
+                width: `${getProgressValue()}%`,
+                background: 'linear-gradient(90deg, var(--color-accent), var(--color-text-bright))',
+                transition: 'width var(--transition-normal)',
+                boxShadow: '0 0 10px var(--color-matrix-green)'
+              }}
+            />
+          </div>
+        )
       )}
 
       {renderExpandedContent()}

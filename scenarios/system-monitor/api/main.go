@@ -47,6 +47,29 @@ type MetricsResponse struct {
 	Timestamp      string  `json:"timestamp"`
 }
 
+// metricHistorySample tracks raw samples for rolling history retention
+type metricHistorySample struct {
+	timestamp      time.Time
+	cpuUsage       float64
+	memoryUsage    float64
+	tcpConnections int
+}
+
+// MetricTimelineSample is returned to the UI for sparkline rendering
+type MetricTimelineSample struct {
+	Timestamp      string  `json:"timestamp"`
+	CPUUsage       float64 `json:"cpu_usage"`
+	MemoryUsage    float64 `json:"memory_usage"`
+	TCPConnections int     `json:"tcp_connections"`
+}
+
+// MetricsTimelineResponse bundles recent samples for the UI graphs
+type MetricsTimelineResponse struct {
+	WindowSeconds         int                    `json:"window_seconds"`
+	SampleIntervalSeconds int                    `json:"sample_interval_seconds"`
+	Samples               []MetricTimelineSample `json:"samples"`
+}
+
 // Enhanced metric structures for expandable cards
 type ProcessInfo struct {
 	PID         int     `json:"pid"`
@@ -383,6 +406,13 @@ var (
 			Condition:   "above",
 		},
 	}
+
+	// Sliding window history for sparkline graphs
+	metricsHistory          = make([]metricHistorySample, 0, 120)
+	metricsHistoryMutex     sync.RWMutex
+	metricsHistoryRetention = 5 * time.Minute
+	metricsSampleInterval   = 5 * time.Second
+
 	triggersMutex       sync.RWMutex
 	startTime           = time.Now()
 	monitoringProcessor *MonitoringProcessor
@@ -721,6 +751,9 @@ func main() {
 		log.Printf("Failed to start monitoring service: %v", err)
 	}
 
+	// Begin background sampling for metrics history
+	startMetricsHistoryCollector()
+
 	// Load trigger configuration from file
 	if err := loadTriggerConfig(); err != nil {
 		log.Printf("Failed to load trigger config, using defaults: %v", err)
@@ -733,6 +766,7 @@ func main() {
 
 	// Metrics endpoints
 	r.HandleFunc("/api/metrics/current", getCurrentMetricsHandler).Methods("GET")
+	r.HandleFunc("/api/metrics/timeline", getMetricsTimelineHandler).Methods("GET")
 	r.HandleFunc("/api/metrics/detailed", getDetailedMetricsHandler).Methods("GET")
 	r.HandleFunc("/api/metrics/processes", getProcessMonitorHandler).Methods("GET")
 	r.HandleFunc("/api/metrics/infrastructure", getInfrastructureMonitorHandler).Methods("GET")
@@ -929,16 +963,171 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func getCurrentMetricsHandler(w http.ResponseWriter, r *http.Request) {
+func collectMetricSample() (MetricsResponse, metricHistorySample) {
+	now := time.Now()
+	cpu := getCPUUsage()
+	mem := getMemoryUsage()
+	tcp := getTCPConnections()
+
 	metrics := MetricsResponse{
-		CPUUsage:       getCPUUsage(),
-		MemoryUsage:    getMemoryUsage(),
-		TCPConnections: getTCPConnections(),
-		Timestamp:      time.Now().Format(time.RFC3339),
+		CPUUsage:       cpu,
+		MemoryUsage:    mem,
+		TCPConnections: tcp,
+		Timestamp:      now.Format(time.RFC3339),
+	}
+
+	sample := metricHistorySample{
+		timestamp:      now,
+		cpuUsage:       cpu,
+		memoryUsage:    mem,
+		tcpConnections: tcp,
+	}
+
+	return metrics, sample
+}
+
+func storeMetricSample(sample metricHistorySample) {
+	metricsHistoryMutex.Lock()
+	defer metricsHistoryMutex.Unlock()
+
+	metricsHistory = append(metricsHistory, sample)
+	cutoff := time.Now().Add(-metricsHistoryRetention)
+
+	// drop stale samples beyond retention window
+	trimIndex := 0
+	for ; trimIndex < len(metricsHistory); trimIndex++ {
+		if metricsHistory[trimIndex].timestamp.After(cutoff) {
+			break
+		}
+	}
+	if trimIndex > 0 && trimIndex < len(metricsHistory) {
+		metricsHistory = append([]metricHistorySample{}, metricsHistory[trimIndex:]...)
+	} else if trimIndex >= len(metricsHistory) {
+		metricsHistory = metricsHistory[:0]
+	}
+}
+
+func getMetricHistory(window time.Duration) []metricHistorySample {
+	metricsHistoryMutex.RLock()
+	defer metricsHistoryMutex.RUnlock()
+
+	if len(metricsHistory) == 0 {
+		return nil
+	}
+
+	cutoff := time.Now().Add(-window)
+	result := make([]metricHistorySample, 0, len(metricsHistory))
+	for _, sample := range metricsHistory {
+		if sample.timestamp.After(cutoff) || sample.timestamp.Equal(cutoff) {
+			result = append(result, sample)
+		}
+	}
+	return result
+}
+
+func getLatestMetricSample() (metricHistorySample, bool) {
+	metricsHistoryMutex.RLock()
+	defer metricsHistoryMutex.RUnlock()
+
+	if len(metricsHistory) == 0 {
+		return metricHistorySample{}, false
+	}
+	return metricsHistory[len(metricsHistory)-1], true
+}
+
+func metricsResponseFromSample(sample metricHistorySample) MetricsResponse {
+	return MetricsResponse{
+		CPUUsage:       sample.cpuUsage,
+		MemoryUsage:    sample.memoryUsage,
+		TCPConnections: sample.tcpConnections,
+		Timestamp:      sample.timestamp.Format(time.RFC3339),
+	}
+}
+
+func startMetricsHistoryCollector() {
+	if metricsSampleInterval <= 0 {
+		metricsSampleInterval = 5 * time.Second
+	}
+
+	log.Printf("🟢 Starting metrics history collector (interval: %v, retention: %v)", metricsSampleInterval, metricsHistoryRetention)
+
+	go func() {
+		// Capture an initial sample so the UI has immediate data
+		_, sample := collectMetricSample()
+		storeMetricSample(sample)
+
+		ticker := time.NewTicker(metricsSampleInterval)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			_, sample := collectMetricSample()
+			storeMetricSample(sample)
+		}
+	}()
+}
+
+func getCurrentMetricsHandler(w http.ResponseWriter, r *http.Request) {
+	sample, ok := getLatestMetricSample()
+	if !ok || time.Since(sample.timestamp) > metricsSampleInterval*2 {
+		metrics, newSample := collectMetricSample()
+		storeMetricSample(newSample)
+		sample = newSample
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(metrics); err != nil {
+			log.Printf("Failed to encode current metrics: %v", err)
+		}
+		return
+	}
+
+	metrics := metricsResponseFromSample(sample)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(metrics); err != nil {
+		log.Printf("Failed to encode current metrics: %v", err)
+	}
+}
+
+func getMetricsTimelineHandler(w http.ResponseWriter, r *http.Request) {
+	windowSeconds := 60
+	if raw := r.URL.Query().Get("window"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			windowSeconds = parsed
+		}
+	}
+
+	maxWindow := int(metricsHistoryRetention.Seconds())
+	if windowSeconds > maxWindow {
+		windowSeconds = maxWindow
+	}
+	if windowSeconds <= 0 {
+		windowSeconds = 60
+	}
+
+	samples := getMetricHistory(time.Duration(windowSeconds) * time.Second)
+	if len(samples) == 0 {
+		_, sample := collectMetricSample()
+		storeMetricSample(sample)
+		samples = getMetricHistory(time.Duration(windowSeconds) * time.Second)
+	}
+
+	response := MetricsTimelineResponse{
+		WindowSeconds:         windowSeconds,
+		SampleIntervalSeconds: int(metricsSampleInterval / time.Second),
+		Samples:               make([]MetricTimelineSample, 0, len(samples)),
+	}
+
+	for _, sample := range samples {
+		response.Samples = append(response.Samples, MetricTimelineSample{
+			Timestamp:      sample.timestamp.Format(time.RFC3339),
+			CPUUsage:       sample.cpuUsage,
+			MemoryUsage:    sample.memoryUsage,
+			TCPConnections: sample.tcpConnections,
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(metrics)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode metrics timeline: %v", err)
+	}
 }
 
 func getLatestInvestigationHandler(w http.ResponseWriter, r *http.Request) {
@@ -3182,13 +3371,13 @@ func getHTTPConnectionPools() []ConnectionPoolInfo {
 			LeakRisk: "low",
 		},
 		{
-			Name:     "scenario-api-2->n8n",
-			Active:   10,
-			Idle:     0,
-			MaxSize:  10,
-			Waiting:  5,
-			Healthy:  false,
-			LeakRisk: "high",
+			Name:     "scenario-api-2->qdrant",
+			Active:   6,
+			Idle:     4,
+			MaxSize:  12,
+			Waiting:  0,
+			Healthy:  true,
+			LeakRisk: "low",
 		},
 	}
 }
@@ -3201,7 +3390,7 @@ func checkServiceDependencies() []ServiceHealth {
 	}{
 		{"postgres", "localhost:5432"},
 		{"redis", "localhost:6379"},
-		{"n8n", "localhost:5678"},
+		{"qdrant", "localhost:6333"},
 		{"ollama", "localhost:11434"},
 	}
 
