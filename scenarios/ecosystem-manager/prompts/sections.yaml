@@ -87,7 +87,6 @@ operations:
       # Improver-specific sections
       - shared/improver-specific/progress-verification
       - shared/improver-specific/prioritization-phase
-      - shared/improver-specific/iteration-phase
       
       # Resource-specific knowledge
       - shared/resource-specific/v2-contract
@@ -177,7 +176,6 @@ operations:
       # Improver-specific sections
       - shared/improver-specific/progress-verification
       - shared/improver-specific/prioritization-phase
-      - shared/improver-specific/iteration-phase
       
       # Scenario-specific knowledge
       - shared/scenario-specific/cross-impact
