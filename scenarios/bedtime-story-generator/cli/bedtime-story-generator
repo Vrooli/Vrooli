@@ -1,0 +1,16 @@
+#!/bin/bash
+# Bedtime Story Generator CLI
+case "$1" in
+  "generate")
+    echo "Generating a bedtime story..."
+    echo "Once upon a time, in a land far away, there was a brave hero who saved the day. The end."
+    ;;
+  "help" | "--help" | "-h")
+    echo "Usage: $0 [command]"
+    echo "Commands:"
+    echo "  generate  Generate a bedtime story"
+    ;;
+  *)
+    echo "No command specified. Use $0 help for usage."
+    ;;
+esac

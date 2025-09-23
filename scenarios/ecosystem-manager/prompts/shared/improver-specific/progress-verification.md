@@ -5,27 +5,9 @@
 - Improvements only count when previously working features still work.
 - Capture evidence so the next agent can trust your handoff.
 
-## Completion Standards
-### ✅ Complete when
-1. Functionality matches the PRD specification
-2. Tests covering the feature pass consistently
-3. Documentation and demos exist
-4. No known defects remain
-
-### ☐ Incomplete when
-- Functionality is missing or flaky
-- Tests fail or are absent
-- Documentation is outdated
-- Errors appear during manual validation
-- Known bugs exist without mitigation
-
-### Partial progress example
-```markdown
-- [ ] Search with filters
-  - Basic search works
-  - Filter UI incomplete
-  - Date filtering broken
-```
+## Canonical Checklist Reference
+- Apply the "When to Check/Uncheck" rules defined in the `prd-protocol` section when evaluating each requirement.
+- Record partial progress notes using the PRD Protocol's example format; link test evidence instead of redefining criteria here.
 
 ## Verification Workflow
 ### 1. Baseline before changes
