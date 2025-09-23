@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { ErrorInfo } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Header } from './components/common/Header';
 import { StatusIndicator } from './components/common/StatusIndicator';
 import { MetricsGrid } from './components/metrics/MetricsGrid';
-import { ProcessMonitor } from './components/monitoring/ProcessMonitor';
+import { CpuDetailView, MemoryDetailView, NetworkDetailView, DiskDetailView } from './components/metrics/MetricDetailViews';
 import { InfrastructureMonitor } from './components/monitoring/InfrastructureMonitor';
 import { AlertPanel } from './components/common/AlertPanel';
 import { InvestigationsSection } from './components/investigations/InvestigationsSection';
@@ -14,10 +15,11 @@ import { SystemSettingsModal } from './components/modals/SystemSettingsModal';
 import { MatrixBackground } from './components/common/MatrixBackground';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useSystemMonitor } from './hooks/useSystemMonitor';
-import type { DashboardState, ModalState, InvestigationScript, ScriptExecution } from './types';
+import type { DashboardState, ModalState, InvestigationScript, ScriptExecution, CardType } from './types';
 import './styles/matrix-theme.css';
 
 function App() {
+  const navigate = useNavigate();
   const [dashboardState, setDashboardState] = useState<DashboardState>({
     isOnline: false,
     lastUpdate: new Date().toISOString(),
@@ -55,6 +57,14 @@ function App() {
     error
   } = useSystemMonitor();
 
+  const openDetailPage = (cardType: CardType) => {
+    navigate(`/metrics/${cardType}`);
+  };
+
+  const handleBackToDashboard = () => {
+    navigate('/');
+  };
+
   // Update online status based on successful API calls
   useEffect(() => {
     setDashboardState(prev => ({
@@ -64,13 +74,13 @@ function App() {
     }));
   }, [isLoading, error]);
 
-  const toggleCard = (cardType: string) => {
+  const toggleCard = (cardType: CardType) => {
     setDashboardState(prev => {
       const newExpandedCards = new Set(prev.expandedCards);
-      if (newExpandedCards.has(cardType as any)) {
-        newExpandedCards.delete(cardType as any);
+      if (newExpandedCards.has(cardType)) {
+        newExpandedCards.delete(cardType);
       } else {
-        newExpandedCards.add(cardType as any);
+        newExpandedCards.add(cardType);
       }
       return {
         ...prev,
@@ -273,76 +283,125 @@ function App() {
 
         <main className="main-content">
           <div className="container" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
-            
-            {/* Real-time Metrics Grid */}
-            <section className="mb-lg">
-      <MetricsGrid
-        metrics={metrics}
-        detailedMetrics={detailedMetrics}
-        expandedCards={dashboardState.expandedCards}
-        onToggleCard={toggleCard}
-        metricHistory={metricHistory}
-      />
-            </section>
+            <Routes>
+              <Route
+                path="/"
+                element={(
+                  <>
+                    {/* Real-time Metrics Grid */}
+                    <section className="mb-lg">
+                      <MetricsGrid
+                        metrics={metrics}
+                        detailedMetrics={detailedMetrics}
+                        expandedCards={dashboardState.expandedCards}
+                        onToggleCard={toggleCard}
+                        metricHistory={metricHistory}
+                        storageIO={infrastructureData?.storage_io}
+                        diskLastUpdated={infrastructureData?.timestamp}
+                        onOpenDetail={openDetailPage}
+                      />
+                    </section>
 
-            {/* Process Monitor Panel */}
-            <section className="mb-lg">
-              <ProcessMonitor 
-                data={processMonitorData}
-                isExpanded={dashboardState.expandedPanels.has('process')}
-                onToggle={() => togglePanel('process')}
+                    {/* Infrastructure Monitor Panel */}
+                    <section className="mb-lg">
+                      <InfrastructureMonitor 
+                        data={infrastructureData}
+                        isExpanded={dashboardState.expandedPanels.has('infrastructure')}
+                        onToggle={() => togglePanel('infrastructure')}
+                      />
+                    </section>
+
+                    {/* Alert Panel */}
+                    <section className="mb-lg">
+                      <AlertPanel alerts={dashboardState.alerts} />
+                    </section>
+
+                    {/* Investigations Section */}
+                    <section className="mb-lg">
+                      <InvestigationsSection 
+                        investigations={investigations}
+                        onOpenScriptEditor={openScriptEditor}
+                        onSpawnAgent={async (autoFix: boolean, note?: string) => {
+                          try {
+                            const requestBody: { auto_fix: boolean; note?: string } = { auto_fix: autoFix };
+                            if (note) {
+                              requestBody.note = note;
+                            }
+
+                            const response = await fetch('/api/investigations/trigger', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json'
+                              },
+                              body: JSON.stringify(requestBody)
+                            });
+                            
+                            if (response.ok) {
+                              console.log('Investigation triggered with auto-fix:', autoFix);
+                              // TODO: Show success message or refresh investigations
+                            }
+                          } catch (error) {
+                            console.error('Failed to trigger investigation:', error);
+                          }
+                        }}
+                      />
+                    </section>
+
+                    {/* Playback Reports */}
+                    <section className="mb-lg">
+                      <ReportsPanel />
+                    </section>
+                  </>
+                )}
               />
-            </section>
 
-            {/* Infrastructure Monitor Panel */}
-            <section className="mb-lg">
-              <InfrastructureMonitor 
-                data={infrastructureData}
-                isExpanded={dashboardState.expandedPanels.has('infrastructure')}
-                onToggle={() => togglePanel('infrastructure')}
+              <Route
+                path="/metrics/cpu"
+                element={(
+                  <CpuDetailView
+                    metrics={metrics}
+                    detailedMetrics={detailedMetrics}
+                    processMonitorData={processMonitorData}
+                    metricHistory={metricHistory}
+                    onBack={handleBackToDashboard}
+                  />
+                )}
               />
-            </section>
-
-            {/* Alert Panel */}
-            <section className="mb-lg">
-              <AlertPanel alerts={dashboardState.alerts} />
-            </section>
-
-            {/* Investigations Section */}
-            <section className="mb-lg">
-              <InvestigationsSection 
-                investigations={investigations}
-                onOpenScriptEditor={openScriptEditor}
-                onSpawnAgent={async (autoFix: boolean, note?: string) => {
-                  try {
-                    const requestBody: { auto_fix: boolean; note?: string } = { auto_fix: autoFix };
-                    if (note) {
-                      requestBody.note = note;
-                    }
-
-                    const response = await fetch('/api/investigations/trigger', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json'
-                      },
-                      body: JSON.stringify(requestBody)
-                    });
-                    
-                    if (response.ok) {
-                      console.log('Investigation triggered with auto-fix:', autoFix);
-                      // TODO: Show success message or refresh investigations
-                    }
-                  } catch (error) {
-                    console.error('Failed to trigger investigation:', error);
-                  }
-                }}
+              <Route
+                path="/metrics/memory"
+                element={(
+                  <MemoryDetailView
+                    metrics={metrics}
+                    detailedMetrics={detailedMetrics}
+                    metricHistory={metricHistory}
+                    onBack={handleBackToDashboard}
+                  />
+                )}
               />
-            </section>
-
-            {/* Playback Reports */}
-            <section className="mb-lg">
-              <ReportsPanel />
-            </section>
+              <Route
+                path="/metrics/network"
+                element={(
+                  <NetworkDetailView
+                    metrics={metrics}
+                    detailedMetrics={detailedMetrics}
+                    metricHistory={metricHistory}
+                    onBack={handleBackToDashboard}
+                  />
+                )}
+              />
+              <Route
+                path="/metrics/disk"
+                element={(
+                  <DiskDetailView
+                    detailedMetrics={detailedMetrics}
+                    storageIO={infrastructureData?.storage_io}
+                    metricHistory={metricHistory}
+                    diskLastUpdated={infrastructureData?.timestamp}
+                    onBack={handleBackToDashboard}
+                  />
+                )}
+              />
+            </Routes>
 
           </div>
         </main>

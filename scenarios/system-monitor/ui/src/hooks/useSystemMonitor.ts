@@ -7,7 +7,8 @@ import type {
   Investigation,
   APIError,
   MetricsTimelineResponse,
-  MetricHistory
+  MetricHistory,
+  ChartDataPoint
 } from '../types';
 
 interface UseSystemMonitorReturn {
@@ -24,6 +25,32 @@ interface UseSystemMonitorReturn {
 }
 
 const API_BASE = '';  // Using Vite proxy, so same origin
+const DISK_HISTORY_LIMIT = 180;
+
+const appendHistoryPoint = (
+  series: ChartDataPoint[] | undefined,
+  point: ChartDataPoint,
+  limit = DISK_HISTORY_LIMIT
+): ChartDataPoint[] => {
+  const next = series ? [...series, point] : [point];
+  if (next.length > limit) {
+    return next.slice(next.length - limit);
+  }
+  return next;
+};
+
+const cloneSeries = (series?: ChartDataPoint[]) => (series ? [...series] : undefined);
+
+const ensureHistoryBase = (history: MetricHistory | null): MetricHistory => ({
+  windowSeconds: history?.windowSeconds ?? 0,
+  sampleIntervalSeconds: history?.sampleIntervalSeconds ?? 0,
+  cpu: history?.cpu ? [...history.cpu] : [],
+  memory: history?.memory ? [...history.memory] : [],
+  network: history?.network ? [...history.network] : [],
+  diskUsage: cloneSeries(history?.diskUsage),
+  diskRead: cloneSeries(history?.diskRead),
+  diskWrite: cloneSeries(history?.diskWrite)
+});
 
 export const useSystemMonitor = (): UseSystemMonitorReturn => {
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
@@ -93,6 +120,20 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     const data = await handleApiCall<DetailedMetrics>('/api/metrics/detailed');
     if (data) {
       setDetailedMetrics(data);
+      const diskPercent = data.memory_details?.disk_usage?.percent;
+      if (typeof diskPercent === 'number' && Number.isFinite(diskPercent)) {
+        const timestamp = data.timestamp ?? new Date().toISOString();
+        setMetricHistory(prev => {
+          const base = ensureHistoryBase(prev);
+          return {
+            ...base,
+            diskUsage: appendHistoryPoint(base.diskUsage, {
+              timestamp,
+              value: diskPercent
+            })
+          };
+        });
+      }
     }
   }, [handleApiCall]);
 
@@ -102,21 +143,25 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       return;
     }
 
-    setMetricHistory({
-      windowSeconds: data.window_seconds,
-      sampleIntervalSeconds: data.sample_interval_seconds,
-      cpu: data.samples.map(sample => ({
-        timestamp: sample.timestamp,
-        value: sample.cpu_usage
-      })),
-      memory: data.samples.map(sample => ({
-        timestamp: sample.timestamp,
-        value: sample.memory_usage
-      })),
-      network: data.samples.map(sample => ({
-        timestamp: sample.timestamp,
-        value: sample.tcp_connections
-      }))
+    setMetricHistory(prev => {
+      const base = ensureHistoryBase(prev);
+      return {
+        ...base,
+        windowSeconds: data.window_seconds,
+        sampleIntervalSeconds: data.sample_interval_seconds,
+        cpu: data.samples.map(sample => ({
+          timestamp: sample.timestamp,
+          value: sample.cpu_usage
+        })),
+        memory: data.samples.map(sample => ({
+          timestamp: sample.timestamp,
+          value: sample.memory_usage
+        })),
+        network: data.samples.map(sample => ({
+          timestamp: sample.timestamp,
+          value: sample.tcp_connections
+        }))
+      };
     });
   }, [handleApiCall]);
 
@@ -131,6 +176,32 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     const data = await handleApiCall<InfrastructureMonitorData>('/api/metrics/infrastructure');
     if (data) {
       setInfrastructureData(data);
+      const { storage_io, timestamp } = data;
+      if (storage_io) {
+        const recordTimestamp = timestamp ?? new Date().toISOString();
+        const readRate = Number(storage_io.read_mb_per_sec);
+        const writeRate = Number(storage_io.write_mb_per_sec);
+        if (Number.isFinite(readRate) || Number.isFinite(writeRate)) {
+          setMetricHistory(prev => {
+            const base = ensureHistoryBase(prev);
+            return {
+              ...base,
+              diskRead: Number.isFinite(readRate)
+                ? appendHistoryPoint(base.diskRead, {
+                    timestamp: recordTimestamp,
+                    value: readRate
+                  })
+                : base.diskRead,
+              diskWrite: Number.isFinite(writeRate)
+                ? appendHistoryPoint(base.diskWrite, {
+                    timestamp: recordTimestamp,
+                    value: writeRate
+                  })
+                : base.diskWrite
+            };
+          });
+        }
+      }
     }
   }, [handleApiCall]);
 

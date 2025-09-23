@@ -1,6 +1,29 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { CardType, CPUMetrics, MemoryMetrics, NetworkMetrics, SystemHealth, ChartDataPoint } from '../../types';
+import type {
+  CardType,
+  CPUMetrics,
+  MemoryMetrics,
+  NetworkMetrics,
+  SystemHealth,
+  ChartDataPoint,
+  DiskCardDetails
+} from '../../types';
 import { MetricSparkline } from './MetricSparkline';
+
+const formatBytes = (value?: number) => {
+  if (!Number.isFinite(value ?? NaN) || !value) {
+    return '—';
+  }
+  const absolute = Math.max(value, 0);
+  if (absolute === 0) {
+    return '0 B';
+  }
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const exponent = Math.min(Math.floor(Math.log(absolute) / Math.log(1024)), units.length - 1);
+  const scaled = absolute / Math.pow(1024, exponent);
+  const precision = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+  return `${scaled.toFixed(precision)} ${units[exponent]}`;
+};
 
 interface MetricCardProps {
   type: CardType;
@@ -9,13 +32,16 @@ interface MetricCardProps {
   value: number | string;
   isExpanded: boolean;
   onToggle: () => void;
-  details?: CPUMetrics | MemoryMetrics | NetworkMetrics | SystemHealth;
+  details?: CPUMetrics | MemoryMetrics | NetworkMetrics | SystemHealth | DiskCardDetails;
   alertCount: number;
   isStatusCard?: boolean;
   history?: ChartDataPoint[];
   historyWindowSeconds?: number;
   valueDomain?: [number, number];
   threshold?: number;
+  historyUnit?: string;
+  onOpenDetails?: () => void;
+  detailButtonLabel?: string;
 }
 
 export const MetricCard = ({ 
@@ -31,7 +57,10 @@ export const MetricCard = ({
   history,
   historyWindowSeconds,
   valueDomain,
-  threshold
+  threshold,
+  historyUnit,
+  onOpenDetails,
+  detailButtonLabel = 'VIEW DETAIL'
 }: MetricCardProps) => {
   
   const getProgressValue = (): number => {
@@ -60,6 +89,8 @@ export const MetricCard = ({
         return 'var(--color-warning)';
       case 'network':
         return 'var(--color-accent)';
+      case 'disk':
+        return 'var(--color-info)';
       default:
         return 'var(--color-accent)';
     }
@@ -67,7 +98,8 @@ export const MetricCard = ({
 
   const defaultThresholds: Partial<Record<CardType, number>> = {
     cpu: 75,
-    memory: 80
+    memory: 80,
+    disk: 80
   };
 
   const sparklineThreshold = typeof threshold === 'number' ? threshold : defaultThresholds[type];
@@ -85,13 +117,16 @@ export const MetricCard = ({
   };
 
   const sparklineUnit = (() => {
+    if (historyUnit) {
+      return historyUnit;
+    }
     if (type === 'network') {
       return ' connections';
     }
     if (unit === '%') {
       return '%';
     }
-    return unit;
+    return unit ? ` ${unit}` : undefined;
   })();
 
   const renderExpandedContent = () => {
@@ -229,6 +264,107 @@ export const MetricCard = ({
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'disk':
+        const diskDetails = details as DiskCardDetails;
+        const freeBytes = Number.isFinite(diskDetails.diskUsage.total - diskDetails.diskUsage.used)
+          ? diskDetails.diskUsage.total - diskDetails.diskUsage.used
+          : undefined;
+        return (
+          <div className="metric-details" style={{ marginTop: 'var(--spacing-md)' }}>
+            <div className="detail-row" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: 'var(--spacing-md)',
+              marginBottom: 'var(--spacing-md)'
+            }}>
+              <div className="detail-item">
+                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
+                  Total Capacity:
+                </span>
+                <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                  {formatBytes(diskDetails.diskUsage.total)}
+                </span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
+                  Used:
+                </span>
+                <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                  {formatBytes(diskDetails.diskUsage.used)}
+                </span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
+                  Free:
+                </span>
+                <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                  {formatBytes(freeBytes)}
+                </span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
+                  Utilization:
+                </span>
+                <span className="detail-value" style={{ color: 'var(--color-warning)' }}>
+                  {diskDetails.diskUsage.percent.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+
+            {diskDetails.storageIO && (
+              <div className="detail-row" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: 'var(--spacing-md)',
+                marginBottom: 'var(--spacing-sm)'
+              }}>
+                <div className="detail-item">
+                  <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
+                    Disk Queue Depth:
+                  </span>
+                  <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                    {diskDetails.storageIO.disk_queue_depth.toFixed(2)}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
+                    I/O Wait:
+                  </span>
+                  <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                    {diskDetails.storageIO.io_wait_percent.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
+                    Read Throughput:
+                  </span>
+                  <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                    {diskDetails.storageIO.read_mb_per_sec.toFixed(2)} MB/s
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
+                    Write Throughput:
+                  </span>
+                  <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                    {diskDetails.storageIO.write_mb_per_sec.toFixed(2)} MB/s
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {diskDetails.lastUpdated && (
+              <div style={{
+                marginTop: 'var(--spacing-sm)',
+                color: 'var(--color-text-dim)',
+                fontSize: 'var(--font-size-xs)'
+              }}>
+                Updated {new Date(diskDetails.lastUpdated).toLocaleTimeString()}
               </div>
             )}
           </div>
@@ -467,6 +603,31 @@ export const MetricCard = ({
       )}
 
       {renderExpandedContent()}
+
+      {onOpenDetails && (
+        <div
+          style={{
+            marginTop: 'var(--spacing-md)',
+            display: 'flex',
+            justifyContent: 'flex-end'
+          }}
+        >
+          <button
+            type="button"
+            className="btn btn-action"
+            style={{
+              letterSpacing: '0.08em',
+              fontSize: 'var(--font-size-xs)'
+            }}
+            onClick={event => {
+              event.stopPropagation();
+              onOpenDetails?.();
+            }}
+          >
+            {detailButtonLabel}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

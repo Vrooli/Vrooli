@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { InfrastructureMonitorData } from '../../types';
 
 interface InfrastructureMonitorProps {
@@ -178,51 +179,24 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle }: Infrastruc
                 </div>
               </div>
               
-              <div className="storage-io card" style={{ 
-                background: 'rgba(0, 0, 0, 0.5)',
-                padding: 'var(--spacing-lg)'
+              <div style={{
+                marginTop: 'var(--spacing-lg)',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--spacing-sm)',
+                alignItems: 'center'
               }}>
-                <h3 style={{ color: 'var(--color-text-bright)', marginBottom: 'var(--spacing-md)' }}>
-                  Storage I/O:
-                </h3>
-                <div className="io-stats" style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                  gap: 'var(--spacing-md)'
-                }}>
-                  <div className="stat-item">
-                    <span className="stat-label" style={{ color: 'var(--color-text-dim)' }}>
-                      Disk Queue Depth:
-                    </span>
-                    <span className="stat-value" style={{ color: 'var(--color-text-bright)' }}>
-                      {data.storage_io.disk_queue_depth.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-label" style={{ color: 'var(--color-text-dim)' }}>
-                      I/O Wait:
-                    </span>
-                    <span className="stat-value" style={{ color: 'var(--color-text-bright)' }}>
-                      {data.storage_io.io_wait_percent.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-label" style={{ color: 'var(--color-text-dim)' }}>
-                      Read Rate:
-                    </span>
-                    <span className="stat-value" style={{ color: 'var(--color-text-bright)' }}>
-                      {data.storage_io.read_mb_per_sec.toFixed(1)} MB/s
-                    </span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-label" style={{ color: 'var(--color-text-dim)' }}>
-                      Write Rate:
-                    </span>
-                    <span className="stat-value" style={{ color: 'var(--color-text-bright)' }}>
-                      {data.storage_io.write_mb_per_sec.toFixed(1)} MB/s
-                    </span>
-                  </div>
+                <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em' }}>
+                  Detailed storage metrics now live on the dedicated Disk performance view.
                 </div>
+                <Link
+                  to="/metrics/disk"
+                  className="btn btn-action"
+                  style={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: 'var(--font-size-xs)' }}
+                >
+                  View Disk Performance
+                </Link>
               </div>
             </div>
           ) : (

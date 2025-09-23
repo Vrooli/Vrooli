@@ -4,8 +4,9 @@ import type { ProcessMonitorData } from '../../types';
 
 interface ProcessMonitorProps {
   data: ProcessMonitorData | null;
-  isExpanded: boolean;
-  onToggle: () => void;
+  isExpanded?: boolean;
+  onToggle?: () => void;
+  collapsible?: boolean;
 }
 
 interface ConfirmationDialog {
@@ -15,7 +16,7 @@ interface ConfirmationDialog {
   processType: 'zombie' | 'high_thread' | 'leak_candidate';
 }
 
-export const ProcessMonitor = ({ data, isExpanded, onToggle }: ProcessMonitorProps) => {
+export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible = true }: ProcessMonitorProps) => {
   const [confirmDialog, setConfirmDialog] = useState<ConfirmationDialog>({ 
     isOpen: false, 
     processName: '', 
@@ -64,29 +65,36 @@ export const ProcessMonitor = ({ data, isExpanded, onToggle }: ProcessMonitorPro
   const cancelKillProcess = () => {
     setConfirmDialog({ isOpen: false, processName: '', processPid: 0, processType: 'zombie' });
   };
+  const expanded = collapsible ? isExpanded : true;
+
   return (
     <section className="monitoring-panel collapsible card">
       <div 
         className="panel-header clickable" 
-        onClick={onToggle}
+        onClick={collapsible ? onToggle : undefined}
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           cursor: 'pointer',
-          marginBottom: isExpanded ? 'var(--spacing-md)' : 0
+          marginBottom: expanded ? 'var(--spacing-md)' : 0,
+          ...(collapsible ? {} : {
+            cursor: 'default'
+          })
         }}
       >
         <h2 style={{ margin: 0, color: 'var(--color-text-bright)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
           <Search size={20} />
           PROCESS MONITOR
         </h2>
-        <span className="expand-arrow" style={{ color: 'var(--color-accent)' }}>
-          {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-        </span>
+        {collapsible && (
+          <span className="expand-arrow" style={{ color: 'var(--color-accent)' }}>
+            {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </span>
+        )}
       </div>
       
-      {isExpanded && (
+      {expanded && (
         <div className="panel-content">
           {data ? (
             <div className="monitor-grid" style={{

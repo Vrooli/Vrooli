@@ -1,9 +1,9 @@
 // UI-specific types for React components
-import type { InvestigationScript, ScriptExecution } from './api';
+import type { InvestigationScript, ScriptExecution, DiskInfo, StorageIOInfo } from './api';
 
 export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
 
-export type CardType = 'cpu' | 'memory' | 'network' | 'system';
+export type CardType = 'cpu' | 'memory' | 'network' | 'disk' | 'system';
 
 export type PanelType = 'process' | 'infrastructure';
 
@@ -75,12 +75,21 @@ export interface ChartDataPoint {
   label?: string;
 }
 
+export interface DiskCardDetails {
+  diskUsage: DiskInfo;
+  storageIO?: StorageIOInfo;
+  lastUpdated?: string;
+}
+
 export interface MetricHistory {
   windowSeconds: number;
   sampleIntervalSeconds: number;
   cpu: ChartDataPoint[];
   memory: ChartDataPoint[];
   network: ChartDataPoint[];
+  diskUsage?: ChartDataPoint[];
+  diskRead?: ChartDataPoint[];
+  diskWrite?: ChartDataPoint[];
 }
 
 export interface MetricThresholds {
