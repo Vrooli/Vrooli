@@ -154,11 +154,21 @@ actions::screenshot() {
     # Parse options first (this sets global variables)
     local remaining_args_array=()
     local url_param=""
+    local scenario_name=""
+    local scenario_path=""
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --url)
                 url_param="$2"
+                shift 2
+                ;;
+            --scenario)
+                scenario_name="$2"
+                shift 2
+                ;;
+            --path)
+                scenario_path="$2"
                 shift 2
                 ;;
             --output)
@@ -210,12 +220,15 @@ actions::screenshot() {
                 echo "  --timeout MS           Timeout in milliseconds (default: 30000)"
                 echo "  --wait-ms MS           Wait time after load (default: 2000)"
                 echo "  --session NAME         Use persistent session"
+                echo "  --scenario NAME        Target scenario (auto-resolves http://localhost:<UI_PORT>)"
+                echo "  --path RELATIVE_PATH   Optional path when using --scenario (e.g. /dashboard)"
                 echo "  --help, -h             Show this help message"
                 echo ""
                 echo "Examples:"
                 echo "  browserless screenshot https://example.com"
                 echo "  browserless screenshot --url https://example.com --output page.png"
                 echo "  browserless screenshot https://example.com --fullpage --mobile"
+                echo "  browserless screenshot --scenario ecosystem-manager --path /dashboard"
                 return 0
                 ;;
             *)
@@ -225,12 +238,65 @@ actions::screenshot() {
         esac
     done
     
+    if [[ -n "$scenario_path" && -z "$scenario_name" ]]; then
+        echo "Error: --path option requires --scenario" >&2
+        return 1
+    fi
+
     # Determine URL from either --url flag or positional argument
     local url=""
-    if [[ -n "$url_param" ]]; then
-        url="$url_param"
-    elif [[ ${#remaining_args_array[@]} -gt 0 ]]; then
-        url="${remaining_args_array[0]}"
+    if [[ -n "$scenario_name" ]]; then
+        if [[ -n "$url_param" ]]; then
+            echo "Error: --url cannot be used together with --scenario" >&2
+            return 1
+        fi
+
+        if [[ ${#remaining_args_array[@]} -gt 0 ]]; then
+            echo "Error: Positional URL arguments are not allowed when using --scenario. Use --path for relative routes." >&2
+            return 1
+        fi
+
+        if [[ "$scenario_path" == http://* || "$scenario_path" == https://* ]]; then
+            echo "Error: --path expects a relative value (e.g. /dashboard)." >&2
+            return 1
+        fi
+
+        if ! command -v vrooli >/dev/null 2>&1; then
+            echo "Error: vrooli CLI is required for --scenario usage" >&2
+            return 1
+        fi
+
+        local scenario_port
+        if ! scenario_port=$(vrooli scenario port "$scenario_name" UI_PORT 2>/dev/null); then
+            echo "Error: Failed to resolve UI port for scenario '$scenario_name'." >&2
+            echo "       • Confirm the scenario name is correct." >&2
+            echo "       • Run 'vrooli scenario status $scenario_name' to verify it is running and healthy." >&2
+            return 1
+        fi
+
+        if [[ -z "$scenario_port" ]] || ! [[ "$scenario_port" =~ ^[0-9]+$ ]]; then
+            echo "Error: Invalid UI port for scenario '$scenario_name': ${scenario_port:-"<empty>"}." >&2
+            echo "       Run 'vrooli scenario status $scenario_name' to verify it is running and exposing a UI port." >&2
+            return 1
+        fi
+
+        local trimmed_path="${scenario_path}"
+        if [[ -n "$trimmed_path" ]]; then
+            trimmed_path="${trimmed_path#/}"
+            if [[ -n "$trimmed_path" ]]; then
+                url="http://localhost:${scenario_port}/${trimmed_path}"
+            else
+                url="http://localhost:${scenario_port}/"
+            fi
+        else
+            url="http://localhost:${scenario_port}"
+        fi
+    else
+        if [[ -n "$url_param" ]]; then
+            url="$url_param"
+        elif [[ ${#remaining_args_array[@]} -gt 0 ]]; then
+            url="${remaining_args_array[0]}"
+        fi
     fi
     
     # Validate URL is provided
