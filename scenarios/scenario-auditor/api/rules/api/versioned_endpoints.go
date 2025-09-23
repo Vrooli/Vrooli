@@ -40,6 +40,15 @@ func setupAPI(r *mux.Router) {
   <expected-message>Unversioned API Endpoint</expected-message>
 </test-case>
 
+<test-case id="health-endpoint" should-fail="false">
+  <description>Health check endpoint bypasses versioning</description>
+  <input language="go">
+func registerHealth(r *mux.Router) {
+    r.HandleFunc("/health", healthHandler).Methods("GET")
+}
+  </input>
+</test-case>
+
 <test-case id="properly-versioned-endpoints" should-fail="false">
   <description>All API endpoints properly versioned</description>
   <input language="go">

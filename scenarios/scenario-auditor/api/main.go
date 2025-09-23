@@ -338,6 +338,7 @@ func main() {
 
 	// Claude Fix endpoints
 	api.HandleFunc("/claude/fix", triggerClaudeFixHandler).Methods("POST")
+	api.HandleFunc("/claude/fix/preview", previewClaudeFixHandler).Methods("POST")
 	api.HandleFunc("/claude/fix/{fixId}/status", getClaudeFixStatusHandler).Methods("GET")
 
 	// Agent management endpoints (for agent-dashboard integration)

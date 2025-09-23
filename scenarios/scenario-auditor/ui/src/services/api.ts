@@ -12,6 +12,7 @@ import {
   BreakingChange,
   AgentInfo,
   FixAgentResponse,
+  FixPromptPreviewResponse,
   StandardsViolation,
   StandardsScanStatus,
   AutomatedFixJobSnapshot,
@@ -279,6 +280,33 @@ class ApiService {
     }
 
     return this.fetch('/claude/fix', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async previewBulkFix(
+    fixType: 'standards' | 'vulnerabilities',
+    targets: Array<{ scenario: string; issue_ids?: string[] }>,
+    extraPrompt?: string,
+    agentCount?: number,
+    model?: string
+  ): Promise<FixPromptPreviewResponse> {
+    const payload: Record<string, unknown> = {
+      fix_type: fixType,
+      targets,
+    }
+    if (extraPrompt && extraPrompt.trim().length > 0) {
+      payload.extra_prompt = extraPrompt.trim()
+    }
+    if (agentCount && agentCount > 0) {
+      payload.agent_count = agentCount
+    }
+    if (model && model.trim().length > 0 && model.trim().toLowerCase() !== 'default') {
+      payload.model = model.trim()
+    }
+
+    return this.fetch('/claude/fix/preview', {
       method: 'POST',
       body: JSON.stringify(payload),
     })

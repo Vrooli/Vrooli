@@ -34,7 +34,7 @@ func insecureHash(data string) string {
 }
 
 func sqlInjection(userInput string) {
-	query := fmt.Sprintf("SELECT * FROM users WHERE name = '%s'", userInput)
+	query := "SELECT * FROM users WHERE name = '" + userInput + "'"
 	db.Exec(query)
 }
 

@@ -335,3 +335,27 @@ export interface FixAgentResponse {
   issues_per_agent_cap?: number
   model?: string
 }
+
+export interface FixPromptPreview {
+  label: string
+  prompt: string
+  scenario: string
+  scenarios?: string[]
+  action: string
+  issue_ids?: string[]
+  metadata?: Record<string, string>
+}
+
+export interface FixPromptPreviewResponse {
+  success: boolean
+  message?: string
+  prompts: FixPromptPreview[]
+  issue_count?: number
+  issues_per_agent_cap?: number
+  model?: string
+  agent_count?: number
+  scenarios?: string[]
+  user_instructions?: string
+  error?: string
+  fix_type?: string
+}

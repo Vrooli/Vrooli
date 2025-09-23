@@ -45,11 +45,11 @@ function CodeBlock({ code }: { code: string }) {
             <code className="block">
               {tokens.map((line, i) => {
                 const lineProps = getLineProps({ line, key: i })
-                const { className: lineClassName = '', ...restLineProps } = lineProps
+                const { className: lineClassName = '', key: lineKey, ...restLineProps } = lineProps
 
                 return (
                   <div
-                    key={i}
+                    key={lineKey ?? i}
                     className={`table-row ${lineClassName}`.trim()}
                     {...restLineProps}
                   >
@@ -59,8 +59,8 @@ function CodeBlock({ code }: { code: string }) {
                     <span className="table-cell">
                       {line.map((token, key) => {
                         const tokenProps = getTokenProps({ token, key })
-                        const { className: tokenClassName = '', ...restTokenProps } = tokenProps
-                        return <span key={key} className={tokenClassName} {...restTokenProps} />
+                        const { className: tokenClassName = '', key: tokenKey, ...restTokenProps } = tokenProps
+                        return <span key={tokenKey ?? key} className={tokenClassName} {...restTokenProps} />
                       })}
                     </span>
                   </div>

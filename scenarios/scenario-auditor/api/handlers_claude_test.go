@@ -9,10 +9,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
 )
+
+var validAPIKey string
 
 func TestHandleClaudeCompletion(t *testing.T) {
 	tests := []struct {
@@ -89,7 +92,7 @@ func TestHandleClaudeCompletion(t *testing.T) {
 			req := httptest.NewRequest("POST", "/api/v1/claude/completion",
 				strings.NewReader(tt.requestBody))
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("X-API-Key", "test-key")
+			req.Header.Set("X-API-Key", validAPIKey)
 
 			w := httptest.NewRecorder()
 			handleClaudeCompletion(w, req)
@@ -157,7 +160,7 @@ func TestHandleClaudeStream(t *testing.T) {
 			req := httptest.NewRequest("POST", "/api/v1/claude/stream",
 				strings.NewReader(tt.requestBody))
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("X-API-Key", "test-key")
+			req.Header.Set("X-API-Key", validAPIKey)
 
 			w := httptest.NewRecorder()
 			handleClaudeStream(w, req)
@@ -385,7 +388,7 @@ func TestAPIKeyValidation(t *testing.T) {
 	}{
 		{
 			name:           "valid API key",
-			apiKey:         "valid-key-123",
+			apiKey:         validAPIKey,
 			expectedStatus: 200,
 		},
 		{
@@ -395,7 +398,7 @@ func TestAPIKeyValidation(t *testing.T) {
 		},
 		{
 			name:           "invalid API key",
-			apiKey:         "invalid-key",
+			apiKey:         "wrong-key",
 			expectedStatus: 401,
 		},
 	}
@@ -434,7 +437,7 @@ func TestCORSHeaders(t *testing.T) {
 
 	headers := w.Header()
 
-	if headers.Get("Access-Control-Allow-Origin") != "*" {
+	if headers.Get("Access-Control-Allow-Origin") != "http://localhost:3000" {
 		t.Error("Expected CORS origin header")
 	}
 
@@ -559,7 +562,7 @@ func (l *TestLogger) Printf(format string, v ...interface{}) {
 func requireAPIKey(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		apiKey := r.Header.Get("X-API-Key")
-		if apiKey == "" || apiKey != "valid-key-123" {
+		if apiKey == "" || apiKey != validAPIKey {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -569,7 +572,7 @@ func requireAPIKey(next http.Handler) http.Handler {
 
 func setCORSHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key")
 
@@ -663,6 +666,10 @@ type HTTPClient interface {
 }
 
 func init() {
+	validAPIKey = os.Getenv("VALID_API_KEY")
+	if validAPIKey == "" {
+		validAPIKey = "test-valid-key"
+	}
 	httpClient = &http.Client{Timeout: 30 * time.Second}
 	rateLimiter = NewRateLimiter(100, time.Minute)
 }

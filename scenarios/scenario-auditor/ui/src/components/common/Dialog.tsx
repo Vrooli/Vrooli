@@ -1,4 +1,5 @@
 import { ReactNode, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -11,13 +12,13 @@ interface DialogProps {
   size?: 'sm' | 'md' | 'lg'
 }
 
-export function Dialog({ 
-  open, 
-  onClose, 
-  title, 
-  children, 
+export function Dialog({
+  open,
+  onClose,
+  title,
+  children,
   className,
-  size = 'md' 
+  size = 'md'
 }: DialogProps) {
   useEffect(() => {
     if (open) {
@@ -40,7 +41,9 @@ export function Dialog({
     return () => document.removeEventListener('keydown', handleEscape)
   }, [open, onClose])
 
-  if (!open) return null
+  const portalTarget = typeof document !== 'undefined' ? document.body : null
+
+  if (!open || !portalTarget) return null
 
   const sizeClasses = {
     sm: 'max-w-md',
@@ -48,19 +51,19 @@ export function Dialog({
     lg: 'max-w-2xl'
   }
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm animate-in fade-in"
+      <div
+        className="fixed inset-0 z-[1000] bg-black/50 backdrop-blur-sm animate-in fade-in"
         onClick={onClose}
       />
-      
+
       {/* Dialog */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div 
+      <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4">
+        <div
           className={clsx(
-            'relative bg-white rounded-xl shadow-xl w-full animate-in zoom-in-95',
+            'relative bg-white rounded-xl shadow-xl w-full max-h-[85vh] flex flex-col animate-in zoom-in-95',
             sizeClasses[size],
             className
           )}
@@ -80,10 +83,12 @@ export function Dialog({
           )}
 
           {/* Content */}
-          <div className={clsx(
-            'overflow-y-auto',
-            title ? 'p-6' : 'p-6 pt-12'
-          )}>
+          <div
+            className={clsx(
+              'flex-1 overflow-y-auto',
+              title ? 'p-6' : 'p-6 pt-12'
+            )}
+          >
             {!title && (
               <button
                 onClick={onClose}
@@ -96,6 +101,7 @@ export function Dialog({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    portalTarget
   )
 }
