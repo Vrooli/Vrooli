@@ -4,7 +4,6 @@ import type {
   CPUMetrics,
   MemoryMetrics,
   NetworkMetrics,
-  SystemHealth,
   ChartDataPoint,
   DiskCardDetails
 } from '../../types';
@@ -29,12 +28,11 @@ interface MetricCardProps {
   type: CardType;
   label: string;
   unit: string;
-  value: number | string;
+  value: number;
   isExpanded: boolean;
   onToggle: () => void;
-  details?: CPUMetrics | MemoryMetrics | NetworkMetrics | SystemHealth | DiskCardDetails;
+  details?: CPUMetrics | MemoryMetrics | NetworkMetrics | DiskCardDetails;
   alertCount: number;
-  isStatusCard?: boolean;
   history?: ChartDataPoint[];
   historyWindowSeconds?: number;
   valueDomain?: [number, number];
@@ -53,7 +51,6 @@ export const MetricCard = ({
   onToggle, 
   details, 
   alertCount,
-  isStatusCard = false,
   history,
   historyWindowSeconds,
   valueDomain,
@@ -64,20 +61,12 @@ export const MetricCard = ({
 }: MetricCardProps) => {
   
   const getProgressValue = (): number => {
-    if (typeof value === 'number') {
-      return isStatusCard ? 100 : Math.min(value, 100);
-    }
-    return 0;
+    return Math.min(value, 100);
   };
 
   const getValueColor = (): string => {
-    if (isStatusCard) {
-      return 'var(--color-success)';
-    }
-    
-    const numValue = typeof value === 'number' ? value : 0;
-    if (numValue >= 90) return 'var(--color-error)';
-    if (numValue >= 70) return 'var(--color-warning)';
+    if (value >= 90) return 'var(--color-error)';
+    if (value >= 70) return 'var(--color-warning)';
     return 'var(--color-text-bright)';
   };
 
@@ -425,76 +414,6 @@ export const MetricCard = ({
           </div>
         );
 
-      case 'system':
-        const systemDetails = details as SystemHealth;
-        return (
-          <div className="metric-details" style={{ marginTop: 'var(--spacing-md)' }}>
-            {systemDetails.file_descriptors && (
-              <div className="detail-item" style={{ marginBottom: 'var(--spacing-md)' }}>
-                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
-                  File Descriptors:
-                </span>
-                <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                  {systemDetails.file_descriptors.used} / {systemDetails.file_descriptors.max} 
-                  ({systemDetails.file_descriptors.percent.toFixed(1)}%)
-                </span>
-              </div>
-            )}
-            
-            {systemDetails.service_dependencies && systemDetails.service_dependencies.length > 0 && (
-              <div className="detail-section" style={{ marginBottom: 'var(--spacing-md)' }}>
-                <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
-                  Service Dependencies:
-                </h4>
-                <div className="service-list">
-                  {systemDetails.service_dependencies.slice(0, 5).map((service, index) => (
-                    <div key={index} style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      margin: 'var(--spacing-xs) 0',
-                      fontSize: 'var(--font-size-sm)'
-                    }}>
-                      <span>{service.name}</span>
-                      <span style={{ 
-                        color: service.status === 'healthy' ? 'var(--color-success)' : 'var(--color-error)'
-                      }}>
-                        {service.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {systemDetails.certificates && systemDetails.certificates.length > 0 && (
-              <div className="detail-section">
-                <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
-                  Certificates:
-                </h4>
-                <div className="certificate-list">
-                  {systemDetails.certificates.slice(0, 3).map((cert, index) => (
-                    <div key={index} style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      margin: 'var(--spacing-xs) 0',
-                      fontSize: 'var(--font-size-sm)'
-                    }}>
-                      <span>{cert.domain}</span>
-                      <span style={{ 
-                        color: cert.days_to_expiry < 30 ? 'var(--color-error)' : 
-                               cert.days_to_expiry < 60 ? 'var(--color-warning)' : 
-                               'var(--color-success)'
-                      }}>
-                        {cert.days_to_expiry} days
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-
       default:
         return null;
     }
@@ -567,39 +486,37 @@ export const MetricCard = ({
         textShadow: 'var(--text-shadow-glow)',
         marginBottom: 'var(--spacing-sm)'
       }}>
-        {typeof value === 'number' ? value.toFixed(1) : value}
+        {value.toFixed(1)}
       </div>
 
-      {!isStatusCard && (
-        history && history.length > 0 ? (
-          <MetricSparkline
-            data={history}
-            color={sparklineColor}
-            valueDomain={valueDomain}
-            threshold={sparklineThreshold}
-            unit={sparklineUnit}
-            windowLabel={formatWindowLabel(historyWindowSeconds)}
+      {history && history.length > 0 ? (
+        <MetricSparkline
+          data={history}
+          color={sparklineColor}
+          valueDomain={valueDomain}
+          threshold={sparklineThreshold}
+          unit={sparklineUnit}
+          windowLabel={formatWindowLabel(historyWindowSeconds)}
+        />
+      ) : (
+        <div className="metric-bar" style={{
+          width: '100%',
+          height: '4px',
+          background: 'rgba(0, 255, 0, 0.2)',
+          borderRadius: '2px',
+          overflow: 'hidden'
+        }}>
+          <div 
+            className="metric-fill" 
+            style={{
+              height: '100%',
+              width: `${getProgressValue()}%`,
+              background: 'linear-gradient(90deg, var(--color-accent), var(--color-text-bright))',
+              transition: 'width var(--transition-normal)',
+              boxShadow: '0 0 10px var(--color-matrix-green)'
+            }}
           />
-        ) : (
-          <div className="metric-bar" style={{
-            width: '100%',
-            height: '4px',
-            background: 'rgba(0, 255, 0, 0.2)',
-            borderRadius: '2px',
-            overflow: 'hidden'
-          }}>
-            <div 
-              className="metric-fill" 
-              style={{
-                height: '100%',
-                width: `${getProgressValue()}%`,
-                background: 'linear-gradient(90deg, var(--color-accent), var(--color-text-bright))',
-                transition: 'width var(--transition-normal)',
-                boxShadow: '0 0 10px var(--color-matrix-green)'
-              }}
-            />
-          </div>
-        )
+        </div>
       )}
 
       {renderExpandedContent()}

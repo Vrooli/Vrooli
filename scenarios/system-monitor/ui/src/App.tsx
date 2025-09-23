@@ -308,6 +308,7 @@ function App() {
                         data={infrastructureData}
                         isExpanded={dashboardState.expandedPanels.has('infrastructure')}
                         onToggle={() => togglePanel('infrastructure')}
+                        systemHealth={detailedMetrics?.system_details}
                       />
                     </section>
 

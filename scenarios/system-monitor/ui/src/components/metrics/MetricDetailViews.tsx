@@ -714,6 +714,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
     [metricHistory?.diskRead, metricHistory?.diskWrite]
   );
   const diskUsageHistory = useMemo(() => buildSingleSeriesData(metricHistory?.diskUsage), [metricHistory?.diskUsage]);
+  const fileDescriptors = detailedMetrics?.system_details?.file_descriptors;
 
   const fetchDiskDetails = useCallback(
     async (mount: string, nextDepth: number, includeFilesValue: boolean) => {
@@ -898,6 +899,56 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             </div>
           )}
         </div>
+
+        {fileDescriptors && (
+          <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+            <div>
+              <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>File Descriptor Utilization</h3>
+              <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em', fontSize: 'var(--font-size-sm)' }}>
+                Tracks open file handles across all services
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <div style={{ color: 'var(--color-text-bright)', fontSize: 'var(--font-size-xl)', fontWeight: 600 }}>
+                {fileDescriptors.used.toLocaleString()} / {fileDescriptors.max.toLocaleString()}
+              </div>
+              <div style={{
+                color: fileDescriptors.percent >= 85
+                  ? 'var(--color-error)'
+                  : fileDescriptors.percent >= 70
+                    ? 'var(--color-warning)'
+                    : 'var(--color-success)',
+                fontSize: 'var(--font-size-lg)',
+                fontWeight: 600
+              }}>
+                {fileDescriptors.percent.toFixed(1)}%
+              </div>
+            </div>
+            <div style={{
+              width: '100%',
+              height: '6px',
+              background: 'rgba(0, 255, 0, 0.2)',
+              borderRadius: '3px',
+              overflow: 'hidden'
+            }}>
+              <div
+                style={{
+                  width: `${Math.min(Math.max(fileDescriptors.percent, 0), 100)}%`,
+                  height: '100%',
+                  background: fileDescriptors.percent >= 85
+                    ? 'var(--color-error)'
+                    : fileDescriptors.percent >= 70
+                      ? 'var(--color-warning)'
+                      : 'linear-gradient(90deg, var(--color-accent), var(--color-text-bright))',
+                  transition: 'width var(--transition-normal)'
+                }}
+              />
+            </div>
+            <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)', letterSpacing: '0.06em' }}>
+              Sustained values above 80% risk "too many open files" errors during heavy disk activity.
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--spacing-lg)' }}>

@@ -248,6 +248,12 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	if updatedTask.CurrentPhase == "" && currentTask.CurrentPhase != "" {
 		updatedTask.CurrentPhase = currentTask.CurrentPhase
 	}
+	if updatedTask.CompletionCount == 0 && currentTask.CompletionCount > 0 {
+		updatedTask.CompletionCount = currentTask.CompletionCount
+	}
+	if updatedTask.LastCompletedAt == "" {
+		updatedTask.LastCompletedAt = currentTask.LastCompletedAt
+	}
 
 	// Handle backwards status transitions (completed/failed -> pending/in-progress)
 	// This happens when users drag tasks back to re-execute them
@@ -267,7 +273,6 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		updatedTask.Results = nil
 		updatedTask.StartedAt = ""
 		updatedTask.CompletedAt = ""
-		updatedTask.ProgressPercent = 0
 		updatedTask.CurrentPhase = ""
 	} else {
 		// Normal status transitions - preserve existing data if not provided
@@ -277,6 +282,9 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		}
 		if updatedTask.CompletedAt == "" {
 			updatedTask.CompletedAt = currentTask.CompletedAt
+		}
+		if updatedTask.LastCompletedAt == "" {
+			updatedTask.LastCompletedAt = currentTask.LastCompletedAt
 		}
 		// IMPORTANT: Don't preserve results if it's a backwards transition that wasn't detected
 		// This can happen if status strings don't match exactly
@@ -297,9 +305,19 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		now := time.Now().Format(time.RFC3339)
 		updatedTask.UpdatedAt = now
 
-		if newStatus == "in-progress" && currentTask.StartedAt == "" {
+		if newStatus == "in-progress" {
 			updatedTask.StartedAt = now
-		} else if (newStatus == "completed" || newStatus == "failed") && currentTask.CompletedAt == "" {
+		}
+		if newStatus == "completed" {
+			if updatedTask.CompletionCount <= currentTask.CompletionCount {
+				updatedTask.CompletionCount = currentTask.CompletionCount + 1
+			}
+			if updatedTask.CompletedAt == "" {
+				updatedTask.CompletedAt = now
+			}
+			updatedTask.LastCompletedAt = updatedTask.CompletedAt
+		}
+		if newStatus == "failed" && updatedTask.CompletedAt == "" {
 			updatedTask.CompletedAt = now
 		}
 
@@ -468,9 +486,8 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 	taskID := vars["id"]
 
 	var update struct {
-		Status          string `json:"status"`
-		ProgressPercent int    `json:"progress_percentage"`
-		CurrentPhase    string `json:"current_phase"`
+		Status       string `json:"status"`
+		CurrentPhase string `json:"current_phase"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
@@ -487,7 +504,9 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 
 	// Update task fields
 	if update.Status != "" && update.Status != currentStatus {
+		previousCount := task.CompletionCount
 		task.Status = update.Status
+		now := time.Now().Format(time.RFC3339)
 
 		// Handle backwards status transitions (completed/failed -> pending/in-progress)
 		isBackwardsTransition := (currentStatus == "completed" || currentStatus == "failed") &&
@@ -499,8 +518,21 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 			task.Results = nil
 			task.StartedAt = ""
 			task.CompletedAt = ""
-			task.ProgressPercent = 0
 			task.CurrentPhase = ""
+		}
+
+		if update.Status == "in-progress" {
+			task.StartedAt = now
+		}
+		if update.Status == "completed" {
+			if task.CompletionCount <= previousCount {
+				task.CompletionCount = previousCount + 1
+			}
+			task.CompletedAt = now
+			task.LastCompletedAt = task.CompletedAt
+		}
+		if update.Status == "failed" {
+			task.CompletedAt = now
 		}
 
 		// CRITICAL: If task is moved OUT of in-progress, terminate any running process
@@ -527,10 +559,6 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 				return
 			}
 		}
-	}
-
-	if update.ProgressPercent > 0 {
-		task.ProgressPercent = update.ProgressPercent
 	}
 
 	if update.CurrentPhase != "" {
@@ -562,7 +590,6 @@ type promptPreviewRequest struct {
 	Category     string                 `json:"category,omitempty"`
 	Priority     string                 `json:"priority,omitempty"`
 	Notes        string                 `json:"notes,omitempty"`
-	Requirements map[string]interface{} `json:"requirements,omitempty"`
 	Tags         []string               `json:"tags,omitempty"`
 }
 
@@ -590,9 +617,6 @@ func (r promptPreviewRequest) buildTask(defaultID string) tasks.TaskItem {
 	}
 	if r.Notes != "" {
 		task.Notes = r.Notes
-	}
-	if r.Requirements != nil {
-		task.Requirements = r.Requirements
 	}
 	if len(r.Tags) > 0 {
 		task.Tags = r.Tags

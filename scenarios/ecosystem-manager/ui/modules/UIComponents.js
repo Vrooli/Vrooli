@@ -12,21 +12,39 @@ export class UIComponents {
         card.className = `task-card ${task.priority} ${isRunning ? 'task-executing' : ''} ${task.type || 'resource'} ${task.operation || 'generator'}`;
         card.id = `task-${task.id}`;
         card.draggable = true;
-        
+
+        const completionCount = Number.isInteger(task.completion_count) ? task.completion_count : 0;
+        const completionLabel = completionCount === 1 ? 'completed run' : 'completed runs';
+        const lastCompletedDate = task.last_completed_at ? new Date(task.last_completed_at) : null;
+        const hasValidLastCompleted = lastCompletedDate && !Number.isNaN(lastCompletedDate.getTime());
+        const lastCompletedRelative = hasValidLastCompleted ? this.formatRelativeTime(task.last_completed_at) : '';
+        const lastCompletedTooltip = hasValidLastCompleted ? lastCompletedDate.toLocaleString() : null;
+
         // Determine icon and label based on type and operation
         const typeInfo = this.getTaskTypeInfo(task);
-        
+
         card.innerHTML = `
             <div class="task-header">
                 <span class="task-type ${task.type}">
                     <i class="${typeInfo.icon}"></i> ${typeInfo.label}
                 </span>
-                <span class="priority-chip priority-${task.priority}">
-                    ${task.priority}
-                </span>
+                <div class="task-header-metrics">
+                    <span class="task-completions" title="${completionCount} ${completionLabel}">
+                        <i class="fas fa-rotate-right"></i> ${completionCount}
+                    </span>
+                    <span class="priority-chip priority-${task.priority}" title="Priority: ${task.priority}">
+                        ${task.priority}
+                    </span>
+                </div>
             </div>
             <h3 class="task-title">${this.escapeHtml(task.title)}</h3>
             ${task.category ? `<span class="task-category category-${task.category}">${task.category}</span>` : ''}
+            <div class="task-meta-row">
+                <span class="task-meta-label">Last run:</span>
+                <span class="task-meta-value" ${lastCompletedTooltip ? `title="${this.escapeHtml(lastCompletedTooltip)}"` : ''}>
+                    ${lastCompletedRelative || '—'}
+                </span>
+            </div>
             ${isRunning ? `
                 <div class="task-execution-indicator">
                     <i class="fas fa-brain fa-spin"></i>
@@ -46,6 +64,53 @@ export class UIComponents {
         `;
         
         return card;
+    }
+
+    static formatRelativeTime(timestamp) {
+        if (!timestamp) return '';
+
+        const parsed = new Date(timestamp);
+        if (Number.isNaN(parsed.getTime())) {
+            return '';
+        }
+
+        const diffMs = Date.now() - parsed.getTime();
+        if (diffMs < 0) {
+            return 'just now';
+        }
+
+        const seconds = Math.floor(diffMs / 1000);
+        if (seconds < 60) {
+            return 'just now';
+        }
+
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) {
+            return `${minutes}m ago`;
+        }
+
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) {
+            return `${hours}h ago`;
+        }
+
+        const days = Math.floor(hours / 24);
+        if (days < 7) {
+            return `${days}d ago`;
+        }
+
+        const weeks = Math.floor(days / 7);
+        if (weeks < 5) {
+            return `${weeks}w ago`;
+        }
+
+        const months = Math.floor(days / 30);
+        if (months < 12) {
+            return `${months}mo ago`;
+        }
+
+        const years = Math.floor(days / 365);
+        return `${years}y ago`;
     }
 
     static getTaskTypeInfo(task) {

@@ -117,7 +117,6 @@ GET /api/tasks/{id}
 PUT /api/tasks/{id}/status
 {
   "status": "in-progress",
-  "progress_percentage": 50,
   "current_phase": "implementation"
 }
 

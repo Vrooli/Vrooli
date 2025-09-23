@@ -11,34 +11,6 @@ category: "improvement"  # Always improvement for improver tasks
 priority: "medium"
 effort_estimate: "2h"
 urgency: "normal"
-impact_score: 6
-
-# Resource improvement requirements
-requirements:
-  target_resource: "CHANGEME"  # specific resource to improve
-  
-  improvement_areas:
-    - "CHANGEME"  # v2_contract_compliance | health_checks | cli_standardization | documentation | performance
-  
-  assessment_focus:
-    - "Current v2.0 contract compliance status"
-    - "Existing PRD accuracy validation"
-    - "Health check robustness analysis"
-    - "CLI command completeness review"
-    - "Documentation quality assessment"
-  
-  deliverables:
-    - "Updated PRD.md with corrected status"
-    - "Improved health check implementation"
-    - "Enhanced CLI commands"
-    - "Better error handling"
-    - "Updated documentation"
-  
-  prd_focus:
-    - "Validate existing checkmarks are accurate"
-    - "Complete missing P0 requirements"
-    - "Add any missing requirements"
-    - "Update completion percentages"
 
 # Dependencies and relationships
 dependencies: []
@@ -46,20 +18,13 @@ blocks: []
 related_scenarios: []  # scenarios affected by this resource
 related_resources: []  # other resources that might be impacted
 
-# Resource allocation
-assigned_resources:
-  claude_code: true
-  postgres: true
-  qdrant: true
-  web_search: false  # Improvers focus on existing code analysis
-
 # Progress tracking
 status: "pending"
-progress_percentage: 0
 current_phase: ""
 started_at: ""
 completed_at: ""
-estimated_completion: ""
+completion_count: 0
+last_completed_at: ""
 
 # Quality gates for resource improvement
 validation_criteria:
@@ -75,7 +40,12 @@ created_by: "user"
 created_at: "{{ timestamp }}"
 updated_at: "{{ timestamp }}"
 tags: ["resource-improvement", "maintenance"]
-notes: "Template for improving existing resources"
+notes: |
+  Template guidance for resource improvements. Fill in the CHANGEME placeholders before execution:
+    • Target resource and focus area (v2 contract compliance, health checks, CLI, docs, performance)
+    • Assessment focus (contract accuracy, PRD validation, health checks, CLI coverage, docs quality)
+    • Expected deliverables (updated PRD.md, health checks, CLI polish, resilience improvements, refreshed docs)
+    • PRD focus (verify checkmarks, complete missing P0 items, capture new requirements, update completion summaries)
 
 # Results (populated after completion)
 results:

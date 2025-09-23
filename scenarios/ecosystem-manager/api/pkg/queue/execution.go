@@ -59,9 +59,8 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		log.Printf("Saved assembled prompt to %s", promptPath)
 	}
 
-	// Update task progress
+	// Update task phase before execution starts
 	task.CurrentPhase = "prompt_assembled"
-	task.ProgressPercent = 25
 	qp.storage.SaveQueueItem(task, "in-progress")
 	qp.broadcastUpdate("task_progress", task)
 
@@ -105,10 +104,11 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 			"completed_at":    time.Now().Format(time.RFC3339),
 			"prompt_size":     fmt.Sprintf("%d chars (%.2f KB)", len(prompt), promptSizeKB),
 		}
-		task.ProgressPercent = 100
 		task.CurrentPhase = "completed"
 		task.Status = "completed"
 		task.CompletedAt = time.Now().Format(time.RFC3339)
+		task.CompletionCount++
+		task.LastCompletedAt = task.CompletedAt
 		qp.broadcastUpdate("task_completed", task)
 		qp.finalizeTaskStatus(&task, "completed")
 	} else {
@@ -302,7 +302,6 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	})
 
 	task.CurrentPhase = "executing_claude"
-	task.ProgressPercent = 50
 	task.StartedAt = startTime.Format(time.RFC3339)
 	if err := qp.storage.SaveQueueItem(task, "in-progress"); err != nil {
 		log.Printf("Warning: failed to persist in-progress task %s: %v", task.ID, err)
@@ -409,21 +408,24 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		close(stopWatch)
 	})
 
+	ctxErr := ctx.Err()
+
 	// Timeout takes precedence regardless of wait error
-	if ctx.Err() == context.DeadlineExceeded {
+	if ctxErr == context.DeadlineExceeded {
 		actualRuntime := time.Since(startTime).Round(time.Second)
 		msg := fmt.Sprintf("⏰ TIMEOUT: Task execution exceeded %v limit (ran for %v)\n\nThe task was automatically terminated because it exceeded the configured timeout.\nConsider:\n- Increasing timeout in Settings if this is a complex task\n- Breaking the task into smaller parts\n- Checking for blocking steps in the prompt", timeoutDuration, actualRuntime)
 		qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
 		return &tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}, cleanup, nil
 	}
 
-	// Detect manual termination (context cancelled) before evaluating generic errors
-	if ctx.Err() == context.Canceled {
-		qp.appendTaskLog(task.ID, agentTag, "stderr", "⛔ Task execution was cancelled")
-		return &tasks.ClaudeCodeResponse{Success: false, Error: "Task execution was cancelled", Output: combinedOutput}, cleanup, nil
-	}
-
 	if waitErr != nil {
+		if ctxErr == context.Canceled {
+			if strings.Contains(combinedOutput, "## Task Completion Summary") || strings.Contains(combinedOutput, "## Summary") {
+				qp.appendTaskLog(task.ID, agentTag, "stderr", "INFO: Idle watchdog cancelled context, but Claude returned a summary. Treating as success.")
+				waitErr = nil
+			}
+		}
+
 		if detectMaxTurnsExceeded(combinedOutput) {
 			maxTurnsMsg := fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", currentSettings.MaxTurns)
 			qp.appendTaskLog(task.ID, agentTag, "stderr", maxTurnsMsg)
@@ -441,6 +443,10 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 
 		log.Printf("Claude Code process errored for task %s: %v", task.ID, waitErr)
 		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to execute Claude Code: %v", waitErr), Output: combinedOutput}, cleanup, nil
+	}
+
+	if ctxErr == context.Canceled {
+		qp.appendTaskLog(task.ID, agentTag, "stderr", "INFO: Claude process completed after idle watchdog cancellation signal")
 	}
 
 	lowerOutput := strings.ToLower(combinedOutput)
@@ -486,7 +492,6 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	qp.appendTaskLog(task.ID, agentTag, "stdout", "✅ Claude Code execution finished")
 
 	task.CurrentPhase = "claude_completed"
-	task.ProgressPercent = 90
 	if err := qp.storage.SaveQueueItem(task, "in-progress"); err != nil {
 		log.Printf("Warning: failed to persist claude completion for task %s: %v", task.ID, err)
 	}

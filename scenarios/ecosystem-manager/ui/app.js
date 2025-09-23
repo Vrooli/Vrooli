@@ -37,6 +37,8 @@ class EcosystemManager {
         this.promptOperations = null;
         this.promptPreviewLoading = false;
         this.lastPromptPreview = null;
+        this.titleAutofillActive = false;
+        this.lastAutofilledTitle = '';
         
         // Bind methods
         this.init = this.init.bind(this);
@@ -195,6 +197,16 @@ class EcosystemManager {
                 await this.handleCreateTask();
             });
         }
+
+        const taskTargetSelect = document.getElementById('task-target');
+        if (taskTargetSelect) {
+            taskTargetSelect.addEventListener('change', () => this.handleTargetSelectionChange());
+        }
+
+        const taskTitleInput = document.getElementById('task-title');
+        if (taskTitleInput) {
+            taskTitleInput.addEventListener('input', () => this.handleTitleInputChange());
+        }
         
         // Settings form
         const settingsForm = document.getElementById('settings-form');
@@ -307,6 +319,7 @@ class EcosystemManager {
         const modal = document.getElementById('create-task-modal');
         if (modal) {
             // Initialize the form with default values
+            this.resetCreateTaskTitleState();
             await this.updateFormForType();
             await this.updateFormForOperation();
             modal.classList.add('show');
@@ -342,6 +355,7 @@ class EcosystemManager {
                 this.showToast('Task created successfully', 'success');
                 this.closeModal('create-task-modal');
                 form.reset(); // Reset the form
+                this.resetCreateTaskTitleState();
                 await this.refreshColumn('pending');
             } else {
                 throw new Error(result.error || 'Failed to create task');
@@ -447,7 +461,7 @@ class EcosystemManager {
                         <div class="form-group">
                             <label for="edit-task-notes">Notes</label>
                             <textarea id="edit-task-notes" name="notes" rows="16" 
-                                      placeholder="Additional details, requirements, or context...">${this.escapeHtml(task.notes || '')}</textarea>
+                                      placeholder="Additional notes or context...">${this.escapeHtml(task.notes || '')}</textarea>
                         </div>
                     </div>
                     
@@ -513,7 +527,8 @@ class EcosystemManager {
                     <div><strong>ID:</strong> ${task.id}</div>
                     ${task.created_at ? `<div><strong>Created:</strong> ${new Date(task.created_at).toLocaleString()}</div>` : ''}
                     ${task.started_at ? `<div><strong>Started:</strong> ${new Date(task.started_at).toLocaleString()}</div>` : ''}
-                    ${task.completed_at ? `<div><strong>Completed:</strong> ${new Date(task.completed_at).toLocaleString()}</div>` : ''}
+                    ${Number.isInteger(task.completion_count) ? `<div><strong>Runs Completed:</strong> ${task.completion_count}</div>` : ''}
+                    ${task.last_completed_at ? `<div><strong>Last Completed:</strong> ${new Date(task.last_completed_at).toLocaleString()}</div>` : (!task.last_completed_at && task.completed_at ? `<div><strong>Last Completed:</strong> ${new Date(task.completed_at).toLocaleString()}</div>` : '')}
                 </div>
             </div>
         `;
@@ -1611,11 +1626,6 @@ class EcosystemManager {
     }
 
     async handlePromptPreview() {
-        const requirementsInput = document.getElementById('prompt-requirements');
-        if (requirementsInput) {
-            requirementsInput.classList.remove('input-error');
-        }
-
         this.setPromptPreviewStatus('Assembling prompt...', 'loading');
         this.togglePromptPreviewLoading(true);
 
@@ -1624,7 +1634,6 @@ class EcosystemManager {
         const titleField = document.getElementById('prompt-title');
         const priorityField = document.getElementById('prompt-priority');
         const notesField = document.getElementById('prompt-notes');
-        const requirementsField = document.getElementById('prompt-requirements');
 
         const payload = {
             display: 'preview',
@@ -1636,23 +1645,6 @@ class EcosystemManager {
                 notes: notesField ? notesField.value.trim() : '',
             }
         };
-
-
-        if (requirementsField && requirementsField.value.trim()) {
-            try {
-                const parsed = JSON.parse(requirementsField.value.trim());
-                if (typeof parsed !== 'object' || Array.isArray(parsed)) {
-                    throw new Error('Requirements must be a JSON object');
-                }
-                payload.task.requirements = parsed;
-            } catch (error) {
-                this.setPromptPreviewStatus(`Requirements JSON invalid: ${error.message}`, 'error');
-                requirementsField.classList.add('input-error');
-                requirementsField.focus();
-                this.togglePromptPreviewLoading(false);
-                return;
-            }
-        }
 
         try {
             const response = await fetch(`${this.apiBase}/prompt-viewer`, {
@@ -1738,15 +1730,6 @@ class EcosystemManager {
         if (notes) {
             const escapedNotes = this.escapeHtml(notes).replace(/\n/g, '<br>');
             metadataItems.push({ label: 'Notes', value: escapedNotes, allowHtml: true });
-        }
-
-        if (task.requirements && typeof task.requirements === 'object' && Object.keys(task.requirements).length > 0) {
-            const pretty = this.escapeHtml(JSON.stringify(task.requirements, null, 2));
-            metadataItems.push({
-                label: 'Requirements',
-                value: `<pre class="prompt-meta-json">${pretty}</pre>`,
-                allowHtml: true
-            });
         }
 
         summaryElement.innerHTML = `
@@ -2057,6 +2040,8 @@ class EcosystemManager {
         if (operation === 'improver') {
             await this.loadAvailableTargets();
         }
+
+        this.maybeAutofillTaskTitle();
     }
 
     async updateFormForOperation() {
@@ -2075,6 +2060,8 @@ class EcosystemManager {
                 await this.loadAvailableTargets();
             }
         }
+
+        this.maybeAutofillTaskTitle();
     }
 
     async loadAvailableResourcesAndScenarios() {
@@ -2146,6 +2133,97 @@ class EcosystemManager {
                 targetSelect.appendChild(option);
             });
         }
+    }
+
+    resetCreateTaskTitleState() {
+        this.titleAutofillActive = false;
+        this.lastAutofilledTitle = '';
+    }
+
+    handleTargetSelectionChange() {
+        this.maybeAutofillTaskTitle();
+    }
+
+    handleTitleInputChange() {
+        const titleInput = document.getElementById('task-title');
+        if (!titleInput) return;
+
+        if (!titleInput.value.trim()) {
+            this.resetCreateTaskTitleState();
+            return;
+        }
+
+        if (titleInput.value !== this.lastAutofilledTitle) {
+            this.titleAutofillActive = false;
+        }
+    }
+
+    maybeAutofillTaskTitle() {
+        const titleInput = document.getElementById('task-title');
+        const targetSelect = document.getElementById('task-target');
+
+        if (!titleInput || !targetSelect) {
+            return;
+        }
+
+        const target = (targetSelect.value || '').trim();
+
+        if (!target) {
+            if (this.titleAutofillActive) {
+                titleInput.value = '';
+                this.resetCreateTaskTitleState();
+            }
+            return;
+        }
+
+        const operation = document.querySelector('input[name="operation"]:checked')?.value;
+        const type = document.querySelector('input[name="type"]:checked')?.value;
+
+        const generatedTitle = this.generateTaskTitle(operation, type, target);
+        if (!generatedTitle) {
+            return;
+        }
+
+        const currentValue = titleInput.value || '';
+        const shouldUpdate = this.titleAutofillActive || !currentValue.trim();
+
+        if (shouldUpdate || currentValue === this.lastAutofilledTitle) {
+            titleInput.value = generatedTitle;
+            this.titleAutofillActive = true;
+            this.lastAutofilledTitle = generatedTitle;
+        }
+    }
+
+    generateTaskTitle(operation, type, target) {
+        if (!operation || !type || !target) {
+            return '';
+        }
+
+        const operationLabel = this.getOperationDisplayName(operation);
+        const typeLabel = type.toLowerCase();
+
+        if (!operationLabel) {
+            return '';
+        }
+
+        return `${operationLabel} ${typeLabel} ${target}`;
+    }
+
+    getOperationDisplayName(operation) {
+        if (!operation) {
+            return '';
+        }
+
+        const mapping = {
+            generator: 'Create',
+            improver: 'Enhance'
+        };
+
+        if (mapping[operation]) {
+            return mapping[operation];
+        }
+
+        return operation.charAt(0).toUpperCase() + operation.slice(1);
     }
 
     updateSliderValue(sliderId, valueId) {

@@ -8,7 +8,7 @@
     --warning-color: #ffc107;
     --error-color: #dc3545;
     --info-color: #17a2b8;
-    
+
     /* Light theme neutrals */
     --white: #ffffff;
     --light-gray: #f8f9fa;
@@ -19,7 +19,7 @@
     --bg-color: #f8f9fa;
     --card-bg: #ffffff;
     --header-bg: linear-gradient(135deg, #4a90e2, #7b68ee);
-    
+
     /* Dark theme colors */
     --dark-bg: #1a1a1a;
     --dark-card-bg: #2d2d2d;
@@ -28,14 +28,14 @@
     --dark-border-gray: #404040;
     --dark-text-color: #f3f4f6;
     --dark-header-bg: linear-gradient(135deg, #1e40af, #5b21b6);
-    
+
     /* Status Colors */
     --pending-color: #ffc107;
     --in-progress-color: #007bff;
     --review-color: #6f42c1;
     --completed-color: #28a745;
     --failed-color: #dc3545;
-    
+
     /* Category Colors */
     --ai-ml-color: #8e44ad;
     --communication-color: #3498db;
@@ -47,7 +47,7 @@
     --business-color: #34495e;
     --personal-color: #9b59b6;
     --entertainment-color: #ff6b6b;
-    
+
     /* Layout */
     --header-height: 60px;
     --filters-height: 60px;
@@ -164,7 +164,6 @@ body.dark-mode .header {
     align-items: center;
     height: 100%;
     padding: 0.75rem 2rem;
-    max-width: 1600px;
     margin: 0 auto;
 }
 
@@ -463,6 +462,34 @@ main {
     margin-bottom: 0.8rem;
 }
 
+.task-header-metrics {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.task-completions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(90, 171, 255, 0.15);
+    color: var(--text-color);
+}
+
+.task-completions i {
+    font-size: 0.75rem;
+}
+
+body.dark-mode .task-completions {
+    background: rgba(90, 171, 255, 0.25);
+    color: var(--white);
+}
+
 .task-icon {
     font-size: 1.2rem;
     width: 2rem;
@@ -491,6 +518,32 @@ main {
     line-height: 1.3;
     margin-bottom: 0.5rem;
     color: var(--text-color);
+}
+
+.task-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.78rem;
+    color: var(--medium-gray);
+}
+
+.task-meta-label {
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.task-meta-value {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+body.dark-mode .task-meta-value {
+    color: var(--white);
 }
 
 .task-meta {
@@ -546,16 +599,55 @@ main {
 }
 
 /* Category-specific tag colors */
-.task-tag.category-ai-ml { background: var(--ai-ml-color); color: var(--white); }
-.task-tag.category-communication { background: var(--communication-color); color: var(--white); }
-.task-tag.category-data { background: var(--data-color); color: var(--white); }
-.task-tag.category-security { background: var(--security-color); color: var(--white); }
-.task-tag.category-automation { background: var(--automation-color); color: var(--white); }
-.task-tag.category-monitoring { background: var(--monitoring-color); color: var(--white); }
-.task-tag.category-productivity { background: var(--productivity-color); color: var(--white); }
-.task-tag.category-business { background: var(--business-color); color: var(--white); }
-.task-tag.category-personal { background: var(--personal-color); color: var(--white); }
-.task-tag.category-entertainment { background: var(--entertainment-color); color: var(--white); }
+.task-tag.category-ai-ml {
+    background: var(--ai-ml-color);
+    color: var(--white);
+}
+
+.task-tag.category-communication {
+    background: var(--communication-color);
+    color: var(--white);
+}
+
+.task-tag.category-data {
+    background: var(--data-color);
+    color: var(--white);
+}
+
+.task-tag.category-security {
+    background: var(--security-color);
+    color: var(--white);
+}
+
+.task-tag.category-automation {
+    background: var(--automation-color);
+    color: var(--white);
+}
+
+.task-tag.category-monitoring {
+    background: var(--monitoring-color);
+    color: var(--white);
+}
+
+.task-tag.category-productivity {
+    background: var(--productivity-color);
+    color: var(--white);
+}
+
+.task-tag.category-business {
+    background: var(--business-color);
+    color: var(--white);
+}
+
+.task-tag.category-personal {
+    background: var(--personal-color);
+    color: var(--white);
+}
+
+.task-tag.category-entertainment {
+    background: var(--entertainment-color);
+    color: var(--white);
+}
 
 /* Task Phase Chip */
 .task-phase-chip {
@@ -583,9 +675,12 @@ body.dark-mode .task-phase-chip {
 }
 
 @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 1;
     }
+
     50% {
         opacity: 0.8;
         transform: scale(1.02);
@@ -1083,25 +1178,25 @@ form {
         grid-template-columns: 1fr 1.5fr;
         gap: 2rem;
     }
-    
+
     .task-form-left {
         display: flex;
         flex-direction: column;
     }
-    
+
     .task-form-right {
         display: flex;
         flex-direction: column;
         height: 100%;
     }
-    
+
     .task-form-right .form-group {
         flex: 1;
         display: flex;
         flex-direction: column;
         margin-bottom: 0;
     }
-    
+
     .task-form-right textarea {
         flex: 1;
         min-height: 350px;
@@ -1147,13 +1242,13 @@ form {
     background: rgba(255, 255, 255, 0.5);
 }
 
-.toggle-input:checked + .toggle-btn {
+.toggle-input:checked+.toggle-btn {
     background: white;
     color: var(--primary-color);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
-.toggle-input:focus-visible + .toggle-btn {
+.toggle-input:focus-visible+.toggle-btn {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
 }
@@ -1171,7 +1266,7 @@ body.dark-mode .toggle-btn:hover {
     background: rgba(255, 255, 255, 0.15);
 }
 
-body.dark-mode .toggle-input:checked + .toggle-btn {
+body.dark-mode .toggle-input:checked+.toggle-btn {
     background: rgba(74, 144, 226, 0.2);
     color: var(--primary-color);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -1304,6 +1399,7 @@ body.dark-mode .toggle-input:checked + .toggle-btn {
         transform: translateX(100%);
         opacity: 0;
     }
+
     to {
         transform: translateX(0);
         opacity: 1;
@@ -1315,7 +1411,7 @@ body.dark-mode .toggle-input:checked + .toggle-btn {
     .kanban-board {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .kanban-column:nth-child(3),
     .kanban-column:nth-child(4) {
         grid-column: span 1;
@@ -1323,48 +1419,49 @@ body.dark-mode .toggle-input:checked + .toggle-btn {
 }
 
 @media (max-width: 1024px) {
+
     /* Layout adjustments */
     .kanban-board {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .header {
         min-height: auto;
     }
-    
+
     .header-content {
         flex-direction: column;
         gap: 0.75rem;
         padding: 1rem;
         align-items: flex-start;
     }
-    
+
     .header-left {
         width: 100%;
     }
-    
+
     .header-title {
         font-size: 1.1rem;
     }
-    
+
     .header-subtitle {
         font-size: 0.75rem;
     }
-    
+
     .header-right {
         width: 100%;
         justify-content: space-between;
         align-items: center;
         gap: 0.5rem;
     }
-    
-    
+
+
     /* Queue status adjustments */
     .queue-status {
         margin: 0;
         flex: 1;
     }
-    
+
     .queue-info {
         flex-wrap: wrap;
         gap: 0.5rem;
@@ -1372,14 +1469,16 @@ body.dark-mode .toggle-input:checked + .toggle-btn {
         padding: 0.3rem 0.6rem;
         justify-content: space-around;
     }
-    
-    .queue-slots, .queue-timer, .queue-processor-status {
+
+    .queue-slots,
+    .queue-timer,
+    .queue-processor-status {
         min-width: auto;
         flex: 1;
         justify-content: center;
         font-size: 0.7rem;
     }
-    
+
     /* Filter adjustments */
     .filters {
         flex-wrap: wrap;
@@ -1388,36 +1487,36 @@ body.dark-mode .toggle-input:checked + .toggle-btn {
         padding: 0.75rem;
         gap: 0.75rem;
     }
-    
+
     .filter-group {
         flex: 1;
         min-width: 120px;
     }
-    
+
     .filter-search {
         flex: 1 1 100%;
         margin-top: 0.5rem;
     }
-    
+
     .search-input {
         width: 100% !important;
     }
-    
+
     .filter-select {
         width: 100%;
         font-size: 0.85rem;
     }
-    
+
     .btn {
         font-size: 0.85rem;
         padding: 0.4rem 0.8rem;
         flex-shrink: 0;
     }
-    
+
     .fixed-top-container {
         position: relative;
     }
-    
+
     /* Reset body padding when container becomes relative */
     body {
         padding-top: 0;
@@ -1430,52 +1529,52 @@ body.dark-mode .toggle-input:checked + .toggle-btn {
         gap: 1rem;
         padding: 0.75rem;
     }
-    
+
     .form-row {
         grid-template-columns: 1fr;
     }
-    
+
     .filters {
         padding: 0.5rem;
         gap: 0.5rem;
     }
-    
+
     .filter-group {
         min-width: 100px;
     }
-    
+
     .search-input,
     .search-input:focus {
         width: 100% !important;
     }
-    
+
     main {
         padding: 0.75rem;
     }
-    
+
     .task-card {
         margin-bottom: 0.75rem;
         padding: 0.75rem;
     }
-    
+
     .task-title {
         font-size: 0.95rem;
         line-height: 1.3;
     }
-    
+
     .priority-chip {
         font-size: 0.65rem;
         padding: 0.2rem 0.6rem;
     }
-    
+
     .task-type {
         font-size: 0.8rem;
     }
-    
+
     .column-header {
         padding: 0.75rem;
     }
-    
+
     .column-title {
         font-size: 0.9rem;
     }
@@ -1495,10 +1594,21 @@ body.dark-mode .toggle-input:checked + .toggle-btn {
     color: var(--medium-gray);
 }
 
-.mb-0 { margin-bottom: 0; }
-.mb-1 { margin-bottom: 0.5rem; }
-.mb-2 { margin-bottom: 1rem; }
-.mb-3 { margin-bottom: 1.5rem; }
+.mb-0 {
+    margin-bottom: 0;
+}
+
+.mb-1 {
+    margin-bottom: 0.5rem;
+}
+
+.mb-2 {
+    margin-bottom: 1rem;
+}
+
+.mb-3 {
+    margin-bottom: 1.5rem;
+}
 
 /* Additional UI improvements */
 
@@ -1533,8 +1643,15 @@ button:focus,
 
 /* Loading animation improvements */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .task-card {
@@ -1570,6 +1687,7 @@ button:focus,
         opacity: 0;
         transform: translateY(-50px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -1590,7 +1708,7 @@ button:focus,
     .header-content {
         padding: 0.5rem;
     }
-    
+
 }
 
 /* Improved kanban board spacing */
@@ -1619,13 +1737,18 @@ button:focus,
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
     animation: progressShimmer 2s infinite;
 }
 
 @keyframes progressShimmer {
-    0% { left: -100%; }
-    100% { left: 100%; }
+    0% {
+        left: -100%;
+    }
+
+    100% {
+        left: 100%;
+    }
 }
 
 /* High contrast mode support */
@@ -1638,6 +1761,7 @@ button:focus,
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {
@@ -1688,9 +1812,12 @@ button:focus,
 
 /* Enhanced dragging animations */
 @keyframes dragPulse {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 0.5;
     }
+
     50% {
         opacity: 0.7;
     }
@@ -1783,7 +1910,7 @@ button:focus,
     .task-card {
         touch-action: none;
     }
-    
+
     .task-card:active {
         transform: scale(0.98);
         transition: transform 0.1s ease;
@@ -1792,6 +1919,7 @@ button:focus,
 
 /* Visual feedback for auto-scroll zones on mobile */
 @media (max-width: 768px) {
+
     body.dragging-active::before,
     body.dragging-active::after {
         content: '';
@@ -1804,13 +1932,13 @@ button:focus,
         opacity: 0;
         transition: opacity 0.3s ease;
     }
-    
+
     body.dragging-active::before {
         top: 0;
         background: linear-gradient(to bottom, rgba(52, 152, 219, 0.2), transparent);
         opacity: 1;
     }
-    
+
     body.dragging-active::after {
         bottom: 0;
         background: linear-gradient(to top, rgba(52, 152, 219, 0.2), transparent);
@@ -1873,14 +2001,20 @@ body.dark-mode .task-error .error-message {
     color: var(--text-secondary);
 }
 
-.queue-slots, .queue-timer, .queue-processor-status, .process-monitor {
+.queue-slots,
+.queue-timer,
+.queue-processor-status,
+.process-monitor {
     display: flex;
     align-items: center;
     gap: 0.4rem;
     white-space: nowrap;
 }
 
-.queue-slots i, .queue-timer i, .queue-processor-status i, .process-monitor i {
+.queue-slots i,
+.queue-timer i,
+.queue-processor-status i,
+.process-monitor i {
     color: var(--primary-color);
     margin-right: 0.3rem;
     font-size: 0.75rem;
@@ -1976,11 +2110,12 @@ body.dark-mode .task-error .error-message {
 }
 
 @keyframes pulse {
-    from { 
+    from {
         background: rgba(255, 215, 0, 0.1);
         border-color: rgba(255, 215, 0, 0.2);
     }
-    to { 
+
+    to {
         background: rgba(255, 215, 0, 0.2);
         border-color: rgba(255, 215, 0, 0.4);
     }
@@ -2056,8 +2191,15 @@ body.dark-mode .task-error .error-message {
 
 /* Queue status animations */
 @keyframes pulse-refresh {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
 }
 
 .queue-timer.refreshing {
@@ -2821,16 +2963,17 @@ body.dark-mode .input-error {
 
 /* Mobile Responsive Styles */
 @media (max-width: 768px) {
+
     /* Hide tabs navigation on mobile */
     .settings-tabs-nav {
         display: none;
     }
-    
+
     /* Show all tab content on mobile */
     .settings-tab-content {
         display: block !important;
     }
-    
+
     /* Change settings sections to border style on mobile */
     .settings-section {
         margin-bottom: 1.5rem;
@@ -2840,19 +2983,19 @@ body.dark-mode .input-error {
         border-bottom: 1px solid var(--border-gray);
         border-radius: 0;
     }
-    
+
     /* Last section shouldn't have bottom border */
     .settings-tab-content:last-of-type .settings-section {
         border-bottom: none;
     }
-    
+
     /* Adjust section titles for mobile */
     .settings-section-title {
         font-size: 1rem;
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
     }
-    
+
     /* Remove content padding on mobile for full width sections */
     .settings-content {
         padding: 1rem;
@@ -2948,8 +3091,8 @@ body.dark-mode .input-error {
 }
 
 .execution-results .status-warning {
-	color: #ff9800;
-	font-weight: 500;
+    color: #ff9800;
+    font-weight: 500;
 }
 
 .execution-results .claude-output {
@@ -3022,7 +3165,7 @@ body.dark-mode .slider-container input[type="range"] {
     background: linear-gradient(135deg, #ff6b6b 0%, #f06292 100%);
     color: white;
     padding: 1rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     position: sticky;
     top: 0;
     z-index: 999;
@@ -3034,6 +3177,7 @@ body.dark-mode .slider-container input[type="range"] {
         transform: translateY(-100%);
         opacity: 0;
     }
+
     to {
         transform: translateY(0);
         opacity: 1;
@@ -3055,9 +3199,12 @@ body.dark-mode .slider-container input[type="range"] {
 }
 
 @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 1;
     }
+
     50% {
         opacity: 0.5;
     }
@@ -3079,15 +3226,15 @@ body.dark-mode .slider-container input[type="range"] {
 }
 
 .rate-limit-notification .btn {
-    background: rgba(255,255,255,0.2);
-    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     color: white;
     transition: all 0.2s;
 }
 
 .rate-limit-notification .btn:hover {
-    background: rgba(255,255,255,0.3);
-    border-color: rgba(255,255,255,0.5);
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 /* Dark mode adjustments for rate limit notification */
@@ -3120,7 +3267,7 @@ body.dark-mode .rate-limit-notification {
         gap: 1rem;
         min-height: auto;
     }
-    
+
     .form-actions {
         grid-column: span 1 !important;
     }

@@ -6,20 +6,16 @@ category: misc
 priority: medium
 effort_estimate: 4h
 urgency: ""
-impact_score: 0
-requirements:
-    target_resource: ultralytics-yolo
 dependencies: []
 blocks: []
 related_scenarios: []
 related_resources: []
-assigned_resources: {}
 status: completed
-progress_percentage: 100
 current_phase: completed
 started_at: ""
 completed_at: "2025-09-17T02:59:26-04:00"
-estimated_completion: ""
+completion_count: 1
+last_completed_at: "2025-09-17T02:59:26-04:00"
 validation_criteria: []
 created_by: ""
 created_at: "2025-09-17T00:29:51-04:00"

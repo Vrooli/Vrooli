@@ -11,36 +11,6 @@ category: "improvement"  # Always improvement for improver tasks
 priority: "medium"
 effort_estimate: "3h"
 urgency: "normal"
-impact_score: 7
-
-# Scenario improvement requirements
-requirements:
-  target_scenario: "CHANGEME"  # specific scenario to improve
-  
-  improvement_areas:
-    - "CHANGEME"  # prd_compliance | ui_enhancement | api_optimization | test_coverage | documentation | revenue_optimization
-  
-  assessment_focus:
-    - "Current PRD completion status validation"
-    - "User workflow analysis and pain points"
-    - "API performance and reliability review"
-    - "UI/UX effectiveness evaluation"
-    - "Test coverage and quality assessment"
-    - "Revenue generation analysis"
-  
-  deliverables:
-    - "Updated PRD.md with accurate completion status"
-    - "Enhanced user workflows"
-    - "Optimized API performance"
-    - "Improved UI/UX elements"
-    - "Expanded test coverage"
-    - "Updated documentation"
-  
-  prd_focus:
-    - "Verify all checkmarks are accurate"
-    - "Complete missing P0 and P1 requirements"
-    - "Identify and implement missing features"
-    - "Update completion percentages across all categories"
 
 # Dependencies and relationships
 dependencies: []
@@ -48,20 +18,13 @@ blocks: []
 related_scenarios: []  # scenarios that might benefit from these improvements
 related_resources: []  # resources that might need updates
 
-# Resource allocation
-assigned_resources:
-  claude_code: true
-  postgres: true  
-  qdrant: true
-  web_search: false  # Improvers focus on existing implementation analysis
-
 # Progress tracking
 status: "pending"
-progress_percentage: 0
 current_phase: ""
 started_at: ""
 completed_at: ""
-estimated_completion: ""
+completion_count: 0
+last_completed_at: ""
 
 # Quality gates for scenario improvement
 validation_criteria:
@@ -79,7 +42,12 @@ created_by: "user"
 created_at: "{{ timestamp }}"
 updated_at: "{{ timestamp }}"
 tags: ["scenario-improvement", "enhancement"]
-notes: "Template for improving existing scenarios"
+notes: |
+  Template guidance for scenario improvements. Before execution define:
+    • Target scenario and improvement focus (PRD, UI, API, tests, documentation, revenue)
+    • Assessment focus areas (current PRD accuracy, workflow pain points, API reliability, UX gaps, test depth, revenue health)
+    • Expected deliverables (updated PRD, UX refinements, performance enhancements, broader tests, refreshed documentation)
+    • Any specific features or requirements to implement or validate during the iteration
 
 # Results (populated after completion)
 results:

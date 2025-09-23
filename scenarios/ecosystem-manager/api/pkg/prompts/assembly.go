@@ -1,7 +1,6 @@
 package prompts
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -389,12 +388,6 @@ func (a *Assembler) AssemblePromptForTask(task tasks.TaskItem) (PromptAssembly, 
 	taskContext.WriteString(fmt.Sprintf("**Type**: %s\n", task.Type))
 	taskContext.WriteString(fmt.Sprintf("**Operation**: %s\n", task.Operation))
 	taskContext.WriteString(fmt.Sprintf("**Priority**: %s\n", task.Priority))
-
-	if task.Requirements != nil && len(task.Requirements) > 0 {
-		taskContext.WriteString("\n### Requirements\n")
-		requirementsJSON, _ := json.MarshalIndent(task.Requirements, "", "  ")
-		taskContext.WriteString(string(requirementsJSON))
-	}
 
 	if len(task.Notes) > 0 {
 		taskContext.WriteString(fmt.Sprintf("\n### Notes\n%s\n", task.Notes))

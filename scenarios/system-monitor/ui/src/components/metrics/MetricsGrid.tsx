@@ -78,7 +78,7 @@ export const MetricsGrid = ({
   const handleCardToggle = (cardType: CardType) => {
     if (isDesktop) {
       // On desktop, toggle all metric cards together
-      const allMetricCards: CardType[] = ['cpu', 'memory', 'disk', 'network', 'system'];
+      const allMetricCards: CardType[] = ['cpu', 'memory', 'disk', 'network'];
       const isAnyExpanded = allMetricCards.some(card => expandedCards.has(card));
       
       // If any card is expanded, collapse all. If none are expanded, expand all.
@@ -170,19 +170,6 @@ export const MetricsGrid = ({
         historyWindowSeconds={metricHistory?.windowSeconds}
         onOpenDetails={() => onOpenDetail('network')}
         detailButtonLabel="OPEN DETAIL"
-      />
-
-      {/* System Health Card */}
-      <MetricCard
-        type="system"
-        label="SYSTEM HEALTH"
-        unit="STATE"
-        value="ONLINE"
-        isExpanded={expandedCards.has('system')}
-        onToggle={() => handleCardToggle('system')}
-        details={detailedMetrics?.system_details}
-        alertCount={0} // TODO: Calculate based on thresholds
-        isStatusCard={true}
       />
 
     </div>

@@ -294,7 +294,6 @@ func (qp *Processor) ProcessQueue() {
 
 	selectedTask.Status = "in-progress"
 	selectedTask.CurrentPhase = "in-progress"
-	selectedTask.ProgressPercent = 0
 	selectedTask.Results = nil
 	selectedTask.CompletedAt = ""
 	if selectedTask.StartedAt == "" {
@@ -1013,28 +1012,35 @@ func parseClaudeAgentList(output string) map[string]struct{} {
 func (qp *Processor) detectAgentsViaProcesses() map[string]struct{} {
 	result := make(map[string]struct{})
 
-	cmd := exec.Command("pgrep", "-fl", "resource-claude-code run")
+	cmd := exec.Command("ps", "-eo", "pid=,command=")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return result
 	}
 
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
+			continue
+		}
+		if !strings.Contains(line, "resource-claude-code") || !strings.Contains(line, " run") {
 			continue
 		}
 		fields := strings.Fields(line)
 		for idx, field := range fields {
 			if field == "--tag" && idx+1 < len(fields) {
 				tag := fields[idx+1]
-				result[tag] = struct{}{}
+				if tag != "" {
+					result[tag] = struct{}{}
+				}
 				break
 			}
 			if strings.HasPrefix(field, "--tag=") {
 				tag := strings.TrimPrefix(field, "--tag=")
-				result[tag] = struct{}{}
+				if tag != "" {
+					result[tag] = struct{}{}
+				}
 				break
 			}
 		}
@@ -1078,7 +1084,6 @@ func (qp *Processor) reconcileInProgressTasks(externalActive, internalRunning ma
 
 		task.Status = "pending"
 		task.CurrentPhase = ""
-		task.ProgressPercent = 0
 		task.StartedAt = ""
 		task.CompletedAt = ""
 		task.Results = nil

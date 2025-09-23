@@ -11,31 +11,6 @@ category: "CHANGEME"  # ai-ml | communication | data | security | automation | m
 priority: "medium"
 effort_estimate: "4h"
 urgency: "normal"
-impact_score: 7
-
-# Resource generation requirements
-requirements:
-  base_template: "CHANGEME"  # basic | ai-ml | communication | data | security
-  research_focus:
-    - "Existing similar resources analysis"
-    - "v2.0 contract requirements"
-    - "Port allocation needs"
-    - "Integration patterns"
-  
-  deliverables:
-    - "Comprehensive PRD.md with complete requirements checklist"
-    - "Full directory structure with all v2.0 contract files"
-    - "Health check implementation"
-    - "CLI integration scripts"
-    - "Docker configuration if needed"
-    - "Documentation with examples"
-  
-  specific_needs:
-    - "CHANGEME - describe specific requirements"
-  
-  port_requirements:
-    main_port: "auto"  # or specific port number
-    additional_ports: []
 
 # Dependencies and relationships  
 dependencies: []
@@ -43,20 +18,13 @@ blocks: []
 related_scenarios: []  # scenarios that would benefit from this resource
 related_resources: []  # resources this depends on
 
-# Resource allocation
-assigned_resources:
-  claude_code: true
-  postgres: true
-  qdrant: true
-  web_search: true  # Generators need web research
-
 # Progress tracking
 status: "pending"
-progress_percentage: 0
 current_phase: ""
 started_at: ""
 completed_at: ""
-estimated_completion: ""
+completion_count: 0
+last_completed_at: ""
 
 # Quality gates for resource generation
 validation_criteria:
@@ -73,7 +41,12 @@ created_by: "user"
 created_at: "{{ timestamp }}"
 updated_at: "{{ timestamp }}"
 tags: ["new-resource", "generation"]
-notes: "Template for generating new resources"
+notes: |
+  Template guidance for new resource generation. Before execution define:
+    • Base template (basic, ai-ml, communication, data, security)
+    • Research focus (similar resources, contract requirements, port planning, integration points)
+    • Deliverables (comprehensive PRD.md, full v2.0 contract file set, health checks, CLI integration, Docker config, documentation)
+    • Specific needs or constraints, including fixed ports when required (use "auto" when flexible)
 
 # Results (populated after completion)
 results:

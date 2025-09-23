@@ -3,7 +3,7 @@ import type { InvestigationScript, ScriptExecution, DiskInfo, StorageIOInfo } fr
 
 export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
 
-export type CardType = 'cpu' | 'memory' | 'network' | 'disk' | 'system';
+export type CardType = 'cpu' | 'memory' | 'network' | 'disk';
 
 export type PanelType = 'process' | 'infrastructure';
 

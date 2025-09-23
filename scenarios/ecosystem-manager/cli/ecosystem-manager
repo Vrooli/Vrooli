@@ -50,7 +50,7 @@ usage() {
     echo -e "  ${GREEN}improve${NC}    Create improvement task for existing resource/scenario"
     echo -e "  ${GREEN}list${NC}       List tasks with optional filters"
     echo -e "  ${GREEN}show${NC}       Show detailed task information"
-    echo -e "  ${GREEN}status${NC}     Update task status and progress"
+    echo -e "  ${GREEN}status${NC}     Update task status or phase"
     echo -e "  ${GREEN}queue${NC}      Show queue overview"
     echo -e "  ${GREEN}operations${NC} List available operation types"
     echo -e "  ${GREEN}health${NC}     Check service health"
@@ -60,7 +60,7 @@ usage() {
     echo "  ecosystem-manager add resource matrix-synapse --category communication"
     echo "  ecosystem-manager improve scenario system-monitor --priority high"
     echo "  ecosystem-manager list --status pending --type resource"
-    echo "  ecosystem-manager status task-123 --progress 50 --phase implementation"
+    echo "  ecosystem-manager status task-123 --status in-progress --phase implementation"
     echo "  ecosystem-manager logs -f"
     echo ""
     echo "Options:"
@@ -376,8 +376,10 @@ cmd_list() {
         echo ""
         
         if [[ $count -gt 0 ]]; then
-            # Show tasks in a formatted table
-            echo "$response" | jq -r '.[] | "\(.id)|\(.type)|\(.operation)|\(.title)|\(.priority)|\(.progress_percentage)%"' 2>/dev/null | while IFS='|' read -r id type op title priority progress; do
+            # Show tasks in a formatted table with completion metrics
+            printf "%-26s %-9s %-11s %-46s %5s %-17s\n" "ID" "TYPE" "OPERATION" "TITLE" "RUNS" "LAST COMPLETED"
+            printf '%*s\n' "${COLUMNS:-80}" '' | tr ' ' '-'
+            echo "$response" | jq -r '.[] | "\(.id)|\(.type)|\(.operation)|\(.title)|\(.priority)|\(.completion_count // 0)|\(.last_completed_at // \"\")"' 2>/dev/null | while IFS='|' read -r id type op title priority runs last_completed; do
                 local color="$NC"
                 case "$priority" in
                     critical) color="${RED}" ;;
@@ -385,13 +387,22 @@ cmd_list() {
                     medium) color="${BLUE}" ;;
                     low) color="${NC}" ;;
                 esac
-                
+
                 # Truncate long titles
                 if [[ ${#title} -gt 50 ]]; then
                     title="${title:0:47}..."
                 fi
-                
-                printf "%s${color}%-25s${NC} %-8s %-10s %-50s %3s%%\n" "" "$id" "$type" "$op" "$title" "$progress"
+
+                local last_display="—"
+                if [[ -n "$last_completed" && "$last_completed" != "null" ]]; then
+                    if last_fmt=$(date -d "$last_completed" '+%Y-%m-%d %H:%M' 2>/dev/null); then
+                        last_display="$last_fmt"
+                    else
+                        last_display="$last_completed"
+                    fi
+                fi
+
+                printf "%s${color}%-25s${NC} %-8s %-10s %-45s %5s %-16s\n" "" "$id" "$type" "$op" "$title" "$runs" "$last_display"
             done
         else
             echo "No tasks found with the specified filters."
@@ -479,7 +490,6 @@ cmd_health() {
 cmd_status() {
     local task_id="$1"
     local new_status=""
-    local progress=""
     local phase=""
     local json_output=false
     
@@ -496,10 +506,6 @@ cmd_status() {
                 new_status="$2"
                 shift 2
                 ;;
-            --progress)
-                progress="$2"
-                shift 2
-                ;;
             --phase)
                 phase="$2"
                 shift 2
@@ -513,13 +519,12 @@ cmd_status() {
                 echo ""
                 echo "Options:"
                 echo "  --status <status>    New status (pending, in-progress, completed, failed)"
-                echo "  --progress <num>     Progress percentage (0-100)"
                 echo "  --phase <phase>      Current phase name"
                 echo "  --json               Output in JSON format"
                 echo ""
                 echo "Examples:"
-                echo "  ecosystem-manager status task-123 --status in-progress --progress 50"
-                echo "  ecosystem-manager status task-123 --phase implementation"
+                echo "  ecosystem-manager status task-123 --status in-progress"
+                echo "  ecosystem-manager status task-123 --phase verification"
                 return 0
                 ;;
             *)
@@ -533,13 +538,12 @@ cmd_status() {
     local update_json="{"
     local updates=""
     [[ -n "$new_status" ]] && updates="${updates:+$updates,}\"status\":\"$new_status\""
-    [[ -n "$progress" ]] && updates="${updates:+$updates,}\"progress_percentage\":$progress"
     [[ -n "$phase" ]] && updates="${updates:+$updates,}\"current_phase\":\"$phase\""
     update_json="${update_json}${updates}}"
     
     if [[ "$updates" == "" ]]; then
         echo -e "${YELLOW}⚠️  No updates specified${NC}"
-        echo "   Use --status, --progress, or --phase to update task"
+        echo "   Use --status or --phase to update task"
         return 1
     fi
     
@@ -554,7 +558,6 @@ cmd_status() {
         if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
             echo -e "${GREEN}✅ Task updated successfully${NC}"
             [[ -n "$new_status" ]] && echo "   Status: $new_status"
-            [[ -n "$progress" ]] && echo "   Progress: $progress%"
             [[ -n "$phase" ]] && echo "   Phase: $phase"
         else
             echo -e "${RED}❌ Failed to update task${NC}"

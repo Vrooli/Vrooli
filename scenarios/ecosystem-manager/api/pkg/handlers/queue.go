@@ -158,7 +158,6 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 		// Clear execution state and move to pending
 		task.Status = "pending"
 		task.CurrentPhase = ""
-		task.ProgressPercent = 0
 		task.StartedAt = ""
 		task.Results = nil
 

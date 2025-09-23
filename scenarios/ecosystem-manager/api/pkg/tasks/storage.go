@@ -57,6 +57,53 @@ func convertToStringMap(m interface{}) interface{} {
 	}
 }
 
+func hasLegacyTaskFields(raw map[string]interface{}) bool {
+	legacyKeys := []string{
+		"impact_score",
+		"requirements",
+		"assigned_resources",
+		"progress_percentage",
+		"estimated_completion",
+	}
+	for _, key := range legacyKeys {
+		if _, exists := raw[key]; exists {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Storage) normalizeTaskItem(item *TaskItem, status string, raw map[string]interface{}) bool {
+	changed := false
+
+	if item.Status == "" && status != "" {
+		item.Status = status
+		changed = true
+	}
+
+	if item.Status == "completed" {
+		if item.CompletionCount < 1 {
+			item.CompletionCount = 1
+			changed = true
+		}
+		if item.LastCompletedAt == "" && item.CompletedAt != "" {
+			item.LastCompletedAt = item.CompletedAt
+			changed = true
+		}
+	} else {
+		if item.CompletionCount < 0 {
+			item.CompletionCount = 0
+			changed = true
+		}
+	}
+
+	if raw != nil && hasLegacyTaskFields(raw) {
+		changed = true
+	}
+
+	return changed
+}
+
 // GetQueueItems retrieves all tasks with the specified status
 func (s *Storage) GetQueueItems(status string) ([]TaskItem, error) {
 	queuePath := filepath.Join(s.QueueDir, status)
@@ -81,6 +128,11 @@ func (s *Storage) GetQueueItems(status string) ([]TaskItem, error) {
 			continue
 		}
 
+		var raw map[string]interface{}
+		if err := yaml.Unmarshal(data, &raw); err != nil {
+			log.Printf("Warning: unable to parse raw YAML for %s: %v", file, err)
+		}
+
 		var item TaskItem
 		if err := yaml.Unmarshal(data, &item); err != nil {
 			log.Printf("Error unmarshaling YAML from %s: %v", file, err)
@@ -88,19 +140,20 @@ func (s *Storage) GetQueueItems(status string) ([]TaskItem, error) {
 		}
 
 		// Convert interface{} maps to string maps for JSON compatibility
-		if item.Requirements != nil {
-			converted := convertToStringMap(item.Requirements)
-			if m, ok := converted.(map[string]interface{}); ok {
-				item.Requirements = m
-			}
-		}
 		if item.Results != nil {
 			converted := convertToStringMap(item.Results)
 			if m, ok := converted.(map[string]interface{}); ok {
 				item.Results = m
 			}
 		}
-		// AssignedResources should be fine as map[string]bool with yaml.v3
+
+		if s.normalizeTaskItem(&item, status, raw) {
+			if err := s.SaveQueueItem(item, status); err != nil {
+				log.Printf("Warning: failed to rewrite sanitized task %s: %v", item.ID, err)
+			} else {
+				log.Printf("Sanitized legacy task metadata for %s", item.ID)
+			}
+		}
 
 		log.Printf("Successfully loaded task: %s", item.ID)
 		items = append(items, item)

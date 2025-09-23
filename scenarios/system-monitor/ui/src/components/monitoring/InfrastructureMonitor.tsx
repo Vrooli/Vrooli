@@ -1,14 +1,14 @@
 import { ChevronDown, ChevronUp, Zap } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import type { InfrastructureMonitorData } from '../../types';
+import type { InfrastructureMonitorData, SystemHealth } from '../../types';
 
 interface InfrastructureMonitorProps {
   data: InfrastructureMonitorData | null;
   isExpanded: boolean;
   onToggle: () => void;
+  systemHealth?: SystemHealth | null;
 }
 
-export const InfrastructureMonitor = ({ data, isExpanded, onToggle }: InfrastructureMonitorProps) => {
+export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth }: InfrastructureMonitorProps) => {
   return (
     <section className="monitoring-panel collapsible card">
       <div 
@@ -177,26 +177,118 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle }: Infrastruc
                     </div>
                   </div>
                 </div>
-              </div>
-              
-              <div style={{
-                marginTop: 'var(--spacing-lg)',
-                textAlign: 'center',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--spacing-sm)',
-                alignItems: 'center'
-              }}>
-                <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em' }}>
-                  Detailed storage metrics now live on the dedicated Disk performance view.
+
+                <div className="monitor-section">
+                  <h3 style={{ color: 'var(--color-text-bright)', marginBottom: 'var(--spacing-md)' }}>
+                    Service Dependencies & Certificates:
+                  </h3>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                    <div>
+                      <h4 style={{ color: 'var(--color-accent)', marginBottom: 'var(--spacing-sm)' }}>
+                        Service Dependencies:
+                      </h4>
+                      {systemHealth?.service_dependencies && systemHealth.service_dependencies.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                          {systemHealth.service_dependencies.map((service, index) => (
+                            <div
+                              key={`${service.name}-${index}`}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                padding: 'var(--spacing-sm)',
+                                background: 'rgba(0, 0, 0, 0.3)',
+                                borderRadius: 'var(--border-radius-sm)',
+                                border: `1px solid ${service.status === 'healthy' ? 'var(--color-success)' : 'var(--color-error)'}`,
+                                fontSize: 'var(--font-size-sm)'
+                              }}
+                            >
+                              <div>
+                                <div>{service.name}</div>
+                                <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)' }}>
+                                  {service.status === 'healthy' ? 'Operational' : 'Needs attention'}
+                                </div>
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <div style={{
+                                  color: service.status === 'healthy' ? 'var(--color-success)' : 'var(--color-error)',
+                                  fontWeight: 600
+                                }}>
+                                  {service.status}
+                                </div>
+                                <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)' }}>
+                                  {service.latency_ms.toFixed(0)} ms
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: 'var(--spacing-sm)',
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          borderRadius: 'var(--border-radius-sm)',
+                          color: 'var(--color-text-dim)',
+                          fontSize: 'var(--font-size-sm)'
+                        }}>
+                          Dependency telemetry unavailable.
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <h4 style={{ color: 'var(--color-accent)', marginBottom: 'var(--spacing-sm)' }}>
+                        Certificates:
+                      </h4>
+                      {systemHealth?.certificates && systemHealth.certificates.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                          {systemHealth.certificates.map((cert, index) => {
+                            const expiryColor = cert.days_to_expiry < 15
+                              ? 'var(--color-error)'
+                              : cert.days_to_expiry < 45
+                                ? 'var(--color-warning)'
+                                : 'var(--color-success)';
+                            return (
+                              <div
+                                key={`${cert.domain}-${index}`}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  padding: 'var(--spacing-sm)',
+                                  background: 'rgba(0, 0, 0, 0.3)',
+                                  borderRadius: 'var(--border-radius-sm)',
+                                  border: `1px solid ${expiryColor}`,
+                                  fontSize: 'var(--font-size-sm)'
+                                }}
+                              >
+                                <div>
+                                  <div>{cert.domain}</div>
+                                  <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)' }}>
+                                    Status: {cert.status}
+                                  </div>
+                                </div>
+                                <div style={{ textAlign: 'right', color: expiryColor, fontWeight: 600 }}>
+                                  {cert.days_to_expiry} days
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: 'var(--spacing-sm)',
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          borderRadius: 'var(--border-radius-sm)',
+                          color: 'var(--color-text-dim)',
+                          fontSize: 'var(--font-size-sm)'
+                        }}>
+                          No certificate data reported.
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <Link
-                  to="/metrics/disk"
-                  className="btn btn-action"
-                  style={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: 'var(--font-size-xs)' }}
-                >
-                  View Disk Performance
-                </Link>
               </div>
             </div>
           ) : (
