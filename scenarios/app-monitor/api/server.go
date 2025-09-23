@@ -129,6 +129,7 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 		v1.GET("/apps/:id", h.app.GetApp)
 		v1.POST("/apps/:id/start", h.app.StartApp)
 		v1.POST("/apps/:id/stop", h.app.StopApp)
+		v1.POST("/apps/:id/restart", h.app.RestartApp)
 		v1.GET("/apps/:id/logs", h.app.GetAppLogs)
 		v1.GET("/apps/:id/logs/lifecycle", h.app.GetAppLifecycleLogs)
 		v1.GET("/apps/:id/logs/background", h.app.GetAppBackgroundLogs)
@@ -184,7 +185,7 @@ func (s *Server) Run() error {
 	// Start server
 	log.Printf("🚀 App Monitor API server starting on port %s", s.config.API.Port)
 	log.Printf("📊 API endpoints available at http://localhost:%s/api/v1", s.config.API.Port)
-	
+
 	err := srv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("server failed to start: %w", err)

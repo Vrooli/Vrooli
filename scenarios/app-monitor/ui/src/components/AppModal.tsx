@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, CSSProperties } from 'react';
 import clsx from 'clsx';
 import type { App } from '@/types';
 import './AppModal.css';
@@ -15,6 +15,39 @@ export default function AppModal({ app, isOpen, onClose, onAction, onViewLogs }:
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const portEntries = Object.entries(app.port_mappings || {});
+  const portsMap = Object.fromEntries(portEntries);
+  const primaryFallback = portEntries[0] ? portEntries[0][0] : 'PORT';
+  const hasUIPort = portsMap['UI_PORT'] !== undefined;
+  const primaryPortLabel = ((app.config?.primary_port_label as string | undefined) || (hasUIPort ? 'UI_PORT' : primaryFallback)).toUpperCase();
+  const primaryPortValue = (() => {
+    if (app.config?.primary_port) return String(app.config.primary_port);
+    if (hasUIPort) return String(portsMap['UI_PORT']);
+    if (portEntries[0]) return String(portEntries[0][1]);
+    return 'N/A';
+  })();
+
+  const apiPort = portsMap['API_PORT'] !== undefined ? String(portsMap['API_PORT']) : null;
+  const otherPorts = portEntries
+    .filter(([label]) => label !== 'UI_PORT' && label !== 'API_PORT')
+    .map(([label, value]) => ({ label: label.toUpperCase(), value: String(value) }));
+
+  const uptime = app.uptime && app.uptime !== 'N/A' ? app.uptime : 'N/A';
+  const runtime = app.runtime && app.runtime !== 'N/A' && app.runtime !== uptime ? app.runtime : null;
+  const typeLabel = app.type ? app.type.toUpperCase() : 'SCENARIO';
+  const isRunning = ['running', 'healthy', 'degraded', 'unhealthy'].includes(app.status);
+  const isStopped = app.status === 'stopped';
+
+  const compactValueStyle: CSSProperties = {
+    fontSize: '0.8rem',
+    letterSpacing: '0.07em',
+  };
+
+  const compactLabelStyle: CSSProperties = {
+    fontSize: '0.58rem',
+    letterSpacing: '0.08em',
+  };
 
   const handleAction = async (action: 'start' | 'stop' | 'restart') => {
     setActionLoading(action);
@@ -43,59 +76,77 @@ export default function AppModal({ app, isOpen, onClose, onAction, onViewLogs }:
               <span className="detail-label">STATUS:</span>
               <span className={clsx('detail-value', `status-${app.status}`)}>
                 {app.status.toUpperCase()}
+                {app.health_status && app.health_status !== app.status && (
+                  <span className="detail-substatus">{app.health_status.toUpperCase()}</span>
+                )}
               </span>
             </div>
             
             <div className="detail-row">
-              <span className="detail-label">PORT:</span>
-              <span className="detail-value port-number">
-                {app.port || 'N/A'}
+              <span className="detail-label" style={compactLabelStyle}>{primaryPortLabel}:</span>
+              <span className="detail-value port-number" style={compactValueStyle}>
+                {primaryPortValue}
               </span>
             </div>
-            
-            <div className="detail-row">
-              <span className="detail-label">TYPE:</span>
-              <span className="detail-value">
-                {app.type?.toUpperCase() || 'UNKNOWN'}
-              </span>
-            </div>
-            
-            <div className="detail-row">
-              <span className="detail-label">UPTIME:</span>
-              <span className="detail-value">
-                {app.uptime || '00:00:00'}
-              </span>
-            </div>
-            
-            <div className="detail-row">
-              <span className="detail-label">CPU USAGE:</span>
-              <span className="detail-value">
-                {app.cpu ? `${app.cpu.toFixed(1)}%` : '0%'}
-              </span>
-            </div>
-            
-            <div className="detail-row">
-              <span className="detail-label">MEMORY USAGE:</span>
-              <span className="detail-value">
-                {app.memory ? `${app.memory.toFixed(1)}%` : '0%'}
-              </span>
-            </div>
-            
-            {app.lastActivity && (
+
+            {apiPort && (
               <div className="detail-row">
-                <span className="detail-label">LAST ACTIVITY:</span>
-                <span className="detail-value">
-                  {app.lastActivity}
-                </span>
+                <span className="detail-label" style={compactLabelStyle}>API_PORT:</span>
+                <span className="detail-value port-number" style={compactValueStyle}>{apiPort}</span>
               </div>
             )}
-            
+
+            <div className="detail-row">
+              <span className="detail-label" style={compactLabelStyle}>TYPE:</span>
+              <span className="detail-value" style={compactValueStyle}>
+                {typeLabel}
+              </span>
+            </div>
+
+            <div className="detail-row">
+              <span className="detail-label" style={compactLabelStyle}>UPTIME:</span>
+              <span className="detail-value" style={compactValueStyle}>
+                {uptime}
+              </span>
+            </div>
+
+            {runtime && (
+              <div className="detail-row">
+                <span className="detail-label" style={compactLabelStyle}>RUNTIME:</span>
+                <span className="detail-value" style={compactValueStyle}>{runtime}</span>
+              </div>
+            )}
+
+            {otherPorts.length > 0 && (
+              <div className="detail-row full-width">
+                <span className="detail-label">PORTS:</span>
+                <div className="detail-tags">
+                  {otherPorts.map((port) => (
+                    <span className="tag-chip" key={port.label}>
+                      {port.label}: {port.value}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {app.description && (
               <div className="detail-row full-width">
                 <span className="detail-label">DESCRIPTION:</span>
                 <p className="detail-description">
                   {app.description}
                 </p>
+              </div>
+            )}
+
+            {app.tags && app.tags.length > 0 && (
+              <div className="detail-row full-width">
+                <span className="detail-label">TAGS:</span>
+                <div className="detail-tags">
+                  {app.tags.map((tag) => (
+                    <span className="tag-chip" key={tag}>{tag}</span>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -105,14 +156,14 @@ export default function AppModal({ app, isOpen, onClose, onAction, onViewLogs }:
           <button
             className={clsx('modal-btn', { loading: actionLoading === 'start' })}
             onClick={() => handleAction('start')}
-            disabled={app.status === 'running' || actionLoading !== null}
+            disabled={isRunning || actionLoading !== null}
           >
             {actionLoading === 'start' ? 'STARTING...' : 'START'}
           </button>
           <button
             className={clsx('modal-btn', { loading: actionLoading === 'stop' })}
             onClick={() => handleAction('stop')}
-            disabled={app.status === 'stopped' || actionLoading !== null}
+            disabled={isStopped || actionLoading !== null}
           >
             {actionLoading === 'stop' ? 'STOPPING...' : 'STOP'}
           </button>

@@ -130,13 +130,36 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
 
   // Memoized filtered apps to prevent recalculation
   const filteredApps = useMemo(() => {
-    if (!search) return apps;
-    
-    const searchLower = search.toLowerCase();
-    return apps.filter(app =>
-      app.name.toLowerCase().includes(searchLower) ||
-      app.status.toLowerCase().includes(searchLower)
-    );
+    const statusPriority: Record<string, number> = {
+      running: 0,
+      healthy: 0,
+      degraded: 1,
+      unhealthy: 1,
+      error: 2,
+      unknown: 3,
+      stopped: 4,
+    };
+
+    const matchesSearch = (app: App) => {
+      if (!search) return true;
+      const searchLower = search.toLowerCase();
+      return (
+        app.name.toLowerCase().includes(searchLower) ||
+        app.status.toLowerCase().includes(searchLower)
+      );
+    };
+
+    return apps
+      .filter(matchesSearch)
+      .slice()
+      .sort((a, b) => {
+        const priorityA = statusPriority[a.status] ?? 5;
+        const priorityB = statusPriority[b.status] ?? 5;
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        return a.name.localeCompare(b.name);
+      });
   }, [apps, search]);
 
   // Memoized app action handler

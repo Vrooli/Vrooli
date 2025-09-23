@@ -6,18 +6,18 @@ export interface App {
   path: string;
   created_at: string;
   updated_at: string;
-  status: 'running' | 'stopped' | 'error' | 'degraded' | 'healthy';
+  status: 'running' | 'stopped' | 'error' | 'degraded' | 'healthy' | 'unknown' | 'unhealthy';
   port_mappings: Record<string, number>;
   environment: Record<string, any>;
   config: Record<string, any>;
   // Legacy fields for compatibility
   port?: string | number;
   uptime?: string;
-  cpu?: number;
-  memory?: number;
   description?: string;
   type?: 'scenario' | 'resource';
-  lastActivity?: string;
+  runtime?: string;
+  tags?: string[];
+  health_status?: string;
 }
 
 // Resource Types

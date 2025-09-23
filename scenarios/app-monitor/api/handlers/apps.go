@@ -37,7 +37,7 @@ func (h *AppHandler) GetApps(c *gin.Context) {
 // GetApp returns a single application by ID
 func (h *AppHandler) GetApp(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	app, err := h.appService.GetApp(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -52,7 +52,7 @@ func (h *AppHandler) GetApp(c *gin.Context) {
 // StartApp starts an application
 func (h *AppHandler) StartApp(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	if err := h.appService.StartApp(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to start app",
@@ -68,7 +68,7 @@ func (h *AppHandler) StartApp(c *gin.Context) {
 // StopApp stops an application
 func (h *AppHandler) StopApp(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	if err := h.appService.StopApp(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to stop app",
@@ -81,11 +81,27 @@ func (h *AppHandler) StopApp(c *gin.Context) {
 	})
 }
 
+// RestartApp restarts an application
+func (h *AppHandler) RestartApp(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := h.appService.RestartApp(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to restart app",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "App restarted successfully",
+	})
+}
+
 // GetAppLogs returns logs for an application
 func (h *AppHandler) GetAppLogs(c *gin.Context) {
 	appName := c.Param("appName")
 	logType := c.DefaultQuery("type", "both")
-	
+
 	logs, err := h.appService.GetAppLogs(c.Request.Context(), appName, logType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -120,7 +136,7 @@ func (h *AppHandler) GetAppMetrics(c *gin.Context) {
 // GetAppLifecycleLogs returns lifecycle logs for an application
 func (h *AppHandler) GetAppLifecycleLogs(c *gin.Context) {
 	appName := c.Param("id")
-	
+
 	logs, err := h.appService.GetAppLogs(c.Request.Context(), appName, "lifecycle")
 	if err != nil {
 		c.String(http.StatusOK, "No lifecycle logs available")
@@ -142,7 +158,7 @@ func (h *AppHandler) GetAppLifecycleLogs(c *gin.Context) {
 // GetAppBackgroundLogs returns background process logs for an application
 func (h *AppHandler) GetAppBackgroundLogs(c *gin.Context) {
 	appName := c.Param("id")
-	
+
 	logs, err := h.appService.GetAppLogs(c.Request.Context(), appName, "background")
 	if err != nil {
 		c.JSON(http.StatusOK, []map[string]interface{}{

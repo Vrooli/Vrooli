@@ -17,6 +17,12 @@ type App struct {
 	PortMappings map[string]interface{} `json:"port_mappings" db:"port_mappings"`
 	Environment  map[string]interface{} `json:"environment" db:"environment"`
 	Config       map[string]interface{} `json:"config" db:"config"`
+	Description  string                 `json:"description,omitempty"`
+	Tags         []string               `json:"tags,omitempty"`
+	Runtime      string                 `json:"runtime,omitempty"`
+	Uptime       string                 `json:"uptime,omitempty"`
+	Type         string                 `json:"type,omitempty"`
+	HealthStatus string                 `json:"health_status,omitempty"`
 }
 
 // AppStatus represents the current status of an application

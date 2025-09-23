@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import clsx from 'clsx';
 import type { App } from '@/types';
 import './AppCard.css';
@@ -13,35 +13,64 @@ interface AppCardProps {
 
 // Memoized status badge component
 const StatusBadge = memo(({ status }: { status: string }) => {
-  const statusClass = clsx('status-badge', status.toLowerCase());
-  return <span className={statusClass}>{status.toUpperCase()}</span>;
+  const normalized = status?.toLowerCase() || 'unknown';
+  const statusClass = clsx('status-badge', normalized);
+  return <span className={statusClass}>{normalized.toUpperCase()}</span>;
 });
 StatusBadge.displayName = 'StatusBadge';
 
 // Memoized metric display component
-const MetricDisplay = memo(({ label, value, unit = '' }: { label: string; value: string | number; unit?: string }) => (
-  <div className="metric-item">
-    <span className="metric-label">{label}:</span>
-    <span className="metric-value">{value}{unit}</span>
-  </div>
-));
-MetricDisplay.displayName = 'MetricDisplay';
+const COMPACT_VALUE_STYLE: React.CSSProperties = {
+  fontSize: '0.68rem',
+  letterSpacing: '0.07em',
+};
 
-// Memoized port display component
-const PortDisplay = memo(({ ports }: { ports: Record<string, number> }) => {
-  const portEntries = Object.entries(ports);
-  if (portEntries.length === 0) return <MetricDisplay label="PORT" value="N/A" />;
-  
-  // Display first port, or multiple if space allows
-  const primaryPort = portEntries[0];
+const COMPACT_LABEL_STYLE: React.CSSProperties = {
+  fontSize: '0.5rem',
+  letterSpacing: '0.14em',
+};
+
+const MetricDisplay = memo(({ label, value }: { label: string; value?: string | number }) => {
+  let displayValue = '—';
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    displayValue = `${value}`;
+  } else if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed) {
+      displayValue = trimmed;
+    }
+  }
+
   return (
-    <MetricDisplay 
-      label={primaryPort[0].toUpperCase()} 
-      value={primaryPort[1]} 
-    />
+    <div className="metric-item">
+      <span className="metric-label" style={COMPACT_LABEL_STYLE}>{label}</span>
+      <span className="metric-value" style={COMPACT_VALUE_STYLE}>{displayValue}</span>
+    </div>
   );
 });
-PortDisplay.displayName = 'PortDisplay';
+MetricDisplay.displayName = 'MetricDisplay';
+
+const orderedPortMetrics = (app: App) => {
+  const entries = Object.entries(app.port_mappings || {})
+    .map(([label, value]) => ({
+      label: label.toUpperCase(),
+      value: typeof value === 'number' ? String(value) : String(value ?? ''),
+    }))
+    .filter(({ value }) => value !== '');
+
+  const priorityOrder = ['UI_PORT', 'API_PORT'];
+
+  const prioritized = entries
+    .filter((entry) => priorityOrder.includes(entry.label))
+    .sort((a, b) => priorityOrder.indexOf(a.label) - priorityOrder.indexOf(b.label));
+
+  const remaining = entries
+    .filter((entry) => !priorityOrder.includes(entry.label))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  return [...prioritized, ...remaining];
+};
 
 // Main AppCard component with memoization
 const AppCard = memo<AppCardProps>(({ 
@@ -66,9 +95,16 @@ const AppCard = memo<AppCardProps>(({
     onStop(app.id);
   }, [onStop, app.id]);
 
-  // Calculate uptime from created_at
+  // Calculate uptime from provided uptime field or created_at timestamp
   const calculateUptime = useCallback(() => {
-    if (app.status !== 'running' || !app.created_at) return 'N/A';
+    if (app.uptime && app.uptime !== 'N/A') {
+      return app.uptime;
+    }
+
+    const runningStates = new Set(['running', 'healthy', 'degraded', 'unhealthy']);
+    if (!runningStates.has(app.status) || !app.created_at) {
+      return 'N/A';
+    }
     
     const start = new Date(app.created_at);
     const now = new Date();
@@ -84,7 +120,17 @@ const AppCard = memo<AppCardProps>(({
   }, [app.created_at, app.status]);
 
   const uptime = calculateUptime();
-  const isRunning = app.status === 'running' || app.status === 'healthy';
+  const isRunning = ['running', 'healthy', 'degraded', 'unhealthy'].includes(app.status);
+
+  const metrics = useMemo(() => {
+    const items: { label: string; value?: string }[] = [{ label: 'UPTIME', value: uptime }];
+
+    const portMetrics = orderedPortMetrics(app)
+      .map(({ label, value }) => ({ label, value }))
+      .slice(0, 3);
+
+    return [...items, ...portMetrics].slice(0, 4);
+  }, [app, uptime]);
   
   return (
     <div 
@@ -97,10 +143,9 @@ const AppCard = memo<AppCardProps>(({
       </div>
       
       <div className="app-metrics">
-        <MetricDisplay label="CPU" value={app.cpu || 0} unit="%" />
-        <MetricDisplay label="MEM" value={app.memory || 0} unit="%" />
-        <MetricDisplay label="UPTIME" value={uptime} />
-        <PortDisplay ports={app.port_mappings || {}} />
+        {metrics.map(({ label, value }) => (
+          <MetricDisplay key={label} label={label} value={value} />
+        ))}
       </div>
       
       <div className="app-actions">
@@ -125,8 +170,7 @@ const AppCard = memo<AppCardProps>(({
   return (
     prevProps.app.id === nextProps.app.id &&
     prevProps.app.status === nextProps.app.status &&
-    prevProps.app.cpu === nextProps.app.cpu &&
-    prevProps.app.memory === nextProps.app.memory &&
+    prevProps.app.runtime === nextProps.app.runtime &&
     prevProps.app.created_at === nextProps.app.created_at &&
     prevProps.viewMode === nextProps.viewMode &&
     JSON.stringify(prevProps.app.port_mappings) === JSON.stringify(nextProps.app.port_mappings)
