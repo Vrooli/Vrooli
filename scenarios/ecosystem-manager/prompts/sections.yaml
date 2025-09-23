@@ -86,7 +86,6 @@ operations:
       
       # Improver-specific sections
       - shared/improver-specific/progress-verification
-      - shared/improver-specific/regression-detection
       - shared/improver-specific/prioritization-phase
       - shared/improver-specific/iteration-phase
       
@@ -177,7 +176,6 @@ operations:
       
       # Improver-specific sections
       - shared/improver-specific/progress-verification
-      - shared/improver-specific/regression-detection
       - shared/improver-specific/prioritization-phase
       - shared/improver-specific/iteration-phase
       
