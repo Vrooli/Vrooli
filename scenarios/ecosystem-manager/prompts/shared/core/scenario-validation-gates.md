@@ -27,9 +27,6 @@ Run comprehensive test suite.
 ### 5. Security & Standards 🔒
 Run Scenario Auditor scans per `security-requirements` and resolve/record all critical & high findings.
 
-## Scenario Structure Validation
-**See: 'scenario-testing-reference' section for structure requirements and Makefile commands**
-
 ## Generator-Specific Gates
 
 ### PRD Gate (50% effort for generators)
