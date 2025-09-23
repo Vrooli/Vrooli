@@ -39,7 +39,15 @@ class EcosystemManager {
         this.lastPromptPreview = null;
         this.titleAutofillActive = false;
         this.lastAutofilledTitle = '';
-        
+        this.tasksByStatus = {
+            pending: [],
+            'in-progress': [],
+            review: [],
+            completed: [],
+            failed: []
+        };
+        this.pendingTargetRefresh = null;
+
         // Bind methods
         this.init = this.init.bind(this);
         this.refreshAll = this.refreshAll.bind(this);
@@ -101,6 +109,255 @@ class EcosystemManager {
         if (tabButtons.length > 0) {
             this.switchTab('tasks');
         }
+    }
+
+    getSelectedTargets() {
+        const targetSelect = document.getElementById('task-target');
+        if (!targetSelect) {
+            return [];
+        }
+
+        return Array.from(targetSelect.selectedOptions || [])
+            .map(option => (option.value || '').trim())
+            .filter(Boolean);
+    }
+
+    async handleImproverBulkCreate(taskData, targets, form) {
+        const uniqueTargets = [];
+        const seen = new Set();
+
+        targets.forEach(target => {
+            const key = target.toLowerCase();
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueTargets.push(target);
+            }
+        });
+
+        const summary = {
+            created: [],
+            skipped: [],
+            errors: []
+        };
+
+        for (const target of uniqueTargets) {
+            const targetValue = (target || '').trim();
+            if (!targetValue) {
+                continue;
+            }
+
+            const payload = {
+                ...taskData,
+                target: targetValue,
+                title: this.resolveTitleForTarget(taskData.title, taskData.operation, taskData.type, targetValue)
+            };
+
+            try {
+                const result = await this.taskManager.createTask(payload);
+
+                if (result?.task) {
+                    summary.created.push({ target: targetValue, taskId: result.task.id });
+                } else if (Array.isArray(result?.created) && result.created.length) {
+                    result.created.forEach(entry => {
+                        summary.created.push({
+                            target: entry.target || targetValue,
+                            taskId: entry.id
+                        });
+                    });
+
+                    (result.skipped || []).forEach(entry => {
+                        summary.skipped.push({
+                            target: entry.target || targetValue,
+                            reason: entry.reason || 'Already has active task'
+                        });
+                    });
+
+                    (result.errors || []).forEach(entry => {
+                        summary.errors.push({
+                            target: entry.target || targetValue,
+                            message: entry.error || entry.message || 'Unknown error'
+                        });
+                    });
+                } else if (result?.success) {
+                    // Some handlers may only signal success without returning the task payload
+                    summary.created.push({ target: targetValue, taskId: result.task?.id || 'new-task' });
+                } else {
+                    summary.errors.push({ target: targetValue, message: 'Unexpected response from API' });
+                }
+            } catch (error) {
+                if (error && error.status === 409) {
+                    summary.skipped.push({
+                        target: targetValue,
+                        reason: error.message || 'Task already exists'
+                    });
+                } else {
+                    summary.errors.push({
+                        target: targetValue,
+                        message: error.message || 'Failed to create task'
+                    });
+                }
+            }
+        }
+
+        await this.handleBulkCreationOutcome(summary, form);
+    }
+
+    async handleTaskCreationResult(result, form) {
+        if (!result?.success || !result?.task) {
+            throw new Error(result?.error || 'Failed to create task');
+        }
+
+        this.showToast('Task created successfully', 'success');
+        this.closeModal('create-task-modal');
+        form.reset();
+        this.resetCreateTaskTitleState();
+        await this.refreshColumn('pending');
+    }
+
+    async handleBulkCreationOutcome(summary, form) {
+        const createdCount = summary.created.length;
+        const skippedCount = summary.skipped.length;
+        const errorCount = summary.errors.length;
+
+        const createdTargets = summary.created.map(entry => entry.target).filter(Boolean);
+        const skippedTargets = summary.skipped.map(entry => entry.target).filter(Boolean);
+        const errorDetails = summary.errors.map(entry => `${entry.target}: ${entry.message}`);
+
+        if (createdCount > 0) {
+            const messageParts = [`Created ${createdCount} task${createdCount > 1 ? 's' : ''}`];
+
+            if (createdTargets.length) {
+                messageParts.push(`Targets: ${createdTargets.join(', ')}`);
+            }
+
+            if (skippedCount > 0) {
+                messageParts.push(`Skipped existing targets: ${skippedTargets.join(', ')}`);
+            }
+
+            if (errorCount > 0) {
+                messageParts.push(`Errors: ${errorDetails.join('; ')}`);
+            }
+
+            const toastType = errorCount > 0 ? 'warning' : (skippedCount > 0 ? 'info' : 'success');
+            this.showToast(messageParts.join('. '), toastType);
+
+            this.closeModal('create-task-modal');
+            form.reset();
+            this.resetCreateTaskTitleState();
+            await this.refreshColumn('pending');
+        } else if (errorCount === 0 && skippedCount > 0) {
+            this.showToast(`No tasks created. Already tracked: ${skippedTargets.join(', ')}`, 'info');
+        } else if (errorCount > 0) {
+            this.showToast(`Failed to create tasks: ${errorDetails.join('; ')}`, 'error');
+        }
+    }
+
+    resolveTitleForTarget(baseTitle, operation, type, target) {
+        const trimmedBase = (baseTitle || '').trim();
+        const trimmedTarget = (target || '').trim();
+
+        if (!trimmedTarget) {
+            return trimmedBase || this.generateTaskTitle(operation, type, trimmedTarget);
+        }
+
+        if (trimmedBase.includes('{{target}}')) {
+            return trimmedBase.replaceAll('{{target}}', trimmedTarget);
+        }
+
+        if (trimmedBase && trimmedBase.toLowerCase().includes(trimmedTarget.toLowerCase())) {
+            return trimmedBase;
+        }
+
+        if (!trimmedBase) {
+            return this.generateTaskTitle(operation, type, trimmedTarget);
+        }
+
+        return `${trimmedBase} (${trimmedTarget})`;
+    }
+
+    async fetchActiveTargetMap(type, operation) {
+        const map = new Map();
+
+        if (!type || !operation) {
+            return map;
+        }
+
+        try {
+            const params = new URLSearchParams({ type, operation });
+            const response = await fetch(`${this.apiBase}/tasks/active-targets?${params.toString()}`);
+
+            if (!response.ok) {
+                throw new Error(`Failed to load active targets: ${response.status} ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                data.forEach(entry => {
+                    const targetValue = (entry?.target || '').trim();
+                    const key = this.getTargetKey(type, operation, targetValue);
+                    if (!key || map.has(key)) {
+                        return;
+                    }
+
+                    map.set(key, {
+                        taskId: entry.task_id || entry.taskId || '',
+                        status: entry.status || '',
+                        statusLabel: (entry.status || '').replace('-', ' ') || '',
+                        title: entry.title || '',
+                        target: targetValue
+                    });
+                });
+            }
+        } catch (error) {
+            console.error('Failed to fetch active targets:', error);
+        }
+
+        return map;
+    }
+
+    extractTaskTargets(task) {
+        if (!task) {
+            return [];
+        }
+
+        if (Array.isArray(task.targets) && task.targets.length > 0) {
+            return task.targets.filter(Boolean);
+        }
+
+        if (task.target) {
+            return [task.target];
+        }
+
+        const inferred = this.inferLegacyTarget(task);
+        return inferred ? [inferred] : [];
+    }
+
+    getTargetKey(type, operation, target) {
+        const normalizedTarget = (target || '').trim().toLowerCase();
+        if (!normalizedTarget) {
+            return '';
+        }
+
+        return `${type}::${operation}::${normalizedTarget}`;
+    }
+
+    inferLegacyTarget(task) {
+        if (!task || typeof task.title !== 'string') {
+            return '';
+        }
+
+        const title = task.title.trim();
+        if (!title) {
+            return '';
+        }
+
+        const legacyPattern = /(enhance|improve|upgrade|fix|polish)\s+(resource|scenario)\s+([^\-\(\[]+)/i;
+        const match = title.match(legacyPattern);
+        if (match && match[3]) {
+            return match[3].trim();
+        }
+
+        return '';
     }
 
     setupModals() {
@@ -257,7 +514,7 @@ class EcosystemManager {
 
     // Task Management Methods
     async loadAllTasks() {
-        const statuses = ['pending', 'in-progress', 'completed', 'failed'];
+        const statuses = ['pending', 'in-progress', 'review', 'completed', 'failed'];
         const promises = statuses.map(status => this.loadTasksForStatus(status));
         await Promise.all(promises);
     }
@@ -272,6 +529,8 @@ class EcosystemManager {
             } else {
                 console.error(`Error loading ${status} tasks:`, error);
                 this.showToast(`Failed to load ${status} tasks`, 'error');
+                this.tasksByStatus[status] = [];
+                this.scheduleTargetAvailabilityRefresh();
             }
         }
     }
@@ -279,15 +538,19 @@ class EcosystemManager {
     renderTasks(tasks, status) {
         const container = document.getElementById(`${status}-tasks`);
         if (!container) return;
-        
+
+        const normalizedTasks = Array.isArray(tasks) ? tasks : [];
+        this.tasksByStatus[status] = normalizedTasks;
+
         container.innerHTML = '';
         
-        if (tasks.length === 0) {
+        if (normalizedTasks.length === 0) {
             container.innerHTML = `<div class="empty-state">No ${status} tasks</div>`;
+            this.scheduleTargetAvailabilityRefresh();
             return;
         }
         
-        tasks.forEach(task => {
+        normalizedTasks.forEach(task => {
             const card = UIComponents.createTaskCard(task, this.processMonitor.runningProcesses);
             this.dragDropHandler.setupTaskCardDragHandlers(card, task.id, status);
             
@@ -311,8 +574,34 @@ class EcosystemManager {
         // Update counter
         const counter = document.querySelector(`[data-status="${status}"] .task-count`);
         if (counter) {
-            counter.textContent = tasks.length;
+            counter.textContent = normalizedTasks.length;
         }
+
+        this.scheduleTargetAvailabilityRefresh();
+    }
+
+    scheduleTargetAvailabilityRefresh() {
+        if (this.pendingTargetRefresh) {
+            clearTimeout(this.pendingTargetRefresh);
+        }
+
+        this.pendingTargetRefresh = setTimeout(() => {
+            this.pendingTargetRefresh = null;
+
+            const modal = document.getElementById('create-task-modal');
+            if (!modal || !modal.classList.contains('show')) {
+                return;
+            }
+
+            const operation = document.querySelector('input[name="operation"]:checked')?.value;
+            if (operation !== 'improver') {
+                return;
+            }
+
+            this.loadAvailableTargets().catch(err => {
+                console.error('Failed to refresh target availability:', err);
+            });
+        }, 150);
     }
 
     async showCreateTaskModal() {
@@ -333,32 +622,30 @@ class EcosystemManager {
         const formData = new FormData(form);
         
         const taskData = {
-            title: formData.get('title'),
+            title: (formData.get('title') || '').trim(),
             type: formData.get('type'),
             operation: formData.get('operation'),
             priority: formData.get('priority'),
             notes: formData.get('notes'),
             status: 'pending'
         };
-        
-        // Add target for improver operations
-        if (taskData.operation === 'improver') {
-            taskData.target = formData.get('target');
-        }
-        
+
+        const selectedTargets = this.getSelectedTargets();
+
         this.showLoading(true);
         
         try {
-            const result = await this.taskManager.createTask(taskData);
-            
-            if (result.success) {
-                this.showToast('Task created successfully', 'success');
-                this.closeModal('create-task-modal');
-                form.reset(); // Reset the form
-                this.resetCreateTaskTitleState();
-                await this.refreshColumn('pending');
+            if (taskData.operation === 'improver') {
+                taskData.title = '';
+                if (selectedTargets.length === 0) {
+                    this.showToast('Select at least one target to enhance', 'warning');
+                    return;
+                }
+
+                await this.handleImproverBulkCreate(taskData, selectedTargets, form);
             } else {
-                throw new Error(result.error || 'Failed to create task');
+                const result = await this.taskManager.createTask(taskData);
+                await this.handleTaskCreationResult(result, form);
             }
         } catch (error) {
             console.error('Error creating task:', error);
@@ -2041,6 +2328,7 @@ class EcosystemManager {
             await this.loadAvailableTargets();
         }
 
+        this.updateTitleVisibility(operation);
         this.maybeAutofillTaskTitle();
     }
 
@@ -2061,6 +2349,7 @@ class EcosystemManager {
             }
         }
 
+        this.updateTitleVisibility(operation);
         this.maybeAutofillTaskTitle();
     }
 
@@ -2095,43 +2384,120 @@ class EcosystemManager {
 
     async loadAvailableTargets() {
         const type = document.querySelector('input[name="type"]:checked')?.value;
+        const operation = document.querySelector('input[name="operation"]:checked')?.value || 'improver';
         const targetSelect = document.getElementById('task-target');
-        
+
         if (!targetSelect) return;
-        
-        // Show loading state
+
+        const previousSelection = new Set(this.getSelectedTargets());
+
         targetSelect.disabled = true;
         targetSelect.innerHTML = '<option value="">Loading available targets...</option>';
-        
-        // If resources/scenarios aren't loaded yet, wait a bit for them
+
         if (!this.availableResources && !this.availableScenarios) {
-            // Wait up to 3 seconds for resources to load
             let waitCount = 0;
             while ((!this.availableResources && !this.availableScenarios) && waitCount < 30) {
                 await new Promise(resolve => setTimeout(resolve, 100));
                 waitCount++;
             }
         }
-        
-        // Use pre-loaded resources or scenarios
+
         const availableTargets = type === 'resource' ? this.availableResources : this.availableScenarios;
-        
-        // Enable and populate the select
-        targetSelect.disabled = false;
-        
-        if (!availableTargets || availableTargets.length === 0) {
-            targetSelect.innerHTML = `<option value="">No ${type}s available to improve</option>`;
-        } else {
-            targetSelect.innerHTML = '<option value="">Select target to improve...</option>';
-            availableTargets.forEach(target => {
+
+        if (!Array.isArray(availableTargets) || availableTargets.length === 0) {
+            targetSelect.innerHTML = `<option value="">No ${type || 'resource'}s available to improve</option>`;
+            targetSelect.disabled = true;
+            return;
+        }
+
+        const activeTargetMap = await this.fetchActiveTargetMap(type, operation);
+
+        targetSelect.innerHTML = '';
+        targetSelect.multiple = true;
+
+        const helperOption = document.createElement('option');
+        helperOption.value = '';
+        helperOption.disabled = true;
+        helperOption.textContent = 'Select one or more targets…';
+        targetSelect.appendChild(helperOption);
+
+        availableTargets
+            .slice()
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .forEach(target => {
                 const option = document.createElement('option');
-                // Use the name property which both resources and scenarios have
                 option.value = target.name;
-                // Display name with status if available
-                const statusLabel = target.status === 'implemented' ? ' ✓' : '';
-                option.textContent = target.name + statusLabel;
+
+                const key = this.getTargetKey(type, operation, target.name);
+                const existing = activeTargetMap.get(key);
+
+                if (existing) {
+                    option.disabled = true;
+                    option.textContent = `⛔ ${target.name} — tracked by ${existing.taskId} (${existing.statusLabel})`;
+                    option.title = `Task ${existing.taskId} (${existing.statusLabel}) already targets ${target.name}.`;
+                    option.classList.add('target-unavailable');
+                } else {
+                    option.textContent = target.name;
+                }
+
                 targetSelect.appendChild(option);
             });
+
+        targetSelect.disabled = false;
+        targetSelect.size = Math.min(10, Math.max(5, targetSelect.options.length));
+
+        this.initializeMultiSelectControl(targetSelect);
+
+        previousSelection.forEach(value => {
+            const option = Array.from(targetSelect.options).find(opt => opt.value === value && !opt.disabled);
+            if (option) {
+                option.selected = true;
+            }
+        });
+
+        this.maybeAutofillTaskTitle();
+    }
+
+    initializeMultiSelectControl(selectElement) {
+        if (!selectElement || selectElement.dataset.clickToggle === 'true') {
+            return;
+        }
+
+        selectElement.dataset.clickToggle = 'true';
+
+        selectElement.addEventListener('mousedown', (event) => {
+            const option = event.target;
+            if (!option || option.tagName !== 'OPTION' || option.disabled) {
+                return;
+            }
+
+            event.preventDefault();
+
+            option.selected = !option.selected;
+            selectElement.focus();
+
+            selectElement.dispatchEvent(new Event('change', { bubbles: true }));
+
+            this.maybeAutofillTaskTitle();
+        });
+    }
+
+    updateTitleVisibility(operation) {
+        const titleGroup = document.getElementById('title-group');
+        const titleInput = document.getElementById('task-title');
+
+        if (!titleGroup || !titleInput) {
+            return;
+        }
+
+        if (operation === 'improver') {
+            titleGroup.style.display = 'none';
+            titleInput.required = false;
+            titleInput.value = '';
+            this.resetCreateTaskTitleState();
+        } else {
+            titleGroup.style.display = '';
+            titleInput.required = true;
         }
     }
 
@@ -2160,13 +2526,22 @@ class EcosystemManager {
 
     maybeAutofillTaskTitle() {
         const titleInput = document.getElementById('task-title');
-        const targetSelect = document.getElementById('task-target');
 
-        if (!titleInput || !targetSelect) {
+        if (!titleInput) {
             return;
         }
 
-        const target = (targetSelect.value || '').trim();
+        const selectedTargets = this.getSelectedTargets();
+
+        if (selectedTargets.length !== 1) {
+            if (this.titleAutofillActive) {
+                titleInput.value = '';
+                this.resetCreateTaskTitleState();
+            }
+            return;
+        }
+
+        const target = (selectedTargets[0] || '').trim();
 
         if (!target) {
             if (this.titleAutofillActive) {

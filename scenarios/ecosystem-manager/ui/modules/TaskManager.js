@@ -40,12 +40,30 @@ export class TaskManager {
             body: JSON.stringify(taskData)
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Failed to create task: ${errorText}`);
+        const responseText = await response.text();
+        let data = null;
+
+        if (responseText) {
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                // Leave data as null; we'll surface raw text below
+                console.warn('Failed to parse task creation response as JSON:', parseError);
+            }
         }
 
-        return await response.json();
+        if (!response.ok) {
+            const message = (data && (data.error || data.message))
+                || this.formatErrorText(responseText)
+                || `Failed to create task: ${response.status} ${response.statusText}`;
+
+            const error = new Error(message);
+            error.status = response.status;
+            error.details = data;
+            throw error;
+        }
+
+        return data || {};
     }
 
     async updateTask(taskId, updates) {

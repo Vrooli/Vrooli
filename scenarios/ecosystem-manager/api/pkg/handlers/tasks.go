@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,141 @@ type TaskHandlers struct {
 	assembler *prompts.Assembler
 	processor *queue.Processor
 	wsManager *websocket.Manager
+}
+
+func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask tasks.TaskItem) {
+	created := make([]tasks.TaskItem, 0, len(baseTask.Targets))
+	skipped := make([]map[string]string, 0)
+	errors := make([]map[string]string, 0)
+	baseTitle := baseTask.Title
+
+	for _, target := range baseTask.Targets {
+		existing, status, lookupErr := h.storage.FindActiveTargetTask(baseTask.Type, baseTask.Operation, target)
+		if lookupErr != nil {
+			errors = append(errors, map[string]string{
+				"target": target,
+				"error":  lookupErr.Error(),
+			})
+			continue
+		}
+
+		if existing != nil {
+			skipped = append(skipped, map[string]string{
+				"target": target,
+				"reason": fmt.Sprintf("existing %s task %s in %s", baseTask.Operation, existing.ID, status),
+			})
+			continue
+		}
+
+		newTask := baseTask
+		newTask.ID = generateTaskID(baseTask.Type, baseTask.Operation, target)
+		newTask.Target = target
+		newTask.Targets = []string{target}
+		newTask.Title = deriveTaskTitle(baseTitle, baseTask.Operation, baseTask.Type, target)
+		newTask.Status = "pending"
+		newTask.Results = nil
+		timestamp := time.Now().Format(time.RFC3339)
+		newTask.CreatedAt = timestamp
+		newTask.UpdatedAt = timestamp
+
+		if err := h.storage.SaveQueueItem(newTask, "pending"); err != nil {
+			errors = append(errors, map[string]string{
+				"target": target,
+				"error":  err.Error(),
+			})
+			continue
+		}
+
+		created = append(created, newTask)
+	}
+
+	success := len(errors) == 0 && len(created) > 0
+	response := map[string]interface{}{
+		"success": success,
+		"created": created,
+		"skipped": skipped,
+	}
+
+	if len(errors) > 0 {
+		response["errors"] = errors
+	}
+
+	statusCode := http.StatusConflict
+	if len(created) > 0 {
+		statusCode = http.StatusCreated
+	} else if len(errors) > 0 {
+		statusCode = http.StatusInternalServerError
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(response)
+}
+
+var targetSlugSanitizer = regexp.MustCompile(`[^a-z0-9]+`)
+
+func generateTaskID(taskType, operation, target string) string {
+	baseTimestamp := time.Now().Format("20060102-150405")
+	if strings.TrimSpace(target) == "" {
+		return fmt.Sprintf("%s-%s-%s", taskType, operation, baseTimestamp)
+	}
+
+	slug := sanitizeTargetSlug(target)
+	return fmt.Sprintf("%s-%s-%s-%s", taskType, operation, slug, baseTimestamp)
+}
+
+func sanitizeTargetSlug(target string) string {
+	slug := strings.ToLower(strings.TrimSpace(target))
+	slug = targetSlugSanitizer.ReplaceAllString(slug, "-")
+	slug = strings.Trim(slug, "-")
+	if slug == "" {
+		slug = "target"
+	}
+	if len(slug) > 48 {
+		slug = slug[:48]
+	}
+	return slug
+}
+
+func deriveTaskTitle(baseTitle, operation, taskType, target string) string {
+	trimmedBase := strings.TrimSpace(baseTitle)
+	trimmedTarget := strings.TrimSpace(target)
+
+	if trimmedTarget == "" {
+		if trimmedBase != "" {
+			return trimmedBase
+		}
+		return fmt.Sprintf("%s %s", operationDisplayName(operation), taskType)
+	}
+
+	if trimmedBase == "" {
+		return fmt.Sprintf("%s %s %s", operationDisplayName(operation), taskType, trimmedTarget)
+	}
+
+	lowerBase := strings.ToLower(trimmedBase)
+	lowerTarget := strings.ToLower(trimmedTarget)
+	if strings.Contains(trimmedBase, "{{target}}") {
+		return strings.ReplaceAll(trimmedBase, "{{target}}", trimmedTarget)
+	}
+	if strings.Contains(lowerBase, lowerTarget) {
+		return trimmedBase
+	}
+
+	return fmt.Sprintf("%s (%s)", trimmedBase, trimmedTarget)
+}
+
+func operationDisplayName(operation string) string {
+	switch operation {
+	case "generator":
+		return "Create"
+	case "improver":
+		return "Enhance"
+	default:
+		if operation == "" {
+			return "Task"
+		}
+		return strings.ToUpper(operation[:1]) + operation[1:]
+	}
 }
 
 // NewTaskHandlers creates a new task handlers instance
@@ -90,6 +226,9 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Normalize target inputs before validation
+	task.Targets, task.Target = tasks.NormalizeTargets(task.Target, task.Targets)
+
 	// Validate task type and operation
 	validTypes := []string{"resource", "scenario"}
 	validOperations := []string{"generator", "improver"}
@@ -111,21 +250,63 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Target validation for improver operations
+	if task.Operation == "improver" && len(task.Targets) == 0 {
+		http.Error(w, "Improver tasks require at least one target", http.StatusBadRequest)
+		return
+	}
+
+	// Generators shouldn't carry target metadata
+	if task.Operation == "generator" {
+		task.Target = ""
+		task.Targets = nil
+	}
+
+	// Handle multi-target creation as a batch operation
+	if len(task.Targets) > 1 {
+		h.handleMultiTargetCreate(w, task)
+		return
+	}
+
+	// Guard against duplicate improver tasks for the same target
+	if len(task.Targets) == 1 {
+		existing, status, lookupErr := h.storage.FindActiveTargetTask(task.Type, task.Operation, task.Targets[0])
+		if lookupErr != nil {
+			http.Error(w, fmt.Sprintf("Failed to verify existing tasks: %v", lookupErr), http.StatusInternalServerError)
+			return
+		}
+
+		if existing != nil {
+			http.Error(w, fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", task.Operation, existing.ID, task.Targets[0], status), http.StatusConflict)
+			return
+		}
+	}
+
+	now := time.Now()
+
 	// Set defaults
 	if task.ID == "" {
-		timestamp := time.Now().Format("20060102-150405")
-		task.ID = fmt.Sprintf("%s-%s-%s", task.Type, task.Operation, timestamp)
+		task.ID = generateTaskID(task.Type, task.Operation, task.Target)
 	}
 
 	if task.Status == "" {
 		task.Status = "pending"
 	}
 
-	if task.CreatedAt == "" {
-		task.CreatedAt = time.Now().Format(time.RFC3339)
+	if strings.TrimSpace(task.Title) == "" {
+		task.Title = deriveTaskTitle("", task.Operation, task.Type, task.Target)
 	}
 
-	task.UpdatedAt = time.Now().Format(time.RFC3339)
+	if task.CreatedAt == "" {
+		task.CreatedAt = now.Format(time.RFC3339)
+	}
+
+	task.UpdatedAt = now.Format(time.RFC3339)
+
+	// Ensure canonical single-target representation is persisted
+	if len(task.Targets) == 1 {
+		task.Target = task.Targets[0]
+	}
 
 	// Save to pending queue
 	if err := h.storage.SaveQueueItem(task, "pending"); err != nil {
@@ -135,7 +316,10 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(task)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"task":    task,
+	})
 }
 
 // GetTaskHandler retrieves a specific task by ID
@@ -184,6 +368,179 @@ func (h *TaskHandlers) GetTaskLogsHandler(w http.ResponseWriter, r *http.Request
 	})
 }
 
+// GetActiveTargetsHandler returns active targets for the specified type and operation across relevant queues.
+func (h *TaskHandlers) GetActiveTargetsHandler(w http.ResponseWriter, r *http.Request) {
+	taskType := strings.TrimSpace(r.URL.Query().Get("type"))
+	operation := strings.TrimSpace(r.URL.Query().Get("operation"))
+
+	if taskType == "" || operation == "" {
+		http.Error(w, "type and operation query parameters are required", http.StatusBadRequest)
+		return
+	}
+
+	reqType := strings.ToLower(taskType)
+	reqOperation := strings.ToLower(operation)
+
+	statuses := []string{"pending", "in-progress", "review"}
+	response := make([]map[string]string, 0)
+	seen := make(map[string]struct{})
+
+	for _, status := range statuses {
+		items, err := h.storage.GetQueueItems(status)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to load %s tasks: %v", status, err), http.StatusInternalServerError)
+			return
+		}
+
+		for i := range items {
+			item := items[i]
+			itemType := strings.ToLower(strings.TrimSpace(item.Type))
+			itemOperation := strings.ToLower(strings.TrimSpace(item.Operation))
+
+			if itemType != reqType || itemOperation != reqOperation {
+				continue
+			}
+
+			targets := h.collectTaskTargets(&item)
+			for _, target := range targets {
+				normalized := strings.ToLower(strings.TrimSpace(target))
+				if normalized == "" {
+					continue
+				}
+
+				if _, exists := seen[normalized]; exists {
+					continue
+				}
+				seen[normalized] = struct{}{}
+
+				response = append(response, map[string]string{
+					"target":  target,
+					"task_id": item.ID,
+					"status":  status,
+					"title":   item.Title,
+				})
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode active targets response: %v", err)
+	}
+}
+
+func (h *TaskHandlers) collectTaskTargets(item *tasks.TaskItem) []string {
+	normalizedTargets, _ := tasks.NormalizeTargets(item.Target, item.Targets)
+	if len(normalizedTargets) > 0 {
+		return normalizedTargets
+	}
+
+	var derived []string
+
+	if strings.EqualFold(item.Type, "resource") {
+		derived = append(derived, item.RelatedResources...)
+	} else if strings.EqualFold(item.Type, "scenario") {
+		derived = append(derived, item.RelatedScenarios...)
+	}
+
+	for _, candidate := range derived {
+		trimmed := strings.TrimSpace(candidate)
+		if trimmed != "" {
+			normalizedTargets = append(normalizedTargets, trimmed)
+		}
+	}
+
+	if len(normalizedTargets) > 0 {
+		return normalizedTargets
+	}
+
+	if inferred := inferTargetFromTitle(item.Title, item.Type); inferred != "" {
+		return []string{inferred}
+	}
+
+	if inferred := inferTargetFromID(item.ID, item.Type, item.Operation); inferred != "" {
+		return []string{inferred}
+	}
+
+	return normalizedTargets
+}
+
+func inferTargetFromTitle(title string, taskType string) string {
+	trimmed := strings.TrimSpace(title)
+	if trimmed == "" {
+		return ""
+	}
+
+	typeToken := strings.ToLower(strings.TrimSpace(taskType))
+	var typePattern string
+	if typeToken == "" {
+		typePattern = "(resource|scenario)"
+	} else {
+		typePattern = regexp.QuoteMeta(typeToken)
+	}
+
+	tarTargetPattern := `([A-Za-z0-9][A-Za-z0-9\-_.\s/]+?)`
+	patterns := []string{
+		fmt.Sprintf(`(?i)(enhance|improve|upgrade|fix|polish)\s+%s\s+%s`, typePattern, tarTargetPattern),
+		fmt.Sprintf(`(?i)(enhance|improve|upgrade|fix|polish)\s+%s\s+%s`, tarTargetPattern, typePattern),
+	}
+
+	for _, pattern := range patterns {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			continue
+		}
+
+		match := re.FindStringSubmatch(trimmed)
+		if len(match) >= 3 {
+			target := strings.TrimSpace(match[len(match)-1])
+			target = strings.Trim(target, "-_")
+			target = strings.ReplaceAll(target, "  ", " ")
+			if target != "" {
+				return target
+			}
+		}
+	}
+
+	return ""
+}
+
+func inferTargetFromID(id, taskType, operation string) string {
+	trimmed := strings.TrimSpace(id)
+	if trimmed == "" {
+		return ""
+	}
+
+	prefix := strings.ToLower(strings.TrimSpace(taskType))
+	op := strings.ToLower(strings.TrimSpace(operation))
+	compoundPrefix := fmt.Sprintf("%s-%s-", prefix, op)
+
+	lowerID := strings.ToLower(trimmed)
+	if strings.HasPrefix(lowerID, compoundPrefix) {
+		trimmed = trimmed[len(compoundPrefix):]
+	}
+
+	reNumeric := regexp.MustCompile(`-[0-9]{4,}$`)
+	for {
+		if loc := reNumeric.FindStringIndex(trimmed); loc != nil && loc[0] > 0 {
+			trimmed = trimmed[:loc[0]]
+		} else {
+			break
+		}
+	}
+
+	trimmed = strings.Trim(trimmed, "-_")
+	trimmed = strings.TrimSpace(trimmed)
+	trimmed = strings.ReplaceAll(trimmed, "-", " ")
+	trimmed = strings.Join(strings.Fields(trimmed), " ")
+
+	if trimmed == "" {
+		return ""
+	}
+
+	return trimmed
+}
+
 // UpdateTaskHandler updates an existing task
 func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -194,6 +551,8 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
 		return
 	}
+
+	updatedTask.Targets, updatedTask.Target = tasks.NormalizeTargets(updatedTask.Target, updatedTask.Targets)
 
 	// Find current task location
 	currentTask, currentStatus, err := h.storage.GetTaskByID(taskID)
@@ -211,6 +570,11 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	// Allow operation to be updated but preserve if not provided
 	if updatedTask.Operation == "" {
 		updatedTask.Operation = currentTask.Operation
+	}
+
+	if updatedTask.Operation == "generator" {
+		updatedTask.Target = ""
+		updatedTask.Targets = nil
 	}
 
 	// Validate operation if it was changed
@@ -232,6 +596,10 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	// Preserve all other fields if they weren't provided in the update
 	if updatedTask.Title == "" {
 		updatedTask.Title = currentTask.Title
+	}
+	if len(updatedTask.Targets) == 0 && len(currentTask.Targets) > 0 {
+		updatedTask.Targets = currentTask.Targets
+		updatedTask.Target = currentTask.Target
 	}
 	if updatedTask.Priority == "" {
 		updatedTask.Priority = currentTask.Priority
@@ -582,15 +950,15 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 
 // promptPreviewRequest captures optional data for assembling a preview task
 type promptPreviewRequest struct {
-	Task         *tasks.TaskItem        `json:"task,omitempty"`
-	Display      string                 `json:"display,omitempty"`
-	Type         string                 `json:"type,omitempty"`
-	Operation    string                 `json:"operation,omitempty"`
-	Title        string                 `json:"title,omitempty"`
-	Category     string                 `json:"category,omitempty"`
-	Priority     string                 `json:"priority,omitempty"`
-	Notes        string                 `json:"notes,omitempty"`
-	Tags         []string               `json:"tags,omitempty"`
+	Task      *tasks.TaskItem `json:"task,omitempty"`
+	Display   string          `json:"display,omitempty"`
+	Type      string          `json:"type,omitempty"`
+	Operation string          `json:"operation,omitempty"`
+	Title     string          `json:"title,omitempty"`
+	Category  string          `json:"category,omitempty"`
+	Priority  string          `json:"priority,omitempty"`
+	Notes     string          `json:"notes,omitempty"`
+	Tags      []string        `json:"tags,omitempty"`
 }
 
 func (r promptPreviewRequest) buildTask(defaultID string) tasks.TaskItem {

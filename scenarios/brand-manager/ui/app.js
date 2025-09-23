@@ -159,12 +159,12 @@ class BrandManager {
         
         card.innerHTML = `
             <div class="brand-preview">
-                ${brand.logo_url ? `<img src="${brand.logo_url}" alt="${brand.name} logo" class="brand-logo">` : 
-                  `<div style="color: white; font-size: 2rem; font-weight: bold;">${brand.name.charAt(0)}</div>`}
+                ${brand.logo_url ? `<img src="${brand.logo_url}" alt="${this.escapeHtml(brand.name)} logo" class="brand-logo">` : 
+                  `<div style="color: white; font-size: 2rem; font-weight: bold;">${this.escapeHtml(brand.name.charAt(0))}</div>`}
             </div>
             <div class="brand-info">
-                <h3 class="brand-name">${brand.name}</h3>
-                <p class="brand-details">${brand.description || brand.slogan || 'No description available'}</p>
+                <h3 class="brand-name">${this.escapeHtml(brand.name)}</h3>
+                <p class="brand-details">${this.escapeHtml(brand.description || brand.slogan || 'No description available')}</p>
                 <div class="brand-colors">
                     ${colorSwatches}
                 </div>
@@ -272,7 +272,7 @@ class BrandManager {
         document.getElementById('brandDetailModal').style.display = 'flex';
         document.getElementById('brandDetailTitle').innerHTML = `
             <i class="fas fa-eye"></i>
-            ${brand.name}
+            ${this.escapeHtml(brand.name)}
         `;
         this.populateBrandDetail(brand);
         this.switchTab('assets');
@@ -311,7 +311,7 @@ class BrandManager {
                 <div class="color-item">
                     <div class="color-preview" style="background-color: ${color}"></div>
                     <div class="color-info">
-                        <div class="color-name">${name}</div>
+                        <div class="color-name">${this.escapeHtml(name)}</div>
                         <div class="color-value">${color}</div>
                     </div>
                 </div>
@@ -326,15 +326,15 @@ class BrandManager {
         copyPanel.innerHTML = `
             <div class="copy-section">
                 <h4>Slogan</h4>
-                <p>${brand.slogan || 'No slogan available'}</p>
+                <p>${this.escapeHtml(brand.slogan || 'No slogan available')}</p>
             </div>
             <div class="copy-section">
                 <h4>Description</h4>
-                <p>${brand.description || 'No description available'}</p>
+                <p>${this.escapeHtml(brand.description || 'No description available')}</p>
             </div>
             <div class="copy-section">
                 <h4>Ad Copy</h4>
-                <p>${brand.ad_copy || 'No ad copy available'}</p>
+                <p>${this.escapeHtml(brand.ad_copy || 'No ad copy available')}</p>
             </div>
         `;
     }
@@ -655,6 +655,12 @@ class BrandManager {
             this.openBrandDetail(brand);
             this.switchTab('integrate');
         }
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 }
 

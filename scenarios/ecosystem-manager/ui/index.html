@@ -234,12 +234,6 @@
             
             <form id="create-task-form" class="task-form-grid">
                 <div class="task-form-left">
-                    <div class="form-group">
-                        <label for="task-title">Title *</label>
-                        <input type="text" id="task-title" name="title" required 
-                               placeholder="e.g., Generate Matrix Synapse resource">
-                    </div>
-                
                 <div class="form-row">
                     <div class="form-group">
                         <label>Type *</label>
@@ -268,6 +262,12 @@
                     </div>
                 </div>
                 
+                <div class="form-group" id="title-group">
+                    <label for="task-title">Title *</label>
+                    <input type="text" id="task-title" name="title" required 
+                           placeholder="e.g., Generate Matrix Synapse resource">
+                </div>
+
                 <div class="form-group">
                     <label for="task-priority">Priority</label>
                     <select id="task-priority" name="priority">
@@ -282,12 +282,12 @@
                 <!-- Target field for improver operations -->
                 <div class="form-group" id="target-group" style="display: none;">
                     <label for="task-target">Target (for improvements) *</label>
-                    <select id="task-target" name="target" disabled>
+                    <select id="task-target" name="target" multiple disabled size="8">
                         <option value="">Loading available targets...</option>
                     </select>
-                    <small class="form-help">Choose the resource/scenario to improve</small>
+                    <small class="form-help">Select one or more targets to enhance. Already-tracked targets appear greyed out with their existing task ID.</small>
                 </div>
-                
+
                 </div>
                 
                 <div class="task-form-right">

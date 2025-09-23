@@ -14,6 +14,8 @@ import (
 
 var timestampSuffixPattern = regexp.MustCompile(`-(\d{6}|\d{8}|\d{4}-\d{2}-\d{2})$`)
 
+var activeTaskStatuses = []string{"pending", "in-progress", "review"}
+
 // Storage handles file-based task persistence
 // DESIGN DECISION: File-based task storage is intentional and provides several benefits:
 // 1. Manual task editing - developers can directly edit .yaml files for debugging/testing
@@ -76,6 +78,17 @@ func hasLegacyTaskFields(raw map[string]interface{}) bool {
 func (s *Storage) normalizeTaskItem(item *TaskItem, status string, raw map[string]interface{}) bool {
 	changed := false
 
+	normalizedTargets, canonicalTarget := NormalizeTargets(item.Target, item.Targets)
+	if !EqualStringSlices(item.Targets, normalizedTargets) {
+		item.Targets = normalizedTargets
+		changed = true
+	}
+
+	if item.Target != canonicalTarget {
+		item.Target = canonicalTarget
+		changed = true
+	}
+
 	if item.Status == "" && status != "" {
 		item.Status = status
 		changed = true
@@ -102,6 +115,38 @@ func (s *Storage) normalizeTaskItem(item *TaskItem, status string, raw map[strin
 	}
 
 	return changed
+}
+
+// FindActiveTargetTask returns an active task (pending/in-progress/review) for the same type/operation/target if it exists.
+func (s *Storage) FindActiveTargetTask(taskType, operation, target string) (*TaskItem, string, error) {
+	normalizedTarget := strings.ToLower(strings.TrimSpace(target))
+	if normalizedTarget == "" {
+		return nil, "", nil
+	}
+
+	for _, status := range activeTaskStatuses {
+		items, err := s.GetQueueItems(status)
+		if err != nil {
+			return nil, "", err
+		}
+
+		for i := range items {
+			item := items[i]
+			if item.Type != taskType || item.Operation != operation {
+				continue
+			}
+
+			normalizedTargets, _ := NormalizeTargets(item.Target, item.Targets)
+			for _, candidate := range normalizedTargets {
+				if strings.ToLower(candidate) == normalizedTarget {
+					copy := item
+					return &copy, status, nil
+				}
+			}
+		}
+	}
+
+	return nil, "", nil
 }
 
 // GetQueueItems retrieves all tasks with the specified status

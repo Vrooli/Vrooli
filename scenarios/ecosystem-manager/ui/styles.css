@@ -1162,6 +1162,50 @@ form {
     margin-bottom: 1.5rem;
 }
 
+#task-target {
+    width: 100%;
+    min-height: 220px;
+    padding: 0.6rem;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-gray);
+    background: var(--white);
+    color: var(--text-color);
+    font-size: 0.95rem;
+}
+
+#task-target option {
+    padding: 0.25rem 0.4rem;
+}
+
+#task-target option[disabled] {
+    color: var(--medium-gray);
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+#task-target option.target-unavailable {
+    color: var(--medium-gray);
+    background-color: rgba(0, 0, 0, 0.05);
+    font-style: italic;
+    opacity: 0.6;
+}
+
+body.dark-mode #task-target {
+    background: var(--dark-card-bg);
+    border-color: var(--dark-border-gray);
+    color: var(--dark-text-color);
+}
+
+body.dark-mode #task-target option[disabled] {
+    color: var(--dark-medium-gray);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode #task-target option.target-unavailable {
+    color: var(--dark-medium-gray);
+    background-color: rgba(255, 255, 255, 0.08);
+    opacity: 0.7;
+}
+
 /* Task Form Grid Layout for Create Task Modal */
 .task-form-grid {
     display: block;

@@ -170,6 +170,7 @@ func setupRoutes() http.Handler {
 	// Task CRUD operations
 	api.HandleFunc("/tasks", taskHandlers.GetTasksHandler).Methods("GET")
 	api.HandleFunc("/tasks", taskHandlers.CreateTaskHandler).Methods("POST")
+	api.HandleFunc("/tasks/active-targets", taskHandlers.GetActiveTargetsHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}", taskHandlers.GetTaskHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}", taskHandlers.UpdateTaskHandler).Methods("PUT")
 	api.HandleFunc("/tasks/{id}", taskHandlers.DeleteTaskHandler).Methods("DELETE")

@@ -1,11 +1,15 @@
 package tasks
 
+import "strings"
+
 // TaskItem represents a unified task in the ecosystem
 type TaskItem struct {
 	ID                 string                 `json:"id" yaml:"id"`
 	Title              string                 `json:"title" yaml:"title"`
 	Type               string                 `json:"type" yaml:"type"`           // resource | scenario
 	Operation          string                 `json:"operation" yaml:"operation"` // generator | improver
+	Target             string                 `json:"target,omitempty" yaml:"target,omitempty"`
+	Targets            []string               `json:"targets,omitempty" yaml:"targets,omitempty"`
 	Category           string                 `json:"category" yaml:"category"`
 	Priority           string                 `json:"priority" yaml:"priority"`
 	EffortEstimate     string                 `json:"effort_estimate" yaml:"effort_estimate"`
@@ -114,4 +118,55 @@ type ServiceConfig struct {
 	Port        int    `json:"port,omitempty"`
 	Category    string `json:"category,omitempty"`
 	Version     string `json:"version,omitempty"`
+}
+
+// NormalizeTargets merges single and multi-select target inputs into a canonical representation.
+func NormalizeTargets(primary string, targets []string) ([]string, string) {
+	candidate := make([]string, 0, len(targets)+1)
+
+	if strings.TrimSpace(primary) != "" {
+		candidate = append(candidate, primary)
+	}
+
+	candidate = append(candidate, targets...)
+
+	seen := make(map[string]struct{})
+	normalized := make([]string, 0, len(candidate))
+
+	for _, raw := range candidate {
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" {
+			continue
+		}
+
+		key := strings.ToLower(trimmed)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+
+		seen[key] = struct{}{}
+		normalized = append(normalized, trimmed)
+	}
+
+	var canonical string
+	if len(normalized) > 0 {
+		canonical = normalized[0]
+	}
+
+	return normalized, canonical
+}
+
+// EqualStringSlices returns true when two string slices are identical (order-sensitive).
+func EqualStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
 }

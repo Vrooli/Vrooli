@@ -7,6 +7,7 @@ export class UIComponents {
             escapedNotes;
         
         const isRunning = !!runningProcesses[task.id];
+        const targetMarkup = this.renderTaskTarget(task);
         
         const card = document.createElement('div');
         card.className = `task-card ${task.priority} ${isRunning ? 'task-executing' : ''} ${task.type || 'resource'} ${task.operation || 'generator'}`;
@@ -38,6 +39,7 @@ export class UIComponents {
                 </div>
             </div>
             <h3 class="task-title">${this.escapeHtml(task.title)}</h3>
+            ${targetMarkup}
             ${task.category ? `<span class="task-category category-${task.category}">${task.category}</span>` : ''}
             <div class="task-meta-row">
                 <span class="task-meta-label">Last run:</span>
@@ -64,6 +66,33 @@ export class UIComponents {
         `;
         
         return card;
+    }
+
+    static renderTaskTarget(task) {
+        if (!task || task.operation !== 'improver') {
+            return '';
+        }
+
+        const targets = [];
+        if (Array.isArray(task.targets) && task.targets.length > 0) {
+            targets.push(...task.targets.filter(Boolean));
+        } else if (task.target) {
+            targets.push(task.target);
+        }
+
+        if (targets.length === 0) {
+            return '';
+        }
+
+        const label = targets.length > 1 ? 'Targets:' : 'Target:';
+        const formattedTargets = targets.map(value => this.escapeHtml(value)).join(', ');
+
+        return `
+            <div class="task-meta-row">
+                <span class="task-meta-label">${label}</span>
+                <span class="task-meta-value">${formattedTargets}</span>
+            </div>
+        `;
     }
 
     static formatRelativeTime(timestamp) {
