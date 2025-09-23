@@ -9,7 +9,7 @@ interface DialogProps {
   title?: string
   children: ReactNode
   className?: string
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
 export function Dialog({
@@ -45,11 +45,12 @@ export function Dialog({
 
   if (!open || !portalTarget) return null
 
-  const sizeClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl'
-  }
+const sizeClasses = {
+  sm: 'max-w-md',
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',
+  xl: 'max-w-4xl'
+} as const
 
   return createPortal(
     <>

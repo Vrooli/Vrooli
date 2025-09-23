@@ -380,9 +380,10 @@ func main() {
 		}
 		
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		if dbPassword == "" {
-			dbPassword = "postgres"
-		}
+if dbPassword == "" {
+	logger.Error("POSTGRES_PASSWORD environment variable is required", nil)
+	os.Exit(1)
+}
 		
 		dbName := os.Getenv("POSTGRES_DB")
 		if dbName == "" {

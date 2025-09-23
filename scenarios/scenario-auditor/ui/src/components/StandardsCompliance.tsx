@@ -1307,157 +1307,163 @@ export default function StandardsCompliance() {
         open={bulkFixOpen}
         onClose={closeBulkFixDialog}
         title="Fix Filtered Standards Violations"
-        size="lg"
+        size="xl"
       >
-        <div className="space-y-5">
+        <div className="space-y-6">
           <p className="text-sm text-dark-600">
             Launch fix agents to address the first <span className="font-medium text-dark-800">{bulkSelection.length}</span> matching violations across{' '}
             <span className="font-medium text-dark-800">{bulkSelectionByScenario.size}</span> scenario{bulkSelectionByScenario.size === 1 ? '' : 's'}. Choose how many violations to include (maximum 200) and how many agents to spawn so you can balance throughput with the number of active workers.
           </p>
 
-          <div>
-            <label htmlFor="standards-bulk-count" className="flex items-center justify-between text-sm font-medium text-dark-700">
-              <span>Select number of violations</span>
-              <span className="text-dark-500">{bulkSelection.length} selected</span>
-            </label>
-            <input
-              id="standards-bulk-count"
-              type="range"
-              min={1}
-              max={Math.max(1, maxBulkSelectable)}
-              value={Math.min(bulkFixCount, Math.max(1, maxBulkSelectable))}
-              onChange={(event) => setBulkFixCount(Number(event.target.value))}
-              className="mt-2 w-full"
-              disabled={bulkFixSubmitting || maxBulkSelectable <= 1}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="standards-agent-count" className="flex items-center justify-between text-sm font-medium text-dark-700">
-              <span>Select number of agents</span>
-              <span className="text-dark-500">{effectiveAgentCount} active</span>
-            </label>
-            <input
-              id="standards-agent-count"
-              type="range"
-              min={1}
-              max={Math.max(1, maxBulkAgents)}
-              value={agentSliderValue}
-              onChange={(event) => handleAgentSliderChange(Number(event.target.value))}
-              className="mt-2 w-full"
-              disabled={bulkFixSubmitting || maxBulkAgents <= 1}
-            />
-            <p className="mt-2 text-xs text-dark-500">
-              ≈{projectedViolationsPerAgent} violation{projectedViolationsPerAgent === 1 ? '' : 's'} per agent (capped at {MAX_VIOLATIONS_PER_AGENT})
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="standards-model" className="block text-sm font-medium text-dark-700">
-              AI model
-            </label>
-            <select
-              id="standards-model"
-              value={bulkFixModel}
-              onChange={(event) => setBulkFixModel(event.target.value)}
-              className="mt-2 w-full rounded-md border border-dark-300 bg-white px-3 py-2 text-sm text-dark-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-              disabled={bulkFixSubmitting}
-            >
-              {BULK_FIX_MODEL_OPTIONS.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p className="mt-2 text-xs text-dark-500">
-              Determines which OpenRouter model each fix agent will use.
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-dark-200 bg-dark-50 p-3">
-            <p className="text-xs font-medium text-dark-600 mb-2">Preview ({Math.min(10, bulkSelection.length)} shown)</p>
-            <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
-              {bulkSelection.slice(0, 10).map((violation, index) => (
-                <li key={`${violation.id}-${index}`} className="text-xs text-dark-600 flex flex-col">
-                  <span className="font-medium text-dark-800">{violation.scenario_name || 'Unknown scenario'}</span>
-                  <span>{violation.title}</span>
-                  <span className="text-[0.7rem] text-dark-400">
-                    {violation.file_path}:{violation.line_number} · {violation.standard || violation.type || 'standard'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {bulkSelection.length > 10 && (
-              <p className="mt-2 text-xs text-dark-500">…and {bulkSelection.length - 10} more will be included.</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="standards-bulk-notes" className="block text-sm font-medium text-dark-700">
-              Additional guidance (optional)
-            </label>
-            <textarea
-              id="standards-bulk-notes"
-              value={bulkFixNotes}
-              onChange={(event) => setBulkFixNotes(event.target.value)}
-              rows={3}
-              className="mt-2 w-full rounded-md border border-dark-300 bg-white p-2 text-sm text-dark-900 placeholder-dark-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-              placeholder="Add extra instructions or context for the agent"
-              disabled={bulkFixSubmitting}
-            />
-          </div>
-
-          <div className="rounded-lg border border-dark-200 bg-white p-3">
-            <div className="flex items-center justify-between">
+          <div className="space-y-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-6 lg:space-y-0">
+            <div className="space-y-5">
               <div>
-                <p className="text-sm font-medium text-dark-700">Agent prompt preview</p>
-                {bulkFixPreviewMeta?.message && (
-                  <p className="text-xs text-dark-500 mt-1">{bulkFixPreviewMeta.message}</p>
-                )}
-                {bulkFixPreviewMeta?.model && (
-                  <p className="text-xs text-dark-400">Model: {bulkFixPreviewMeta.model}</p>
-                )}
+                <label htmlFor="standards-bulk-count" className="flex items-center justify-between text-sm font-medium text-dark-700">
+                  <span>Select number of violations</span>
+                  <span className="text-dark-500">{bulkSelection.length} selected</span>
+                </label>
+                <input
+                  id="standards-bulk-count"
+                  type="range"
+                  min={1}
+                  max={Math.max(1, maxBulkSelectable)}
+                  value={Math.min(bulkFixCount, Math.max(1, maxBulkSelectable))}
+                  onChange={(event) => setBulkFixCount(Number(event.target.value))}
+                  className="mt-2 w-full"
+                  disabled={bulkFixSubmitting || maxBulkSelectable <= 1}
+                />
               </div>
-              <button
-                type="button"
-                onClick={() => void handleBulkFixPreview()}
-                className="text-sm font-medium text-primary-600 hover:text-primary-700 disabled:opacity-50"
-                disabled={bulkFixSubmitting || bulkFixPreviewLoading}
-              >
-                {bulkFixPreviewLoading ? 'Generating…' : 'Preview prompt'}
-              </button>
+
+              <div>
+                <label htmlFor="standards-agent-count" className="flex items-center justify-between text-sm font-medium text-dark-700">
+                  <span>Select number of agents</span>
+                  <span className="text-dark-500">{effectiveAgentCount} active</span>
+                </label>
+                <input
+                  id="standards-agent-count"
+                  type="range"
+                  min={1}
+                  max={Math.max(1, maxBulkAgents)}
+                  value={agentSliderValue}
+                  onChange={(event) => handleAgentSliderChange(Number(event.target.value))}
+                  className="mt-2 w-full"
+                  disabled={bulkFixSubmitting || maxBulkAgents <= 1}
+                />
+                <p className="mt-2 text-xs text-dark-500">
+                  ≈{projectedViolationsPerAgent} violation{projectedViolationsPerAgent === 1 ? '' : 's'} per agent (capped at {MAX_VIOLATIONS_PER_AGENT})
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="standards-model" className="block text-sm font-medium text-dark-700">
+                  AI model
+                </label>
+                <select
+                  id="standards-model"
+                  value={bulkFixModel}
+                  onChange={(event) => setBulkFixModel(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-dark-300 bg-white px-3 py-2 text-sm text-dark-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  disabled={bulkFixSubmitting}
+                >
+                  {BULK_FIX_MODEL_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs text-dark-500">
+                  Determines which OpenRouter model each fix agent will use.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="standards-bulk-notes" className="block text-sm font-medium text-dark-700">
+                  Additional guidance (optional)
+                </label>
+                <textarea
+                  id="standards-bulk-notes"
+                  value={bulkFixNotes}
+                  onChange={(event) => setBulkFixNotes(event.target.value)}
+                  rows={3}
+                  className="mt-2 w-full rounded-md border border-dark-300 bg-white p-2 text-sm text-dark-900 placeholder-dark-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  placeholder="Add extra instructions or context for the agent"
+                  disabled={bulkFixSubmitting}
+                />
+              </div>
             </div>
-            {bulkFixPreviewError && (
-              <p className="mt-2 text-xs text-danger-600">{bulkFixPreviewError}</p>
-            )}
-            {bulkFixPreviewLoading && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-dark-500">
-                <Loader2 className="h-3 w-3 animate-spin" /> Preparing prompt…
+
+            <div className="space-y-5">
+              <div className="rounded-lg border border-dark-200 bg-dark-50 p-3">
+                <p className="text-xs font-medium text-dark-600 mb-2">Preview ({Math.min(10, bulkSelection.length)} shown)</p>
+                <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {bulkSelection.slice(0, 10).map((violation, index) => (
+                    <li key={`${violation.id}-${index}`} className="text-xs text-dark-600 flex flex-col">
+                      <span className="font-medium text-dark-800">{violation.scenario_name || 'Unknown scenario'}</span>
+                      <span>{violation.title}</span>
+                      <span className="text-[0.7rem] text-dark-400">
+                        {violation.file_path}:{violation.line_number} · {violation.standard || violation.type || 'standard'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {bulkSelection.length > 10 && (
+                  <p className="mt-2 text-xs text-dark-500">…and {bulkSelection.length - 10} more will be included.</p>
+                )}
               </div>
-            )}
-            {!bulkFixPreviewLoading && !bulkFixPreviewError && (!bulkFixPreview || bulkFixPreview.length === 0) && (
-              <p className="mt-3 text-xs text-dark-500">
-                Click “Preview prompt” to review the exact instructions that will be sent to the standards fix agent.
-              </p>
-            )}
-            {bulkFixPreview && bulkFixPreview.length > 0 && (
-              <div className="mt-3 space-y-3">
-                {bulkFixPreview.map((preview, index) => (
-                  <div key={`${preview.label}-${index}`} className="rounded border border-dark-200 bg-dark-50 p-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-dark-700">
-                      <span>{preview.label}</span>
-                      <span className="text-dark-500">Target: {preview.scenario === 'multi' ? (preview.scenarios?.join(', ') || 'multiple scenarios') : preview.scenario}</span>
-                    </div>
-                    {preview.issue_ids && preview.issue_ids.length > 0 && (
-                      <p className="mt-1 text-[0.7rem] text-dark-400">Violations: {preview.issue_ids.length}</p>
+
+              <div className="rounded-lg border border-dark-200 bg-white p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-dark-700">Agent prompt preview</p>
+                    {bulkFixPreviewMeta?.message && (
+                      <p className="text-xs text-dark-500 mt-1">{bulkFixPreviewMeta.message}</p>
                     )}
-                    <pre className="mt-2 max-h-48 overflow-auto rounded bg-dark-900 p-2 text-[0.7rem] text-dark-100 whitespace-pre-wrap">
-                      {preview.prompt}
-                    </pre>
+                    {bulkFixPreviewMeta?.model && (
+                      <p className="text-xs text-dark-400">Model: {bulkFixPreviewMeta.model}</p>
+                    )}
                   </div>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => void handleBulkFixPreview()}
+                    className="text-sm font-medium text-primary-600 hover:text-primary-700 disabled:opacity-50"
+                    disabled={bulkFixSubmitting || bulkFixPreviewLoading}
+                  >
+                    {bulkFixPreviewLoading ? 'Generating…' : 'Preview prompt'}
+                  </button>
+                </div>
+                {bulkFixPreviewError && (
+                  <p className="mt-2 text-xs text-danger-600">{bulkFixPreviewError}</p>
+                )}
+                {bulkFixPreviewLoading && (
+                  <div className="mt-3 flex items-center gap-2 text-xs text-dark-500">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Preparing prompt…
+                  </div>
+                )}
+                {!bulkFixPreviewLoading && !bulkFixPreviewError && (!bulkFixPreview || bulkFixPreview.length === 0) && (
+                  <p className="mt-3 text-xs text-dark-500">
+                    Click “Preview prompt” to review the exact instructions that will be sent to the fix agent.
+                  </p>
+                )}
+                {bulkFixPreview && bulkFixPreview.length > 0 && (
+                  <div className="mt-3 space-y-3">
+                    {bulkFixPreview.map((preview, index) => (
+                      <div key={`${preview.label}-${index}`} className="rounded border border-dark-200 bg-dark-50 p-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-dark-700">
+                          <span>{preview.label}</span>
+                          <span className="text-dark-500">Target: {preview.scenario === 'multi' ? (preview.scenarios?.join(', ') || 'multiple scenarios') : preview.scenario}</span>
+                        </div>
+                        {preview.issue_ids && preview.issue_ids.length > 0 && (
+                          <p className="mt-1 text-[0.7rem] text-dark-400">Violations: {preview.issue_ids.length}</p>
+                        )}
+                        <pre className="mt-2 max-h-48 overflow-auto rounded bg-dark-900 p-2 text-[0.7rem] text-dark-100 whitespace-pre-wrap">
+                          {preview.prompt}
+                        </pre>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
 
           {bulkFixSuccess && (
@@ -1500,6 +1506,7 @@ export default function StandardsCompliance() {
             </button>
           </div>
         </div>
+
       </Dialog>
 
       {/* Check Type Info Dialog */}
