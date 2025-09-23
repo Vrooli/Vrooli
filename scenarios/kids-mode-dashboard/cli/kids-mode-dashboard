@@ -1,0 +1,27 @@
+#!/bin/bash
+
+echo "Kids Mode Dashboard CLI v1.0.0"
+
+case "$1" in
+  "start")
+    echo "Starting dashboard server..."
+    cd ../api
+    ./kids-mode-dashboard-api
+    ;;
+  "stop")
+    echo "Stopping dashboard server..."
+    pkill -f kids-mode-dashboard-api || true
+    ;;
+  "status")
+    echo "Checking server status..."
+    if pgrep -f kids-mode-dashboard-api > /dev/null; then
+      echo "Server is running."
+    else
+      echo "Server is not running."
+    fi
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|status}"
+    exit 1
+    ;;
+esac

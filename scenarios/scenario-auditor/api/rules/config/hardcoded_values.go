@@ -46,13 +46,13 @@ func setupServer() {
   <expected-message>Hardcoded</expected-message>
 </test-case>
 
-<test-case id="environment-based-config" should-fail="false">
+<test-case id="environment-based-config" should-fail="true">
   <description>Proper configuration using environment variables</description>
   <input language="go">
 func setupConfig() {
     port := os.Getenv("PORT")
     if port == "" {
-        port = "8080" // Default fallback is acceptable
+        port = "8080" // Default fallback is not allowed
     }
 
     dbPassword := os.Getenv("DB_PASSWORD")
@@ -63,6 +63,53 @@ func setupConfig() {
         log.Fatal("Required environment variables not set")
     }
 }
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Hardcoded port fallback</expected-message>
+</test-case>
+
+
+<test-case id="bash-port-fallback" should-fail="true">
+  <description>Bash port fallback using parameter expansion</description>
+  <input language="bash">
+#!/usr/bin/env bash
+: "${PORT:=8080}"  # Not allowed
+PORT=${PORT:-"8080"}  # Also not allowed
+  </input>
+  <expected-violations>2</expected-violations>
+  <expected-message>Hardcoded Port Fallback</expected-message>
+</test-case>
+
+<test-case id="bash-env-valid" should-fail="false">
+  <description>Bash script reading port without fallback</description>
+  <input language="bash">
+#!/usr/bin/env bash
+if [[ -z "${PORT}" ]]; then
+  echo "PORT must be set"
+  exit 1
+fi
+echo "Using port ${PORT}"
+  </input>
+</test-case>
+
+<test-case id="js-port-fallback" should-fail="true">
+  <description>JavaScript port fallback using logical OR</description>
+  <input language="javascript">
+const port = process.env.PORT || "8080";
+const uiPort = process.env.UI_PORT ?? '35000';
+  </input>
+  <expected-violations>2</expected-violations>
+  <expected-message>Hardcoded port fallback</expected-message>
+</test-case>
+
+<test-case id="js-port-config" should-fail="false">
+  <description>JavaScript reading ports without literals</description>
+  <input language="javascript">
+const port = process.env.PORT;
+if (!port) {
+  throw new Error('PORT is required');
+}
+const uiPort = Number(process.env.UI_PORT);
   </input>
 </test-case>
 
@@ -89,6 +136,12 @@ func loadConfig() (*Config, error) {
   </input>
 </test-case>
 */
+
+var (
+	portFallbackPattern     = regexp.MustCompile(`(?i)([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=|:=)\s*"(\d{2,5})"`)
+	bashPortFallbackPattern = regexp.MustCompile(`(?i)\$\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*[:?][-=]\s*"?(\d{2,5})"?\s*\}`)
+	jsPortFallbackPattern   = regexp.MustCompile(`(?i)process\.env\.([A-Za-z_][A-Za-z0-9_]*)\s*(?:\|\||\?\?)\s*['"]?(\d{2,5})['"]?`)
+)
 
 // CheckHardcodedValues detects hardcoded configuration values
 func CheckHardcodedValues(content []byte, filePath string) []Violation {
@@ -155,6 +208,82 @@ func CheckHardcodedValues(content []byte, filePath string) []Violation {
 		}
 
 		matched := false
+		if match := portFallbackPattern.FindStringSubmatch(line); len(match) > 0 {
+			variable := strings.ToLower(match[1])
+			if strings.Contains(variable, "port") {
+				if _, ok := lineMatches[i]; !ok {
+					lineMatches[i] = make(map[string]bool)
+				}
+				if !lineMatches[i]["hardcoded_port_fallback"] {
+					lineMatches[i]["hardcoded_port_fallback"] = true
+					violations = append(violations, Violation{
+						Type:           "hardcoded_values",
+						Severity:       "medium",
+						Title:          "Hardcoded Port Fallback",
+						Description:    "Hardcoded port fallback detected; rely on configuration or environment variables for defaults",
+						FilePath:       filePath,
+						LineNumber:     i + 1,
+						CodeSnippet:    line,
+						Recommendation: "Remove literal port fallbacks and source defaults from configuration or environment variables",
+						Standard:       "configuration-v1",
+					})
+				}
+				matched = true
+			}
+		}
+		if !matched {
+			if match := bashPortFallbackPattern.FindStringSubmatch(line); len(match) > 0 {
+				variable := strings.ToLower(match[1])
+				if strings.Contains(variable, "port") {
+					if _, ok := lineMatches[i]; !ok {
+						lineMatches[i] = make(map[string]bool)
+					}
+					if !lineMatches[i]["hardcoded_port_fallback"] {
+						lineMatches[i]["hardcoded_port_fallback"] = true
+						violations = append(violations, Violation{
+							Type:           "hardcoded_values",
+							Severity:       "medium",
+							Title:          "Hardcoded Port Fallback",
+							Description:    "Hardcoded port fallback detected; rely on configuration or environment variables for defaults",
+							FilePath:       filePath,
+							LineNumber:     i + 1,
+							CodeSnippet:    line,
+							Recommendation: "Remove literal port fallbacks and source defaults from configuration or environment variables",
+							Standard:       "configuration-v1",
+						})
+					}
+					matched = true
+				}
+			}
+		}
+		if !matched {
+			if match := jsPortFallbackPattern.FindStringSubmatch(line); len(match) > 0 {
+				variable := strings.ToLower(match[1])
+				if strings.Contains(variable, "port") {
+					if _, ok := lineMatches[i]; !ok {
+						lineMatches[i] = make(map[string]bool)
+					}
+					if !lineMatches[i]["hardcoded_port_fallback"] {
+						lineMatches[i]["hardcoded_port_fallback"] = true
+						violations = append(violations, Violation{
+							Type:           "hardcoded_values",
+							Severity:       "medium",
+							Title:          "Hardcoded Port Fallback",
+							Description:    "Hardcoded port fallback detected; rely on configuration or environment variables for defaults",
+							FilePath:       filePath,
+							LineNumber:     i + 1,
+							CodeSnippet:    line,
+							Recommendation: "Remove literal port fallbacks and source defaults from configuration or environment variables",
+							Standard:       "configuration-v1",
+						})
+					}
+					matched = true
+				}
+			}
+		}
+		if matched {
+			continue
+		}
 		for _, pattern := range patterns {
 			if pattern.name == "hardcoded_port" && strings.Contains(line, "localhost:") {
 				continue

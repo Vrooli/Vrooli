@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	rulespkg "scenario-auditor/rules"
 
@@ -401,10 +402,24 @@ func convertStructViolation(value reflect.Value, ruleID, category string) (*rule
 		Category: category,
 	}
 
+	var violationID string
+	if field := value.FieldByName("ID"); field.IsValid() {
+		violationID = toString(field)
+		if violationID != "" {
+			v.ID = violationID
+		}
+	}
+
 	if field := value.FieldByName("RuleID"); field.IsValid() {
-		v.RuleID = toString(field)
-	} else if field := value.FieldByName("ID"); field.IsValid() {
-		v.RuleID = toString(field)
+		if str := toString(field); str != "" {
+			v.RuleID = str
+		}
+	} else if violationID != "" {
+		v.RuleID = violationID
+	}
+
+	if field := value.FieldByName("Type"); field.IsValid() {
+		v.Type = toString(field)
 	}
 
 	if field := value.FieldByName("Severity"); field.IsValid() {
@@ -415,8 +430,12 @@ func convertStructViolation(value reflect.Value, ruleID, category string) (*rule
 		v.Message = toString(field)
 	}
 
-	if field := value.FieldByName("Description"); field.IsValid() && v.Message == "" {
-		v.Message = toString(field)
+	if field := value.FieldByName("Description"); field.IsValid() {
+		desc := toString(field)
+		v.Description = desc
+		if v.Message == "" {
+			v.Message = desc
+		}
 	}
 
 	if field := value.FieldByName("Title"); field.IsValid() {
@@ -438,9 +457,20 @@ func convertStructViolation(value reflect.Value, ruleID, category string) (*rule
 	}
 
 	if field := value.FieldByName("LineNumber"); field.IsValid() {
-		v.Line = toInt(field)
-	} else if field := value.FieldByName("Line"); field.IsValid() {
-		v.Line = toInt(field)
+		line := toInt(field)
+		v.LineNumber = line
+		if v.Line == 0 {
+			v.Line = line
+		}
+	}
+	if field := value.FieldByName("Line"); field.IsValid() {
+		line := toInt(field)
+		if line != 0 {
+			v.Line = line
+			if v.LineNumber == 0 {
+				v.LineNumber = line
+			}
+		}
 	}
 
 	if field := value.FieldByName("CodeSnippet"); field.IsValid() {
@@ -457,6 +487,12 @@ func convertStructViolation(value reflect.Value, ruleID, category string) (*rule
 
 	if field := value.FieldByName("Category"); field.IsValid() {
 		v.Category = toString(field)
+	}
+
+	if field := value.FieldByName("DiscoveredAt"); field.IsValid() {
+		if ts, ok := toTime(field); ok {
+			v.DiscoveredAt = ts
+		}
 	}
 
 	return &v, nil
@@ -539,4 +575,22 @@ func toInt(value reflect.Value) int {
 	default:
 		return 0
 	}
+}
+
+func toTime(value reflect.Value) (time.Time, bool) {
+	value = reflectValue(value)
+	if !value.IsValid() {
+		return time.Time{}, false
+	}
+	switch value.Kind() {
+	case reflect.Struct:
+		if t, ok := value.Interface().(time.Time); ok {
+			return t, true
+		}
+	case reflect.Ptr:
+		if !value.IsNil() {
+			return toTime(value.Elem())
+		}
+	}
+	return time.Time{}, false
 }
