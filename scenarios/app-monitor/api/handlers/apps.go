@@ -54,12 +54,16 @@ func (h *AppHandler) GetApp(c *gin.Context) {
 	app, err := h.appService.GetApp(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": "App not found",
+			"success": false,
+			"error":   "App not found",
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, app)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    app,
+	})
 }
 
 // StartApp starts an application

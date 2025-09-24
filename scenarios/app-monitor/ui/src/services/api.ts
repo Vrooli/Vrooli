@@ -32,7 +32,7 @@ api.interceptors.response.use(
   (error: AxiosError<ApiResponse>) => {
     const message = error.response?.data?.error || error.message || 'Network error';
     logger.error('API Response error', { message, status: error.response?.status });
-    
+
     // Enhanced error object
     const enhancedError = {
       ...error,
@@ -40,7 +40,7 @@ api.interceptors.response.use(
       status: error.response?.status,
       originalError: error,
     };
-    
+
     return Promise.reject(enhancedError);
   }
 );
@@ -73,7 +73,7 @@ export const appService = {
   async getApp(id: string): Promise<App | null> {
     try {
       const { data } = await api.get<ApiResponse<App>>(`/apps/${id}`);
-      return data.data || null;
+      return data?.data ?? null;
     } catch (error) {
       logger.error(`Failed to fetch app ${id}`, error);
       return null;

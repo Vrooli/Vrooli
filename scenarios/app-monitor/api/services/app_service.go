@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -69,53 +70,19 @@ type scenarioListResponse struct {
 
 // scenarioMetadata captures static scenario details such as description and filesystem path
 type scenarioMetadata struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Path        string   `json:"path"`
-	Version     string   `json:"version"`
-	Status      string   `json:"status"`
-	Tags        []string `json:"tags"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Path        string         `json:"path"`
+	Version     string         `json:"version"`
+	Status      string         `json:"status"`
+	Tags        []string       `json:"tags"`
+	Ports       []scenarioPort `json:"ports"`
 }
 
-// scenarioStatusDetail represents detailed runtime/port information for a scenario
-type scenarioStatusDetail struct {
-	Name           string              `json:"name"`
-	Status         string              `json:"status"`
-	Runtime        string              `json:"runtime"`
-	StartedAt      string              `json:"started_at"`
-	AllocatedPorts map[string]int      `json:"allocated_ports"`
-	Diagnostics    scenarioDiagnostics `json:"-"`
-}
-
-// scenarioStatusResponse is the envelope returned by `vrooli scenario status <name> --json`
-type scenarioStatusResponse struct {
-	Success      bool                 `json:"success"`
-	ScenarioData scenarioStatusDetail `json:"scenario_data"`
-	Diagnostics  scenarioDiagnostics  `json:"diagnostics"`
-}
-
-type scenarioDiagnostics struct {
-	Responsiveness scenarioResponsiveness               `json:"responsiveness"`
-	HealthChecks   map[string]scenarioHealthCheckResult `json:"health_checks"`
-}
-
-type scenarioResponsiveness struct {
-	API scenarioProbe `json:"api"`
-	UI  scenarioProbe `json:"ui"`
-}
-
-type scenarioProbe struct {
-	Available    bool    `json:"available"`
-	ResponseTime float64 `json:"response_time"`
-	Timeout      bool    `json:"timeout"`
-	Error        string  `json:"error"`
-}
-
-type scenarioHealthCheckResult struct {
-	Status   string `json:"status"`
-	Target   string `json:"target"`
-	Message  string `json:"message"`
-	Critical bool   `json:"critical"`
+type scenarioPort struct {
+	Key  string      `json:"key"`
+	Step string      `json:"step"`
+	Port interface{} `json:"port"`
 }
 
 // GetAppsFromOrchestrator fetches app status from the vrooli orchestrator with caching
@@ -190,17 +157,6 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 			status = health
 		}
 
-		portMappings := make(map[string]interface{}, len(orchApp.Ports))
-		var primaryPortLabel string
-		var primaryPortValue string
-		for name, port := range orchApp.Ports {
-			portMappings[name] = port
-			if primaryPortLabel == "" {
-				primaryPortLabel = name
-				primaryPortValue = fmt.Sprintf("%d", port)
-			}
-		}
-
 		displayName := strings.TrimSpace(orchApp.DisplayName)
 		if displayName == "" {
 			displayName = orchApp.Name
@@ -215,12 +171,16 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 		tags := uniqueStrings(append(append([]string{}, orchApp.Tags...), meta.Tags...))
 		runtime := strings.TrimSpace(orchApp.Runtime)
 
+		portMappings := make(map[string]interface{}, len(orchApp.Ports))
+		for name, port := range orchApp.Ports {
+			portMappings[name] = port
+		}
+
 		app := repository.App{
 			ID:           orchApp.Name,
 			Name:         displayName,
 			ScenarioName: orchApp.Name,
 			Status:       status,
-			PortMappings: portMappings,
 			Environment:  make(map[string]interface{}),
 			Config:       make(map[string]interface{}),
 			Description:  description,
@@ -264,20 +224,18 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 			app.HealthStatus = status
 		}
 
-		if primaryPortLabel != "" {
-			app.Config["primary_port_label"] = primaryPortLabel
-			app.Config["primary_port"] = primaryPortValue
-		}
-
 		if orchApp.Processes > 0 {
 			app.Config["process_count"] = orchApp.Processes
 		}
 
+		if len(portMappings) == 0 && len(meta.Ports) > 0 {
+			portMappings = convertPortsToMap(meta.Ports)
+		}
+
+		applyPortConfig(&app, portMappings)
+
 		apps = append(apps, app)
 	}
-
-	// Enrich running scenarios with precise runtime and port data
-	s.enrichScenarioDetails(ctx, apps)
 
 	s.cache.data = apps
 	s.cache.timestamp = time.Now()
@@ -292,7 +250,7 @@ func (s *AppService) fetchScenarioList(ctx context.Context) ([]scenarioMetadata,
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "list", "--json")
+	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "list", "--json", "--include-ports")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -337,6 +295,7 @@ func (s *AppService) fetchScenarioSummaries(ctx context.Context) ([]repository.A
 
 		description := strings.TrimSpace(scenario.Description)
 		tags := uniqueStrings(scenario.Tags)
+		portMappings := convertPortsToMap(scenario.Ports)
 
 		app := repository.App{
 			ID:           scenario.Name,
@@ -346,7 +305,6 @@ func (s *AppService) fetchScenarioSummaries(ctx context.Context) ([]repository.A
 			CreatedAt:    now,
 			UpdatedAt:    now,
 			Status:       status,
-			PortMappings: make(map[string]interface{}),
 			Environment:  make(map[string]interface{}),
 			Config:       make(map[string]interface{}),
 			Description:  description,
@@ -360,6 +318,8 @@ func (s *AppService) fetchScenarioSummaries(ctx context.Context) ([]repository.A
 		if scenario.Version != "" {
 			app.Config["version"] = scenario.Version
 		}
+
+		applyPortConfig(&app, portMappings)
 
 		apps = append(apps, app)
 	}
@@ -414,272 +374,107 @@ func uniqueStrings(values []string) []string {
 	return result
 }
 
-// isActiveStatus indicates whether a scenario should have live runtime/port data
-func isActiveStatus(status string) bool {
-	switch strings.ToLower(status) {
-	case "running", "healthy", "degraded", "unhealthy":
-		return true
-	default:
-		return false
-	}
-}
-
-// collectScenarioStatus gathers detailed status information for the provided scenarios
-func (s *AppService) collectScenarioStatus(ctx context.Context, scenarios []string) map[string]scenarioStatusDetail {
-	results := make(map[string]scenarioStatusDetail, len(scenarios))
-	if len(scenarios) == 0 {
-		return results
+func convertPortsToMap(entries []scenarioPort) map[string]interface{} {
+	if len(entries) == 0 {
+		return nil
 	}
 
-	var (
-		wg  sync.WaitGroup
-		mu  sync.Mutex
-		sem = make(chan struct{}, 4)
-	)
-
-	for _, scenarioName := range scenarios {
-		scenarioName := scenarioName
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			// Allow generous timeout for scenarios under load
-			detailCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-			defer cancel()
-
-			cmd := exec.CommandContext(detailCtx, "vrooli", "scenario", "status", scenarioName, "--json")
-			output, err := cmd.Output()
-			if err != nil {
-				fmt.Printf("Warning: failed to fetch detailed status for %s: %v\n", scenarioName, err)
-				return
-			}
-
-			var resp scenarioStatusResponse
-			if err := json.Unmarshal(output, &resp); err != nil {
-				fmt.Printf("Warning: failed to parse detailed status for %s: %v\n", scenarioName, err)
-				return
-			}
-			if !resp.Success {
-				return
-			}
-
-			resp.ScenarioData.Diagnostics = resp.Diagnostics
-
-			mu.Lock()
-			results[scenarioName] = resp.ScenarioData
-			mu.Unlock()
-		}()
-	}
-
-	wg.Wait()
-	return results
-}
-
-// enrichScenarioDetails augments running scenarios with precise runtime and port data
-func (s *AppService) enrichScenarioDetails(ctx context.Context, apps []repository.App) {
-	activeNames := make([]string, 0, len(apps))
-	indexByScenario := make(map[string]int, len(apps))
-
-	for i := range apps {
-		if isActiveStatus(apps[i].Status) {
-			activeNames = append(activeNames, apps[i].ScenarioName)
-			indexByScenario[apps[i].ScenarioName] = i
+	ports := make(map[string]interface{}, len(entries))
+	for _, entry := range entries {
+		key := strings.TrimSpace(entry.Key)
+		if key == "" || entry.Port == nil {
+			continue
 		}
+
+		ports[key] = normalizePortValue(entry.Port)
 	}
 
-	if len(activeNames) == 0 {
+	if len(ports) == 0 {
+		return nil
+	}
+
+	return ports
+}
+
+func normalizePortValue(value interface{}) interface{} {
+	switch v := value.(type) {
+	case float64:
+		return int(v)
+	case float32:
+		return int(v)
+	case int:
+		return v
+	case int32:
+		return int(v)
+	case int64:
+		return int(v)
+	case json.Number:
+		if i, err := v.Int64(); err == nil {
+			return int(i)
+		}
+		if f, err := v.Float64(); err == nil {
+			return int(f)
+		}
+		return v.String()
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return trimmed
+		}
+		if i, err := strconv.Atoi(trimmed); err == nil {
+			return i
+		}
+		return trimmed
+	default:
+		return v
+	}
+}
+
+func derivePrimaryPort(ports map[string]interface{}) (string, interface{}) {
+	if len(ports) == 0 {
+		return "", nil
+	}
+
+	if value, ok := ports["UI_PORT"]; ok {
+		return "UI_PORT", value
+	}
+	if value, ok := ports["API_PORT"]; ok {
+		return "API_PORT", value
+	}
+
+	keys := make([]string, 0, len(ports))
+	for key := range ports {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	first := keys[0]
+	return first, ports[first]
+}
+
+func applyPortConfig(app *repository.App, ports map[string]interface{}) {
+	if len(ports) == 0 {
 		return
 	}
 
-	details := s.collectScenarioStatus(ctx, activeNames)
-	now := time.Now().UTC()
-
-	for scenarioName, detail := range details {
-		idx, ok := indexByScenario[scenarioName]
-		if !ok {
-			continue
-		}
-
-		app := &apps[idx]
-
-		// Merge allocated ports, falling back to CLI lookup when orchestrator omits them
-		ports := detail.AllocatedPorts
-		if len(ports) == 0 {
-			ports = lookupScenarioPorts(ctx, scenarioName)
-		}
-		if len(ports) > 0 {
-			if app.PortMappings == nil {
-				app.PortMappings = make(map[string]interface{}, len(ports))
-			}
-			for name, port := range ports {
-				app.PortMappings[name] = port
-			}
-
-			if app.Config == nil {
-				app.Config = make(map[string]interface{})
-			}
-			app.Config["ports"] = ports
-			if uiPort, ok := ports["UI_PORT"]; ok {
-				app.Config["primary_port_label"] = "UI_PORT"
-				app.Config["primary_port"] = fmt.Sprintf("%d", uiPort)
-			}
-			if apiPort, ok := ports["API_PORT"]; ok {
-				app.Config["api_port"] = apiPort
-			}
-		}
-
-		if isActiveStatus(app.Status) {
-			healthStatus, healthMetrics := evaluateHealthStatus(app.HealthStatus, detail)
-			if healthStatus != "" {
-				app.HealthStatus = healthStatus
-				switch healthStatus {
-				case "healthy":
-					app.Status = "healthy"
-				case "degraded":
-					app.Status = "degraded"
-				case "unhealthy":
-					app.Status = "unhealthy"
-				case "unknown":
-					if strings.EqualFold(app.Status, "unhealthy") || strings.EqualFold(app.Status, "unknown") {
-						app.Status = "running"
-					}
-				}
-			}
-
-			if len(healthMetrics) > 0 {
-				if app.Config == nil {
-					app.Config = make(map[string]interface{})
-				}
-				app.Config["health_probes"] = healthMetrics
-			}
-		}
-
-		runtime := strings.TrimSpace(detail.Runtime)
-		if runtime != "" {
-			app.Runtime = runtime
-		}
-
-		if start := strings.TrimSpace(detail.StartedAt); start != "" && start != "never" {
-			if parsed, err := time.Parse(time.RFC3339, start); err == nil {
-				app.CreatedAt = parsed.UTC()
-				app.UpdatedAt = now
-				app.Uptime = humanizeDuration(now.Sub(parsed.UTC()))
-			}
-		}
-
-		if app.Uptime == "" {
-			if duration, err := time.ParseDuration(strings.ReplaceAll(strings.ToLower(runtime), " ", "")); err == nil && duration > 0 {
-				app.Uptime = humanizeDuration(duration)
-			}
-		}
-
-		if app.Uptime == "" || strings.EqualFold(app.Uptime, "n/a") {
-			if runtime != "" && !strings.EqualFold(runtime, "n/a") {
-				app.Uptime = runtime
-			}
-		}
-	}
-}
-
-func evaluateHealthStatus(currentHealth string, detail scenarioStatusDetail) (string, map[string]interface{}) {
-	metrics := make(map[string]interface{})
-	resp := detail.Diagnostics.Responsiveness
-
-	metrics["api"] = map[string]interface{}{
-		"available":     resp.API.Available,
-		"timeout":       resp.API.Timeout,
-		"response_time": resp.API.ResponseTime,
-		"error":         resp.API.Error,
-	}
-	metrics["ui"] = map[string]interface{}{
-		"available":     resp.UI.Available,
-		"timeout":       resp.UI.Timeout,
-		"response_time": resp.UI.ResponseTime,
-		"error":         resp.UI.Error,
+	app.PortMappings = make(map[string]interface{}, len(ports))
+	for key, value := range ports {
+		app.PortMappings[key] = value
 	}
 
-	health := strings.ToLower(strings.TrimSpace(currentHealth))
+	if app.Config == nil {
+		app.Config = make(map[string]interface{})
+	}
+	app.Config["ports"] = app.PortMappings
 
-	probeHealth := ""
-	switch {
-	case resp.API.Available && resp.UI.Available:
-		probeHealth = "healthy"
-	case resp.API.Available || resp.UI.Available:
-		probeHealth = "degraded"
-	case resp.API.Timeout || resp.UI.Timeout:
-		probeHealth = "unhealthy"
+	primaryLabel, primaryValue := derivePrimaryPort(app.PortMappings)
+	if primaryLabel != "" {
+		app.Config["primary_port_label"] = primaryLabel
+		app.Config["primary_port"] = fmt.Sprintf("%v", primaryValue)
 	}
 
-	if probeHealth != "" {
-		health = probeHealth
+	if apiPort, ok := app.PortMappings["API_PORT"]; ok {
+		app.Config["api_port"] = apiPort
 	}
-
-	if len(detail.Diagnostics.HealthChecks) > 0 {
-		healthChecks := make(map[string]interface{}, len(detail.Diagnostics.HealthChecks))
-		for name, check := range detail.Diagnostics.HealthChecks {
-			status := strings.ToLower(strings.TrimSpace(check.Status))
-			healthChecks[name] = map[string]interface{}{
-				"status":   status,
-				"target":   check.Target,
-				"message":  check.Message,
-				"critical": check.Critical,
-			}
-
-			switch status {
-			case "", "pass", "ok", "healthy", "success":
-				if health == "" {
-					health = "healthy"
-				}
-			case "warn", "warning", "degraded":
-				if health == "" || health == "healthy" {
-					health = "degraded"
-				}
-			default:
-				health = "unhealthy"
-			}
-
-			if health == "unhealthy" {
-				// No need to continue evaluating once a critical failure is found
-				break
-			}
-		}
-		metrics["checks"] = healthChecks
-	}
-
-	if health == "" {
-		health = "unknown"
-	}
-
-	return health, metrics
-}
-
-// lookupScenarioPorts fetches key ports via the Vrooli CLI when detailed status omits them
-func lookupScenarioPorts(ctx context.Context, scenarioName string) map[string]int {
-	ports := make(map[string]int, 2)
-	for _, portName := range []string{"UI_PORT", "API_PORT"} {
-		lookupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		cmd := exec.CommandContext(lookupCtx, "vrooli", "scenario", "port", scenarioName, portName)
-		output, err := cmd.Output()
-		cancel()
-		if err != nil {
-			continue
-		}
-
-		portStr := strings.TrimSpace(string(output))
-		if portStr == "" {
-			continue
-		}
-
-		port, err := strconv.Atoi(portStr)
-		if err != nil || port <= 0 {
-			continue
-		}
-
-		ports[portName] = port
-	}
-	return ports
 }
 
 // GetAppsSummary returns a fast-loading list of scenarios while background hydration runs
@@ -739,10 +534,47 @@ func (s *AppService) GetApps(ctx context.Context) ([]repository.App, error) {
 
 // GetApp retrieves a single app by ID
 func (s *AppService) GetApp(ctx context.Context, id string) (*repository.App, error) {
-	if s.repo == nil {
-		return nil, fmt.Errorf("database not available")
+	var lastErr error
+
+	if s.repo != nil {
+		app, err := s.repo.GetApp(ctx, id)
+		if err == nil {
+			return app, nil
+		}
+
+		lastErr = err
 	}
-	return s.repo.GetApp(ctx, id)
+
+	apps, err := s.GetAppsFromOrchestrator(ctx)
+	if err == nil {
+		for i := range apps {
+			candidate := apps[i]
+			if candidate.ID == id || candidate.Name == id || candidate.ScenarioName == id {
+				result := candidate
+				return &result, nil
+			}
+		}
+	} else if lastErr == nil {
+		lastErr = err
+	}
+
+	if summaries, summaryErr := s.fetchScenarioSummaries(ctx); summaryErr == nil {
+		for i := range summaries {
+			candidate := summaries[i]
+			if candidate.ID == id || candidate.Name == id || candidate.ScenarioName == id {
+				result := candidate
+				return &result, nil
+			}
+		}
+	} else if lastErr == nil {
+		lastErr = summaryErr
+	}
+
+	if lastErr != nil {
+		return nil, lastErr
+	}
+
+	return nil, fmt.Errorf("app not found: %s", id)
 }
 
 // UpdateAppStatus updates the status of an app
