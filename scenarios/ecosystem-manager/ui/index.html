@@ -232,6 +232,7 @@
                 <button class="modal-close" onclick="ecosystemManager.closeModal('create-task-modal')">&times;</button>
             </div>
             
+            <div class="modal-body-scroll">
             <form id="create-task-form" class="task-form-grid">
                 <div class="task-form-left">
                 <div class="form-row">
@@ -281,11 +282,21 @@
                 
                 <!-- Target field for improver operations -->
                 <div class="form-group" id="target-group" style="display: none;">
-                    <label for="task-target">Target (for improvements) *</label>
-                    <select id="task-target" name="target" multiple disabled size="8">
-                        <option value="">Loading available targets...</option>
-                    </select>
-                    <small class="form-help">Select one or more targets to enhance. Already-tracked targets appear greyed out with their existing task ID.</small>
+                    <label for="task-target-search">Target (for improvements) *</label>
+                    <div class="target-selector-wrapper">
+                        <div class="tag-multiselect" id="task-target-selector" data-placeholder="Search targets...">
+                            <div class="tag-multiselect-selection" role="combobox" aria-controls="task-target-dropdown" aria-expanded="false" aria-haspopup="listbox">
+                                <div class="tag-multiselect-tags" id="task-target-tags"></div>
+                                <input type="text" id="task-target-search" autocomplete="off" placeholder="Search targets..." disabled aria-autocomplete="list" aria-controls="task-target-dropdown" aria-describedby="task-target-help">
+                            </div>
+                            <div class="tag-multiselect-dropdown" id="task-target-dropdown" role="listbox" aria-multiselectable="true" hidden>
+                                <div class="tag-multiselect-status">Loading available targets...</div>
+                                <ul class="tag-multiselect-options"></ul>
+                            </div>
+                        </div>
+                        <select id="task-target" name="target" multiple disabled hidden></select>
+                    </div>
+                    <small id="task-target-help" class="form-help">Select one or more targets to enhance. Already-tracked targets appear greyed out with their existing task ID.</small>
                 </div>
 
                 </div>
@@ -299,6 +310,7 @@
                     </div>
                 </div>
             </form>
+            </div>
             
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeModal('create-task-modal')">

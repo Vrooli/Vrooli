@@ -37,6 +37,15 @@ const elements = {
 };
 
 // Initialize
+function escapeHtml(unsafe) {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+}
+
 function init() {
     setupEventListeners();
     updateTime();
@@ -171,7 +180,7 @@ function addMessage(text, sender) {
     
     const content = document.createElement('div');
     content.className = 'message-content';
-    content.innerHTML = `<p>${text}</p>`;
+    content.innerHTML = `<p>${escapeHtml(text)}</p>`;
     
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(content);
@@ -225,7 +234,7 @@ function addAction(action) {
     actionDiv.className = 'action-item';
     actionDiv.innerHTML = `
         <div class="action-checkbox"></div>
-        <span class="action-text">${action}</span>
+        <span class="action-text">${escapeHtml(action)}</span>
     `;
     
     actionDiv.addEventListener('click', function() {
@@ -238,7 +247,7 @@ function addAction(action) {
 
 function updateVision(vision) {
     state.currentVision = vision;
-    elements.visionContent.innerHTML = `<p>${vision}</p>`;
+    elements.visionContent.innerHTML = `<p>${escapeHtml(vision)}</p>`;
 }
 
 // Voice Recording

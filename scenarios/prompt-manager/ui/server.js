@@ -26,7 +26,7 @@ const SCENARIO_NAME = process.env.SCENARIO_NAME || 'prompt-manager';
 
 // Enable CORS for API communication
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
     res.header('Access-Control-Allow-Headers', 'Content-Type');
     next();
 });

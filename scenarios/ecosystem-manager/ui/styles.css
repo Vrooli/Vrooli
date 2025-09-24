@@ -844,6 +844,17 @@ body.dark-mode .task-delete-btn:hover {
 .modal-content.modal-extra-large {
     max-width: 1400px;
     width: 95%;
+    max-height: 90vh;
+    overflow: visible;
+    overflow-y: visible;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-content.modal-extra-large .modal-body-scroll {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .modal-header {
@@ -1162,48 +1173,331 @@ form {
     margin-bottom: 1.5rem;
 }
 
-#task-target {
-    width: 100%;
-    min-height: 220px;
-    padding: 0.6rem;
-    border-radius: var(--border-radius);
+.target-selector-wrapper {
+    position: relative;
+}
+
+.tag-multiselect {
+    position: relative;
     border: 1px solid var(--border-gray);
-    background: var(--white);
-    color: var(--text-color);
-    font-size: 0.95rem;
+    border-radius: var(--border-radius);
+    background: var(--card-bg);
+    padding: 0.4rem 0.5rem;
+    min-height: 2.75rem;
+    cursor: text;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
-#task-target option {
-    padding: 0.25rem 0.4rem;
+.tag-multiselect:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
 }
 
-#task-target option[disabled] {
+.tag-multiselect.is-open {
+    border-color: var(--primary-color);
+}
+
+.tag-multiselect.is-disabled {
+    cursor: not-allowed;
+    background: var(--light-gray);
+    opacity: 0.8;
+}
+
+.tag-multiselect.is-busy::after {
+    content: '';
+    position: absolute;
+    top: 0.6rem;
+    right: 0.7rem;
+    width: 0.85rem;
+    height: 0.85rem;
+    border-radius: 50%;
+    border: 2px solid rgba(74, 144, 226, 0.25);
+    border-top-color: var(--primary-color);
+    animation: tag-multiselect-spin 0.8s linear infinite;
+}
+
+.tag-multiselect-selection {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.tag-multiselect-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.tag-multiselect-tags.is-empty {
+    display: contents;
+}
+
+.tag-multiselect-tags.is-placeholder {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    min-height: 1.5rem;
+}
+
+.tag-multiselect-placeholder {
+    font-size: 0.85rem;
     color: var(--medium-gray);
-    background-color: rgba(0, 0, 0, 0.05);
-}
-
-#task-target option.target-unavailable {
-    color: var(--medium-gray);
-    background-color: rgba(0, 0, 0, 0.05);
     font-style: italic;
-    opacity: 0.6;
+    line-height: 1.4;
 }
 
-body.dark-mode #task-target {
+.tag-multiselect-placeholder--info {
+    color: var(--medium-gray);
+}
+
+.tag-multiselect-placeholder--empty {
+    opacity: 0.85;
+}
+
+.tag-multiselect-placeholder--warning {
+    color: var(--warning-color);
+    font-weight: 500;
+}
+
+.tag-multiselect-placeholder--error {
+    color: var(--error-color);
+    font-weight: 500;
+}
+
+#task-target-search {
+    flex: 1 1 140px;
+    min-width: 120px;
+    border: none;
+    background: transparent;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    padding: 0.2rem 0.1rem;
+}
+
+#task-target-search:focus {
+    outline: none;
+}
+
+.tag-multiselect.is-busy #task-target-search {
+    padding-right: 1.5rem;
+}
+
+.tag-multiselect-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(74, 144, 226, 0.12);
+    color: var(--primary-color);
+    border: 1px solid rgba(74, 144, 226, 0.35);
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+}
+
+.tag-multiselect-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--medium-gray);
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.tag-multiselect-remove:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--error-color);
+}
+
+@keyframes tag-multiselect-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.tag-multiselect-dropdown {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    width: 100%;
+    max-height: 260px;
+    background: var(--white);
+    border: 1px solid var(--border-gray);
+    border-radius: var(--border-radius);
+    box-shadow: 0 12px 24px rgba(26, 33, 46, 0.18);
+    padding: 0.3rem 0;
+    overflow-y: auto;
+    z-index: 50;
+}
+
+.tag-multiselect-dropdown.tag-multiselect-dropdown-portal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: auto;
+    max-width: min(520px, calc(100vw - 32px));
+    margin-top: 0;
+    z-index: 32000;
+}
+
+.tag-multiselect-dropdown.tag-multiselect-dropdown-portal.is-flipped {
+    transform-origin: bottom center;
+}
+
+.tag-multiselect-status {
+    font-size: 0.8rem;
+    color: var(--medium-gray);
+    padding: 0.35rem 0.9rem;
+}
+
+.tag-multiselect-status[data-tone='empty'] {
+    color: var(--medium-gray);
+    font-style: italic;
+}
+
+.tag-multiselect-status[data-tone='warning'] {
+    color: var(--warning-color);
+}
+
+.tag-multiselect-status[data-tone='error'] {
+    color: var(--error-color);
+}
+
+.tag-multiselect-options {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.tag-multiselect-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.tag-multiselect-option:not(.is-disabled):hover {
+    background: rgba(74, 144, 226, 0.08);
+}
+
+.tag-multiselect-option.is-highlighted {
+    background: rgba(74, 144, 226, 0.18);
+}
+
+.tag-multiselect-option.is-selected .tag-multiselect-option-label {
+    font-weight: 600;
+}
+
+.tag-multiselect-option.is-disabled {
+    cursor: not-allowed;
+    color: var(--medium-gray);
+    opacity: 0.75;
+    pointer-events: none;
+}
+
+.tag-multiselect-option.is-unavailable {
+    font-style: italic;
+}
+
+.tag-multiselect-option.is-hidden {
+    display: none;
+}
+
+.tag-multiselect-option-check {
+    width: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-color);
+}
+
+.tag-multiselect-option-check i {
+    font-size: 0.75rem;
+}
+
+.tag-multiselect-option-label {
+    flex: 1;
+    line-height: 1.35;
+}
+
+.tag-multiselect-hidden-select {
+    display: none !important;
+}
+
+body.dark-mode .tag-multiselect {
     background: var(--dark-card-bg);
     border-color: var(--dark-border-gray);
+}
+
+body.dark-mode .tag-multiselect:focus-within {
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.25);
+}
+
+body.dark-mode .tag-multiselect.is-disabled {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .tag-multiselect.is-busy::after {
+    border-color: rgba(74, 144, 226, 0.2);
+    border-top-color: rgba(74, 144, 226, 0.75);
+}
+
+body.dark-mode .tag-multiselect-placeholder {
+    color: var(--dark-medium-gray);
+}
+
+body.dark-mode .tag-multiselect-placeholder--warning {
+    color: var(--warning-color);
+}
+
+body.dark-mode .tag-multiselect-placeholder--error {
+    color: var(--error-color);
+}
+
+body.dark-mode #task-target-search {
     color: var(--dark-text-color);
 }
 
-body.dark-mode #task-target option[disabled] {
-    color: var(--dark-medium-gray);
-    background-color: rgba(255, 255, 255, 0.05);
+body.dark-mode .tag-multiselect-tag {
+    background: rgba(74, 144, 226, 0.25);
+    border-color: rgba(74, 144, 226, 0.4);
+    color: var(--dark-text-color);
 }
 
-body.dark-mode #task-target option.target-unavailable {
+body.dark-mode .tag-multiselect-remove:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .tag-multiselect-dropdown {
+    background: var(--dark-card-bg);
+    border-color: var(--dark-border-gray);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .tag-multiselect-status {
     color: var(--dark-medium-gray);
-    background-color: rgba(255, 255, 255, 0.08);
-    opacity: 0.7;
+}
+
+body.dark-mode .tag-multiselect-option {
+    color: var(--dark-text-color);
+}
+
+body.dark-mode .tag-multiselect-option:not(.is-disabled):hover,
+body.dark-mode .tag-multiselect-option.is-highlighted {
+    background: rgba(74, 144, 226, 0.25);
+}
+
+body.dark-mode .tag-multiselect-option.is-disabled {
+    color: var(--dark-medium-gray);
 }
 
 /* Task Form Grid Layout for Create Task Modal */
@@ -1355,6 +1649,28 @@ body.dark-mode .toggle-input:checked+.toggle-btn {
     font-size: 0.8rem;
     color: var(--medium-gray);
     margin-top: 0.3rem;
+}
+
+.form-help[data-tone='info'] {
+    color: var(--medium-gray);
+}
+
+.form-help[data-tone='warning'] {
+    color: var(--warning-color);
+    font-weight: 500;
+}
+
+.form-help[data-tone='error'] {
+    color: var(--error-color);
+    font-weight: 500;
+}
+
+body.dark-mode .form-help[data-tone='warning'] {
+    color: var(--warning-color);
+}
+
+body.dark-mode .form-help[data-tone='error'] {
+    color: var(--error-color);
 }
 
 .form-actions {
