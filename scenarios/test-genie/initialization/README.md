@@ -30,7 +30,7 @@ initialization/
 ## Dependencies
 
 - PostgreSQL 12+ (required)
-- Ollama (required for AI features)
+- OpenCode (required for AI features)
 - Redis (optional, for caching)
 - Node.js 16+ (for UI)
 

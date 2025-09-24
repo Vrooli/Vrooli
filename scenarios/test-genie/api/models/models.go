@@ -253,14 +253,14 @@ type ServiceHealth struct {
 	Message string `json:"message,omitempty"`
 }
 
-// Ollama Integration Types
-type OllamaRequest struct {
+// AI Integration Types
+type AIRequest struct {
 	Model  string `json:"model"`
 	Prompt string `json:"prompt"`
 	Stream bool   `json:"stream"`
 }
 
-type OllamaResponse struct {
+type AIResponse struct {
 	Model              string    `json:"model"`
 	CreatedAt          time.Time `json:"created_at"`
 	Response           string    `json:"response"`

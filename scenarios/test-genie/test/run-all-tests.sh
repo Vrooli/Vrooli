@@ -51,7 +51,7 @@ declare -A TEST_SUITES=(
 declare -A TEST_DESCRIPTIONS=(
     ["basic"]="Core API functionality and CLI integration"
     ["database"]="Database connectivity, persistence, and performance"
-    ["ai"]="AI generation, Ollama integration, and fallback mechanisms"
+    ["ai"]="AI generation, OpenCode integration, and fallback mechanisms"
 )
 
 # Track results

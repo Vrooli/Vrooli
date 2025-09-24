@@ -75,6 +75,9 @@ const AppCard = memo<AppCardProps>(({
   isActive = false,
 }) => {
   const isPartial = Boolean(app.is_partial);
+  const statusValue = typeof app.status === 'string' && app.status.trim() ? app.status : 'unknown';
+  const normalizedStatus = statusValue.toLowerCase();
+  const displayStatus = isPartial ? 'syncing' : normalizedStatus;
 
   const handleClick = useCallback(() => {
     onCardClick(app);
@@ -119,7 +122,7 @@ const AppCard = memo<AppCardProps>(({
   }, [app.created_at, app.status, app.uptime]);
 
   const uptime = isPartial ? 'SYNCING' : calculateUptime();
-  const isRunning = ['running', 'healthy', 'degraded', 'unhealthy'].includes(app.status);
+  const isRunning = ['running', 'healthy', 'degraded', 'unhealthy'].includes(normalizedStatus);
 
   const metrics = useMemo(() => {
     const items: MetricProps[] = [
@@ -151,7 +154,7 @@ const AppCard = memo<AppCardProps>(({
   const cardClasses = clsx(
     'app-card',
     viewMode,
-    app.status.toLowerCase(),
+    !isPartial && normalizedStatus,
     {
       active: isActive,
       partial: isPartial,
@@ -174,8 +177,7 @@ const AppCard = memo<AppCardProps>(({
           {version && <span className="app-meta">v{version}</span>}
         </div>
         <div className="app-card__status-group">
-          {isPartial && <span className="app-card__sync" aria-live="polite">SYNCING…</span>}
-          <StatusBadge status={app.status} />
+          <StatusBadge status={displayStatus} />
         </div>
       </div>
 

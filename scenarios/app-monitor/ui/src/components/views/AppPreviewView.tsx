@@ -31,6 +31,10 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   }, [appId, navigate]);
 
   useEffect(() => {
+    setFetchAttempted(false);
+  }, [appId]);
+
+  useEffect(() => {
     if (!appId) {
       return;
     }
@@ -38,8 +42,13 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     const located = locateAppByIdentifier(apps, appId);
     if (located) {
       setCurrentApp(located);
-      setLoading(false);
-      return;
+      if (!located.is_partial) {
+        setLoading(false);
+        return;
+      }
+
+      setStatusMessage('Loading application details...');
+      setLoading(true);
     }
 
     if (fetchAttempted) {
@@ -81,6 +90,13 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
   useEffect(() => {
     if (!currentApp) {
+      return;
+    }
+
+    if (currentApp.is_partial) {
+      setStatusMessage('Loading application details...');
+      setPreviewUrl(null);
+      setLoading(true);
       return;
     }
 
@@ -291,7 +307,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
         </div>
       ) : (
         <div className="preview-placeholder">
-          {loading ? 'Loading preview...' : 'Preview unavailable.'}
+          {loading ? 'Fetching application details…' : statusMessage ?? 'Preview unavailable.'}
         </div>
       )}
 

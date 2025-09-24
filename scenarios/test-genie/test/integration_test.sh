@@ -64,7 +64,7 @@ run_test "Database Connectivity" \
     "healthy"
 
 # 3. Test AI Service
-run_test "AI Service (Ollama)" \
+run_test "AI Service (OpenCode)" \
     "curl -s ${BASE_URL}/health | jq -r '.checks.ai_service.status'" \
     "healthy"
 

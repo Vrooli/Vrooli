@@ -5,8 +5,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"log"
 	"math"
 	"net/http"
@@ -14,8 +14,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -106,6 +108,7 @@ type GenerateTestSuiteRequest struct {
 	TestTypes      []string              `json:"test_types" binding:"required"`
 	CoverageTarget float64               `json:"coverage_target"`
 	Options        TestGenerationOptions `json:"options"`
+	Model          string                `json:"model,omitempty"`
 }
 
 type TestGenerationOptions struct {
@@ -121,6 +124,31 @@ type GenerateTestSuiteResponse struct {
 	EstimatedCoverage float64             `json:"estimated_coverage"`
 	GenerationTime    float64             `json:"generation_time"`
 	TestFiles         map[string][]string `json:"test_files"`
+}
+
+type ModelInfo struct {
+	ID       string `json:"id"`
+	Label    string `json:"label"`
+	Provider string `json:"provider"`
+	Free     bool   `json:"free"`
+}
+
+type opencodeModelsResponse struct {
+	Models []opencodeModel `json:"models"`
+}
+
+type opencodeModel struct {
+	ID          string                `json:"id"`
+	Model       string                `json:"model"`
+	DisplayName string                `json:"display_name"`
+	Provider    string                `json:"provider"`
+	Backend     string                `json:"backend"`
+	Pricing     *opencodeModelPricing `json:"pricing"`
+}
+
+type opencodeModelPricing struct {
+	Prompt     *float64 `json:"prompt"`
+	Completion *float64 `json:"completion"`
 }
 
 type ExecuteTestSuiteRequest struct {
@@ -259,14 +287,8 @@ type PhaseResult struct {
 	Artifacts    map[string]interface{} `json:"artifacts"`
 }
 
-// Ollama Integration Types
-type OllamaRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
-}
-
-type OllamaResponse struct {
+// AI Integration Types
+type AIResponse struct {
 	Model     string    `json:"model"`
 	CreatedAt time.Time `json:"created_at"`
 	Response  string    `json:"response"`
@@ -287,8 +309,8 @@ type AIGeneratedTest struct {
 
 // Global variables
 var db *sql.DB
-var httpClient *http.Client
 var serviceManager *ServiceManager
+var openCodeAgentManager *AgentManager
 
 // Initialize database connection
 func initDB() {
@@ -388,40 +410,23 @@ func setupHealthCheckers() {
 	}, dbCircuitBreaker)
 	serviceManager.RegisterService("database", dbChecker)
 
-	// Ollama health checker
-	ollamaChecker := NewHealthChecker("ollama", func() error {
-		ollamaHost := os.Getenv("OLLAMA_HOST")
-		if ollamaHost == "" {
-			ollamaHost = "localhost"
-		}
-		ollamaPort := os.Getenv("OLLAMA_PORT")
-		if ollamaPort == "" {
-			ollamaPort = "11434"
-		}
-
-		url := fmt.Sprintf("http://%s:%s/api/tags", ollamaHost, ollamaPort)
-		req, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			return err
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// OpenCode health checker
+	openCodeChecker := NewHealthChecker("opencode", func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		req = req.WithContext(ctx)
 
-		resp, err := httpClient.Do(req)
+		cmd := exec.CommandContext(ctx, "resource-opencode", "status")
+		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return err
+			trimmed := strings.TrimSpace(string(output))
+			if trimmed != "" {
+				return fmt.Errorf("resource-opencode status failed: %w - %s", err, trimmed)
+			}
+			return fmt.Errorf("resource-opencode status failed: %w", err)
 		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("ollama API returned status %d", resp.StatusCode)
-		}
-
 		return nil
-	}, ollamaCircuitBreaker)
-	serviceManager.RegisterService("ollama", ollamaChecker)
+	}, openCodeCircuitBreaker)
+	serviceManager.RegisterService("opencode", openCodeChecker)
 
 	log.Println("🔧 Health checkers initialized successfully")
 }
@@ -483,155 +488,9 @@ func createTables() {
 }
 
 // Initialize HTTP client for AI services
-func initHTTPClient() {
-	httpClient = &http.Client{
-		Timeout: 60 * time.Second,
-		Transport: &http.Transport{
-			MaxIdleConns:       10,
-			IdleConnTimeout:    30 * time.Second,
-			DisableCompression: false,
-		},
-	}
-	log.Println("🤖 HTTP client initialized for AI services")
-}
-
-// Ollama AI Integration Functions
-func callOllama(prompt string, testType string) (*OllamaResponse, error) {
-	log.Printf("🤖 Calling Ollama API for %s test generation...", testType)
-
-	// Create fallback handler with circuit breaker
-	fallback := NewFallbackHandler(
-		func() (interface{}, error) {
-			return callOllamaWithCircuitBreaker(prompt, testType)
-		},
-		func() (interface{}, error) {
-			log.Printf("🔀 Ollama unavailable, using fallback rule-based generation for %s", testType)
-			return generateFallbackTest(testType, prompt)
-		},
-		func(err error) bool {
-			// Use fallback for circuit breaker errors or connection issues
-			return contains(err.Error(), "circuit breaker") ||
-				contains(err.Error(), "connection refused") ||
-				contains(err.Error(), "timeout")
-		},
-	)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	defer cancel()
-
-	result, err := fallback.Execute(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	response, ok := result.(*OllamaResponse)
-	if !ok {
-		return nil, fmt.Errorf("invalid response type from Ollama call")
-	}
-
-	log.Printf("✅ Successfully generated %s test content (%d characters)", testType, len(response.Response))
-	return response, nil
-}
-
-func callOllamaWithCircuitBreaker(prompt string, testType string) (*OllamaResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	result, err := ollamaCircuitBreaker.Execute(ctx, func() (interface{}, error) {
-		return executeOllamaCall(prompt, testType)
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	response, ok := result.(*OllamaResponse)
-	if !ok {
-		return nil, fmt.Errorf("invalid response type from Ollama circuit breaker")
-	}
-
-	return response, nil
-}
-
-func executeOllamaCall(prompt string, testType string) (interface{}, error) {
-	ollamaHost := os.Getenv("OLLAMA_HOST")
-	if ollamaHost == "" {
-		ollamaHost = "localhost"
-	}
-	ollamaPort := os.Getenv("OLLAMA_PORT")
-	if ollamaPort == "" {
-		ollamaPort = "11434"
-	}
-
-	ollamaModel := os.Getenv("OLLAMA_MODEL")
-	if ollamaModel == "" {
-		ollamaModel = "llama3.2"
-	}
-
-	url := fmt.Sprintf("http://%s:%s/api/generate", ollamaHost, ollamaPort)
-
-	request := OllamaRequest{
-		Model:  ollamaModel,
-		Prompt: prompt,
-		Stream: false,
-	}
-
-	requestBody, err := json.Marshal(request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal Ollama request: %w", err)
-	}
-
-	// Use retry logic for the HTTP call
-	retryConfig := RetryConfig{
-		MaxAttempts: 2,
-		BaseDelay:   500 * time.Millisecond,
-		MaxDelay:    2 * time.Second,
-		BackoffFunc: ExponentialBackoff,
-		ShouldRetry: func(err error) bool {
-			return contains(err.Error(), "timeout") ||
-				contains(err.Error(), "connection reset") ||
-				contains(err.Error(), "temporary failure")
-		},
-	}
-
-	var response *OllamaResponse
-	err = RetryWithBackoff(context.Background(), retryConfig, func() error {
-		req, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
-		if err != nil {
-			return fmt.Errorf("failed to create HTTP request: %w", err)
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			return fmt.Errorf("failed to call Ollama API: %w", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return fmt.Errorf("Ollama API returned status %d: %s", resp.StatusCode, string(body))
-		}
-
-		var ollamaResp OllamaResponse
-		if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
-			return fmt.Errorf("failed to decode Ollama response: %w", err)
-		}
-
-		response = &ollamaResp
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
 
 // generateFallbackTest creates a basic test when AI is unavailable
-func generateFallbackTest(testType string, scenarioName string) (*OllamaResponse, error) {
+func generateFallbackTest(testType string, scenarioName string) (*AIResponse, error) {
 	var testContent string
 
 	switch testType {
@@ -701,12 +560,116 @@ func Test%sGeneric(t *testing.T) {
 }`, scenarioName, scenarioName)
 	}
 
-	return &OllamaResponse{
+	return &AIResponse{
 		Model:     "fallback",
 		CreatedAt: time.Now(),
 		Response:  testContent,
 		Done:      true,
 	}, nil
+}
+
+func callOpenCode(prompt string, testType string, model string) (*AIResponse, error) {
+	if openCodeAgentManager == nil {
+		return nil, fmt.Errorf("agent manager not initialized")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	label := fmt.Sprintf("%s test generation", titleCase(testType))
+	action := fmt.Sprintf("generate_%s_tests", testType)
+
+	result, err := openCodeAgentManager.RunAgent(ctx, AgentRunRequest{
+		Prompt:  prompt,
+		Model:   model,
+		Label:   label,
+		Action:  action,
+		Timeout: 110 * time.Second,
+		Metadata: map[string]string{
+			"test_type": testType,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	jsonPayload, err := extractFirstJSONObject(result.Output)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse OpenCode response: %w", err)
+	}
+
+	return &AIResponse{
+		Model:     model,
+		CreatedAt: time.Now(),
+		Response:  jsonPayload,
+		Done:      true,
+	}, nil
+}
+
+func resolveModel(requested string) string {
+	requested = strings.TrimSpace(requested)
+	if requested != "" {
+		return requested
+	}
+	if env := strings.TrimSpace(os.Getenv("TEST_GENIE_AGENT_MODEL")); env != "" {
+		return env
+	}
+	if env := strings.TrimSpace(os.Getenv("OPENCODE_DEFAULT_MODEL")); env != "" {
+		return env
+	}
+	return "openrouter/x-ai/grok-code-fast-1"
+}
+
+func extractFirstJSONObject(payload string) (string, error) {
+	start := -1
+	depth := 0
+	inString := false
+	escaped := false
+	runes := []rune(payload)
+	for idx, r := range runes {
+		if start == -1 {
+			if r == '{' {
+				start = idx
+				depth = 1
+			}
+			continue
+		}
+
+		if inString {
+			if r == '\\' && !escaped {
+				escaped = true
+				continue
+			}
+			if r == '"' && !escaped {
+				inString = false
+			}
+			escaped = false
+			continue
+		}
+
+		switch r {
+		case '"':
+			inString = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return string(runes[start : idx+1]), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no JSON object found in payload")
+}
+
+func titleCase(value string) string {
+	runes := []rune(strings.TrimSpace(value))
+	if len(runes) == 0 {
+		return value
+	}
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
 }
 
 func generateTestPrompt(scenarioName string, testType string, options TestGenerationOptions) string {
@@ -882,18 +845,18 @@ func parseAITestResponse(response string, scenarioName string, testType string) 
 	return []TestCase{testCase}, nil
 }
 
-// AI Test Generation Service with real Ollama integration
-func generateTestsWithAI(scenarioName string, testTypes []string, options TestGenerationOptions) ([]TestCase, error) {
+// AI Test Generation Service with OpenCode integration
+func generateTestsWithAI(scenarioName string, testTypes []string, options TestGenerationOptions, model string) ([]TestCase, error) {
 	log.Printf("🧪 Starting AI test generation for scenario: %s with types: %v", scenarioName, testTypes)
 
 	var allTestCases []TestCase
 
 	for _, testType := range testTypes {
-		log.Printf("🤖 Generating %s tests using AI for scenario: %s", testType, scenarioName)
+		log.Printf("🤖 Generating %s tests using OpenCode model %s for scenario: %s", testType, model, scenarioName)
 
 		// Try AI generation first
 		prompt := generateTestPrompt(scenarioName, testType, options)
-		aiResponse, err := callOllama(prompt, testType)
+		aiResponse, err := callOpenCode(prompt, testType, model)
 
 		if err != nil {
 			log.Printf("⚠️ AI generation failed for %s tests: %v. Falling back to rule-based generation.", testType, err)
@@ -1279,7 +1242,8 @@ func generateTestSuiteHandler(c *gin.Context) {
 	startTime := time.Now()
 
 	// Generate tests using AI
-	testCases, err := generateTestsWithAI(req.ScenarioName, req.TestTypes, req.Options)
+	model := resolveModel(req.Model)
+	testCases, err := generateTestsWithAI(req.ScenarioName, req.TestTypes, req.Options, model)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -1402,8 +1366,8 @@ func executeTestCase(testCase TestCase, environment string) TestResult {
 		fmt.Sprintf("POSTGRES_USER=%s", os.Getenv("POSTGRES_USER")),
 		fmt.Sprintf("POSTGRES_PASSWORD=%s", os.Getenv("POSTGRES_PASSWORD")),
 		fmt.Sprintf("POSTGRES_DB=%s", os.Getenv("POSTGRES_DB")),
-		fmt.Sprintf("OLLAMA_HOST=%s", os.Getenv("OLLAMA_HOST")),
-		fmt.Sprintf("OLLAMA_PORT=%s", os.Getenv("OLLAMA_PORT")),
+		fmt.Sprintf("TEST_GENIE_AGENT_MODEL=%s", resolveModel("")),
+		fmt.Sprintf("OPENCODE_DEFAULT_MODEL=%s", resolveModel("")),
 	)
 
 	// Capture stdout and stderr
@@ -2616,27 +2580,38 @@ func healthHandler(c *gin.Context) {
 	serviceChecks := healthStatus["checks"].(map[string]interface{})
 
 	// Database health check
-	if err := serviceManager.services["database"].Check(ctx); err != nil {
-		serviceChecks["database"] = map[string]interface{}{
-			"status": "unhealthy",
-			"error":  err.Error(),
+	if checker, ok := serviceManager.services["database"]; ok {
+		if err := checker.Check(ctx); err != nil {
+			serviceChecks["database"] = map[string]interface{}{
+				"status": "unhealthy",
+				"error":  err.Error(),
+			}
+		} else {
+			serviceChecks["database"] = map[string]interface{}{
+				"status": "healthy",
+			}
 		}
 	} else {
 		serviceChecks["database"] = map[string]interface{}{
-			"status": "healthy",
+			"status": "unknown",
 		}
 	}
 
-	// Check Ollama AI service
-	if err := serviceManager.services["ollama"].Check(ctx); err != nil {
-		serviceChecks["ai_service"] = map[string]interface{}{
-			"status": "unhealthy",
-			"error":  err.Error(),
+	// Check OpenCode AI service
+	if checker, ok := serviceManager.services["opencode"]; ok {
+		if err := checker.Check(ctx); err != nil {
+			serviceChecks["ai_service"] = map[string]interface{}{
+				"status": "unhealthy",
+				"error":  err.Error(),
+			}
+		} else {
+			serviceChecks["ai_service"] = map[string]interface{}{
+				"status": "healthy",
+			}
 		}
-		// AI service failure is not critical for basic health due to fallback
 	} else {
 		serviceChecks["ai_service"] = map[string]interface{}{
-			"status": "healthy",
+			"status": "unknown",
 		}
 	}
 
@@ -2646,14 +2621,9 @@ func healthHandler(c *gin.Context) {
 		"state":    stateToString(dbCircuitBreaker.state),
 		"failures": dbCircuitBreaker.failures,
 	}
-	circuitBreakers["ollama"] = map[string]interface{}{
-		"state":    stateToString(ollamaCircuitBreaker.state),
-		"failures": ollamaCircuitBreaker.failures,
-	}
-
-	// HTTP client status
-	serviceChecks["http_client"] = map[string]interface{}{
-		"status": "healthy",
+	circuitBreakers["opencode"] = map[string]interface{}{
+		"state":    stateToString(openCodeCircuitBreaker.state),
+		"failures": openCodeCircuitBreaker.failures,
 	}
 
 	// System capabilities based on service level
@@ -2714,6 +2684,241 @@ func getHTTPStatusForServiceLevel(level DegradationLevel) int {
 		return http.StatusPartialContent
 	default:
 		return http.StatusServiceUnavailable
+	}
+}
+
+func listAgentsHandler(c *gin.Context) {
+	if openCodeAgentManager == nil {
+		c.JSON(http.StatusOK, gin.H{"count": 0, "agents": []AgentInfo{}})
+		return
+	}
+
+	agents := openCodeAgentManager.ListAgents()
+	c.JSON(http.StatusOK, gin.H{"count": len(agents), "agents": agents})
+}
+
+func stopAgentHandler(c *gin.Context) {
+	if openCodeAgentManager == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "agent manager unavailable"})
+		return
+	}
+
+	agentID := strings.TrimSpace(c.Param("agent_id"))
+	if agentID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "agent_id is required"})
+		return
+	}
+
+	if err := openCodeAgentManager.StopAgent(agentID); err != nil {
+		if errors.Is(err, ErrAgentNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("agent %s stopping", agentID)})
+}
+
+func getAgentLogsHandler(c *gin.Context) {
+	if openCodeAgentManager == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "agent manager unavailable"})
+		return
+	}
+
+	agentID := strings.TrimSpace(c.Param("agent_id"))
+	if agentID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "agent_id is required"})
+		return
+	}
+
+	logPath := openCodeAgentManager.AgentLogPath(agentID)
+	if logPath == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "log not found for agent"})
+		return
+	}
+
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to read agent logs: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"agent_id": agentID, "logs": string(data)})
+}
+
+func listModelsHandler(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 20*time.Second)
+	defer cancel()
+
+	models, err := listOpenCodeModels(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"models":        models,
+		"count":         len(models),
+		"default_model": resolveModel(""),
+	})
+}
+
+func listOpenCodeModels(ctx context.Context) ([]ModelInfo, error) {
+	models, err := collectOpenCodeModels(ctx)
+	if err != nil {
+		log.Printf("⚠️  resource-opencode models --json failed: %v", err)
+	}
+
+	if len(models) == 0 {
+		fallback, fallbackErr := fallbackModelsFromStatus(ctx)
+		if fallbackErr != nil {
+			log.Printf("⚠️  resource-opencode status fallback failed: %v", fallbackErr)
+		} else {
+			models = append(models, fallback...)
+		}
+	}
+
+	if len(models) == 0 {
+		defaultModel := resolveModel("")
+		models = append(models, buildModelInfo(defaultModel, false))
+	}
+
+	sort.Slice(models, func(i, j int) bool {
+		if models[i].Provider == models[j].Provider {
+			return models[i].ID < models[j].ID
+		}
+		return models[i].Provider < models[j].Provider
+	})
+
+	return models, nil
+}
+
+func collectOpenCodeModels(ctx context.Context) ([]ModelInfo, error) {
+	cmd := exec.CommandContext(ctx, "bash", "-lc", "resource-opencode models --json")
+	output, err := cmd.CombinedOutput()
+	parsed := parseOpenCodeModelsJSON(output)
+	if err != nil {
+		trimmed := strings.TrimSpace(string(output))
+		if trimmed != "" {
+			return parsed, fmt.Errorf("resource-opencode models --json failed: %w - %s", err, trimmed)
+		}
+		return parsed, fmt.Errorf("resource-opencode models --json failed: %w", err)
+	}
+	return parsed, nil
+}
+
+func parseOpenCodeModelsJSON(raw []byte) []ModelInfo {
+	if len(raw) == 0 {
+		return nil
+	}
+
+	var payload opencodeModelsResponse
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		log.Printf("⚠️  failed to parse OpenCode model payload: %v", err)
+		return nil
+	}
+
+	models := make([]ModelInfo, 0, len(payload.Models))
+	seen := make(map[string]struct{})
+
+	for _, model := range payload.Models {
+		id := strings.TrimSpace(model.ID)
+		if id == "" {
+			continue
+		}
+
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+
+		label := strings.TrimSpace(model.DisplayName)
+		if label == "" {
+			label = id
+		}
+
+		provider := strings.TrimSpace(model.Provider)
+		if provider == "" {
+			provider = "opencode"
+		}
+
+		free := true
+		if model.Pricing != nil {
+			if model.Pricing.Prompt != nil && *model.Pricing.Prompt > 0 {
+				free = false
+			}
+			if model.Pricing.Completion != nil && *model.Pricing.Completion > 0 {
+				free = false
+			}
+		}
+
+		models = append(models, ModelInfo{
+			ID:       id,
+			Label:    label,
+			Provider: provider,
+			Free:     free,
+		})
+	}
+
+	return models
+}
+
+func fallbackModelsFromStatus(ctx context.Context) ([]ModelInfo, error) {
+	cmd := exec.CommandContext(ctx, "bash", "-lc", "resource-opencode status")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		trimmed := strings.TrimSpace(string(output))
+		if trimmed != "" {
+			return nil, fmt.Errorf("resource-opencode status failed: %w - %s", err, trimmed)
+		}
+		return nil, fmt.Errorf("resource-opencode status failed: %w", err)
+	}
+
+	lines := strings.Split(string(output), "\n")
+	seen := make(map[string]struct{})
+	models := make([]ModelInfo, 0, 2)
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if !strings.HasPrefix(strings.ToLower(line), "model") {
+			continue
+		}
+
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		id := strings.TrimSpace(parts[1])
+		if id == "" {
+			continue
+		}
+
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		models = append(models, buildModelInfo(id, false))
+	}
+
+	return models, nil
+}
+
+func buildModelInfo(id string, free bool) ModelInfo {
+	provider := id
+	if slash := strings.Index(provider, "/"); slash != -1 {
+		provider = provider[:slash]
+	}
+
+	return ModelInfo{
+		ID:       id,
+		Label:    id,
+		Provider: provider,
+		Free:     free,
 	}
 }
 
@@ -3237,12 +3442,15 @@ func main() {
 	// Initialize service manager
 	serviceManager = NewServiceManager()
 
+	var agentErr error
+	openCodeAgentManager, agentErr = NewAgentManager()
+	if agentErr != nil {
+		log.Fatalf("failed to initialize agent manager: %v", agentErr)
+	}
+
 	// Initialize database
 	initDB()
 	defer db.Close()
-
-	// Initialize HTTP client for AI services
-	initHTTPClient()
 
 	// Set up health checkers
 	setupHealthCheckers()
@@ -3264,6 +3472,9 @@ func main() {
 	// API routes
 	api := router.Group("/api/v1")
 	{
+		// Health proxy for UI expectations
+		api.GET("/health", healthHandler)
+
 		// Test suite management
 		api.POST("/test-suite/generate", generateTestSuiteHandler)
 		api.GET("/test-suite/:suite_id", getTestSuiteHandler)
@@ -3290,6 +3501,14 @@ func main() {
 		// System information
 		api.GET("/system/status", systemStatusHandler)
 		api.GET("/system/metrics", systemMetricsHandler)
+
+		// Agent management
+		api.GET("/agents", listAgentsHandler)
+		api.POST("/agents/:agent_id/stop", stopAgentHandler)
+		api.GET("/agents/:agent_id/logs", getAgentLogsHandler)
+
+		// Model catalog
+		api.GET("/models", listModelsHandler)
 	}
 
 	// Get port from environment - REQUIRED, no defaults

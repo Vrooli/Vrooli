@@ -111,7 +111,7 @@ integration_priorities:
   
   3_direct_api:
     - justification: Real-time test execution requires direct API access
-      endpoint: Ollama API for code analysis and test generation
+      endpoint: OpenCode agents for code analysis and test generation
 ```
 
 ### Data Models
@@ -478,7 +478,7 @@ custom_commands:
 ### Upstream Dependencies
 **What capabilities must exist before this can function?**
 - **Postgres Resource**: Required for test data storage, result tracking, and analytics
-- **Ollama Resource**: Required for AI-powered test generation and code analysis
+- **OpenCode Resource**: Required for AI-powered test generation and code analysis
 - **Scenario Framework**: Test generation needs access to scenario source code and configuration
 - **File System Access**: Required for reading source code and writing generated test files
 
@@ -743,7 +743,7 @@ tests:
 ## 📝 Implementation Notes
 
 ### Design Decisions
-**AI-Powered Generation**: Chose Ollama-based test generation over rule-based approaches
+**AI-Powered Generation**: Chose OpenCode-based test generation over rule-based approaches
 - Alternative considered: Template-based test generation
 - Decision driver: Need for intelligent, context-aware test creation
 - Trade-offs: More complex but significantly more effective test coverage

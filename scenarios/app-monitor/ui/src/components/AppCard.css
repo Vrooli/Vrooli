@@ -99,21 +99,6 @@
   gap: 0.5rem;
 }
 
-.app-card__sync {
-  font-size: 0.62rem;
-  letter-spacing: 0.16em;
-  color: var(--matrix-cyan);
-  text-transform: uppercase;
-  border: 1px dashed rgba(0, 255, 255, 0.4);
-  padding: 0.25rem 0.6rem;
-  background: rgba(0, 48, 64, 0.2);
-  animation: pulse 1.6s ease-in-out infinite;
-}
-
-.app-card.partial .app-card__sync {
-  display: inline-flex;
-}
-
 .status-badge {
   padding: 0.3rem 0.75rem;
   border-radius: 999px;
@@ -149,6 +134,14 @@
 .status-badge.unknown {
   color: var(--matrix-cyan);
   background: rgba(0, 255, 255, 0.18);
+}
+
+.status-badge.syncing {
+  color: var(--matrix-cyan);
+  background: rgba(0, 255, 255, 0.22);
+  border-style: dashed;
+  border-color: rgba(0, 255, 255, 0.55);
+  animation: pulse 1.6s ease-in-out infinite;
 }
 
 .app-card__description {

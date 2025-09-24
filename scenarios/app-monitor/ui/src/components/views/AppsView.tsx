@@ -7,7 +7,6 @@ import type { App, AppViewMode } from '@/types';
 import AppCard from '../AppCard';
 import AppModal from '../AppModal';
 import { AppsGridSkeleton } from '../LoadingSkeleton';
-import { buildPreviewUrl, isRunningStatus, isStoppedStatus } from '@/utils/appPreview';
 import './AppsView.css';
 
 interface AppsViewProps {
@@ -111,7 +110,6 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
   const [viewMode, setViewMode] = useState<AppViewMode>('grid');
   const [selectedApp, setSelectedApp] = useState<App | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -271,22 +269,6 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
   }, []);
 
   const handleAppPreview = useCallback((app: App) => {
-    if (!isRunningStatus(app.status) || isStoppedStatus(app.status)) {
-      setInfoMessage(null);
-      setSelectedApp(app);
-      setModalOpen(true);
-      return;
-    }
-
-    const url = buildPreviewUrl(app);
-    if (!url) {
-      setInfoMessage('This application does not expose a UI port. Opening details instead.');
-      setSelectedApp(app);
-      setModalOpen(true);
-      return;
-    }
-
-    setInfoMessage(null);
     navigate(`/apps/${encodeURIComponent(app.id)}/preview`);
   }, [navigate]);
 
@@ -302,10 +284,6 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
 
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
-  }, []);
-
-  const dismissInfoMessage = useCallback(() => {
-    setInfoMessage(null);
   }, []);
 
   const useVirtualScrolling = filteredApps.length > 100;
@@ -361,15 +339,6 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
               onStop={(id) => handleAppAction(id, 'stop')}
             />
           ))}
-        </div>
-      )}
-
-      {infoMessage && (
-        <div className="apps-view-message">
-          <span>{infoMessage}</span>
-          <button className="apps-view-message__dismiss" onClick={dismissInfoMessage}>
-            DISMISS
-          </button>
         </div>
       )}
 

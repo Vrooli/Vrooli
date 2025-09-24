@@ -54,10 +54,10 @@ PARALLEL=true ./run-all-tests.sh
 - Test Genie API running with database connectivity
 
 ### 3. AI Integration (`test-ai-integration.sh`) 
-**Purpose**: Tests Ollama integration, AI generation, and fallback mechanisms
+**Purpose**: Tests OpenCode integration, AI generation, and fallback mechanisms
 
 **Test Cases**:
-- ✅ Ollama service health and model availability
+- ✅ OpenCode service health and model availability
 - ✅ AI-powered test suite generation
 - ✅ Fallback generation mechanism testing
 - ✅ Performance test type generation
@@ -66,7 +66,7 @@ PARALLEL=true ./run-all-tests.sh
 - ✅ Concurrent AI generation (3 parallel requests)
 
 **Prerequisites**:
-- Ollama resource running with models available
+- OpenCode resource running with models available
 - AI service integration configured
 
 ### 4. Master Test Runner (`run-all-tests.sh`)
@@ -111,8 +111,8 @@ PARALLEL=true ./run-all-tests.sh
 # Custom API port (auto-detected by default)
 API_PORT=8200 ./test-basic-functionality.sh
 
-# Custom Ollama port
-OLLAMA_PORT=11434 ./test-ai-integration.sh
+# Custom OpenCode configuration
+./test-ai-integration.sh
 ```
 
 ### Test Customization
@@ -154,11 +154,11 @@ env | grep POSTGRES
 
 **AI integration failures**
 ```bash
-# Check Ollama service
-curl http://localhost:11434/api/tags
+# Check OpenCode resource
+resource-opencode status
 
 # Verify available models
-resource-ollama content
+resource-opencode models | head -5
 ```
 
 ### Performance Issues
@@ -169,7 +169,7 @@ resource-ollama content
 - Review database logs for bottlenecks
 
 **AI generation timeouts**:
-- Verify Ollama models are loaded
+- Verify OpenCode models are available (`resource-opencode models`)
 - Check available system memory
 - Consider smaller model alternatives
 
@@ -186,7 +186,7 @@ resource-ollama content
 
 ### Integration Coverage
 - ✅ PostgreSQL database operations
-- ✅ Ollama AI service integration
+- ✅ OpenCode AI service integration
 - ✅ CLI tool functionality
 - ✅ Concurrent operation handling
 - ✅ Error handling and fallback mechanisms
@@ -254,5 +254,5 @@ For issues with tests:
 
 For Test Genie functionality issues:
 - Review scenario logs: `make logs` or `vrooli scenario logs test-genie`
-- Check resource status: `resource-postgres status`, `resource-ollama status`
+- Check resource status: `resource-postgres status`, `resource-opencode status`
 - Validate configuration: Review `.vrooli/service.json`

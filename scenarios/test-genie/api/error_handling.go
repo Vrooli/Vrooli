@@ -21,11 +21,11 @@ const (
 
 // Circuit Breaker Configuration
 type CircuitBreakerConfig struct {
-	Name               string
-	MaxFailures        int
-	ResetTimeout       time.Duration
-	TimeoutDuration    time.Duration
-	OnStateChange      func(name string, from, to CircuitBreakerState)
+	Name            string
+	MaxFailures     int
+	ResetTimeout    time.Duration
+	TimeoutDuration time.Duration
+	OnStateChange   func(name string, from, to CircuitBreakerState)
 }
 
 // Circuit Breaker Implementation
@@ -116,7 +116,7 @@ func (cb *CircuitBreaker) recordSuccess() {
 func (cb *CircuitBreaker) recordFailure() {
 	cb.failures++
 	cb.lastFailTime = time.Now()
-	log.Printf("⚠️ Circuit breaker '%s' failure recorded: %d/%d", 
+	log.Printf("⚠️ Circuit breaker '%s' failure recorded: %d/%d",
 		cb.config.Name, cb.failures, cb.config.MaxFailures)
 }
 
@@ -124,11 +124,11 @@ func (cb *CircuitBreaker) setState(newState CircuitBreakerState) {
 	if cb.config.OnStateChange != nil {
 		cb.config.OnStateChange(cb.config.Name, cb.state, newState)
 	}
-	
+
 	oldState := cb.state
 	cb.state = newState
-	
-	log.Printf("🔄 Circuit breaker '%s' state changed: %s -> %s", 
+
+	log.Printf("🔄 Circuit breaker '%s' state changed: %s -> %s",
 		cb.config.Name, stateToString(oldState), stateToString(newState))
 }
 
@@ -147,11 +147,11 @@ func stateToString(state CircuitBreakerState) string {
 
 // Retry Logic with Exponential Backoff
 type RetryConfig struct {
-	MaxAttempts  int
-	BaseDelay    time.Duration
-	MaxDelay     time.Duration
-	BackoffFunc  func(attempt int, baseDelay time.Duration) time.Duration
-	ShouldRetry  func(error) bool
+	MaxAttempts int
+	BaseDelay   time.Duration
+	MaxDelay    time.Duration
+	BackoffFunc func(attempt int, baseDelay time.Duration) time.Duration
+	ShouldRetry func(error) bool
 }
 
 // DefaultRetryConfig provides sensible defaults for retry configuration
@@ -176,17 +176,17 @@ func IsRetryableError(err error) bool {
 	if err == nil {
 		return false
 	}
-	
+
 	// Network timeout errors
 	if errors.Is(err, context.DeadlineExceeded) {
 		return true
 	}
-	
+
 	// Database connection errors
 	if errors.Is(err, sql.ErrConnDone) {
 		return true
 	}
-	
+
 	// Check for temporary network errors
 	errorStr := err.Error()
 	temporaryErrors := []string{
@@ -198,22 +198,22 @@ func IsRetryableError(err error) bool {
 		"no such host",
 		"connection reset",
 	}
-	
+
 	for _, tempErr := range temporaryErrors {
 		if contains(errorStr, tempErr) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
 func contains(str, substr string) bool {
-	return len(str) >= len(substr) && 
-		   (str == substr || 
-		    str[0:len(substr)] == substr ||
-		    str[len(str)-len(substr):] == substr ||
-		    findSubstring(str, substr))
+	return len(str) >= len(substr) &&
+		(str == substr ||
+			str[0:len(substr)] == substr ||
+			str[len(str)-len(substr):] == substr ||
+			findSubstring(str, substr))
 }
 
 func findSubstring(str, substr string) bool {
@@ -228,7 +228,7 @@ func findSubstring(str, substr string) bool {
 // RetryWithBackoff executes a function with retry logic and exponential backoff
 func RetryWithBackoff(ctx context.Context, config RetryConfig, fn func() error) error {
 	var lastErr error
-	
+
 	for attempt := 0; attempt < config.MaxAttempts; attempt++ {
 		if attempt > 0 {
 			// Calculate delay
@@ -236,16 +236,16 @@ func RetryWithBackoff(ctx context.Context, config RetryConfig, fn func() error) 
 			if delay > config.MaxDelay {
 				delay = config.MaxDelay
 			}
-			
+
 			log.Printf("🔄 Retry attempt %d/%d after %v", attempt+1, config.MaxAttempts, delay)
-			
+
 			select {
 			case <-time.After(delay):
 			case <-ctx.Done():
 				return fmt.Errorf("retry cancelled: %w", ctx.Err())
 			}
 		}
-		
+
 		err := fn()
 		if err == nil {
 			if attempt > 0 {
@@ -253,17 +253,17 @@ func RetryWithBackoff(ctx context.Context, config RetryConfig, fn func() error) 
 			}
 			return nil
 		}
-		
+
 		lastErr = err
-		
+
 		if !config.ShouldRetry(err) {
 			log.Printf("❌ Error not retryable: %v", err)
 			return err
 		}
-		
+
 		log.Printf("⚠️ Attempt %d/%d failed: %v", attempt+1, config.MaxAttempts, err)
 	}
-	
+
 	return fmt.Errorf("operation failed after %d attempts: %w", config.MaxAttempts, lastErr)
 }
 
@@ -283,7 +283,7 @@ func NewFallbackHandler(
 	if predicate == nil {
 		predicate = func(error) bool { return true }
 	}
-	
+
 	return &FallbackHandler{
 		primary:   primary,
 		fallback:  fallback,
@@ -303,38 +303,38 @@ func (fh *FallbackHandler) Execute(ctx context.Context) (interface{}, error) {
 
 // Global circuit breakers and configurations
 var (
-	ollamaCircuitBreaker *CircuitBreaker
-	dbCircuitBreaker     *CircuitBreaker
-	circuitBreakerInit   sync.Once
+	openCodeCircuitBreaker *CircuitBreaker
+	dbCircuitBreaker       *CircuitBreaker
+	circuitBreakerInit     sync.Once
 )
 
 // InitializeCircuitBreakers sets up global circuit breakers
 func InitializeCircuitBreakers() {
 	circuitBreakerInit.Do(func() {
-		// Ollama circuit breaker
-		ollamaCircuitBreaker = NewCircuitBreaker(CircuitBreakerConfig{
-			Name:               "ollama",
-			MaxFailures:        5,
-			ResetTimeout:       60 * time.Second,
-			TimeoutDuration:    30 * time.Second,
-			OnStateChange:      logCircuitBreakerStateChange,
+		// OpenCode circuit breaker
+		openCodeCircuitBreaker = NewCircuitBreaker(CircuitBreakerConfig{
+			Name:            "opencode",
+			MaxFailures:     5,
+			ResetTimeout:    60 * time.Second,
+			TimeoutDuration: 30 * time.Second,
+			OnStateChange:   logCircuitBreakerStateChange,
 		})
-		
+
 		// Database circuit breaker
 		dbCircuitBreaker = NewCircuitBreaker(CircuitBreakerConfig{
-			Name:               "database",
-			MaxFailures:        3,
-			ResetTimeout:       30 * time.Second,
-			TimeoutDuration:    10 * time.Second,
-			OnStateChange:      logCircuitBreakerStateChange,
+			Name:            "database",
+			MaxFailures:     3,
+			ResetTimeout:    30 * time.Second,
+			TimeoutDuration: 10 * time.Second,
+			OnStateChange:   logCircuitBreakerStateChange,
 		})
-		
+
 		log.Println("🔧 Circuit breakers initialized successfully")
 	})
 }
 
 func logCircuitBreakerStateChange(name string, from, to CircuitBreakerState) {
-	log.Printf("🚨 CIRCUIT BREAKER ALERT: %s changed from %s to %s", 
+	log.Printf("🚨 CIRCUIT BREAKER ALERT: %s changed from %s to %s",
 		name, stateToString(from), stateToString(to))
 }
 
@@ -367,19 +367,19 @@ func (hc *HealthChecker) Check(ctx context.Context) error {
 		return hc.lastResult
 	}
 	hc.mutex.RUnlock()
-	
+
 	hc.mutex.Lock()
 	defer hc.mutex.Unlock()
-	
+
 	// Double-check after acquiring write lock
 	if time.Since(hc.lastCheck) < hc.checkInterval {
 		return hc.lastResult
 	}
-	
+
 	result, err := hc.circuitBreaker.Execute(ctx, func() (interface{}, error) {
 		return nil, hc.checkFunc()
 	})
-	
+
 	hc.lastCheck = time.Now()
 	if err != nil {
 		hc.lastResult = err
@@ -388,7 +388,7 @@ func (hc *HealthChecker) Check(ctx context.Context) error {
 		hc.lastResult = nil
 		log.Printf("✅ Health check passed for %s", hc.name)
 	}
-	
+
 	_ = result // Unused but needed for interface compliance
 	return hc.lastResult
 }
@@ -442,10 +442,10 @@ func (sm *ServiceManager) RegisterService(name string, checker *HealthChecker) {
 func (sm *ServiceManager) GetServiceLevel(ctx context.Context) DegradationLevel {
 	sm.mutex.RLock()
 	defer sm.mutex.RUnlock()
-	
+
 	healthyServices := 0
 	totalServices := len(sm.services)
-	
+
 	for name, checker := range sm.services {
 		if err := checker.Check(ctx); err == nil {
 			healthyServices++
@@ -453,13 +453,13 @@ func (sm *ServiceManager) GetServiceLevel(ctx context.Context) DegradationLevel 
 			log.Printf("⚠️ Service %s is unhealthy: %v", name, err)
 		}
 	}
-	
+
 	if totalServices == 0 {
 		return ServiceUnavailable
 	}
-	
+
 	healthRatio := float64(healthyServices) / float64(totalServices)
-	
+
 	switch {
 	case healthRatio >= 1.0:
 		return FullService

@@ -1,13 +1,12 @@
 #!/bin/bash
 
 # Test Genie AI Integration Test Suite
-# Tests Ollama integration, AI test generation, and fallback mechanisms
+# Tests OpenCode integration, AI test generation, and fallback mechanisms
 
 set -e
 
 # Get ports dynamically
 API_PORT=$(vrooli scenario port test-genie API_PORT 2>/dev/null)
-OLLAMA_PORT=$(vrooli scenario port test-genie OLLAMA_PORT 2>/dev/null || echo "11434")
 
 if [[ -z "$API_PORT" ]]; then
     echo "❌ test-genie scenario is not running"
@@ -16,7 +15,6 @@ if [[ -z "$API_PORT" ]]; then
 fi
 
 API_URL="http://localhost:${API_PORT}"
-OLLAMA_URL="http://localhost:${OLLAMA_PORT}"
 
 # Colors
 GREEN='\033[0;32m'
@@ -28,25 +26,25 @@ NC='\033[0m'
 
 echo -e "${CYAN}🤖 Testing Test Genie AI Integration${NC}"
 
-# Test 1: Ollama Service Health
-echo -e "\n${YELLOW}🔍 Test 1: Ollama Service Health${NC}"
-if curl -s "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
-    echo -e "${GREEN}✅ Ollama service is accessible${NC}"
-    
-    # Check available models
-    models=$(curl -s "$OLLAMA_URL/api/tags" | jq -r '.models[]?.name // empty' 2>/dev/null | head -3)
+# Test 1: OpenCode Resource Health
+echo -e "\n${YELLOW}🔍 Test 1: OpenCode Resource Health${NC}"
+if resource-opencode status >/dev/null 2>&1; then
+    echo -e "${GREEN}✅ OpenCode resource is accessible${NC}"
+
+models=$(resource-opencode models 2>/dev/null | head -3)
     if [[ -n "$models" ]]; then
-        echo -e "${GREEN}✅ Available models found:${NC}"
+        echo -e "${GREEN}✅ Sample models:${NC}"
         echo "$models" | while read -r model; do
+            [[ -z "$model" ]] && continue
             echo "   - $model"
         done
     else
-        echo -e "${YELLOW}⚠️  No models found in Ollama${NC}"
-        echo "   This may cause AI generation to fail"
+        echo -e "${YELLOW}⚠️  No models returned by resource-opencode${NC}"
+        echo "   Check your provider credentials if AI generation fails"
     fi
 else
-    echo -e "${RED}❌ Ollama service not accessible at $OLLAMA_URL${NC}"
-    echo "   AI generation will likely fail"
+    echo -e "${RED}❌ resource-opencode status check failed${NC}"
+    echo "   AI generation will likely fall back to rule-based scaffolds"
 fi
 
 # Test 2: AI-Generated Test Suite (Real AI)
@@ -203,7 +201,12 @@ echo -e "${GREEN}✅ Concurrent generation tests completed${NC}"
 
 # Final AI Integration Summary
 echo -e "\n${CYAN}📊 AI Integration Test Summary${NC}"
-echo -e "${BLUE}🤖 Ollama Integration: $(curl -s "$OLLAMA_URL/api/tags" >/dev/null 2>&1 && echo "✅ Working" || echo "❌ Failed")${NC}"
+if resource-opencode status >/dev/null 2>&1; then
+    opencode_status="✅ Working"
+else
+    opencode_status="❌ Failed"
+fi
+echo -e "${BLUE}🤖 OpenCode Integration: ${opencode_status}${NC}"
 echo -e "${BLUE}🧠 AI Test Generation: $(echo "$ai_suite_response" | jq -e '.suite_id' >/dev/null 2>&1 && echo "✅ Working" || echo "❌ Failed")${NC}"
 echo -e "${BLUE}⚡ Performance Tests: $(echo "$perf_response" | jq -e '.suite_id' >/dev/null 2>&1 && echo "✅ Working" || echo "❌ Failed")${NC}"
 echo -e "${BLUE}🔒 Security Tests: $(echo "$security_response" | jq -e '.suite_id' >/dev/null 2>&1 && echo "✅ Working" || echo "❌ Failed")${NC}"

@@ -71,10 +71,9 @@ POSTGRES_USER=vrooli
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 POSTGRES_DB=test_genie
 
-# Ollama Configuration
-OLLAMA_HOST=localhost
-OLLAMA_PORT=11434
-OLLAMA_MODEL=llama3.2
+# OpenCode Model Configuration
+OPENCODE_DEFAULT_MODEL=openrouter/x-ai/grok-code-fast-1
+TEST_GENIE_AGENT_MODEL=${TEST_GENIE_AGENT_MODEL:-openrouter/x-ai/grok-code-fast-1}
 
 # Optional: Redis Configuration
 # REDIS_HOST=localhost

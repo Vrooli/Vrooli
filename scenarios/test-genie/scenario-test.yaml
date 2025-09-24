@@ -65,7 +65,7 @@ setup:
         expected: all_exist
 
   - name: Verify AI integration
-    description: Test Ollama integration for AI-powered test generation
+    description: Test OpenCode integration for AI-powered test generation
     category: ai_integration
     timeout: 120
     steps:

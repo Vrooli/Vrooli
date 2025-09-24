@@ -1,6 +1,13 @@
 // Shared UI Components for Test Genie
 // This file contains reusable components and utilities
 
+const MODEL_STORAGE_KEY = 'testGenie.selectedModel';
+const DEFAULT_MODEL = 'openrouter/x-ai/grok-code-fast-1';
+
+function getSelectedModel() {
+    return localStorage.getItem(MODEL_STORAGE_KEY) || DEFAULT_MODEL;
+}
+
 // Navigation Component
 class Navigation {
     constructor(currentPage) {
@@ -239,7 +246,9 @@ class TestGenieAPI {
 
     // Test Suite Methods
     async generateTestSuite(config) {
-        return this.request('POST', '/test-suite/generate', config);
+        const payload = { ...(config || {}) };
+        payload.model = getSelectedModel();
+        return this.request('POST', '/test-suite/generate', payload);
     }
 
     async getTestSuite(suiteId) {

@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
-	"strings"
 	"sync"
 	"time"
-	
+
 	"github.com/google/uuid"
 	"test-genie-api/database"
 	"test-genie-api/models"
@@ -16,23 +15,23 @@ import (
 
 // TestOrchestrator handles multi-phase test execution
 type TestOrchestrator struct {
-	mu              sync.Mutex
+	mu               sync.Mutex
 	activeExecutions map[uuid.UUID]*ExecutionContext
-	workerPool      chan struct{}
+	workerPool       chan struct{}
 }
 
 // ExecutionContext maintains the state of a test execution
 type ExecutionContext struct {
-	ExecutionID   uuid.UUID
-	SuiteID       uuid.UUID
-	TestCases     []models.TestCase
-	Status        string
-	StartTime     time.Time
-	EndTime       *time.Time
-	Results       []models.TestResult
-	Errors        []error
-	CancelFunc    context.CancelFunc
-	NotifyConfig  models.NotificationSettings
+	ExecutionID  uuid.UUID
+	SuiteID      uuid.UUID
+	TestCases    []models.TestCase
+	Status       string
+	StartTime    time.Time
+	EndTime      *time.Time
+	Results      []models.TestResult
+	Errors       []error
+	CancelFunc   context.CancelFunc
+	NotifyConfig models.NotificationSettings
 }
 
 // VaultExecutionContext maintains the state of a vault execution
@@ -51,7 +50,7 @@ type VaultExecutionContext struct {
 
 var (
 	defaultOrchestrator *TestOrchestrator
-	once               sync.Once
+	once                sync.Once
 )
 
 // GetOrchestrator returns the singleton orchestrator instance
@@ -59,7 +58,7 @@ func GetOrchestrator() *TestOrchestrator {
 	once.Do(func() {
 		defaultOrchestrator = &TestOrchestrator{
 			activeExecutions: make(map[uuid.UUID]*ExecutionContext),
-			workerPool:      make(chan struct{}, 10), // Max 10 concurrent test executions
+			workerPool:       make(chan struct{}, 10), // Max 10 concurrent test executions
 		}
 		// Initialize worker pool
 		for i := 0; i < 10; i++ {
@@ -76,10 +75,10 @@ func (o *TestOrchestrator) ExecuteTestSuite(ctx context.Context, suiteID uuid.UU
 	if err != nil {
 		return nil, fmt.Errorf("failed to get test suite: %w", err)
 	}
-	
+
 	// Create execution context
 	execCtx, cancel := context.WithTimeout(ctx, time.Duration(config.TimeoutSeconds)*time.Second)
-	
+
 	executionID := uuid.New()
 	execution := &ExecutionContext{
 		ExecutionID:  executionID,
@@ -92,12 +91,12 @@ func (o *TestOrchestrator) ExecuteTestSuite(ctx context.Context, suiteID uuid.UU
 		CancelFunc:   cancel,
 		NotifyConfig: config.NotificationSettings,
 	}
-	
+
 	// Store execution context
 	o.mu.Lock()
 	o.activeExecutions[executionID] = execution
 	o.mu.Unlock()
-	
+
 	// Store initial execution in database
 	dbExecution := &models.TestExecution{
 		ID:            executionID,
@@ -113,14 +112,14 @@ func (o *TestOrchestrator) ExecuteTestSuite(ctx context.Context, suiteID uuid.UU
 			ErrorCount:    0,
 		},
 	}
-	
+
 	if err := database.StoreTestExecution(dbExecution); err != nil {
 		log.Printf("Warning: Failed to store initial execution: %v", err)
 	}
-	
+
 	// Start execution asynchronously
 	go o.runTestExecution(execCtx, execution, config.ParallelExecution)
-	
+
 	// Return response immediately
 	response := &models.ExecuteTestSuiteResponse{
 		ExecutionID:       executionID,
@@ -129,7 +128,7 @@ func (o *TestOrchestrator) ExecuteTestSuite(ctx context.Context, suiteID uuid.UU
 		TestCount:         len(suite.TestCases),
 		TrackingURL:       fmt.Sprintf("/api/v1/test-execution/%s/results", executionID),
 	}
-	
+
 	return response, nil
 }
 
@@ -140,24 +139,23 @@ func (o *TestOrchestrator) runTestExecution(ctx context.Context, execution *Exec
 	defer func() {
 		o.workerPool <- struct{}{}
 	}()
-	
+
 	// Update status to running
 	execution.Status = "running"
-	startTime := time.Now()
-	
+
 	log.Printf("🚀 Starting test execution %s with %d test cases", execution.ExecutionID, len(execution.TestCases))
-	
+
 	// Execute tests
 	if parallel {
 		o.runTestsParallel(ctx, execution)
 	} else {
 		o.runTestsSequential(ctx, execution)
 	}
-	
+
 	// Calculate final status
 	endTime := time.Now()
 	execution.EndTime = &endTime
-	
+
 	failedCount := 0
 	passedCount := 0
 	for _, result := range execution.Results {
@@ -167,7 +165,7 @@ func (o *TestOrchestrator) runTestExecution(ctx context.Context, execution *Exec
 			passedCount++
 		}
 	}
-	
+
 	if failedCount > 0 {
 		execution.Status = "failed"
 	} else if passedCount == len(execution.TestCases) {
@@ -175,16 +173,16 @@ func (o *TestOrchestrator) runTestExecution(ctx context.Context, execution *Exec
 	} else {
 		execution.Status = "partial"
 	}
-	
+
 	// Update database
 	database.UpdateExecutionStatus(execution.ExecutionID, execution.Status, "")
-	
+
 	// Send notifications if configured
 	if execution.NotifyConfig.OnCompletion || (execution.NotifyConfig.OnFailure && execution.Status == "failed") {
 		o.sendNotification(execution)
 	}
-	
-	log.Printf("✅ Test execution %s completed: %s (passed: %d, failed: %d)", 
+
+	log.Printf("✅ Test execution %s completed: %s (passed: %d, failed: %d)",
 		execution.ExecutionID, execution.Status, passedCount, failedCount)
 }
 
@@ -199,7 +197,7 @@ func (o *TestOrchestrator) runTestsSequential(ctx context.Context, execution *Ex
 		default:
 			result := o.executeTestCase(ctx, testCase, execution.ExecutionID)
 			execution.Results = append(execution.Results, result)
-			
+
 			// Store result in database
 			if err := database.StoreTestResult(&result); err != nil {
 				log.Printf("Warning: Failed to store test result: %v", err)
@@ -213,21 +211,21 @@ func (o *TestOrchestrator) runTestsParallel(ctx context.Context, execution *Exec
 	var wg sync.WaitGroup
 	resultsChan := make(chan models.TestResult, len(execution.TestCases))
 	semaphore := make(chan struct{}, 5) // Max 5 concurrent tests
-	
+
 	for _, testCase := range execution.TestCases {
 		wg.Add(1)
 		go func(tc models.TestCase) {
 			defer wg.Done()
-			
+
 			select {
 			case <-ctx.Done():
 				return
 			case semaphore <- struct{}{}:
 				defer func() { <-semaphore }()
-				
+
 				result := o.executeTestCase(ctx, tc, execution.ExecutionID)
 				resultsChan <- result
-				
+
 				// Store result in database
 				if err := database.StoreTestResult(&result); err != nil {
 					log.Printf("Warning: Failed to store test result: %v", err)
@@ -235,13 +233,13 @@ func (o *TestOrchestrator) runTestsParallel(ctx context.Context, execution *Exec
 			}
 		}(testCase)
 	}
-	
+
 	// Wait for all tests to complete
 	go func() {
 		wg.Wait()
 		close(resultsChan)
 	}()
-	
+
 	// Collect results
 	for result := range resultsChan {
 		execution.Results = append(execution.Results, result)
@@ -251,20 +249,20 @@ func (o *TestOrchestrator) runTestsParallel(ctx context.Context, execution *Exec
 // executeTestCase executes a single test case
 func (o *TestOrchestrator) executeTestCase(ctx context.Context, testCase models.TestCase, executionID uuid.UUID) models.TestResult {
 	result := models.TestResult{
-		ID:           uuid.New(),
-		ExecutionID:  executionID,
-		TestCaseID:   testCase.ID,
-		TestCaseName: testCase.Name,
+		ID:                  uuid.New(),
+		ExecutionID:         executionID,
+		TestCaseID:          testCase.ID,
+		TestCaseName:        testCase.Name,
 		TestCaseDescription: testCase.Description,
-		StartedAt:    time.Now(),
-		Assertions:   []models.AssertionResult{},
-		Artifacts:    make(map[string]interface{}),
+		StartedAt:           time.Now(),
+		Assertions:          []models.AssertionResult{},
+		Artifacts:           make(map[string]interface{}),
 	}
-	
+
 	// Create timeout context for individual test
 	testCtx, cancel := context.WithTimeout(ctx, time.Duration(testCase.Timeout)*time.Second)
 	defer cancel()
-	
+
 	// Execute the test based on type
 	switch testCase.TestType {
 	case "unit":
@@ -276,11 +274,11 @@ func (o *TestOrchestrator) executeTestCase(ctx context.Context, testCase models.
 	default:
 		o.executeGenericTest(testCtx, &testCase, &result)
 	}
-	
+
 	// Calculate duration
 	result.CompletedAt = time.Now()
 	result.Duration = result.CompletedAt.Sub(result.StartedAt).Seconds()
-	
+
 	return result
 }
 
@@ -288,11 +286,11 @@ func (o *TestOrchestrator) executeTestCase(ctx context.Context, testCase models.
 func (o *TestOrchestrator) executeUnitTest(ctx context.Context, testCase *models.TestCase, result *models.TestResult) {
 	// Simulate test execution - in real implementation, this would run actual test code
 	log.Printf("Executing unit test: %s", testCase.Name)
-	
+
 	// For now, simulate with a shell command
 	cmd := exec.CommandContext(ctx, "bash", "-c", testCase.TestCode)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		result.Status = "failed"
 		errorMsg := fmt.Sprintf("Test execution failed: %v\nOutput: %s", err, string(output))
@@ -300,7 +298,7 @@ func (o *TestOrchestrator) executeUnitTest(ctx context.Context, testCase *models
 	} else {
 		result.Status = "passed"
 	}
-	
+
 	// Add assertion results
 	result.Assertions = append(result.Assertions, models.AssertionResult{
 		Name:     "test_execution",
@@ -314,12 +312,12 @@ func (o *TestOrchestrator) executeUnitTest(ctx context.Context, testCase *models
 // executeIntegrationTest executes an integration test
 func (o *TestOrchestrator) executeIntegrationTest(ctx context.Context, testCase *models.TestCase, result *models.TestResult) {
 	log.Printf("Executing integration test: %s", testCase.Name)
-	
+
 	// Integration tests might need to set up test environments
 	// For now, similar to unit test but with more complex setup
 	cmd := exec.CommandContext(ctx, "bash", "-c", testCase.TestCode)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		result.Status = "failed"
 		errorMsg := fmt.Sprintf("Integration test failed: %v\nOutput: %s", err, string(output))
@@ -332,19 +330,19 @@ func (o *TestOrchestrator) executeIntegrationTest(ctx context.Context, testCase 
 // executePerformanceTest executes a performance test
 func (o *TestOrchestrator) executePerformanceTest(ctx context.Context, testCase *models.TestCase, result *models.TestResult) {
 	log.Printf("Executing performance test: %s", testCase.Name)
-	
+
 	startTime := time.Now()
-	
+
 	// Execute performance test
 	cmd := exec.CommandContext(ctx, "bash", "-c", testCase.TestCode)
 	output, err := cmd.CombinedOutput()
-	
+
 	executionTime := time.Since(startTime)
-	
+
 	// Store performance metrics in artifacts
 	result.Artifacts["execution_time_ms"] = executionTime.Milliseconds()
 	result.Artifacts["output"] = string(output)
-	
+
 	if err != nil {
 		result.Status = "failed"
 		errorMsg := fmt.Sprintf("Performance test failed: %v", err)
@@ -364,11 +362,11 @@ func (o *TestOrchestrator) executePerformanceTest(ctx context.Context, testCase 
 // executeGenericTest executes a generic test
 func (o *TestOrchestrator) executeGenericTest(ctx context.Context, testCase *models.TestCase, result *models.TestResult) {
 	log.Printf("Executing generic test: %s", testCase.Name)
-	
+
 	// For generic tests, just run the test code
 	cmd := exec.CommandContext(ctx, "bash", "-c", testCase.TestCode)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		result.Status = "failed"
 		errorMsg := fmt.Sprintf("Test failed: %v\nOutput: %s", err, string(output))
@@ -385,7 +383,7 @@ func (o *TestOrchestrator) ExecuteTestVault(ctx context.Context, vaultID uuid.UU
 	if err != nil {
 		return nil, fmt.Errorf("failed to get test vault: %w", err)
 	}
-	
+
 	// Create vault execution
 	execution := &models.VaultExecution{
 		ID:              uuid.New(),
@@ -399,18 +397,18 @@ func (o *TestOrchestrator) ExecuteTestVault(ctx context.Context, vaultID uuid.UU
 		PhaseResults:    make(map[string]models.PhaseResult),
 		Environment:     config.Environment,
 	}
-	
+
 	// Execute phases sequentially
 	for _, phase := range vault.Phases {
 		log.Printf("🔄 Executing vault phase: %s", phase)
 		execution.CurrentPhase = phase
-		
+
 		phaseResult := o.executeVaultPhase(ctx, vault, phase)
 		execution.PhaseResults[phase] = phaseResult
-		
+
 		if phaseResult.Status == "failed" {
 			execution.FailedPhases = append(execution.FailedPhases, phase)
-			
+
 			// Check if failure is critical
 			if vault.SuccessCriteria.NoCriticalFailures {
 				execution.Status = "failed"
@@ -420,7 +418,7 @@ func (o *TestOrchestrator) ExecuteTestVault(ctx context.Context, vaultID uuid.UU
 			execution.CompletedPhases = append(execution.CompletedPhases, phase)
 		}
 	}
-	
+
 	// Determine final status
 	if len(execution.CompletedPhases) == len(vault.Phases) {
 		execution.Status = "completed"
@@ -429,10 +427,10 @@ func (o *TestOrchestrator) ExecuteTestVault(ctx context.Context, vaultID uuid.UU
 	} else {
 		execution.Status = "partial"
 	}
-	
+
 	endTime := time.Now()
 	execution.EndTime = &endTime
-	
+
 	return execution, nil
 }
 
@@ -447,7 +445,7 @@ func (o *TestOrchestrator) executeVaultPhase(ctx context.Context, vault *models.
 			ErrorMessage: "Phase configuration not found",
 		}
 	}
-	
+
 	result := models.PhaseResult{
 		PhaseName:   phaseName,
 		Status:      "running",
@@ -455,43 +453,43 @@ func (o *TestOrchestrator) executeVaultPhase(ctx context.Context, vault *models.
 		TestResults: []models.TestResult{},
 		Metrics:     make(map[string]interface{}),
 	}
-	
+
 	// Create phase timeout
 	phaseCtx, cancel := context.WithTimeout(ctx, time.Duration(phaseConfig.Timeout)*time.Second)
 	defer cancel()
-	
+
 	// Execute phase tests
 	for _, test := range phaseConfig.Tests {
 		testResult := o.executePhaseTest(phaseCtx, test)
 		result.TestResults = append(result.TestResults, testResult)
-		
+
 		if testResult.Status == "failed" {
 			result.Status = "failed"
 		}
 	}
-	
+
 	// If no failures, mark as completed
 	if result.Status != "failed" {
 		result.Status = "completed"
 	}
-	
+
 	endTime := time.Now()
 	result.EndTime = &endTime
-	
+
 	return result
 }
 
 // executePhaseTest executes a test within a vault phase
 func (o *TestOrchestrator) executePhaseTest(ctx context.Context, test models.PhaseTest) models.TestResult {
 	result := models.TestResult{
-		ID:           uuid.New(),
-		TestCaseName: test.Name,
+		ID:                  uuid.New(),
+		TestCaseName:        test.Name,
 		TestCaseDescription: test.Description,
-		StartedAt:    time.Now(),
-		Assertions:   []models.AssertionResult{},
-		Artifacts:    make(map[string]interface{}),
+		StartedAt:           time.Now(),
+		Assertions:          []models.AssertionResult{},
+		Artifacts:           make(map[string]interface{}),
 	}
-	
+
 	// Execute test steps
 	for _, step := range test.Steps {
 		if err := o.executePhaseStep(ctx, step); err != nil {
@@ -501,14 +499,14 @@ func (o *TestOrchestrator) executePhaseTest(ctx context.Context, test models.Pha
 			break
 		}
 	}
-	
+
 	if result.Status != "failed" {
 		result.Status = "passed"
 	}
-	
+
 	result.CompletedAt = time.Now()
 	result.Duration = result.CompletedAt.Sub(result.StartedAt).Seconds()
-	
+
 	return result
 }
 
@@ -530,7 +528,7 @@ func (o *TestOrchestrator) executePhaseStep(ctx context.Context, step models.Pha
 	default:
 		log.Printf("Unknown action type: %s", step.Action)
 	}
-	
+
 	return nil
 }
 
@@ -539,9 +537,9 @@ func (o *TestOrchestrator) sendNotification(execution *ExecutionContext) {
 	if execution.NotifyConfig.WebhookURL == "" {
 		return
 	}
-	
+
 	// Would implement webhook notification here
-	log.Printf("📧 Sending notification for execution %s to %s", 
+	log.Printf("📧 Sending notification for execution %s to %s",
 		execution.ExecutionID, execution.NotifyConfig.WebhookURL)
 }
 
@@ -549,12 +547,12 @@ func (o *TestOrchestrator) sendNotification(execution *ExecutionContext) {
 func (o *TestOrchestrator) GetExecutionStatus(executionID uuid.UUID) (*ExecutionContext, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	
+
 	execution, exists := o.activeExecutions[executionID]
 	if !exists {
 		return nil, fmt.Errorf("execution not found: %s", executionID)
 	}
-	
+
 	return execution, nil
 }
 
@@ -562,18 +560,18 @@ func (o *TestOrchestrator) GetExecutionStatus(executionID uuid.UUID) (*Execution
 func (o *TestOrchestrator) CancelExecution(executionID uuid.UUID) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	
+
 	execution, exists := o.activeExecutions[executionID]
 	if !exists {
 		return fmt.Errorf("execution not found: %s", executionID)
 	}
-	
+
 	if execution.CancelFunc != nil {
 		execution.CancelFunc()
 		execution.Status = "cancelled"
 		log.Printf("❌ Execution %s cancelled", executionID)
 	}
-	
+
 	return nil
 }
 
@@ -581,7 +579,7 @@ func (o *TestOrchestrator) CancelExecution(executionID uuid.UUID) error {
 func (o *TestOrchestrator) CleanupExecutions() {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	
+
 	for id, execution := range o.activeExecutions {
 		if execution.EndTime != nil && time.Since(*execution.EndTime) > 1*time.Hour {
 			delete(o.activeExecutions, id)

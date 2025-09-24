@@ -139,6 +139,130 @@
             gap: var(--spacing-md);
         }
 
+        .agent-status {
+            position: relative;
+        }
+
+        .agent-button {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .agent-button:hover {
+            border-color: var(--accent-primary);
+            color: var(--text-primary);
+        }
+
+        .agent-button.active {
+            border-color: var(--accent-secondary);
+            color: var(--accent-secondary);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.25);
+        }
+
+        .agent-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent-success);
+            box-shadow: 0 0 10px var(--accent-success);
+        }
+
+        .agent-button.inactive .agent-dot {
+            background: var(--text-muted);
+            box-shadow: none;
+        }
+
+        .agent-dropdown {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            right: 0;
+            width: 320px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+            display: none;
+            overflow: hidden;
+            z-index: 1010;
+        }
+
+        .agent-dropdown.visible {
+            display: block;
+        }
+
+        .agent-dropdown-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .agent-list {
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .agent-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .agent-item:last-child {
+            border-bottom: none;
+        }
+
+        .agent-item h4 {
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .agent-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .agent-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .agent-stop-btn {
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 64, 64, 0.4);
+            background: rgba(255, 64, 64, 0.08);
+            color: #ff6b6b;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .agent-stop-btn:hover {
+            background: rgba(255, 64, 64, 0.15);
+        }
+
+        .agent-empty {
+            padding: 1rem;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
         .header-stats {
             display: flex;
             gap: var(--spacing-lg);
@@ -673,6 +797,19 @@
             </div>
         </div>
         <div class="header-right">
+            <div class="agent-status">
+                <button class="agent-button inactive" id="agent-toggle">
+                    <span class="agent-dot"></span>
+                    <span class="agent-count" id="agent-count">No Active Agents</span>
+                    <i data-lucide="chevron-down"></i>
+                </button>
+                <div class="agent-dropdown" id="agent-dropdown">
+                    <div class="agent-dropdown-header">Active Agents</div>
+                    <div class="agent-list" id="agent-list">
+                        <div class="agent-empty">No agents currently running</div>
+                    </div>
+                </div>
+            </div>
             <div class="header-stats">
                 <div class="stat">
                     <div class="stat-value" id="active-suites">0</div>
@@ -1075,7 +1212,12 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">AI Model Provider</label>
-                            <input type="text" class="form-input" value="Ollama (localhost:11434)" readonly>
+                            <input type="text" class="form-input" value="OpenCode (resource-opencode)" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Default AI Model</label>
+                            <select class="form-select" id="model-select"></select>
+                            <p class="form-helper" id="model-select-helper" style="margin-top: 0.5rem; color: var(--text-muted); font-size: 0.75rem;">Fetching available models…</p>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Database</label>

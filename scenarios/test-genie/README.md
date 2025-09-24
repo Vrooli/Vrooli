@@ -27,7 +27,7 @@ Test Genie is a revolutionary AI-powered platform that automatically generates, 
 
 ### Prerequisites
 - **PostgreSQL** (for test data storage)
-- **Ollama** (for AI-powered test generation)
+- **OpenCode CLI** via `resource-opencode` (for AI-powered test generation)
 - **Node.js 16+** (for the dashboard UI)
 
 ### Installation
@@ -133,7 +133,7 @@ cd ui && npm start
 ### **API Server** (`/api`)
 - **Go-based REST API** with comprehensive test management endpoints
 - **PostgreSQL Integration** for persistent test data storage
-- **Ollama Integration** for AI-powered test generation
+- **OpenCode Integration** for AI-powered test generation and automation
 - **Real-time WebSocket** support for live execution monitoring
 
 ### **CLI Tool** (`/cli`)
@@ -284,9 +284,8 @@ export POSTGRES_PASSWORD="your-password"
 export POSTGRES_DB="test_genie"
 
 # AI Configuration
-export OLLAMA_HOST="localhost"
-export OLLAMA_PORT="11434"
-export OLLAMA_MODEL="llama3.2"
+export OPENCODE_DEFAULT_MODEL="openrouter/x-ai/grok-code-fast-1"
+export TEST_GENIE_AGENT_MODEL="openrouter/x-ai/grok-code-fast-1"
 
 # Optional: Redis for caching
 export REDIS_HOST="localhost"
@@ -306,7 +305,7 @@ defaults:
   parallel_execution: true
 
 ai_settings:
-  model: "llama3.2"
+  model: "openrouter/x-ai/grok-code-fast-1"
   temperature: 0.1
   max_tokens: 4000
 
@@ -531,7 +530,7 @@ Test Genie is released under the MIT License. See [LICENSE](LICENSE) for details
 
 ## 🙏 Acknowledgments
 
-- **Ollama Team**: For the excellent local AI inference platform
+- **OpenCode Team**: For delivering a flexible coding-focused AI platform
 - **PostgreSQL Community**: For the robust database foundation
 - **Vrooli Community**: For feedback and feature requests
 - **Open Source Contributors**: For making Test Genie better every day
