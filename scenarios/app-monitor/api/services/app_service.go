@@ -18,6 +18,8 @@ type orchestratorCache struct {
 	data      []repository.App
 	timestamp time.Time
 	mu        sync.RWMutex
+	isPartial bool
+	loading   bool
 }
 
 // AppService handles business logic for application management
@@ -94,7 +96,8 @@ type scenarioStatusResponse struct {
 func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.App, error) {
 	// Check cache first (cache valid for 15 seconds)
 	s.cache.mu.RLock()
-	if time.Since(s.cache.timestamp) < 15*time.Second && len(s.cache.data) > 0 {
+	cacheFresh := time.Since(s.cache.timestamp) < 15*time.Second
+	if cacheFresh && len(s.cache.data) > 0 && !s.cache.isPartial {
 		cachedData := s.cache.data
 		s.cache.mu.RUnlock()
 		return cachedData, nil
@@ -105,11 +108,15 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	s.cache.mu.Lock()
 
 	// Check cache again after acquiring lock
-	if time.Since(s.cache.timestamp) < 15*time.Second && len(s.cache.data) > 0 {
+	cacheFresh = time.Since(s.cache.timestamp) < 15*time.Second
+	if cacheFresh && len(s.cache.data) > 0 && !s.cache.isPartial {
 		cachedData := s.cache.data
 		s.cache.mu.Unlock()
 		return cachedData, nil
 	}
+
+	// Note that we're actively fetching to prevent duplicate hydrations
+	s.cache.loading = true
 
 	// Keep the lock while fetching to prevent concurrent fetches
 	defer s.cache.mu.Unlock()
@@ -121,6 +128,7 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "status", "--json")
 	output, err := cmd.Output()
 	if err != nil {
+		s.cache.loading = false
 		if len(s.cache.data) > 0 {
 			return s.cache.data, nil
 		}
@@ -129,6 +137,7 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 
 	var orchestratorResp OrchestratorResponse
 	if err := json.Unmarshal(output, &orchestratorResp); err != nil {
+		s.cache.loading = false
 		return nil, fmt.Errorf("failed to parse orchestrator response: %w", err)
 	}
 
@@ -246,13 +255,15 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 
 	s.cache.data = apps
 	s.cache.timestamp = time.Now()
+	s.cache.isPartial = false
+	s.cache.loading = false
 
 	return apps, nil
 }
 
-// fetchScenarioMetadata gathers scenario descriptions and paths using the Vrooli CLI
-func (s *AppService) fetchScenarioMetadata(ctx context.Context) (map[string]scenarioMetadata, error) {
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+// fetchScenarioList retrieves scenario metadata from the Vrooli CLI
+func (s *AppService) fetchScenarioList(ctx context.Context) ([]scenarioMetadata, error) {
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "list", "--json")
@@ -266,12 +277,68 @@ func (s *AppService) fetchScenarioMetadata(ctx context.Context) (map[string]scen
 		return nil, err
 	}
 
-	metadata := make(map[string]scenarioMetadata, len(resp.Scenarios))
-	for _, scenario := range resp.Scenarios {
+	return resp.Scenarios, nil
+}
+
+func (s *AppService) fetchScenarioMetadata(ctx context.Context) (map[string]scenarioMetadata, error) {
+	scenarios, err := s.fetchScenarioList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	metadata := make(map[string]scenarioMetadata, len(scenarios))
+	for _, scenario := range scenarios {
 		metadata[scenario.Name] = scenario
 	}
 
 	return metadata, nil
+}
+
+func (s *AppService) fetchScenarioSummaries(ctx context.Context) ([]repository.App, error) {
+	scenarios, err := s.fetchScenarioList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	apps := make([]repository.App, 0, len(scenarios))
+
+	for _, scenario := range scenarios {
+		status := strings.ToLower(strings.TrimSpace(scenario.Status))
+		if status == "" {
+			status = "unknown"
+		}
+
+		description := strings.TrimSpace(scenario.Description)
+		tags := uniqueStrings(scenario.Tags)
+
+		app := repository.App{
+			ID:           scenario.Name,
+			Name:         scenario.Name,
+			ScenarioName: scenario.Name,
+			Path:         scenario.Path,
+			CreatedAt:    now,
+			UpdatedAt:    now,
+			Status:       status,
+			PortMappings: make(map[string]interface{}),
+			Environment:  make(map[string]interface{}),
+			Config:       make(map[string]interface{}),
+			Description:  description,
+			Tags:         tags,
+			Uptime:       "N/A",
+			Type:         "scenario",
+			HealthStatus: status,
+			IsPartial:    true,
+		}
+
+		if scenario.Version != "" {
+			app.Config["version"] = scenario.Version
+		}
+
+		apps = append(apps, app)
+	}
+
+	return apps, nil
 }
 
 // humanizeDuration converts a duration into a terse "1h 4m" style string
@@ -487,6 +554,41 @@ func lookupScenarioPorts(ctx context.Context, scenarioName string) map[string]in
 		ports[portName] = port
 	}
 	return ports
+}
+
+// GetAppsSummary returns a fast-loading list of scenarios while background hydration runs
+func (s *AppService) GetAppsSummary(ctx context.Context) ([]repository.App, error) {
+	summaries, err := s.fetchScenarioSummaries(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	clone := make([]repository.App, len(summaries))
+	copy(clone, summaries)
+
+	s.cache.mu.Lock()
+	s.cache.data = clone
+	s.cache.timestamp = time.Now()
+	s.cache.isPartial = true
+	shouldHydrate := !s.cache.loading
+	if shouldHydrate {
+		s.cache.loading = true
+	}
+	s.cache.mu.Unlock()
+
+	if shouldHydrate {
+		go func() {
+			if _, err := s.GetAppsFromOrchestrator(context.Background()); err != nil {
+				fmt.Printf("Warning: background hydration failed: %v\n", err)
+			}
+
+			s.cache.mu.Lock()
+			s.cache.loading = false
+			s.cache.mu.Unlock()
+		}()
+	}
+
+	return summaries, nil
 }
 
 // GetApps retrieves apps, preferring orchestrator data with database fallback

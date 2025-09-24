@@ -24,6 +24,17 @@
   align-items: center;
 }
 
+.control-status {
+  padding: 0.35rem 0.75rem;
+  border: 1px dashed rgba(0, 255, 255, 0.4);
+  background: rgba(0, 48, 64, 0.2);
+  color: var(--matrix-cyan);
+  letter-spacing: 0.12em;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
 .search-box {
   padding: 0.5rem 1rem;
   background: var(--matrix-dark);

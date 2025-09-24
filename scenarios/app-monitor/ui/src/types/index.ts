@@ -18,6 +18,7 @@ export interface App {
   runtime?: string;
   tags?: string[];
   health_status?: string;
+  is_partial?: boolean;
 }
 
 // Resource Types

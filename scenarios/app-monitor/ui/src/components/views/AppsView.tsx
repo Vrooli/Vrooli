@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { appService } from '@/services/api';
@@ -106,27 +106,104 @@ VirtualAppList.displayName = 'VirtualAppList';
 const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [hydrating, setHydrating] = useState(false);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<AppViewMode>('grid');
   const [selectedApp, setSelectedApp] = useState<App | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const mergeAppData = useCallback((existing: App[], updates: App[]) => {
+    if (updates.length === 0) {
+      return existing;
+    }
+
+    const updateMap = new Map<string, App>();
+    updates.forEach((app) => updateMap.set(app.id, app));
+
+    const merged = existing.map((app) => {
+      const update = updateMap.get(app.id);
+      if (!update) {
+        return app;
+      }
+
+      updateMap.delete(app.id);
+
+      const mergedConfig = {
+        ...(app.config || {}),
+        ...(update.config || {}),
+      };
+
+      const mergedPorts = Object.keys(update.port_mappings || {}).length > 0
+        ? update.port_mappings
+        : app.port_mappings;
+
+      return {
+        ...app,
+        ...update,
+        description: update.description || app.description,
+        tags: update.tags && update.tags.length > 0 ? update.tags : app.tags,
+        uptime: update.uptime || app.uptime,
+        config: mergedConfig,
+        port_mappings: mergedPorts,
+        is_partial: Boolean(update.is_partial),
+      };
+    });
+
+    updateMap.forEach((app) => {
+      merged.push({
+        ...app,
+        is_partial: Boolean(app.is_partial),
+      });
+    });
+
+    return merged;
+  }, []);
 
   const fetchApps = useCallback(async () => {
     setLoading(true);
-    logger.time('fetchApps');
+    logger.time('fetchApps.summary');
 
     try {
-      const fetchedApps = await appService.getApps();
-      setApps(fetchedApps);
-      logger.info(`Fetched ${fetchedApps.length} apps`);
+      const summaries = await appService.getAppSummaries();
+      logger.info(`Fetched ${summaries.length} app summaries`);
+      if (isMountedRef.current) {
+        setApps((prev) => (summaries.length > 0 ? summaries : prev));
+      }
     } catch (error) {
-      logger.error('Failed to fetch apps', error);
+      logger.error('Failed to fetch app summaries', error);
     } finally {
-      setLoading(false);
-      logger.timeEnd('fetchApps');
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+      logger.timeEnd('fetchApps.summary');
     }
-  }, [setApps]);
+
+    setHydrating(true);
+    logger.time('fetchApps.detail');
+
+    try {
+      const detailedApps = await appService.getApps();
+      logger.info(`Hydrated ${detailedApps.length} apps with orchestrator data`);
+      if (isMountedRef.current && detailedApps.length > 0) {
+        setApps((prev) => mergeAppData(prev, detailedApps));
+      }
+    } catch (error) {
+      logger.error('Failed to hydrate apps with orchestrator data', error);
+    } finally {
+      if (isMountedRef.current) {
+        setHydrating(false);
+      }
+      logger.timeEnd('fetchApps.detail');
+    }
+  }, [mergeAppData, setApps]);
 
   useEffect(() => {
     fetchApps();
@@ -240,13 +317,18 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
         <div className="panel-controls">
           <SearchInput value={search} onChange={handleSearchChange} />
           <ViewToggle viewMode={viewMode} onClick={toggleViewMode} />
+          {hydrating && !loading && (
+            <span className="control-status" title="Fetching live orchestrator data">
+              SYNCING…
+            </span>
+          )}
           <button
             className="control-btn refresh"
             onClick={fetchApps}
             disabled={loading}
             title="Refresh"
           >
-            {loading ? '⟳' : '⟲'}
+            {loading ? '⟳' : hydrating ? '⧗' : '⟲'}
           </button>
         </div>
       </div>

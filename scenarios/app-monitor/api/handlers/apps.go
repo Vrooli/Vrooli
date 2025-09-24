@@ -21,6 +21,19 @@ func NewAppHandler(appService *services.AppService) *AppHandler {
 	}
 }
 
+// GetAppsSummary returns a fast-loading set of applications using cached CLI metadata
+func (h *AppHandler) GetAppsSummary(c *gin.Context) {
+	apps, err := h.appService.GetAppsSummary(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to fetch apps summary",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, apps)
+}
+
 // GetApps returns all applications
 func (h *AppHandler) GetApps(c *gin.Context) {
 	apps, err := h.appService.GetApps(c.Request.Context())

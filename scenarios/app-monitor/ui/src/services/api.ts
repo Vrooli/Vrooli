@@ -47,6 +47,17 @@ api.interceptors.response.use(
 
 // App Management
 export const appService = {
+  // Get fast-loading summaries
+  async getAppSummaries(): Promise<App[]> {
+    try {
+      const { data } = await api.get<App[]>('/apps/summary');
+      return data || [];
+    } catch (error) {
+      logger.error('Failed to fetch app summaries', error);
+      return [];
+    }
+  },
+
   // Get all apps
   async getApps(): Promise<App[]> {
     try {

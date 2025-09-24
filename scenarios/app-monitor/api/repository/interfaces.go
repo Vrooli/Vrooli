@@ -23,6 +23,7 @@ type App struct {
 	Uptime       string                 `json:"uptime,omitempty"`
 	Type         string                 `json:"type,omitempty"`
 	HealthStatus string                 `json:"health_status,omitempty"`
+	IsPartial    bool                   `json:"is_partial,omitempty" db:"-"`
 }
 
 // AppStatus represents the current status of an application
