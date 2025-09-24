@@ -18,15 +18,29 @@ if (!apiPort) {
 const apiBaseUrl = process.env.TEST_GENIE_API_URL || `http://localhost:${apiPort}`;
 
 // Security and performance middleware
+const localFrameAncestors = [
+  "'self'",
+  'http://localhost:*',
+  'http://127.0.0.1:*',
+  'http://[::1]:*'
+];
+
+const extraFrameAncestors = (process.env.FRAME_ANCESTORS || '')
+  .split(/\s+/)
+  .filter(Boolean);
+
 app.use(helmet({
+  frameguard: false,
   contentSecurityPolicy: {
+    useDefaults: true,
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", apiBaseUrl, "ws:", "wss:"]
+      connectSrc: ["'self'", apiBaseUrl, "ws:", "wss:"],
+      frameAncestors: [...localFrameAncestors, ...extraFrameAncestors]
     }
   }
 }));
