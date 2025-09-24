@@ -19,7 +19,7 @@ source "${var_LOG_FILE}"
 source "${var_RESOURCES_COMMON_FILE}"
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
-for lib in common install status docker content test; do
+for lib in common install status docker content models test info usage; do
     lib_file="${OPENCODE_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "${lib_file}" ]]; then
         # shellcheck disable=SC1090
@@ -73,6 +73,7 @@ opencode::cli::dispatch() {
 }
 
 cli::register_command "status" "Show OpenCode status" "opencode::status"
+cli::register_command "models" "List available models" "opencode::models::list"
 cli::register_command "run" "Execute raw OpenCode CLI commands" "opencode::cli::dispatch"
 cli::register_command "logs" "Show log directory" "opencode::docker::logs"
 

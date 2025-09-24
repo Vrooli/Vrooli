@@ -73,7 +73,7 @@ agents::lifecycle::cleanup() {
                 log::debug "Cleaning up dead $resource_name agent: $agent_id (PID: $pid)"
                 jq --arg id "$agent_id" 'del(.agents[$id])' "$temp_file" > "${temp_file}.new" && \
                     mv "${temp_file}.new" "$temp_file"
-                ((cleaned++))
+                ((++cleaned))
             fi
         fi
     done <<< "$agent_ids"

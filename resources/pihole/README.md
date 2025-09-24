@@ -114,6 +114,90 @@ vrooli resource pihole content dhcp reservations
 vrooli resource pihole content dhcp disable
 ```
 
+## Web Interface Management
+
+```bash
+# Check web interface status
+vrooli resource pihole web status
+
+# Get web interface URL
+vrooli resource pihole web url
+
+# Get/reset web password
+vrooli resource pihole web password
+vrooli resource pihole web password MyNewPassword123
+
+# Open in browser
+vrooli resource pihole web open
+
+# Enable/disable web interface
+vrooli resource pihole web enable
+vrooli resource pihole web disable
+```
+
+## Group Management
+
+```bash
+# List groups
+vrooli resource pihole groups list
+
+# Create a new group
+vrooli resource pihole groups create "Kids" "Strict filtering for children's devices"
+vrooli resource pihole groups create "Work" "Minimal filtering for work devices"
+
+# Add clients to groups
+vrooli resource pihole groups add-client 192.168.1.50 Kids "Tablet"
+vrooli resource pihole groups add-client 192.168.1.51 Work "Laptop"
+
+# List clients in a group
+vrooli resource pihole groups list-clients Kids
+
+# Add domains to group blocklist
+vrooli resource pihole groups add-domain Kids youtube.com
+vrooli resource pihole groups add-domain Kids tiktok.com
+
+# Enable/disable groups
+vrooli resource pihole groups disable Work
+vrooli resource pihole groups enable Work
+
+# Remove client from group
+vrooli resource pihole groups remove-client 192.168.1.50
+
+# Delete group
+vrooli resource pihole groups delete Kids
+```
+
+## Gravity Sync (Multi-Instance)
+
+```bash
+# Initialize sync configuration
+vrooli resource pihole gravity-sync init
+
+# Add remote Pi-hole instances
+vrooli resource pihole gravity-sync add-remote backup 192.168.1.200 22
+vrooli resource pihole gravity-sync add-remote secondary 10.0.0.5 22 /path/to/ssh/key
+
+# List configured remotes
+vrooli resource pihole gravity-sync list-remotes
+
+# Export gravity database
+vrooli resource pihole gravity-sync export /backup/gravity.db
+
+# Import gravity database
+vrooli resource pihole gravity-sync import /backup/gravity.db
+
+# Sync with remote (pull/push/bidirectional)
+vrooli resource pihole gravity-sync sync backup pull
+vrooli resource pihole gravity-sync sync backup push
+
+# Schedule automatic sync
+vrooli resource pihole gravity-sync schedule daily backup
+vrooli resource pihole gravity-sync schedule hourly all
+
+# Remove remote
+vrooli resource pihole gravity-sync remove-remote backup
+```
+
 ## Regex Filtering
 
 ```bash

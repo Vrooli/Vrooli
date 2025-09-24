@@ -113,20 +113,103 @@ openrouter::test_connection() {
 
 # Get available models
 openrouter::list_models() {
-    local timeout="${1:-$OPENROUTER_TIMEOUT}"
-    
-    if [[ -z "$OPENROUTER_API_KEY" ]]; then
-        openrouter::init || return 1
+    local timeout_value="${OPENROUTER_TIMEOUT:-30}"
+
+    if [[ $# -gt 0 && "$1" != --* ]]; then
+        timeout_value="$1"
+        shift
     fi
-    
-    # Use Cloudflare Gateway if configured
-    local api_url
-    api_url=$(openrouter::cloudflare::get_gateway_url "$OPENROUTER_API_BASE" "")
-    
-    timeout "$timeout" curl -s \
-        -H "Authorization: Bearer $OPENROUTER_API_KEY" \
-        "${api_url}/models" 2>/dev/null | \
-        jq -r '.data[].id' 2>/dev/null || return 1
+
+    local output_format="text"
+    local provider_filter=""
+    local search_term=""
+    local limit_value=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json)
+                output_format="json"
+                ;;
+            --provider|-p)
+                provider_filter="${2:-}"
+                shift
+                ;;
+            --search|--contains)
+                search_term="${2:-}"
+                shift
+                ;;
+            --limit|-n)
+                limit_value="${2:-}"
+                shift
+                ;;
+            --help|-h)
+                cat <<'EOF'
+Usage: resource-openrouter content models [options]
+
+Options:
+  --json            Output structured JSON (includes metadata for each model)
+  --provider <id>   Filter by provider prefix (e.g. openai, anthropic)
+  --search <term>   Filter by substring in model id, name, or description
+  --limit <n>       Limit the number of returned models
+  -h, --help        Show this help message
+
+Examples:
+  resource-openrouter content models --limit 10
+  resource-openrouter content models --provider openai --json
+  resource-openrouter content models --search code
+EOF
+                return 0
+                ;;
+            *)
+                log::error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+        shift
+    done
+
+    if [[ -n "$limit_value" && ! "$limit_value" =~ ^[0-9]+$ ]]; then
+        log::error "Invalid limit: ${limit_value}. Provide a positive integer."
+        return 1
+    fi
+
+    local provider_prefix="${provider_filter}"
+    if [[ -n "$provider_prefix" && "$provider_prefix" != */ ]]; then
+        provider_prefix="${provider_prefix}/"
+    fi
+
+    local previous_timeout="${OPENROUTER_TIMEOUT:-}"
+    OPENROUTER_TIMEOUT="${timeout_value}"
+
+    local raw_catalog
+    if ! raw_catalog=$(openrouter::models::fetch_catalog); then
+        log::warn "Unable to fetch OpenRouter model catalog; returning default model list"
+        raw_catalog='{"data": []}'
+    fi
+
+    OPENROUTER_TIMEOUT="${previous_timeout}"
+
+    local limit_json="null"
+    if [[ -n "$limit_value" ]]; then
+        limit_json="$limit_value"
+    fi
+
+    local normalized
+    if ! normalized=$(openrouter::models::filter_catalog "${raw_catalog}" "${provider_prefix}" "${search_term}" "${limit_json}"); then
+        normalized="[]"
+    fi
+
+    if [[ "${output_format}" == "json" ]]; then
+        openrouter::models::build_response "${normalized}"
+        return $?
+    fi
+
+    if [[ "${normalized}" == "[]" ]]; then
+        echo "${OPENROUTER_DEFAULT_MODEL:-openai/gpt-3.5-turbo}"
+        return 0
+    fi
+
+    jq -r '.[].id' <<<"${normalized}"
 }
 
 # Get usage/credits

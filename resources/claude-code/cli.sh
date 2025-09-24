@@ -175,12 +175,30 @@ claude_code::setup_agent_cleanup() {
             claude_code::kill_children SIGTERM
         fi
 
-        # Wait for children to exit quietly
-        wait 2>/dev/null || true
-
         if [[ -n "${CLAUDE_CODE_CURRENT_AGENT_ID:-}" ]] && type -t agent_manager::unregister &>/dev/null; then
             agent_manager::unregister "${CLAUDE_CODE_CURRENT_AGENT_ID}" >/dev/null 2>&1 || true
         fi
+
+        # Allow any remaining children to exit without hanging forever
+        local cleanup_deadline=$((SECONDS + 5))
+        while true; do
+            local child_pids
+            child_pids=$(pgrep -P $$ 2>/dev/null || true)
+            if [[ -z "$child_pids" ]]; then
+                break
+            fi
+
+            if (( SECONDS >= cleanup_deadline )); then
+                for child in $child_pids; do
+                    kill -KILL "$child" 2>/dev/null || true
+                done
+                break
+            fi
+
+            sleep 0.1
+        done
+
+        wait 2>/dev/null || true
 
         unset CLAUDE_CODE_CURRENT_AGENT_ID
         exit "$exit_code"

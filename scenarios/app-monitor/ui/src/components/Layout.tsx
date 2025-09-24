@@ -1,5 +1,5 @@
 import { ReactNode, useState, useEffect, useRef } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -22,6 +22,7 @@ interface LayoutProps {
 
 
 export default function Layout({ children, isConnected }: LayoutProps) {
+  const location = useLocation();
   const [appCount, setAppCount] = useState(0);
   const [resourceCount, setResourceCount] = useState(0);
   const [uptime, setUptime] = useState('00:00:00');
@@ -183,6 +184,8 @@ export default function Layout({ children, isConnected }: LayoutProps) {
     },
   ];
 
+  const isPreviewRoute = /^\/apps\/[^/]+\/preview/.test(location.pathname);
+
   return (
     <>
       <header className="main-header">
@@ -287,7 +290,7 @@ export default function Layout({ children, isConnected }: LayoutProps) {
           </div>
         </aside>
 
-        <main className="main-content">
+        <main className={clsx('main-content', { 'main-content--preview': isPreviewRoute })}>
           {children}
         </main>
       </div>

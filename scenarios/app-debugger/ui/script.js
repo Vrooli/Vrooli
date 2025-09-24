@@ -22,6 +22,15 @@ document.addEventListener('DOMContentLoaded', () => {
     simulateSystemStats();
 });
 
+function escapeHtml(unsafe) {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+}
+
 function initializeTerminal() {
     addTerminalLine('Initializing Vrooli App Debugger v2.0...', 'success');
     setTimeout(() => {
@@ -223,10 +232,10 @@ function displayApps(apps) {
                           app.health === 'error' ? 'error' : 'stopped';
         
         appItem.innerHTML = `
-            <div class="app-name">${app.name}</div>
+            <div class="app-name">${escapeHtml(app.name)}</div>
             <div class="app-status">
-                <span class="status-badge ${statusClass}">${app.status}</span>
-                <span class="status-badge ${healthClass}">${app.health}</span>
+                <span class="status-badge ${statusClass}">${escapeHtml(app.status)}</span>
+                <span class="status-badge ${healthClass}">${escapeHtml(app.health)}</span>
             </div>
         `;
         
@@ -390,12 +399,12 @@ function displayAnalysis(analysis) {
     
     // Update last analysis panel
     const lastAnalysis = document.getElementById('last-analysis');
-    lastAnalysis.innerHTML = `<pre>Root Cause: ${analysis.root_cause}
+    lastAnalysis.textContent = `Root Cause: ${escapeHtml(analysis.root_cause)}
 Severity: ${analysis.severity.toUpperCase()}
-Fix Suggestion: ${analysis.fix_suggestion}
-Prevention: ${analysis.prevention}
+Fix Suggestion: ${escapeHtml(analysis.fix_suggestion)}
+Prevention: ${escapeHtml(analysis.prevention)}
 
-Timestamp: ${new Date().toLocaleTimeString()}</pre>`;
+Timestamp: ${new Date().toLocaleTimeString()}`;
     
     if (analysis.severity === 'critical') {
         stats.critical++;
@@ -475,7 +484,7 @@ function addTerminalLine(text, className = null, isCommand = false) {
     if (className) line.classList.add(className);
     
     if (isCommand) {
-        line.innerHTML = `<span class="prompt">debug@vrooli:~$</span> ${text}`;
+        line.innerHTML = `<span class="prompt">debug@vrooli:~$</span> ${escapeHtml(text)}`;
     } else {
         line.textContent = text;
     }

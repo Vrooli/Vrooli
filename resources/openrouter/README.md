@@ -35,8 +35,11 @@ vault kv put secret/openrouter api_key="your-key-here"
 # Test the configuration
 vrooli resource openrouter test
 
-# List available models
-vrooli resource openrouter content models
+# List available models (text)
+vrooli resource openrouter content models --limit 25
+
+# Structured JSON (includes provider, pricing, context length)
+vrooli resource openrouter content models --json | jq '.models[0]'
 
 # Test a specific model
 vrooli resource openrouter test-model "anthropic/claude-3-opus"

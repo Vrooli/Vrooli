@@ -48,10 +48,13 @@ resource-opencode run
 - The resource's default config pins `OPENCODE_CONFIG` to `data/opencode/config/opencode.json` so you can manage instructions without touching global user state.
 
 ## Models
-Use the upstream CLI to enumerate available models once you've configured credentials:
+Use the resource-native command to enumerate available models (optionally as JSON) once you've configured credentials:
 
 ```bash
-resource-opencode run models
+resource-opencode models --json | jq '.models | length'
+
+# Plain text listing
+resource-opencode models --limit 20
 ```
 
 Model discovery pulls from local Ollama installs as well as any provider keys configured via `opencode auth login` or environment variables.

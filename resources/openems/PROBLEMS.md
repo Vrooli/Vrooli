@@ -38,8 +38,17 @@
 ### Issue: Integration tests may timeout on first run
 **Solution**: Docker image pulls can take time. Run `vrooli resource openems manage install` first to pre-download images.
 
+### Issue: Simulation loops hanging in bash with set -euo pipefail
+**Solution**: The `((count++))` increment syntax can cause scripts to exit when used with `set -euo pipefail`. Use `count=$((count + 1))` instead for proper POSIX compliance and reliable execution.
+
 ### Issue: Modbus tests may fail without proper permissions
 **Solution**: Port 502 (standard Modbus port) may require elevated permissions. The resource will continue to function without Modbus if permissions are insufficient.
+
+### Issue: Integration tests show warnings about missing dependencies
+**Solution**: Set `OPENEMS_QUIET_MODE=true` environment variable during testing to suppress non-critical warnings. Tests will still validate functionality without noisy output.
+
+### Issue: Simulation tests take too long
+**Solution**: Simulation functions now accept duration parameter. Tests use shorter durations (2s) for faster validation while still ensuring functionality works.
 
 ## Performance
 

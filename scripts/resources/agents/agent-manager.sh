@@ -314,7 +314,7 @@ agent_manager::cleanup() {
             log::debug "Cleaning up dead $RESOURCE_NAME agent: $agent_id (PID: $pid)"
             if jq --arg id "$agent_id" 'del(.agents[$id])' "$temp_file" > "${temp_file}.new"; then
                 mv "${temp_file}.new" "$temp_file"
-                ((cleaned++))
+                ((++cleaned))
             else
                 rm -f "${temp_file}.new"
             fi
@@ -336,7 +336,8 @@ agent_manager::cleanup() {
         fi
     fi
 
-    return $cleaned
+    printf '%s\n' "$cleaned"
+    return 0
 }
 
 #######################################

@@ -119,17 +119,16 @@ openrouter::test::models() {
     
     # List models
     local models
-    if models=$(openrouter::list_models "$OPENROUTER_TIMEOUT"); then
+    if models=$(openrouter::list_models "$OPENROUTER_TIMEOUT" --json 2>/dev/null); then
         local model_count
-        model_count=$(echo "$models" | jq -r '.data | length' 2>/dev/null || echo "0")
-        
+        model_count=$(echo "$models" | jq -r '.count // 0' 2>/dev/null || echo "0")
+
         if [[ "$model_count" -gt 0 ]]; then
             log::success "Found $model_count available models"
             return 0
-        else
-            log::error "No models found"
-            return 1
         fi
+        log::error "No models found"
+        return 1
     else
         log::error "Failed to list models"
         return 1

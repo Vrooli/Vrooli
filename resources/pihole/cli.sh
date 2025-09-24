@@ -22,6 +22,11 @@ source "${RESOURCE_DIR}/lib/dhcp.sh"
 source "${RESOURCE_DIR}/lib/regex.sh"
 source "${RESOURCE_DIR}/lib/content.sh"
 
+# Source P2 feature libraries
+source "${RESOURCE_DIR}/lib/webui.sh"
+source "${RESOURCE_DIR}/lib/groups-simple.sh"
+source "${RESOURCE_DIR}/lib/gravity-sync.sh"
+
 # Main command handler
 main() {
     local cmd="${1:-help}"
@@ -51,6 +56,15 @@ main() {
             ;;
         credentials)
             show_credentials "$@"
+            ;;
+        web)
+            handle_web "$@"
+            ;;
+        groups)
+            handle_groups "$@"
+            ;;
+        gravity-sync)
+            handle_gravity_sync "$@"
             ;;
         *)
             echo "Error: Unknown command: $cmd" >&2
@@ -94,6 +108,29 @@ COMMANDS:
     status              Show service status
     logs                View service logs
     credentials         Display API credentials
+    web                 Manage web interface
+        enable          Enable web interface
+        disable         Disable web interface
+        status          Check web interface status
+        password        Show or reset web password
+        open            Open web interface in browser
+        url             Show web interface URL
+    groups              Manage client groups
+        create          Create a new group
+        delete          Delete a group
+        list            List all groups
+        add-client      Add client to group
+        remove-client   Remove client from group
+        enable          Enable group
+        disable         Disable group
+    gravity-sync        Sync with other Pi-hole instances
+        init            Initialize sync configuration
+        add-remote      Add remote Pi-hole instance
+        remove-remote   Remove remote instance
+        list-remotes    List configured remotes
+        export          Export gravity database
+        import          Import gravity database
+        sync            Sync with remote instance
 
 EXAMPLES:
     # Basic setup
@@ -322,6 +359,57 @@ handle_regex() {
         *)
             echo "Error: Unknown regex command: $action" >&2
             echo "Valid commands: add, remove, add-white, remove-white, list, test, import, export, common" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Handle web interface commands
+handle_web() {
+    local action="${1:-status}"
+    shift || true
+    
+    case "$action" in
+        enable|disable|status|password|open|url|configure)
+            "${RESOURCE_DIR}/lib/webui.sh" "$action" "$@"
+            ;;
+        *)
+            echo "Error: Unknown web command: $action" >&2
+            echo "Valid commands: enable, disable, status, password, open, url, configure" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Handle group management commands
+handle_groups() {
+    local action="${1:-list}"
+    shift || true
+    
+    case "$action" in
+        create|delete|list|add-client|remove-client|list-clients|add-domain|enable|disable)
+            "${RESOURCE_DIR}/lib/groups-simple.sh" "$action" "$@"
+            ;;
+        *)
+            echo "Error: Unknown groups command: $action" >&2
+            echo "Valid commands: create, delete, list, add-client, remove-client, list-clients, apply-blocklist, enable, disable, update" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Handle gravity sync commands
+handle_gravity_sync() {
+    local action="${1:-list-remotes}"
+    shift || true
+    
+    case "$action" in
+        init|add-remote|remove-remote|list-remotes|export|import|sync|schedule)
+            "${RESOURCE_DIR}/lib/gravity-sync.sh" "$action" "$@"
+            ;;
+        *)
+            echo "Error: Unknown gravity-sync command: $action" >&2
+            echo "Valid commands: init, add-remote, remove-remote, list-remotes, export, import, sync, schedule" >&2
             exit 1
             ;;
     esac

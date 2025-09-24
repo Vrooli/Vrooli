@@ -79,6 +79,12 @@ main() {
         cosim|cosimulation)
             openems::cosim "$@"
             ;;
+        metrics)
+            openems::metrics "$@"
+            ;;
+        benchmark)
+            openems::benchmark "$@"
+            ;;
         *)
             echo "❌ Unknown command: $command"
             openems::show_help
@@ -170,6 +176,8 @@ COMMANDS:
     forecast    Energy forecast models (P1)
     alerts      Alert automation via Pushover/Twilio (P2)
     cosim       Co-simulation with OTP/GeoNode (P2)
+    metrics     Display performance metrics and telemetry stats
+    benchmark   Run performance benchmark tests
 
 EXAMPLES:
     # Start OpenEMS

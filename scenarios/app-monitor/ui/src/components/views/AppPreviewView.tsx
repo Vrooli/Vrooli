@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import clsx from 'clsx';
+import { ArrowLeft, ExternalLink, Info, RefreshCw, ScrollText } from 'lucide-react';
 import { appService } from '@/services/api';
 import { logger } from '@/services/logger';
 import type { App } from '@/types';
@@ -195,55 +196,80 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     }
   }, [currentApp, navigate]);
 
-  const statusBadgeClass = useMemo(() => {
+  const statusIndicatorClass = useMemo(() => {
     if (!currentApp) {
-      return 'status-badge unknown';
+      return 'status-indicator unknown';
     }
-    return clsx('status-badge', currentApp.status?.toLowerCase() || 'unknown');
+    return clsx('status-indicator', currentApp.status?.toLowerCase() || 'unknown');
   }, [currentApp]);
 
   return (
     <div className="app-preview-view">
       <div className="preview-toolbar">
-        <div className="preview-toolbar__left">
-          <button className="control-btn" onClick={handleBack}>
-            ← APPS
+        <div className="preview-toolbar__group preview-toolbar__group--left">
+          <button
+            type="button"
+            className="preview-toolbar__icon-btn"
+            onClick={handleBack}
+            aria-label="Back to applications"
+            title="Back to applications"
+          >
+            <ArrowLeft aria-hidden size={18} />
+          </button>
+          <div className="preview-toolbar__title">
+            <h2>{currentApp?.name ?? 'Loading Application...'}</h2>
+            {currentApp && (
+              <span
+                className={statusIndicatorClass}
+                aria-label={`Status: ${currentApp.status}`}
+                title={`Status: ${currentApp.status}`}
+              />
+            )}
+          </div>
+          <button
+            type="button"
+            className="preview-toolbar__icon-btn"
+            onClick={() => setModalOpen(true)}
+            disabled={!currentApp}
+            aria-label="Application details"
+            title="Application details"
+          >
+            <Info aria-hidden size={18} />
           </button>
         </div>
-        <div className="preview-toolbar__center">
-          <h2>{currentApp?.name ?? 'Loading Application...'}</h2>
-          {currentApp && (
-            <span className={statusBadgeClass}>{currentApp.status.toUpperCase()}</span>
-          )}
-        </div>
-        <div className="preview-toolbar__actions">
-          <button className="control-btn" onClick={handleRefresh} disabled={loading}>
-            {loading ? 'REFRESHING' : 'REFRESH'}
+        <div className="preview-toolbar__spacer" aria-hidden />
+        <div className="preview-toolbar__group preview-toolbar__group--right">
+          <button
+            type="button"
+            className="preview-toolbar__icon-btn"
+            onClick={handleRefresh}
+            disabled={loading}
+            aria-label={loading ? 'Refreshing application status' : 'Refresh application'}
+            title={loading ? 'Refreshing…' : 'Refresh'}
+          >
+            <RefreshCw aria-hidden size={18} className={clsx({ spinning: loading })} />
           </button>
           {previewUrl && (
             <a
               href={previewUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="control-btn"
+              className="preview-toolbar__icon-btn"
               title="Open in new tab"
+              aria-label="Open preview in new tab"
             >
-              ↗
+              <ExternalLink aria-hidden size={18} />
             </a>
           )}
           <button
-            className="control-btn"
-            onClick={() => setModalOpen(true)}
-            disabled={!currentApp}
-          >
-            DETAILS
-          </button>
-          <button
-            className="control-btn"
+            type="button"
+            className="preview-toolbar__icon-btn"
             onClick={handleViewLogs}
             disabled={!currentApp}
+            aria-label="View logs"
+            title="View logs"
           >
-            LOGS
+            <ScrollText aria-hidden size={18} />
           </button>
         </div>
       </div>

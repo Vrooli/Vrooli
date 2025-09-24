@@ -21,6 +21,124 @@ if [[ -f "${OPENROUTER_LIB_DIR}/routing.sh" ]]; then
     source "${OPENROUTER_LIB_DIR}/routing.sh"
 fi
 
+openrouter::models::require_jq() {
+    if ! command -v jq &>/dev/null; then
+        log::error "jq is required to list OpenRouter models. Install jq and retry."
+        return 1
+    fi
+    return 0
+}
+
+openrouter::models::fetch_catalog() {
+    local timeout="${OPENROUTER_TIMEOUT:-30}"
+
+    # Initialize credentials if available (but listing works without a key)
+    openrouter::init >/dev/null 2>&1 || true
+
+    local api_url
+    api_url=$(openrouter::cloudflare::get_gateway_url "${OPENROUTER_API_BASE}" "")
+
+    local -a curl_args=(-sS "${api_url}/models")
+    if [[ -n "${OPENROUTER_API_KEY:-}" && "${OPENROUTER_API_KEY}" != auto-null-* ]]; then
+        curl_args=(-H "Authorization: Bearer ${OPENROUTER_API_KEY}" "${curl_args[@]}")
+    fi
+
+    local response
+    if ! response=$(timeout "${timeout}" curl "${curl_args[@]}" 2>/dev/null); then
+        return 1
+    fi
+
+    if [[ -z "${response}" ]]; then
+        return 1
+    fi
+
+    echo "${response}"
+    return 0
+}
+
+openrouter::models::filter_catalog() {
+    local raw_json="${1:-}"
+    local provider_prefix="${2:-}"
+    local search_term="${3:-}"
+    local limit_value="${4:-null}"
+
+    if ! openrouter::models::require_jq; then
+        return 1
+    fi
+
+    local normalized
+    normalized=$(jq \
+        --arg provider "${provider_prefix}" \
+        --arg search "${search_term}" \
+        --argjson limit "${limit_value}" \
+        '
+        def parse_price($p):
+          if ($p == null or $p == "") then null else
+            ($p | try (tonumber) catch (try (sub(","; "") | tonumber) catch null))
+          end;
+
+        def matches_provider($prefix):
+          ($prefix == "" or (.id | startswith($prefix)));
+
+        def matches_search($term):
+          ($term == "" or ((.id // "") | test($term; "i") or (.name // "") | test($term; "i") or (.description // "") | test($term; "i")));
+
+        (.data // [])
+        | map(select(matches_provider($provider) and matches_search($search))
+            | . as $model
+            | {
+                id: ($model.id // null),
+                name: ($model.name // null),
+                display_name: ($model.name // $model.id),
+                provider: (($model.id // "") | split("/") | .[0] // "unknown"),
+                description: ($model.description // null),
+                pricing: {
+                    prompt: parse_price($model.pricing.prompt),
+                    completion: parse_price($model.pricing.completion),
+                    request: parse_price($model.pricing.request),
+                    image: parse_price($model.pricing.image)
+                },
+                context_length: ($model.top_provider.context_length // $model.context_length // null),
+                max_completion_tokens: ($model.top_provider.max_completion_tokens // null),
+                architecture: {
+                    modality: ($model.architecture.modality // null),
+                    input: ($model.architecture.input_modalities // []),
+                    output: ($model.architecture.output_modalities // [])
+                },
+                supported_parameters: ($model.supported_parameters // [])
+            }
+        )
+        | (if ($limit != null and $limit > 0) then .[:$limit] else . end)
+        ' <<<"${raw_json}") || return 1
+
+    echo "${normalized}"
+}
+
+openrouter::models::build_response() {
+    local normalized_json="${1:-[]}";
+    local default_model="${OPENROUTER_DEFAULT_MODEL:-openai/gpt-3.5-turbo}";
+
+    if ! openrouter::models::require_jq; then
+        return 1
+    fi
+
+    jq \
+        --arg source "openrouter" \
+        --arg fetched "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+        --arg default_model "${default_model}" \
+        '
+        . as $models
+        | {
+            source: $source,
+            fetched_at: $fetched,
+            default_model: $default_model,
+            provider_count: ($models | map(.provider) | unique | length),
+            count: ($models | length),
+            models: $models
+        }
+        ' <<<"${normalized_json}"
+}
+
 # Model selection strategies
 openrouter::models::select_auto() {
     local task_type="${1:-general}"

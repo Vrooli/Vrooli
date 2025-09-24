@@ -79,17 +79,43 @@ type scenarioMetadata struct {
 
 // scenarioStatusDetail represents detailed runtime/port information for a scenario
 type scenarioStatusDetail struct {
-	Name           string         `json:"name"`
-	Status         string         `json:"status"`
-	Runtime        string         `json:"runtime"`
-	StartedAt      string         `json:"started_at"`
-	AllocatedPorts map[string]int `json:"allocated_ports"`
+	Name           string              `json:"name"`
+	Status         string              `json:"status"`
+	Runtime        string              `json:"runtime"`
+	StartedAt      string              `json:"started_at"`
+	AllocatedPorts map[string]int      `json:"allocated_ports"`
+	Diagnostics    scenarioDiagnostics `json:"-"`
 }
 
 // scenarioStatusResponse is the envelope returned by `vrooli scenario status <name> --json`
 type scenarioStatusResponse struct {
 	Success      bool                 `json:"success"`
 	ScenarioData scenarioStatusDetail `json:"scenario_data"`
+	Diagnostics  scenarioDiagnostics  `json:"diagnostics"`
+}
+
+type scenarioDiagnostics struct {
+	Responsiveness scenarioResponsiveness               `json:"responsiveness"`
+	HealthChecks   map[string]scenarioHealthCheckResult `json:"health_checks"`
+}
+
+type scenarioResponsiveness struct {
+	API scenarioProbe `json:"api"`
+	UI  scenarioProbe `json:"ui"`
+}
+
+type scenarioProbe struct {
+	Available    bool    `json:"available"`
+	ResponseTime float64 `json:"response_time"`
+	Timeout      bool    `json:"timeout"`
+	Error        string  `json:"error"`
+}
+
+type scenarioHealthCheckResult struct {
+	Status   string `json:"status"`
+	Target   string `json:"target"`
+	Message  string `json:"message"`
+	Critical bool   `json:"critical"`
 }
 
 // GetAppsFromOrchestrator fetches app status from the vrooli orchestrator with caching
@@ -439,6 +465,8 @@ func (s *AppService) collectScenarioStatus(ctx context.Context, scenarios []stri
 				return
 			}
 
+			resp.ScenarioData.Diagnostics = resp.Diagnostics
+
 			mu.Lock()
 			results[scenarioName] = resp.ScenarioData
 			mu.Unlock()
@@ -502,6 +530,32 @@ func (s *AppService) enrichScenarioDetails(ctx context.Context, apps []repositor
 			}
 		}
 
+		if isActiveStatus(app.Status) {
+			healthStatus, healthMetrics := evaluateHealthStatus(app.HealthStatus, detail)
+			if healthStatus != "" {
+				app.HealthStatus = healthStatus
+				switch healthStatus {
+				case "healthy":
+					app.Status = "healthy"
+				case "degraded":
+					app.Status = "degraded"
+				case "unhealthy":
+					app.Status = "unhealthy"
+				case "unknown":
+					if strings.EqualFold(app.Status, "unhealthy") || strings.EqualFold(app.Status, "unknown") {
+						app.Status = "running"
+					}
+				}
+			}
+
+			if len(healthMetrics) > 0 {
+				if app.Config == nil {
+					app.Config = make(map[string]interface{})
+				}
+				app.Config["health_probes"] = healthMetrics
+			}
+		}
+
 		runtime := strings.TrimSpace(detail.Runtime)
 		if runtime != "" {
 			app.Runtime = runtime
@@ -527,6 +581,78 @@ func (s *AppService) enrichScenarioDetails(ctx context.Context, apps []repositor
 			}
 		}
 	}
+}
+
+func evaluateHealthStatus(currentHealth string, detail scenarioStatusDetail) (string, map[string]interface{}) {
+	metrics := make(map[string]interface{})
+	resp := detail.Diagnostics.Responsiveness
+
+	metrics["api"] = map[string]interface{}{
+		"available":     resp.API.Available,
+		"timeout":       resp.API.Timeout,
+		"response_time": resp.API.ResponseTime,
+		"error":         resp.API.Error,
+	}
+	metrics["ui"] = map[string]interface{}{
+		"available":     resp.UI.Available,
+		"timeout":       resp.UI.Timeout,
+		"response_time": resp.UI.ResponseTime,
+		"error":         resp.UI.Error,
+	}
+
+	health := strings.ToLower(strings.TrimSpace(currentHealth))
+
+	probeHealth := ""
+	switch {
+	case resp.API.Available && resp.UI.Available:
+		probeHealth = "healthy"
+	case resp.API.Available || resp.UI.Available:
+		probeHealth = "degraded"
+	case resp.API.Timeout || resp.UI.Timeout:
+		probeHealth = "unhealthy"
+	}
+
+	if probeHealth != "" {
+		health = probeHealth
+	}
+
+	if len(detail.Diagnostics.HealthChecks) > 0 {
+		healthChecks := make(map[string]interface{}, len(detail.Diagnostics.HealthChecks))
+		for name, check := range detail.Diagnostics.HealthChecks {
+			status := strings.ToLower(strings.TrimSpace(check.Status))
+			healthChecks[name] = map[string]interface{}{
+				"status":   status,
+				"target":   check.Target,
+				"message":  check.Message,
+				"critical": check.Critical,
+			}
+
+			switch status {
+			case "", "pass", "ok", "healthy", "success":
+				if health == "" {
+					health = "healthy"
+				}
+			case "warn", "warning", "degraded":
+				if health == "" || health == "healthy" {
+					health = "degraded"
+				}
+			default:
+				health = "unhealthy"
+			}
+
+			if health == "unhealthy" {
+				// No need to continue evaluating once a critical failure is found
+				break
+			}
+		}
+		metrics["checks"] = healthChecks
+	}
+
+	if health == "" {
+		health = "unknown"
+	}
+
+	return health, metrics
 }
 
 // lookupScenarioPorts fetches key ports via the Vrooli CLI when detailed status omits them
