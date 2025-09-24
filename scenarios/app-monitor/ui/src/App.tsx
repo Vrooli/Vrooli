@@ -72,7 +72,7 @@ function App() {
       <Router>
         <div className="app">
           <div className="matrix-rain"></div>
-          <Layout isConnected={isConnected}>
+          <Layout isConnected={isConnected} apps={apps}>
             <Routes>
               <Route path="/" element={<Navigate to="/apps" replace />} />
               <Route path="/apps" element={<AppsView apps={apps} setApps={setApps} />} />

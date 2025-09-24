@@ -38,8 +38,9 @@
 
 .logo-copy {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
 .sidebar-toggle {
@@ -65,22 +66,17 @@
   height: 18px;
 }
 
-.logo-text {
+.header-title {
   font-family: 'Orbitron', sans-serif;
-  font-size: 2.5rem;
-  font-weight: 900;
-  letter-spacing: 0.3rem;
-  text-shadow: 
-    0 0 6px var(--matrix-green),
-    0 0 12px var(--matrix-dark-green);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-.logo-subtitle {
-  font-size: 0.8rem;
-  letter-spacing: 0.2rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   color: var(--matrix-cyan);
-  margin-top: -0.5rem;
+  text-shadow: 0 0 12px rgba(0, 255, 255, 0.4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: clamp(12rem, 24vw, 28rem);
 }
 
 .status-bar {
@@ -349,6 +345,10 @@
 
   .sidebar-backdrop:focus-visible {
     outline: 2px solid var(--matrix-green);
+  }
+
+  .header-title {
+    max-width: 100%;
   }
 
   .sidebar-close {

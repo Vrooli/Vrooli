@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect, useRef } from 'react';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 import type { LucideIcon } from 'lucide-react';
@@ -13,15 +13,18 @@ import {
   Server,
 } from 'lucide-react';
 import { appService, resourceService, systemService } from '@/services/api';
+import type { App } from '@/types';
+import { locateAppByIdentifier } from '@/utils/appPreview';
 import './Layout.css';
 
 interface LayoutProps {
   children: ReactNode;
   isConnected: boolean;
+  apps: App[];
 }
 
 
-export default function Layout({ children, isConnected }: LayoutProps) {
+export default function Layout({ children, isConnected, apps }: LayoutProps) {
   const location = useLocation();
   const [appCount, setAppCount] = useState(0);
   const [resourceCount, setResourceCount] = useState(0);
@@ -152,6 +155,25 @@ export default function Layout({ children, isConnected }: LayoutProps) {
     alert('Health check initiated');
   };
 
+  const previewRouteMatch = location.pathname.match(/^\/apps\/([^/]+)\/preview/);
+  const isPreviewRoute = Boolean(previewRouteMatch);
+  const previewAppIdentifier = previewRouteMatch ? decodeURIComponent(previewRouteMatch[1]) : null;
+
+  const previewAppName = useMemo(() => {
+    if (!previewAppIdentifier) {
+      return null;
+    }
+
+    const matched = locateAppByIdentifier(apps, previewAppIdentifier);
+    if (matched?.name) {
+      return matched.name;
+    }
+
+    return previewAppIdentifier;
+  }, [apps, previewAppIdentifier]);
+
+  const headerTitle = isPreviewRoute ? (previewAppName ?? 'Loading…') : 'Vrooli';
+
   const menuItems: Array<{ path: string; label: string; Icon: LucideIcon }> = [
     { path: '/apps', label: 'APPLICATIONS', Icon: LayoutDashboard },
     { path: '/logs', label: 'SYSTEM LOGS', Icon: ScrollText },
@@ -184,8 +206,6 @@ export default function Layout({ children, isConnected }: LayoutProps) {
     },
   ];
 
-  const isPreviewRoute = /^\/apps\/[^/]+\/preview/.test(location.pathname);
-
   return (
     <>
       <header className="main-header">
@@ -205,8 +225,12 @@ export default function Layout({ children, isConnected }: LayoutProps) {
               )}
             </button>
             <div className="logo-copy">
-              <div className="logo-text">VROOLI</div>
-              <div className="logo-subtitle">SYSTEMS MONITOR</div>
+              <div
+                className="header-title"
+                title={isPreviewRoute ? previewAppName ?? undefined : 'Vrooli'}
+              >
+                {headerTitle}
+              </div>
             </div>
           </div>
           <div className="status-bar">

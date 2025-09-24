@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ChangeEvent, KeyboardEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { ArrowLeft, ExternalLink, Info, RefreshCw, ScrollText } from 'lucide-react';
@@ -19,6 +20,8 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const { appId } = useParams<{ appId: string }>();
   const [currentApp, setCurrentApp] = useState<App | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewUrlInput, setPreviewUrlInput] = useState('');
+  const [hasCustomPreviewUrl, setHasCustomPreviewUrl] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>('Loading application preview...');
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -32,6 +35,10 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
   useEffect(() => {
     setFetchAttempted(false);
+  }, [appId]);
+
+  useEffect(() => {
+    setHasCustomPreviewUrl(false);
   }, [appId]);
 
   useEffect(() => {
@@ -90,34 +97,52 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
   useEffect(() => {
     if (!currentApp) {
+      if (!hasCustomPreviewUrl) {
+        setPreviewUrl(null);
+        setPreviewUrlInput('');
+      }
       return;
     }
 
     if (currentApp.is_partial) {
       setStatusMessage('Loading application details...');
-      setPreviewUrl(null);
       setLoading(true);
+      if (!hasCustomPreviewUrl) {
+        setPreviewUrl(null);
+        setPreviewUrlInput('');
+      }
       return;
     }
 
     setLoading(false);
 
     if (!isRunningStatus(currentApp.status) || isStoppedStatus(currentApp.status)) {
-      setPreviewUrl(null);
+      if (!hasCustomPreviewUrl) {
+        setPreviewUrl(null);
+        setPreviewUrlInput('');
+      }
       setStatusMessage('Application is not running. Start it from the Applications view to access the UI preview.');
       return;
     }
 
     const url = buildPreviewUrl(currentApp);
     if (!url) {
-      setPreviewUrl(null);
+      if (!hasCustomPreviewUrl) {
+        setPreviewUrl(null);
+        setPreviewUrlInput('');
+      }
       setStatusMessage('This application does not expose a UI endpoint to preview.');
       return;
     }
 
-    setPreviewUrl(url);
     setStatusMessage(null);
-  }, [currentApp]);
+    if (!hasCustomPreviewUrl) {
+      setPreviewUrl(url);
+      setPreviewUrlInput(url);
+    } else if (previewUrl === null) {
+      setPreviewUrl(url);
+    }
+  }, [currentApp, hasCustomPreviewUrl, previewUrl]);
 
   useEffect(() => {
     if (!appId) {
@@ -166,6 +191,45 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     }
   }, [setApps]);
 
+  const applyPreviewUrlInput = useCallback(() => {
+    const trimmed = previewUrlInput.trim();
+
+    if (!trimmed) {
+      if (previewUrlInput !== '') {
+        setPreviewUrlInput('');
+      }
+      setHasCustomPreviewUrl(false);
+      return;
+    }
+
+    if (trimmed !== previewUrlInput) {
+      setPreviewUrlInput(trimmed);
+    }
+
+    if (trimmed === previewUrl) {
+      return;
+    }
+
+    setHasCustomPreviewUrl(true);
+    setPreviewUrl(trimmed);
+    setStatusMessage(null);
+  }, [previewUrl, previewUrlInput]);
+
+  const handleUrlInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setPreviewUrlInput(event.target.value);
+  }, []);
+
+  const handleUrlInputKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      applyPreviewUrlInput();
+    }
+  }, [applyPreviewUrlInput]);
+
+  const handleUrlInputBlur = useCallback(() => {
+    applyPreviewUrlInput();
+  }, [applyPreviewUrlInput]);
+
   const handleRefresh = useCallback(() => {
     if (!appId) {
       return;
@@ -188,7 +252,9 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
             updated[index] = fetched;
             return updated;
           });
-          setStatusMessage(null);
+          if (!hasCustomPreviewUrl) {
+            setStatusMessage(null);
+          }
         } else {
           setStatusMessage('Application not found.');
         }
@@ -200,7 +266,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       .finally(() => {
         setLoading(false);
       });
-  }, [appId, setApps]);
+  }, [appId, hasCustomPreviewUrl, setApps]);
 
   const handleBack = useCallback(() => {
     navigate('/apps');
@@ -233,7 +299,20 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
             <ArrowLeft aria-hidden size={18} />
           </button>
           <div className="preview-toolbar__title">
-            <h2>{currentApp?.name ?? 'Loading Application...'}</h2>
+            <input
+              type="text"
+              className="preview-toolbar__url-input"
+              value={previewUrlInput}
+              onChange={handleUrlInputChange}
+              onBlur={handleUrlInputBlur}
+              onKeyDown={handleUrlInputKeyDown}
+              placeholder="Enter preview URL"
+              aria-label="Preview URL"
+              title="Preview URL"
+              autoComplete="off"
+              spellCheck={false}
+              inputMode="url"
+            />
             {currentApp && (
               <span
                 className={statusIndicatorClass}
