@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ChangeEvent, KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent, KeyboardEvent, MouseEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { ArrowLeft, ExternalLink, Info, RefreshCw, ScrollText } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ExternalLink, Info, RefreshCw, ScrollText } from 'lucide-react';
 import { appService } from '@/services/api';
 import { logger } from '@/services/logger';
 import type { App } from '@/types';
 import AppModal from '../AppModal';
 import { buildPreviewUrl, isRunningStatus, isStoppedStatus, locateAppByIdentifier } from '@/utils/appPreview';
+import { useIframeBridge } from '@/hooks/useIframeBridge';
+import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import './AppPreviewView.css';
 
 interface AppPreviewViewProps {
@@ -26,6 +28,39 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [fetchAttempted, setFetchAttempted] = useState(false);
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
+  const complianceRunRef = useRef(false);
+  const initialPreviewUrlRef = useRef<string | null>(null);
+
+  const handleBridgeLocation = useCallback((message: { href: string; title?: string | null }) => {
+    if (message.href) {
+      setPreviewUrlInput(message.href);
+      if (!initialPreviewUrlRef.current) {
+        initialPreviewUrlRef.current = message.href;
+      }
+      setHasCustomPreviewUrl(prev => {
+        if (prev) {
+          return prev;
+        }
+        const base = initialPreviewUrlRef.current;
+        if (!base) {
+          return prev;
+        }
+        const normalize = (value: string) => value.replace(/\/$/, '');
+        return normalize(message.href) !== normalize(base);
+      });
+    }
+    setStatusMessage(null);
+  }, []);
+
+  const { state: bridgeState, childOrigin, sendNav: sendBridgeNav, runComplianceCheck, resetState } = useIframeBridge({
+    iframeRef,
+    previewUrl,
+    onLocation: handleBridgeLocation,
+  });
 
   useEffect(() => {
     if (!appId) {
@@ -39,7 +74,17 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
   useEffect(() => {
     setHasCustomPreviewUrl(false);
+    setHistory([]);
+    setHistoryIndex(-1);
+    complianceRunRef.current = false;
+    setBridgeCompliance(null);
+    resetState();
   }, [appId]);
+
+  useEffect(() => {
+    complianceRunRef.current = false;
+    setBridgeCompliance(null);
+  }, [previewUrl]);
 
   useEffect(() => {
     if (!appId) {
@@ -100,6 +145,9 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       if (!hasCustomPreviewUrl) {
         setPreviewUrl(null);
         setPreviewUrlInput('');
+        setHistory([]);
+        setHistoryIndex(-1);
+        initialPreviewUrlRef.current = null;
       }
       return;
     }
@@ -110,6 +158,9 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       if (!hasCustomPreviewUrl) {
         setPreviewUrl(null);
         setPreviewUrlInput('');
+        setHistory([]);
+        setHistoryIndex(-1);
+        initialPreviewUrlRef.current = null;
       }
       return;
     }
@@ -120,6 +171,9 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       if (!hasCustomPreviewUrl) {
         setPreviewUrl(null);
         setPreviewUrlInput('');
+        setHistory([]);
+        setHistoryIndex(-1);
+        initialPreviewUrlRef.current = null;
       }
       setStatusMessage('Application is not running. Start it from the Applications view to access the UI preview.');
       return;
@@ -130,6 +184,9 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       if (!hasCustomPreviewUrl) {
         setPreviewUrl(null);
         setPreviewUrlInput('');
+        setHistory([]);
+        setHistoryIndex(-1);
+        initialPreviewUrlRef.current = null;
       }
       setStatusMessage('This application does not expose a UI endpoint to preview.');
       return;
@@ -137,9 +194,13 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
     setStatusMessage(null);
     if (!hasCustomPreviewUrl) {
+      initialPreviewUrlRef.current = url;
       setPreviewUrl(url);
       setPreviewUrlInput(url);
+      setHistory([url]);
+      setHistoryIndex(0);
     } else if (previewUrl === null) {
+      initialPreviewUrlRef.current = url;
       setPreviewUrl(url);
     }
   }, [currentApp, hasCustomPreviewUrl, previewUrl]);
@@ -154,6 +215,34 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       setCurrentApp(match);
     }
   }, [apps, appId]);
+
+  useEffect(() => {
+    if (!bridgeState.isSupported || !bridgeState.isReady || !bridgeState.href) {
+      return;
+    }
+    if (complianceRunRef.current) {
+      return;
+    }
+
+    let cancelled = false;
+    complianceRunRef.current = true;
+    runComplianceCheck()
+      .then(result => {
+        if (!cancelled) {
+          setBridgeCompliance(result);
+        }
+      })
+      .catch(error => {
+        logger.warn('Bridge compliance check failed', error);
+        if (!cancelled) {
+          setBridgeCompliance({ ok: false, failures: ['CHECK_FAILED'], checkedAt: Date.now() });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bridgeState.href, bridgeState.isReady, bridgeState.isSupported, runComplianceCheck]);
 
   const handleAppAction = useCallback(async (appToControl: string, action: 'start' | 'stop' | 'restart') => {
     try {
@@ -206,14 +295,37 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       setPreviewUrlInput(trimmed);
     }
 
-    if (trimmed === previewUrl) {
-      return;
+    if (bridgeState.isSupported) {
+      try {
+        const reference = bridgeState.href || previewUrl || window.location.href;
+        const resolved = new URL(trimmed, reference);
+        if (!childOrigin || resolved.origin === childOrigin) {
+          const sent = sendBridgeNav('GO', resolved.href);
+          if (sent) {
+            setStatusMessage(null);
+            return;
+          }
+        }
+      } catch (error) {
+        logger.warn('Bridge navigation failed to parse URL', error);
+      }
     }
 
     setHasCustomPreviewUrl(true);
     setPreviewUrl(trimmed);
+    initialPreviewUrlRef.current = trimmed;
+    resetState();
     setStatusMessage(null);
-  }, [previewUrl, previewUrlInput]);
+    const baseHistory = historyIndex >= 0 ? history.slice(0, historyIndex + 1) : [];
+    if (baseHistory[baseHistory.length - 1] === trimmed) {
+      setHistory(baseHistory);
+      setHistoryIndex(baseHistory.length - 1);
+    } else {
+      const updatedHistory = [...baseHistory, trimmed];
+      setHistory(updatedHistory);
+      setHistoryIndex(updatedHistory.length - 1);
+    }
+  }, [bridgeState.href, bridgeState.isSupported, childOrigin, history, historyIndex, previewUrl, previewUrlInput, resetState, sendBridgeNav]);
 
   const handleUrlInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setPreviewUrlInput(event.target.value);
@@ -268,9 +380,53 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       });
   }, [appId, hasCustomPreviewUrl, setApps]);
 
-  const handleBack = useCallback(() => {
-    navigate('/apps');
-  }, [navigate]);
+  const handleGoBack = useCallback(() => {
+    if (bridgeState.isSupported) {
+      sendBridgeNav('BACK');
+      return;
+    }
+
+    if (historyIndex <= 0) {
+      return;
+    }
+
+    const targetIndex = historyIndex - 1;
+    const targetUrl = history[targetIndex];
+    setHistoryIndex(targetIndex);
+    setPreviewUrl(targetUrl);
+    setPreviewUrlInput(targetUrl);
+    setHasCustomPreviewUrl(true);
+    setStatusMessage(null);
+  }, [bridgeState.isSupported, history, historyIndex, sendBridgeNav]);
+
+  const handleGoForward = useCallback(() => {
+    if (bridgeState.isSupported) {
+      sendBridgeNav('FWD');
+      return;
+    }
+
+    if (historyIndex === -1 || historyIndex >= history.length - 1) {
+      return;
+    }
+
+    const targetIndex = historyIndex + 1;
+    const targetUrl = history[targetIndex];
+    setHistoryIndex(targetIndex);
+    setPreviewUrl(targetUrl);
+    setPreviewUrlInput(targetUrl);
+    setHasCustomPreviewUrl(true);
+    setStatusMessage(null);
+  }, [bridgeState.isSupported, history, historyIndex, sendBridgeNav]);
+
+  const handleOpenPreviewInNewTab = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    const target = bridgeState.isSupported && bridgeState.href ? bridgeState.href : previewUrl;
+    if (!target) {
+      return;
+    }
+
+    event.preventDefault();
+    window.open(target, '_blank', 'noopener,noreferrer');
+  }, [bridgeState.href, bridgeState.isSupported, previewUrl]);
 
   const handleViewLogs = useCallback(() => {
     if (currentApp) {
@@ -278,12 +434,32 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     }
   }, [currentApp, navigate]);
 
-  const statusIndicatorClass = useMemo(() => {
+  const urlStatusClass = useMemo(() => {
     if (!currentApp) {
-      return 'status-indicator unknown';
+      return 'unknown';
     }
-    return clsx('status-indicator', currentApp.status?.toLowerCase() || 'unknown');
+    return currentApp.status?.toLowerCase() || 'unknown';
   }, [currentApp]);
+
+  const urlStatusTitle = useMemo(() => {
+    if (!currentApp) {
+      return 'Status: Unknown';
+    }
+    const status = currentApp.status ?? 'Unknown';
+    return `Status: ${status}`;
+  }, [currentApp]);
+
+  const bridgeIssueMessage = useMemo(() => {
+    if (!bridgeState.isSupported || !bridgeCompliance || bridgeCompliance.ok) {
+      return null;
+    }
+    const detail = bridgeCompliance.failures.join(', ');
+    return `Preview bridge diagnostics failed (${detail}). History syncing may be unreliable.`;
+  }, [bridgeCompliance, bridgeState.isSupported]);
+
+  const canGoBack = bridgeState.isSupported ? bridgeState.canGoBack : historyIndex > 0;
+  const canGoForward = bridgeState.isSupported ? bridgeState.canGoForward : (historyIndex >= 0 && historyIndex < history.length - 1);
+  const openPreviewTarget = bridgeState.isSupported && bridgeState.href ? bridgeState.href : previewUrl;
 
   return (
     <div className="app-preview-view">
@@ -292,48 +468,23 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
           <button
             type="button"
             className="preview-toolbar__icon-btn"
-            onClick={handleBack}
-            aria-label="Back to applications"
-            title="Back to applications"
+            onClick={handleGoBack}
+            disabled={!canGoBack}
+            aria-label={canGoBack ? 'Go back' : 'No previous page'}
+            title={canGoBack ? 'Go back' : 'No previous page'}
           >
             <ArrowLeft aria-hidden size={18} />
           </button>
-          <div className="preview-toolbar__title">
-            <input
-              type="text"
-              className="preview-toolbar__url-input"
-              value={previewUrlInput}
-              onChange={handleUrlInputChange}
-              onBlur={handleUrlInputBlur}
-              onKeyDown={handleUrlInputKeyDown}
-              placeholder="Enter preview URL"
-              aria-label="Preview URL"
-              title="Preview URL"
-              autoComplete="off"
-              spellCheck={false}
-              inputMode="url"
-            />
-            {currentApp && (
-              <span
-                className={statusIndicatorClass}
-                aria-label={`Status: ${currentApp.status}`}
-                title={`Status: ${currentApp.status}`}
-              />
-            )}
-          </div>
           <button
             type="button"
             className="preview-toolbar__icon-btn"
-            onClick={() => setModalOpen(true)}
-            disabled={!currentApp}
-            aria-label="Application details"
-            title="Application details"
+            onClick={handleGoForward}
+            disabled={!canGoForward}
+            aria-label={canGoForward ? 'Go forward' : 'No forward page'}
+            title={canGoForward ? 'Go forward' : 'No forward page'}
           >
-            <Info aria-hidden size={18} />
+            <ArrowRight aria-hidden size={18} />
           </button>
-        </div>
-        <div className="preview-toolbar__spacer" aria-hidden />
-        <div className="preview-toolbar__group preview-toolbar__group--right">
           <button
             type="button"
             className="preview-toolbar__icon-btn"
@@ -344,18 +495,48 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
           >
             <RefreshCw aria-hidden size={18} className={clsx({ spinning: loading })} />
           </button>
-          {previewUrl && (
-            <a
-              href={previewUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="preview-toolbar__icon-btn"
-              title="Open in new tab"
-              aria-label="Open preview in new tab"
+          <div className="preview-toolbar__title">
+            <div
+              className={clsx('preview-toolbar__url-wrapper', urlStatusClass)}
+              title={urlStatusTitle}
             >
-              <ExternalLink aria-hidden size={18} />
-            </a>
-          )}
+              <button
+                type="button"
+                className="preview-toolbar__url-action-btn"
+                onClick={() => setModalOpen(true)}
+                disabled={!currentApp}
+                aria-label="Application details"
+                title="Application details"
+              >
+                <Info aria-hidden size={16} />
+              </button>
+              <input
+                type="text"
+                className="preview-toolbar__url-input"
+                value={previewUrlInput}
+                onChange={handleUrlInputChange}
+                onBlur={handleUrlInputBlur}
+                onKeyDown={handleUrlInputKeyDown}
+                placeholder="Enter preview URL"
+                aria-label="Preview URL"
+                autoComplete="off"
+                spellCheck={false}
+                inputMode="url"
+              />
+              <button
+                type="button"
+                className="preview-toolbar__url-action-btn"
+                onClick={handleOpenPreviewInNewTab}
+                disabled={!openPreviewTarget}
+                aria-label={openPreviewTarget ? 'Open preview in new tab' : 'Preview unavailable'}
+                title={openPreviewTarget ? 'Open in new tab' : 'Preview unavailable'}
+              >
+                <ExternalLink aria-hidden size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="preview-toolbar__group preview-toolbar__group--right">
           <button
             type="button"
             className="preview-toolbar__icon-btn"
@@ -375,6 +556,12 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
         </div>
       )}
 
+      {bridgeIssueMessage && (
+        <div className="preview-status">
+          {bridgeIssueMessage}
+        </div>
+      )}
+
       {previewUrl ? (
         <div className="preview-iframe-container">
           <iframe
@@ -382,6 +569,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
             title={`${currentApp?.name ?? 'Application'} preview`}
             className="preview-iframe"
             loading="lazy"
+            ref={iframeRef}
           />
         </div>
       ) : (
