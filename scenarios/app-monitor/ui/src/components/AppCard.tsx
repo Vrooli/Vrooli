@@ -15,12 +15,61 @@ interface AppCardProps {
   isActive?: boolean;
 }
 
-const StatusBadge = memo(({ status }: { status: string }) => {
-  const normalized = status?.toLowerCase() || 'unknown';
-  const statusClass = clsx('status-badge', normalized);
-  return <span className={statusClass}>{normalized.toUpperCase()}</span>;
+type HealthVariant = 'running' | 'degraded' | 'unhealthy' | 'idle' | 'syncing' | 'unknown';
+
+const resolveHealthVariant = (status?: string, isPartial?: boolean): HealthVariant => {
+  if (isPartial) {
+    return 'syncing';
+  }
+
+  const normalized = status?.toLowerCase() ?? 'unknown';
+
+  if (normalized === 'degraded') {
+    return 'degraded';
+  }
+
+  if (['running', 'healthy'].includes(normalized)) {
+    return 'running';
+  }
+
+  if (['unhealthy', 'error'].includes(normalized)) {
+    return 'unhealthy';
+  }
+
+  if (['stopped', 'inactive'].includes(normalized)) {
+    return 'idle';
+  }
+
+  return 'unknown';
+};
+
+const buildHealthLabel = (status?: string, isPartial?: boolean): string => {
+  if (isPartial) {
+    return 'Syncing';
+  }
+
+  const normalized = status?.trim();
+  if (!normalized) {
+    return 'Unknown';
+  }
+
+  return normalized.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+export const HealthIndicator = memo(({ status, isPartial = false, className }: { status?: string; isPartial?: boolean; className?: string }) => {
+  const variant = resolveHealthVariant(status, isPartial);
+  const label = buildHealthLabel(status, isPartial);
+
+  return (
+    <span
+      className={clsx('health-indicator', variant, className)}
+      role="status"
+      aria-label={`Status: ${label}`}
+      title={`Status: ${label}`}
+    />
+  );
 });
-StatusBadge.displayName = 'StatusBadge';
+HealthIndicator.displayName = 'HealthIndicator';
 
 interface MetricProps {
   label: string;
@@ -45,7 +94,7 @@ const MetricChip = memo(({ label, value, Icon }: MetricProps) => {
 });
 MetricChip.displayName = 'MetricChip';
 
-const orderedPortMetrics = (app: App) => {
+export const orderedPortMetrics = (app: App) => {
   const entries = Object.entries(app.port_mappings || {})
     .map(([label, value]) => ({
       label: label.toUpperCase(),
@@ -77,7 +126,6 @@ const AppCard = memo<AppCardProps>(({
   const isPartial = Boolean(app.is_partial);
   const statusValue = typeof app.status === 'string' && app.status.trim() ? app.status : 'unknown';
   const normalizedStatus = statusValue.toLowerCase();
-  const displayStatus = isPartial ? 'syncing' : normalizedStatus;
 
   const handleClick = useCallback(() => {
     onCardClick(app);
@@ -177,7 +225,7 @@ const AppCard = memo<AppCardProps>(({
           {version && <span className="app-meta">v{version}</span>}
         </div>
         <div className="app-card__status-group">
-          <StatusBadge status={displayStatus} />
+          <HealthIndicator status={statusValue} isPartial={isPartial} />
         </div>
       </div>
 

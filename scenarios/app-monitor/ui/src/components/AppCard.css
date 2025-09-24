@@ -96,52 +96,69 @@
 .app-card__status-group {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
-.status-badge {
-  padding: 0.3rem 0.75rem;
-  border-radius: 999px;
-  border: 1px solid currentColor;
-  font-size: 0.72rem;
-  letter-spacing: 0.18em;
-  font-weight: 600;
-  text-transform: uppercase;
+.health-indicator {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 255, 255, 0.35);
+  display: inline-block;
+  box-shadow: 0 0 8px transparent;
+  transition: all 0.25s ease;
 }
 
-.status-badge.running,
-.status-badge.healthy {
-  color: var(--matrix-green);
-  background: rgba(0, 255, 65, 0.16);
+.health-indicator.running {
+  background: var(--matrix-green);
+  border-color: rgba(0, 255, 65, 0.55);
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.45);
 }
 
-.status-badge.degraded {
-  color: var(--matrix-yellow);
-  background: rgba(255, 187, 0, 0.18);
+.health-indicator.degraded {
+  background: var(--matrix-yellow);
+  border-color: rgba(255, 187, 0, 0.55);
+  box-shadow: 0 0 12px rgba(255, 187, 0, 0.35);
 }
 
-.status-badge.unhealthy,
-.status-badge.error {
-  color: var(--matrix-red);
-  background: rgba(255, 0, 64, 0.2);
+.health-indicator.unhealthy {
+  background: var(--matrix-red);
+  border-color: rgba(255, 0, 64, 0.6);
+  box-shadow: 0 0 12px rgba(255, 0, 64, 0.4);
 }
 
-.status-badge.stopped {
-  color: rgba(120, 255, 160, 0.7);
-  background: rgba(36, 68, 40, 0.3);
+.health-indicator.idle {
+  background: transparent;
+  border-color: rgba(0, 255, 255, 0.45);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.18);
 }
 
-.status-badge.unknown {
-  color: var(--matrix-cyan);
-  background: rgba(0, 255, 255, 0.18);
+.health-indicator.unknown {
+  background: rgba(0, 255, 255, 0.12);
+  border-color: rgba(0, 255, 255, 0.45);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.24);
 }
 
-.status-badge.syncing {
-  color: var(--matrix-cyan);
-  background: rgba(0, 255, 255, 0.22);
-  border-style: dashed;
-  border-color: rgba(0, 255, 255, 0.55);
-  animation: pulse 1.6s ease-in-out infinite;
+.health-indicator.syncing {
+  background: rgba(0, 28, 48, 0.25);
+  border: 2px dotted rgba(0, 255, 255, 0.65);
+  box-shadow: 0 0 14px rgba(0, 255, 255, 0.45);
+  animation: indicator-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes indicator-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.35);
+  }
+  50% {
+    transform: scale(1.12);
+    box-shadow: 0 0 18px rgba(0, 255, 255, 0.6);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.35);
+  }
 }
 
 .app-card__description {

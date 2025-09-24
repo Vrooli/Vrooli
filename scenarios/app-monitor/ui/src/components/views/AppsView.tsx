@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { appService } from '@/services/api';
 import { logger } from '@/services/logger';
 import type { App, AppViewMode } from '@/types';
-import AppCard from '../AppCard';
+import AppCard, { HealthIndicator, orderedPortMetrics } from '../AppCard';
 import AppModal from '../AppModal';
 import { AppsGridSkeleton } from '../LoadingSkeleton';
 import './AppsView.css';
@@ -100,6 +100,141 @@ const VirtualAppList = memo(({
   );
 });
 VirtualAppList.displayName = 'VirtualAppList';
+
+const formatStatusText = (status?: string, isPartial?: boolean) => {
+  if (isPartial) {
+    return 'SYNCING';
+  }
+
+  const normalized = status?.trim();
+  if (!normalized) {
+    return 'UNKNOWN';
+  }
+
+  return normalized.replace(/_/g, ' ').toUpperCase();
+};
+
+const runningStates = new Set(['running', 'healthy', 'degraded', 'unhealthy']);
+
+const AppListRow = memo(({ app, onPreview, onDetails, onAppAction }: {
+  app: App;
+  onPreview: (app: App) => void;
+  onDetails: (app: App) => void;
+  onAppAction: (appId: string, action: 'start' | 'stop') => void;
+}) => {
+  const isPartial = Boolean(app.is_partial);
+  const normalizedStatus = (app.status ?? 'unknown').toLowerCase();
+  const statusText = useMemo(() => formatStatusText(app.status, isPartial), [app.status, isPartial]);
+
+  const uptime = useMemo(() => {
+    if (isPartial) {
+      return 'SYNCING';
+    }
+
+    if (app.uptime && app.uptime !== 'N/A') {
+      return app.uptime;
+    }
+
+    if (!runningStates.has(normalizedStatus) || !app.created_at) {
+      return 'N/A';
+    }
+
+    const start = new Date(app.created_at);
+    if (Number.isNaN(start.getTime())) {
+      return 'N/A';
+    }
+
+    const diff = Date.now() - start.getTime();
+    const hours = Math.floor(diff / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  }, [app.created_at, app.uptime, isPartial, normalizedStatus]);
+
+  const ports = useMemo(() => orderedPortMetrics(app).slice(0, 3), [app]);
+  const isRunning = runningStates.has(normalizedStatus);
+
+  const handleRowClick = useCallback(() => {
+    onPreview(app);
+  }, [app, onPreview]);
+
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTableRowElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onPreview(app);
+    }
+  }, [app, onPreview]);
+
+  const handleStart = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    onAppAction(app.id, 'start');
+  }, [app.id, onAppAction]);
+
+  const handleStop = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    onAppAction(app.id, 'stop');
+  }, [app.id, onAppAction]);
+
+  const handleDetails = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    onDetails(app);
+  }, [app, onDetails]);
+
+  return (
+    <tr
+      className={clsx('app-row', { partial: isPartial })}
+      onClick={handleRowClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`Open ${app.name} preview`}
+    >
+      <td className="app-name-cell">
+        <div className="app-name-details">
+          <span className="app-name-text">{app.name}</span>
+          {app.scenario_name && (
+            <span className="app-name-subtext">{app.scenario_name}</span>
+          )}
+          {app.description && (
+            <span className="app-name-description">{app.description}</span>
+          )}
+        </div>
+      </td>
+      <td className="app-status-cell">
+        <HealthIndicator status={app.status} isPartial={isPartial} />
+        <span className="app-status-text">{statusText}</span>
+      </td>
+      <td className="app-uptime">{uptime}</td>
+      <td className="app-ports">
+        {ports.length > 0 ? (
+          ports.map(({ label, value }) => (
+            <span key={label} className="port-tag">{label}: {value}</span>
+          ))
+        ) : (
+          <span className="app-ports--empty">—</span>
+        )}
+      </td>
+      <td className="actions-cell">
+        {isRunning ? (
+          <button type="button" className="app-btn small" onClick={handleStop}>
+            Stop
+          </button>
+        ) : (
+          <button type="button" className="app-btn small" onClick={handleStart}>
+            Start
+          </button>
+        )}
+        <button type="button" className="app-btn small" onClick={handleDetails}>
+          Details
+        </button>
+      </td>
+    </tr>
+  );
+});
+AppListRow.displayName = 'AppListRow';
 
 // Main AppsView component with optimizations
 const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
@@ -286,7 +421,7 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
     setSearch(value);
   }, []);
 
-  const useVirtualScrolling = filteredApps.length > 100;
+  const useVirtualScrolling = viewMode === 'grid' && filteredApps.length > 100;
 
   return (
     <div className="apps-view">
@@ -317,6 +452,31 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
         <div className="empty-state">
           <p>NO APPLICATIONS FOUND</p>
           {search && <p className="hint">Try adjusting your search</p>}
+        </div>
+      ) : viewMode === 'list' ? (
+        <div className="apps-list">
+          <table className="apps-table">
+            <thead>
+              <tr>
+                <th scope="col">Application</th>
+                <th scope="col">Status</th>
+                <th scope="col">Uptime</th>
+                <th scope="col">Ports</th>
+                <th scope="col" className="actions-header">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredApps.map(app => (
+                <AppListRow
+                  key={app.id}
+                  app={app}
+                  onPreview={handleAppPreview}
+                  onDetails={handleAppDetails}
+                  onAppAction={handleAppAction}
+                />
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : useVirtualScrolling ? (
         <VirtualAppList
