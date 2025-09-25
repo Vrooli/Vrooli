@@ -4,33 +4,36 @@ import "strings"
 
 // TaskItem represents a unified task in the ecosystem
 type TaskItem struct {
-	ID                 string                 `json:"id" yaml:"id"`
-	Title              string                 `json:"title" yaml:"title"`
-	Type               string                 `json:"type" yaml:"type"`           // resource | scenario
-	Operation          string                 `json:"operation" yaml:"operation"` // generator | improver
-	Target             string                 `json:"target,omitempty" yaml:"target,omitempty"`
-	Targets            []string               `json:"targets,omitempty" yaml:"targets,omitempty"`
-	Category           string                 `json:"category" yaml:"category"`
-	Priority           string                 `json:"priority" yaml:"priority"`
-	EffortEstimate     string                 `json:"effort_estimate" yaml:"effort_estimate"`
-	Urgency            string                 `json:"urgency" yaml:"urgency"`
-	Dependencies       []string               `json:"dependencies" yaml:"dependencies"`
-	Blocks             []string               `json:"blocks" yaml:"blocks"`
-	RelatedScenarios   []string               `json:"related_scenarios" yaml:"related_scenarios"`
-	RelatedResources   []string               `json:"related_resources" yaml:"related_resources"`
-	Status             string                 `json:"status" yaml:"status"`
-	CurrentPhase       string                 `json:"current_phase" yaml:"current_phase"`
-	StartedAt          string                 `json:"started_at" yaml:"started_at"`
-	CompletedAt        string                 `json:"completed_at" yaml:"completed_at"`
-	CompletionCount    int                    `json:"completion_count" yaml:"completion_count"`
-	LastCompletedAt    string                 `json:"last_completed_at" yaml:"last_completed_at"`
-	ValidationCriteria []string               `json:"validation_criteria" yaml:"validation_criteria"`
-	CreatedBy          string                 `json:"created_by" yaml:"created_by"`
-	CreatedAt          string                 `json:"created_at" yaml:"created_at"`
-	UpdatedAt          string                 `json:"updated_at" yaml:"updated_at"`
-	Tags               []string               `json:"tags" yaml:"tags"`
-	Notes              string                 `json:"notes" yaml:"notes"`
-	Results            map[string]interface{} `json:"results" yaml:"results"`
+	ID                          string                 `json:"id" yaml:"id"`
+	Title                       string                 `json:"title" yaml:"title"`
+	Type                        string                 `json:"type" yaml:"type"`           // resource | scenario
+	Operation                   string                 `json:"operation" yaml:"operation"` // generator | improver
+	Target                      string                 `json:"target,omitempty" yaml:"target,omitempty"`
+	Targets                     []string               `json:"targets,omitempty" yaml:"targets,omitempty"`
+	Category                    string                 `json:"category" yaml:"category"`
+	Priority                    string                 `json:"priority" yaml:"priority"`
+	EffortEstimate              string                 `json:"effort_estimate" yaml:"effort_estimate"`
+	Urgency                     string                 `json:"urgency" yaml:"urgency"`
+	Dependencies                []string               `json:"dependencies" yaml:"dependencies"`
+	Blocks                      []string               `json:"blocks" yaml:"blocks"`
+	RelatedScenarios            []string               `json:"related_scenarios" yaml:"related_scenarios"`
+	RelatedResources            []string               `json:"related_resources" yaml:"related_resources"`
+	Status                      string                 `json:"status" yaml:"status"`
+	CurrentPhase                string                 `json:"current_phase" yaml:"current_phase"`
+	StartedAt                   string                 `json:"started_at" yaml:"started_at"`
+	CompletedAt                 string                 `json:"completed_at" yaml:"completed_at"`
+	CompletionCount             int                    `json:"completion_count" yaml:"completion_count"`
+	LastCompletedAt             string                 `json:"last_completed_at" yaml:"last_completed_at"`
+	ValidationCriteria          []string               `json:"validation_criteria" yaml:"validation_criteria"`
+	CreatedBy                   string                 `json:"created_by" yaml:"created_by"`
+	CreatedAt                   string                 `json:"created_at" yaml:"created_at"`
+	UpdatedAt                   string                 `json:"updated_at" yaml:"updated_at"`
+	Tags                        []string               `json:"tags" yaml:"tags"`
+	Notes                       string                 `json:"notes" yaml:"notes"`
+	Results                     map[string]interface{} `json:"results" yaml:"results"`
+	ConsecutiveCompletionClaims int                    `json:"consecutive_completion_claims" yaml:"consecutive_completion_claims"`
+	ConsecutiveFailures         int                    `json:"consecutive_failures" yaml:"consecutive_failures"`
+	ProcessorAutoRequeue        bool                   `json:"processor_auto_requeue" yaml:"processor_auto_requeue"`
 }
 
 // OperationConfig represents configuration for each operation type

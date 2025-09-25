@@ -268,6 +268,9 @@ func (qp *Processor) ProcessQueue() {
 	highestPriority := 0
 
 	for i, task := range pendingTasks {
+		if !task.ProcessorAutoRequeue {
+			continue
+		}
 		priority := priorityOrder[task.Priority]
 		if priority > highestPriority {
 			highestPriority = priority
@@ -828,6 +831,8 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 	pendingTasks, _ := qp.storage.GetQueueItems("pending")
 	completedTasks, _ := qp.storage.GetQueueItems("completed")
 	failedTasks, _ := qp.storage.GetQueueItems("failed")
+	completedFinalizedTasks, _ := qp.storage.GetQueueItems("completed-finalized")
+	failedBlockedTasks, _ := qp.storage.GetQueueItems("failed-blocked")
 	reviewTasks, _ := qp.storage.GetQueueItems("review")
 
 	internalRunning := qp.getInternalRunningTaskIDs()
@@ -874,24 +879,26 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"processor_active":  processorActive,
-		"settings_active":   settingsActive,
-		"maintenance_state": map[bool]string{true: "inactive", false: "active"}[isPaused],
-		"rate_limit_info":   rateLimitInfo,
-		"max_concurrent":    maxConcurrent,
-		"executing_count":   executingCount,
-		"running_count":     executingCount,
-		"available_slots":   availableSlots,
-		"pending_count":     len(pendingTasks),
-		"in_progress_count": len(inProgressTasks),
-		"completed_count":   len(completedTasks),
-		"failed_count":      len(failedTasks),
-		"review_count":      len(reviewTasks),
-		"ready_in_progress": readyInProgress,
-		"refresh_interval":  currentSettings.RefreshInterval, // from settings
-		"processor_running": processorActive,
-		"timestamp":         time.Now().Unix(),
-		"last_processed_at": lastProcessedAt,
+		"processor_active":          processorActive,
+		"settings_active":           settingsActive,
+		"maintenance_state":         map[bool]string{true: "inactive", false: "active"}[isPaused],
+		"rate_limit_info":           rateLimitInfo,
+		"max_concurrent":            maxConcurrent,
+		"executing_count":           executingCount,
+		"running_count":             executingCount,
+		"available_slots":           availableSlots,
+		"pending_count":             len(pendingTasks),
+		"in_progress_count":         len(inProgressTasks),
+		"completed_count":           len(completedTasks),
+		"failed_count":              len(failedTasks),
+		"completed_finalized_count": len(completedFinalizedTasks),
+		"failed_blocked_count":      len(failedBlockedTasks),
+		"review_count":              len(reviewTasks),
+		"ready_in_progress":         readyInProgress,
+		"refresh_interval":          currentSettings.RefreshInterval, // from settings
+		"processor_running":         processorActive,
+		"timestamp":                 time.Now().Unix(),
+		"last_processed_at":         lastProcessedAt,
 	}
 }
 

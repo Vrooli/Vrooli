@@ -5,6 +5,8 @@ export class SettingsManager {
         this.showToast = showToast;
         this.settings = null;
         this.originalTheme = null; // Track original theme for preview cancellation
+        this.recyclerModelCache = {};
+        this.recyclerModelRequests = {};
         this.defaultSettings = {
             theme: 'light',
             slots: 1,
@@ -14,7 +16,15 @@ export class SettingsManager {
             allowed_tools: 'Read,Write,Edit,Bash,LS,Glob,Grep',
             skip_permissions: true,
             task_timeout: 30,
-            condensed_mode: false
+            condensed_mode: false,
+            recycler: {
+                enabled_for: 'off',
+                interval_seconds: 60,
+                model_provider: 'ollama',
+                model_name: 'llama3.1:8b',
+                completion_threshold: 3,
+                failure_threshold: 5
+            }
         };
     }
 
@@ -26,11 +36,20 @@ export class SettingsManager {
             }
             
             const data = await response.json();
-            this.settings = { ...this.defaultSettings, ...data.settings };
+            const defaults = JSON.parse(JSON.stringify(this.defaultSettings));
+            const incoming = data.settings || {};
+            this.settings = {
+                ...defaults,
+                ...incoming,
+                recycler: {
+                    ...defaults.recycler,
+                    ...(incoming.recycler || {})
+                }
+            };
             return this.settings;
         } catch (error) {
             console.error('Failed to load settings:', error);
-            this.settings = { ...this.defaultSettings };
+            this.settings = JSON.parse(JSON.stringify(this.defaultSettings));
             return this.settings;
         }
     }
@@ -97,6 +116,9 @@ export class SettingsManager {
             }
         });
 
+        // Apply recycler-specific settings
+        this.applyRecyclerSettings(settings.recycler || this.defaultSettings.recycler);
+
         // Update queue processor status UI
         this.updateProcessorToggleUI(settings.active);
 
@@ -128,6 +150,37 @@ export class SettingsManager {
         const queueSlotsDiv = document.querySelector('.queue-slots');
         if (queueSlotsDiv) {
             queueSlotsDiv.style.display = isActive ? 'flex' : 'none';
+        }
+    }
+
+    applyRecyclerSettings(recyclerSettings = {}) {
+        const enabledSelect = document.getElementById('settings-recycler-enabled');
+        if (enabledSelect) {
+            enabledSelect.value = recyclerSettings.enabled_for || 'off';
+        }
+
+        const intervalInput = document.getElementById('settings-recycler-interval');
+        if (intervalInput) {
+            intervalInput.value = recyclerSettings.interval_seconds ?? this.defaultSettings.recycler.interval_seconds;
+        }
+
+        const providerSelect = document.getElementById('settings-recycler-model-provider');
+        const providerValue = recyclerSettings.model_provider || 'ollama';
+        if (providerSelect) {
+            providerSelect.value = providerValue;
+        }
+        this.populateRecyclerModelSelector(providerValue, recyclerSettings.model_name || '').catch(err => {
+            console.error('Failed to populate recycler models:', err);
+        });
+
+        const completionInput = document.getElementById('settings-recycler-completion-threshold');
+        if (completionInput) {
+            completionInput.value = recyclerSettings.completion_threshold ?? this.defaultSettings.recycler.completion_threshold;
+        }
+
+        const failureInput = document.getElementById('settings-recycler-failure-threshold');
+        if (failureInput) {
+            failureInput.value = recyclerSettings.failure_threshold ?? this.defaultSettings.recycler.failure_threshold;
         }
     }
 
@@ -176,6 +229,29 @@ export class SettingsManager {
         });
 
         console.log('Form data collected:', formData);
+
+        const recyclerDefaults = this.defaultSettings.recycler;
+        const modelSelect = document.getElementById('settings-recycler-model-name');
+        let selectedModel = modelSelect?.value || '';
+        if (selectedModel === '__custom__') {
+            selectedModel = document.getElementById('settings-recycler-model-name-custom')?.value?.trim() || '';
+        }
+        const recycler = {
+            enabled_for: document.getElementById('settings-recycler-enabled')?.value || recyclerDefaults.enabled_for,
+            interval_seconds: parseInt(document.getElementById('settings-recycler-interval')?.value, 10) || recyclerDefaults.interval_seconds,
+            model_provider: document.getElementById('settings-recycler-model-provider')?.value || recyclerDefaults.model_provider,
+            model_name: selectedModel || recyclerDefaults.model_name,
+            completion_threshold: parseInt(document.getElementById('settings-recycler-completion-threshold')?.value, 10) || recyclerDefaults.completion_threshold,
+            failure_threshold: parseInt(document.getElementById('settings-recycler-failure-threshold')?.value, 10) || recyclerDefaults.failure_threshold
+        };
+
+        // Clamp numeric values to expected ranges
+        recycler.interval_seconds = Math.min(Math.max(recycler.interval_seconds, 30), 1800);
+        recycler.completion_threshold = Math.min(Math.max(recycler.completion_threshold, 1), 10);
+        recycler.failure_threshold = Math.min(Math.max(recycler.failure_threshold, 1), 10);
+
+        formData.recycler = recycler;
+
         return formData;
     }
 
@@ -215,6 +291,156 @@ export class SettingsManager {
         if (this.originalTheme) {
             this.applyTheme(this.originalTheme);
         }
+    }
+
+    async fetchRecyclerModels(provider) {
+        const normalized = (provider || 'ollama').toLowerCase();
+        if (this.recyclerModelCache[normalized]) {
+            return this.recyclerModelCache[normalized];
+        }
+
+        if (this.recyclerModelRequests[normalized]) {
+            return this.recyclerModelRequests[normalized];
+        }
+
+        const request = (async () => {
+            try {
+                const response = await fetch(`${this.apiBase}/settings/recycler/models?provider=${encodeURIComponent(normalized)}`);
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || response.statusText);
+                }
+
+                const data = await response.json();
+                const models = Array.isArray(data.models) ? data.models : [];
+                if (data.error) {
+                    console.warn(`Recycler model fetch warning for ${normalized}:`, data.error);
+                    this.showToast(`Model list warning for ${normalized}: ${data.error}`, 'warning');
+                }
+                this.recyclerModelCache[normalized] = models;
+                return models;
+            } catch (error) {
+                console.error(`Failed to fetch ${normalized} models:`, error);
+                this.showToast(`Failed to load ${normalized} models: ${error.message}`, 'error');
+                return [];
+            } finally {
+                delete this.recyclerModelRequests[normalized];
+            }
+        })();
+
+        this.recyclerModelRequests[normalized] = request;
+        return request;
+    }
+
+    async populateRecyclerModelSelector(provider, selectedModel = '') {
+        const select = document.getElementById('settings-recycler-model-name');
+        const customInput = document.getElementById('settings-recycler-model-name-custom');
+        if (!select || !customInput) {
+            return;
+        }
+
+        this.toggleCustomModelInput(false);
+
+        const targetProvider = (provider || 'ollama').toLowerCase();
+        const pendingValue = (selectedModel || '').trim();
+
+        select.disabled = true;
+        select.innerHTML = '';
+        const loadingOption = document.createElement('option');
+        loadingOption.value = '';
+        loadingOption.textContent = 'Loading models…';
+        select.appendChild(loadingOption);
+
+        const models = await this.fetchRecyclerModels(targetProvider);
+
+        select.innerHTML = '';
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = models.length ? 'Select a model…' : 'No models found';
+        select.appendChild(placeholderOption);
+
+        models.forEach(model => {
+            if (!model || !model.id) return;
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = model.label || model.id;
+            select.appendChild(option);
+        });
+
+        const customOption = document.createElement('option');
+        customOption.value = '__custom__';
+        customOption.textContent = 'Custom model…';
+        select.appendChild(customOption);
+
+        select.disabled = false;
+
+        let resolvedValue = pendingValue;
+        if (pendingValue) {
+            const match = models.find(model => (model.id || '').toLowerCase() === pendingValue.toLowerCase());
+            if (match) {
+                select.value = match.id;
+                resolvedValue = match.id;
+                this.toggleCustomModelInput(false);
+            } else {
+                select.value = '__custom__';
+                resolvedValue = pendingValue;
+                this.toggleCustomModelInput(true, pendingValue);
+            }
+        } else {
+            select.value = '';
+            resolvedValue = '';
+            this.toggleCustomModelInput(false);
+        }
+
+        this.handleRecyclerModelSelection(select.value, resolvedValue);
+    }
+
+    handleRecyclerModelSelection(value, pendingValue = '') {
+        if (value === '__custom__') {
+            this.toggleCustomModelInput(true, pendingValue);
+        } else {
+            this.toggleCustomModelInput(false);
+        }
+    }
+
+    async handleRecyclerProviderChange(provider) {
+        const previousProvider = this.settings?.recycler?.model_provider || this.defaultSettings.recycler.model_provider;
+        const preservedValue = provider === previousProvider ? this.getCurrentRecyclerModelValue() : '';
+        await this.populateRecyclerModelSelector(provider, preservedValue);
+    }
+
+    toggleCustomModelInput(show, presetValue) {
+        const customInput = document.getElementById('settings-recycler-model-name-custom');
+        if (!customInput) {
+            return;
+        }
+
+        if (typeof presetValue === 'string') {
+            customInput.value = presetValue;
+        }
+
+        if (show) {
+            customInput.classList.remove('hidden');
+            try {
+                customInput.focus({ preventScroll: true });
+            } catch (err) {
+                // Older browsers may not support the options parameter; fall back silently.
+                customInput.focus();
+            }
+        } else {
+            customInput.classList.add('hidden');
+        }
+    }
+
+    getCurrentRecyclerModelValue() {
+        const select = document.getElementById('settings-recycler-model-name');
+        if (!select) {
+            return '';
+        }
+        if (select.value === '__custom__') {
+            return document.getElementById('settings-recycler-model-name-custom')?.value?.trim() || '';
+        }
+        return select.value || '';
     }
 
     resetToDefaults() {

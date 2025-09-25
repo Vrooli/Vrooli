@@ -10,7 +10,16 @@ export class UIComponents {
         const targetMarkup = this.renderTaskTarget(task);
         
         const card = document.createElement('div');
-        card.className = `task-card ${task.priority} ${isRunning ? 'task-executing' : ''} ${task.type || 'resource'} ${task.operation || 'generator'}`;
+        const statusClass = this.getStatusClass(task.status);
+        const cardClasses = [
+            'task-card',
+            task.priority,
+            isRunning ? 'task-executing' : '',
+            task.type || 'resource',
+            task.operation || 'generator',
+            statusClass
+        ].filter(Boolean);
+        card.className = cardClasses.join(' ');
         card.id = `task-${task.id}`;
         card.draggable = true;
 
@@ -47,6 +56,8 @@ export class UIComponents {
                     ${lastCompletedRelative || '—'}
                 </span>
             </div>
+            ${this.renderStreakInfo(task)}
+            ${truncatedNotes ? `<p class="task-notes">${truncatedNotes}</p>` : ''}
             ${isRunning ? `
                 <div class="task-execution-indicator">
                     <i class="fas fa-brain fa-spin"></i>
@@ -152,6 +163,37 @@ export class UIComponents {
                 { icon: 'fas fa-sync', label: 'Scenario Improver' } :
                 { icon: 'fas fa-project-diagram', label: 'Scenario Generator' };
         }
+    }
+
+    static getStatusClass(status) {
+        if (!status) return '';
+        switch (status) {
+            case 'completed-finalized':
+                return 'task-finalized';
+            case 'failed-blocked':
+                return 'task-blocked';
+            default:
+                return `status-${status.replace(/[^a-z0-9-]/gi, '').toLowerCase()}`;
+        }
+    }
+
+    static renderStreakInfo(task) {
+        const completionStreak = Number.isInteger(task.consecutive_completion_claims) ? task.consecutive_completion_claims : 0;
+        const failureStreak = Number.isInteger(task.consecutive_failures) ? task.consecutive_failures : 0;
+
+        if (completionStreak <= 0 && failureStreak <= 0) {
+            return '';
+        }
+
+        const chips = [];
+        if (completionStreak > 0) {
+            chips.push(`<span class="streak-chip success"><i class="fas fa-check"></i> ${completionStreak} complete</span>`);
+        }
+        if (failureStreak > 0) {
+            chips.push(`<span class="streak-chip danger"><i class="fas fa-times"></i> ${failureStreak} failure</span>`);
+        }
+
+        return `<div class="task-streaks">${chips.join('')}</div>`;
     }
 
     static showToast(message, type = 'info') {

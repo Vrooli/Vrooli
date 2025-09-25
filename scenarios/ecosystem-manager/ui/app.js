@@ -6,6 +6,309 @@ import { UIComponents } from './modules/UIComponents.js';
 import { WebSocketHandler } from './modules/WebSocketHandler.js';
 import { DragDropHandler } from './modules/DragDropHandler.js';
 
+const RECYCLER_TEST_PRESETS = [
+    {
+        id: 'calendar-full-finish',
+        label: 'Scenario • Calendar go-live',
+        expected: 'full_complete',
+        payload: {
+            task_type: 'scenario',
+            operation: 'improver',
+            completion_streak: 2,
+            failure_streak: 0,
+            completion_count: 5,
+            title: 'Calendar go-live polish',
+            previous_note: `Notes from last time:
+- Verify sync worker race condition
+- Document ICS transform hooks`,
+            output_text: `[INFO]    Started health monitor for claude-code (PID: 58422, interval: 30s)
+[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 1800 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 22754 chars)
+
+## Task Completion Summary
+
+### Task: Calendar platform go-live
+Status: Completed ✅
+
+Highlights
+- Migrated legacy event ingestion to the new sync pipeline
+- Hardened booking conflict detection (5 edge cases covered)
+- Added telemetry for ICS imports + traced metrics into Grafana
+- Updated PRD checklist to show 12/12 P0 requirements green
+
+Verification
+- \`curl http://localhost:19830/health\` → \`{"status":"healthy"}\`
+- \`CALENDAR_PORT=19830 calendar sync --watch\` synced 28 events in staging
+- Jest suite: 162 assertions, 0 failures
+
+Next Steps
+- Optional: add perf canaries for the sync worker; otherwise ready for launch.
+
+The scenario is production ready. 🎉`,
+        },
+    },
+    {
+        id: 'openemr-full-finish',
+        label: 'Resource • OpenEMR wrap-up',
+        expected: 'full_complete',
+        payload: {
+            task_type: 'resource',
+            operation: 'improver',
+            completion_streak: 1,
+            failure_streak: 0,
+            completion_count: 3,
+            title: 'Stabilize openemr resource',
+            previous_note: `(none)`,
+            output_text: `[INFO]    Started health monitor for claude-code (PID: 60177, interval: 30s)
+[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 3060 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 32988 chars)
+
+## Summary
+
+OpenEMR resource is fully stabilized after today's pass.
+
+Accomplished
+1. Docker Compose rebuilt with env parity between API and scheduler containers.
+2. CLI \`openemr setup --reset\` now idempotent (verified twice).
+3. Added regression tests for HL7 import and appointment calendar modules.
+4. Updated PROBLEMS.md with resolution notes and final state screenshot.
+
+Operational Proof
+- \`vrooli resource openemr status\` → running + healthy
+- \`resource-openemr logs --tail 5\` shows clean startup with migrations applied
+- Smoke, unit, and integration test suites all ✅ (18 suites)
+
+Status
+Complete — no follow up required. Flagged as ready for system regression sweep.`,
+        },
+    },
+    {
+        id: 'analytics-full-finish',
+        label: 'Scenario • Analytics cohort audit',
+        expected: 'full_complete',
+        payload: {
+            task_type: 'scenario',
+            operation: 'improver',
+            completion_streak: 3,
+            failure_streak: 0,
+            completion_count: 7,
+            title: 'Analytics cohort manager scrub',
+            previous_note: `Likely complete, but could use some additional validation/tidying. Notes from last time:
+- Double check cohort export pagination
+- Wire dashboards into status API`,
+            output_text: `[INFO]    Started health monitor for claude-code (PID: 61209, interval: 30s)
+[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 1800 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 24112 chars)
+
+## Task Completion Summary
+
+Analytics cohort manager is locked down.
+
+Key Outcomes:
+- Finalized cohort export pagination (proved with 3x 10k user exports).
+- Hardened auth guard and rotated service keys in vault.
+- Added Grafana board with cohort latency + error rates.
+- PRD + README now mark all P0 stories closed.
+
+Evidence:
+- \`curl http://localhost:20444/health\` → HTTP 200, \`{"status":"ok"}\`
+- \`analytics-cohort export --cohort enterprise --format csv\` produced clean artifact.
+- Cypress regression pack: 48 specs, 0 failures.
+
+Conclusion:
+We can mark this scenario as complete; next run should graduate to finalized queue.`,
+        },
+    },
+    {
+        id: 'ditto-partial',
+        label: 'Resource • Eclipse Ditto blockers',
+        expected: 'partial_progress',
+        payload: {
+            task_type: 'resource',
+            operation: 'improver',
+            completion_streak: 0,
+            failure_streak: 0,
+            completion_count: 1,
+            title: 'Eclipse Ditto rescue',
+            previous_note: `Notes from last time:
+- Gateway refuses connections
+- Need documentation of workaround attempts`,
+            output_text: `[INFO]    Started health monitor for claude-code (PID: 63311, interval: 30s)
+[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 3060 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 35280 chars)
+
+## Task Completion Summary
+
+Eclipse Ditto resource moved from 10% to ~55%.
+
+What moved forward:
+- Unified compose file with Mongo + Ditto services (ports now 8094/8095).
+- Added health checks that hit \`/status/health\`.
+- Documented bootstrap flow in README + PRD.
+- Smoke tests green (3/3).
+
+Still blocked:
+- Gateway still panics due to Pekko cluster requirement; single-node mode unsupported.
+- Web UI + REST endpoints unreachable behind failing gateway.
+- Integration test suite skipped (depends on working gateway).
+
+Suggested next actions:
+1. Spin minimal two-node cluster to satisfy seed-node requirement.
+2. Investigate Ditto 2.x image that permits standalone mode.
+3. Consider alternative digital twin resource if standalone is mandatory.
+
+Status: Partially improved — needs architecture decision before we can call it complete.`,
+        },
+    },
+    {
+        id: 'onboarding-partial',
+        label: 'Scenario • Onboarding assistant progress',
+        expected: 'partial_progress',
+        payload: {
+            task_type: 'scenario',
+            operation: 'generator',
+            completion_streak: 0,
+            failure_streak: 0,
+            completion_count: 0,
+            title: 'Onboarding assistant first draft',
+            previous_note: `(none)`,
+            output_text: `[INFO]    Started health monitor for claude-code (PID: 64082, interval: 30s)
+[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 1800 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 19877 chars)
+
+## Summary
+
+We now have an onboarding-assistant shell with working flows, but there's polish left.
+
+Delivered in this pass:
+- Scaffolded FastAPI backend with core checklist endpoints.
+- Added Postgres migrations for \`onboarding_steps\` + \`assignments\` tables.
+- Built simple React UI that renders dynamic checklist by assignee.
+- Smoke tests + seed data script verified.
+
+Remaining gaps:
+- Email reminders still stubbed (needs Scenario Mailer integration).
+- Permissions model defaults to single admin user.
+- Analytics tab empty; charts pending data model.
+
+Recommendation: queue another improver run focused on notifications + RBAC.`,
+        },
+    },
+    {
+        id: 'opentrip-partial',
+        label: 'Resource • OpenTripPlanner gaps',
+        expected: 'partial_progress',
+        payload: {
+            task_type: 'resource',
+            operation: 'improver',
+            completion_streak: 0,
+            failure_streak: 1,
+            completion_count: 2,
+            title: 'OpenTripPlanner catch-up',
+            previous_note: `Notes from last time:
+- Graph build timing out
+- Need real evidence for trip API`,
+            output_text: `[INFO]    Started health monitor for claude-code (PID: 65244, interval: 30s)
+[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 3060 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 34701 chars)
+
+## Task Completion Summary
+
+OpenTripPlanner resource is up to ~60%.
+
+✅ Fixed:
+- Docker command shim updated for OTP 2.x launcher.
+- Health endpoint corrected; \`/otp/routers/default/index\` responding.
+- Graph build script downloads PDX GTFS + OSM and completes in 43s.
+- Lifecycle commands align with v2 contract.
+
+⚠️ Outstanding:
+- Trip planning API still returns 500 for certain itineraries.
+- No automated test proving multi-modal routing yet.
+- Need monitoring hook into resource-monitor for long graph builds.
+
+Evidence:
+- \`vrooli resource opentripplanner status\` → Running, Healthy.
+- \`resource-opentripplanner graph build --force\` succeeded (logs attached in artifacts).
+- Smoke tests pass (4/4) but integration suite skipped.
+
+Verdict: solid progress, but keep task cycling until trip API + monitoring land.`,
+        },
+    },
+    {
+        id: 'gateway-uncertain',
+        label: 'Scenario • Gateway failure output',
+        expected: 'uncertain',
+        payload: {
+            task_type: 'scenario',
+            operation: 'improver',
+            completion_streak: 0,
+            failure_streak: 2,
+            completion_count: 1,
+            title: 'Gateway stabilizer',
+            previous_note: `Already pretty good, but could use some additional validation/tidying. Notes from last time:
+- Confirm gateway restarts cleanly
+- Capture failing integration logs`,
+            output_text: `[INFO]    Started health monitor for claude-code (PID: 66390, interval: 30s)
+[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 1800 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 21220 chars)
+
+## Task Log
+
+Attempted to restart the gateway scenario but ran into cascading failures:
+
+- \`make run\` hangs; gateway container exits with code 137 repeatedly.
+- Logs show \`FATAL: database "gateway" does not exist\` even after init script.
+- Tried reapplying migrations (\`resource-postgres psql gateway < schema.sql\`) → \`permission denied\`.
+- Health check at \`http://localhost:40110/health\` returns 503.
+- CLI \`gateway status\` reports \`Running: false\`.
+
+I stopped changes before digging further to avoid data corruption. Needs deeper investigation from someone with infra access.`,
+        },
+    },
+    {
+        id: 'nonsense-uncertain',
+        label: 'Garbage • Corrupted output blob',
+        expected: 'uncertain',
+        payload: {
+            task_type: 'scenario',
+            operation: 'improver',
+            completion_streak: 0,
+            failure_streak: 3,
+            completion_count: 0,
+            title: 'Broken transcript',
+            previous_note: `Not sure current status`,
+            output_text: `[INFO]    Started health monitor for claude-code (PID: 67001, interval: 30s)
+[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 900 claude --print --max-turns 20 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 1322 chars)
+
+<<BEGIN_RAW_OUTPUT>>
+█▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+?? stacktrace??: panic at scheduler.go:214 (nil pointer) ???
+build/logs/latest.log (tail):
+2025-02-18T05:14:22Z FATAL scheduler: missing scenario payload
+2025-02-18T05:14:22Z ERROR task-runner: aborting job 98273 (no payload)
+[repeated 128 lines removed]
+<<END_RAW_OUTPUT>>`,
+        },
+    },
+];
 class EcosystemManager {
     constructor() {
         // API Configuration - Use relative path so Vite proxy handles it
@@ -47,7 +350,9 @@ class EcosystemManager {
             'in-progress': [],
             review: [],
             completed: [],
-            failed: []
+            'completed-finalized': [],
+            failed: [],
+            'failed-blocked': []
         };
         this.pendingTargetRefresh = null;
         this.filterState = {
@@ -62,6 +367,10 @@ class EcosystemManager {
             priority: 'filterPriority',
             search: 'filterSearch'
         };
+
+        this.recyclerTestPresets = RECYCLER_TEST_PRESETS;
+        this.recyclerSuiteResults = [];
+        this.recyclerSuiteRunning = false;
 
         // Bind methods
         this.init = this.init.bind(this);
@@ -116,7 +425,8 @@ class EcosystemManager {
         this.setupModals();
         this.initializeTargetSelector();
         this.initializeFilterControls();
-        
+        this.initializeRecyclerTestbed();
+
         // Initialize tabs if they exist
         const tabButtons = document.querySelectorAll('.tab-button');
         tabButtons.forEach(button => {
@@ -672,11 +982,349 @@ class EcosystemManager {
         if (promptDetailsToggle) {
             promptDetailsToggle.addEventListener('click', () => this.togglePromptDetails());
         }
+
+        const recyclerProviderSelect = document.getElementById('settings-recycler-model-provider');
+        if (recyclerProviderSelect) {
+            recyclerProviderSelect.addEventListener('change', (event) => {
+                const provider = event.target.value;
+                this.settingsManager.handleRecyclerProviderChange(provider).catch(err => {
+                    console.error('Failed to refresh recycler models:', err);
+                    this.showToast(`Failed to refresh ${provider} models: ${err.message}`, 'error');
+                });
+            });
+        }
+
+        const recyclerModelSelect = document.getElementById('settings-recycler-model-name');
+        if (recyclerModelSelect) {
+            recyclerModelSelect.addEventListener('change', (event) => {
+                this.settingsManager.handleRecyclerModelSelection(event.target.value);
+            });
+        }
+
+        const recyclerPresetSelect = document.getElementById('recycler-test-preset');
+        if (recyclerPresetSelect) {
+            recyclerPresetSelect.addEventListener('change', () => this.updateRecyclerPresetPreview());
+        }
+
+        const recyclerLoadPresetBtn = document.getElementById('recycler-load-preset');
+        if (recyclerLoadPresetBtn) {
+            recyclerLoadPresetBtn.addEventListener('click', () => this.loadSelectedRecyclerPreset());
+        }
+
+        const recyclerRunPresetBtn = document.getElementById('recycler-run-preset');
+        if (recyclerRunPresetBtn) {
+            recyclerRunPresetBtn.addEventListener('click', () => this.runSelectedRecyclerPreset());
+        }
+
+        const recyclerRunSuiteBtn = document.getElementById('recycler-run-suite');
+        if (recyclerRunSuiteBtn) {
+            recyclerRunSuiteBtn.addEventListener('click', () => this.runRecyclerPresetSuite());
+        }
+
+        const recyclerClearSuiteBtn = document.getElementById('recycler-clear-suite');
+        if (recyclerClearSuiteBtn) {
+            recyclerClearSuiteBtn.addEventListener('click', () => this.clearRecyclerSuiteResults());
+        }
+
+        const recyclerTestBtn = document.getElementById('recycler-test-run');
+        if (recyclerTestBtn) {
+            recyclerTestBtn.addEventListener('click', () => this.runRecyclerTest());
+        }
+    }
+
+    // Recycler Testbed Helpers
+    initializeRecyclerTestbed() {
+        const presetSelect = document.getElementById('recycler-test-preset');
+        if (!presetSelect) {
+            return;
+        }
+
+        presetSelect.innerHTML = '<option value="">Select a preset transcript…</option>';
+        this.recyclerTestPresets.forEach(preset => {
+            const option = document.createElement('option');
+            option.value = preset.id;
+            const classification = this.formatClassification(preset.expected);
+            option.textContent = `${preset.label} (${classification})`;
+            presetSelect.appendChild(option);
+        });
+
+        this.updateRecyclerPresetPreview();
+        this.renderRecyclerSuiteResults();
+    }
+
+    updateRecyclerPresetPreview() {
+        const presetSelect = document.getElementById('recycler-test-preset');
+        const expectedLabel = document.getElementById('recycler-preset-expected');
+        if (!expectedLabel) {
+            return;
+        }
+
+        const presetId = presetSelect?.value || '';
+        const preset = this.getRecyclerPreset(presetId);
+        expectedLabel.textContent = preset ? this.formatClassification(preset.expected) : '—';
+    }
+
+    getRecyclerPreset(presetId) {
+        if (!presetId) {
+            return null;
+        }
+        return this.recyclerTestPresets.find(preset => preset.id === presetId) || null;
+    }
+
+    applyRecyclerPresetToForm(preset) {
+        if (!preset) {
+            return;
+        }
+
+        const payload = preset.payload || {};
+        const setValue = (id, value) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.value = value != null ? value : '';
+            }
+        };
+
+        setValue('recycler-test-task-type', payload.task_type || 'scenario');
+        setValue('recycler-test-operation', payload.operation || 'improver');
+        setValue('recycler-test-title', payload.title || 'Recycler Test Task');
+
+        setValue('recycler-test-completion-streak', String(payload.completion_streak ?? 0));
+        setValue('recycler-test-failure-streak', String(payload.failure_streak ?? 0));
+        setValue('recycler-test-completion-count', String(payload.completion_count ?? 0));
+
+        const previousNoteField = document.getElementById('recycler-test-prev-note');
+        if (previousNoteField) {
+            previousNoteField.value = payload.previous_note ?? '';
+        }
+
+        const outputField = document.getElementById('recycler-test-output');
+        if (outputField) {
+            outputField.value = payload.output_text ?? '';
+        }
+
+        this.updateRecyclerPresetPreview();
+    }
+
+    loadSelectedRecyclerPreset() {
+        const presetSelect = document.getElementById('recycler-test-preset');
+        const preset = this.getRecyclerPreset(presetSelect?.value || '');
+        if (!preset) {
+            this.showToast('Select a preset to load first.', 'warning');
+            return;
+        }
+
+        this.applyRecyclerPresetToForm(preset);
+        this.showToast(`Loaded preset: ${preset.label}`, 'success');
+    }
+
+    async runSelectedRecyclerPreset() {
+        const presetSelect = document.getElementById('recycler-test-preset');
+        const preset = this.getRecyclerPreset(presetSelect?.value || '');
+        if (!preset) {
+            this.showToast('Select a preset to run first.', 'warning');
+            return;
+        }
+
+        this.applyRecyclerPresetToForm(preset);
+        try {
+            await this.runRecyclerTestWithPreset(preset, { silent: false, showLoading: true });
+        } catch (error) {
+            // Errors already surfaced by runRecyclerTestWithPreset
+        }
+    }
+
+    async runRecyclerPresetSuite() {
+        if (this.recyclerSuiteRunning) {
+            this.showToast('Preset suite already running.', 'info');
+            return;
+        }
+
+        if (!this.recyclerTestPresets.length) {
+            this.showToast('No recycler presets configured.', 'warning');
+            return;
+        }
+
+        this.recyclerSuiteResults = [];
+        this.renderRecyclerSuiteResults();
+        this.setRecyclerSuiteRunning(true);
+
+        try {
+            for (const preset of this.recyclerTestPresets) {
+                await this.runRecyclerTestWithPreset(preset, {
+                    silent: true,
+                    showLoading: false,
+                });
+            }
+            this.showToast('Preset suite completed.', 'success');
+        } catch (error) {
+            console.error('Recycler preset suite failed:', error);
+            this.showToast(`Preset suite failed: ${error.message}`, 'error');
+        } finally {
+            this.setRecyclerSuiteRunning(false);
+            this.renderRecyclerSuiteResults();
+        }
+    }
+
+    setRecyclerSuiteRunning(isRunning) {
+        this.recyclerSuiteRunning = isRunning;
+
+        const toggleDisabled = (id) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.disabled = isRunning;
+            }
+        };
+
+        toggleDisabled('recycler-run-suite');
+        toggleDisabled('recycler-run-preset');
+        toggleDisabled('recycler-load-preset');
+        toggleDisabled('recycler-clear-suite');
+        toggleDisabled('recycler-test-run');
+
+        const summary = document.getElementById('recycler-suite-summary');
+        if (summary) {
+            summary.textContent = isRunning ? `Running… 0/${this.recyclerTestPresets.length} processed` : summary.textContent;
+        }
+    }
+
+    clearRecyclerSuiteResults() {
+        if (!this.recyclerSuiteResults.length) {
+            return;
+        }
+        this.recyclerSuiteResults = [];
+        this.renderRecyclerSuiteResults();
+        this.showToast('Cleared recycler preset history.', 'info');
+    }
+
+    renderRecyclerSuiteResults() {
+        const container = document.getElementById('recycler-test-suite-results');
+        const tableBody = document.getElementById('recycler-suite-results-body');
+        if (!container || !tableBody) {
+            return;
+        }
+
+        if (this.recyclerSuiteResults.length === 0) {
+            container.style.display = 'none';
+            tableBody.innerHTML = '';
+            this.updateRecyclerSuiteSummary();
+            return;
+        }
+
+        container.style.display = 'block';
+        tableBody.innerHTML = this.recyclerSuiteResults.map(result => {
+            const matchClass = result.match ? 'match' : 'mismatch';
+            const expectedLabel = this.escapeHtml(this.formatClassification(result.expected));
+            const actualLabel = this.escapeHtml(this.formatClassification(result.actual));
+            const noteSnippet = result.note
+                ? this.escapeHtml(this.truncateText(result.note, 180)).replace(/\n/g, '<br>')
+                : '<em>No note returned</em>';
+            const providerInfo = [result.provider, result.model].filter(Boolean).join(' · ') || '—';
+            const outcomeChips = [
+                `<span class="status-chip ${matchClass}">${result.match ? 'match' : 'mismatch'}</span>`,
+                `<span class="status-chip ${result.success ? 'match' : 'fallback'}">${result.success ? 'llm' : 'fallback'}</span>`
+            ];
+            return `
+                <tr class="${matchClass}">
+                    <td>
+                        <strong>${this.escapeHtml(result.label || result.id)}</strong>
+                        <span class="preset-id">${this.escapeHtml(result.id)}</span>
+                    </td>
+                    <td><span class="status-chip ${matchClass}">${expectedLabel}</span></td>
+                    <td><span class="status-chip ${matchClass}">${actualLabel}</span></td>
+                    <td>
+                        <div class="suite-chip-row">${outcomeChips.join(' ')}</div>
+                        <div class="suite-provider">${this.escapeHtml(providerInfo)}</div>
+                        ${result.error ? `<div class="suite-error">${this.escapeHtml(result.error)}</div>` : ''}
+                    </td>
+                    <td><div class="note-snippet">${noteSnippet}</div></td>
+                </tr>
+            `;
+        }).join('');
+
+        this.updateRecyclerSuiteSummary();
+    }
+
+    updateRecyclerSuiteSummary() {
+        const summary = document.getElementById('recycler-suite-summary');
+        if (!summary) {
+            return;
+        }
+
+        if (this.recyclerSuiteResults.length === 0) {
+            summary.textContent = this.recyclerSuiteRunning
+                ? `Running… 0/${this.recyclerTestPresets.length} processed`
+                : '';
+            return;
+        }
+
+        const matches = this.recyclerSuiteResults.filter(result => result.match).length;
+        const processed = this.recyclerSuiteResults.length;
+        if (this.recyclerSuiteRunning) {
+            summary.textContent = `Running… ${processed}/${this.recyclerTestPresets.length} processed (${matches} match)`;
+        } else {
+            summary.textContent = `${matches}/${processed} matches`;
+        }
+    }
+
+    async runRecyclerTestWithPreset(preset, options = {}) {
+        if (!preset) {
+            return null;
+        }
+
+        const { silent = false, showLoading = true } = options;
+        const payload = { ...preset.payload };
+
+        this.resetRecyclerResultCard();
+
+        try {
+            const data = await this.executeRecyclerTest(payload, { showLoading });
+            const expectedRaw = (preset.expected || '').toLowerCase();
+            const actualRaw = (data?.result?.classification || 'unknown').toLowerCase();
+            const match = expectedRaw === actualRaw;
+
+            this.renderRecyclerTestResult(data, {
+                expectedClassification: expectedRaw,
+                presetLabel: preset.label,
+            });
+
+            this.recyclerSuiteResults.push({
+                id: preset.id,
+                label: preset.label,
+                expected: expectedRaw,
+                actual: actualRaw,
+                note: data?.result?.note || '',
+                provider: data?.provider || '',
+                model: data?.model || '',
+                success: Boolean(data?.success),
+                error: data?.error || '',
+                match,
+            });
+            this.renderRecyclerSuiteResults();
+
+            if (!silent) {
+                const toastType = match ? 'success' : 'warning';
+                const expectedLabel = this.formatClassification(expectedRaw);
+                const actualLabel = this.formatClassification(actualRaw);
+                const toastMessage = match
+                    ? `${preset.label}: classification matched (${actualLabel})`
+                    : `${preset.label}: expected ${expectedLabel} but got ${actualLabel}`;
+                this.showToast(toastMessage, toastType);
+
+                if (!data.success) {
+                    this.showToast('Recycler summarizer fell back to default result', 'warning');
+                }
+            }
+
+            return data;
+        } catch (error) {
+            this.showRecyclerTestError(error);
+            throw error;
+        }
     }
 
     // Task Management Methods
     async loadAllTasks() {
-        const statuses = ['pending', 'in-progress', 'review', 'completed', 'failed'];
+        const statuses = ['pending', 'in-progress', 'review', 'completed', 'completed-finalized', 'failed', 'failed-blocked'];
         const promises = statuses.map(status => this.loadTasksForStatus(status));
         await Promise.all(promises);
     }
@@ -707,7 +1355,9 @@ class EcosystemManager {
         container.innerHTML = '';
         
         if (normalizedTasks.length === 0) {
-            container.innerHTML = `<div class="empty-state">No ${status} tasks</div>`;
+            const friendlyStatus = status.replace(/-/g, ' ');
+            const titleCaseStatus = friendlyStatus.charAt(0).toUpperCase() + friendlyStatus.slice(1);
+            container.innerHTML = `<div class="empty-state">No ${titleCaseStatus} tasks</div>`;
             this.scheduleTargetAvailabilityRefresh();
             return;
         }
@@ -870,7 +1520,9 @@ class EcosystemManager {
                                     <option value="pending" ${task.status === 'pending' ? 'selected' : ''}>Pending</option>
                                     <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
                                     <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
+                                    <option value="completed-finalized" ${task.status === 'completed-finalized' ? 'selected' : ''}>Completed – Finalized</option>
                                     <option value="failed" ${task.status === 'failed' ? 'selected' : ''}>Failed</option>
+                                    <option value="failed-blocked" ${task.status === 'failed-blocked' ? 'selected' : ''}>Failed – Blocked</option>
                                 </select>
                             </div>
                             
@@ -894,7 +1546,9 @@ class EcosystemManager {
                                     <option value="pending" ${task.current_phase === 'pending' ? 'selected' : ''}>Pending</option>
                                     <option value="in-progress" ${task.current_phase === 'in-progress' ? 'selected' : ''}>In Progress</option>
                                     <option value="completed" ${task.current_phase === 'completed' ? 'selected' : ''}>Completed</option>
+                                    <option value="finalized" ${task.current_phase === 'finalized' ? 'selected' : ''}>Finalized</option>
                                     <option value="failed" ${task.current_phase === 'failed' ? 'selected' : ''}>Failed</option>
+                                    <option value="blocked" ${task.current_phase === 'blocked' ? 'selected' : ''}>Blocked</option>
                                 </select>
                             </div>
                             
@@ -965,7 +1619,7 @@ class EcosystemManager {
         }
         
         // Task Results
-        if (task.results && (task.status === 'completed' || task.status === 'failed')) {
+        if (task.results && ['completed', 'failed', 'completed-finalized', 'failed-blocked'].includes(task.status)) {
             html += this.getTaskResultsHTML(task.results);
         }
         
@@ -978,6 +1632,9 @@ class EcosystemManager {
                     ${task.created_at ? `<div><strong>Created:</strong> ${new Date(task.created_at).toLocaleString()}</div>` : ''}
                     ${task.started_at ? `<div><strong>Started:</strong> ${new Date(task.started_at).toLocaleString()}</div>` : ''}
                     ${Number.isInteger(task.completion_count) ? `<div><strong>Runs Completed:</strong> ${task.completion_count}</div>` : ''}
+                    ${Number.isInteger(task.consecutive_completion_claims) ? `<div><strong>Completion Streak:</strong> ${task.consecutive_completion_claims}</div>` : ''}
+                    ${Number.isInteger(task.consecutive_failures) ? `<div><strong>Failure Streak:</strong> ${task.consecutive_failures}</div>` : ''}
+                    ${typeof task.processor_auto_requeue === 'boolean' ? `<div><strong>Auto Recycle:</strong> ${task.processor_auto_requeue ? 'Enabled' : 'Disabled'}</div>` : ''}
                     ${task.last_completed_at ? `<div><strong>Last Completed:</strong> ${new Date(task.last_completed_at).toLocaleString()}</div>` : (!task.last_completed_at && task.completed_at ? `<div><strong>Last Completed:</strong> ${new Date(task.completed_at).toLocaleString()}</div>` : '')}
                 </div>
             </div>
@@ -998,6 +1655,13 @@ class EcosystemManager {
                         </span>
                         ${results.timeout_failure ? '<span style="color: #ff9800; margin-left: 8px;">⏰ TIMEOUT</span>' : ''}
                     </div>
+
+                    ${results.recycler_classification ? `
+                        <div style="margin-bottom: 0.5rem; font-size: 0.9em;">
+                            <strong>Recycler Classification:</strong> ${this.escapeHtml(results.recycler_classification.replace(/_/g, ' '))}
+                            ${results.recycler_updated_at ? `<span style="margin-left: 0.5rem; color: #666;">(updated ${new Date(results.recycler_updated_at).toLocaleString()})</span>` : ''}
+                        </div>
+                    ` : ''}
                     
                     ${results.execution_time || results.timeout_allowed || results.prompt_size ? `
                         <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0, 0, 0, 0.05); border-radius: 4px;">
@@ -1045,7 +1709,7 @@ class EcosystemManager {
         
         const updates = {
             title: formData.get('title'),
-            status: formData.get('current_phase') || formData.get('status'), // Map current_phase to status for file movement
+            status: formData.get('status'),
             priority: formData.get('priority'),
             current_phase: formData.get('current_phase'),
             operation: formData.get('operation'),
@@ -1192,23 +1856,37 @@ class EcosystemManager {
             
             // Clear task state when moving to specific columns
             const updates = { status: toStatus };
-            
+
             // Set appropriate current_phase based on the target status
             // Use empty string to clear, as the backend preserves non-empty values
-            if (toStatus === 'pending') {
-                updates.current_phase = '';  // Empty string to clear
-            } else if (toStatus === 'in-progress') {
-                updates.current_phase = 'in-progress';
-            } else if (toStatus === 'completed') {
-                updates.current_phase = 'completed';
-            } else if (toStatus === 'failed') {
-                updates.current_phase = 'failed';
+            switch (toStatus) {
+                case 'pending':
+                    updates.current_phase = '';
+                    break;
+                case 'in-progress':
+                    updates.current_phase = 'in-progress';
+                    break;
+                case 'completed':
+                    updates.current_phase = 'completed';
+                    break;
+                case 'completed-finalized':
+                    updates.current_phase = 'finalized';
+                    break;
+                case 'failed':
+                    updates.current_phase = 'failed';
+                    break;
+                case 'failed-blocked':
+                    updates.current_phase = 'blocked';
+                    break;
+                default:
+                    updates.current_phase = '';
             }
             
             const result = await this.taskManager.updateTask(taskId, updates);
             
             if (result.success) {
-                this.showToast(`Task moved to ${toStatus}`, 'success');
+                const friendlyStatus = toStatus.replace(/-/g, ' ');
+                this.showToast(`Task moved to ${friendlyStatus}`, 'success');
                 
                 // Give the backend a moment to complete the file move operation
                 // This prevents seeing duplicates during the transition
@@ -1258,6 +1936,7 @@ class EcosystemManager {
                 
                 this.showToast('Settings saved successfully', 'success');
                 this.closeModal('settings-modal');
+                await this.fetchQueueProcessorStatus();
             } else {
                 throw new Error(result.error || 'Failed to save settings');
             }
@@ -1306,30 +1985,6 @@ class EcosystemManager {
 
     updateQueueStatusUI(status) {
         // Update queue metrics
-        const metrics = {
-            'queue-pending': status.pending_count || 0,
-            'queue-running': status.running_count || 0,
-            'queue-completed': status.completed_count || 0,
-            'queue-failed': status.failed_count || 0
-        };
-        
-        Object.entries(metrics).forEach(([id, value]) => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.textContent = value;
-            }
-        });
-
-        const availableSlotsEl = document.getElementById('available-slots');
-        if (availableSlotsEl && typeof status.available_slots === 'number') {
-            availableSlotsEl.textContent = status.available_slots;
-        }
-
-        const maxSlotsEl = document.getElementById('max-slots');
-        if (maxSlotsEl && typeof status.max_concurrent === 'number') {
-            maxSlotsEl.textContent = status.max_concurrent;
-        }
-
         // Update last processed time
         if (status.last_processed_at) {
             const element = document.getElementById('last-processed-time');
@@ -1663,6 +2318,21 @@ class EcosystemManager {
             case 'task_failed':
                 this.handleProcessCompleted(message.task_id || message.data?.id);
                 break;
+            case 'task_finalized':
+                this.showToast('Task moved to finalized lane', 'success');
+                this.refreshColumn('completed-finalized').catch(console.error);
+                this.refreshColumn('completed').catch(console.error);
+                break;
+            case 'task_blocked':
+                this.showToast('Task marked as blocked after repeated failures', 'error');
+                this.refreshColumn('failed-blocked').catch(console.error);
+                this.refreshColumn('failed').catch(console.error);
+                break;
+            case 'task_recycled':
+                this.refreshColumn('pending').catch(console.error);
+                this.refreshColumn('completed').catch(console.error);
+                this.refreshColumn('failed').catch(console.error);
+                break;
             case 'task_status_changed':
                 // Handle real-time task status changes
                 this.handleTaskStatusChanged(message.data.task_id, message.data.old_status, message.data.new_status);
@@ -1681,12 +2351,20 @@ class EcosystemManager {
     async handleTaskStatusChanged(taskId, oldStatus, newStatus) {
         console.log(`Task ${taskId} status changed from ${oldStatus} to ${newStatus}`);
         // Handle real-time task status changes by refreshing both affected columns
-        if (oldStatus !== newStatus) {
-            await Promise.all([
-                this.loadTasksForStatus(oldStatus),
-                this.loadTasksForStatus(newStatus)
-            ]);
+        if (oldStatus === newStatus) {
+            if (newStatus) {
+                await this.loadTasksForStatus(newStatus);
+            }
+            return;
         }
+
+        const statusesToRefresh = new Set();
+        if (oldStatus) statusesToRefresh.add(oldStatus);
+        if (newStatus) statusesToRefresh.add(newStatus);
+
+        await Promise.all(
+            Array.from(statusesToRefresh).map(status => this.loadTasksForStatus(status))
+        );
     }
 
     // UI Helper Methods
@@ -1750,6 +2428,158 @@ class EcosystemManager {
         UIComponents.showToast(message, type);
     }
 
+    buildRecyclerPayloadFromForm(options = {}) {
+        const { requireOutput = true } = options;
+        const outputField = document.getElementById('recycler-test-output');
+        const outputText = outputField?.value ?? '';
+
+        if (requireOutput && !outputText.trim()) {
+            this.showToast('Provide mock output text to test the recycler.', 'error');
+            if (outputField) {
+                outputField.focus();
+            }
+            return null;
+        }
+
+        return {
+            output_text: outputText,
+            previous_note: document.getElementById('recycler-test-prev-note')?.value ?? '',
+            task_type: document.getElementById('recycler-test-task-type')?.value ?? 'scenario',
+            operation: document.getElementById('recycler-test-operation')?.value ?? 'improver',
+            completion_streak: parseInt(document.getElementById('recycler-test-completion-streak')?.value || '0', 10) || 0,
+            failure_streak: parseInt(document.getElementById('recycler-test-failure-streak')?.value || '0', 10) || 0,
+            completion_count: parseInt(document.getElementById('recycler-test-completion-count')?.value || '0', 10) || 0,
+            title: (document.getElementById('recycler-test-title')?.value || 'Recycler Test Task').trim() || 'Recycler Test Task'
+        };
+    }
+
+    resetRecyclerResultCard() {
+        const resultContainer = document.getElementById('recycler-test-result');
+        if (resultContainer) {
+            resultContainer.style.display = 'none';
+            resultContainer.innerHTML = '';
+        }
+    }
+
+    async executeRecyclerTest(payload, { showLoading = true } = {}) {
+        if (showLoading) {
+            this.showLoading(true);
+        }
+
+        try {
+            const response = await fetch(`${this.apiBase}/recycler/test`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                console.warn('Failed to parse recycler test response as JSON:', parseError);
+            }
+
+            if (!response.ok) {
+                const message = data?.error || response.statusText || 'Recycler test failed';
+                throw new Error(message);
+            }
+
+            return data;
+        } catch (error) {
+            throw error instanceof Error ? error : new Error(String(error));
+        } finally {
+            if (showLoading) {
+                this.showLoading(false);
+            }
+        }
+    }
+
+    showRecyclerTestError(error) {
+        console.error('Recycler test failed:', error);
+        this.showToast(`Recycler test failed: ${error.message}`, 'error');
+
+        const resultContainer = document.getElementById('recycler-test-result');
+        if (resultContainer) {
+            resultContainer.style.display = 'block';
+            resultContainer.innerHTML = `
+                <strong>Recycler test failed</strong><br>
+                <span class="recycler-result-meta" style="color: var(--error-color);">${this.escapeHtml(error.message || 'Unknown error')}</span>
+            `;
+        }
+    }
+
+    async runRecyclerTest() {
+        const payload = this.buildRecyclerPayloadFromForm();
+        if (!payload) {
+            return;
+        }
+
+        this.resetRecyclerResultCard();
+
+        try {
+            const data = await this.executeRecyclerTest(payload, { showLoading: true });
+            this.renderRecyclerTestResult(data);
+
+            if (data.success) {
+                this.showToast('Recycler summarizer test succeeded', 'success');
+            } else {
+                this.showToast('Recycler summarizer fell back to default result', 'warning');
+            }
+        } catch (error) {
+            this.showRecyclerTestError(error);
+        }
+    }
+
+    renderRecyclerTestResult(data, options = {}) {
+        const container = document.getElementById('recycler-test-result');
+        if (!container) return;
+
+        const result = data?.result || {};
+        const rawClassification = (result.classification || 'unknown').toLowerCase();
+        const formattedClassification = this.formatClassification(rawClassification);
+        const noteHtml = result.note ? this.escapeHtml(result.note).replace(/\n/g, '<br>') : '<em>No note returned</em>';
+
+        const provider = data?.provider ? this.escapeHtml(data.provider) : '—';
+        const model = data?.model ? this.escapeHtml(data.model) : '—';
+        const statusLabel = data?.success ? 'Summarizer Result' : 'Fallback Result';
+        const presetLabel = options.presetLabel ? `<div class="recycler-result-label">${this.escapeHtml(options.presetLabel)}</div>` : '';
+
+        const expectedRaw = options.expectedClassification ? options.expectedClassification.toLowerCase() : null;
+        const expectedLabel = expectedRaw ? this.formatClassification(expectedRaw) : null;
+        const match = expectedRaw ? expectedRaw === rawClassification : null;
+        const classificationChipClass = expectedLabel ? (match ? 'match' : 'mismatch') : '';
+
+        const chips = [
+            `<span class="recycler-result-chip ${classificationChipClass}">${this.escapeHtml(formattedClassification)}</span>`
+        ];
+        if (expectedLabel) {
+            chips.push(`<span class="recycler-result-chip ${match ? 'match' : 'mismatch'}">Expected: ${this.escapeHtml(expectedLabel)}</span>`);
+        }
+
+        let extra = '';
+        if (data?.error) {
+            extra = `<div class="recycler-result-meta" style="color: var(--error-color);">${this.escapeHtml(data.error)}</div>`;
+        }
+
+        container.style.display = 'block';
+        container.innerHTML = `
+            <div class="recycler-result-header">
+                <div>
+                    <strong>${statusLabel}</strong>
+                    ${presetLabel}
+                </div>
+                <div class="recycler-result-meta">
+                    ${chips.join(' ')}
+                    <span>Provider: ${provider}</span>
+                    <span>Model: ${model}</span>
+                </div>
+            </div>
+            ${extra}
+            <div class="recycler-note-preview">${noteHtml}</div>
+        `;
+    }
+
     showLoading(show) {
         UIComponents.showLoading(show);
         this.isLoading = show;
@@ -1766,6 +2596,36 @@ class EcosystemManager {
 
     escapeHtml(text) {
         return UIComponents.escapeHtml(text);
+    }
+
+    formatClassification(value) {
+        const normalized = (value || '').toString().trim().toLowerCase();
+        if (!normalized) {
+            return '—';
+        }
+
+        switch (normalized) {
+            case 'full_complete':
+                return 'full complete';
+            case 'partial_progress':
+                return 'partial progress';
+            case 'uncertain':
+                return 'uncertain';
+            case 'unknown':
+                return 'unknown';
+            default:
+                return normalized.replace(/_/g, ' ');
+        }
+    }
+
+    truncateText(text, max = 160) {
+        if (typeof text !== 'string') {
+            return '';
+        }
+        if (text.length <= max) {
+            return text;
+        }
+        return `${text.slice(0, Math.max(0, max - 1))}…`;
     }
 
     // Additional UI Methods for HTML handlers
@@ -2867,7 +3727,7 @@ class EcosystemManager {
         const visibleColumns = board.querySelectorAll('.kanban-column:not(.hidden)').length;
         
         // Remove all column classes
-        board.classList.remove('columns-1', 'columns-2', 'columns-3', 'columns-4');
+        board.classList.remove('columns-1', 'columns-2', 'columns-3', 'columns-4', 'columns-5', 'columns-6');
         
         // Add appropriate class based on visible columns
         if (visibleColumns > 0) {

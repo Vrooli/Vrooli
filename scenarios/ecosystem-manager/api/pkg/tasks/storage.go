@@ -114,6 +114,30 @@ func (s *Storage) normalizeTaskItem(item *TaskItem, status string, raw map[strin
 		changed = true
 	}
 
+	// Ensure streak counters are non-negative
+	if item.ConsecutiveCompletionClaims < 0 {
+		item.ConsecutiveCompletionClaims = 0
+		changed = true
+	}
+	if item.ConsecutiveFailures < 0 {
+		item.ConsecutiveFailures = 0
+		changed = true
+	}
+
+	// Default processor auto requeue to true if not explicitly set
+	if raw != nil {
+		if _, exists := raw["processor_auto_requeue"]; !exists {
+			if !item.ProcessorAutoRequeue {
+				item.ProcessorAutoRequeue = true
+				changed = true
+			}
+		}
+	} else if !item.ProcessorAutoRequeue {
+		// If raw metadata missing (e.g., crafted programmatically) default to true
+		item.ProcessorAutoRequeue = true
+		changed = true
+	}
+
 	return changed
 }
 
@@ -384,7 +408,7 @@ func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
 
 // GetTaskByID finds a task by ID across all queue statuses
 func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
-	statuses := []string{"pending", "in-progress", "review", "completed", "failed"}
+	statuses := []string{"pending", "in-progress", "review", "completed", "failed", "completed-finalized", "failed-blocked"}
 
 	// Strategy 1: Try exact filename match
 	for _, status := range statuses {

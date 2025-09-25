@@ -902,6 +902,17 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 		if update.Status == "failed" {
 			task.CompletedAt = now
 		}
+		if update.Status == "pending" {
+			task.ConsecutiveCompletionClaims = 0
+			task.ConsecutiveFailures = 0
+			task.ProcessorAutoRequeue = true
+		}
+		if update.Status == "completed-finalized" {
+			task.ProcessorAutoRequeue = false
+		}
+		if update.Status == "failed-blocked" {
+			task.ProcessorAutoRequeue = false
+		}
 
 		// CRITICAL: If task is moved OUT of in-progress, terminate any running process
 		if currentStatus == "in-progress" && update.Status != "in-progress" {

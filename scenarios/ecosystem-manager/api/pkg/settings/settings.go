@@ -4,6 +4,16 @@ import (
 	"sync"
 )
 
+// RecyclerSettings encapsulates configuration for the recycler daemon.
+type RecyclerSettings struct {
+	EnabledFor          string `json:"enabled_for"`
+	IntervalSeconds     int    `json:"interval_seconds"`
+	ModelProvider       string `json:"model_provider"`
+	ModelName           string `json:"model_name"`
+	CompletionThreshold int    `json:"completion_threshold"`
+	FailureThreshold    int    `json:"failure_threshold"`
+}
+
 // Settings represents the application settings
 type Settings struct {
 	// Display settings
@@ -19,6 +29,9 @@ type Settings struct {
 	AllowedTools    string `json:"allowed_tools"`
 	SkipPermissions bool   `json:"skip_permissions"`
 	TaskTimeout     int    `json:"task_timeout"` // Task execution timeout in minutes
+
+	// Recycler automation settings
+	Recycler RecyclerSettings `json:"recycler"`
 }
 
 // Global settings with thread safety
@@ -32,6 +45,14 @@ var (
 		AllowedTools:    "Read,Write,Edit,Bash,LS,Glob,Grep",
 		SkipPermissions: true,
 		TaskTimeout:     30, // 30 minutes default timeout
+		Recycler: RecyclerSettings{
+			EnabledFor:          "off",
+			IntervalSeconds:     60,
+			ModelProvider:       "ollama",
+			ModelName:           "llama3.1:8b",
+			CompletionThreshold: 3,
+			FailureThreshold:    5,
+		},
 	}
 	settingsMutex sync.RWMutex
 )
@@ -64,6 +85,14 @@ func ResetSettings() Settings {
 		AllowedTools:    "Read,Write,Edit,Bash,LS,Glob,Grep",
 		SkipPermissions: true,
 		TaskTimeout:     30, // 30 minutes default timeout
+		Recycler: RecyclerSettings{
+			EnabledFor:          "off",
+			IntervalSeconds:     60,
+			ModelProvider:       "ollama",
+			ModelName:           "llama3.1:8b",
+			CompletionThreshold: 3,
+			FailureThreshold:    5,
+		},
 	}
 
 	return currentSettings
@@ -102,4 +131,11 @@ func GetTaskTimeout() int {
 	settingsMutex.RLock()
 	defer settingsMutex.RUnlock()
 	return currentSettings.TaskTimeout
+}
+
+// GetRecyclerSettings returns current recycler configuration.
+func GetRecyclerSettings() RecyclerSettings {
+	settingsMutex.RLock()
+	defer settingsMutex.RUnlock()
+	return currentSettings.Recycler
 }

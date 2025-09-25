@@ -70,10 +70,6 @@
                             <i class="fas fa-clock"></i>
                             <span id="next-refresh">Next: <span id="refresh-countdown">--</span>s</span>
                         </div>
-                        <div class="queue-slots">
-                            <i class="fas fa-server"></i>
-                            <span id="queue-slots">Slots: <span id="available-slots">0</span>/<span id="max-slots">1</span></span>
-                        </div>
                         <!-- Process Monitor Widget -->
                         <div class="process-monitor" id="process-monitor" style="display: none;">
                             <button type="button" class="process-monitor-toggle" id="process-monitor-toggle" title="View running agents">
@@ -206,6 +202,23 @@
             </div>
         </div>
 
+        <!-- Finalized Column -->
+        <div class="kanban-column success" data-status="completed-finalized">
+            <div class="column-header success">
+                <div class="column-title">
+                    <i class="fas fa-check-double"></i>
+                    <span>Completed – Finalized</span>
+                    <span class="task-count" id="completed-finalized-count">0</span>
+                </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('completed-finalized')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
+            </div>
+            <div class="column-content" id="completed-finalized-tasks">
+                <!-- Finalized tasks will be loaded here -->
+            </div>
+        </div>
+
         <!-- Failed Column -->
         <div class="kanban-column" data-status="failed">
             <div class="column-header error">
@@ -220,6 +233,23 @@
             </div>
             <div class="column-content" id="failed-tasks">
                 <!-- Tasks will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Blocked Column -->
+        <div class="kanban-column danger" data-status="failed-blocked">
+            <div class="column-header danger">
+                <div class="column-title">
+                    <i class="fas fa-ban"></i>
+                    <span>Failed – Blocked</span>
+                    <span class="task-count" id="failed-blocked-count">0</span>
+                </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('failed-blocked')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
+            </div>
+            <div class="column-content" id="failed-blocked-tasks">
+                <!-- Blocked tasks will be loaded here -->
             </div>
         </div>
     </main>
@@ -370,6 +400,10 @@
                 <button type="button" class="settings-tab-btn" data-tab="limits" onclick="ecosystemManager.switchSettingsTab('limits')">
                     <i class="fas fa-hourglass-half"></i>
                     <span>Rate Limits</span>
+                </button>
+                <button type="button" class="settings-tab-btn" data-tab="recycler" onclick="ecosystemManager.switchSettingsTab('recycler')">
+                    <i class="fas fa-recycle"></i>
+                    <span>Recycler</span>
                 </button>
             </div>
             
@@ -599,6 +633,228 @@
                                     Reset Rate Limit Pause
                                 </button>
                                 <small class="form-help">Manually reset the rate limit pause if you've resolved the API limit issue</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recycler Settings Tab -->
+                    <div class="settings-tab-content" data-tab="recycler">
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <i class="fas fa-recycle"></i>
+                                Recycler Automation
+                            </h4>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="settings-recycler-enabled">Enabled For</label>
+                                    <select id="settings-recycler-enabled" name="recycler_enabled">
+                                        <option value="off">Disabled</option>
+                                        <option value="resources">Resources Only</option>
+                                        <option value="scenarios">Scenarios Only</option>
+                                        <option value="both">Resources &amp; Scenarios</option>
+                                    </select>
+                                    <small class="form-help">Choose which task types the recycler should automatically process.</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="settings-recycler-interval">Recycle Interval (seconds)</label>
+                                    <input type="number" id="settings-recycler-interval" name="recycler_interval" min="30" max="1800" step="5" value="60">
+                                    <small class="form-help">How often the recycler picks up the next eligible task.</small>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="settings-recycler-model-provider">Model Provider</label>
+                                    <select id="settings-recycler-model-provider" name="recycler_model_provider">
+                                        <option value="ollama">Ollama (local)</option>
+                                        <option value="openrouter">OpenRouter</option>
+                                    </select>
+                                    <small class="form-help">Select which inference resource summarizes task output.</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="settings-recycler-model-name">Model Name</label>
+                                    <select id="settings-recycler-model-name" name="recycler_model_name" disabled>
+                                        <option value="">Loading models…</option>
+                                    </select>
+                                    <input type="text" id="settings-recycler-model-name-custom" class="custom-model-input hidden" placeholder="Enter custom model identifier">
+                                    <small class="form-help">Select an available model or choose custom to enter one manually.</small>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="settings-recycler-completion-threshold">Completion Streak Threshold</label>
+                                    <input type="number" id="settings-recycler-completion-threshold" name="recycler_completion_threshold" min="1" max="10" value="3">
+                                    <small class="form-help">Number of consecutive "done" runs before finalizing.</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="settings-recycler-failure-threshold">Failure Streak Threshold</label>
+                                    <input type="number" id="settings-recycler-failure-threshold" name="recycler_failure_threshold" min="1" max="10" value="5">
+                                    <small class="form-help">Number of consecutive failures before blocking.</small>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="info-card">
+                                    <i class="fas fa-info-circle"></i>
+                                    <div>
+                                        <strong>What the recycler does</strong>
+                                        <p>Each cycle the recycler reviews one task in Completed or Failed, refreshes its notes, updates streak counters, and either requeues it for another attempt or moves it into a terminal lane.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-section recycler-testbed">
+                                <h5 class="settings-section-title">
+                                    <i class="fas fa-vial"></i>
+                                    Recycler Testbed
+                                </h5>
+
+                                <div class="form-group recycler-preset-selector">
+                                    <label for="recycler-test-preset">Preset Transcript</label>
+                                    <div class="recycler-preset-row">
+                                        <select id="recycler-test-preset">
+                                            <option value="">Select a preset transcript…</option>
+                                        </select>
+                                        <button type="button" class="btn btn-outline" id="recycler-load-preset">
+                                            <i class="fas fa-file-import"></i>
+                                            Load
+                                        </button>
+                                        <button type="button" class="btn btn-outline" id="recycler-run-preset">
+                                            <i class="fas fa-play-circle"></i>
+                                            Run Selected
+                                        </button>
+                                    </div>
+                                    <div class="recycler-preset-actions">
+                                        <button type="button" class="btn btn-outline" id="recycler-run-suite">
+                                            <i class="fas fa-tasks"></i>
+                                            Run All Presets
+                                        </button>
+                                        <button type="button" class="btn btn-link" id="recycler-clear-suite">
+                                            Clear Results
+                                        </button>
+                                    </div>
+                                    <small class="form-help">
+                                        Expected classification: <span id="recycler-preset-expected">—</span>
+                                    </small>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="recycler-test-task-type">Task Type</label>
+                                        <select id="recycler-test-task-type">
+                                            <option value="scenario" selected>Scenario</option>
+                                            <option value="resource">Resource</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="recycler-test-operation">Operation</label>
+                                        <select id="recycler-test-operation">
+                                            <option value="improver" selected>Improver</option>
+                                            <option value="generator">Generator</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="recycler-test-title">Task Title</label>
+                                        <input type="text" id="recycler-test-title" value="Calendar scenario improvements">
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="recycler-test-completion-streak">Completion Streak</label>
+                                        <input type="number" id="recycler-test-completion-streak" min="0" max="10" value="1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="recycler-test-failure-streak">Failure Streak</label>
+                                        <input type="number" id="recycler-test-failure-streak" min="0" max="10" value="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="recycler-test-completion-count">Completion Count</label>
+                                        <input type="number" id="recycler-test-completion-count" min="0" value="3">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="recycler-test-output">Mock Output Text</label>
+                                    <textarea id="recycler-test-output" rows="12">[INFO]    Started health monitor for claude-code (PID: 47592, interval: 30s)
+[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 1800 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 23840 chars)
+
+## Task Completion Summary
+
+**Task ID**: scenario-improver-calendar-20250218-091422
+**Target**: calendar
+**Operation**: improver
+
+### Status: Successfully Improved ✅
+
+### Work Completed
+1. **Patched recurring events** so first occurrence is scheduled correctly.
+2. **Added availability guardrails** to prevent overlapping invites.
+3. **Extended CLI** with `calendar sync --watch` option and usage docs.
+4. **Refreshed PRD checkpoints** to reflect 6/6 P0 requirements met.
+
+### Evidence of Working Features
+- Health check: `curl http://localhost:19830/health` -> `{"status":"healthy"}`
+- CLI smoke: `CALENDAR_PORT=19830 calendar status` -> reports active services.
+- Tests: Jest suite improved from 18/26 ✅ to 26/26 ✅.
+
+### Remaining Issues
+- OAuth handoff still uses placeholder redirect URL.
+- Notification hub integration pending service credentials.
+- Load tests not yet executed for 500+ concurrent users.
+
+### Recommendations
+1. Wire up production OAuth callback once credentials are issued.
+2. Implement notification hub webhooks and alert fan-out.
+3. Schedule load suite to capture 500 user concurrency baseline.
+4. Add integration test covering sync failure retry branch.
+
+The calendar scenario is now production-ready with all P0 requirements verified.
+</textarea>
+                                    <small class="form-help">Runs the recycler summarizer using the current settings. Adjust this text to simulate different agent outputs.</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="recycler-test-prev-note">Previous Note (optional)</label>
+                                    <textarea id="recycler-test-prev-note" rows="3" placeholder="Existing task note shown to the recycler on the next run"></textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <button type="button" class="btn btn-primary" id="recycler-test-run">
+                                        <i class="fas fa-play"></i>
+                                        Run Recycler Test
+                                    </button>
+                                </div>
+
+                                <div id="recycler-test-result" class="info-card" style="display: none;"></div>
+                                <div id="recycler-test-suite-results" class="info-card recycler-suite-results" style="display: none;">
+                                    <div class="recycler-suite-header">
+                                        <strong>Preset Test Runs</strong>
+                                        <span id="recycler-suite-summary" class="recycler-suite-summary"></span>
+                                    </div>
+                                    <div class="recycler-suite-body">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Preset</th>
+                                                    <th>Expected</th>
+                                                    <th>Actual</th>
+                                                    <th>Outcome</th>
+                                                    <th>Note Preview</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="recycler-suite-results-body"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
