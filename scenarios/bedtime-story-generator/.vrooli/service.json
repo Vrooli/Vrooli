@@ -186,12 +186,12 @@
         },
         {
           "name": "initialize-database",
-          "run": "cd initialization/storage/postgres && cat schema.sql | resource-postgres exec 2>/dev/null || true",
+          "run": "cd initialization/storage/postgres && resource-postgres content execute --file schema.sql 2>/dev/null || true",
           "description": "Create database schema"
         },
         {
           "name": "seed-sample-stories",
-          "run": "cd initialization/storage/postgres && cat seed.sql | resource-postgres exec 2>/dev/null || true",
+          "run": "cd initialization/storage/postgres && resource-postgres content execute --file seed.sql 2>/dev/null || true",
           "description": "Add sample stories"
         },
         {

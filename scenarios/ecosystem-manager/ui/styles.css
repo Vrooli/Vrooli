@@ -1290,12 +1290,32 @@ body.dark-mode .info-card {
     color: var(--white);
 }
 
+
 .recycler-testbed .form-group textarea {
     min-height: 180px;
 }
 
 .recycler-testbed {
     margin-top: 1.5rem;
+}
+
+.recycler-mode-toggle {
+    margin-bottom: 1.2rem;
+}
+
+.recycler-mode-buttons {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.recycler-mode-buttons .btn {
+    flex: 0 0 auto;
+}
+
+.recycler-mode-section[data-mode="suite"] {
+    margin-top: 1.4rem;
 }
 
 .recycler-preset-selector {
@@ -1410,6 +1430,18 @@ body.dark-mode .info-card {
     margin-top: 0.25rem;
     font-size: 0.75rem;
     color: var(--error-color);
+}
+
+.suite-loading-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.suite-loading-row .loading-spinner-icon {
+    color: var(--primary-color);
 }
 
 body.dark-mode .recycler-suite-results {

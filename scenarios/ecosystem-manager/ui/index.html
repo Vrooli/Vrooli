@@ -714,38 +714,37 @@
                                     Recycler Testbed
                                 </h5>
 
-                                <div class="form-group recycler-preset-selector">
-                                    <label for="recycler-test-preset">Preset Transcript</label>
-                                    <div class="recycler-preset-row">
-                                        <select id="recycler-test-preset">
-                                            <option value="">Select a preset transcript…</option>
-                                        </select>
-                                        <button type="button" class="btn btn-outline" id="recycler-load-preset">
-                                            <i class="fas fa-file-import"></i>
-                                            Load
+                                <div class="form-group recycler-mode-toggle">
+                                    <label>Test Mode</label>
+                                    <div class="recycler-mode-buttons">
+                                        <button type="button" class="btn btn-primary" data-recycler-mode="custom" aria-pressed="true">
+                                            <i class="fas fa-microscope"></i>
+                                            Custom Run
                                         </button>
-                                        <button type="button" class="btn btn-outline" id="recycler-run-preset">
-                                            <i class="fas fa-play-circle"></i>
-                                            Run Selected
+                                        <button type="button" class="btn btn-outline" data-recycler-mode="suite" aria-pressed="false">
+                                            <i class="fas fa-list-check"></i>
+                                            Preset Suite
                                         </button>
                                     </div>
-                                    <div class="recycler-preset-actions">
-                                        <button type="button" class="btn btn-outline" id="recycler-run-suite">
-                                            <i class="fas fa-tasks"></i>
-                                            Run All Presets
-                                        </button>
-                                        <button type="button" class="btn btn-link" id="recycler-clear-suite">
-                                            Clear Results
-                                        </button>
-                                    </div>
-                                    <small class="form-help">
-                                        Expected classification: <span id="recycler-preset-expected">—</span>
-                                    </small>
+                                    <small class="form-help">Switch between single-run experiments and full preset sweeps.</small>
                                 </div>
 
-                                <div class="form-group">
-                                    <label for="recycler-test-output">Mock Output Text</label>
-                                    <textarea id="recycler-test-output" rows="12">[INFO]    Started health monitor for claude-code (PID: 47592, interval: 30s)
+                                <div class="recycler-mode-section" data-mode="custom">
+                                    <div class="form-group recycler-preset-selector">
+                                        <label for="recycler-test-preset">Preset Transcript</label>
+                                        <div class="recycler-preset-row">
+                                            <select id="recycler-test-preset">
+                                                <option value="">Select a preset transcript…</option>
+                                            </select>
+                                        </div>
+                                        <small class="form-help">
+                                            Expected classification: <span id="recycler-preset-expected">—</span>
+                                        </small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="recycler-test-output">Mock Output Text</label>
+                                        <textarea id="recycler-test-output" rows="12">[INFO]    Started health monitor for claude-code (PID: 47592, interval: 30s)
 [HEADER]  🤖 Running Claude Code
 [INFO]    Non-TTY environment detected - using automation-friendly settings
 [WARNING] ⚠️  WARNING: Permission checks are disabled!
@@ -783,35 +782,50 @@
 
 The calendar scenario is now production-ready with all P0 requirements verified.
 </textarea>
-                                    <small class="form-help">Runs the recycler summarizer using the current settings. Adjust this text to simulate different agent outputs.</small>
-                                </div>
-
-                                <div class="form-group">
-                                    <button type="button" class="btn btn-primary" id="recycler-test-run">
-                                        <i class="fas fa-play"></i>
-                                        Run Recycler Test
-                                    </button>
-                                </div>
-
-                                <div id="recycler-test-result" class="info-card" style="display: none;"></div>
-                                <div id="recycler-test-suite-results" class="info-card recycler-suite-results" style="display: none;">
-                                    <div class="recycler-suite-header">
-                                        <strong>Preset Test Runs</strong>
-                                        <span id="recycler-suite-summary" class="recycler-suite-summary"></span>
+                                        <small class="form-help">Runs the recycler summarizer using the current settings. Adjust this text to simulate different agent outputs.</small>
                                     </div>
-                                    <div class="recycler-suite-body">
-                                        <table>
-                                            <thead>
-                                                <tr>
-                                                    <th>Preset</th>
-                                                    <th>Expected</th>
-                                                    <th>Actual</th>
-                                                    <th>Outcome</th>
-                                                    <th>Note Preview</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="recycler-suite-results-body"></tbody>
-                                        </table>
+
+                                    <div class="form-group">
+                                        <button type="button" class="btn btn-primary" id="recycler-test-run">
+                                            <i class="fas fa-play"></i>
+                                            Run Recycler Test
+                                        </button>
+                                    </div>
+
+                                    <div id="recycler-test-result" class="info-card" style="display: none;"></div>
+                                </div>
+
+                                <div class="recycler-mode-section" data-mode="suite" hidden>
+                                    <div class="recycler-preset-actions">
+                                        <button type="button" class="btn btn-primary" id="recycler-run-suite">
+                                            <i class="fas fa-tasks"></i>
+                                            Run All Presets
+                                        </button>
+                                        <button type="button" class="btn btn-outline" id="recycler-clear-suite">
+                                            Clear Results
+                                        </button>
+                                    </div>
+                                    <small class="form-help">Executes every preset with the current settings and records the recycler verdicts.</small>
+
+                                    <div id="recycler-test-suite-results" class="info-card recycler-suite-results" style="display: none;">
+                                        <div class="recycler-suite-header">
+                                            <strong>Preset Test Runs</strong>
+                                            <span id="recycler-suite-summary" class="recycler-suite-summary"></span>
+                                        </div>
+                                        <div class="recycler-suite-body">
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Preset</th>
+                                                        <th>Expected</th>
+                                                        <th>Actual</th>
+                                                        <th>Outcome</th>
+                                                        <th>Note Preview</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="recycler-suite-results-body"></tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

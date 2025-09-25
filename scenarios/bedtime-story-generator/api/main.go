@@ -8,7 +8,6 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -196,7 +195,8 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func generateStoryHandler(w http.ResponseWriter, r *http.Request) {
 	var req GenerateStoryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Printf("ERROR: Invalid request body: %v", err)
+		http.Error(w, "Invalid request format", http.StatusBadRequest)
 		return
 	}
 
@@ -212,11 +212,14 @@ func generateStoryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate story using Ollama
+	log.Printf("Generating story: age_group=%s, theme=%s, length=%s", req.AgeGroup, req.Theme, req.Length)
 	story, err := generateStoryWithOllama(req)
 	if err != nil {
-		http.Error(w, "Failed to generate story: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("ERROR: Story generation failed: %v", err)
+		http.Error(w, "Failed to generate story. Please try again.", http.StatusInternalServerError)
 		return
 	}
+	log.Printf("Story generated successfully: %s", story.Title)
 
 	// Save to database
 	id := uuid.New().String()
@@ -272,20 +275,67 @@ Rules:
 		ageDescription, req.Theme, lengthDescription,
 		getCharacterPrompt(req.CharacterNames))
 
-	// Call Ollama using resource CLI
-	cmd := exec.Command("resource-ollama", "generate", "--model", "llama3.2:3b", "--prompt", prompt)
-	output, err := cmd.Output()
-	if err != nil {
-		// Fallback to direct ollama command if resource-ollama fails
-		cmd = exec.Command("ollama", "run", "llama3.2:3b", prompt)
-		output, err = cmd.Output()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate story: %v", err)
+	// Use Ollama HTTP API
+	// Try OLLAMA_URL first (full URL), then OLLAMA_BASE_URL, then OLLAMA_HOST with port
+	ollamaHost := os.Getenv("OLLAMA_URL")
+	if ollamaHost == "" {
+		ollamaHost = os.Getenv("OLLAMA_BASE_URL")
+	}
+	if ollamaHost == "" {
+		host := os.Getenv("OLLAMA_HOST")
+		port := os.Getenv("OLLAMA_PORT")
+		if host != "" && port != "" {
+			ollamaHost = fmt.Sprintf("http://%s:%s", host, port)
+		} else {
+			ollamaHost = "http://localhost:11434"
 		}
 	}
 
+	requestBody := map[string]interface{}{
+		"model":  "llama3.2:3b",
+		"prompt": prompt,
+		"stream": false,
+	}
+
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %v", err)
+	}
+
+	// Log the request for debugging
+	log.Printf("Calling Ollama API at %s/api/generate with model llama3.2:3b", ollamaHost)
+	
+	resp, err := http.Post(ollamaHost+"/api/generate", "application/json", strings.NewReader(string(jsonData)))
+	if err != nil {
+		log.Printf("ERROR: Failed to call Ollama API at %s: %v", ollamaHost, err)
+		return nil, fmt.Errorf("failed to call Ollama API: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("ERROR: Ollama API returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("Ollama API returned status %d", resp.StatusCode)
+	}
+
+	var ollamaResponse map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&ollamaResponse); err != nil {
+		log.Printf("ERROR: Failed to decode Ollama response: %v", err)
+		return nil, fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	// Check for error in response
+	if errMsg, hasError := ollamaResponse["error"].(string); hasError {
+		log.Printf("ERROR: Ollama returned error: %s", errMsg)
+		return nil, fmt.Errorf("Ollama error: %s", errMsg)
+	}
+
+	response, ok := ollamaResponse["response"].(string)
+	if !ok {
+		log.Printf("ERROR: Invalid response format from Ollama: %+v", ollamaResponse)
+		return nil, fmt.Errorf("invalid response from Ollama")
+	}
+
 	// Parse the response
-	response := string(output)
 	title, content := parseStoryResponse(response)
 
 	return &Story{

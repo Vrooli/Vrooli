@@ -1,27 +1,26 @@
--- SCENARIO_NAME_PLACEHOLDER Database Schema
--- Core database structure for API and application data
+-- Audio Tools Database Schema
+-- Database structure for audio processing and analysis platform
 
--- Resources table: Main entity management
-CREATE TABLE IF NOT EXISTS resources (
+-- Audio Assets table: Stores metadata about audio files
+CREATE TABLE IF NOT EXISTS audio_assets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
-    description TEXT,
-    type VARCHAR(100),
-    status VARCHAR(50) DEFAULT 'active',
-    config JSONB DEFAULT '{}',
+    file_path TEXT NOT NULL,
+    format VARCHAR(20),
+    duration_seconds DECIMAL(10,3),
+    sample_rate INTEGER,
+    bit_depth INTEGER,
+    channels INTEGER,
+    bitrate INTEGER,
+    file_size_bytes BIGINT,
     metadata JSONB DEFAULT '{}',
-    
-    -- Relationships
-    parent_id UUID REFERENCES resources(id) ON DELETE SET NULL,
-    owner_id VARCHAR(255),
-    
-    -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    
-    -- Constraints
-    CONSTRAINT unique_name_per_type UNIQUE(name, type)
+    last_processed TIMESTAMP WITH TIME ZONE,
+    quality_score DECIMAL(3,2),
+    noise_level DECIMAL(5,2),
+    speech_detected BOOLEAN DEFAULT FALSE,
+    language VARCHAR(10),
+    tags TEXT[]
 );
 
 -- Workflows table: Workflow definitions

@@ -489,6 +489,7 @@ class EcosystemManager {
         this.recyclerTestPresets = RECYCLER_TEST_PRESETS;
         this.recyclerSuiteResults = [];
         this.recyclerSuiteRunning = false;
+        this.recyclerTestMode = 'custom';
 
         // Bind methods
         this.init = this.init.bind(this);
@@ -1127,14 +1128,15 @@ class EcosystemManager {
             });
         }
 
-        const recyclerLoadPresetBtn = document.getElementById('recycler-load-preset');
-        if (recyclerLoadPresetBtn) {
-            recyclerLoadPresetBtn.addEventListener('click', () => this.loadSelectedRecyclerPreset());
-        }
-
-        const recyclerRunPresetBtn = document.getElementById('recycler-run-preset');
-        if (recyclerRunPresetBtn) {
-            recyclerRunPresetBtn.addEventListener('click', () => this.runSelectedRecyclerPreset());
+        const recyclerModeButtons = document.querySelectorAll('[data-recycler-mode]');
+        if (recyclerModeButtons.length) {
+            recyclerModeButtons.forEach(button => {
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const mode = button.getAttribute('data-recycler-mode') || 'custom';
+                    this.setRecyclerTestMode(mode);
+                });
+            });
         }
 
         const recyclerRunSuiteBtn = document.getElementById('recycler-run-suite');
@@ -1170,6 +1172,32 @@ class EcosystemManager {
         });
 
         this.updateRecyclerPresetPreview();
+        this.setRecyclerTestMode(this.recyclerTestMode);
+    }
+
+    setRecyclerTestMode(mode) {
+        const normalized = mode === 'suite' ? 'suite' : 'custom';
+        this.recyclerTestMode = normalized;
+
+        const buttons = document.querySelectorAll('[data-recycler-mode]');
+        buttons.forEach(button => {
+            const buttonMode = button.getAttribute('data-recycler-mode');
+            const isActive = buttonMode === normalized;
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            button.classList.toggle('btn-primary', isActive);
+            button.classList.toggle('btn-outline', !isActive);
+        });
+
+        const sections = document.querySelectorAll('.recycler-mode-section');
+        sections.forEach(section => {
+            const sectionMode = section.getAttribute('data-mode');
+            if (sectionMode === normalized) {
+                section.removeAttribute('hidden');
+            } else {
+                section.setAttribute('hidden', 'hidden');
+            }
+        });
+
         this.renderRecyclerSuiteResults();
     }
 
@@ -1203,34 +1231,6 @@ class EcosystemManager {
         }
     }
 
-    loadSelectedRecyclerPreset() {
-        const presetSelect = document.getElementById('recycler-test-preset');
-        const preset = this.getRecyclerPreset(presetSelect?.value || '');
-        if (!preset) {
-            this.showToast('Select a preset to load first.', 'warning');
-            return;
-        }
-
-        this.applyRecyclerPresetToForm(preset);
-        this.showToast(`Loaded preset: ${preset.label}`, 'success');
-    }
-
-    async runSelectedRecyclerPreset() {
-        const presetSelect = document.getElementById('recycler-test-preset');
-        const preset = this.getRecyclerPreset(presetSelect?.value || '');
-        if (!preset) {
-            this.showToast('Select a preset to run first.', 'warning');
-            return;
-        }
-
-        this.applyRecyclerPresetToForm(preset);
-        try {
-            await this.runRecyclerTestWithPreset(preset, { silent: false, showLoading: true });
-        } catch (error) {
-            // Errors already surfaced by runRecyclerTestWithPreset
-        }
-    }
-
     async runRecyclerPresetSuite() {
         if (this.recyclerSuiteRunning) {
             this.showToast('Preset suite already running.', 'info');
@@ -1243,7 +1243,7 @@ class EcosystemManager {
         }
 
         this.recyclerSuiteResults = [];
-        this.renderRecyclerSuiteResults();
+        this.setRecyclerTestMode('suite');
         this.setRecyclerSuiteRunning(true);
 
         try {
@@ -1259,7 +1259,6 @@ class EcosystemManager {
             this.showToast(`Preset suite failed: ${error.message}`, 'error');
         } finally {
             this.setRecyclerSuiteRunning(false);
-            this.renderRecyclerSuiteResults();
         }
     }
 
@@ -1274,8 +1273,6 @@ class EcosystemManager {
         };
 
         toggleDisabled('recycler-run-suite');
-        toggleDisabled('recycler-run-preset');
-        toggleDisabled('recycler-load-preset');
         toggleDisabled('recycler-clear-suite');
         toggleDisabled('recycler-test-run');
 
@@ -1283,6 +1280,8 @@ class EcosystemManager {
         if (summary) {
             summary.textContent = isRunning ? `Running… 0/${this.recyclerTestPresets.length} processed` : summary.textContent;
         }
+
+        this.renderRecyclerSuiteResults();
     }
 
     clearRecyclerSuiteResults() {
@@ -1301,14 +1300,29 @@ class EcosystemManager {
             return;
         }
 
-        if (this.recyclerSuiteResults.length === 0) {
+        const isSuiteMode = this.recyclerTestMode === 'suite';
+        const isRunning = this.recyclerSuiteRunning;
+
+        if (!isSuiteMode && !isRunning) {
             container.style.display = 'none';
             tableBody.innerHTML = '';
             this.updateRecyclerSuiteSummary();
             return;
         }
 
-        container.style.display = 'block';
+        if (this.recyclerSuiteResults.length === 0) {
+            if (isRunning) {
+                container.style.display = 'block';
+                tableBody.innerHTML = this.renderRecyclerLoadingRow(0);
+                this.updateRecyclerSuiteSummary();
+            } else {
+                container.style.display = 'none';
+                tableBody.innerHTML = '';
+                this.updateRecyclerSuiteSummary();
+            }
+            return;
+        }
+
         tableBody.innerHTML = this.recyclerSuiteResults.map(result => {
             const matchClass = result.match ? 'match' : 'mismatch';
             const expectedLabel = this.escapeHtml(this.formatClassification(result.expected));
@@ -1339,7 +1353,27 @@ class EcosystemManager {
             `;
         }).join('');
 
+        if (isRunning) {
+            tableBody.innerHTML += this.renderRecyclerLoadingRow(this.recyclerSuiteResults.length);
+        }
+
+        container.style.display = isSuiteMode || isRunning ? 'block' : 'none';
         this.updateRecyclerSuiteSummary();
+    }
+
+    renderRecyclerLoadingRow(processedCount) {
+        const total = this.recyclerTestPresets.length;
+        const progress = `${processedCount}/${total}`;
+        return `
+            <tr class="pending">
+                <td colspan="5">
+                    <div class="suite-loading-row">
+                        <span class="loading-spinner-icon"><i class="fas fa-spinner fa-spin"></i></span>
+                        <span>Running preset suite… ${progress} processed</span>
+                    </div>
+                </td>
+            </tr>
+        `;
     }
 
     updateRecyclerSuiteSummary() {

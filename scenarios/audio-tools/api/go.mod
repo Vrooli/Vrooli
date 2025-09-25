@@ -1,4 +1,4 @@
-module API_MODULE_NAME_PLACEHOLDER
+module audio-tools
 
 go 1.21
 

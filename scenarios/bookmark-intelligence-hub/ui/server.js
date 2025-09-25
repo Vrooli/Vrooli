@@ -8,15 +8,29 @@ const app = express();
 const PORT = process.env.UI_PORT || 3200;
 const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${process.env.API_PORT || 15200}`;
 
+const localFrameAncestors = [
+  "'self'",
+  'http://localhost:*',
+  'http://127.0.0.1:*',
+  'http://[::1]:*'
+];
+
+const extraFrameAncestors = (process.env.FRAME_ANCESTORS || '')
+  .split(/\s+/)
+  .filter(Boolean);
+
 // Security middleware
 app.use(helmet({
+  frameguard: false,
   contentSecurityPolicy: {
+    useDefaults: true,
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", API_BASE_URL]
+      connectSrc: ["'self'", API_BASE_URL, 'ws:', 'wss:'],
+      frameAncestors: [...localFrameAncestors, ...extraFrameAncestors]
     }
   }
 }));

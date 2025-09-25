@@ -1,16 +1,16 @@
 #!/bin/bash
-# CLI_NAME_PLACEHOLDER - Command-line interface for SCENARIO_NAME_PLACEHOLDER
-# This is a thin wrapper around the API, following the agent-metareasoning-manager pattern
+# audio-tools - Command-line interface for Audio Tools
+# Comprehensive audio processing and analysis utility
 
 set -euo pipefail
 
 # Configuration
-readonly CLI_NAME="CLI_NAME_PLACEHOLDER"
+readonly CLI_NAME="audio-tools"
 readonly CLI_VERSION="1.0.0"
-readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
+readonly CONFIG_DIR="$HOME/.audio-tools"
 readonly CONFIG_FILE="$CONFIG_DIR/config.json"
-readonly DEFAULT_API_BASE="http://localhost:API_PORT_PLACEHOLDER"
-readonly DEFAULT_TOKEN="CLI_TOKEN_PLACEHOLDER"
+readonly DEFAULT_API_BASE="http://localhost:${API_PORT:-8080}"
+readonly DEFAULT_TOKEN=""
 
 # Colors for output
 readonly RED='\033[0;31m'
@@ -285,6 +285,82 @@ cmd_execute() {
     fi
 }
 
+# Audio-specific commands
+cmd_status() {
+    echo -e "${BLUE}Getting service status...${NC}"
+    response=$(api_request GET "/api/v1/status")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Service status retrieved"
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Failed to get status"
+        return 1
+    fi
+}
+
+cmd_convert() {
+    local input_file="$1"
+    local output_format="$2"
+    
+    if [[ -z "$input_file" ]] || [[ -z "$output_format" ]]; then
+        echo -e "${RED}Error: Input file and format required${NC}" >&2
+        echo "Usage: $CLI_NAME convert <input_file> <format>" >&2
+        return 1
+    fi
+    
+    if [[ ! -f "$input_file" ]]; then
+        echo -e "${RED}Error: File not found: $input_file${NC}" >&2
+        return 1
+    fi
+    
+    local request_data=$(jq -n \
+        --arg file "$input_file" \
+        --arg fmt "$output_format" \
+        '{audio_file: $file, operations: [], output_format: $fmt}')
+    
+    echo -e "${BLUE}Converting $input_file to $output_format...${NC}"
+    response=$(api_request POST "/api/v1/audio/edit" "$request_data")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Conversion successful"
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Conversion failed"
+        return 1
+    fi
+}
+
+cmd_trim() {
+    local input_file="$1"
+    local start_time="${2:-0}"
+    local end_time="${3:-30}"
+    
+    if [[ -z "$input_file" ]]; then
+        echo -e "${RED}Error: Input file required${NC}" >&2
+        echo "Usage: $CLI_NAME trim <input_file> [start_time] [end_time]" >&2
+        return 1
+    fi
+    
+    local operations=$(jq -n \
+        --argjson start "$start_time" \
+        --argjson end "$end_time" \
+        '[{type: "trim", parameters: {start_time: $start, end_time: $end}}]')
+    
+    local request_data=$(jq -n \
+        --arg file "$input_file" \
+        --argjson ops "$operations" \
+        '{audio_file: $file, operations: $ops}')
+    
+    echo -e "${BLUE}Trimming audio...${NC}"
+    response=$(api_request POST "/api/v1/audio/edit" "$request_data")
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Trim successful"
+        format_output "$response"
+    else
+        echo -e "${RED}✗${NC} Trim failed"
+        return 1
+    fi
+}
+
 # Command: configure
 cmd_configure() {
     local key="${1:-}"
@@ -332,6 +408,9 @@ Usage: $CLI_NAME <command> [options]
 
 Commands:
     health              Check system health
+    status              Show audio service status
+    convert <file> <format>  Convert audio format
+    trim <file> [start] [end]  Trim audio file
     list [resource]     List resources
     get <resource> <id> Get specific resource
     create <resource> [key value...]  Create new resource
@@ -391,9 +470,9 @@ main() {
     load_config
     
     # Override with environment variables if set
-    API_BASE="${CLI_NAME^^}_API_BASE:-$API_BASE}"
-    API_TOKEN="${CLI_NAME^^}_API_TOKEN:-$API_TOKEN}"
-    OUTPUT_FORMAT="${CLI_NAME^^}_FORMAT:-$OUTPUT_FORMAT}"
+    API_BASE="${AUDIO_TOOLS_API_BASE:-$API_BASE}"
+    API_TOKEN="${AUDIO_TOOLS_API_TOKEN:-$API_TOKEN}"
+    OUTPUT_FORMAT="${AUDIO_TOOLS_FORMAT:-$OUTPUT_FORMAT}"
     
     # Parse command
     local command="${1:-help}"
@@ -402,6 +481,15 @@ main() {
     case "$command" in
         health)
             cmd_health "$@"
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        convert)
+            cmd_convert "$@"
+            ;;
+        trim)
+            cmd_trim "$@"
             ;;
         list|ls)
             cmd_list "$@"

@@ -35,11 +35,11 @@ This capability establishes patterns for:
   - [x] Reading history tracking per story
   
 - **Should Have (P1)**
-  - [ ] Story themes/genres selection (adventure, animals, fantasy, etc.)
-  - [ ] Character name customization
-  - [ ] Reading time estimates
-  - [ ] Bookmark/favorite stories feature
-  - [ ] Story length options (5, 10, 15 minute stories)
+  - [x] Story themes/genres selection (adventure, animals, fantasy, etc.)
+  - [x] Character name customization
+  - [x] Reading time estimates
+  - [x] Bookmark/favorite stories feature
+  - [x] Story length options (5, 10, 15 minute stories)
   
 - **Nice to Have (P2)**
   - [ ] Text-to-speech reading capability
@@ -61,6 +61,7 @@ This capability establishes patterns for:
 - [x] Age-appropriate content validation passes
 - [x] Time-based UI transitions work correctly
 - [x] Stories persist and retrieve correctly
+- [x] P1 requirements implemented and tested (2025-09-24)
 
 ## 🏗️ Technical Architecture
 
@@ -350,6 +351,11 @@ tests:
 - **Offline Mode**: Requires Ollama connection for generation
 - **Language**: English only in V1
 
+### Recent Improvements (2025-09-24)
+- **Fixed**: Ollama integration was broken due to incorrect host configuration
+- **Enhanced**: Better error handling and logging for story generation
+- **Verified**: All P1 features are functional (themes, character names, favorites, reading time)
+
 ### Security Considerations
 - **Content Filtering**: Strict prompts ensure age-appropriate content
 - **No User Accounts**: Stories stored locally only
@@ -357,7 +363,7 @@ tests:
 
 ---
 
-**Last Updated**: 2025-01-06  
-**Status**: In Development  
+**Last Updated**: 2025-09-24  
+**Status**: Enhanced - P0 and P1 requirements complete  
 **Owner**: Vrooli Team  
 **Review Cycle**: After each story generation update
