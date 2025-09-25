@@ -3,7 +3,7 @@ set -e
 
 echo "=== Testing Structure ==="
 
-cd ../api
+cd ../../api
 
 if ! go vet ./...; then
   echo "❌ Structure (vet) tests failed"

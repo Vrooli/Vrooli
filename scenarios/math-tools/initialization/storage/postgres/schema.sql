@@ -1,286 +1,204 @@
--- SCENARIO_NAME_PLACEHOLDER Database Schema
--- Core database structure for API and application data
+-- Math Tools Database Schema
+-- Comprehensive mathematical computation and analysis platform
 
--- Resources table: Main entity management
-CREATE TABLE IF NOT EXISTS resources (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+
+-- Mathematical Models table
+CREATE TABLE IF NOT EXISTS mathematical_models (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    description TEXT,
-    type VARCHAR(100),
-    status VARCHAR(50) DEFAULT 'active',
-    config JSONB DEFAULT '{}',
-    metadata JSONB DEFAULT '{}',
-    
-    -- Relationships
-    parent_id UUID REFERENCES resources(id) ON DELETE SET NULL,
-    owner_id VARCHAR(255),
-    
-    -- Timestamps
+    model_type VARCHAR(50) NOT NULL CHECK (model_type IN ('linear_regression', 'polynomial', 'optimization', 'differential_equation', 'statistical', 'forecasting')),
+    formula TEXT,
+    parameters JSONB,
+    variables JSONB,
+    constraints JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    
-    -- Constraints
-    CONSTRAINT unique_name_per_type UNIQUE(name, type)
+    last_used TIMESTAMP WITH TIME ZONE,
+    accuracy_metrics JSONB,
+    description TEXT,
+    tags TEXT[],
+    version INTEGER DEFAULT 1
 );
 
--- Workflows table: Workflow definitions
-CREATE TABLE IF NOT EXISTS workflows (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id VARCHAR(255) UNIQUE NOT NULL,
+-- Calculations history table
+CREATE TABLE IF NOT EXISTS calculations (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    model_id UUID REFERENCES mathematical_models(id) ON DELETE SET NULL,
+    operation_type VARCHAR(50) NOT NULL,
+    input_data JSONB NOT NULL,
+    result JSONB NOT NULL,
+    execution_time_ms INTEGER,
+    precision_level DECIMAL(10,8),
+    algorithm_used VARCHAR(100),
+    convergence_status VARCHAR(20) CHECK (convergence_status IN ('converged', 'max_iterations', 'failed')),
+    error_estimate DECIMAL(20,15),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    metadata JSONB
+);
+
+-- Datasets table
+CREATE TABLE IF NOT EXISTS datasets (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    description TEXT,
-    platform VARCHAR(50) NOT NULL CHECK (platform IN ('n8n', 'windmill', 'node-red')),
-    
-    -- Workflow configuration
-    definition JSONB NOT NULL,
-    input_schema JSONB,
-    output_schema JSONB,
-    config JSONB DEFAULT '{}',
-    
-    -- Metadata
-    version INTEGER DEFAULT 1,
-    is_active BOOLEAN DEFAULT true,
-    tags TEXT[],
-    
-    -- Statistics
-    execution_count INTEGER DEFAULT 0,
-    success_count INTEGER DEFAULT 0,
-    failure_count INTEGER DEFAULT 0,
-    avg_duration_ms INTEGER,
-    
-    -- Timestamps
+    data_type VARCHAR(50) CHECK (data_type IN ('time_series', 'cross_sectional', 'panel', 'matrix')),
+    size_rows BIGINT,
+    size_columns INTEGER,
+    data_path TEXT,
+    schema_definition JSONB,
+    statistical_summary JSONB,
+    quality_metrics JSONB,
+    source VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    last_analyzed TIMESTAMP WITH TIME ZONE,
+    tags TEXT[]
 );
 
--- Executions table: Workflow execution history
-CREATE TABLE IF NOT EXISTS executions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id UUID REFERENCES workflows(id) ON DELETE CASCADE,
-    
-    -- Execution details
-    status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    input_data JSONB,
-    output_data JSONB,
-    error_message TEXT,
-    
-    -- Performance metrics
-    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    duration_ms INTEGER,
-    
-    -- Resource usage
-    resource_usage JSONB DEFAULT '{}',
-    
-    -- Context
-    triggered_by VARCHAR(255),
-    correlation_id UUID,
-    metadata JSONB DEFAULT '{}'
+-- Statistical Analyses table
+CREATE TABLE IF NOT EXISTS statistical_analyses (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    dataset_id UUID REFERENCES datasets(id) ON DELETE CASCADE,
+    analysis_type VARCHAR(50) NOT NULL,
+    parameters JSONB,
+    results JSONB NOT NULL,
+    confidence_level DECIMAL(3,2),
+    p_value DECIMAL(10,8),
+    test_statistic DECIMAL(20,10),
+    degrees_of_freedom INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    metadata JSONB
 );
 
--- Events table: Application event log
-CREATE TABLE IF NOT EXISTS events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_type VARCHAR(100) NOT NULL,
-    event_name VARCHAR(255) NOT NULL,
-    
-    -- Event data
-    payload JSONB,
-    source VARCHAR(100),
-    target VARCHAR(100),
-    
-    -- Context
-    resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
-    execution_id UUID REFERENCES executions(id) ON DELETE CASCADE,
-    user_id VARCHAR(255),
-    session_id VARCHAR(255),
-    
-    -- Metadata
-    severity VARCHAR(20) DEFAULT 'info',
-    tags TEXT[],
-    
-    -- Timestamp
+-- Visualizations table
+CREATE TABLE IF NOT EXISTS visualizations (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    dataset_id UUID REFERENCES datasets(id) ON DELETE CASCADE,
+    calculation_id UUID REFERENCES calculations(id) ON DELETE CASCADE,
+    plot_type VARCHAR(50) CHECK (plot_type IN ('scatter', 'line', 'histogram', 'heatmap', 'surface', 'box', 'violin', 'contour')),
+    configuration JSONB,
+    image_path TEXT,
+    interactive_config JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    view_count INTEGER DEFAULT 0,
+    export_formats TEXT[],
+    dimensions JSONB
+);
+
+-- Optimization Problems table
+CREATE TABLE IF NOT EXISTS optimization_problems (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    objective_function TEXT NOT NULL,
+    variables JSONB NOT NULL,
+    constraints JSONB,
+    optimization_type VARCHAR(10) CHECK (optimization_type IN ('minimize', 'maximize')),
+    algorithm VARCHAR(50),
+    initial_guess JSONB,
+    bounds JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Configuration table: Application settings
-CREATE TABLE IF NOT EXISTS configuration (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    key VARCHAR(255) UNIQUE NOT NULL,
-    value JSONB NOT NULL,
-    
-    -- Configuration metadata
-    category VARCHAR(100),
-    description TEXT,
-    is_secret BOOLEAN DEFAULT false,
-    is_active BOOLEAN DEFAULT true,
-    
-    -- Validation
-    schema JSONB,
-    default_value JSONB,
-    
-    -- Timestamps
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- Optimization Results table
+CREATE TABLE IF NOT EXISTS optimization_results (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    problem_id UUID REFERENCES optimization_problems(id) ON DELETE CASCADE,
+    optimal_solution JSONB NOT NULL,
+    optimal_value DECIMAL(20,10),
+    status VARCHAR(20) CHECK (status IN ('optimal', 'feasible', 'infeasible', 'unbounded')),
+    iterations INTEGER,
+    algorithm_used VARCHAR(50),
+    execution_time_ms INTEGER,
+    sensitivity_analysis JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Metrics table: Performance and usage metrics
-CREATE TABLE IF NOT EXISTS metrics (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    metric_name VARCHAR(255) NOT NULL,
-    metric_type VARCHAR(50) NOT NULL,
-    
-    -- Metric data
-    value NUMERIC NOT NULL,
-    unit VARCHAR(50),
-    
-    -- Context
-    resource_type VARCHAR(100),
-    resource_id VARCHAR(255),
-    
-    -- Dimensions for grouping
-    dimensions JSONB DEFAULT '{}',
-    
-    -- Timestamp
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- Time Series Forecasts table
+CREATE TABLE IF NOT EXISTS time_series_forecasts (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    dataset_id UUID REFERENCES datasets(id) ON DELETE CASCADE,
+    forecast_horizon INTEGER NOT NULL,
+    method VARCHAR(50) CHECK (method IN ('arima', 'exponential_smoothing', 'linear_trend', 'polynomial', 'prophet', 'lstm')),
+    forecast_values JSONB NOT NULL,
+    confidence_intervals JSONB,
+    model_parameters JSONB,
+    model_metrics JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Sessions table: User session management
-CREATE TABLE IF NOT EXISTS sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_token VARCHAR(255) UNIQUE NOT NULL,
-    user_id VARCHAR(255),
-    
-    -- Session data
-    data JSONB DEFAULT '{}',
-    ip_address INET,
-    user_agent TEXT,
-    
-    -- Status
-    is_active BOOLEAN DEFAULT true,
-    
-    -- Timestamps
+-- Matrix Operations Cache table (for expensive computations)
+CREATE TABLE IF NOT EXISTS matrix_cache (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    operation VARCHAR(50) NOT NULL,
+    input_hash VARCHAR(64) NOT NULL UNIQUE,
+    matrix_a JSONB,
+    matrix_b JSONB,
+    result JSONB NOT NULL,
+    computation_time_ms INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP WITH TIME ZONE
+    accessed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    access_count INTEGER DEFAULT 1
 );
 
 -- Create indexes for performance
-CREATE INDEX idx_resources_type ON resources(type) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_status ON resources(status) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_owner ON resources(owner_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_created ON resources(created_at DESC);
+CREATE INDEX idx_models_type ON mathematical_models(model_type);
+CREATE INDEX idx_models_tags ON mathematical_models USING GIN(tags);
+CREATE INDEX idx_calculations_operation ON calculations(operation_type);
+CREATE INDEX idx_calculations_created ON calculations(created_at DESC);
+CREATE INDEX idx_datasets_type ON datasets(data_type);
+CREATE INDEX idx_datasets_tags ON datasets USING GIN(tags);
+CREATE INDEX idx_analyses_type ON statistical_analyses(analysis_type);
+CREATE INDEX idx_visualizations_type ON visualizations(plot_type);
+CREATE INDEX idx_matrix_cache_hash ON matrix_cache(input_hash);
+CREATE INDEX idx_matrix_cache_accessed ON matrix_cache(accessed_at DESC);
 
-CREATE INDEX idx_workflows_platform ON workflows(platform) WHERE is_active = true;
-CREATE INDEX idx_workflows_tags ON workflows USING GIN(tags);
-CREATE INDEX idx_workflows_active ON workflows(is_active);
+-- Create search indexes
+CREATE INDEX idx_models_search ON mathematical_models USING GIN(to_tsvector('english', name || ' ' || COALESCE(description, '')));
+CREATE INDEX idx_datasets_search ON datasets USING GIN(to_tsvector('english', name || ' ' || COALESCE(source, '')));
 
-CREATE INDEX idx_executions_workflow ON executions(workflow_id);
-CREATE INDEX idx_executions_status ON executions(status);
-CREATE INDEX idx_executions_started ON executions(started_at DESC);
-CREATE INDEX idx_executions_correlation ON executions(correlation_id);
-
-CREATE INDEX idx_events_type ON events(event_type);
-CREATE INDEX idx_events_resource ON events(resource_id);
-CREATE INDEX idx_events_execution ON events(execution_id);
-CREATE INDEX idx_events_created ON events(created_at DESC);
-CREATE INDEX idx_events_tags ON events USING GIN(tags);
-
-CREATE INDEX idx_configuration_category ON configuration(category) WHERE is_active = true;
-CREATE INDEX idx_configuration_key ON configuration(key) WHERE is_active = true;
-
-CREATE INDEX idx_metrics_name ON metrics(metric_name);
-CREATE INDEX idx_metrics_timestamp ON metrics(timestamp DESC);
-CREATE INDEX idx_metrics_resource ON metrics(resource_type, resource_id);
-
-CREATE INDEX idx_sessions_token ON sessions(session_token) WHERE is_active = true;
-CREATE INDEX idx_sessions_user ON sessions(user_id) WHERE is_active = true;
-CREATE INDEX idx_sessions_activity ON sessions(last_activity DESC) WHERE is_active = true;
-
--- Update triggers for timestamps
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+-- Create function to update last_used timestamp
+CREATE OR REPLACE FUNCTION update_model_last_used()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-CREATE TRIGGER update_resources_updated_at BEFORE UPDATE ON resources
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON workflows
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_configuration_updated_at BEFORE UPDATE ON configuration
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Function to update workflow statistics after execution
-CREATE OR REPLACE FUNCTION update_workflow_stats()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.status IN ('success', 'failed') AND NEW.workflow_id IS NOT NULL THEN
-        UPDATE workflows SET
-            execution_count = execution_count + 1,
-            success_count = success_count + CASE WHEN NEW.status = 'success' THEN 1 ELSE 0 END,
-            failure_count = failure_count + CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END,
-            avg_duration_ms = CASE
-                WHEN execution_count = 0 THEN NEW.duration_ms
-                ELSE ((avg_duration_ms * execution_count + COALESCE(NEW.duration_ms, 0)) / (execution_count + 1))::INTEGER
-            END,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = NEW.workflow_id;
+    IF NEW.model_id IS NOT NULL THEN
+        UPDATE mathematical_models 
+        SET last_used = CURRENT_TIMESTAMP 
+        WHERE id = NEW.model_id;
     END IF;
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_workflow_stats_on_execution
-    AFTER INSERT OR UPDATE OF status ON executions
+-- Create trigger for updating last_used
+CREATE TRIGGER update_model_usage
+    AFTER INSERT ON calculations
     FOR EACH ROW
-    WHEN (NEW.status IN ('success', 'failed'))
-    EXECUTE FUNCTION update_workflow_stats();
+    EXECUTE FUNCTION update_model_last_used();
 
--- Useful views for monitoring
-CREATE OR REPLACE VIEW workflow_performance AS
-SELECT 
-    w.name,
-    w.platform,
-    w.execution_count,
-    w.success_count,
-    w.failure_count,
-    CASE WHEN w.execution_count > 0 
-         THEN (w.success_count::FLOAT / w.execution_count * 100)::NUMERIC(5,2)
-         ELSE 0 
-    END as success_rate,
-    w.avg_duration_ms,
-    w.is_active
-FROM workflows w
-ORDER BY w.execution_count DESC;
+-- Create function to update matrix cache access
+CREATE OR REPLACE FUNCTION update_cache_access()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.accessed_at = CURRENT_TIMESTAMP;
+    NEW.access_count = OLD.access_count + 1;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE VIEW recent_executions AS
-SELECT 
-    e.id,
-    w.name as workflow_name,
-    e.status,
-    e.started_at,
-    e.completed_at,
-    e.duration_ms,
-    e.error_message
-FROM executions e
-JOIN workflows w ON e.workflow_id = w.id
-ORDER BY e.started_at DESC
-LIMIT 100;
+-- Create trigger for cache access tracking
+CREATE TRIGGER track_cache_access
+    BEFORE UPDATE ON matrix_cache
+    FOR EACH ROW
+    WHEN (OLD.* IS DISTINCT FROM NEW.*)
+    EXECUTE FUNCTION update_cache_access();
 
-CREATE OR REPLACE VIEW resource_summary AS
-SELECT 
-    type,
-    status,
-    COUNT(*) as count,
-    MAX(created_at) as latest_created,
-    MAX(updated_at) as latest_updated
-FROM resources
-WHERE deleted_at IS NULL
-GROUP BY type, status
-ORDER BY type, status;
+-- Add comments for documentation
+COMMENT ON TABLE mathematical_models IS 'Stores reusable mathematical models and formulas';
+COMMENT ON TABLE calculations IS 'History of all mathematical calculations performed';
+COMMENT ON TABLE datasets IS 'Metadata for stored datasets used in calculations';
+COMMENT ON TABLE statistical_analyses IS 'Results of statistical analyses performed on datasets';
+COMMENT ON TABLE visualizations IS 'Configuration and metadata for generated plots';
+COMMENT ON TABLE optimization_problems IS 'Definition of optimization problems';
+COMMENT ON TABLE optimization_results IS 'Solutions to optimization problems';
+COMMENT ON TABLE time_series_forecasts IS 'Time series forecasting models and results';
+COMMENT ON TABLE matrix_cache IS 'Cache for expensive matrix computations';

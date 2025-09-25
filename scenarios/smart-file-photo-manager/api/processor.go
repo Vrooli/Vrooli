@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"log"
-	"net/http"
 	"strings"
 	"sync"
 	"time"

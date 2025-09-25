@@ -3,7 +3,7 @@ set -e
 
 echo "=== Testing Dependencies ==="
 
-cd ../api
+cd ../../api
 go mod tidy
 
 if ! go mod verify; then

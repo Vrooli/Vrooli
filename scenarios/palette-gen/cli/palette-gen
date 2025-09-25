@@ -2,7 +2,7 @@
 
 set -e
 
-API_URL="${PALETTE_GEN_API_URL:-http://localhost:${API_PORT:-9100}}"
+API_URL="${PALETTE_GEN_API_URL:-http://localhost:${API_PORT:-16917}}"
 
 show_help() {
     cat << EOF

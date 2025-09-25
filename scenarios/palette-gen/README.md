@@ -40,10 +40,11 @@ The UI embraces a clean, professional aesthetic that lets the colors take center
 - **Dark/Light Toggle**: Interface adapts to showcase palettes in different contexts
 
 ## Technical Architecture
-- **API**: Go-based REST API for palette generation and analysis
-- **Workflows**: Three specialized n8n workflows for generation, harmony, and accessibility
-- **Storage**: Redis caching for frequently requested palettes
-- **AI Integration**: Ollama for contextual understanding and recommendations
+- **API**: Go-based REST API for palette generation and analysis (standalone implementation)
+- **Algorithms**: Built-in color generation using HSL color space and theme-based hue mapping
+- **Styles**: Vibrant, Pastel, Dark, Minimal, Earthy - each with unique generation parameters
+- **Export**: Multiple format support (CSS variables, JSON array, SCSS variables)
+- **Future**: n8n workflows, Redis caching, and Ollama AI integration planned
 
 ## Use Cases
 1. **Web Designers**: Generate cohesive color schemes for websites

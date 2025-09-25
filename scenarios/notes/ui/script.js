@@ -1,6 +1,7 @@
 // SmartNotes - Main JavaScript
+// Get API port from the backend (injected dynamically if needed)
 const API_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:8950' 
+    ? `http://localhost:${window.API_PORT || '17001'}` 
     : '/api';
 
 let currentNote = null;

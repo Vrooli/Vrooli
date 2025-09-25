@@ -50,10 +50,16 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var user models.User
 		var rolesJSON string
-		err := rows.Scan(&user.ID, &user.Email, &user.Username, &rolesJSON, 
+		var usernameNullable sql.NullString
+		err := rows.Scan(&user.ID, &user.Email, &usernameNullable, &rolesJSON, 
 			&user.EmailVerified, &user.CreatedAt, &user.LastLogin)
 		if err != nil {
 			continue
+		}
+		
+		// Handle nullable username
+		if usernameNullable.Valid {
+			user.Username = usernameNullable.String
 		}
 		
 		// Parse roles
@@ -86,13 +92,19 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	
 	var user models.User
 	var rolesJSON string
+	var usernameNullable sql.NullString
 	err := db.DB.QueryRow(`
 		SELECT id, email, username, roles, email_verified, created_at, last_login
 		FROM users 
 		WHERE id = $1 AND deleted_at IS NULL`,
 		userID,
-	).Scan(&user.ID, &user.Email, &user.Username, &rolesJSON, 
+	).Scan(&user.ID, &user.Email, &usernameNullable, &rolesJSON, 
 		&user.EmailVerified, &user.CreatedAt, &user.LastLogin)
+	
+	// Handle nullable username
+	if usernameNullable.Valid {
+		user.Username = usernameNullable.String
+	}
 	
 	if err != nil {
 		if err == sql.ErrNoRows {

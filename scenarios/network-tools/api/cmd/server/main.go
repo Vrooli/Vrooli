@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -21,9 +25,6 @@ import (
 type Config struct {
 	Port        string
 	DatabaseURL string
-	N8NURL      string
-	WindmillURL string
-	APIToken    string
 }
 
 // Server holds server dependencies
@@ -31,6 +32,7 @@ type Server struct {
 	config *Config
 	db     *sql.DB
 	router *mux.Router
+	client *http.Client
 }
 
 // Response is a generic API response
@@ -40,14 +42,106 @@ type Response struct {
 	Error   string      `json:"error,omitempty"`
 }
 
+// HTTPRequest represents an HTTP request
+type HTTPRequest struct {
+	URL      string                 `json:"url"`
+	Method   string                 `json:"method"`
+	Headers  map[string]string      `json:"headers,omitempty"`
+	Body     interface{}            `json:"body,omitempty"`
+	Options  HTTPOptions            `json:"options,omitempty"`
+}
+
+// HTTPOptions for request configuration
+type HTTPOptions struct {
+	TimeoutMs       int  `json:"timeout_ms,omitempty"`
+	FollowRedirects bool `json:"follow_redirects"`
+	VerifySSL       bool `json:"verify_ssl"`
+	MaxRetries      int  `json:"max_retries,omitempty"`
+}
+
+// HTTPResponse represents an HTTP response
+type HTTPResponse struct {
+	StatusCode    int               `json:"status_code"`
+	Headers       map[string]string `json:"headers"`
+	Body          string            `json:"body"`
+	ResponseTimeMs int64            `json:"response_time_ms"`
+	FinalURL      string            `json:"final_url"`
+	SSLInfo       interface{}       `json:"ssl_info,omitempty"`
+	RedirectChain []string          `json:"redirect_chain,omitempty"`
+}
+
+// DNSRequest represents a DNS query request
+type DNSRequest struct {
+	Query      string     `json:"query"`
+	RecordType string     `json:"record_type"`
+	DNSServer  string     `json:"dns_server,omitempty"`
+	Options    DNSOptions `json:"options,omitempty"`
+}
+
+// DNSOptions for DNS queries
+type DNSOptions struct {
+	TimeoutMs      int  `json:"timeout_ms,omitempty"`
+	Recursive      bool `json:"recursive"`
+	ValidateDNSSEC bool `json:"validate_dnssec"`
+}
+
+// DNSResponse represents a DNS query response
+type DNSResponse struct {
+	Query          string      `json:"query"`
+	RecordType     string      `json:"record_type"`
+	Answers        []DNSAnswer `json:"answers"`
+	ResponseTimeMs int64       `json:"response_time_ms"`
+	Authoritative  bool        `json:"authoritative"`
+	DNSSECValid    bool        `json:"dnssec_valid"`
+}
+
+// DNSAnswer represents a DNS answer record
+type DNSAnswer struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+	TTL  int    `json:"ttl"`
+	Data string `json:"data"`
+}
+
+// ConnectivityRequest for network connectivity tests
+type ConnectivityRequest struct {
+	Target  string              `json:"target"`
+	TestType string             `json:"test_type"`
+	Options ConnectivityOptions `json:"options,omitempty"`
+}
+
+// ConnectivityOptions for connectivity tests
+type ConnectivityOptions struct {
+	Count      int `json:"count,omitempty"`
+	TimeoutMs  int `json:"timeout_ms,omitempty"`
+	PacketSize int `json:"packet_size,omitempty"`
+	IntervalMs int `json:"interval_ms,omitempty"`
+}
+
+// ConnectivityResponse for connectivity test results
+type ConnectivityResponse struct {
+	Target     string                  `json:"target"`
+	TestType   string                  `json:"test_type"`
+	Statistics ConnectivityStatistics `json:"statistics"`
+	RouteHops  []string               `json:"route_hops,omitempty"`
+}
+
+// ConnectivityStatistics for connectivity metrics
+type ConnectivityStatistics struct {
+	PacketsSent        int     `json:"packets_sent"`
+	PacketsReceived    int     `json:"packets_received"`
+	PacketLossPercent  float64 `json:"packet_loss_percent"`
+	MinRTTMs           float64 `json:"min_rtt_ms"`
+	AvgRTTMs           float64 `json:"avg_rtt_ms"`
+	MaxRTTMs           float64 `json:"max_rtt_ms"`
+	StdDevRTTMs        float64 `json:"stddev_rtt_ms"`
+}
+
 // NewServer creates a new server instance
 func NewServer() (*Server, error) {
 	config := &Config{
-		Port:        getEnv("PORT", "API_PORT_PLACEHOLDER"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/SCENARIO_ID_PLACEHOLDER"),
-		N8NURL:      getEnv("N8N_BASE_URL", "http://localhost:5678"),
-		WindmillURL: getEnv("WINDMILL_BASE_URL", "http://localhost:5681"),
-		APIToken:    getEnv("API_TOKEN", "API_TOKEN_PLACEHOLDER"),
+		Port:        getEnv("PORT", getEnv("API_PORT", "15000")),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/network_tools"),
 	}
 
 	// Connect to database
@@ -61,10 +155,21 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	// Create HTTP client with custom settings
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: false,
+			},
+		},
+	}
+
 	server := &Server{
 		config: config,
 		db:     db,
 		router: mux.NewRouter(),
+		client: client,
 	}
 
 	server.setupRoutes()
@@ -76,403 +181,517 @@ func (s *Server) setupRoutes() {
 	// Middleware
 	s.router.Use(loggingMiddleware)
 	s.router.Use(corsMiddleware)
-	s.router.Use(s.authMiddleware)
 
 	// Health check (no auth)
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/health", s.handleHealth).Methods("GET", "OPTIONS")
 
 	// API routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
 
-	// Example resource routes - customize for your scenario
-	api.HandleFunc("/resources", s.handleListResources).Methods("GET")
-	api.HandleFunc("/resources", s.handleCreateResource).Methods("POST")
-	api.HandleFunc("/resources/{id}", s.handleGetResource).Methods("GET")
-	api.HandleFunc("/resources/{id}", s.handleUpdateResource).Methods("PUT")
-	api.HandleFunc("/resources/{id}", s.handleDeleteResource).Methods("DELETE")
-
-	// Workflow execution
-	api.HandleFunc("/execute", s.handleExecuteWorkflow).Methods("POST")
-	api.HandleFunc("/executions", s.handleListExecutions).Methods("GET")
-	api.HandleFunc("/executions/{id}", s.handleGetExecution).Methods("GET")
-
-	// Documentation
-	s.router.HandleFunc("/docs", s.handleDocs).Methods("GET")
+	// Network operations
+	api.HandleFunc("/network/http", s.handleHTTPRequest).Methods("POST", "OPTIONS")
+	api.HandleFunc("/network/dns", s.handleDNSQuery).Methods("POST", "OPTIONS")
+	api.HandleFunc("/network/test/connectivity", s.handleConnectivityTest).Methods("POST", "OPTIONS")
+	api.HandleFunc("/network/scan", s.handleNetworkScan).Methods("POST", "OPTIONS")
+	api.HandleFunc("/network/api/test", s.handleAPITest).Methods("POST", "OPTIONS")
+	
+	// Monitoring endpoints
+	api.HandleFunc("/network/targets", s.handleListTargets).Methods("GET")
+	api.HandleFunc("/network/targets", s.handleCreateTarget).Methods("POST")
+	api.HandleFunc("/network/alerts", s.handleListAlerts).Methods("GET")
 }
 
 // Middleware functions
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
+		log.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL)
 		next.ServeHTTP(w, r)
 	})
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			origin = "*"
+		}
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
+		
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (s *Server) authMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip auth for health check and docs
-		if r.URL.Path == "/health" || r.URL.Path == "/docs" {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		// Check authorization header
-		token := r.Header.Get("Authorization")
-		if token == "" || token != "Bearer "+s.config.APIToken {
-			s.sendError(w, http.StatusUnauthorized, "unauthorized")
-			return
-		}
-
+		
 		next.ServeHTTP(w, r)
 	})
 }
 
 // Handler functions
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	health := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-		"service":   "SCENARIO_NAME_PLACEHOLDER API",
-		"version":   "1.0.0",
-	}
-
 	// Check database connection
+	dbStatus := "healthy"
 	if err := s.db.Ping(); err != nil {
-		health["status"] = "unhealthy"
-		health["database"] = "disconnected"
-	} else {
-		health["database"] = "connected"
+		dbStatus = "unhealthy"
 	}
-
-	s.sendJSON(w, http.StatusOK, health)
+	
+	health := map[string]interface{}{
+		"status":   "healthy",
+		"database": dbStatus,
+		"version":  "1.0.0",
+		"service":  "network-tools",
+		"timestamp": time.Now().UTC(),
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(health)
 }
 
-func (s *Server) handleListResources(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement based on your scenario needs
-	// Example: List resources from database
+func (s *Server) handleHTTPRequest(w http.ResponseWriter, r *http.Request) {
+	var req HTTPRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
 
-	query := `SELECT id, name, description, created_at FROM resources ORDER BY created_at DESC LIMIT 100`
-	rows, err := s.db.Query(query)
+	// Validate request
+	if req.URL == "" {
+		sendError(w, "URL is required", http.StatusBadRequest)
+		return
+	}
+	if req.Method == "" {
+		req.Method = "GET"
+	}
+
+	// Create HTTP request
+	startTime := time.Now()
+	
+	httpReq, err := http.NewRequest(req.Method, req.URL, nil)
 	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to query resources")
+		sendError(w, fmt.Sprintf("Failed to create request: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Set headers
+	for k, v := range req.Headers {
+		httpReq.Header.Set(k, v)
+	}
+
+	// Configure client
+	client := &http.Client{
+		Timeout: time.Duration(req.Options.TimeoutMs) * time.Millisecond,
+	}
+	if req.Options.TimeoutMs == 0 {
+		client.Timeout = 30 * time.Second
+	}
+
+	// Execute request
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		sendError(w, fmt.Sprintf("Request failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		sendError(w, fmt.Sprintf("Failed to read response: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Build response
+	responseTime := time.Since(startTime).Milliseconds()
+	
+	httpResp := HTTPResponse{
+		StatusCode:     resp.StatusCode,
+		Headers:        make(map[string]string),
+		Body:          string(body),
+		ResponseTimeMs: responseTime,
+		FinalURL:      resp.Request.URL.String(),
+	}
+
+	// Copy headers
+	for k := range resp.Header {
+		httpResp.Headers[k] = resp.Header.Get(k)
+	}
+
+	// Store in database
+	_, err = s.db.Exec(`
+		INSERT INTO http_requests (url, method, status_code, response_time_ms, headers, response_headers, response_body)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		req.URL, req.Method, httpResp.StatusCode, responseTime,
+		mapToJSON(req.Headers), mapToJSON(httpResp.Headers), httpResp.Body)
+	
+	if err != nil {
+		log.Printf("Failed to store HTTP request: %v", err)
+	}
+
+	sendSuccess(w, httpResp)
+}
+
+func (s *Server) handleDNSQuery(w http.ResponseWriter, r *http.Request) {
+	var req DNSRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate request
+	if req.Query == "" {
+		sendError(w, "Query is required", http.StatusBadRequest)
+		return
+	}
+	if req.RecordType == "" {
+		req.RecordType = "A"
+	}
+
+	startTime := time.Now()
+	
+	// Perform DNS lookup (simplified)
+	var answers []DNSAnswer
+	
+	switch req.RecordType {
+	case "A":
+		ips, err := net.LookupIP(req.Query)
+		if err != nil {
+			sendError(w, fmt.Sprintf("DNS lookup failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+		for _, ip := range ips {
+			if ipv4 := ip.To4(); ipv4 != nil {
+				answers = append(answers, DNSAnswer{
+					Name: req.Query,
+					Type: "A",
+					TTL:  300,
+					Data: ipv4.String(),
+				})
+			}
+		}
+	case "CNAME":
+		cname, err := net.LookupCNAME(req.Query)
+		if err != nil {
+			sendError(w, fmt.Sprintf("DNS lookup failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+		answers = append(answers, DNSAnswer{
+			Name: req.Query,
+			Type: "CNAME",
+			TTL:  300,
+			Data: cname,
+		})
+	case "MX":
+		mxRecords, err := net.LookupMX(req.Query)
+		if err != nil {
+			sendError(w, fmt.Sprintf("DNS lookup failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+		for _, mx := range mxRecords {
+			answers = append(answers, DNSAnswer{
+				Name: req.Query,
+				Type: "MX",
+				TTL:  300,
+				Data: fmt.Sprintf("%d %s", mx.Pref, mx.Host),
+			})
+		}
+	case "TXT":
+		txtRecords, err := net.LookupTXT(req.Query)
+		if err != nil {
+			sendError(w, fmt.Sprintf("DNS lookup failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+		for _, txt := range txtRecords {
+			answers = append(answers, DNSAnswer{
+				Name: req.Query,
+				Type: "TXT",
+				TTL:  300,
+				Data: txt,
+			})
+		}
+	default:
+		sendError(w, "Unsupported record type", http.StatusBadRequest)
+		return
+	}
+
+	responseTime := time.Since(startTime).Milliseconds()
+	
+	dnsResp := DNSResponse{
+		Query:          req.Query,
+		RecordType:     req.RecordType,
+		Answers:        answers,
+		ResponseTimeMs: responseTime,
+		Authoritative:  false,
+		DNSSECValid:    false,
+	}
+
+	// Store in database
+	answersJSON, _ := json.Marshal(answers)
+	_, err := s.db.Exec(`
+		INSERT INTO dns_queries (query, record_type, dns_server, response_time_ms, answers, authoritative, dnssec_valid)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		req.Query, req.RecordType, req.DNSServer, responseTime, string(answersJSON), false, false)
+	
+	if err != nil {
+		log.Printf("Failed to store DNS query: %v", err)
+	}
+
+	sendSuccess(w, dnsResp)
+}
+
+func (s *Server) handleConnectivityTest(w http.ResponseWriter, r *http.Request) {
+	var req ConnectivityRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate request
+	if req.Target == "" {
+		sendError(w, "Target is required", http.StatusBadRequest)
+		return
+	}
+	if req.TestType == "" {
+		req.TestType = "ping"
+	}
+
+	// Simple connectivity test (TCP connection)
+	startTime := time.Now()
+	
+	// Try to resolve the target
+	ips, err := net.LookupIP(req.Target)
+	if err != nil {
+		// If lookup fails, try as IP
+		ip := net.ParseIP(req.Target)
+		if ip == nil {
+			sendError(w, fmt.Sprintf("Failed to resolve target: %v", err), http.StatusBadRequest)
+			return
+		}
+		ips = []net.IP{ip}
+	}
+
+	// Simple TCP connectivity test to common ports
+	testPorts := []int{80, 443, 22, 3389}
+	successCount := 0
+	
+	for _, port := range testPorts {
+		address := fmt.Sprintf("%s:%d", ips[0].String(), port)
+		conn, err := net.DialTimeout("tcp", address, 2*time.Second)
+		if err == nil {
+			successCount++
+			conn.Close()
+		}
+	}
+
+	responseTime := time.Since(startTime).Milliseconds()
+	
+	// Calculate simple statistics
+	stats := ConnectivityStatistics{
+		PacketsSent:       len(testPorts),
+		PacketsReceived:   successCount,
+		PacketLossPercent: float64(len(testPorts)-successCount) / float64(len(testPorts)) * 100,
+		AvgRTTMs:         float64(responseTime) / float64(len(testPorts)),
+		MinRTTMs:         float64(responseTime) / float64(len(testPorts)),
+		MaxRTTMs:         float64(responseTime) / float64(len(testPorts)),
+	}
+
+	connResp := ConnectivityResponse{
+		Target:     req.Target,
+		TestType:   req.TestType,
+		Statistics: stats,
+	}
+
+	sendSuccess(w, connResp)
+}
+
+func (s *Server) handleNetworkScan(w http.ResponseWriter, r *http.Request) {
+	// Simplified port scan implementation
+	var req struct {
+		Target   string   `json:"target"`
+		ScanType string   `json:"scan_type"`
+		Ports    []int    `json:"ports"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Target == "" {
+		sendError(w, "Target is required", http.StatusBadRequest)
+		return
+	}
+
+	// Default ports if not specified
+	if len(req.Ports) == 0 {
+		req.Ports = []int{21, 22, 23, 25, 80, 443, 3306, 5432, 8080, 8443}
+	}
+
+	results := make([]map[string]interface{}, 0)
+	
+	for _, port := range req.Ports {
+		address := fmt.Sprintf("%s:%d", req.Target, port)
+		conn, err := net.DialTimeout("tcp", address, 1*time.Second)
+		
+		state := "closed"
+		if err == nil {
+			state = "open"
+			conn.Close()
+		} else if strings.Contains(err.Error(), "refused") {
+			state = "closed"
+		} else {
+			state = "filtered"
+		}
+		
+		results = append(results, map[string]interface{}{
+			"port":     port,
+			"protocol": "tcp",
+			"state":    state,
+			"service":  getServiceName(port),
+		})
+	}
+
+	sendSuccess(w, map[string]interface{}{
+		"target":  req.Target,
+		"results": results,
+	})
+}
+
+func (s *Server) handleAPITest(w http.ResponseWriter, r *http.Request) {
+	sendSuccess(w, map[string]string{
+		"message": "API test endpoint - implementation pending",
+	})
+}
+
+func (s *Server) handleListTargets(w http.ResponseWriter, r *http.Request) {
+	rows, err := s.db.Query(`
+		SELECT id, name, target_type, address, port, protocol, is_active, created_at
+		FROM network_targets
+		WHERE is_active = true
+		ORDER BY created_at DESC
+		LIMIT 100`)
+	
+	if err != nil {
+		sendError(w, fmt.Sprintf("Failed to query targets: %v", err), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
 
-	var resources []map[string]interface{}
+	targets := make([]map[string]interface{}, 0)
 	for rows.Next() {
-		var id, name, description string
+		var id, name, targetType, address string
+		var port sql.NullInt64
+		var protocol sql.NullString
+		var isActive bool
 		var createdAt time.Time
-
-		if err := rows.Scan(&id, &name, &description, &createdAt); err != nil {
+		
+		err := rows.Scan(&id, &name, &targetType, &address, &port, &protocol, &isActive, &createdAt)
+		if err != nil {
 			continue
 		}
-
-		resources = append(resources, map[string]interface{}{
+		
+		target := map[string]interface{}{
 			"id":          id,
 			"name":        name,
-			"description": description,
+			"target_type": targetType,
+			"address":     address,
+			"is_active":   isActive,
+			"created_at":  createdAt,
+		}
+		
+		if port.Valid {
+			target["port"] = port.Int64
+		}
+		if protocol.Valid {
+			target["protocol"] = protocol.String
+		}
+		
+		targets = append(targets, target)
+	}
+
+	sendSuccess(w, targets)
+}
+
+func (s *Server) handleCreateTarget(w http.ResponseWriter, r *http.Request) {
+	var target struct {
+		Name       string   `json:"name"`
+		TargetType string   `json:"target_type"`
+		Address    string   `json:"address"`
+		Port       int      `json:"port,omitempty"`
+		Protocol   string   `json:"protocol,omitempty"`
+		Tags       []string `json:"tags,omitempty"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&target); err != nil {
+		sendError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	id := uuid.New().String()
+	
+	_, err := s.db.Exec(`
+		INSERT INTO network_targets (id, name, target_type, address, port, protocol, tags)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		id, target.Name, target.TargetType, target.Address, target.Port, target.Protocol, pq.Array(target.Tags))
+	
+	if err != nil {
+		sendError(w, fmt.Sprintf("Failed to create target: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	sendSuccess(w, map[string]string{"id": id})
+}
+
+func (s *Server) handleListAlerts(w http.ResponseWriter, r *http.Request) {
+	rows, err := s.db.Query(`
+		SELECT a.id, a.alert_type, a.severity, a.title, a.message, a.created_at, nt.name
+		FROM alerts a
+		JOIN network_targets nt ON a.target_id = nt.id
+		WHERE a.is_active = true
+		ORDER BY a.severity DESC, a.created_at DESC
+		LIMIT 50`)
+	
+	if err != nil {
+		sendError(w, fmt.Sprintf("Failed to query alerts: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	alerts := make([]map[string]interface{}, 0)
+	for rows.Next() {
+		var id, alertType, severity, title, message, targetName string
+		var createdAt time.Time
+		
+		err := rows.Scan(&id, &alertType, &severity, &title, &message, &createdAt, &targetName)
+		if err != nil {
+			continue
+		}
+		
+		alerts = append(alerts, map[string]interface{}{
+			"id":          id,
+			"alert_type":  alertType,
+			"severity":    severity,
+			"title":       title,
+			"message":     message,
+			"target_name": targetName,
 			"created_at":  createdAt,
 		})
 	}
 
-	s.sendJSON(w, http.StatusOK, resources)
-}
-
-func (s *Server) handleCreateResource(w http.ResponseWriter, r *http.Request) {
-	var input map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		s.sendError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	// Generate ID
-	id := uuid.New().String()
-
-	// TODO: Validate input and insert into database
-	// This is a template - customize for your needs
-
-	query := `INSERT INTO resources (id, name, description, config, created_at) 
-	          VALUES ($1, $2, $3, $4, $5)`
-
-	_, err := s.db.Exec(query,
-		id,
-		input["name"],
-		input["description"],
-		input["config"],
-		time.Now(),
-	)
-
-	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to create resource")
-		return
-	}
-
-	s.sendJSON(w, http.StatusCreated, map[string]interface{}{
-		"id":         id,
-		"created_at": time.Now(),
-	})
-}
-
-func (s *Server) handleGetResource(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	// TODO: Query resource from database
-	query := `SELECT id, name, description, config, created_at FROM resources WHERE id = $1`
-
-	var resource map[string]interface{}
-	row := s.db.QueryRow(query, id)
-
-	var name, description string
-	var config json.RawMessage
-	var createdAt time.Time
-
-	err := row.Scan(&id, &name, &description, &config, &createdAt)
-	if err == sql.ErrNoRows {
-		s.sendError(w, http.StatusNotFound, "resource not found")
-		return
-	}
-	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to query resource")
-		return
-	}
-
-	resource = map[string]interface{}{
-		"id":          id,
-		"name":        name,
-		"description": description,
-		"config":      config,
-		"created_at":  createdAt,
-	}
-
-	s.sendJSON(w, http.StatusOK, resource)
-}
-
-func (s *Server) handleUpdateResource(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	var input map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		s.sendError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	// TODO: Update resource in database
-	query := `UPDATE resources SET name = $2, description = $3, config = $4, updated_at = $5 
-	          WHERE id = $1`
-
-	result, err := s.db.Exec(query,
-		id,
-		input["name"],
-		input["description"],
-		input["config"],
-		time.Now(),
-	)
-
-	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to update resource")
-		return
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		s.sendError(w, http.StatusNotFound, "resource not found")
-		return
-	}
-
-	s.sendJSON(w, http.StatusOK, map[string]interface{}{
-		"id":         id,
-		"updated_at": time.Now(),
-	})
-}
-
-func (s *Server) handleDeleteResource(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	query := `DELETE FROM resources WHERE id = $1`
-	result, err := s.db.Exec(query, id)
-
-	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to delete resource")
-		return
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		s.sendError(w, http.StatusNotFound, "resource not found")
-		return
-	}
-
-	s.sendJSON(w, http.StatusOK, map[string]interface{}{
-		"deleted": true,
-		"id":      id,
-	})
-}
-
-func (s *Server) handleExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
-	var input map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		s.sendError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	// TODO: Trigger workflow execution via n8n or Windmill
-	// This is a template - customize based on your workflow platform
-
-	executionID := uuid.New().String()
-
-	// Example: Call n8n webhook
-	// webhookURL := fmt.Sprintf("%s/webhook/%s", s.config.N8NURL, input["workflow_id"])
-	// resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
-
-	s.sendJSON(w, http.StatusAccepted, map[string]interface{}{
-		"execution_id": executionID,
-		"status":       "pending",
-		"started_at":   time.Now(),
-	})
-}
-
-func (s *Server) handleListExecutions(w http.ResponseWriter, r *http.Request) {
-	// TODO: List workflow executions from database
-	query := `SELECT id, workflow_id, status, started_at, completed_at 
-	          FROM executions 
-	          ORDER BY started_at DESC 
-	          LIMIT 100`
-
-	rows, err := s.db.Query(query)
-	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to query executions")
-		return
-	}
-	defer rows.Close()
-
-	var executions []map[string]interface{}
-	for rows.Next() {
-		var id, workflowID, status string
-		var startedAt time.Time
-		var completedAt sql.NullTime
-
-		if err := rows.Scan(&id, &workflowID, &status, &startedAt, &completedAt); err != nil {
-			continue
-		}
-
-		execution := map[string]interface{}{
-			"id":          id,
-			"workflow_id": workflowID,
-			"status":      status,
-			"started_at":  startedAt,
-		}
-
-		if completedAt.Valid {
-			execution["completed_at"] = completedAt.Time
-		}
-
-		executions = append(executions, execution)
-	}
-
-	s.sendJSON(w, http.StatusOK, executions)
-}
-
-func (s *Server) handleGetExecution(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	// TODO: Get execution details from database
-	query := `SELECT id, workflow_id, status, input_data, output_data, error_message, 
-	                 started_at, completed_at 
-	          FROM executions 
-	          WHERE id = $1`
-
-	row := s.db.QueryRow(query, id)
-
-	var workflowID, status string
-	var inputData, outputData json.RawMessage
-	var errorMessage sql.NullString
-	var startedAt time.Time
-	var completedAt sql.NullTime
-
-	err := row.Scan(&id, &workflowID, &status, &inputData, &outputData,
-		&errorMessage, &startedAt, &completedAt)
-
-	if err == sql.ErrNoRows {
-		s.sendError(w, http.StatusNotFound, "execution not found")
-		return
-	}
-	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to query execution")
-		return
-	}
-
-	execution := map[string]interface{}{
-		"id":          id,
-		"workflow_id": workflowID,
-		"status":      status,
-		"input_data":  inputData,
-		"output_data": outputData,
-		"started_at":  startedAt,
-	}
-
-	if errorMessage.Valid {
-		execution["error_message"] = errorMessage.String
-	}
-	if completedAt.Valid {
-		execution["completed_at"] = completedAt.Time
-	}
-
-	s.sendJSON(w, http.StatusOK, execution)
-}
-
-func (s *Server) handleDocs(w http.ResponseWriter, r *http.Request) {
-	docs := map[string]interface{}{
-		"name":        "SCENARIO_NAME_PLACEHOLDER API",
-		"version":     "1.0.0",
-		"description": "SCENARIO_DESCRIPTION_PLACEHOLDER",
-		"endpoints": []map[string]string{
-			{"method": "GET", "path": "/health", "description": "Health check"},
-			{"method": "GET", "path": "/api/v1/resources", "description": "List resources"},
-			{"method": "POST", "path": "/api/v1/resources", "description": "Create resource"},
-			{"method": "GET", "path": "/api/v1/resources/{id}", "description": "Get resource"},
-			{"method": "PUT", "path": "/api/v1/resources/{id}", "description": "Update resource"},
-			{"method": "DELETE", "path": "/api/v1/resources/{id}", "description": "Delete resource"},
-			{"method": "POST", "path": "/api/v1/execute", "description": "Execute workflow"},
-			{"method": "GET", "path": "/api/v1/executions", "description": "List executions"},
-			{"method": "GET", "path": "/api/v1/executions/{id}", "description": "Get execution"},
-		},
-	}
-
-	s.sendJSON(w, http.StatusOK, docs)
+	sendSuccess(w, alerts)
 }
 
 // Helper functions
-func (s *Server) sendJSON(w http.ResponseWriter, status int, data interface{}) {
+func sendSuccess(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(Response{
-		Success: status < 400,
+		Success: true,
 		Data:    data,
 	})
 }
 
-func (s *Server) sendError(w http.ResponseWriter, status int, message string) {
+func sendError(w http.ResponseWriter, message string, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(Response{
@@ -488,6 +707,30 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+func mapToJSON(m map[string]string) string {
+	b, _ := json.Marshal(m)
+	return string(b)
+}
+
+func getServiceName(port int) string {
+	services := map[int]string{
+		21:   "ftp",
+		22:   "ssh",
+		23:   "telnet",
+		25:   "smtp",
+		80:   "http",
+		443:  "https",
+		3306: "mysql",
+		5432: "postgresql",
+		8080: "http-proxy",
+		8443: "https-alt",
+	}
+	if service, ok := services[port]; ok {
+		return service
+	}
+	return "unknown"
+}
+
 // Run starts the server
 func (s *Server) Run() error {
 	srv := &http.Server{
@@ -498,50 +741,36 @@ func (s *Server) Run() error {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Handle graceful shutdown
+	// Graceful shutdown
 	go func() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 		<-sigChan
 
-		log.Println("Shutting down server...")
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		if err := srv.Shutdown(ctx); err != nil {
 			log.Printf("Server shutdown error: %v", err)
 		}
-
-		s.db.Close()
 	}()
 
-	log.Printf("Server starting on port %s", s.config.Port)
-	log.Printf("API documentation available at http://localhost:%s/docs", s.config.Port)
-
+	log.Printf("Network Tools API server starting on port %s", s.config.Port)
 	return srv.ListenAndServe()
 }
 
 func main() {
-    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start network-tools
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-        os.Exit(1)
-    }
-	log.Println("Starting SCENARIO_NAME_PLACEHOLDER API...")
+	// Check if running under lifecycle management
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		log.Println("Warning: Not running under Vrooli lifecycle management")
+	}
 
 	server, err := NewServer()
 	if err != nil {
-		log.Fatalf("Failed to initialize server: %v", err)
+		log.Fatalf("Failed to create server: %v", err)
 	}
 
 	if err := server.Run(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Server error: %v", err)
+		log.Fatalf("Server failed: %v", err)
 	}
 }

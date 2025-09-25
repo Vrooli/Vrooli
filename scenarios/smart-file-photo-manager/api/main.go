@@ -149,18 +149,35 @@ func main() {
 		cancel:  cancel,
 	}
 
-	// External service URLs - REQUIRED, no defaults
+	// External service URLs with defaults for local development
 	qdrantURL := os.Getenv("QDRANT_URL")
 	if qdrantURL == "" {
-		log.Fatal("❌ QDRANT_URL environment variable is required")
+		qdrantPort := os.Getenv("QDRANT_PORT")
+		if qdrantPort == "" {
+			qdrantPort = "6333"
+		}
+		qdrantURL = fmt.Sprintf("http://localhost:%s", qdrantPort)
+		log.Printf("📡 QDRANT_URL not set, using default: %s", qdrantURL)
 	}
+	
 	minioURL := os.Getenv("MINIO_URL")
 	if minioURL == "" {
-		log.Fatal("❌ MINIO_URL environment variable is required")
+		minioPort := os.Getenv("MINIO_PORT")
+		if minioPort == "" {
+			minioPort = "9000"
+		}
+		minioURL = fmt.Sprintf("localhost:%s", minioPort)
+		log.Printf("📡 MINIO_URL not set, using default: %s", minioURL)
 	}
+	
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
-		log.Fatal("❌ OLLAMA_URL environment variable is required")
+		ollamaPort := os.Getenv("OLLAMA_PORT")
+		if ollamaPort == "" {
+			ollamaPort = "11434"
+		}
+		ollamaURL = fmt.Sprintf("http://localhost:%s", ollamaPort)
+		log.Printf("📡 OLLAMA_URL not set, using default: %s", ollamaURL)
 	}
 
 	// Create app instance
@@ -272,7 +289,12 @@ func initDB() (*sql.DB, error) {
 func initRedis() *redis.Client {
 	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
-		log.Fatal("❌ REDIS_URL environment variable is required")
+		redisPort := os.Getenv("REDIS_PORT")
+		if redisPort == "" {
+			redisPort = "6379"
+		}
+		redisURL = fmt.Sprintf("redis://localhost:%s/0", redisPort)
+		log.Printf("📡 REDIS_URL not set, using default: %s", redisURL)
 	}
 
 	opt, err := redis.ParseURL(redisURL)

@@ -66,6 +66,16 @@ type Template struct {
 }
 
 var db *sql.DB
+var defaultUserID string
+
+func getDefaultUserID() string {
+	if defaultUserID == "" {
+		// For now, use a fixed UUID for the default user to avoid conflicts with main DB
+		// This will be replaced when proper user management is implemented
+		defaultUserID = "00000000-0000-0000-0000-000000000001"
+	}
+	return defaultUserID
+}
 
 func main() {
     if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
@@ -224,7 +234,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func getNotesHandler(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
-		userID = "default-user"
+		userID = getDefaultUserID()
 	}
 	
 	query := `
@@ -248,7 +258,7 @@ func getNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 	
-	var notes []Note
+	notes := []Note{} // Initialize as empty slice instead of nil
 	for rows.Next() {
 		var n Note
 		var tags sql.NullString
@@ -279,16 +289,21 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	if note.UserID == "" {
-		note.UserID = "default-user"
+		note.UserID = getDefaultUserID()
+	}
+	
+	// Set defaults if not provided
+	if note.ContentType == "" {
+		note.ContentType = "markdown"
 	}
 	
 	query := `
 		INSERT INTO notes (user_id, title, content, content_type, folder_id)
 		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, created_at, updated_at`
+		RETURNING id, created_at, updated_at, last_accessed`
 	
 	err := db.QueryRow(query, note.UserID, note.Title, note.Content, 
-		note.ContentType, note.FolderID).Scan(&note.ID, &note.CreatedAt, &note.UpdatedAt)
+		note.ContentType, note.FolderID).Scan(&note.ID, &note.CreatedAt, &note.UpdatedAt, &note.LastAccessed)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -376,7 +391,7 @@ func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 func getFoldersHandler(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
-		userID = "default-user"
+		userID = getDefaultUserID()
 	}
 	
 	query := `
@@ -415,7 +430,7 @@ func createFolderHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	if folder.UserID == "" {
-		folder.UserID = "default-user"
+		folder.UserID = getDefaultUserID()
 	}
 	if folder.Icon == "" {
 		folder.Icon = "📁"
@@ -487,7 +502,7 @@ func deleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 func getTagsHandler(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
-		userID = "default-user"
+		userID = getDefaultUserID()
 	}
 	
 	query := `
@@ -526,7 +541,7 @@ func createTagHandler(w http.ResponseWriter, r *http.Request) {
 	
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
-		userID = "default-user"
+		userID = getDefaultUserID()
 	}
 	
 	if tag.Color == "" {
@@ -555,7 +570,7 @@ func createTagHandler(w http.ResponseWriter, r *http.Request) {
 func getTemplatesHandler(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
-		userID = "default-user"
+		userID = getDefaultUserID()
 	}
 	
 	query := `
@@ -594,7 +609,7 @@ func createTemplateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	if template.UserID == "" {
-		template.UserID = "default-user"
+		template.UserID = getDefaultUserID()
 	}
 	
 	query := `
@@ -628,7 +643,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	if searchReq.UserID == "" {
-		searchReq.UserID = "default-user"
+		searchReq.UserID = getDefaultUserID()
 	}
 	if searchReq.Limit == 0 {
 		searchReq.Limit = 20

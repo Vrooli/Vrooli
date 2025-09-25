@@ -1,204 +1,261 @@
--- SCENARIO_NAME_PLACEHOLDER Database Schema
--- Core database structure for API and application data
+-- Network Tools Database Schema
+-- Core database structure for network operations and testing
 
--- Resources table: Main entity management
-CREATE TABLE IF NOT EXISTS resources (
+-- Network targets table: Hosts, URLs, APIs to monitor/test
+CREATE TABLE IF NOT EXISTS network_targets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
-    description TEXT,
-    type VARCHAR(100),
-    status VARCHAR(50) DEFAULT 'active',
-    config JSONB DEFAULT '{}',
+    target_type VARCHAR(50) NOT NULL CHECK (target_type IN ('host', 'url', 'api', 'service')),
+    address VARCHAR(500) NOT NULL,
+    port INTEGER,
+    protocol VARCHAR(20) CHECK (protocol IN ('http', 'https', 'tcp', 'udp', 'icmp')),
+    authentication JSONB DEFAULT '{}',
+    tags TEXT[],
+    is_active BOOLEAN DEFAULT true,
+    scan_schedule JSONB DEFAULT '{}',
     metadata JSONB DEFAULT '{}',
     
-    -- Relationships
-    parent_id UUID REFERENCES resources(id) ON DELETE SET NULL,
-    owner_id VARCHAR(255),
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_scanned TIMESTAMP WITH TIME ZONE,
+    
+    -- Constraints
+    CONSTRAINT unique_target UNIQUE(address, port, protocol)
+);
+
+-- Scan results table: Store all network scan results
+CREATE TABLE IF NOT EXISTS scan_results (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    target_id UUID REFERENCES network_targets(id) ON DELETE CASCADE,
+    scan_type VARCHAR(50) NOT NULL CHECK (scan_type IN ('port_scan', 'vulnerability_scan', 'ssl_check', 'dns_lookup', 'api_test', 'connectivity')),
+    
+    -- Scan details
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(50) DEFAULT 'running' CHECK (status IN ('running', 'success', 'failed', 'timeout', 'error')),
+    
+    -- Results
+    results JSONB DEFAULT '{}',
+    findings JSONB DEFAULT '{}',
+    severity_score DECIMAL(3,1),
+    recommendations JSONB DEFAULT '[]',
+    raw_data_path TEXT,
+    scan_config JSONB DEFAULT '{}',
+    
+    -- Performance metrics
+    response_time_ms INTEGER,
+    packet_loss_percent DECIMAL(5,2),
+    
+    -- Metadata
+    scanner_version VARCHAR(50),
+    triggered_by VARCHAR(255)
+);
+
+-- API definitions table: Store API specifications for testing
+CREATE TABLE IF NOT EXISTS api_definitions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    base_url VARCHAR(500) NOT NULL,
+    version VARCHAR(50),
+    specification VARCHAR(50) CHECK (specification IN ('openapi', 'swagger', 'graphql', 'grpc', 'rest')),
+    spec_document JSONB,
+    authentication_methods TEXT[],
+    rate_limits JSONB DEFAULT '{}',
+    endpoints_count INTEGER,
+    
+    -- Validation
+    last_validated TIMESTAMP WITH TIME ZONE,
+    validation_status VARCHAR(50) CHECK (validation_status IN ('valid', 'invalid', 'unknown')),
+    documentation_url TEXT,
     
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE,
     
     -- Constraints
-    CONSTRAINT unique_name_per_type UNIQUE(name, type)
+    CONSTRAINT unique_api_version UNIQUE(base_url, version)
 );
 
--- Workflows table: Workflow definitions
-CREATE TABLE IF NOT EXISTS workflows (
+-- Monitoring data table: Time-series network metrics
+CREATE TABLE IF NOT EXISTS monitoring_data (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id VARCHAR(255) UNIQUE NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    platform VARCHAR(50) NOT NULL CHECK (platform IN ('n8n', 'windmill', 'node-red')),
+    target_id UUID REFERENCES network_targets(id) ON DELETE CASCADE,
+    metric_type VARCHAR(50) NOT NULL CHECK (metric_type IN ('latency', 'throughput', 'availability', 'error_rate', 'bandwidth')),
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    value DECIMAL(15,6) NOT NULL,
+    unit VARCHAR(20) NOT NULL,
+    labels JSONB DEFAULT '{}',
+    alert_level VARCHAR(20) CHECK (alert_level IN ('ok', 'warning', 'critical')),
+    measurement_location VARCHAR(255),
     
-    -- Workflow configuration
-    definition JSONB NOT NULL,
-    input_schema JSONB,
-    output_schema JSONB,
-    config JSONB DEFAULT '{}',
+    -- Index for time-series queries
+    INDEX idx_monitoring_timestamp (target_id, timestamp DESC),
+    INDEX idx_monitoring_metric (metric_type, timestamp DESC)
+);
+
+-- HTTP requests table: Log HTTP operations
+CREATE TABLE IF NOT EXISTS http_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    url TEXT NOT NULL,
+    method VARCHAR(10) NOT NULL CHECK (method IN ('GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS')),
+    headers JSONB DEFAULT '{}',
+    body TEXT,
+    
+    -- Response
+    status_code INTEGER,
+    response_headers JSONB DEFAULT '{}',
+    response_body TEXT,
+    response_time_ms INTEGER,
+    final_url TEXT,
+    
+    -- SSL/TLS info
+    ssl_info JSONB DEFAULT '{}',
+    redirect_chain JSONB DEFAULT '[]',
     
     -- Metadata
-    version INTEGER DEFAULT 1,
-    is_active BOOLEAN DEFAULT true,
-    tags TEXT[],
-    
-    -- Statistics
-    execution_count INTEGER DEFAULT 0,
-    success_count INTEGER DEFAULT 0,
-    failure_count INTEGER DEFAULT 0,
-    avg_duration_ms INTEGER,
-    
-    -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    user_agent TEXT,
+    source_ip VARCHAR(50),
+    
+    -- Performance tracking
+    INDEX idx_http_requests_timestamp (created_at DESC)
 );
 
--- Executions table: Workflow execution history
-CREATE TABLE IF NOT EXISTS executions (
+-- DNS queries table: Store DNS lookup results
+CREATE TABLE IF NOT EXISTS dns_queries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id UUID REFERENCES workflows(id) ON DELETE CASCADE,
+    query VARCHAR(500) NOT NULL,
+    record_type VARCHAR(10) NOT NULL,
+    dns_server VARCHAR(50),
     
-    -- Execution details
-    status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    input_data JSONB,
-    output_data JSONB,
-    error_message TEXT,
+    -- Results
+    answers JSONB DEFAULT '[]',
+    response_time_ms INTEGER,
+    authoritative BOOLEAN,
+    dnssec_valid BOOLEAN,
     
-    -- Performance metrics
-    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    duration_ms INTEGER,
-    
-    -- Resource usage
-    resource_usage JSONB DEFAULT '{}',
-    
-    -- Context
-    triggered_by VARCHAR(255),
-    correlation_id UUID,
-    metadata JSONB DEFAULT '{}'
-);
-
--- Events table: Application event log
-CREATE TABLE IF NOT EXISTS events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_type VARCHAR(100) NOT NULL,
-    event_name VARCHAR(255) NOT NULL,
-    
-    -- Event data
-    payload JSONB,
-    source VARCHAR(100),
-    target VARCHAR(100),
-    
-    -- Context
-    resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
-    execution_id UUID REFERENCES executions(id) ON DELETE CASCADE,
-    user_id VARCHAR(255),
-    session_id VARCHAR(255),
+    -- Cache control
+    ttl INTEGER,
+    cached_until TIMESTAMP WITH TIME ZONE,
     
     -- Metadata
-    severity VARCHAR(20) DEFAULT 'info',
-    tags TEXT[],
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
-    -- Timestamp
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    -- Cache lookup index
+    INDEX idx_dns_cache (query, record_type, cached_until)
 );
 
--- Configuration table: Application settings
-CREATE TABLE IF NOT EXISTS configuration (
+-- Port scans table: Detailed port scanning results
+CREATE TABLE IF NOT EXISTS port_scans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    key VARCHAR(255) UNIQUE NOT NULL,
-    value JSONB NOT NULL,
+    target_id UUID REFERENCES network_targets(id) ON DELETE CASCADE,
+    scan_result_id UUID REFERENCES scan_results(id) ON DELETE CASCADE,
     
-    -- Configuration metadata
-    category VARCHAR(100),
-    description TEXT,
-    is_secret BOOLEAN DEFAULT false,
-    is_active BOOLEAN DEFAULT true,
+    port INTEGER NOT NULL,
+    protocol VARCHAR(10) NOT NULL CHECK (protocol IN ('tcp', 'udp')),
+    state VARCHAR(20) NOT NULL CHECK (state IN ('open', 'closed', 'filtered', 'unfiltered')),
+    service VARCHAR(100),
+    version VARCHAR(100),
+    banner TEXT,
+    
+    -- Timing
+    response_time_ms INTEGER,
+    scanned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Index for port lookups
+    INDEX idx_port_scans_target (target_id, port, protocol)
+);
+
+-- API test results table: Store API endpoint test results
+CREATE TABLE IF NOT EXISTS api_test_results (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    api_definition_id UUID REFERENCES api_definitions(id) ON DELETE CASCADE,
+    endpoint VARCHAR(500) NOT NULL,
+    method VARCHAR(10) NOT NULL,
+    
+    -- Test execution
+    test_name VARCHAR(255),
+    test_suite VARCHAR(255),
+    executed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Results
+    status VARCHAR(20) CHECK (status IN ('passed', 'failed', 'skipped', 'error')),
+    expected_status INTEGER,
+    actual_status INTEGER,
+    response_time_ms INTEGER,
     
     -- Validation
-    schema JSONB,
-    default_value JSONB,
+    schema_valid BOOLEAN,
+    assertions_passed INTEGER,
+    assertions_failed INTEGER,
+    error_details JSONB DEFAULT '{}',
     
-    -- Timestamps
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    -- Performance tracking
+    INDEX idx_api_tests_timestamp (api_definition_id, executed_at DESC)
 );
 
--- Metrics table: Performance and usage metrics
-CREATE TABLE IF NOT EXISTS metrics (
+-- SSL certificates table: Store SSL/TLS certificate information
+CREATE TABLE IF NOT EXISTS ssl_certificates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    metric_name VARCHAR(255) NOT NULL,
-    metric_type VARCHAR(50) NOT NULL,
+    target_id UUID REFERENCES network_targets(id) ON DELETE CASCADE,
     
-    -- Metric data
-    value NUMERIC NOT NULL,
-    unit VARCHAR(50),
+    -- Certificate details
+    common_name VARCHAR(255),
+    issuer VARCHAR(500),
+    subject VARCHAR(500),
+    serial_number VARCHAR(100),
     
-    -- Context
-    resource_type VARCHAR(100),
-    resource_id VARCHAR(255),
+    -- Validity
+    not_before TIMESTAMP WITH TIME ZONE,
+    not_after TIMESTAMP WITH TIME ZONE,
+    is_valid BOOLEAN,
+    is_expired BOOLEAN,
+    days_until_expiry INTEGER,
     
-    -- Dimensions for grouping
-    dimensions JSONB DEFAULT '{}',
+    -- Security
+    signature_algorithm VARCHAR(100),
+    key_size INTEGER,
+    san_list JSONB DEFAULT '[]',
+    chain_valid BOOLEAN,
+    vulnerabilities JSONB DEFAULT '[]',
     
-    -- Timestamp
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    -- Metadata
+    scanned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    raw_certificate TEXT,
+    
+    -- Index for expiry tracking
+    INDEX idx_ssl_expiry (not_after, is_valid)
 );
 
--- Sessions table: User session management
-CREATE TABLE IF NOT EXISTS sessions (
+-- Alerts table: Network monitoring alerts
+CREATE TABLE IF NOT EXISTS alerts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_token VARCHAR(255) UNIQUE NOT NULL,
-    user_id VARCHAR(255),
+    target_id UUID REFERENCES network_targets(id) ON DELETE CASCADE,
+    alert_type VARCHAR(50) NOT NULL,
+    severity VARCHAR(20) NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
     
-    -- Session data
-    data JSONB DEFAULT '{}',
-    ip_address INET,
-    user_agent TEXT,
+    -- Alert details
+    title VARCHAR(500) NOT NULL,
+    message TEXT,
+    threshold_value DECIMAL(15,6),
+    actual_value DECIMAL(15,6),
     
-    -- Status
+    -- State
     is_active BOOLEAN DEFAULT true,
+    acknowledged BOOLEAN DEFAULT false,
+    acknowledged_by VARCHAR(255),
+    acknowledged_at TIMESTAMP WITH TIME ZONE,
+    resolved_at TIMESTAMP WITH TIME ZONE,
     
-    -- Timestamps
+    -- Metadata
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP WITH TIME ZONE
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Index for active alerts
+    INDEX idx_active_alerts (is_active, severity, created_at DESC)
 );
 
--- Create indexes for performance
-CREATE INDEX idx_resources_type ON resources(type) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_status ON resources(status) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_owner ON resources(owner_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_created ON resources(created_at DESC);
-
-CREATE INDEX idx_workflows_platform ON workflows(platform) WHERE is_active = true;
-CREATE INDEX idx_workflows_tags ON workflows USING GIN(tags);
-CREATE INDEX idx_workflows_active ON workflows(is_active);
-
-CREATE INDEX idx_executions_workflow ON executions(workflow_id);
-CREATE INDEX idx_executions_status ON executions(status);
-CREATE INDEX idx_executions_started ON executions(started_at DESC);
-CREATE INDEX idx_executions_correlation ON executions(correlation_id);
-
-CREATE INDEX idx_events_type ON events(event_type);
-CREATE INDEX idx_events_resource ON events(resource_id);
-CREATE INDEX idx_events_execution ON events(execution_id);
-CREATE INDEX idx_events_created ON events(created_at DESC);
-CREATE INDEX idx_events_tags ON events USING GIN(tags);
-
-CREATE INDEX idx_configuration_category ON configuration(category) WHERE is_active = true;
-CREATE INDEX idx_configuration_key ON configuration(key) WHERE is_active = true;
-
-CREATE INDEX idx_metrics_name ON metrics(metric_name);
-CREATE INDEX idx_metrics_timestamp ON metrics(timestamp DESC);
-CREATE INDEX idx_metrics_resource ON metrics(resource_type, resource_id);
-
-CREATE INDEX idx_sessions_token ON sessions(session_token) WHERE is_active = true;
-CREATE INDEX idx_sessions_user ON sessions(user_id) WHERE is_active = true;
-CREATE INDEX idx_sessions_activity ON sessions(last_activity DESC) WHERE is_active = true;
-
--- Update triggers for timestamps
+-- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -207,80 +264,50 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_resources_updated_at BEFORE UPDATE ON resources
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Apply updated_at triggers
+CREATE TRIGGER update_network_targets_updated_at BEFORE UPDATE
+    ON network_targets FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON workflows
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_api_definitions_updated_at BEFORE UPDATE
+    ON api_definitions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_configuration_updated_at BEFORE UPDATE ON configuration
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_alerts_updated_at BEFORE UPDATE
+    ON alerts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Function to update workflow statistics after execution
-CREATE OR REPLACE FUNCTION update_workflow_stats()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.status IN ('success', 'failed') AND NEW.workflow_id IS NOT NULL THEN
-        UPDATE workflows SET
-            execution_count = execution_count + 1,
-            success_count = success_count + CASE WHEN NEW.status = 'success' THEN 1 ELSE 0 END,
-            failure_count = failure_count + CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END,
-            avg_duration_ms = CASE
-                WHEN execution_count = 0 THEN NEW.duration_ms
-                ELSE ((avg_duration_ms * execution_count + COALESCE(NEW.duration_ms, 0)) / (execution_count + 1))::INTEGER
-            END,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = NEW.workflow_id;
-    END IF;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
+-- Create performance indexes
+CREATE INDEX idx_scan_results_status ON scan_results(status, completed_at DESC);
+CREATE INDEX idx_http_requests_url ON http_requests(url, created_at DESC);
+CREATE INDEX idx_network_targets_active ON network_targets(is_active, last_scanned);
 
-CREATE TRIGGER update_workflow_stats_on_execution
-    AFTER INSERT OR UPDATE OF status ON executions
-    FOR EACH ROW
-    WHEN (NEW.status IN ('success', 'failed'))
-    EXECUTE FUNCTION update_workflow_stats();
-
--- Useful views for monitoring
-CREATE OR REPLACE VIEW workflow_performance AS
+-- Create views for common queries
+CREATE OR REPLACE VIEW active_targets AS
 SELECT 
-    w.name,
-    w.platform,
-    w.execution_count,
-    w.success_count,
-    w.failure_count,
-    CASE WHEN w.execution_count > 0 
-         THEN (w.success_count::FLOAT / w.execution_count * 100)::NUMERIC(5,2)
-         ELSE 0 
-    END as success_rate,
-    w.avg_duration_ms,
-    w.is_active
-FROM workflows w
-ORDER BY w.execution_count DESC;
+    nt.*,
+    COUNT(sr.id) as total_scans,
+    MAX(sr.completed_at) as last_scan_completed,
+    AVG(sr.response_time_ms) as avg_response_time_ms
+FROM network_targets nt
+LEFT JOIN scan_results sr ON nt.id = sr.target_id AND sr.status = 'success'
+WHERE nt.is_active = true
+GROUP BY nt.id;
 
-CREATE OR REPLACE VIEW recent_executions AS
+CREATE OR REPLACE VIEW recent_alerts AS
 SELECT 
-    e.id,
-    w.name as workflow_name,
-    e.status,
-    e.started_at,
-    e.completed_at,
-    e.duration_ms,
-    e.error_message
-FROM executions e
-JOIN workflows w ON e.workflow_id = w.id
-ORDER BY e.started_at DESC
-LIMIT 100;
+    a.*,
+    nt.name as target_name,
+    nt.address as target_address
+FROM alerts a
+JOIN network_targets nt ON a.target_id = nt.id
+WHERE a.is_active = true
+ORDER BY a.severity DESC, a.created_at DESC;
 
-CREATE OR REPLACE VIEW resource_summary AS
-SELECT 
-    type,
-    status,
-    COUNT(*) as count,
-    MAX(created_at) as latest_created,
-    MAX(updated_at) as latest_updated
-FROM resources
-WHERE deleted_at IS NULL
-GROUP BY type, status
-ORDER BY type, status;
+-- Add comments for documentation
+COMMENT ON TABLE network_targets IS 'Network endpoints to monitor and test';
+COMMENT ON TABLE scan_results IS 'Results from all types of network scans';
+COMMENT ON TABLE api_definitions IS 'API specifications for testing';
+COMMENT ON TABLE monitoring_data IS 'Time-series metrics for network performance';
+COMMENT ON TABLE http_requests IS 'Log of HTTP/HTTPS requests made';
+COMMENT ON TABLE dns_queries IS 'DNS lookup results with caching';
+COMMENT ON TABLE port_scans IS 'Detailed port scanning results';
+COMMENT ON TABLE ssl_certificates IS 'SSL/TLS certificate information and validation';
+COMMENT ON TABLE alerts IS 'Network monitoring alerts and incidents';

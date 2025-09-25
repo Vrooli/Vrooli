@@ -1,16 +1,15 @@
 #!/bin/bash
-# CLI_NAME_PLACEHOLDER - Command-line interface for SCENARIO_NAME_PLACEHOLDER
-# This is a thin wrapper around the API, following the agent-metareasoning-manager pattern
+# Math Tools CLI - Command-line interface for mathematical operations
 
 set -euo pipefail
 
 # Configuration
-readonly CLI_NAME="CLI_NAME_PLACEHOLDER"
+readonly CLI_NAME="math-tools"
 readonly CLI_VERSION="1.0.0"
 readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
 readonly CONFIG_FILE="$CONFIG_DIR/config.json"
-readonly DEFAULT_API_BASE="http://localhost:API_PORT_PLACEHOLDER"
-readonly DEFAULT_TOKEN="CLI_TOKEN_PLACEHOLDER"
+readonly DEFAULT_API_BASE="http://localhost:8095"
+readonly DEFAULT_TOKEN="math-tools-api-token"
 
 # Colors for output
 readonly RED='\033[0;31m'
@@ -31,6 +30,7 @@ init_config() {
     "api_base": "$DEFAULT_API_BASE",
     "api_token": "$DEFAULT_TOKEN",
     "output_format": "table",
+    "precision": 10,
     "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 }
 EOF
@@ -44,10 +44,12 @@ load_config() {
         API_BASE=$(jq -r '.api_base // "'$DEFAULT_API_BASE'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_API_BASE")
         API_TOKEN=$(jq -r '.api_token // "'$DEFAULT_TOKEN'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_TOKEN")
         OUTPUT_FORMAT=$(jq -r '.output_format // "table"' "$CONFIG_FILE" 2>/dev/null || echo "table")
+        PRECISION=$(jq -r '.precision // 10' "$CONFIG_FILE" 2>/dev/null || echo "10")
     else
         API_BASE="$DEFAULT_API_BASE"
         API_TOKEN="$DEFAULT_TOKEN"
         OUTPUT_FORMAT="table"
+        PRECISION="10"
     fi
 }
 
@@ -85,16 +87,7 @@ format_output() {
             echo "$data" | jq '.' 2>/dev/null || echo "$data"
             ;;
         table)
-            # Convert JSON to simple table format
-            echo "$data" | jq -r '
-                if type == "array" then
-                    .[] | [.id, .name, .status // .description // ""] | @tsv
-                elif type == "object" then
-                    to_entries | .[] | [.key, .value] | @tsv
-                else
-                    .
-                end
-            ' 2>/dev/null || echo "$data"
+            echo "$data" | jq -r '.data | if type == "object" then . else . end' 2>/dev/null || echo "$data"
             ;;
         raw)
             echo "$data"
@@ -105,330 +98,363 @@ format_output() {
     esac
 }
 
-# Command: health
-cmd_health() {
-    echo -e "${BLUE}Checking system health...${NC}"
+# Command: status
+cmd_status() {
+    echo -e "${BLUE}🔍 Checking Math Tools status...${NC}"
     
-    response=$(api_request GET "/health")
+    response=$(api_request "GET" "/health")
     if [[ $? -eq 0 ]]; then
-        status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
-        
+        status=$(echo "$response" | jq -r '.status // "unknown"')
         if [[ "$status" == "healthy" ]]; then
-            echo -e "${GREEN}✓${NC} System is healthy"
+            echo -e "${GREEN}✓${NC} Math Tools API is healthy"
+            echo "$response" | jq '.' 2>/dev/null
         else
-            echo -e "${YELLOW}⚠${NC} System status: $status"
+            echo -e "${YELLOW}⚠${NC} Math Tools API status: $status"
+            echo "$response" | jq '.' 2>/dev/null
         fi
+    else
+        echo -e "${RED}✗${NC} Math Tools API is not responding"
+        exit 1
+    fi
+}
+
+# Command: calc - Perform calculations
+cmd_calc() {
+    local operation="$1"
+    shift
+    local data_array="["
+    
+    # Build array from arguments
+    for num in "$@"; do
+        if [[ "$data_array" != "[" ]]; then
+            data_array+=","
+        fi
+        data_array+="$num"
+    done
+    data_array+="]"
+    
+    local json_data=$(jq -n \
+        --arg op "$operation" \
+        --argjson data "$data_array" \
+        '{operation: $op, data: $data}')
+    
+    echo -e "${BLUE}🧮 Calculating: $operation${NC}"
+    response=$(api_request "POST" "/api/v1/math/calculate" "$json_data")
+    
+    if [[ $? -eq 0 ]]; then
+        result=$(echo "$response" | jq -r '.data.result // "error"')
+        echo -e "${GREEN}Result:${NC} $result"
         
-        echo "$response" | jq -r '
-            "  API: \(.service // "Unknown")",
-            "  Version: \(.version // "Unknown")",
-            "  Database: \(.database // "Unknown")"
-        ' 2>/dev/null
+        if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+            echo "$response" | jq '.data'
+        fi
     else
-        echo -e "${RED}✗${NC} API is not responding"
-        return 1
+        echo -e "${RED}✗${NC} Calculation failed"
+        exit 1
     fi
 }
 
-# Command: list resources
-cmd_list() {
-    local resource="${1:-resources}"
+# Command: stats - Statistical analysis
+cmd_stats() {
+    local analysis_type="${1:-descriptive}"
+    shift
+    local data_array="["
     
-    echo -e "${BLUE}Listing ${resource}...${NC}"
+    # Build array from arguments
+    for num in "$@"; do
+        if [[ "$data_array" != "[" ]]; then
+            data_array+=","
+        fi
+        data_array+="$num"
+    done
+    data_array+="]"
     
-    response=$(api_request GET "/api/v1/${resource}")
+    local json_data=$(jq -n \
+        --argjson data "$data_array" \
+        --arg analyses "$analysis_type" \
+        '{data: $data, analyses: [$analyses]}')
+    
+    echo -e "${BLUE}📊 Performing statistical analysis: $analysis_type${NC}"
+    response=$(api_request "POST" "/api/v1/math/statistics" "$json_data")
+    
     if [[ $? -eq 0 ]]; then
-        count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
-        echo -e "${GREEN}✓${NC} Found $count ${resource}"
-        echo
-        format_output "$response"
+        echo -e "${GREEN}Statistics:${NC}"
+        echo "$response" | jq '.data.results.descriptive' 2>/dev/null || echo "$response" | jq '.data'
     else
-        echo -e "${RED}✗${NC} Failed to list ${resource}"
-        return 1
+        echo -e "${RED}✗${NC} Statistical analysis failed"
+        exit 1
     fi
 }
 
-# Command: get resource
-cmd_get() {
-    local resource="${1:-resources}"
-    local id="$2"
+# Command: matrix - Matrix operations
+cmd_matrix() {
+    local operation="$1"
+    local matrix_file="${2:-}"
     
-    if [[ -z "$id" ]]; then
-        echo -e "${RED}✗${NC} ID is required" >&2
-        return 1
+    if [[ ! -f "$matrix_file" ]]; then
+        echo -e "${RED}✗${NC} Matrix file not found: $matrix_file"
+        exit 1
     fi
     
-    echo -e "${BLUE}Getting ${resource} ${id}...${NC}"
+    local matrix_data=$(cat "$matrix_file")
     
-    response=$(api_request GET "/api/v1/${resource}/${id}")
+    local json_data=$(jq -n \
+        --arg op "matrix_$operation" \
+        --argjson matrix "$matrix_data" \
+        '{operation: $op, matrix: $matrix}')
+    
+    echo -e "${BLUE}🔢 Performing matrix operation: $operation${NC}"
+    response=$(api_request "POST" "/api/v1/math/calculate" "$json_data")
+    
     if [[ $? -eq 0 ]]; then
-        echo -e "${GREEN}✓${NC} Retrieved ${resource}"
-        echo
-        format_output "$response"
+        echo -e "${GREEN}Result:${NC}"
+        echo "$response" | jq '.data.result' 2>/dev/null || echo "$response" | jq '.data'
     else
-        echo -e "${RED}✗${NC} Failed to get ${resource}"
-        return 1
+        echo -e "${RED}✗${NC} Matrix operation failed"
+        exit 1
     fi
 }
 
-# Command: create resource
-cmd_create() {
-    local resource="${1:-resources}"
+# Command: solve - Solve equations
+cmd_solve() {
+    local equation="$1"
+    local variables="${2:-x}"
+    
+    local json_data=$(jq -n \
+        --arg eq "$equation" \
+        --arg vars "$variables" \
+        '{equations: [$eq], variables: [$vars]}')
+    
+    echo -e "${BLUE}🔍 Solving equation: $equation${NC}"
+    response=$(api_request "POST" "/api/v1/math/solve" "$json_data")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}Solutions:${NC}"
+        echo "$response" | jq '.data' 2>/dev/null
+    else
+        echo -e "${RED}✗${NC} Failed to solve equation"
+        exit 1
+    fi
+}
+
+# Command: model - Model management
+cmd_model() {
+    local subcommand="${1:-list}"
     shift
     
-    # Build JSON from remaining arguments
-    local json_data="{}"
-    while [[ $# -gt 0 ]]; do
-        key="$1"
-        value="${2:-}"
-        json_data=$(echo "$json_data" | jq --arg k "$key" --arg v "$value" '. + {($k): $v}')
-        shift 2 || break
-    done
-    
-    echo -e "${BLUE}Creating ${resource}...${NC}"
-    
-    response=$(api_request POST "/api/v1/${resource}" "$json_data")
-    if [[ $? -eq 0 ]]; then
-        id=$(echo "$response" | jq -r '.data.id // .id // ""' 2>/dev/null)
-        echo -e "${GREEN}✓${NC} Created ${resource} ${id}"
-        echo
-        format_output "$response"
-    else
-        echo -e "${RED}✗${NC} Failed to create ${resource}"
-        return 1
-    fi
-}
-
-# Command: update resource
-cmd_update() {
-    local resource="${1:-resources}"
-    local id="$2"
-    shift 2
-    
-    if [[ -z "$id" ]]; then
-        echo -e "${RED}✗${NC} ID is required" >&2
-        return 1
-    fi
-    
-    # Build JSON from remaining arguments
-    local json_data="{}"
-    while [[ $# -gt 0 ]]; do
-        key="$1"
-        value="${2:-}"
-        json_data=$(echo "$json_data" | jq --arg k "$key" --arg v "$value" '. + {($k): $v}')
-        shift 2 || break
-    done
-    
-    echo -e "${BLUE}Updating ${resource} ${id}...${NC}"
-    
-    response=$(api_request PUT "/api/v1/${resource}/${id}" "$json_data")
-    if [[ $? -eq 0 ]]; then
-        echo -e "${GREEN}✓${NC} Updated ${resource} ${id}"
-        echo
-        format_output "$response"
-    else
-        echo -e "${RED}✗${NC} Failed to update ${resource}"
-        return 1
-    fi
-}
-
-# Command: delete resource
-cmd_delete() {
-    local resource="${1:-resources}"
-    local id="$2"
-    
-    if [[ -z "$id" ]]; then
-        echo -e "${RED}✗${NC} ID is required" >&2
-        return 1
-    fi
-    
-    echo -e "${BLUE}Deleting ${resource} ${id}...${NC}"
-    
-    response=$(api_request DELETE "/api/v1/${resource}/${id}")
-    if [[ $? -eq 0 ]]; then
-        echo -e "${GREEN}✓${NC} Deleted ${resource} ${id}"
-    else
-        echo -e "${RED}✗${NC} Failed to delete ${resource}"
-        return 1
-    fi
-}
-
-# Command: execute workflow
-cmd_execute() {
-    local workflow_id="${1:-}"
-    shift
-    
-    if [[ -z "$workflow_id" ]]; then
-        echo -e "${RED}✗${NC} Workflow ID is required" >&2
-        return 1
-    fi
-    
-    # Build input data from remaining arguments
-    local input_data="{\"workflow_id\": \"$workflow_id\""
-    if [[ $# -gt 0 ]]; then
-        local user_input="$*"
-        input_data="${input_data}, \"input\": \"$user_input\""
-    fi
-    input_data="${input_data}}"
-    
-    echo -e "${BLUE}Executing workflow ${workflow_id}...${NC}"
-    
-    response=$(api_request POST "/api/v1/execute" "$input_data")
-    if [[ $? -eq 0 ]]; then
-        execution_id=$(echo "$response" | jq -r '.data.execution_id // .execution_id // ""' 2>/dev/null)
-        echo -e "${GREEN}✓${NC} Started execution ${execution_id}"
-        echo
-        format_output "$response"
-    else
-        echo -e "${RED}✗${NC} Failed to execute workflow"
-        return 1
-    fi
-}
-
-# Command: configure
-cmd_configure() {
-    local key="${1:-}"
-    local value="${2:-}"
-    
-    if [[ -z "$key" ]]; then
-        echo "Current configuration:"
-        cat "$CONFIG_FILE" | jq '.' 2>/dev/null || cat "$CONFIG_FILE"
-        return 0
-    fi
-    
-    case "$key" in
-        api|api_base)
-            jq --arg v "$value" '.api_base = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-            echo -e "${GREEN}✓${NC} API base set to: $value"
+    case "$subcommand" in
+        list)
+            echo -e "${BLUE}📋 Listing mathematical models...${NC}"
+            response=$(api_request "GET" "/api/v1/models")
+            if [[ $? -eq 0 ]]; then
+                echo "$response" | jq '.data' 2>/dev/null || echo "$response"
+            fi
             ;;
-        token|api_token)
-            jq --arg v "$value" '.api_token = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-            echo -e "${GREEN}✓${NC} API token updated"
+        create)
+            local name="$1"
+            local model_type="${2:-linear_regression}"
+            local formula="${3:-}"
+            
+            local json_data=$(jq -n \
+                --arg n "$name" \
+                --arg t "$model_type" \
+                --arg f "$formula" \
+                '{name: $n, model_type: $t, formula: $f}')
+            
+            echo -e "${BLUE}✨ Creating model: $name${NC}"
+            response=$(api_request "POST" "/api/v1/models" "$json_data")
+            if [[ $? -eq 0 ]]; then
+                echo -e "${GREEN}✓${NC} Model created successfully"
+                echo "$response" | jq '.data' 2>/dev/null
+            fi
             ;;
-        format|output_format)
-            jq --arg v "$value" '.output_format = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-            echo -e "${GREEN}✓${NC} Output format set to: $value"
+        get)
+            local id="$1"
+            echo -e "${BLUE}🔍 Getting model: $id${NC}"
+            response=$(api_request "GET" "/api/v1/models/$id")
+            if [[ $? -eq 0 ]]; then
+                echo "$response" | jq '.data' 2>/dev/null || echo "$response"
+            fi
+            ;;
+        delete)
+            local id="$1"
+            echo -e "${YELLOW}🗑️  Deleting model: $id${NC}"
+            response=$(api_request "DELETE" "/api/v1/models/$id")
+            if [[ $? -eq 0 ]]; then
+                echo -e "${GREEN}✓${NC} Model deleted successfully"
+            fi
             ;;
         *)
-            echo -e "${RED}✗${NC} Unknown configuration key: $key"
-            echo "Valid keys: api_base, api_token, output_format"
-            return 1
+            echo "Unknown model subcommand: $subcommand"
+            echo "Usage: $CLI_NAME model [list|create|get|delete]"
+            exit 1
             ;;
     esac
-}
-
-# Command: version
-cmd_version() {
-    echo "$CLI_NAME version $CLI_VERSION"
-    echo "API endpoint: $API_BASE"
 }
 
 # Command: help
 cmd_help() {
     cat <<EOF
-$CLI_NAME - Command-line interface for SCENARIO_NAME_PLACEHOLDER
+${BLUE}Math Tools CLI${NC} v${CLI_VERSION}
+Comprehensive mathematical computation and analysis platform
 
-Usage: $CLI_NAME <command> [options]
+${YELLOW}Usage:${NC}
+  $CLI_NAME <command> [arguments]
 
-Commands:
-    health              Check system health
-    list [resource]     List resources
-    get <resource> <id> Get specific resource
-    create <resource> [key value...]  Create new resource
-    update <resource> <id> [key value...]  Update resource
-    delete <resource> <id>  Delete resource
-    execute <workflow_id> [input...]  Execute workflow
-    configure [key] [value]  View or update configuration
-    version             Show version information
-    help                Show this help message
+${YELLOW}Available Commands:${NC}
+  status              Check API health status
+  help                Show this help message
+  version             Show CLI version
+  
+${YELLOW}Calculation Commands:${NC}
+  calc <op> <nums...> Perform basic calculations
+    Operations: add, subtract, multiply, divide, power, sqrt, log, exp,
+                mean, median, mode, stddev, variance,
+                prime_factors, gcd, lcm
+    
+    Examples:
+      $CLI_NAME calc add 1 2 3 4 5
+      $CLI_NAME calc mean 10 20 30 40 50
+      $CLI_NAME calc power 2 8
+      $CLI_NAME calc gcd 48 18
+      
+  stats [type] <nums...>  Perform statistical analysis
+    Types: descriptive, correlation, regression
+    
+    Example:
+      $CLI_NAME stats descriptive 1 2 3 4 5 6 7 8 9 10
+      
+  matrix <op> <file>  Perform matrix operations
+    Operations: transpose, determinant, inverse, multiply
+    File should contain JSON array representation of matrix
+    
+    Example:
+      echo '[[1,2],[3,4]]' > matrix.json
+      $CLI_NAME matrix transpose matrix.json
+      
+  solve <equation> [variables]  Solve equations
+    
+    Example:
+      $CLI_NAME solve "x^2 - 4 = 0" x
+      
+${YELLOW}Model Management:${NC}
+  model list                    List all models
+  model create <name> <type>    Create new model
+  model get <id>                Get model details
+  model delete <id>             Delete model
+  
+${YELLOW}Configuration:${NC}
+  configure api_base <url>      Set API base URL
+  configure api_token <token>   Set API token
+  configure output_format <fmt> Set output format (json|table|raw)
+  configure precision <n>       Set calculation precision
 
-Configuration:
-    The CLI stores its configuration in: $CONFIG_FILE
-    
-    Configure API endpoint:
-        $CLI_NAME configure api_base http://localhost:8090
-    
-    Configure API token:
-        $CLI_NAME configure api_token your-token-here
-    
-    Configure output format (json|table|raw):
-        $CLI_NAME configure output_format json
+${YELLOW}Examples:${NC}
+  # Basic arithmetic
+  $CLI_NAME calc add 10 20 30
+  
+  # Statistics
+  $CLI_NAME stats descriptive 1 2 3 4 5 6 7 8 9 10
+  
+  # Matrix operations
+  echo '[[1,2,3],[4,5,6],[7,8,9]]' > matrix.json
+  $CLI_NAME matrix determinant matrix.json
+  
+  # Model management
+  $CLI_NAME model create "Linear Regression Model" linear_regression
+  $CLI_NAME model list
 
-Examples:
-    # Check health
-    $CLI_NAME health
-    
-    # List all resources
-    $CLI_NAME list resources
-    
-    # Get specific resource
-    $CLI_NAME get resources abc123
-    
-    # Create new resource
-    $CLI_NAME create resources name "My Resource" description "A test resource"
-    
-    # Execute workflow
-    $CLI_NAME execute workflow-1 "Process this data"
-    
-    # Update configuration
-    $CLI_NAME configure api_base http://api.example.com:8090
+${YELLOW}Environment Variables:${NC}
+  MATH_TOOLS_API_BASE    Override API base URL
+  MATH_TOOLS_API_TOKEN   Override API token
 
-Environment Variables:
-    ${CLI_NAME^^}_API_BASE    Override API base URL
-    ${CLI_NAME^^}_API_TOKEN   Override API token
-    ${CLI_NAME^^}_FORMAT      Override output format
-
-For more information, visit: https://github.com/Vrooli/Vrooli
 EOF
+}
+
+# Command: version
+cmd_version() {
+    echo "$CLI_NAME version $CLI_VERSION"
+}
+
+# Command: configure
+cmd_configure() {
+    local key="$1"
+    local value="$2"
+    
+    case "$key" in
+        api_base|api_token|output_format|precision)
+            jq --arg k "$key" --arg v "$value" '.[$k] = $v' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}✓${NC} Configuration updated: $key = $value"
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown configuration key: $key"
+            echo "Valid keys: api_base, api_token, output_format, precision"
+            exit 1
+            ;;
+    esac
 }
 
 # Main entry point
 main() {
-    # Initialize configuration on first run
+    # Initialize configuration
     init_config
-    
-    # Load configuration
     load_config
     
     # Override with environment variables if set
-    API_BASE="${CLI_NAME^^}_API_BASE:-$API_BASE}"
-    API_TOKEN="${CLI_NAME^^}_API_TOKEN:-$API_TOKEN}"
-    OUTPUT_FORMAT="${CLI_NAME^^}_FORMAT:-$OUTPUT_FORMAT}"
+    API_BASE="${MATH_TOOLS_API_BASE:-$API_BASE}"
+    API_TOKEN="${MATH_TOOLS_API_TOKEN:-$API_TOKEN}"
     
     # Parse command
     local command="${1:-help}"
     shift || true
     
     case "$command" in
-        health)
-            cmd_health "$@"
+        status)
+            cmd_status
             ;;
-        list|ls)
-            cmd_list "$@"
+        calc)
+            if [[ $# -lt 2 ]]; then
+                echo "Usage: $CLI_NAME calc <operation> <numbers...>"
+                exit 1
+            fi
+            cmd_calc "$@"
             ;;
-        get)
-            cmd_get "$@"
+        stats)
+            if [[ $# -lt 1 ]]; then
+                echo "Usage: $CLI_NAME stats [analysis_type] <numbers...>"
+                exit 1
+            fi
+            cmd_stats "$@"
             ;;
-        create|add)
-            cmd_create "$@"
+        matrix)
+            if [[ $# -lt 2 ]]; then
+                echo "Usage: $CLI_NAME matrix <operation> <matrix_file>"
+                exit 1
+            fi
+            cmd_matrix "$@"
             ;;
-        update|edit)
-            cmd_update "$@"
+        solve)
+            if [[ $# -lt 1 ]]; then
+                echo "Usage: $CLI_NAME solve <equation> [variables]"
+                exit 1
+            fi
+            cmd_solve "$@"
             ;;
-        delete|rm|remove)
-            cmd_delete "$@"
+        model)
+            cmd_model "$@"
             ;;
-        execute|exec|run)
-            cmd_execute "$@"
-            ;;
-        configure|config)
+        configure)
+            if [[ $# -lt 2 ]]; then
+                echo "Usage: $CLI_NAME configure <key> <value>"
+                exit 1
+            fi
             cmd_configure "$@"
-            ;;
-        version|--version|-v)
-            cmd_version
             ;;
         help|--help|-h)
             cmd_help
+            ;;
+        version|--version|-v)
+            cmd_version
             ;;
         *)
             echo -e "${RED}✗${NC} Unknown command: $command"
@@ -438,5 +464,5 @@ main() {
     esac
 }
 
-# Run main function with all arguments
+# Run main function
 main "$@"

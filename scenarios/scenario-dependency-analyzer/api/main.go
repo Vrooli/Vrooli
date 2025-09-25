@@ -12,14 +12,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	"github.com/lib/pq"
 	"github.com/rs/cors"
 
 	_ "github.com/lib/pq"
@@ -1104,7 +1102,12 @@ func main() {
 	router := gin.Default()
 	
 	// Add CORS support
-	router.Use(cors.Default())
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"*"},
+	})
+	handler := c.Handler(router)
 	
 	// Health endpoints
 	router.GET("/health", healthHandler)
@@ -1136,7 +1139,7 @@ func main() {
 	log.Printf("Starting Scenario Dependency Analyzer API on port %s", config.Port)
 	log.Printf("Scenarios directory: %s", config.ScenariosDir)
 	
-	if err := router.Run(":" + config.Port); err != nil {
+	if err := http.ListenAndServe(":"+config.Port, handler); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }

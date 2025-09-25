@@ -21,19 +21,33 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // Create Express app
 const app = express();
 
+const localFrameAncestors = [
+    "'self'",
+    'http://localhost:*',
+    'http://127.0.0.1:*',
+    'http://[::1]:*'
+];
+
+const extraFrameAncestors = (process.env.FRAME_ANCESTORS || '')
+    .split(/\s+/)
+    .filter(Boolean);
+
 // Security middleware
 app.use(helmet({
+    frameguard: false,
     contentSecurityPolicy: {
+        useDefaults: true,
         directives: {
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'"],
             scriptSrc: ["'self'", "'unsafe-inline'"],
             imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", API_BASE_URL],
+            connectSrc: ["'self'", API_BASE_URL, 'ws:', 'wss:'],
             fontSrc: ["'self'"],
             objectSrc: ["'none'"],
             mediaSrc: ["'self'"],
             frameSrc: ["'none'"],
+            frameAncestors: [...localFrameAncestors, ...extraFrameAncestors],
         },
     },
 }));

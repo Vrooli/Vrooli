@@ -468,10 +468,12 @@ func CheckIframeBridgeQuality(content []byte, filePath string) []rules.Violation
 	}
 
 	base := strings.ToLower(filepath.Base(path))
+	source := string(content)
+
 	switch {
 	case isBridgeFile(base):
 		return validateBridge(content, path)
-	case isEntryFile(base):
+	case isEntryCandidate(base, source):
 		return validateEntry(content, path)
 	default:
 		return nil
@@ -482,7 +484,22 @@ func isBridgeFile(base string) bool {
 	return strings.Contains(base, "iframebridgechild")
 }
 
-func isEntryFile(base string) bool {
+func isEntryCandidate(base, source string) bool {
+	if isEntryFileName(base) {
+		return true
+	}
+
+	lower := strings.ToLower(source)
+	if strings.Contains(lower, "window.initiframebridgechild") || strings.Contains(lower, "initiframebridgechild(") {
+		return true
+	}
+	if strings.Contains(lower, "typeof window.initiframebridgechild") {
+		return true
+	}
+	return false
+}
+
+func isEntryFileName(base string) bool {
 	if isBridgeFile(base) {
 		return false
 	}
@@ -491,7 +508,10 @@ func isEntryFile(base string) bool {
 		strings.HasPrefix(base, "app."),
 		strings.HasPrefix(base, "entry."),
 		strings.HasPrefix(base, "bootstrap."),
-		strings.HasPrefix(base, "index."):
+		strings.HasPrefix(base, "index."),
+		strings.HasPrefix(base, "script."),
+		strings.HasPrefix(base, "server."),
+		strings.HasPrefix(base, "ui."):
 		ext := strings.ToLower(filepath.Ext(base))
 		switch ext {
 		case ".ts", ".tsx", ".js", ".jsx":

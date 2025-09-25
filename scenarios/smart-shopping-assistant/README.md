@@ -42,12 +42,14 @@ open http://localhost:3400
 ## ✨ Features
 
 ### P0 - Core Features (Implemented)
-- ✅ Multi-profile shopping management
-- ✅ Product research with alternatives
-- ✅ Affiliate link generation
-- ✅ Price tracking and comparison
-- ✅ Alternative suggestions (used, rental, generic)
-- ✅ REST API and CLI interfaces
+- ✅ Product research with budget awareness
+- ✅ Multi-retailer affiliate link generation (Amazon, BestBuy, Walmart, Target)
+- ✅ Alternative suggestions (generic, refurbished, older model)
+- ✅ Dynamic pricing with budget-based recommendations
+- ✅ REST API with full endpoint coverage
+- ✅ CLI interface with all major functions
+- ⚠️ Multi-profile support (partial - profile ID supported, auth pending)
+- ⚠️ Resource integration (Redis caching active, PostgreSQL pending)
 
 ### P1 - Enhanced Features (Planned)
 - ⏳ Contact-book integration for gifts

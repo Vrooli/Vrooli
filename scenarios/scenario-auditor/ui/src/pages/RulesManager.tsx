@@ -108,6 +108,7 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
   const missingTargets = Boolean(rule.missingTargets)
   const implementationError = Boolean(implementationStatus && implementationStatus.valid === false)
   const showWarning = Boolean(testStatus?.has_issues || implementationError || missingTargets)
+  const isToggleDisabled = implementationError
   const tooltipLines: string[] = []
   if (testStatus?.warning) {
     tooltipLines.push(testStatus.warning)
@@ -192,6 +193,11 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
                 No Targets
               </span>
             )}
+            {implementationError && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-200" title={implementationStatus?.error || 'Rule implementation failed to load'}>
+                Loader Error
+              </span>
+            )}
             {missingTargets && (
               <span className="text-xs text-red-600">Add a Targets: metadata line to enable this rule.</span>
             )}
@@ -215,8 +221,9 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
                 onChange={handleToggle}
                 className="sr-only peer"
                 data-testid={`rule-toggle-${rule.id}`}
+                disabled={isToggleDisabled}
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className={`w-11 h-6 ${isToggleDisabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-200'} peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isToggleDisabled ? 'peer-checked:bg-gray-300' : 'peer-checked:bg-blue-600'}`}></div>
             </label>
           </div>
         </div>

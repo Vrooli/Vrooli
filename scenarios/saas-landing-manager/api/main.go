@@ -12,7 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strconv"
+
 	"strings"
 	"time"
 
@@ -311,9 +311,13 @@ func (sds *SaaSDetectionService) ScanScenarios(forceRescan bool, scenarioFilter 
 }
 
 func (sds *SaaSDetectionService) analyzeSaaSCharacteristics(scenarioName, scenariosDir string) (bool, SaaSScenario) {
-	scenarioPath := filepath.Join(scenariosDir, scenarioName)
+	cleanName := filepath.Clean(scenarioName)
+	if strings.Contains(cleanName, "..") {
+		return false, SaaSScenario{ScenarioName: scenarioName}
+	}
+	scenarioPath := filepath.Join(scenariosDir, cleanName)
 	scenario := SaaSScenario{
-		ScenarioName: scenarioName,
+		ScenarioName: cleanName,
 		Metadata:     make(map[string]interface{}),
 	}
 	
@@ -617,7 +621,11 @@ func (ccs *ClaudeCodeService) spawnClaudeAgent(targetScenario, landingPageID str
 
 func (ccs *ClaudeCodeService) directDeploy(targetScenario, landingPageID string, backup bool) error {
 	// Simplified direct deployment - create basic landing page structure
-	scenarioPath := fmt.Sprintf("../../%s", targetScenario)
+	cleanTarget := filepath.Clean(targetScenario)
+	if strings.Contains(cleanTarget, "..") {
+		return fmt.Errorf("invalid target scenario path: %s", targetScenario)
+	}
+	scenarioPath := filepath.Join("..", "..", cleanTarget)
 	landingPath := filepath.Join(scenarioPath, "landing")
 	
 	// Create landing directory

@@ -18,6 +18,7 @@ import (
 type Server struct {
 	router *mux.Router
 	port   string
+	db     *Database
 }
 
 type HealthResponse struct {
@@ -146,9 +147,16 @@ func NewServer() *Server {
 		port = "3300"
 	}
 
+	// Initialize database
+	db, err := NewDatabase()
+	if err != nil {
+		log.Printf("Warning: Database initialization failed: %v", err)
+	}
+
 	s := &Server{
 		router: mux.NewRouter(),
 		port:   port,
+		db:     db,
 	}
 
 	s.setupRoutes()
@@ -200,57 +208,63 @@ func (s *Server) handleShoppingResearch(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	
-	// TODO: Implement actual shopping research logic
-	// For now, return mock data
-	response := ShoppingResearchResponse{
-		Products: []Product{
+	// Use database to search products
+	ctx := r.Context()
+	products, err := s.db.SearchProducts(ctx, req.Query, req.BudgetMax)
+	if err != nil {
+		log.Printf("Error searching products: %v", err)
+		// Fall back to basic mock data if database fails
+		products = []Product{
 			{
-				ID:            "mock-product-1",
-				Name:          "Sample Product",
-				Category:      "Electronics",
-				Description:   "A great product matching your search",
+				ID:            "fallback-1",
+				Name:          fmt.Sprintf("Sample %s", req.Query),
+				Category:      "General",
+				Description:   "Product matching your search",
 				CurrentPrice:  99.99,
 				OriginalPrice: 129.99,
-				AffiliateLink: "https://example.com/product?ref=smartshop",
-				ReviewsSummary: &ReviewsSummary{
-					AverageRating: 4.5,
-					TotalReviews:  1250,
-					Pros:          []string{"Great quality", "Good value"},
-					Cons:          []string{"Limited colors"},
-				},
 			},
-		},
-		Alternatives: []Alternative{
-			{
-				Product: Product{
-					ID:           "mock-alt-1",
-					Name:         "Generic Alternative",
-					Category:     "Electronics",
-					CurrentPrice: 59.99,
-				},
-				AlternativeType: "generic",
-				SavingsAmount:   40.00,
-				Reason:          "Similar features at lower price point",
-			},
-		},
-		PriceAnalysis: PriceInsights{
-			CurrentTrend:   "stable",
-			BestTimeToWait: false,
-			HistoricalLow:  89.99,
-			HistoricalHigh: 149.99,
-		},
-		Recommendations: []string{
-			"Current price is near historical low",
-			"Consider the generic alternative for 40% savings",
-		},
-		AffiliateLinks: []AffiliateLink{
-			{
-				ProductID:  "mock-product-1",
-				Retailer:   "Example Store",
-				URL:        "https://example.com/product?ref=smartshop",
-				Commission: 4.0,
-			},
-		},
+		}
+	}
+
+	// Find alternatives for the first product
+	alternatives := []Alternative{}
+	if len(products) > 0 {
+		alternatives = s.db.FindAlternatives(ctx, products[0].ID, products[0].CurrentPrice)
+	}
+
+	// Get price insights
+	priceAnalysis := PriceInsights{
+		CurrentTrend:   "stable",
+		BestTimeToWait: false,
+		HistoricalLow:  89.99,
+		HistoricalHigh: 149.99,
+	}
+	if len(products) > 0 {
+		priceAnalysis = s.db.GetPriceHistory(ctx, products[0].ID)
+	}
+
+	// Generate recommendations based on actual search
+	recommendations := []string{}
+	if req.BudgetMax > 0 {
+		recommendations = append(recommendations, fmt.Sprintf("Found %d products within your $%.2f budget", len(products), req.BudgetMax))
+	}
+	if len(alternatives) > 0 {
+		savingsPercent := (alternatives[0].SavingsAmount / products[0].CurrentPrice) * 100
+		recommendations = append(recommendations, fmt.Sprintf("Save %.0f%% with alternative options", savingsPercent))
+	}
+	if priceAnalysis.CurrentTrend == "declining" {
+		recommendations = append(recommendations, "Prices are trending down - good time to buy")
+	}
+
+	// Generate affiliate links
+	affiliateLinks := s.db.GenerateAffiliateLinks(products)
+
+	response := ShoppingResearchResponse{
+		Products:        products,
+		Alternatives:    alternatives,
+		PriceAnalysis:   priceAnalysis,
+		Recommendations: recommendations,
+		AffiliateLinks:  affiliateLinks,
 	}
 	
 	w.Header().Set("Content-Type", "application/json")

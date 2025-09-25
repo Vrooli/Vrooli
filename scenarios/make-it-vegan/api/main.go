@@ -1,26 +1,30 @@
 package main
 
 import (
-    "bytes"
     "encoding/json"
     "fmt"
-    "io"
     "log"
     "net/http"
     "os"
+    "strings"
     "time"
 
     "github.com/gorilla/mux"
     "github.com/rs/cors"
 )
 
-var n8nURL string
+var (
+    n8nURL  string
+    veganDB *VeganDatabase
+)
 
 func init() {
     n8nURL = os.Getenv("N8N_BASE_URL")
     if n8nURL == "" {
         n8nURL = "http://localhost:5678"
     }
+    // Initialize the vegan database
+    veganDB = InitVeganDatabase()
 }
 
 type CheckRequest struct {
@@ -43,49 +47,36 @@ func checkIngredients(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Call n8n webhook with retry logic and better error handling
-    webhookURL := fmt.Sprintf("%s/webhook/make-it-vegan/check", n8nURL)
-    payload, _ := json.Marshal(map[string]string{
+    // Use local database for ingredient checking
+    isVegan, nonVeganItems, reasons := veganDB.CheckIngredients(req.Ingredients)
+    
+    response := map[string]interface{}{
+        "isVegan":     isVegan,
         "ingredients": req.Ingredients,
-    })
-
-    var resp *http.Response
-    var err error
-    maxRetries := 3
-    client := &http.Client{Timeout: 30 * time.Second}
-    
-    for i := 0; i < maxRetries; i++ {
-        resp, err = client.Post(webhookURL, "application/json", bytes.NewBuffer(payload))
-        if err == nil && resp.StatusCode == http.StatusOK {
-            break
-        }
-        if resp != nil {
-            resp.Body.Close()
-        }
-        if i < maxRetries-1 {
-            log.Printf("Retry %d: n8n webhook call failed, retrying...", i+1)
-            time.Sleep(time.Duration(i+1) * time.Second)
-        }
+        "timestamp":   time.Now().Format(time.RFC3339),
     }
     
-    if err != nil || (resp != nil && resp.StatusCode != http.StatusOK) {
-        log.Printf("Error calling n8n webhook: %v", err)
-        // Provide a fallback response
-        fallbackResponse := map[string]interface{}{
-            "isVegan": false,
-            "analysis": "Service temporarily unavailable. Please try again later.",
-            "error": "Unable to process request at this time",
-            "timestamp": time.Now().Format(time.RFC3339),
+    if !isVegan {
+        response["nonVeganItems"] = nonVeganItems
+        response["reasons"] = reasons
+        response["analysis"] = fmt.Sprintf("Found %d non-vegan ingredient(s): %v", len(nonVeganItems), nonVeganItems)
+        
+        // Add suggestions for alternatives
+        suggestions := make(map[string]interface{})
+        for _, item := range nonVeganItems {
+            if alts := veganDB.GetAlternatives(item); len(alts) > 0 {
+                suggestions[item] = alts[0].Name // Suggest the top alternative
+            }
         }
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(fallbackResponse)
-        return
+        if len(suggestions) > 0 {
+            response["suggestions"] = suggestions
+        }
+    } else {
+        response["analysis"] = "All ingredients appear to be vegan!"
     }
-    defer resp.Body.Close()
 
-    body, _ := io.ReadAll(resp.Body)
     w.Header().Set("Content-Type", "application/json")
-    w.Write(body)
+    json.NewEncoder(w).Encode(response)
 }
 
 func findSubstitute(w http.ResponseWriter, r *http.Request) {
@@ -99,60 +90,41 @@ func findSubstitute(w http.ResponseWriter, r *http.Request) {
         req.Context = "general cooking"
     }
 
-    webhookURL := fmt.Sprintf("%s/webhook/make-it-vegan/substitute", n8nURL)
-    payload, _ := json.Marshal(map[string]string{
-        "ingredient": req.Ingredient,
-        "context":    req.Context,
-    })
-
-    var resp *http.Response
-    var err error
-    maxRetries := 3
-    client := &http.Client{Timeout: 30 * time.Second}
+    // Use local database for finding alternatives
+    alternatives := veganDB.GetAlternatives(req.Ingredient)
+    quickSub := veganDB.GetQuickSubstitute(req.Ingredient)
     
-    for i := 0; i < maxRetries; i++ {
-        resp, err = client.Post(webhookURL, "application/json", bytes.NewBuffer(payload))
-        if err == nil && resp.StatusCode == http.StatusOK {
-            break
-        }
-        if resp != nil {
-            resp.Body.Close()
-        }
-        if i < maxRetries-1 {
-            log.Printf("Retry %d: n8n webhook call failed, retrying...", i+1)
-            time.Sleep(time.Duration(i+1) * time.Second)
-        }
+    response := map[string]interface{}{
+        "request": map[string]string{
+            "ingredient": req.Ingredient,
+            "context":    req.Context,
+        },
+        "alternatives": alternatives,
+        "quickSubstitute": quickSub,
+        "timestamp": time.Now().Format(time.RFC3339),
     }
     
-    if err != nil || (resp != nil && resp.StatusCode != http.StatusOK) {
-        log.Printf("Error calling n8n webhook: %v", err)
-        // Provide a fallback response with common alternatives
-        fallbackResponse := map[string]interface{}{
-            "request": map[string]string{
-                "ingredient": req.Ingredient,
-                "context": req.Context,
-            },
-            "alternatives": []map[string]interface{}{
-                {
-                    "name": "Service temporarily unavailable",
-                    "reason": "Please try again later",
-                    "adjustments": "N/A",
-                    "availability": "N/A",
-                    "rating": 0,
-                },
-            },
-            "quickTip": "Service is temporarily unavailable. Please try again.",
-            "timestamp": time.Now().Format(time.RFC3339),
+    if len(alternatives) == 0 {
+        response["message"] = fmt.Sprintf("No specific alternatives found for '%s', but most animal products have plant-based substitutes available in health food stores.", req.Ingredient)
+        response["quickTip"] = "Try searching for 'vegan ' + the ingredient name at your local store."
+    } else {
+        // Filter alternatives by context if applicable
+        var contextTip string
+        switch req.Context {
+        case "baking":
+            contextTip = "For baking, binding and moisture are key considerations."
+        case "cooking":
+            contextTip = "For cooking, flavor and texture matching are important."
+        case "spreading":
+            contextTip = "For spreading, consistency at room temperature matters."
+        default:
+            contextTip = fmt.Sprintf("Best alternatives for %s.", req.Context)
         }
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(fallbackResponse)
-        return
+        response["quickTip"] = contextTip
     }
-    defer resp.Body.Close()
 
-    body, _ := io.ReadAll(resp.Body)
     w.Header().Set("Content-Type", "application/json")
-    w.Write(body)
+    json.NewEncoder(w).Encode(response)
 }
 
 func veganizeRecipe(w http.ResponseWriter, r *http.Request) {
@@ -162,56 +134,53 @@ func veganizeRecipe(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    webhookURL := fmt.Sprintf("%s/webhook/make-it-vegan/veganize", n8nURL)
-    payload, _ := json.Marshal(map[string]string{
-        "recipe": req.Recipe,
-    })
-
-    var resp *http.Response
-    var err error
-    maxRetries := 3
-    client := &http.Client{Timeout: 30 * time.Second}
+    // Parse recipe for ingredients and create vegan version
+    recipe := strings.ToLower(req.Recipe)
+    substitutions := make([]map[string]string, 0)
     
-    for i := 0; i < maxRetries; i++ {
-        resp, err = client.Post(webhookURL, "application/json", bytes.NewBuffer(payload))
-        if err == nil && resp.StatusCode == http.StatusOK {
-            break
-        }
-        if resp != nil {
-            resp.Body.Close()
-        }
-        if i < maxRetries-1 {
-            log.Printf("Retry %d: n8n webhook call failed, retrying...", i+1)
-            time.Sleep(time.Duration(i+1) * time.Second)
+    // Check for common non-vegan ingredients and suggest replacements
+    for nonVegan := range veganDB.NonVeganIngredients {
+        if strings.Contains(recipe, nonVegan) {
+            if alts := veganDB.GetAlternatives(nonVegan); len(alts) > 0 {
+                substitutions = append(substitutions, map[string]string{
+                    "original": nonVegan,
+                    "substitute": alts[0].Name,
+                    "notes": alts[0].Adjustments,
+                })
+                // Replace in recipe text
+                recipe = strings.ReplaceAll(recipe, nonVegan, alts[0].Name)
+            }
         }
     }
     
-    if err != nil || (resp != nil && resp.StatusCode != http.StatusOK) {
-        log.Printf("Error calling n8n webhook: %v", err)
-        // Provide a fallback response
-        fallbackResponse := map[string]interface{}{
-            "originalRecipe": req.Recipe,
-            "veganVersion": map[string]interface{}{
-                "name": "Veganized Recipe",
-                "substitutions": []map[string]string{},
-                "instructions": []string{"Service temporarily unavailable"},
-                "cookingTips": []string{"Please try again later"},
-                "nutritionNotes": "Unable to process at this time",
-            },
-            "difficulty": "unknown",
-            "estimatedTime": "N/A",
-            "timestamp": time.Now().Format(time.RFC3339),
-            "error": "Service temporarily unavailable",
-        }
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(fallbackResponse)
-        return
+    veganVersion := map[string]interface{}{
+        "name": "Veganized " + strings.Split(req.Recipe, "\n")[0],
+        "substitutions": substitutions,
+        "fullText": recipe,
+        "cookingTips": []string{
+            "Check liquid ratios when using plant milks",
+            "Add nutritional yeast for cheesy flavor",
+            "Use aquafaba for egg white substitutes in baking",
+        },
     }
-    defer resp.Body.Close()
+    
+    if len(substitutions) == 0 {
+        veganVersion["message"] = "This recipe appears to be vegan already!"
+    } else {
+        veganVersion["message"] = fmt.Sprintf("Made %d substitutions to veganize this recipe", len(substitutions))
+    }
+    
+    response := map[string]interface{}{
+        "originalRecipe": req.Recipe,
+        "veganVersion": veganVersion,
+        "difficulty": "easy",
+        "estimatedTime": "similar to original",
+        "nutritionNotes": "Ensure adequate B12, iron, and protein from other sources",
+        "timestamp": time.Now().Format(time.RFC3339),
+    }
 
-    body, _ := io.ReadAll(resp.Body)
     w.Header().Set("Content-Type", "application/json")
-    w.Write(body)
+    json.NewEncoder(w).Encode(response)
 }
 
 func getCommonProducts(w http.ResponseWriter, r *http.Request) {

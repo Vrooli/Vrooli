@@ -4,8 +4,8 @@
 
 set -e
 
-# Configuration
-API_PORT="${AUTH_API_PORT:-15000}"
+# Configuration - Get port dynamically from vrooli CLI
+API_PORT="${AUTH_API_PORT:-$(vrooli scenario port scenario-authenticator API_PORT 2>/dev/null || echo "15000")}"
 BASE_URL="http://localhost:${API_PORT}"
 TEST_EMAIL="test_$(date +%s)@example.com"
 TEST_PASSWORD="SecureTest123!"

@@ -70,11 +70,17 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:    time.Now(),
 	}
 	
+	// Handle optional username - set to NULL if empty
+	var usernameValue interface{} = user.Username
+	if user.Username == "" {
+		usernameValue = nil
+	}
+	
 	// Insert into database
 	_, err = db.DB.Exec(`
 		INSERT INTO users (id, email, username, password_hash, roles, metadata, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		user.ID, user.Email, user.Username, user.PasswordHash, 
+		user.ID, user.Email, usernameValue, user.PasswordHash, 
 		`["user"]`, `{}`, user.CreatedAt, user.CreatedAt,
 	)
 	if err != nil {
@@ -136,13 +142,19 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	var passwordHash string
 	var rolesJSON string
+	var usernameNullable sql.NullString
 	err := db.DB.QueryRow(`
 		SELECT id, email, username, password_hash, roles, email_verified, created_at, last_login
 		FROM users 
 		WHERE email = $1 AND deleted_at IS NULL`,
 		req.Email,
-	).Scan(&user.ID, &user.Email, &user.Username, &passwordHash, &rolesJSON, 
+	).Scan(&user.ID, &user.Email, &usernameNullable, &passwordHash, &rolesJSON, 
 		&user.EmailVerified, &user.CreatedAt, &user.LastLogin)
+	
+	// Handle nullable username
+	if usernameNullable.Valid {
+		user.Username = usernameNullable.String
+	}
 	
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -272,12 +284,18 @@ func RefreshHandler(w http.ResponseWriter, r *http.Request) {
 	// Get user from database
 	var user models.User
 	var rolesJSON string
+	var usernameNullable sql.NullString
 	err := db.DB.QueryRow(`
 		SELECT id, email, username, roles, email_verified
 		FROM users 
 		WHERE id = $1 AND deleted_at IS NULL`,
 		userID,
-	).Scan(&user.ID, &user.Email, &user.Username, &rolesJSON, &user.EmailVerified)
+	).Scan(&user.ID, &user.Email, &usernameNullable, &rolesJSON, &user.EmailVerified)
+	
+	// Handle nullable username
+	if usernameNullable.Valid {
+		user.Username = usernameNullable.String
+	}
 	
 	if err != nil {
 		utils.SendError(w, "User not found", http.StatusNotFound)

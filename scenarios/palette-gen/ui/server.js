@@ -4,7 +4,8 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
-const API_URL = process.env.API_URL || 'http://localhost:8780';
+const API_PORT = process.env.API_PORT || '16917';
+const API_URL = process.env.API_URL || `http://localhost:${API_PORT}`;
 
 // Serve static files
 

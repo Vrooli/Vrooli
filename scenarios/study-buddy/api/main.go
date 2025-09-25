@@ -27,6 +27,7 @@ type StudyMaterial struct {
     MaterialType string   `json:"material_type"`
     Tags        []string  `json:"tags"`
     CreatedAt   time.Time `json:"created_at"`
+    ChapterName string    `json:"chapter_name"`
 }
 
 type Flashcard struct {
@@ -310,10 +311,10 @@ func createStudyMaterial(c *gin.Context) {
     
     tagsJSON, _ := json.Marshal(material.Tags)
     
-    query := `INSERT INTO study_materials (id, user_id, subject_id, title, content, material_type, tags, created_at) 
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+    query := `INSERT INTO study_materials (id, user_id, subject_id, chapter_name, material_type, tags, created_at) 
+              VALUES ($1, $2, $3, $4, $5, $6, $7)`
     _, err := db.Exec(query, material.ID, material.UserID, material.SubjectID, 
-                      material.Title, material.Content, material.MaterialType, tagsJSON, material.CreatedAt)
+                      material.ChapterName, material.MaterialType, tagsJSON, material.CreatedAt)
     if err != nil {
         c.JSON(500, gin.H{"error": err.Error()})
         return
@@ -328,7 +329,7 @@ func createStudyMaterial(c *gin.Context) {
 func getUserMaterials(c *gin.Context) {
     userId := c.Param("userId")
     
-    query := `SELECT id, user_id, subject_id, title, content, material_type, tags, created_at 
+    query := `SELECT id, user_id, subject_id, chapter_name, material_type, tags, created_at 
               FROM study_materials WHERE user_id = $1 ORDER BY created_at DESC`
     rows, err := db.Query(query, userId)
     if err != nil {
@@ -342,7 +343,7 @@ func getUserMaterials(c *gin.Context) {
         var material StudyMaterial
         var tagsJSON []byte
         err := rows.Scan(&material.ID, &material.UserID, &material.SubjectID, 
-                        &material.Title, &material.Content, &material.MaterialType, 
+                        &material.ChapterName, &material.MaterialType, 
                         &tagsJSON, &material.CreatedAt)
         if err != nil {
             continue
@@ -358,7 +359,7 @@ func getSubjectMaterials(c *gin.Context) {
     userId := c.Param("userId")
     subjectId := c.Param("subjectId")
     
-    query := `SELECT id, user_id, subject_id, title, content, material_type, tags, created_at 
+    query := `SELECT id, user_id, subject_id, chapter_name, material_type, tags, created_at 
               FROM study_materials WHERE user_id = $1 AND subject_id = $2 ORDER BY created_at DESC`
     rows, err := db.Query(query, userId, subjectId)
     if err != nil {
@@ -372,7 +373,7 @@ func getSubjectMaterials(c *gin.Context) {
         var material StudyMaterial
         var tagsJSON []byte
         err := rows.Scan(&material.ID, &material.UserID, &material.SubjectID, 
-                        &material.Title, &material.Content, &material.MaterialType, 
+                        &material.ChapterName, &material.MaterialType, 
                         &tagsJSON, &material.CreatedAt)
         if err != nil {
             continue
@@ -394,9 +395,9 @@ func updateStudyMaterial(c *gin.Context) {
     
     tagsJSON, _ := json.Marshal(material.Tags)
     
-    query := `UPDATE study_materials SET title = $1, content = $2, material_type = $3, tags = $4, 
-              updated_at = CURRENT_TIMESTAMP WHERE id = $5`
-    _, err := db.Exec(query, material.Title, material.Content, material.MaterialType, tagsJSON, id)
+    query := `UPDATE study_materials SET chapter_name = $1, material_type = $2, tags = $3, 
+              updated_at = CURRENT_TIMESTAMP WHERE id = $4`
+    _, err := db.Exec(query, material.ChapterName, material.MaterialType, tagsJSON, id)
     if err != nil {
         c.JSON(500, gin.H{"error": err.Error()})
         return
