@@ -100,6 +100,7 @@ ollama::agents::command() {
 export -f ollama::agents::command
 
 cli::register_command "agents" "Manage running Ollama agents" "ollama::agents::command"
+cli::register_command "query" "Execute prompt and return raw model output" "ollama_query"
 
 ################################################################################
 # Agent cleanup function
@@ -404,6 +405,141 @@ ollama_inject_handler() {
     else
         log::error "Ollama injection function not available"
         return 1
+    fi
+}
+
+ollama_query() {
+    local model=""
+    local prompt=""
+    local use_case="general"
+    local expect_json=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --model)
+                model="$2"
+                shift 2
+                ;;
+            --type)
+                use_case="$2"
+                shift 2
+                ;;
+            --json)
+                expect_json=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: resource-ollama query [--model <name>] [--type <general|code|reasoning|vision>] [--json] <prompt>"
+                echo "       resource-ollama query [--model <name>] [options] -- <prompt>"
+                echo "       echo 'prompt' | resource-ollama query [--model <name>]"
+                return 0
+                ;;
+            --)
+                shift
+                while [[ $# -gt 0 ]]; do
+                    prompt="${prompt:+$prompt }$1"
+                    shift
+                done
+                break
+                ;;
+            *)
+                prompt="${prompt:+$prompt }$1"
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$prompt" && ! -t 0 ]]; then
+        prompt=$(cat)
+    fi
+
+    if [[ -z "$prompt" ]]; then
+        log::error "Prompt text required"
+        echo "Usage: resource-ollama query [--model <name>] [--type <general|code|reasoning|vision>] [--json] <prompt>"
+        return 1
+    fi
+
+    local previous_format="${OUTPUT_FORMAT:-text}"
+    OUTPUT_FORMAT="json"
+
+    local restore_temperature=false
+    local restore_max_tokens=false
+    local restore_top_p=false
+    local restore_top_k=false
+    local restore_seed=false
+    local restore_system_prompt=false
+
+    if [[ -z ${TEMPERATURE+x} ]]; then
+        TEMPERATURE="0.8"
+        restore_temperature=true
+    fi
+    if [[ -z ${MAX_TOKENS+x} ]]; then
+        MAX_TOKENS=""
+        restore_max_tokens=true
+    fi
+    if [[ -z ${TOP_P+x} ]]; then
+        TOP_P="0.9"
+        restore_top_p=true
+    fi
+    if [[ -z ${TOP_K+x} ]]; then
+        TOP_K="40"
+        restore_top_k=true
+    fi
+    if [[ -z ${SEED+x} ]]; then
+        SEED=""
+        restore_seed=true
+    fi
+    if [[ -z ${SYSTEM_PROMPT+x} ]]; then
+        SYSTEM_PROMPT=""
+        restore_system_prompt=true
+    fi
+
+    local response
+    if ! response=$(ollama::send_prompt "$prompt" "$model" "$use_case"); then
+        OUTPUT_FORMAT="$previous_format"
+        if [[ "$restore_temperature" == true ]]; then unset TEMPERATURE; fi
+        if [[ "$restore_max_tokens" == true ]]; then unset MAX_TOKENS; fi
+        if [[ "$restore_top_p" == true ]]; then unset TOP_P; fi
+        if [[ "$restore_top_k" == true ]]; then unset TOP_K; fi
+        if [[ "$restore_seed" == true ]]; then unset SEED; fi
+        if [[ "$restore_system_prompt" == true ]]; then unset SYSTEM_PROMPT; fi
+        return 1
+    fi
+
+    OUTPUT_FORMAT="$previous_format"
+    if [[ "$restore_temperature" == true ]]; then unset TEMPERATURE; fi
+    if [[ "$restore_max_tokens" == true ]]; then unset MAX_TOKENS; fi
+    if [[ "$restore_top_p" == true ]]; then unset TOP_P; fi
+    if [[ "$restore_top_k" == true ]]; then unset TOP_K; fi
+    if [[ "$restore_seed" == true ]]; then unset SEED; fi
+    if [[ "$restore_system_prompt" == true ]]; then unset SYSTEM_PROMPT; fi
+
+    local generated=""
+    if system::is_command "jq"; then
+        generated=$(echo "$response" | jq -r '.response // empty')
+    elif command -v python3 >/dev/null 2>&1; then
+        generated=$(printf '%s' "$response" | python3 - <<'PY'
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    text = data.get("response")
+    if text:
+        print(text)
+except Exception:
+    sys.exit(1)
+PY
+)
+    fi
+
+    if [[ -z "$generated" || "$generated" == "null" ]]; then
+        log::error "Ollama returned empty response"
+        return 1
+    fi
+
+    printf '%s\n' "$generated"
+
+    if [[ "$expect_json" == true ]]; then
+        return 0
     fi
 }
 
