@@ -167,7 +167,7 @@ func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.Recyc
 		result, err = summarizer.GenerateNote(context.Background(), summarizer.Config{
 			Provider: cfg.ModelProvider,
 			Model:    cfg.ModelName,
-		}, summarizer.Input{Task: *task, Output: output, PreviousNote: task.Notes})
+		}, summarizer.Input{Output: output})
 		if err != nil {
 			log.Printf("Recycler summarizer error for task %s: %v", task.ID, err)
 			result = summarizer.DefaultResult()
@@ -236,7 +236,7 @@ func (r *Recycler) processFailedTask(task *tasks.TaskItem, cfg settings.Recycler
 		result, err := summarizer.GenerateNote(context.Background(), summarizer.Config{
 			Provider: cfg.ModelProvider,
 			Model:    cfg.ModelName,
-		}, summarizer.Input{Task: *task, Output: output, PreviousNote: task.Notes})
+		}, summarizer.Input{Output: output})
 		if err != nil {
 			log.Printf("Recycler summarizer error for failed task %s: %v", task.ID, err)
 			task.Notes = "Not sure current status"

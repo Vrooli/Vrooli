@@ -106,16 +106,14 @@ CREATE TABLE recurring_patterns (
     ),
     CONSTRAINT chk_recurring_interval CHECK (interval_value > 0),
     CONSTRAINT chk_recurring_days_week CHECK (
-        days_of_week IS NULL OR (
-            array_length(days_of_week, 1) IS NULL OR 
-            (SELECT bool_and(day >= 0 AND day <= 6) FROM unnest(days_of_week) AS day)
-        )
+        days_of_week IS NULL OR 
+        array_length(days_of_week, 1) IS NULL OR 
+        array_length(days_of_week, 1) = 0
     ),
     CONSTRAINT chk_recurring_days_month CHECK (
-        days_of_month IS NULL OR (
-            array_length(days_of_month, 1) IS NULL OR 
-            (SELECT bool_and(day >= 1 AND day <= 31) FROM unnest(days_of_month) AS day)
-        )
+        days_of_month IS NULL OR 
+        array_length(days_of_month, 1) IS NULL OR 
+        array_length(days_of_month, 1) = 0
     )
 );
 

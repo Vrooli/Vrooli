@@ -14,7 +14,6 @@ import (
 	"github.com/ecosystem-manager/api/pkg/recycler"
 	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/summarizer"
-	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
 )
 
@@ -208,14 +207,7 @@ func (h *SettingsHandlers) GetRecyclerModelsHandler(w http.ResponseWriter, r *ht
 // TestRecyclerHandler generates a recycler summary for a mock task using current settings.
 func (h *SettingsHandlers) TestRecyclerHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		OutputText       string `json:"output_text"`
-		PreviousNote     string `json:"previous_note"`
-		TaskType         string `json:"task_type"`
-		Operation        string `json:"operation"`
-		CompletionStreak int    `json:"completion_streak"`
-		FailureStreak    int    `json:"failure_streak"`
-		CompletionCount  int    `json:"completion_count"`
-		Title            string `json:"title"`
+		OutputText string `json:"output_text"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -232,42 +224,17 @@ func (h *SettingsHandlers) TestRecyclerHandler(w http.ResponseWriter, r *http.Re
 	settingsSnapshot := settings.GetSettings()
 	config := settingsSnapshot.Recycler
 
-	taskType := strings.TrimSpace(req.TaskType)
-	if taskType == "" {
-		taskType = "scenario"
-	}
-	operation := strings.TrimSpace(req.Operation)
-	if operation == "" {
-		operation = "improver"
-	}
-	title := strings.TrimSpace(req.Title)
-	if title == "" {
-		title = "Recycler Test Task"
-	}
-
-	mockTask := tasks.TaskItem{
-		ID:                          "recycler-test",
-		Title:                       title,
-		Type:                        taskType,
-		Operation:                   operation,
-		CompletionCount:             req.CompletionCount,
-		ConsecutiveCompletionClaims: req.CompletionStreak,
-		ConsecutiveFailures:         req.FailureStreak,
-		Notes:                       req.PreviousNote,
-	}
-
 	result, err := summarizer.GenerateNote(
 		context.Background(),
 		summarizer.Config{Provider: config.ModelProvider, Model: config.ModelName},
-		summarizer.Input{Task: mockTask, Output: output, PreviousNote: req.PreviousNote},
+		summarizer.Input{Output: output},
 	)
 
 	response := map[string]interface{}{
-		"success":          err == nil,
-		"result":           result,
-		"provider":         config.ModelProvider,
-		"model":            config.ModelName,
-		"completion_count": mockTask.CompletionCount,
+		"success":  err == nil,
+		"result":   result,
+		"provider": config.ModelProvider,
+		"model":    config.ModelName,
 	}
 
 	if err != nil {

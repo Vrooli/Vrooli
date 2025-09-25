@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Configuration
-API_BASE_URL="${DATA_STRUCTURER_API_URL:-http://localhost:8080}"
+API_BASE_URL="${DATA_STRUCTURER_API_URL:-http://localhost:${API_PORT:-15770}}"
 CONFIG_DIR="$HOME/.vrooli/data-structurer"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
 
@@ -192,7 +192,7 @@ show_status() {
     
     # Check API health
     local health_data
-    health_data=$(api_get "/health" 2>/dev/null) || {
+    health_data=$(curl -s -f "$API_BASE_URL/health" 2>/dev/null) || {
         local error_data='{
             "status": "unhealthy",
             "error": "API unreachable",

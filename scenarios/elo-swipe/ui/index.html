@@ -1,138 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Elo Swipe - Rank Anything</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <div class="app">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <h1>Elo Swipe</h1>
-                <div class="header-actions">
-                    <button id="listSelector" class="btn-secondary">
-                        <span class="list-name">Select List</span>
-                        <svg class="icon" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
-                    <button id="viewRankings" class="btn-secondary">View Rankings</button>
-                    <button id="createList" class="btn-primary">New List</button>
-                </div>
-            </div>
-        </header>
-
-        <!-- Progress Bar -->
-        <div class="progress-container">
-            <div class="progress-stats">
-                <span class="comparisons-made">0 comparisons</span>
-                <span class="confidence-level">0% confident</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: 0%"></div>
-            </div>
-        </div>
-
-        <!-- Swipe Container -->
-        <main class="swipe-container">
-            <!-- Instructions -->
-            <div class="instructions" id="instructions">
-                <h2>Welcome to Elo Swipe!</h2>
-                <p>Rank anything through simple comparisons</p>
-                <div class="instruction-cards">
-                    <div class="instruction-card">
-                        <div class="swipe-icon left">←</div>
-                        <p>Swipe left or press ← for left card</p>
-                    </div>
-                    <div class="instruction-card">
-                        <div class="swipe-icon right">→</div>
-                        <p>Swipe right or press → for right card</p>
-                    </div>
-                </div>
-                <button class="btn-primary start-btn" id="startRanking">Start Ranking</button>
-            </div>
-
-            <!-- Card Stack -->
-            <div class="card-stack" id="cardStack" style="display: none;">
-                <!-- Cards will be dynamically inserted here -->
-            </div>
-
-            <!-- Action Buttons (mobile) -->
-            <div class="action-buttons">
-                <button class="action-btn skip-btn" id="skipBtn" title="Skip (Space)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 9l6 6m0-6l-6 6"/>
-                    </svg>
-                </button>
-                <button class="action-btn undo-btn" id="undoBtn" title="Undo (Z)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 10h13a5 5 0 010 10h-5"/>
-                        <path d="M3 10l4-4m-4 4l4 4"/>
-                    </svg>
-                </button>
-            </div>
-        </main>
-
-        <!-- Rankings Modal -->
-        <div class="modal" id="rankingsModal" style="display: none;">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Current Rankings</h2>
-                    <button class="close-btn" id="closeRankings">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="rankings-list" id="rankingsList">
-                        <!-- Rankings will be inserted here -->
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn-secondary" id="exportRankings">Export CSV</button>
-                    <button class="btn-primary" id="continueRanking">Continue Ranking</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Create List Modal -->
-        <div class="modal" id="createListModal" style="display: none;">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Create New List</h2>
-                    <button class="close-btn" id="closeCreateList">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <form id="createListForm">
-                        <div class="form-group">
-                            <label for="listName">List Name</label>
-                            <input type="text" id="listName" required placeholder="e.g., Feature Priorities">
-                        </div>
-                        <div class="form-group">
-                            <label for="listDescription">Description (optional)</label>
-                            <textarea id="listDescription" rows="2" placeholder="What are you ranking?"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="listItems">Items (one per line)</label>
-                            <textarea id="listItems" rows="10" required placeholder="Enter items to rank, one per line"></textarea>
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn-secondary" id="importItems">Import JSON</button>
-                            <button type="submit" class="btn-primary">Create List</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- List Selector Dropdown -->
-        <div class="dropdown" id="listDropdown" style="display: none;">
-            <div class="dropdown-content">
-                <!-- List options will be inserted here -->
-            </div>
-        </div>
-    </div>
-
-    <script src="app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Elo Swipe - Intelligence Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

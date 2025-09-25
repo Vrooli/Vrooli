@@ -163,6 +163,12 @@ func main() {
 	}
 	defer db.Close()
 
+	// Run database migrations
+	if err := runMigrations(db); err != nil {
+		log.Printf("Warning: Failed to run migrations: %v", err)
+		// Continue anyway, as tables might already exist
+	}
+
 	// Connect to Redis
 	redisClient := connectRedis()
 
@@ -2142,4 +2148,104 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
+}
+
+// runMigrations executes database schema migrations
+func runMigrations(db *sql.DB) error {
+	log.Println("🔄 Running database migrations...")
+	
+	// Schema SQL embedded directly to avoid external dependencies
+	schema := `
+		-- Extension for UUID generation
+		CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+		-- Devices table - stores registered devices per user
+		CREATE TABLE IF NOT EXISTS devices (
+			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+			user_id VARCHAR(255) NOT NULL,
+			name VARCHAR(255) NOT NULL,
+			type VARCHAR(50) NOT NULL,
+			platform VARCHAR(100) NOT NULL,
+			capabilities TEXT,
+			last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);
+
+		-- Files table - stores file metadata for downloads
+		CREATE TABLE IF NOT EXISTS files (
+			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+			user_id VARCHAR(255) NOT NULL,
+			filename VARCHAR(255) NOT NULL,
+			original_name VARCHAR(255) NOT NULL,
+			size BIGINT NOT NULL,
+			mime_type VARCHAR(100) NOT NULL,
+			path TEXT NOT NULL,
+			expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);
+
+		-- Sync items table - stores metadata for all synchronized files and text
+		CREATE TABLE IF NOT EXISTS sync_items (
+			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+			user_id VARCHAR(255) NOT NULL,
+			type VARCHAR(20) NOT NULL CHECK (type IN ('file', 'text', 'clipboard', 'notification')),
+			content JSONB DEFAULT '{}',
+			source_device VARCHAR(255),
+			target_devices JSONB DEFAULT '[]',
+			status VARCHAR(20) DEFAULT 'pending',
+			expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);
+
+		-- Device sessions table - tracks active WebSocket connections per user
+		CREATE TABLE IF NOT EXISTS device_sessions (
+			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+			user_id UUID NOT NULL,
+			device_info JSONB DEFAULT '{}',
+			websocket_id VARCHAR(36) UNIQUE NOT NULL,
+			last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);
+
+		-- Indexes for performance optimization
+		CREATE INDEX IF NOT EXISTS idx_devices_user_id ON devices(user_id);
+		CREATE INDEX IF NOT EXISTS idx_devices_last_seen ON devices(last_seen);
+
+		CREATE INDEX IF NOT EXISTS idx_files_user_id ON files(user_id);
+		CREATE INDEX IF NOT EXISTS idx_files_expires_at ON files(expires_at);
+
+		CREATE INDEX IF NOT EXISTS idx_sync_items_user_id ON sync_items(user_id);
+		CREATE INDEX IF NOT EXISTS idx_sync_items_expires_at ON sync_items(expires_at);
+		CREATE INDEX IF NOT EXISTS idx_sync_items_type ON sync_items(type);
+		CREATE INDEX IF NOT EXISTS idx_sync_items_status ON sync_items(status);
+		CREATE INDEX IF NOT EXISTS idx_sync_items_created_at ON sync_items(created_at DESC);
+
+		CREATE INDEX IF NOT EXISTS idx_device_sessions_user_id ON device_sessions(user_id);
+		CREATE INDEX IF NOT EXISTS idx_device_sessions_websocket_id ON device_sessions(websocket_id);
+		CREATE INDEX IF NOT EXISTS idx_device_sessions_last_seen ON device_sessions(last_seen);
+
+		-- Trigger to update updated_at timestamp on sync_items
+		CREATE OR REPLACE FUNCTION update_updated_at_column()
+		RETURNS TRIGGER AS $$
+		BEGIN
+			NEW.updated_at = NOW();
+			RETURN NEW;
+		END;
+		$$ language 'plpgsql';
+
+		DROP TRIGGER IF EXISTS update_sync_items_updated_at ON sync_items;
+		CREATE TRIGGER update_sync_items_updated_at 
+			BEFORE UPDATE ON sync_items 
+			FOR EACH ROW 
+			EXECUTE FUNCTION update_updated_at_column();
+	`
+
+	// Execute the schema
+	if _, err := db.Exec(schema); err != nil {
+		return fmt.Errorf("failed to execute schema: %v", err)
+	}
+
+	log.Println("✅ Database migrations completed successfully")
+	return nil
 }

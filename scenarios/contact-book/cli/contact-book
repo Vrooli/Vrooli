@@ -6,7 +6,21 @@
 set -e
 
 # Configuration
-API_BASE_URL="${CONTACT_BOOK_API_URL:-http://localhost:8080}"
+# Try to detect the API port dynamically
+if [ -z "${CONTACT_BOOK_API_URL}" ]; then
+    # First try to get port from running process
+    API_PORT=$(ps aux | grep -E "contact-book-api" | grep -v grep | head -1 | xargs -I {} sh -c 'cat /proc/$(echo {} | awk "{print \$2}")/environ 2>/dev/null' | tr '\0' '\n' | grep "^API_PORT=" | cut -d= -f2)
+    
+    # Fall back to default if not found
+    if [ -z "$API_PORT" ]; then
+        API_PORT="8080"
+    fi
+    
+    API_BASE_URL="http://localhost:${API_PORT}"
+else
+    API_BASE_URL="${CONTACT_BOOK_API_URL}"
+fi
+
 CONFIG_DIR="${HOME}/.vrooli/contact-book"
 CONFIG_FILE="${CONFIG_DIR}/config.json"
 

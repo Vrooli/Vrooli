@@ -1,0 +1,21 @@
+{
+  "name": "date-night-planner-ui",
+  "version": "1.0.0",
+  "description": "Date Night Planner UI - Romantic date planning interface",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "keywords": [
+    "date",
+    "planning",
+    "romance",
+    "couples"
+  ],
+  "author": "Vrooli",
+  "license": "MIT"
+}

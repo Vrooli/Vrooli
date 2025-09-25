@@ -3,43 +3,33 @@
   "properties": {
     "first_name": {
       "type": "string",
-      "description": "First name of the contact"
+      "description": "Person's first name"
     },
     "last_name": {
-      "type": "string", 
-      "description": "Last name of the contact"
+      "type": "string",
+      "description": "Person's last name"
     },
     "email": {
       "type": "string",
       "format": "email",
-      "description": "Primary email address"
+      "description": "Email address"
     },
     "phone": {
       "type": "string",
-      "description": "Phone number in any format"
+      "description": "Phone number"
     },
     "company": {
       "type": "string",
-      "description": "Company or organization name"
+      "description": "Company name"
     },
     "title": {
       "type": "string",
-      "description": "Job title or position"
-    },
-    "linkedin_url": {
-      "type": "string",
-      "format": "uri",
-      "description": "LinkedIn profile URL"
+      "description": "Job title"
     },
     "location": {
       "type": "string",
-      "description": "Geographic location (city, state, country)"
-    },
-    "notes": {
-      "type": "string",
-      "description": "Additional notes or context"
+      "description": "Geographic location"
     }
   },
-  "required": ["first_name", "email"],
-  "additionalProperties": false
+  "required": ["first_name", "email"]
 }

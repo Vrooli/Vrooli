@@ -14,7 +14,10 @@ The Chart Generator is a **foundational capability** that transforms Vrooli into
 - **Pie Charts** - Great for showing proportional data
 - **Scatter Plots** - Excellent for correlation analysis
 - **Area Charts** - Enhanced trend visualization with volume
-- **Gantt Charts** - Project timeline visualization *(coming soon)*
+- **Gantt Charts** - Project timeline visualization
+- **Heatmaps** - Intensity visualization across two dimensions
+- **Treemaps** - Hierarchical data representation
+- **Candlestick Charts** - Financial data with open/high/low/close values
 
 ### Professional Styling
 - **Professional** - Clean, corporate styling for business reports
@@ -78,6 +81,12 @@ echo '[{"x":"A","y":35},{"x":"B","y":28},{"x":"C","y":37}]' | chart-generator ge
 
 # Multiple formats with title
 chart-generator generate scatter --data analysis.json --format png,svg,pdf --title "Risk vs Return Analysis"
+
+# Gantt chart for project planning
+chart-generator generate gantt --data project-tasks.json --style professional --format png
+
+# Candlestick chart for financial data
+chart-generator generate candlestick --data stock-prices.json --style financial --format png,svg
 ```
 
 ## 🔌 API Integration
@@ -161,6 +170,32 @@ Category C,120
 [
   {"x": "Q1", "y": 15000, "label": "First Quarter", "color": "#2563eb"},
   {"x": "Q2", "y": 22000, "label": "Second Quarter", "color": "#10b981"}
+]
+```
+
+### Specialized Chart Data Formats
+
+#### Gantt Chart
+```json
+[
+  {"task": "Design Phase", "start": "2024-01-01", "end": "2024-01-15"},
+  {"task": "Development", "start": "2024-01-10", "end": "2024-02-15"}
+]
+```
+
+#### Candlestick Chart (Financial)
+```json
+[
+  {"date": "2024-01-01", "open": 100, "high": 110, "low": 95, "close": 105},
+  {"date": "2024-01-02", "open": 105, "high": 115, "low": 100, "close": 112}
+]
+```
+
+#### Heatmap
+```json
+[
+  {"x": "Monday", "y": "Morning", "value": 10},
+  {"x": "Monday", "y": "Afternoon", "value": 20}
 ]
 ```
 

@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Configuration
-API_BASE_URL="${API_BASE_URL:-http://localhost:8080}"
+API_BASE_URL="${API_BASE_URL:-http://localhost:${API_PORT:-15770}}"
 SCHEMA_DIR="$(dirname "$0")/../examples"
 
 # Colors for output

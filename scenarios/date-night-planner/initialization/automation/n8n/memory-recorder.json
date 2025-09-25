@@ -1,0 +1,205 @@
+{
+  "name": "memory-recorder",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "date-night-planner/record-memory",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "date_plan_id",
+              "value": "={{$json[\"date_plan_id\"]}}"
+            },
+            {
+              "name": "memory_type",
+              "value": "={{$json[\"type\"] || \"note\"}}"
+            },
+            {
+              "name": "content",
+              "value": "={{$json[\"content\"]}}"
+            },
+            {
+              "name": "caption",
+              "value": "={{$json[\"caption\"] || \"\"}}"
+            }
+          ]
+        }
+      },
+      "id": "extract-memory",
+      "name": "Extract Memory Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const memoryType = items[0].json.memory_type;\nconst content = items[0].json.content;\nconst datePlanId = items[0].json.date_plan_id;\nconst caption = items[0].json.caption;\n\nlet processedContent = content;\nlet storageUrl = null;\n\n// Process based on memory type\nif (memoryType === 'photo' || memoryType === 'video') {\n  // In production, this would upload to storage\n  // For now, we'll store as base64 or URL reference\n  if (content.startsWith('data:')) {\n    // Base64 image\n    storageUrl = content; // In production, upload to S3/storage\n  } else if (content.startsWith('http')) {\n    // External URL\n    storageUrl = content;\n  } else {\n    // Local file path - would need processing\n    storageUrl = `/storage/${datePlanId}/${Date.now()}_${memoryType}`;\n  }\n} else {\n  // Text content (note, receipt info, etc.)\n  storageUrl = null; // Store content directly in DB\n}\n\nreturn [{\n  json: {\n    date_plan_id: datePlanId,\n    memory_type: memoryType,\n    content_url: storageUrl,\n    caption: caption,\n    original_content: memoryType === 'note' ? content : null,\n    is_favorite: false,\n    created_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "process-memory",
+      "name": "Process Memory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:{{$env.POSTGRES_PORT}}/execute",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "INSERT INTO date_night_planner.date_memories (date_plan_id, memory_type, content_url, caption, is_favorite) VALUES ('{{$json[\"date_plan_id\"]}}', '{{$json[\"memory_type\"]}}', {{$json[\"content_url\"] ? \"'\" + $json[\"content_url\"] + \"'\" : \"NULL\"}}, '{{$json[\"caption\"]}}', {{$json[\"is_favorite\"]}}) RETURNING id"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "save-memory",
+      "name": "Save Memory to DB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:{{$env.POSTGRES_PORT}}/execute",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "UPDATE date_night_planner.date_plans SET status = 'completed', updated_at = NOW() WHERE id = '{{$json[\"date_plan_id\"]}}' AND status = 'planned'"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 3000
+        }
+      },
+      "id": "update-date-status",
+      "name": "Update Date Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 450],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const memoryId = $node[\"Save Memory to DB\"].json?.id || 'unknown';\nconst updateStatus = $node[\"Update Date Status\"].json?.success || false;\n\nreturn [{\n  json: {\n    success: true,\n    memory_id: memoryId,\n    date_plan_id: items[0].json.date_plan_id,\n    memory_type: items[0].json.memory_type,\n    date_status_updated: updateStatus,\n    message: \"Memory recorded successfully\"\n  }\n}];"
+      },
+      "id": "prepare-response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Memory Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Memory Data": {
+      "main": [
+        [
+          {
+            "node": "Process Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Memory": {
+      "main": [
+        [
+          {
+            "node": "Save Memory to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Memory to DB": {
+      "main": [
+        [
+          {
+            "node": "Update Date Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Date Status": {
+      "main": [
+        [
+          {
+            "node": "Prepare Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "date-night-planner"
+  },
+  "id": "memory-recorder",
+  "tags": []
+}

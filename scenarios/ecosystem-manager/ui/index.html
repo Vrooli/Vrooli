@@ -743,42 +743,6 @@
                                     </small>
                                 </div>
 
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="recycler-test-task-type">Task Type</label>
-                                        <select id="recycler-test-task-type">
-                                            <option value="scenario" selected>Scenario</option>
-                                            <option value="resource">Resource</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="recycler-test-operation">Operation</label>
-                                        <select id="recycler-test-operation">
-                                            <option value="improver" selected>Improver</option>
-                                            <option value="generator">Generator</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="recycler-test-title">Task Title</label>
-                                        <input type="text" id="recycler-test-title" value="Calendar scenario improvements">
-                                    </div>
-                                </div>
-
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="recycler-test-completion-streak">Completion Streak</label>
-                                        <input type="number" id="recycler-test-completion-streak" min="0" max="10" value="1">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="recycler-test-failure-streak">Failure Streak</label>
-                                        <input type="number" id="recycler-test-failure-streak" min="0" max="10" value="0">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="recycler-test-completion-count">Completion Count</label>
-                                        <input type="number" id="recycler-test-completion-count" min="0" value="3">
-                                    </div>
-                                </div>
-
                                 <div class="form-group">
                                     <label for="recycler-test-output">Mock Output Text</label>
                                     <textarea id="recycler-test-output" rows="12">[INFO]    Started health monitor for claude-code (PID: 47592, interval: 30s)
@@ -820,11 +784,6 @@
 The calendar scenario is now production-ready with all P0 requirements verified.
 </textarea>
                                     <small class="form-help">Runs the recycler summarizer using the current settings. Adjust this text to simulate different agent outputs.</small>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="recycler-test-prev-note">Previous Note (optional)</label>
-                                    <textarea id="recycler-test-prev-note" rows="3" placeholder="Existing task note shown to the recycler on the next run"></textarea>
                                 </div>
 
                                 <div class="form-group">

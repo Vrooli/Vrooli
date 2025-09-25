@@ -1,4 +1,4 @@
-module API_MODULE_NAME_PLACEHOLDER
+module github.com/Vrooli/Vrooli/scenarios/data-tools/api
 
 go 1.21
 

@@ -18,7 +18,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"github.com/rs/cors"
 )
 
 type Schema struct {
@@ -570,14 +569,22 @@ func getDataStatistics(database *sql.DB) map[string]interface{} {
 	defer cancel()
 
 	// Get schema counts
-	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM schemas").Scan(&stats["total_schemas"])
-	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM schemas WHERE is_active = true").Scan(&stats["active_schemas"])
-	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_templates").Scan(&stats["schema_templates"])
+	var totalSchemas, activeSchemas, schemaTemplates int
+	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM schemas").Scan(&totalSchemas)
+	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM schemas WHERE is_active = true").Scan(&activeSchemas)
+	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_templates").Scan(&schemaTemplates)
+	stats["total_schemas"] = totalSchemas
+	stats["active_schemas"] = activeSchemas
+	stats["schema_templates"] = schemaTemplates
 
 	// Get processing statistics
-	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM processed_data").Scan(&stats["total_processed_items"])
-	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM processed_data WHERE processing_status = 'completed'").Scan(&stats["successful_processings"])
-	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM processed_data WHERE processing_status = 'failed'").Scan(&stats["failed_processings"])
+	var totalProcessed, successfulProcessed, failedProcessed int
+	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM processed_data").Scan(&totalProcessed)
+	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM processed_data WHERE processing_status = 'completed'").Scan(&successfulProcessed)
+	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM processed_data WHERE processing_status = 'failed'").Scan(&failedProcessed)
+	stats["total_processed_items"] = totalProcessed
+	stats["successful_processings"] = successfulProcessed
+	stats["failed_processings"] = failedProcessed
 
 	// Get average confidence score
 	var avgConfidence sql.NullFloat64
@@ -697,11 +704,6 @@ func main() {
 	r := gin.Default()
 
 	// CORS middleware
-	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"*"},
-	})
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")

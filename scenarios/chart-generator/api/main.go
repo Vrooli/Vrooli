@@ -233,7 +233,7 @@ func healthGenerationHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// generateChartHandler handles chart generation requests
+// generateChartHandler handles chart generation requests using the chart processor
 func generateChartHandler(w http.ResponseWriter, r *http.Request) {
 	var req ChartGenerationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -241,60 +241,60 @@ func generateChartHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate request
-	if req.ChartType == "" {
-		sendErrorResponse(w, "Missing required field: chart_type", "validation_error", http.StatusBadRequest)
+	// Convert to processor request
+	processorReq := ChartGenerationProcessorRequest{
+		ChartType:     req.ChartType,
+		Data:          req.Data,
+		Style:         req.Style,
+		ExportFormats: req.ExportFormats,
+		Width:         req.Width,
+		Height:        req.Height,
+		Title:         req.Title,
+		Config:        nil, // Could be extended to accept config
+	}
+
+	// Use the chart processor for actual generation
+	ctx := r.Context()
+	result, err := chartProcessor.GenerateChart(ctx, processorReq)
+	if err != nil {
+		log.Printf("Chart generation error: %v", err)
+		sendErrorResponse(w, "Chart generation failed", "generation_error", http.StatusInternalServerError)
 		return
 	}
 
-	if len(req.Data) == 0 {
-		sendErrorResponse(w, "Missing or empty data array", "validation_error", http.StatusBadRequest)
-		return
-	}
-
-	// Generate unique chart ID
-	chartID := fmt.Sprintf("chart_%d_%d", time.Now().Unix(), time.Now().Nanosecond()%10000)
-
-	// Set defaults
-	if req.Style == "" {
-		req.Style = "professional"
-	}
-	if len(req.ExportFormats) == 0 {
-		req.ExportFormats = []string{"png"}
-	}
-	if req.Width == 0 {
-		req.Width = 800
-	}
-	if req.Height == 0 {
-		req.Height = 600
-	}
-
-	// In a real implementation, this would call the actual chart generation service
-	// For now, we'll simulate a successful response
-	files := make(map[string]string)
-	for _, format := range req.ExportFormats {
-		files[format] = fmt.Sprintf("/tmp/%s.%s", chartID, format)
-	}
-
+	// Convert processor response to API response
 	response := ChartGenerationResponse{
-		Success: true,
-		ChartID: chartID,
-		Files:   files,
+		Success: result.Success,
+		ChartID: result.ChartID,
+		Files:   result.Files,
 		Metadata: map[string]interface{}{
-			"generation_time_ms": 1200,
-			"data_point_count":   len(req.Data),
-			"style_applied":      req.Style,
+			"generation_time_ms": result.Metadata.GenerationTimeMs,
+			"data_point_count":   result.Metadata.DataPointCount,
+			"style_applied":      result.Metadata.StyleApplied,
 			"dimensions": map[string]int{
-				"width":  req.Width,
-				"height": req.Height,
+				"width":  result.Metadata.Dimensions.Width,
+				"height": result.Metadata.Dimensions.Height,
 			},
-			"formats_generated": req.ExportFormats,
-			"created_at":        time.Now().Format(time.RFC3339),
+			"formats_generated": result.Metadata.FormatsGenerated,
+			"created_at":        result.Metadata.CreatedAt,
 		},
 	}
 
+	if !result.Success && result.Error != nil {
+		response.Error = &ErrorResponse{
+			Message: result.Error.Message,
+			Type:    result.Error.Type,
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+	
+	if result.Success {
+		w.WriteHeader(http.StatusCreated)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	
 	json.NewEncoder(w).Encode(response)
 }
 

@@ -30,10 +30,12 @@ Device Sync Hub solves the daily friction of moving files and text between devic
 ```bash
 # Start the Device Sync Hub scenario
 vrooli scenario run device-sync-hub
+# Or using Makefile:
+cd scenarios/device-sync-hub && make run
 
 # Access points:
-# - API: http://localhost:3300
-# - Web UI: http://localhost:3301  
+# - API: http://localhost:17564
+# - Web UI: http://localhost:37181  
 # - CLI: device-sync-hub --help
 ```
 
@@ -51,7 +53,7 @@ scenario-authenticator user create user@example.com MyPassword123! user
 
 ### 3. Web Interface
 
-Visit `http://localhost:3301` on any device and:
+Visit `http://localhost:37181` on any device and:
 
 1. Login with your credentials
 2. Upload files via drag-and-drop or tap to select
@@ -61,8 +63,12 @@ Visit `http://localhost:3301` on any device and:
 ### 4. CLI Usage
 
 ```bash
-# Install and authenticate CLI
-device-sync-hub login
+# Configure CLI environment
+export API_URL=http://localhost:17564
+export AUTH_URL=http://localhost:15785
+
+# Or use with environment variables directly:
+API_URL=http://localhost:17564 AUTH_URL=http://localhost:15785 device-sync-hub status
 
 # Upload a file
 device-sync-hub upload photo.jpg
@@ -91,7 +97,7 @@ To access from devices outside your local network:
 
 1. **Setup secure tunnel** (you handle this part)
    - Use ngrok, Cloudflare Tunnel, or similar
-   - Point to `localhost:3301` (UI) and `localhost:3300` (API)
+   - Point to `localhost:37181` (UI) and `localhost:17564` (API)
 
 2. **Access from mobile device**
    - Visit your tunnel URL in mobile browser

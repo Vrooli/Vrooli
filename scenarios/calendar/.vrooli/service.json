@@ -154,15 +154,20 @@
           "run": "export VROOLI_LIFECYCLE_MANAGED=true",
           "description": "Set lifecycle environment flag"
         },
-         {
-           "name": "start-api",
-           "run": "cd api && ./calendar-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/calendar-api"
-           }
-         },
+        {
+          "name": "setup-database",
+          "run": "resource-postgres content add --database calendar_system --init || echo 'Database may already exist'",
+          "description": "Create calendar database if not exists"
+        },
+        {
+          "name": "start-api",
+          "run": "cd api && VROOLI_LIFECYCLE_MANAGED=true POSTGRES_HOST=localhost POSTGRES_PORT=5433 POSTGRES_USER=vrooli POSTGRES_PASSWORD=vrooli POSTGRES_DB=calendar_system QDRANT_URL=http://localhost:6333 JWT_SECRET=development-secret-for-calendar-system ./calendar-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/calendar-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && VROOLI_LIFECYCLE_MANAGED=true npm run dev",
@@ -207,7 +212,7 @@
         },
         {
           "name": "test-cli-commands",
-          "run": "calendar version && calendar help",
+          "run": "export CALENDAR_API_URL=http://localhost:${API_PORT} && calendar version && calendar help",
           "description": "Test CLI basic commands"
         }
       ]

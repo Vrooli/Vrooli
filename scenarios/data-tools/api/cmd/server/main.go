@@ -43,11 +43,11 @@ type Response struct {
 // NewServer creates a new server instance
 func NewServer() (*Server, error) {
 	config := &Config{
-		Port:        getEnv("PORT", "API_PORT_PLACEHOLDER"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/SCENARIO_ID_PLACEHOLDER"),
+		Port:        getEnv("API_PORT", "18000"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/vrooli?sslmode=disable"),
 		N8NURL:      getEnv("N8N_BASE_URL", "http://localhost:5678"),
 		WindmillURL: getEnv("WINDMILL_BASE_URL", "http://localhost:5681"),
-		APIToken:    getEnv("API_TOKEN", "API_TOKEN_PLACEHOLDER"),
+		APIToken:    getEnv("API_TOKEN", "data-tools-secret-token"),
 	}
 
 	// Connect to database
@@ -83,6 +83,13 @@ func (s *Server) setupRoutes() {
 
 	// API routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
+
+	// Data processing endpoints
+	api.HandleFunc("/data/parse", s.handleDataParse).Methods("POST")
+	api.HandleFunc("/data/transform", s.handleDataTransform).Methods("POST")
+	api.HandleFunc("/data/validate", s.handleDataValidate).Methods("POST")
+	api.HandleFunc("/data/query", s.handleDataQuery).Methods("POST")
+	api.HandleFunc("/data/stream/create", s.handleStreamCreate).Methods("POST")
 
 	// Example resource routes - customize for your scenario
 	api.HandleFunc("/resources", s.handleListResources).Methods("GET")
@@ -148,7 +155,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	health := map[string]interface{}{
 		"status":    "healthy",
 		"timestamp": time.Now().Unix(),
-		"service":   "SCENARIO_NAME_PLACEHOLDER API",
+		"service":   "Data Tools API",
 		"version":   "1.0.0",
 	}
 
@@ -443,9 +450,9 @@ func (s *Server) handleGetExecution(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDocs(w http.ResponseWriter, r *http.Request) {
 	docs := map[string]interface{}{
-		"name":        "SCENARIO_NAME_PLACEHOLDER API",
+		"name":        "Data Tools API",
 		"version":     "1.0.0",
-		"description": "SCENARIO_DESCRIPTION_PLACEHOLDER",
+		"description": "Comprehensive data processing and analysis toolkit",
 		"endpoints": []map[string]string{
 			{"method": "GET", "path": "/health", "description": "Health check"},
 			{"method": "GET", "path": "/api/v1/resources", "description": "List resources"},
@@ -535,7 +542,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Println("Starting SCENARIO_NAME_PLACEHOLDER API...")
+	log.Println("Starting Data Tools API...")
 
 	server, err := NewServer()
 	if err != nil {

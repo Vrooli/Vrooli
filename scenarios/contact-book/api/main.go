@@ -16,7 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 )
 
 // =============================================================================
@@ -142,6 +142,12 @@ func initDB() {
 	
 	// Database configuration - support both POSTGRES_URL and individual components
 	postgresURL := os.Getenv("POSTGRES_URL")
+	// Replace database name in URL if needed (keep the same user/password)
+	if postgresURL != "" && strings.Contains(postgresURL, "/vrooli?") {
+		postgresURL = strings.Replace(postgresURL, "/vrooli?", "/contact_book?", 1)
+	} else if postgresURL != "" && strings.HasSuffix(postgresURL, "/vrooli") {
+		postgresURL = strings.Replace(postgresURL, "/vrooli", "/contact_book", 1)
+	}
 	if postgresURL == "" {
 		// Try to build from individual components
 		dbHost := os.Getenv("POSTGRES_HOST")
@@ -150,8 +156,13 @@ func initDB() {
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
 		
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		// Override database name for contact_book scenario
+		if dbName == "vrooli" || dbName == "" {
+			dbName = "contact_book"
+		}
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" {
+			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD")
 		}
 		
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -290,12 +301,11 @@ func getPersons(c *gin.Context) {
 	for rows.Next() {
 		var p Person
 		var metadataBytes, socialProfilesBytes, computedSignalsBytes []byte
-		var nicknamesString, emailsString, phonesString, tagsString string
 		
 		err := rows.Scan(
 			&p.ID, &p.CreatedAt, &p.UpdatedAt, &p.FullName, &p.DisplayName,
-			&nicknamesString, &p.Pronouns, &emailsString, &phonesString,
-			&p.ScenarioAuthenticatorID, &metadataBytes, &tagsString, &p.Notes,
+			pq.Array(&p.Nicknames), &p.Pronouns, pq.Array(&p.Emails), pq.Array(&p.Phones),
+			&p.ScenarioAuthenticatorID, &metadataBytes, pq.Array(&p.Tags), &p.Notes,
 			&socialProfilesBytes, &computedSignalsBytes, &p.DeletedAt,
 		)
 		if err != nil {
@@ -303,28 +313,35 @@ func getPersons(c *gin.Context) {
 			return
 		}
 		
-		// Parse arrays and JSON
-		if err := parseArrayString(nicknamesString, &p.Nicknames); err != nil {
+		// Initialize empty arrays if nil
+		if p.Nicknames == nil {
 			p.Nicknames = []string{}
 		}
-		if err := parseArrayString(emailsString, &p.Emails); err != nil {
+		if p.Emails == nil {
 			p.Emails = []string{}
 		}
-		if err := parseArrayString(phonesString, &p.Phones); err != nil {
+		if p.Phones == nil {
 			p.Phones = []string{}
 		}
-		if err := parseArrayString(tagsString, &p.Tags); err != nil {
+		if p.Tags == nil {
 			p.Tags = []string{}
 		}
 		
+		// Parse JSON fields
 		if len(metadataBytes) > 0 {
 			json.Unmarshal(metadataBytes, &p.Metadata)
+		} else {
+			p.Metadata = make(map[string]interface{})
 		}
 		if len(socialProfilesBytes) > 0 {
 			json.Unmarshal(socialProfilesBytes, &p.SocialProfiles)
+		} else {
+			p.SocialProfiles = make(map[string]interface{})
 		}
 		if len(computedSignalsBytes) > 0 {
 			json.Unmarshal(computedSignalsBytes, &p.ComputedSignals)
+		} else {
+			p.ComputedSignals = make(map[string]interface{})
 		}
 		
 		persons = append(persons, p)
@@ -345,12 +362,11 @@ func getPerson(c *gin.Context) {
 	
 	var p Person
 	var metadataBytes, socialProfilesBytes, computedSignalsBytes []byte
-	var nicknamesString, emailsString, phonesString, tagsString string
 	
 	err := db.QueryRow(query, id).Scan(
 		&p.ID, &p.CreatedAt, &p.UpdatedAt, &p.FullName, &p.DisplayName,
-		&nicknamesString, &p.Pronouns, &emailsString, &phonesString,
-		&p.ScenarioAuthenticatorID, &metadataBytes, &tagsString, &p.Notes,
+		pq.Array(&p.Nicknames), &p.Pronouns, pq.Array(&p.Emails), pq.Array(&p.Phones),
+		&p.ScenarioAuthenticatorID, &metadataBytes, pq.Array(&p.Tags), &p.Notes,
 		&socialProfilesBytes, &computedSignalsBytes, &p.DeletedAt,
 	)
 	
@@ -363,20 +379,35 @@ func getPerson(c *gin.Context) {
 		return
 	}
 	
-	// Parse arrays and JSON
-	parseArrayString(nicknamesString, &p.Nicknames)
-	parseArrayString(emailsString, &p.Emails)
-	parseArrayString(phonesString, &p.Phones)
-	parseArrayString(tagsString, &p.Tags)
+	// Initialize empty arrays if nil
+	if p.Nicknames == nil {
+		p.Nicknames = []string{}
+	}
+	if p.Emails == nil {
+		p.Emails = []string{}
+	}
+	if p.Phones == nil {
+		p.Phones = []string{}
+	}
+	if p.Tags == nil {
+		p.Tags = []string{}
+	}
 	
+	// Parse JSON fields
 	if len(metadataBytes) > 0 {
 		json.Unmarshal(metadataBytes, &p.Metadata)
+	} else {
+		p.Metadata = make(map[string]interface{})
 	}
 	if len(socialProfilesBytes) > 0 {
 		json.Unmarshal(socialProfilesBytes, &p.SocialProfiles)
+	} else {
+		p.SocialProfiles = make(map[string]interface{})
 	}
 	if len(computedSignalsBytes) > 0 {
 		json.Unmarshal(computedSignalsBytes, &p.ComputedSignals)
+	} else {
+		p.ComputedSignals = make(map[string]interface{})
 	}
 	
 	c.JSON(http.StatusOK, p)
@@ -405,10 +436,10 @@ func createPerson(c *gin.Context) {
 	
 	var createdID string
 	err := db.QueryRow(query, id, now, now, req.FullName, req.DisplayName,
-		arrayToPostgresArray(req.Nicknames), req.Pronouns,
-		arrayToPostgresArray(req.Emails), arrayToPostgresArray(req.Phones),
+		pq.Array(req.Nicknames), req.Pronouns,
+		pq.Array(req.Emails), pq.Array(req.Phones),
 		req.ScenarioAuthenticatorID, metadataJSON,
-		arrayToPostgresArray(req.Tags), req.Notes, socialProfilesJSON).Scan(&createdID)
+		pq.Array(req.Tags), req.Notes, socialProfilesJSON).Scan(&createdID)
 	
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -635,16 +666,20 @@ func searchContacts(c *gin.Context) {
 	for rows.Next() {
 		var id, fullName string
 		var displayName, notes *string
-		var emailsString, tagsString string
+		var emails, tags []string
 		
-		err := rows.Scan(&id, &fullName, &displayName, &emailsString, &tagsString, &notes)
+		err := rows.Scan(&id, &fullName, &displayName, pq.Array(&emails), pq.Array(&tags), &notes)
 		if err != nil {
 			continue
 		}
 		
-		var emails, tags []string
-		parseArrayString(emailsString, &emails)
-		parseArrayString(tagsString, &tags)
+		// Initialize empty arrays if nil
+		if emails == nil {
+			emails = []string{}
+		}
+		if tags == nil {
+			tags = []string{}
+		}
 		
 		result := map[string]interface{}{
 			"id":           id,

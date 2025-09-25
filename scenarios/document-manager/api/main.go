@@ -27,7 +27,7 @@ type Config struct {
 }
 
 type Application struct {
-	ID               int       `json:"id"`
+	ID               string    `json:"id"`
 	Name             string    `json:"name"`
 	RepositoryURL    string    `json:"repository_url"`
 	DocumentationPath string   `json:"documentation_path"`
@@ -40,10 +40,10 @@ type Application struct {
 }
 
 type Agent struct {
-	ID                   int       `json:"id"`
+	ID                   string    `json:"id"`
 	Name                 string    `json:"name"`
 	Type                 string    `json:"type"`
-	ApplicationID        int       `json:"application_id"`
+	ApplicationID        string    `json:"application_id"`
 	Configuration        string    `json:"configuration"`
 	ScheduleCron         string    `json:"schedule_cron"`
 	AutoApplyThreshold   float64   `json:"auto_apply_threshold"`
@@ -56,9 +56,9 @@ type Agent struct {
 }
 
 type ImprovementQueue struct {
-	ID            int       `json:"id"`
-	AgentID       int       `json:"agent_id"`
-	ApplicationID int       `json:"application_id"`
+	ID            string    `json:"id"`
+	AgentID       string    `json:"agent_id"`
+	ApplicationID string    `json:"application_id"`
 	Type          string    `json:"type"`
 	Title         string    `json:"title"`
 	Description   string    `json:"description"`
@@ -356,9 +356,9 @@ func agentsHandler(w http.ResponseWriter, r *http.Request) {
 func getAgents(w http.ResponseWriter, r *http.Request) {
 	query := `
 		SELECT 
-			ag.id, ag.name, ag.type, ag.application_id, ag.configuration,
+			ag.id, ag.name, ag.type, ag.application_id, ag.config,
 			ag.schedule_cron, ag.auto_apply_threshold, ag.last_performance_score,
-			ag.enabled, ag.created_at, ag.updated_at,
+			ag.enabled, ag.created_at, COALESCE(ag.last_run, ag.created_at) as updated_at,
 			a.name as application_name,
 			CASE WHEN ag.enabled = true THEN 'enabled' ELSE 'disabled' END as status
 		FROM agents ag
@@ -402,14 +402,20 @@ func createAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
+	// Default configuration to empty JSON object if not provided
+	configJSON := agent.Configuration
+	if configJSON == "" {
+		configJSON = "{}"
+	}
+	
 	query := `
-		INSERT INTO agents (name, type, application_id, configuration, schedule_cron, auto_apply_threshold, enabled)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, created_at, updated_at
+		INSERT INTO agents (name, type, application_id, config, schedule_cron, auto_apply_threshold, enabled)
+		VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
+		RETURNING id, created_at, COALESCE(last_run, created_at) as updated_at
 	`
 	
 	err := db.QueryRow(query, agent.Name, agent.Type, agent.ApplicationID, 
-		agent.Configuration, agent.ScheduleCron, agent.AutoApplyThreshold, true).Scan(
+		configJSON, agent.ScheduleCron, agent.AutoApplyThreshold, true).Scan(
 		&agent.ID, &agent.CreatedAt, &agent.UpdatedAt,
 	)
 	if err != nil {
@@ -442,7 +448,7 @@ func getQueue(w http.ResponseWriter, r *http.Request) {
 	query := `
 		SELECT 
 			iq.id, iq.agent_id, iq.application_id, iq.type, iq.title,
-			iq.description, iq.severity, iq.status, iq.created_at, iq.updated_at,
+			iq.description, iq.severity, iq.status, iq.created_at, iq.created_at as updated_at,
 			a.name as application_name, ag.name as agent_name
 		FROM improvement_queue iq
 		JOIN applications a ON iq.application_id = a.id
@@ -495,7 +501,7 @@ func createQueueItem(w http.ResponseWriter, r *http.Request) {
 	query := `
 		INSERT INTO improvement_queue (agent_id, application_id, type, title, description, severity, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, created_at, updated_at
+		RETURNING id, created_at, created_at as updated_at
 	`
 	
 	err := db.QueryRow(query, item.AgentID, item.ApplicationID, item.Type, 

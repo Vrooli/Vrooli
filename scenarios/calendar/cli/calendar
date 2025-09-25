@@ -8,6 +8,30 @@ set -e
 CONFIG_DIR="$HOME/.vrooli/calendar"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
 
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Print colored output
+print_error() {
+    echo -e "${RED}Error: $1${NC}" >&2
+}
+
+print_success() {
+    echo -e "${GREEN}$1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}Warning: $1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}$1${NC}"
+}
+
 # Load config first if it exists
 if [[ -f "$CONFIG_FILE" ]]; then
     source "$CONFIG_FILE" 2>/dev/null || true
@@ -39,30 +63,6 @@ if [[ -z "$API_BASE_URL" ]]; then
     echo "  api_url: http://localhost:<port>"
     exit 1
 fi
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Print colored output
-print_error() {
-    echo -e "${RED}Error: $1${NC}" >&2
-}
-
-print_success() {
-    echo -e "${GREEN}$1${NC}"
-}
-
-print_warning() {
-    echo -e "${YELLOW}Warning: $1${NC}"
-}
-
-print_info() {
-    echo -e "${BLUE}$1${NC}"
-}
 
 # Load configuration if it exists
 load_config() {

@@ -12,15 +12,6 @@ const RECYCLER_TEST_PRESETS = [
         label: 'Scenario • Calendar go-live',
         expected: 'full_complete',
         payload: {
-            task_type: 'scenario',
-            operation: 'improver',
-            completion_streak: 2,
-            failure_streak: 0,
-            completion_count: 5,
-            title: 'Calendar go-live polish',
-            previous_note: `Notes from last time:
-- Verify sync worker race condition
-- Document ICS transform hooks`,
             output_text: `[INFO]    Started health monitor for claude-code (PID: 58422, interval: 30s)
 [HEADER]  🤖 Running Claude Code
 [INFO]    Non-TTY environment detected - using automation-friendly settings
@@ -29,24 +20,134 @@ const RECYCLER_TEST_PRESETS = [
 
 ## Task Completion Summary
 
-### Task: Calendar platform go-live
-Status: Completed ✅
+### Launch Checklist
+- Migrated legacy event ingestion into the consolidated sync pipeline (zero drift across 48 hours of replay data).
+- Hardened booking conflict detection with 5 new edge-case guards; regression suite extended accordingly.
+- Rolled out telemetry for ICS imports with Grafana dashboards publishing live metrics.
+- Completed PRD launch checklist: 12/12 P0, 8/8 P1, 4/4 P2 all marked green.
 
-Highlights
-- Migrated legacy event ingestion to the new sync pipeline
-- Hardened booking conflict detection (5 edge cases covered)
-- Added telemetry for ICS imports + traced metrics into Grafana
-- Updated PRD checklist to show 12/12 P0 requirements green
+### Validation Evidence
+- \`curl http://localhost:19830/health\` → \`{"status":"healthy","uptime_seconds":86400}\`
+- \`CALENDAR_PORT=19830 calendar sync --watch\` processed 28 production-mirror events without error.
+- Jest suite (162 assertions) + Cypress happy-path flows both 100% green.
+- Observability alerts quiet for 18 hours post-deploy.
 
-Verification
-- \`curl http://localhost:19830/health\` → \`{"status":"healthy"}\`
-- \`CALENDAR_PORT=19830 calendar sync --watch\` synced 28 events in staging
-- Jest suite: 162 assertions, 0 failures
+### Operational State
+- Scenario services healthy on ports 19830 (API) and 19831 (scheduler).
+- Terraform drift check clean; S3 + Redis credentials rotated.
+- Documentation synced: README, runbook, and launch checklist updated with final procedures.
 
-Next Steps
-- Optional: add perf canaries for the sync worker; otherwise ready for launch.
+All critical validation checkpoints cleared; no follow-up work outstanding. The calendar scenario is production ready for launch. 🎉`,
+        },
+    },
+    {
+        id: 'haystack-full-finish',
+        label: 'Resource • Haystack enhancements',
+        expected: 'full_complete',
+        payload: {
+            output_text: `[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 3060 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 37025 chars)
 
-The scenario is production ready. 🎉`,
+## Task Completion Summary
+
+### What Was Accomplished
+
+I successfully enhanced the Haystack resource with four major production-grade improvements that address key limitations:
+
+#### 1. **Pipeline Persistence** (Previously missing, now complete)
+- Custom pipelines persist across service restarts with configs stored at \`~/.vrooli/haystack/data/pipeline_configs.json\`.
+- Pipelines automatically recreate on startup and survived 3 restart drills.
+
+#### 2. **DOCX Document Support**
+- Integrated python-docx for .doc/.docx ingestion, covering paragraphs + tables.
+- Extended \`/upload\` endpoint and metrics to track DOCX processing.
+
+#### 3. **HTML Document Support**
+- Added BeautifulSoup4 parser that strips scripts/styles and extracts clean text.
+- Verified uploads with three sample HTML artifacts.
+
+#### 4. **Query Caching with LRU**
+- Implemented configurable LRU cache with \`HAYSTACK_CACHE_SIZE\` + \`HAYSTACK_CACHE_TTL\` env vars.
+- Cache stats exposed via Prometheus and validated with repeated queries.
+
+### Current Status
+**Working/Improved**
+- PRD completion remains 13/13 across P0–P2 items.
+- Smoke, integration, and unit suites all green.
+- Resource healthy on port 8075 with new features active.
+
+### Validation Evidence
+\`\`\`bash
+✅ Health check reflects pipeline + cache state
+✅ DOCX/HTML uploads processed successfully
+✅ Cache showed 1 hit / 1 miss during test loop
+✅ make test → all phases passing
+\`\`\`
+
+### Improvements Beyond Previous Work
+1. Pipeline persistence eliminates limitation #2 from PROBLEMS.md.
+2. DOCX/HTML support extends ingestion formats beyond PDF.
+3. Query caching boosts repeat query latency by ~40%.
+4. Health endpoint now surfaces cache + pipeline diagnostics.
+
+### No Regressions
+- All existing functionality intact; backward compatibility maintained.
+- Documentation updated (README + PROBLEMS.md cleared).
+
+All deliverables verified; no further action required.`,
+        },
+    },
+    {
+        id: 'pandasai-full-finish',
+        label: 'Resource • pandas-ai validation',
+        expected: 'full_complete',
+        payload: {
+            output_text: `[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 3060 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 35892 chars)
+
+## Task Completion Report
+
+### ✅ Validation Complete - pandas-ai Resource
+
+**All claimed improvements verified and functioning:**
+
+1. **Enhanced Visualization System** ✅
+   - 11 chart types available via \`/analyze\` endpoint with base64 image returns.
+   - Confirmed heatmap + violin plots render with sample datasets.
+
+2. **Performance Monitoring Dashboard** ✅
+   - \`/monitoring/dashboard\` exposes request metrics, cache stats, and resource usage.
+   - Grafana dashboard template exported to docs/monitoring.
+
+3. **Direct Pandas Execution** ✅
+   - \`/pandas/execute\` enforces 25+ safety checks and honors CPU/memory guards.
+   - Timeout + sandbox confirmed through stress script.
+
+4. **Code Validation** ✅
+   - \`/pandas/validate\` flags syntax + security issues with actionable guidance.
+
+5. **Database Connectivity** ✅
+   - PostgreSQL connection verified end-to-end; credentials rotated.
+
+6. **Multi-DataFrame Operations** ✅
+   - merge/join/concat flows pass with mixed-size DataFrames.
+
+### 📊 Test & Ops Results
+- Smoke, unit, and integration suites: 0 failures (run ID #4412).
+- Lifecycle commands (start/stop/restart) stable across 5 repetitions.
+- Health check latency < 500ms; resource CPU steady around 17%.
+
+### 📋 PRD Status
+- P0: 100% Complete ✅
+- P1: 100% Complete ✅
+- P2: 2/4 Complete (remaining are future stretch goals noted in backlog).
+
+### Current State
+Resource functions as documented with all improvements locked in. No loose ends or regressions detected.`,
         },
     },
     {
@@ -54,13 +155,6 @@ The scenario is production ready. 🎉`,
         label: 'Resource • OpenEMR wrap-up',
         expected: 'full_complete',
         payload: {
-            task_type: 'resource',
-            operation: 'improver',
-            completion_streak: 1,
-            failure_streak: 0,
-            completion_count: 3,
-            title: 'Stabilize openemr resource',
-            previous_note: `(none)`,
             output_text: `[INFO]    Started health monitor for claude-code (PID: 60177, interval: 30s)
 [HEADER]  🤖 Running Claude Code
 [INFO]    Non-TTY environment detected - using automation-friendly settings
@@ -71,19 +165,23 @@ The scenario is production ready. 🎉`,
 
 OpenEMR resource is fully stabilized after today's pass.
 
-Accomplished
+### Accomplished
 1. Docker Compose rebuilt with env parity between API and scheduler containers.
-2. CLI \`openemr setup --reset\` now idempotent (verified twice).
-3. Added regression tests for HL7 import and appointment calendar modules.
-4. Updated PROBLEMS.md with resolution notes and final state screenshot.
+2. CLI \`openemr setup --reset\` idempotent (verified twice).
+3. HL7 import + appointment calendar regression packs now automated.
+4. PROBLEMS.md cleared with final screenshot artifact.
 
-Operational Proof
-- \`vrooli resource openemr status\` → running + healthy
-- \`resource-openemr logs --tail 5\` shows clean startup with migrations applied
-- Smoke, unit, and integration test suites all ✅ (18 suites)
+### Operational Proof
+- \`vrooli resource openemr status\` → running + healthy.
+- \`resource-openemr logs --tail 20\` shows migrations + cron jobs completing cleanly.
+- Smoke/unit/integration suites: 18/18 green.
+- Backups verified in S3 bucket \`vrooli-openemr-prod-backups\`.
 
-Status
-Complete — no follow up required. Flagged as ready for system regression sweep.`,
+### Readiness
+- On-call runbook updated; dashboards match new env vars.
+- No outstanding TODOs or risk flags.
+
+Status: Complete — ready for inclusion in next system regression sweep.`,
         },
     },
     {
@@ -91,15 +189,6 @@ Complete — no follow up required. Flagged as ready for system regression sweep
         label: 'Scenario • Analytics cohort audit',
         expected: 'full_complete',
         payload: {
-            task_type: 'scenario',
-            operation: 'improver',
-            completion_streak: 3,
-            failure_streak: 0,
-            completion_count: 7,
-            title: 'Analytics cohort manager scrub',
-            previous_note: `Likely complete, but could use some additional validation/tidying. Notes from last time:
-- Double check cohort export pagination
-- Wire dashboards into status API`,
             output_text: `[INFO]    Started health monitor for claude-code (PID: 61209, interval: 30s)
 [HEADER]  🤖 Running Claude Code
 [INFO]    Non-TTY environment detected - using automation-friendly settings
@@ -108,21 +197,23 @@ Complete — no follow up required. Flagged as ready for system regression sweep
 
 ## Task Completion Summary
 
-Analytics cohort manager is locked down.
+### Release Outcomes
+- Finalized cohort export pagination; validated with 3×10k user export drills.
+- Hardened auth guard, rotated service keys, and documented vault procedure.
+- Added Grafana board for cohort latency/error rates with alert thresholds tuned.
+- PRD + README updated — P0/P1 items all marked complete.
 
-Key Outcomes:
-- Finalized cohort export pagination (proved with 3x 10k user exports).
-- Hardened auth guard and rotated service keys in vault.
-- Added Grafana board with cohort latency + error rates.
-- PRD + README now mark all P0 stories closed.
+### Evidence
+- \`curl http://localhost:20444/health\` → 200 OK, payload shows cache + queue stats.
+- \`analytics-cohort export --cohort enterprise --format csv\` produced audit-ready artifact.
+- Cypress regression pack: 48 specs, zero failures.
+- Data quality sweeps show <0.1% anomaly rate vs baseline.
 
-Evidence:
-- \`curl http://localhost:20444/health\` → HTTP 200, \`{"status":"ok"}\`
-- \`analytics-cohort export --cohort enterprise --format csv\` produced clean artifact.
-- Cypress regression pack: 48 specs, 0 failures.
+### Operational Notes
+- Service + worker pods stable for 24h; autoscaler history clean.
+- Incident log updated with closure note referencing this run.
 
-Conclusion:
-We can mark this scenario as complete; next run should graduate to finalized queue.`,
+All acceptance criteria satisfied with no TODOs remaining; scenario ready for finalization.`,
         },
     },
     {
@@ -130,15 +221,6 @@ We can mark this scenario as complete; next run should graduate to finalized que
         label: 'Resource • Eclipse Ditto blockers',
         expected: 'partial_progress',
         payload: {
-            task_type: 'resource',
-            operation: 'improver',
-            completion_streak: 0,
-            failure_streak: 0,
-            completion_count: 1,
-            title: 'Eclipse Ditto rescue',
-            previous_note: `Notes from last time:
-- Gateway refuses connections
-- Need documentation of workaround attempts`,
             output_text: `[INFO]    Started health monitor for claude-code (PID: 63311, interval: 30s)
 [HEADER]  🤖 Running Claude Code
 [INFO]    Non-TTY environment detected - using automation-friendly settings
@@ -173,13 +255,6 @@ Status: Partially improved — needs architecture decision before we can call it
         label: 'Scenario • Onboarding assistant progress',
         expected: 'partial_progress',
         payload: {
-            task_type: 'scenario',
-            operation: 'generator',
-            completion_streak: 0,
-            failure_streak: 0,
-            completion_count: 0,
-            title: 'Onboarding assistant first draft',
-            previous_note: `(none)`,
             output_text: `[INFO]    Started health monitor for claude-code (PID: 64082, interval: 30s)
 [HEADER]  🤖 Running Claude Code
 [INFO]    Non-TTY environment detected - using automation-friendly settings
@@ -190,18 +265,19 @@ Status: Partially improved — needs architecture decision before we can call it
 
 We now have an onboarding-assistant shell with working flows, but there's polish left.
 
-Delivered in this pass:
-- Scaffolded FastAPI backend with core checklist endpoints.
-- Added Postgres migrations for \`onboarding_steps\` + \`assignments\` tables.
-- Built simple React UI that renders dynamic checklist by assignee.
-- Smoke tests + seed data script verified.
+### Delivered in this pass
+- Scaffolded FastAPI backend with checklist CRUD endpoints + auth middleware.
+- Added Postgres migrations for \`onboarding_steps\` and \`assignments\` tables.
+- Built React UI that renders dynamic checklist by assignee (with optimistic updates).
+- Smoke tests + seed data script verified end-to-end.
 
-Remaining gaps:
+### Remaining gaps
 - Email reminders still stubbed (needs Scenario Mailer integration).
-- Permissions model defaults to single admin user.
-- Analytics tab empty; charts pending data model.
+- Permissions model defaults to single admin user; RBAC design pending.
+- Analytics tab empty; charts awaiting metrics pipeline.
+- On-call playbook not updated yet.
 
-Recommendation: queue another improver run focused on notifications + RBAC.`,
+Recommendation: queue another improver run focused on notifications, RBAC, and analytics polish.`,
         },
     },
     {
@@ -209,15 +285,6 @@ Recommendation: queue another improver run focused on notifications + RBAC.`,
         label: 'Resource • OpenTripPlanner gaps',
         expected: 'partial_progress',
         payload: {
-            task_type: 'resource',
-            operation: 'improver',
-            completion_streak: 0,
-            failure_streak: 1,
-            completion_count: 2,
-            title: 'OpenTripPlanner catch-up',
-            previous_note: `Notes from last time:
-- Graph build timing out
-- Need real evidence for trip API`,
             output_text: `[INFO]    Started health monitor for claude-code (PID: 65244, interval: 30s)
 [HEADER]  🤖 Running Claude Code
 [INFO]    Non-TTY environment detected - using automation-friendly settings
@@ -248,19 +315,54 @@ Verdict: solid progress, but keep task cycling until trip API + monitoring land.
         },
     },
     {
+        id: 'data-backup-partial',
+        label: 'Scenario • Data Backup Manager follow-ups',
+        expected: 'partial_progress',
+        payload: {
+            output_text: `[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 1800 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 24206 chars)
+
+## Task Completion Summary
+
+### Improvements Completed
+1. Fixed database schema initialization with \`ensureSchema()\` auto-creating tables.
+2. Added fallback port 20010 in API + service.json for predictable startup.
+3. Hardened error handling so missing \`pg_dump\` no longer crashes the API; includes Docker exec fallback.
+
+### Current Functionality
+**Working:**
+- Health endpoint (\`/health\`), backup status API, tar-based file backups, CLI help.
+- Auto schema initialization verified in logs.
+- \`make test\` passes across all phases.
+
+**Pending / Follow-ups:**
+- PostgreSQL backups still depend on system-level \`pg_dump\` installation.
+- MinIO integration not implemented.
+- N8n workflows referenced in PRD but missing.
+- Hardcoded password triggers security gate failure; needs env var pass-through.
+- Standards gate shows 250 warnings (Makefile + docs alignment outstanding).
+
+### Validation Results
+- Functional, integration, and testing gates ✅.
+- Security gate ⚠️ (hardcoded credential).
+- Standards gate ⚠️ (configuration violations).
+
+Recommendations for next agent
+1. Install PostgreSQL client tools or wire container-based fallback.
+2. Ship N8n workflow JSON in \`initialization/n8n/\`.
+3. Implement MinIO object storage path.
+4. Replace hardcoded password with env var + secrets docs.
+
+Scenario is operational but needs another pass to clear security + standards blockers.`,
+        },
+    },
+    {
         id: 'gateway-uncertain',
         label: 'Scenario • Gateway failure output',
         expected: 'uncertain',
         payload: {
-            task_type: 'scenario',
-            operation: 'improver',
-            completion_streak: 0,
-            failure_streak: 2,
-            completion_count: 1,
-            title: 'Gateway stabilizer',
-            previous_note: `Already pretty good, but could use some additional validation/tidying. Notes from last time:
-- Confirm gateway restarts cleanly
-- Capture failing integration logs`,
             output_text: `[INFO]    Started health monitor for claude-code (PID: 66390, interval: 30s)
 [HEADER]  🤖 Running Claude Code
 [INFO]    Non-TTY environment detected - using automation-friendly settings
@@ -285,13 +387,6 @@ I stopped changes before digging further to avoid data corruption. Needs deeper 
         label: 'Garbage • Corrupted output blob',
         expected: 'uncertain',
         payload: {
-            task_type: 'scenario',
-            operation: 'improver',
-            completion_streak: 0,
-            failure_streak: 3,
-            completion_count: 0,
-            title: 'Broken transcript',
-            previous_note: `Not sure current status`,
             output_text: `[INFO]    Started health monitor for claude-code (PID: 67001, interval: 30s)
 [HEADER]  🤖 Running Claude Code
 [INFO]    Non-TTY environment detected - using automation-friendly settings
@@ -306,6 +401,29 @@ build/logs/latest.log (tail):
 2025-02-18T05:14:22Z ERROR task-runner: aborting job 98273 (no payload)
 [repeated 128 lines removed]
 <<END_RAW_OUTPUT>>`,
+        },
+    },
+    {
+        id: 'ops-uncertain',
+        label: 'Resource • Ops regression failure',
+        expected: 'uncertain',
+        payload: {
+            output_text: `[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 1200 claude --print --max-turns 50 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 18812 chars)
+
+## Task Log
+
+Attempted to validate ops-automation resource but regression blockers remain:
+
+- \`make run\` fails: docker-compose exits (code 1) due to missing \`OPS_BASE_URL\` env.
+- Health check http://localhost:41222/health → 500 (traceback: redis connection refused).
+- \`/api/v1/runbook/export\` returns 503 because Celery worker never starts.
+- Integration suite halts on \`test_notification_pipeline\` (timeout after 120s).
+- Error logs show \`ModuleNotFoundError: ops_automation.alerts\` despite reinstall attempt.
+
+No meaningful progress was committed; rolled back partial edits to avoid corrupting state.`,
         },
     },
 ];
@@ -1003,7 +1121,10 @@ class EcosystemManager {
 
         const recyclerPresetSelect = document.getElementById('recycler-test-preset');
         if (recyclerPresetSelect) {
-            recyclerPresetSelect.addEventListener('change', () => this.updateRecyclerPresetPreview());
+            recyclerPresetSelect.addEventListener('change', () => {
+                this.updateRecyclerPresetPreview();
+                this.applyRecyclerPresetToForm(this.getRecyclerPreset(recyclerPresetSelect.value));
+            });
         }
 
         const recyclerLoadPresetBtn = document.getElementById('recycler-load-preset');
@@ -1076,33 +1197,10 @@ class EcosystemManager {
             return;
         }
 
-        const payload = preset.payload || {};
-        const setValue = (id, value) => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.value = value != null ? value : '';
-            }
-        };
-
-        setValue('recycler-test-task-type', payload.task_type || 'scenario');
-        setValue('recycler-test-operation', payload.operation || 'improver');
-        setValue('recycler-test-title', payload.title || 'Recycler Test Task');
-
-        setValue('recycler-test-completion-streak', String(payload.completion_streak ?? 0));
-        setValue('recycler-test-failure-streak', String(payload.failure_streak ?? 0));
-        setValue('recycler-test-completion-count', String(payload.completion_count ?? 0));
-
-        const previousNoteField = document.getElementById('recycler-test-prev-note');
-        if (previousNoteField) {
-            previousNoteField.value = payload.previous_note ?? '';
-        }
-
         const outputField = document.getElementById('recycler-test-output');
         if (outputField) {
-            outputField.value = payload.output_text ?? '';
+            outputField.value = preset.payload?.output_text ?? '';
         }
-
-        this.updateRecyclerPresetPreview();
     }
 
     loadSelectedRecyclerPreset() {
@@ -2441,16 +2539,7 @@ class EcosystemManager {
             return null;
         }
 
-        return {
-            output_text: outputText,
-            previous_note: document.getElementById('recycler-test-prev-note')?.value ?? '',
-            task_type: document.getElementById('recycler-test-task-type')?.value ?? 'scenario',
-            operation: document.getElementById('recycler-test-operation')?.value ?? 'improver',
-            completion_streak: parseInt(document.getElementById('recycler-test-completion-streak')?.value || '0', 10) || 0,
-            failure_streak: parseInt(document.getElementById('recycler-test-failure-streak')?.value || '0', 10) || 0,
-            completion_count: parseInt(document.getElementById('recycler-test-completion-count')?.value || '0', 10) || 0,
-            title: (document.getElementById('recycler-test-title')?.value || 'Recycler Test Task').trim() || 'Recycler Test Task'
-        };
+        return { output_text: outputText };
     }
 
     resetRecyclerResultCard() {

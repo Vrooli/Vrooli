@@ -16,7 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"github.com/rs/cors"
 )
 
@@ -259,92 +259,113 @@ func initDatabase(config *Config) error {
 func runMigrations(config *Config) error {
 	log.Println("🔧 Running database migrations...")
 	
-	// Check if tables exist
-	var tableExists bool
-	checkQuery := `
-		SELECT EXISTS (
+	// Check and create each table individually
+	// This allows incremental updates to the schema
+	tablesToCreate := []struct{
+		name string
+		schema string
+	}{
+		{
+			name: "events",
+			schema: `CREATE TABLE IF NOT EXISTS events (
+				id UUID PRIMARY KEY,
+				user_id VARCHAR(255) NOT NULL,
+				title VARCHAR(255) NOT NULL,
+				description TEXT,
+				start_time TIMESTAMPTZ NOT NULL,
+				end_time TIMESTAMPTZ NOT NULL,
+				timezone VARCHAR(50) DEFAULT 'UTC',
+				location VARCHAR(500),
+				event_type VARCHAR(50) DEFAULT 'meeting',
+				status VARCHAR(20) DEFAULT 'active',
+				metadata JSONB DEFAULT '{}',
+				automation_config JSONB DEFAULT '{}',
+				created_at TIMESTAMPTZ DEFAULT NOW(),
+				updated_at TIMESTAMPTZ DEFAULT NOW()
+			);
+			CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
+			CREATE INDEX IF NOT EXISTS idx_events_start_time ON events(start_time);
+			CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);`,
+		},
+		{
+			name: "event_reminders",
+			schema: `CREATE TABLE IF NOT EXISTS event_reminders (
+				id UUID PRIMARY KEY,
+				event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+				minutes_before INTEGER NOT NULL,
+				notification_type VARCHAR(20) DEFAULT 'email',
+				status VARCHAR(20) DEFAULT 'pending',
+				scheduled_time TIMESTAMPTZ NOT NULL,
+				notification_id VARCHAR(255),
+				created_at TIMESTAMPTZ DEFAULT NOW()
+			);
+			CREATE INDEX IF NOT EXISTS idx_reminders_event_id ON event_reminders(event_id);
+			CREATE INDEX IF NOT EXISTS idx_reminders_scheduled_time ON event_reminders(scheduled_time);
+			CREATE INDEX IF NOT EXISTS idx_reminders_status ON event_reminders(status);`,
+		},
+		{
+			name: "recurring_patterns",
+			schema: `CREATE TABLE IF NOT EXISTS recurring_patterns (
+				id UUID PRIMARY KEY,
+				parent_event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+				pattern_type VARCHAR(20) NOT NULL,
+				interval_value INTEGER DEFAULT 1,
+				days_of_week INTEGER[],
+				end_date TIMESTAMPTZ,
+				max_occurrences INTEGER,
+				created_at TIMESTAMPTZ DEFAULT NOW()
+			);
+			CREATE INDEX IF NOT EXISTS idx_recurring_parent_event ON recurring_patterns(parent_event_id);`,
+		},
+		{
+			name: "event_embeddings",
+			schema: `CREATE TABLE IF NOT EXISTS event_embeddings (
+				id UUID PRIMARY KEY,
+				event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+				qdrant_point_id UUID NOT NULL,
+				embedding_version VARCHAR(20) DEFAULT 'v1.0',
+				content_hash VARCHAR(64) NOT NULL,
+				keywords TEXT[],
+				created_at TIMESTAMPTZ DEFAULT NOW(),
+				updated_at TIMESTAMPTZ DEFAULT NOW(),
+				CONSTRAINT uq_event_embedding UNIQUE (event_id)
+			);
+			CREATE INDEX IF NOT EXISTS idx_embeddings_event_id ON event_embeddings(event_id);
+			CREATE INDEX IF NOT EXISTS idx_embeddings_qdrant_id ON event_embeddings(qdrant_point_id);
+			CREATE INDEX IF NOT EXISTS idx_embeddings_content_hash ON event_embeddings(content_hash);`,
+		},
+	}
+	
+	createdCount := 0
+	for _, table := range tablesToCreate {
+		// Check if table exists
+		var exists bool
+		checkQuery := `SELECT EXISTS (
 			SELECT FROM information_schema.tables 
 			WHERE table_schema = 'public' 
-			AND table_name = 'events'
+			AND table_name = $1
 		)`
-	
-	if err := db.QueryRow(checkQuery).Scan(&tableExists); err != nil {
-		return fmt.Errorf("failed to check table existence: %v", err)
-	}
-	
-	if tableExists {
-		log.Println("✅ Database schema already exists")
-		return nil
-	}
-	
-	// Create events table
-	eventsSchema := `
-		CREATE TABLE IF NOT EXISTS events (
-			id UUID PRIMARY KEY,
-			user_id VARCHAR(255) NOT NULL,
-			title VARCHAR(255) NOT NULL,
-			description TEXT,
-			start_time TIMESTAMPTZ NOT NULL,
-			end_time TIMESTAMPTZ NOT NULL,
-			timezone VARCHAR(50) DEFAULT 'UTC',
-			location VARCHAR(500),
-			event_type VARCHAR(50) DEFAULT 'meeting',
-			status VARCHAR(20) DEFAULT 'active',
-			metadata JSONB DEFAULT '{}',
-			automation_config JSONB DEFAULT '{}',
-			created_at TIMESTAMPTZ DEFAULT NOW(),
-			updated_at TIMESTAMPTZ DEFAULT NOW()
-		);
 		
-		CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
-		CREATE INDEX IF NOT EXISTS idx_events_start_time ON events(start_time);
-		CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
-	`
-	
-	if _, err := db.Exec(eventsSchema); err != nil {
-		return fmt.Errorf("failed to create events table: %v", err)
+		if err := db.QueryRow(checkQuery, table.name).Scan(&exists); err != nil {
+			return fmt.Errorf("failed to check %s table existence: %v", table.name, err)
+		}
+		
+		if !exists {
+			log.Printf("Creating %s table...", table.name)
+			if _, err := db.Exec(table.schema); err != nil {
+				return fmt.Errorf("failed to create %s table: %v", table.name, err)
+			}
+			createdCount++
+			log.Printf("✅ Created %s table", table.name)
+		} else {
+			log.Printf("✓ Table %s already exists", table.name)
+		}
 	}
 	
-	// Create event_reminders table
-	remindersSchema := `
-		CREATE TABLE IF NOT EXISTS event_reminders (
-			id UUID PRIMARY KEY,
-			event_id UUID REFERENCES events(id) ON DELETE CASCADE,
-			minutes_before INTEGER NOT NULL,
-			notification_type VARCHAR(20) DEFAULT 'email',
-			status VARCHAR(20) DEFAULT 'pending',
-			scheduled_time TIMESTAMPTZ NOT NULL,
-			notification_id VARCHAR(255),
-			created_at TIMESTAMPTZ DEFAULT NOW()
-		);
-		
-		CREATE INDEX IF NOT EXISTS idx_reminders_event_id ON event_reminders(event_id);
-		CREATE INDEX IF NOT EXISTS idx_reminders_scheduled_time ON event_reminders(scheduled_time);
-		CREATE INDEX IF NOT EXISTS idx_reminders_status ON event_reminders(status);
-	`
-	
-	if _, err := db.Exec(remindersSchema); err != nil {
-		return fmt.Errorf("failed to create event_reminders table: %v", err)
-	}
-	
-	// Create recurring_patterns table
-	recurringSchema := `
-		CREATE TABLE IF NOT EXISTS recurring_patterns (
-			id UUID PRIMARY KEY,
-			parent_event_id UUID REFERENCES events(id) ON DELETE CASCADE,
-			pattern_type VARCHAR(20) NOT NULL,
-			interval_value INTEGER DEFAULT 1,
-			days_of_week INTEGER[],
-			end_date TIMESTAMPTZ,
-			max_occurrences INTEGER,
-			created_at TIMESTAMPTZ DEFAULT NOW()
-		);
-		
-		CREATE INDEX IF NOT EXISTS idx_recurring_parent_event ON recurring_patterns(parent_event_id);
-	`
-	
-	if _, err := db.Exec(recurringSchema); err != nil {
-		return fmt.Errorf("failed to create recurring_patterns table: %v", err)
+	if createdCount > 0 {
+		log.Printf("✅ Created %d new tables", createdCount)
+	} else {
+		log.Println("✅ All tables already exist")
 	}
 	
 	log.Println("✅ Database migrations completed successfully")
@@ -596,7 +617,7 @@ func checkDatabaseHealth() map[string]interface{} {
 	health["checks"].(map[string]interface{})["ping"] = "ok"
 	
 	// Check calendar tables
-	requiredTables := []string{"events", "event_reminders", "recurring_patterns", "event_attendees", "calendar_permissions"}
+	requiredTables := []string{"events", "event_reminders", "recurring_patterns", "event_embeddings"}
 	var missingTables []string
 	
 	for _, tableName := range requiredTables {
@@ -675,7 +696,7 @@ func checkQdrantHealth() map[string]interface{} {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	
-	req, err := http.NewRequestWithContext(ctx, "GET", config.QdrantURL+"/health", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", config.QdrantURL+"/", nil)
 	if err != nil {
 		health["status"] = "unhealthy"
 		health["error"] = map[string]interface{}{
@@ -924,150 +945,30 @@ func getCalendarStats() map[string]interface{} {
 	defer cancel()
 	
 	// Get total events
-	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM events WHERE status = 'active'").Scan(&stats["total_events"])
+	var totalEvents int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM events WHERE status = 'active'").Scan(&totalEvents); err == nil {
+		stats["total_events"] = totalEvents
+	}
 	
 	// Get upcoming events
-	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM events WHERE status = 'active' AND start_time > NOW()").Scan(&stats["upcoming_events"])
+	var upcomingEvents int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM events WHERE status = 'active' AND start_time > NOW()").Scan(&upcomingEvents); err == nil {
+		stats["upcoming_events"] = upcomingEvents
+	}
 	
 	// Get active reminders
-	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM event_reminders WHERE is_active = true").Scan(&stats["active_reminders"])
+	var activeReminders int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM event_reminders WHERE is_active = true").Scan(&activeReminders); err == nil {
+		stats["active_reminders"] = activeReminders
+	}
 	
 	// Get recurring patterns
-	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM recurring_patterns WHERE is_active = true").Scan(&stats["recurring_patterns"])
+	var recurringPatterns int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM recurring_patterns WHERE is_active = true").Scan(&recurringPatterns); err == nil {
+		stats["recurring_patterns"] = recurringPatterns
+	}
 	
 	return stats
-}
-
-	// Test Qdrant connection (if configured)
-	config := initConfig()
-	if config.QdrantURL != "" {
-		qdrantHealthURL := config.QdrantURL + "/health"
-		client := &http.Client{Timeout: 2 * time.Second}
-		if resp, err := client.Get(qdrantHealthURL); err != nil {
-			services["qdrant"] = map[string]interface{}{
-				"status": "unhealthy",
-				"error":  err.Error(),
-			}
-			overallStatus = "degraded"
-		} else {
-			defer resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				services["qdrant"] = map[string]interface{}{
-					"status": "healthy",
-				}
-			} else {
-				services["qdrant"] = map[string]interface{}{
-					"status": "unhealthy",
-					"code":   resp.StatusCode,
-				}
-				overallStatus = "degraded"
-			}
-		}
-	} else {
-		services["qdrant"] = map[string]interface{}{
-			"status": "not_configured",
-		}
-	}
-
-	// Test Auth Service connection
-	if config.AuthServiceURL != "" {
-		authHealthURL := config.AuthServiceURL + "/health"
-		client := &http.Client{Timeout: 2 * time.Second}
-		if resp, err := client.Get(authHealthURL); err != nil {
-			services["auth_service"] = map[string]interface{}{
-				"status": "unhealthy",
-				"error":  err.Error(),
-			}
-			overallStatus = "degraded"
-		} else {
-			defer resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				services["auth_service"] = map[string]interface{}{
-					"status": "healthy",
-				}
-			} else {
-				services["auth_service"] = map[string]interface{}{
-					"status": "unhealthy",
-					"code":   resp.StatusCode,
-				}
-				overallStatus = "degraded"
-			}
-		}
-	}
-
-	// Test Notification Service connection
-	if config.NotificationServiceURL != "" {
-		notificationHealthURL := config.NotificationServiceURL + "/health"
-		client := &http.Client{Timeout: 2 * time.Second}
-		if resp, err := client.Get(notificationHealthURL); err != nil {
-			services["notification_service"] = map[string]interface{}{
-				"status": "unhealthy",
-				"error":  err.Error(),
-			}
-			overallStatus = "degraded"
-		} else {
-			defer resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				services["notification_service"] = map[string]interface{}{
-					"status": "healthy",
-				}
-			} else {
-				services["notification_service"] = map[string]interface{}{
-					"status": "unhealthy",
-					"code":   resp.StatusCode,
-				}
-				overallStatus = "degraded"
-			}
-		}
-	}
-
-	// Test Ollama connection (optional)
-	if config.OllamaURL != "" {
-		ollamaHealthURL := config.OllamaURL + "/api/tags"
-		client := &http.Client{Timeout: 2 * time.Second}
-		if resp, err := client.Get(ollamaHealthURL); err != nil {
-			services["ollama"] = map[string]interface{}{
-				"status": "unhealthy",
-				"error":  err.Error(),
-			}
-			// Don't degrade overall status for optional service
-		} else {
-			defer resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				services["ollama"] = map[string]interface{}{
-					"status": "healthy",
-				}
-			} else {
-				services["ollama"] = map[string]interface{}{
-					"status": "unhealthy",
-					"code":   resp.StatusCode,
-				}
-			}
-		}
-	} else {
-		services["ollama"] = map[string]interface{}{
-			"status": "not_configured",
-			"note":   "Using rule-based NLP fallback",
-		}
-	}
-
-	// Check if any required service is completely down
-	if db == nil || (services["database"] != nil && 
-		services["database"].(map[string]interface{})["status"] == "unhealthy") {
-		overallStatus = "unhealthy"
-		statusCode = http.StatusServiceUnavailable
-	}
-
-	health := map[string]interface{}{
-		"status":    overallStatus,
-		"timestamp": time.Now().UTC(),
-		"version":   "1.0.0",
-		"services":  services,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(health)
 }
 
 // Event handlers
@@ -1153,6 +1054,31 @@ func createEventHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		errorHandler.HandleError(w, r, DatabaseError("event creation", err))
 		return
+	}
+
+	// Create recurring pattern if specified
+	// recurrenceCount := 0 // TODO: Use this for response
+	if req.Recurrence != nil {
+		recurringID := uuid.New().String()
+		recurringQuery := `
+			INSERT INTO recurring_patterns (id, parent_event_id, pattern_type, interval_value, days_of_week, end_date, max_occurrences)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`
+		
+		_, err = db.Exec(recurringQuery, recurringID, eventID, req.Recurrence.Pattern, req.Recurrence.Interval, 
+			pq.Array(req.Recurrence.DaysOfWeek), req.Recurrence.EndDate, req.Recurrence.MaxOccurrences)
+		if err != nil {
+			log.Printf("Error creating recurring pattern: %v", err)
+		} else {
+			// recurrenceCount = 1 // TODO: Use for response
+			// Generate recurring events based on pattern
+			go func() {
+				if err := generateRecurringEvents(eventID, req.Recurrence, startTime, endTime, req, userID); err != nil {
+					log.Printf("Error generating recurring events: %v", err)
+				}
+			}()
+			log.Printf("Recurring pattern created for event %s", eventID)
+		}
 	}
 
 	// Create reminders if specified
@@ -1884,4 +1810,83 @@ func main() {
 	if err := http.ListenAndServe(address, middlewareChain); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
+}
+
+// generateRecurringEvents creates recurring event instances based on pattern
+func generateRecurringEvents(parentID string, recurrence *RecurrenceRequest, startTime, endTime time.Time, req CreateEventRequest, userID string) error {
+	// Calculate the duration of the original event
+	duration := endTime.Sub(startTime)
+	
+	// Determine the end date for recurring events
+	var endDate time.Time
+	if recurrence.EndDate != nil {
+		endDate = *recurrence.EndDate
+	} else if recurrence.MaxOccurrences != nil && *recurrence.MaxOccurrences > 0 {
+		// Calculate based on max occurrences
+		switch recurrence.Pattern {
+		case "daily":
+			endDate = startTime.AddDate(0, 0, *recurrence.MaxOccurrences*recurrence.Interval)
+		case "weekly":
+			endDate = startTime.AddDate(0, 0, *recurrence.MaxOccurrences*recurrence.Interval*7)
+		case "monthly":
+			endDate = startTime.AddDate(0, *recurrence.MaxOccurrences*recurrence.Interval, 0)
+		default:
+			endDate = startTime.AddDate(1, 0, 0) // Default to 1 year
+		}
+	} else {
+		// Default to 1 year if no end specified
+		endDate = startTime.AddDate(1, 0, 0)
+	}
+	
+	// Generate recurring events
+	currentStart := startTime
+	occurrences := 0
+	maxOccurrences := 365 // Default limit
+	if recurrence.MaxOccurrences != nil && *recurrence.MaxOccurrences > 0 {
+		maxOccurrences = *recurrence.MaxOccurrences
+	}
+	
+	for currentStart.Before(endDate) && occurrences < maxOccurrences {
+		// Skip the first occurrence (already created as parent)
+		if occurrences > 0 {
+			eventID := uuid.New().String()
+			currentEnd := currentStart.Add(duration)
+			
+			// Create the recurring event instance
+			query := `
+				INSERT INTO events 
+				(id, user_id, title, description, start_time, end_time, timezone, location, event_type, metadata, automation_config, parent_event_id)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			`
+			
+			metadataJSON, _ := json.Marshal(req.Metadata)
+			automationJSON, _ := json.Marshal(req.AutomationConfig)
+			
+			_, err := db.Exec(query, eventID, userID, req.Title, req.Description, 
+				currentStart, currentEnd, req.Timezone, req.Location, 
+				req.EventType, metadataJSON, automationJSON, parentID)
+			
+			if err != nil {
+				log.Printf("Error creating recurring event instance: %v", err)
+				// Continue with next occurrence
+			}
+		}
+		
+		// Move to next occurrence
+		switch recurrence.Pattern {
+		case "daily":
+			currentStart = currentStart.AddDate(0, 0, recurrence.Interval)
+		case "weekly":
+			currentStart = currentStart.AddDate(0, 0, recurrence.Interval*7)
+		case "monthly":
+			currentStart = currentStart.AddDate(0, recurrence.Interval, 0)
+		default:
+			return fmt.Errorf("unsupported recurrence pattern: %s", recurrence.Pattern)
+		}
+		
+		occurrences++
+	}
+	
+	log.Printf("Generated %d recurring events for parent %s", occurrences, parentID)
+	return nil
 }

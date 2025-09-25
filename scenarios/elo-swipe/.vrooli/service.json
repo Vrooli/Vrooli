@@ -108,6 +108,11 @@
           "name": "prepare-ui",
           "run": "cd ui && [ -f package.json ] && npm install || echo 'No npm dependencies'",
           "description": "Install UI dependencies if needed"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && [ -f package.json ] && VITE_API_PORT=${API_PORT:-30400} npm run build || echo 'No UI build'",
+          "description": "Build Vite UI bundle"
         }
       ]
     },
@@ -125,7 +130,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
+          "run": "cd ui && VITE_API_PORT=${API_PORT:-30400} npm run build && VITE_API_PORT=${API_PORT:-30400} npm run preview -- --host 0.0.0.0 --port ${UI_PORT}",
           "description": "Start UI server in background",
           "background": true
         },
@@ -233,7 +238,7 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/elo-swipe.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/elo-swipe.*server\\.js\" 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/elo-swipe/ui\" || true; sleep 1; pkill -9 -f \"scenarios/elo-swipe/ui\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]
@@ -257,7 +262,7 @@
          },
          {
            "name": "start-ui",
-           "run": "cd ui && node server.js",
+           "run": "cd ui && VITE_API_PORT=${API_PORT:-30400} npm run dev -- --host 0.0.0.0 --port ${UI_PORT}",
            "description": "Start UI server",
            "background": true
          },

@@ -1,8 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../.." && builtin pwd)}"
-CLI_DIR="${APP_ROOT}/scripts/scenarios/templates/full/cli"
-source "${APP_ROOT}/scripts/scenarios/templates/full/scripts/lib/utils/cli-install.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLI_NAME="data-tools"
 
-install_cli "$CLI_DIR/CLI_NAME_PLACEHOLDER" "CLI_NAME_PLACEHOLDER"
+echo "Installing ${CLI_NAME} CLI..."
+
+if [[ ! -f "${SCRIPT_DIR}/${CLI_NAME}" ]]; then
+    echo "❌ CLI script not found: ${SCRIPT_DIR}/${CLI_NAME}"
+    exit 1
+fi
+
+chmod +x "${SCRIPT_DIR}/${CLI_NAME}"
+
+INSTALL_DIR="${HOME}/.local/bin"
+mkdir -p "${INSTALL_DIR}"
+
+cp "${SCRIPT_DIR}/${CLI_NAME}" "${INSTALL_DIR}/${CLI_NAME}"
+
+if ! command -v "${CLI_NAME}" &>/dev/null; then
+    if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
+        echo "⚠️  ${INSTALL_DIR} is not in your PATH"
+        echo "   Add it with: export PATH=\"\$PATH:${INSTALL_DIR}\""
+    fi
+fi
+
+echo "✅ ${CLI_NAME} CLI installed to ${INSTALL_DIR}"

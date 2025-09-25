@@ -1,12 +1,267 @@
 #!/bin/bash
-echo "Date Night Planner CLI"
-echo "Usage: date-night-planner [command]"
-# Add CLI commands here
+
+# Date Night Planner CLI
+# Version: 1.0.0
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Get API port dynamically or from environment
+if command -v vrooli &> /dev/null; then
+    API_PORT=$(vrooli scenario port date-night-planner API_PORT 2>/dev/null)
+    if [ -z "$API_PORT" ]; then
+        API_PORT="${API_PORT:-19450}"
+    fi
+else
+    API_PORT="${API_PORT:-19450}"
+fi
+API_BASE="http://localhost:${API_PORT}"
+
+# Function to show help
+show_help() {
+    echo -e "${MAGENTA}💕 Date Night Planner CLI${NC}"
+    echo ""
+    echo "Usage: date-night-planner [command] [arguments] [options]"
+    echo ""
+    echo "Commands:"
+    echo "  suggest <couple_id>     Generate date suggestions for a couple"
+    echo "  plan <couple_id> <suggestion_id>  Create a date plan from a suggestion"
+    echo "  status                  Show operational status"
+    echo "  help                    Display this help message"
+    echo "  version                 Show version information"
+    echo ""
+    echo "Options:"
+    echo "  --budget <amount>       Maximum budget for the date"
+    echo "  --type <type>           Type of date (romantic/adventure/cultural/casual)"
+    echo "  --date <YYYY-MM-DD>     Preferred date"
+    echo "  --json                  Output in JSON format"
+    echo ""
+    echo "Examples:"
+    echo "  date-night-planner suggest couple-123 --budget 100 --type romantic"
+    echo "  date-night-planner plan couple-123 suggestion-456 --date 2025-02-14"
+    echo "  date-night-planner status --json"
+}
+
+# Function to check API status
+check_status() {
+    local json_output="${1:-false}"
+    
+    # Check API health
+    api_health=$(curl -sf "${API_BASE}/health" 2>/dev/null)
+    api_status=$?
+    
+    # Check database health
+    db_health=$(curl -sf "${API_BASE}/health/database" 2>/dev/null)
+    db_status=$?
+    
+    # Check workflow health
+    wf_health=$(curl -sf "${API_BASE}/health/workflows" 2>/dev/null)
+    wf_status=$?
+    
+    if [ "$json_output" = "true" ]; then
+        echo "{"
+        echo "  \"api\": $([ $api_status -eq 0 ] && echo "$api_health" || echo '{"status":"offline"}')"
+        echo "  \"database\": $([ $db_status -eq 0 ] && echo "$db_health" || echo '{"status":"offline"}')"
+        echo "  \"workflows\": $([ $wf_status -eq 0 ] && echo "$wf_health" || echo '{"status":"offline"}')"
+        echo "}"
+    else
+        echo -e "${MAGENTA}💕 Date Night Planner Status${NC}"
+        echo ""
+        
+        if [ $api_status -eq 0 ]; then
+            echo -e "${GREEN}✅ API: Running${NC} at ${API_BASE}"
+        else
+            echo -e "${RED}❌ API: Offline${NC}"
+        fi
+        
+        if [ $db_status -eq 0 ]; then
+            echo -e "${GREEN}✅ Database: Connected${NC}"
+        else
+            echo -e "${YELLOW}⚠️  Database: Disconnected${NC} (running in degraded mode)"
+        fi
+        
+        if [ $wf_status -eq 0 ]; then
+            echo -e "${GREEN}✅ Workflows: Active${NC}"
+        else
+            echo -e "${YELLOW}⚠️  Workflows: Inactive${NC} (limited suggestions)"
+        fi
+    fi
+}
+
+# Function to suggest dates
+suggest_dates() {
+    local couple_id="$1"
+    shift
+    
+    if [ -z "$couple_id" ]; then
+        echo -e "${RED}Error: couple_id is required${NC}"
+        echo "Usage: date-night-planner suggest <couple_id> [options]"
+        exit 1
+    fi
+    
+    # Parse options
+    local budget=""
+    local date_type=""
+    local preferred_date=""
+    local json_output=false
+    
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --budget)
+                budget="$2"
+                shift 2
+                ;;
+            --type)
+                date_type="$2"
+                shift 2
+                ;;
+            --date)
+                preferred_date="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Build request body
+    local request_body="{\"couple_id\":\"${couple_id}\""
+    [ -n "$budget" ] && request_body="${request_body},\"budget_max\":${budget}"
+    [ -n "$date_type" ] && request_body="${request_body},\"date_type\":\"${date_type}\""
+    [ -n "$preferred_date" ] && request_body="${request_body},\"preferred_date\":\"${preferred_date}\""
+    request_body="${request_body}}"
+    
+    # Make API call
+    response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -d "$request_body" \
+        "${API_BASE}/api/v1/dates/suggest" 2>/dev/null)
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Error: Failed to get suggestions from API${NC}"
+        exit 1
+    fi
+    
+    if [ "$json_output" = true ]; then
+        echo "$response"
+    else
+        echo -e "${MAGENTA}💕 Date Suggestions for Couple ${couple_id}${NC}"
+        echo ""
+        
+        # Parse and display suggestions (simplified for bash)
+        echo "$response" | grep -o '"title":"[^"]*' | cut -d'"' -f4 | while read -r title; do
+            echo -e "${CYAN}🎯 $title${NC}"
+        done
+        
+        echo ""
+        echo -e "${YELLOW}For detailed output, use --json flag${NC}"
+    fi
+}
+
+# Function to plan a date
+plan_date() {
+    local couple_id="$1"
+    local suggestion_id="$2"
+    shift 2
+    
+    if [ -z "$couple_id" ] || [ -z "$suggestion_id" ]; then
+        echo -e "${RED}Error: couple_id and suggestion_id are required${NC}"
+        echo "Usage: date-night-planner plan <couple_id> <suggestion_id> [options]"
+        exit 1
+    fi
+    
+    # Parse options
+    local planned_date=""
+    local json_output=false
+    
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --date)
+                planned_date="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Default to tomorrow if no date specified
+    if [ -z "$planned_date" ]; then
+        planned_date=$(date -d "tomorrow" +%Y-%m-%d)
+    fi
+    
+    # Build request body (simplified)
+    local request_body="{\"couple_id\":\"${couple_id}\",\"selected_suggestion\":{\"title\":\"Selected Date\",\"description\":\"Date from suggestion ${suggestion_id}\",\"activities\":[],\"estimated_cost\":100,\"estimated_duration\":\"2 hours\"},\"planned_date\":\"${planned_date}T19:00:00Z\"}"
+    
+    # Make API call
+    response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -d "$request_body" \
+        "${API_BASE}/api/v1/dates/plan" 2>/dev/null)
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Error: Failed to create date plan${NC}"
+        exit 1
+    fi
+    
+    if [ "$json_output" = true ]; then
+        echo "$response"
+    else
+        echo -e "${GREEN}✅ Date plan created successfully!${NC}"
+        echo ""
+        echo -e "${CYAN}Couple ID: ${couple_id}${NC}"
+        echo -e "${CYAN}Date: ${planned_date}${NC}"
+        echo ""
+        echo -e "${YELLOW}For detailed output, use --json flag${NC}"
+    fi
+}
+
+# Main command dispatcher
 case "$1" in
-  plan)
-    echo "Planning your date night..."
-    ;;
-  *)
-    echo "Unknown command: $1"
-    ;;
+    suggest)
+        shift
+        suggest_dates "$@"
+        ;;
+    plan)
+        shift
+        plan_date "$@"
+        ;;
+    status)
+        shift
+        json_flag=false
+        [ "$1" = "--json" ] && json_flag=true
+        check_status $json_flag
+        ;;
+    version)
+        echo -e "${MAGENTA}Date Night Planner CLI${NC}"
+        echo "Version: 1.0.0"
+        echo "API Version: 1.0.0"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        if [ -n "$1" ]; then
+            echo -e "${RED}Unknown command: $1${NC}"
+            echo ""
+        fi
+        show_help
+        exit 1
+        ;;
 esac

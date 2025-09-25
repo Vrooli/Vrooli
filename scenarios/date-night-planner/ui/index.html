@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💕 Date Night Planner</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>💕 Date Night Planner</h1>
+            <p class="tagline">Creating magical moments for couples</p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="suggest">Get Suggestions</button>
+            <button class="nav-tab" data-tab="plan">My Plans</button>
+            <button class="nav-tab" data-tab="memories">Memories</button>
+            <button class="nav-tab" data-tab="preferences">Preferences</button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content">
+            <!-- Suggestions Tab -->
+            <div id="suggest-tab" class="tab-content active">
+                <div class="card">
+                    <h2>🎯 Get Date Suggestions</h2>
+                    <form id="suggestion-form" class="form">
+                        <div class="form-group">
+                            <label for="couple-id">Couple ID:</label>
+                            <input type="text" id="couple-id" placeholder="Enter your couple ID" value="test-couple-123">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="date-type">Date Type:</label>
+                            <select id="date-type">
+                                <option value="">Any Type</option>
+                                <option value="romantic">Romantic 🌹</option>
+                                <option value="adventure">Adventure 🏔️</option>
+                                <option value="cultural">Cultural 🎭</option>
+                                <option value="casual">Casual ☕</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="budget">Budget:</label>
+                            <input type="number" id="budget" placeholder="Maximum budget" value="100">
+                            <span class="budget-display">$<span id="budget-value">100</span></span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="preferred-date">Preferred Date:</label>
+                            <input type="date" id="preferred-date">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="weather-pref">Weather Preference:</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="weather" value="indoor"> Indoor 🏠
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="weather" value="outdoor"> Outdoor 🌞
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="weather" value="flexible" checked> Flexible 🌤️
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Get Suggestions 💝</button>
+                    </form>
+                </div>
+                
+                <!-- Suggestions Results -->
+                <div id="suggestions-results" class="results-container" style="display: none;">
+                    <h3>💡 Your Date Suggestions</h3>
+                    <div id="suggestions-list" class="suggestions-grid"></div>
+                </div>
+            </div>
+
+            <!-- Plans Tab -->
+            <div id="plan-tab" class="tab-content">
+                <div class="card">
+                    <h2>📅 My Date Plans</h2>
+                    <div id="plans-list" class="plans-list">
+                        <p class="empty-state">No date plans yet. Start by getting suggestions!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Memories Tab -->
+            <div id="memories-tab" class="tab-content">
+                <div class="card">
+                    <h2>📸 Date Memories</h2>
+                    <div class="memory-upload">
+                        <button class="btn btn-secondary">Add Memory 📷</button>
+                    </div>
+                    <div id="memories-grid" class="memories-grid">
+                        <p class="empty-state">No memories yet. Complete a date to add memories!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preferences Tab -->
+            <div id="preferences-tab" class="tab-content">
+                <div class="card">
+                    <h2>💖 Your Preferences</h2>
+                    <div id="preferences-list" class="preferences-list">
+                        <div class="preference-item">
+                            <span class="pref-category">Cuisine:</span>
+                            <span class="pref-value">Italian 🍝</span>
+                            <span class="pref-confidence">90% confident</span>
+                        </div>
+                        <div class="preference-item">
+                            <span class="pref-category">Activity:</span>
+                            <span class="pref-value">Romantic dinners</span>
+                            <span class="pref-confidence">85% confident</span>
+                        </div>
+                        <div class="preference-item">
+                            <span class="pref-category">Budget:</span>
+                            <span class="pref-value">Moderate ($50-$150)</span>
+                            <span class="pref-confidence">75% confident</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary">Update Preferences ✏️</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Status Bar -->
+        <footer class="status-bar">
+            <div class="status-item">
+                <span class="status-indicator" id="api-status"></span>
+                API Status
+            </div>
+            <div class="status-item">
+                <span class="status-indicator" id="db-status"></span>
+                Database
+            </div>
+            <div class="status-item">
+                <span class="status-indicator" id="wf-status"></span>
+                Workflows
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

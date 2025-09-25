@@ -1,8 +1,8 @@
 package summarizer
 
 import (
+	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/ecosystem-manager/api/pkg/tasks"
 )
 
 const (
@@ -32,11 +30,9 @@ type Config struct {
 	Model    string
 }
 
-// Input bundles task metadata and execution output for summarization.
+// Input carries the execution output that should be summarized.
 type Input struct {
-	Task         tasks.TaskItem
-	Output       string
-	PreviousNote string
+	Output string
 }
 
 // Result captures the summarizer outcome.
@@ -76,42 +72,38 @@ func buildPrompt(input Input) string {
 		output = output[:maxOutputChars] + "\n[TRUNCATED]"
 	}
 
-	previousNote := strings.TrimSpace(input.PreviousNote)
-	if previousNote == "" {
-		previousNote = "(none)"
-	}
-
 	var builder strings.Builder
-	builder.WriteString("You are an expert operator for the Vrooli Ecosystem Manager. Summarize the latest execution of a task into the canonical note patterns and classify the output.\n")
-	builder.WriteString("Always respond with compact JSON using this schema:\n")
-	builder.WriteString("{\n  \"note\": \"string\",\n  \"classification\": \"full_complete|partial_progress|uncertain\"\n}\n")
+	builder.WriteString("You are an expert operator for the Vrooli Ecosystem Manager. Review the raw execution output of a single task run and produce an updated note plus a completion classification.\n")
+	builder.WriteString("Respond ONLY in plain text using this exact layout:\n")
+	builder.WriteString("classification: <full_complete|partial_progress|uncertain>\n")
+	builder.WriteString("note:\n")
+	builder.WriteString("<multi-line note content>\n")
+	builder.WriteString("Do not include any other labels, JSON, or decorative formatting.\n")
 	builder.WriteString("\nRules:\n")
-	builder.WriteString("- Use EXACTLY one of the following note templates based on the situation:\n")
-	builder.WriteString("  1. 'Not sure current status' when output is missing, corrupt, or inconclusive.\n")
-	builder.WriteString("  2. 'Notes from last time:' + concise bullet list when there was useful output but follow-up work required.\n")
-	builder.WriteString("  3. 'Already pretty good, but could use some additional validation/tidying. Notes from last time:' + bullets when the output claims completion once.\n")
-	builder.WriteString("  4. 'Likely complete, but could use some additional validation/tidying. Notes from last time:' + bullets when the output repeatedly claims completion.\n")
-	builder.WriteString("- For bullet lists, limit to the most actionable 4-6 points derived from the output.\n")
-	builder.WriteString("- Keep the note under 1200 characters.\n")
-	builder.WriteString("- The classification meaning:\n  * full_complete – agent asserts task is finished.\n  * partial_progress – useful progress but more work remains.\n  * uncertain – output missing, contradictory, or failure details only.\n")
-	builder.WriteString("- If output references blockers or failures, prefer classification 'uncertain'.\n")
-	builder.WriteString("- When you see errors, stack traces, failed health checks, or statements that the task is still broken/not running, you MUST choose classification 'uncertain' and use the 'Not sure current status' note template.\n")
-	builder.WriteString("- Never include additional fields outside note and classification.\n")
-
-	builder.WriteString("\nTask metadata:\n")
-	builder.WriteString(fmt.Sprintf("- ID: %s\n", input.Task.ID))
-	builder.WriteString(fmt.Sprintf("- Title: %s\n", input.Task.Title))
-	builder.WriteString(fmt.Sprintf("- Type: %s\n", input.Task.Type))
-	builder.WriteString(fmt.Sprintf("- Operation: %s\n", input.Task.Operation))
-	builder.WriteString(fmt.Sprintf("- Completion count: %d\n", input.Task.CompletionCount))
-	builder.WriteString(fmt.Sprintf("- Consecutive completion claims: %d\n", input.Task.ConsecutiveCompletionClaims))
-	builder.WriteString(fmt.Sprintf("- Consecutive failures: %d\n", input.Task.ConsecutiveFailures))
-	builder.WriteString(fmt.Sprintf("- Previous note: %s\n", previousNote))
+	builder.WriteString("- Base every decision strictly on the provided output text. Assume no other context, counters, or previous notes.\n")
+	builder.WriteString("- Use EXACTLY one of these note templates:\n")
+	builder.WriteString("  1. 'Not sure current status' when the output is missing, corrupt, mostly errors, or fails to demonstrate forward progress. Classification MUST be 'uncertain'.\n")
+	builder.WriteString("  2. 'Notes from last time:' followed by concise bullets when there is real progress but clear unfinished work or follow-up items. Classification MUST be 'partial_progress'.\n")
+	builder.WriteString("  3. 'Already pretty good, but could use some additional validation/tidying. Notes from last time:' + bullets when the output claims substantial completion yet still mentions optional polish, validation gaps, or outstanding checks. Classification MUST be 'partial_progress'.\n")
+	builder.WriteString("  4. 'Ready for finalization. Highlights:' + bullets when the output proves the task is truly finished with zero follow-up work, no failing tests, and complete validation evidence. Classification MUST be 'full_complete'.\n")
+	builder.WriteString("- When the transcript supplies bullet lists or numbered sections, carry them forward verbatim; return as many bullets as appear in the source material.\n")
+	builder.WriteString("\n- Keep the note under 1800 characters.\n")
+	builder.WriteString("- Classification guidance:\n  * full_complete – output must prove the task is finished, all critical tests pass, and there are NO TODOs, next steps (even optional ones), or validation gaps.\n  * partial_progress – output shows momentum but highlights remaining work, optional follow-ups, pending validation, or incomplete testing.\n  * uncertain – output is inconclusive, broken, or dominated by failures.\n")
+	builder.WriteString("- Never assign classification 'full_complete' if the output references TODOs, next steps, skipped tests, failing checks, missing coverage, open risks, or anything left to verify. Default to 'partial_progress' instead.\n")
+	builder.WriteString("- Ignore orchestration boilerplate lines that begin with tokens like [HEADER], [INFO], [WARNING], or shell prompts — never mention them in the note.\n")
+	builder.WriteString("- Do not repeat raw headings such as 'Task Completion Summary', 'Task ID', or 'Status'; blend the underlying facts into the required template.\n")
+	builder.WriteString("- When the output shows blockers, crashes, failed checks, or ongoing outages, you MUST choose classification 'uncertain' and the 'Not sure current status' template.\n")
+	builder.WriteString("- When constructing bullet lists, restate every substantive point, validation artifact, or risk with minimal compression. Prefer verbatim phrasing (minus boilerplate) so that downstream agents retain the nuance.\n")
+	builder.WriteString("- There is no upper limit on bullet count if the transcript is dense; do not merge ideas together or omit quantitative details, command outputs, or follow-up guidance.\n")
+	builder.WriteString("- Each bullet should be a complete sentence and may reference inline code, command output, metrics, or section labels exactly as provided.\n")
+	builder.WriteString("- If the transcript includes multiple sections (Accomplishments, Validation, Pending work, etc.), mirror each section by emitting bullets in the same order so nothing is lost.\n")
+	builder.WriteString("- Do not cut important details for brevity. The goal is to preserve nearly all of the substantive content without the outer headings.\n")
+	builder.WriteString("- Never include fields outside note and classification.\n")
 
 	if output == "" {
 		builder.WriteString("\nNo execution output was captured. Respond accordingly.\n")
 	} else {
-		builder.WriteString("\nRaw execution output (analyze carefully):\n")
+		builder.WriteString("\nRaw execution output:\n")
 		builder.WriteString(output)
 	}
 
@@ -124,7 +116,7 @@ func runOllama(ctx context.Context, model, prompt string) (Result, error) {
 		model = "llama3.1:8b"
 	}
 
-	args := []string{"query", "--json"}
+	args := []string{"query"}
 	if model != "" {
 		args = append(args, "--model", model)
 	}
@@ -143,7 +135,7 @@ func runOllama(ctx context.Context, model, prompt string) (Result, error) {
 		return Result{}, errors.New("resource-ollama query returned empty output")
 	}
 
-	return parseResult([]byte(trimmed))
+	return parseResult(trimmed)
 }
 
 func runOpenRouter(ctx context.Context, model, prompt string) (Result, error) {
@@ -177,29 +169,70 @@ func runOpenRouter(ctx context.Context, model, prompt string) (Result, error) {
 		return Result{}, fmt.Errorf("resource-openrouter failed: %w (output: %s)", err, strings.TrimSpace(string(output)))
 	}
 
-	return parseResult(output)
+	return parseResult(string(output))
 }
 
-func parseResult(output []byte) (Result, error) {
-	sanitized := sanitizeLLMJSON(output)
-	var payload struct {
-		Note           string `json:"note"`
-		Classification string `json:"classification"`
+func parseResult(raw string) (Result, error) {
+	scanner := bufio.NewScanner(strings.NewReader(raw))
+	scanner.Split(bufio.ScanLines)
+
+	var firstLine string
+	for scanner.Scan() {
+		candidate := strings.TrimSpace(scanner.Text())
+		if candidate == "" {
+			continue
+		}
+		firstLine = candidate
+		break
 	}
 
-	if err := json.Unmarshal(sanitized, &payload); err != nil {
-		trimmed := strings.TrimSpace(string(sanitized))
-		return Result{}, fmt.Errorf("summarizer returned invalid JSON: %w (payload: %s)", err, trimmed)
+	if firstLine == "" {
+		return Result{}, errors.New("summarizer returned empty output")
+	}
+	if !strings.HasPrefix(strings.ToLower(firstLine), "classification:") {
+		return Result{}, fmt.Errorf("unexpected summarizer format: %s", firstLine)
 	}
 
-	classification := strings.ToLower(strings.TrimSpace(payload.Classification))
+	classification := strings.TrimSpace(firstLine[len("classification:"):])
+	classification = strings.ToLower(classification)
 	switch classification {
 	case classificationFull, classificationPartial, classificationUncertain:
 	default:
 		classification = classificationUncertain
 	}
 
-	note := strings.TrimSpace(payload.Note)
+	noteStarted := false
+	var builder strings.Builder
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+
+		if !noteStarted {
+			if trimmed == "" {
+				continue
+			}
+			if strings.EqualFold(trimmed, "note:") {
+				noteStarted = true
+				continue
+			}
+
+			// No explicit note header; treat this line as the start of the note content.
+			noteStarted = true
+			builder.WriteString(line)
+			builder.WriteRune('\n')
+			continue
+		}
+
+		builder.WriteString(line)
+		builder.WriteRune('\n')
+	}
+
+	if !noteStarted {
+		return Result{}, errors.New("summarizer note content missing")
+	}
+
+	note := strings.TrimSpace(builder.String())
 	if note == "" {
 		note = "Not sure current status"
 		classification = classificationUncertain
@@ -241,78 +274,4 @@ func DefaultResult() Result {
 // SupportedClassifications exposes the canonical classification values.
 func SupportedClassifications() []string {
 	return []string{classificationFull, classificationPartial, classificationUncertain}
-}
-
-func sanitizeLLMJSON(raw []byte) []byte {
-	trimmed := strings.TrimSpace(string(raw))
-	trimmed = strings.TrimPrefix(trimmed, "\ufeff")
-	trimmed = strings.TrimSpace(trimmed)
-
-	// Remove optional Markdown code fences (```json ... ```)
-	if strings.HasPrefix(trimmed, "```") {
-		for strings.HasPrefix(trimmed, "```") {
-			trimmed = strings.TrimPrefix(trimmed, "```")
-			trimmed = strings.TrimSpace(trimmed)
-			lowered := strings.ToLower(trimmed)
-			switch {
-			case strings.HasPrefix(lowered, "json\n"):
-				trimmed = strings.TrimSpace(trimmed[5:])
-			case strings.HasPrefix(lowered, "json\r\n"):
-				trimmed = strings.TrimSpace(trimmed[7:])
-			case strings.HasPrefix(lowered, "json"):
-				trimmed = strings.TrimSpace(trimmed[4:])
-			}
-		}
-
-		if idx := strings.LastIndex(trimmed, "```"); idx >= 0 {
-			trimmed = trimmed[:idx]
-		}
-		trimmed = strings.TrimSpace(trimmed)
-	}
-
-	var builder strings.Builder
-	builder.Grow(len(trimmed) + 16)
-
-	inString := false
-	escaped := false
-
-	for _, r := range trimmed {
-		switch r {
-		case '\\':
-			builder.WriteRune(r)
-			if inString {
-				escaped = !escaped
-			}
-			continue
-		case '"':
-			if !escaped {
-				inString = !inString
-			}
-			builder.WriteRune(r)
-			if escaped {
-				escaped = false
-			}
-			continue
-		case '\n', '\r', '\u2028', '\u2029', '\u0085':
-			if inString {
-				builder.WriteString("\\n")
-			} else {
-				builder.WriteRune('\n')
-			}
-			escaped = false
-			continue
-		default:
-			builder.WriteRune(r)
-			if escaped {
-				escaped = false
-			}
-		}
-	}
-
-	sanitized := strings.TrimSpace(builder.String())
-	if sanitized == "" {
-		return raw
-	}
-
-	return []byte(sanitized)
 }

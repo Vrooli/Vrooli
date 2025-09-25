@@ -280,7 +280,7 @@ func (cp *ChartProcessor) validateChartData(data []map[string]interface{}, chart
 	validation.DataPoints = len(data)
 
 	// Validate chart type
-	validChartTypes := []string{"bar", "line", "pie", "scatter", "area", "gantt", "heatmap", "treemap"}
+	validChartTypes := []string{"bar", "line", "pie", "scatter", "area", "gantt", "heatmap", "treemap", "candlestick"}
 	if !contains(validChartTypes, chartType) {
 		validation.Valid = false
 		validation.Errors = append(validation.Errors, fmt.Sprintf("Invalid chart_type: %s. Supported types: %s", chartType, strings.Join(validChartTypes, ", ")))
@@ -306,6 +306,30 @@ func (cp *ChartProcessor) validateChartData(data []map[string]interface{}, chart
 			if !hasLabel || !hasValue {
 				validation.Valid = false
 				validation.Errors = append(validation.Errors, fmt.Sprintf("Pie chart point %d must have label/x and value/y properties", i))
+			}
+		} else if chartType == "gantt" {
+			// Gantt charts need task, start, and end
+			if point["task"] == nil || point["start"] == nil || point["end"] == nil {
+				validation.Valid = false
+				validation.Errors = append(validation.Errors, fmt.Sprintf("Gantt chart point %d must have task, start, and end properties", i))
+			}
+		} else if chartType == "heatmap" {
+			// Heatmap needs x, y, and value
+			if point["x"] == nil || point["y"] == nil || point["value"] == nil {
+				validation.Valid = false
+				validation.Errors = append(validation.Errors, fmt.Sprintf("Heatmap point %d must have x, y, and value properties", i))
+			}
+		} else if chartType == "treemap" {
+			// Treemap needs name and value, optionally parent
+			if point["name"] == nil || point["value"] == nil {
+				validation.Valid = false
+				validation.Errors = append(validation.Errors, fmt.Sprintf("Treemap point %d must have name and value properties", i))
+			}
+		} else if chartType == "candlestick" {
+			// Candlestick charts need date, open, high, low, close
+			if point["date"] == nil || point["open"] == nil || point["high"] == nil || point["low"] == nil || point["close"] == nil {
+				validation.Valid = false
+				validation.Errors = append(validation.Errors, fmt.Sprintf("Candlestick chart point %d must have date, open, high, low, and close properties", i))
 			}
 		} else {
 			// Other charts need x and y
@@ -503,14 +527,80 @@ func (cp *ChartProcessor) generateMockChartFile(filepath, format string, req Cha
 
 func (cp *ChartProcessor) generateMockSVG(req ChartGenerationProcessorRequest) string {
 	// Generate a simple SVG based on the request
-	svg := fmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg">
+	// In production, this would use a real chart rendering library
+	
+	switch req.ChartType {
+	case "gantt":
+		return cp.generateGanttSVG(req)
+	case "heatmap":
+		return cp.generateHeatmapSVG(req)
+	case "treemap":
+		return cp.generateTreemapSVG(req)
+	default:
+		// Default mock SVG for other chart types
+		svg := fmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg">
 	<rect width="100%%" height="100%%" fill="white"/>
 	<text x="50%%" y="30" text-anchor="middle" font-family="Arial" font-size="16" fill="black">%s</text>
 	<text x="50%%" y="50" text-anchor="middle" font-family="Arial" font-size="14" fill="gray">Chart Type: %s</text>
 	<text x="50%%" y="70" text-anchor="middle" font-family="Arial" font-size="14" fill="gray">Data Points: %d</text>
 	<text x="50%%" y="90" text-anchor="middle" font-family="Arial" font-size="14" fill="gray">Style: %s</text>
 </svg>`, req.Width, req.Height, req.Title, req.ChartType, len(req.Data), req.Style)
+		return svg
+	}
+}
+
+func (cp *ChartProcessor) generateGanttSVG(req ChartGenerationProcessorRequest) string {
+	// Generate Gantt chart SVG
+	svg := fmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg">
+	<rect width="100%%" height="100%%" fill="white"/>
+	<text x="50%%" y="30" text-anchor="middle" font-family="Arial" font-size="16" fill="black">%s</text>
+	<text x="50%%" y="50" text-anchor="middle" font-family="Arial" font-size="14" fill="gray">Gantt Chart</text>
+	<!-- Gantt bars would be rendered here based on task data -->
+	<rect x="50" y="80" width="200" height="30" fill="#4CAF50" opacity="0.8"/>
+	<rect x="150" y="120" width="150" height="30" fill="#2196F3" opacity="0.8"/>
+	<rect x="250" y="160" width="180" height="30" fill="#FF9800" opacity="0.8"/>
+	<text x="50%%" y="%d" text-anchor="middle" font-family="Arial" font-size="12" fill="gray">%d Tasks</text>
+</svg>`, req.Width, req.Height, req.Title, req.Height-20, len(req.Data))
+	return svg
+}
+
+func (cp *ChartProcessor) generateHeatmapSVG(req ChartGenerationProcessorRequest) string {
+	// Generate Heatmap SVG
+	svg := fmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg">
+	<rect width="100%%" height="100%%" fill="white"/>
+	<text x="50%%" y="30" text-anchor="middle" font-family="Arial" font-size="16" fill="black">%s</text>
+	<text x="50%%" y="50" text-anchor="middle" font-family="Arial" font-size="14" fill="gray">Heatmap</text>
+	<!-- Heatmap cells would be rendered here based on data -->`, req.Width, req.Height, req.Title)
 	
+	// Generate grid cells for heatmap
+	cellSize := 30
+	for i := 0; i < int(math.Min(10, float64(len(req.Data)))); i++ {
+		x := 50 + (i%5)*cellSize
+		y := 80 + (i/5)*cellSize
+		intensity := (i+1)*25
+		color := fmt.Sprintf("rgb(%d, 50, 50)", intensity)
+		svg += fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" fill="%s" opacity="0.8"/>`, 
+			x, y, cellSize-2, cellSize-2, color)
+	}
+	
+	svg += fmt.Sprintf(`<text x="50%%" y="%d" text-anchor="middle" font-family="Arial" font-size="12" fill="gray">%d Data Points</text>
+</svg>`, req.Height-20, len(req.Data))
+	return svg
+}
+
+func (cp *ChartProcessor) generateTreemapSVG(req ChartGenerationProcessorRequest) string {
+	// Generate Treemap SVG
+	svg := fmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg">
+	<rect width="100%%" height="100%%" fill="white"/>
+	<text x="50%%" y="30" text-anchor="middle" font-family="Arial" font-size="16" fill="black">%s</text>
+	<text x="50%%" y="50" text-anchor="middle" font-family="Arial" font-size="14" fill="gray">Treemap</text>
+	<!-- Treemap rectangles would be rendered here based on hierarchical data -->
+	<rect x="50" y="80" width="120" height="80" fill="#FF5722" opacity="0.8"/>
+	<rect x="175" y="80" width="80" height="80" fill="#9C27B0" opacity="0.8"/>
+	<rect x="50" y="165" width="80" height="60" fill="#03A9F4" opacity="0.8"/>
+	<rect x="135" y="165" width="120" height="60" fill="#8BC34A" opacity="0.8"/>
+	<text x="50%%" y="%d" text-anchor="middle" font-family="Arial" font-size="12" fill="gray">%d Categories</text>
+</svg>`, req.Width, req.Height, req.Title, req.Height-20, len(req.Data))
 	return svg
 }
 

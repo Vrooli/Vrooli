@@ -225,7 +225,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o data-tools-api ./cmd/server/main.go",
+          "run": "cd api && go mod download && go build -o data-tools-api ./cmd/server/",
           "description": "Build Go API server",
           "condition": {
             "file_exists": "api/go.mod"

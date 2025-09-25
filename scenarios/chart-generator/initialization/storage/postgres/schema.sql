@@ -73,13 +73,13 @@ CREATE TABLE IF NOT EXISTS chart_generation_history (
     success BOOLEAN NOT NULL DEFAULT true,
     error_message TEXT,
     client_info JSONB, -- User agent, IP, session info if available
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Indexing for analytics
-    INDEX idx_history_chart_type (chart_type),
-    INDEX idx_history_created_at (created_at),
-    INDEX idx_history_success (success)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Create indexes for chart_generation_history
+CREATE INDEX IF NOT EXISTS idx_history_chart_type ON chart_generation_history(chart_type);
+CREATE INDEX IF NOT EXISTS idx_history_created_at ON chart_generation_history(created_at);
+CREATE INDEX IF NOT EXISTS idx_history_success ON chart_generation_history(success);
 
 -- Style Usage Tracking
 -- Helps identify popular styles for recommendations

@@ -15,6 +15,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/handlers"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
+	"github.com/ecosystem-manager/api/pkg/recycler"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
@@ -22,10 +23,11 @@ import (
 
 var (
 	// Core components
-	storage   *tasks.Storage
-	assembler *prompts.Assembler
-	processor *queue.Processor
-	wsManager *websocket.Manager
+	storage      *tasks.Storage
+	assembler    *prompts.Assembler
+	processor    *queue.Processor
+	wsManager    *websocket.Manager
+	taskRecycler *recycler.Recycler
 
 	// Handlers
 	taskHandlers      *handlers.TaskHandlers
@@ -107,7 +109,7 @@ func initializeComponents() error {
 	promptsDir := filepath.Join(scenarioRoot, "prompts")
 
 	// Ensure queue directories exist
-	dirs := []string{"pending", "in-progress", "review", "completed", "failed"}
+	dirs := []string{"pending", "in-progress", "review", "completed", "failed", "completed-finalized", "failed-blocked"}
 	for _, dir := range dirs {
 		fullPath := filepath.Join(queueDir, dir)
 		if err := os.MkdirAll(fullPath, 0755); err != nil {
@@ -133,6 +135,12 @@ func initializeComponents() error {
 	log.Println("✅ WebSocket manager initialized")
 	systemlog.Info("WebSocket manager initialized")
 
+	// Initialize recycler
+	taskRecycler = recycler.New(storage, wsManager)
+	taskRecycler.Start()
+	log.Println("✅ Recycler daemon started")
+	systemlog.Info("Recycler daemon started")
+
 	// Initialize queue processor
 	processor = queue.NewProcessor(
 		30*time.Second, // 30-second processing interval
@@ -148,7 +156,7 @@ func initializeComponents() error {
 	queueHandlers = handlers.NewQueueHandlers(processor, wsManager, storage)
 	discoveryHandlers = handlers.NewDiscoveryHandlers(assembler)
 	healthHandlers = handlers.NewHealthHandlers(processor)
-	settingsHandlers = handlers.NewSettingsHandlers(processor, wsManager)
+	settingsHandlers = handlers.NewSettingsHandlers(processor, wsManager, taskRecycler)
 	log.Println("✅ HTTP handlers initialized")
 
 	return nil
@@ -188,6 +196,7 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/queue/status", queueHandlers.GetQueueStatusHandler).Methods("GET")
 	api.HandleFunc("/queue/trigger", queueHandlers.TriggerQueueProcessingHandler).Methods("POST")
 	api.HandleFunc("/queue/reset-rate-limit", queueHandlers.ResetRateLimitHandler).Methods("POST")
+	api.HandleFunc("/recycler/test", settingsHandlers.TestRecyclerHandler).Methods("POST")
 
 	// System logs
 	api.HandleFunc("/logs", handlers.LogsHandler).Methods("GET")
@@ -207,6 +216,7 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/settings", settingsHandlers.GetSettingsHandler).Methods("GET")
 	api.HandleFunc("/settings", settingsHandlers.UpdateSettingsHandler).Methods("PUT")
 	api.HandleFunc("/settings/reset", settingsHandlers.ResetSettingsHandler).Methods("POST")
+	api.HandleFunc("/settings/recycler/models", settingsHandlers.GetRecyclerModelsHandler).Methods("GET")
 
 	// Discovery routes
 	api.HandleFunc("/resources", discoveryHandlers.GetResourcesHandler).Methods("GET")

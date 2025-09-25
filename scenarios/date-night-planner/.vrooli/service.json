@@ -238,7 +238,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./date-night-planner-api",
+          "run": "./api/date-night-planner-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -291,12 +291,12 @@
         },
         {
           "name": "test-cli-help",
-          "run": "date-night-planner --help",
+          "run": "./cli/date-night-planner --help",
           "description": "Test CLI help command"
         },
         {
           "name": "test-cli-suggest",
-          "run": "date-night-planner suggest test-couple-123 --budget 50 --json",
+          "run": "./cli/date-night-planner suggest test-couple-123 --budget 50 --json",
           "description": "Test CLI suggestion command"
         },
         {
