@@ -30,3 +30,6 @@ results:
         hit_at: "2025-09-24T18:33:29-04:00"
         message: Rate limited at 2025-09-24T18:33:29-04:00. Will retry after 3600 seconds.
         retry_after: 3600
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true

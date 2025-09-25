@@ -26,3 +26,6 @@ updated_at: "2025-09-24T00:42:59-04:00"
 tags: []
 notes: Not sure current status
 results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true

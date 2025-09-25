@@ -165,16 +165,28 @@ scenario::run() {
 }
 scenario::list() {
     local json_output=false
-    
-    # Check for --json flag
-    if [[ "${1:-}" == "--json" ]]; then
-        json_output=true
-    fi
-    
+    local include_ports=false
+    local -a positional=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json)
+                json_output=true
+                ;;
+            --include-ports)
+                include_ports=true
+                ;;
+            *)
+                positional+=("$1")
+                ;;
+        esac
+        shift
+    done
+
     # Collect scenario data
     local scenarios_json="[]"
     local text_output=""
-    
+
     for scenario in "${var_ROOT_DIR}"/scenarios/*/; do
         if [[ -d "$scenario" ]]; then
             local name="${scenario%/}"
@@ -199,6 +211,18 @@ scenario::list() {
                 fi
             fi
             
+            local ports_json="[]"
+            if [[ "$include_ports" == "true" ]]; then
+                local port_dir="$HOME/.vrooli/processes/scenarios/${name}"
+                if compgen -G "${port_dir}"'/*.json' >/dev/null 2>&1; then
+                    local ports_result
+                    ports_result=$(scenario::ports::get_all "$name" true 2>/dev/null || true)
+                    if [[ -n "$ports_result" ]]; then
+                        ports_json=$(echo "$ports_result" | jq '.ports // []' 2>/dev/null || echo "[]")
+                    fi
+                fi
+            fi
+
             if [[ "$json_output" == "true" ]]; then
                 # Build JSON object for this scenario
                 local scenario_obj=$(jq -n \
@@ -208,22 +232,36 @@ scenario::list() {
                     --arg status "$status" \
                     --arg tags "$tags" \
                     --arg path "${scenario}" \
+                    --arg include_ports "$include_ports" \
+                    --argjson ports "$ports_json" \
                     '{
                         name: $name,
                         description: $description,
                         version: $version,
                         status: $status,
                         tags: (if $tags == "" then [] else ($tags | split(",")) end),
-                        path: $path
+                        path: $path,
+                        ports: (if $include_ports == "true" then $ports else [] end)
                     }')
                 scenarios_json=$(echo "$scenarios_json" | jq ". += [$scenario_obj]")
             else
                 # Build text output
+                local line
                 if [[ -n "$description" ]]; then
-                    text_output+="  • $name - $description"$'\n'
+                    line="  • $name - $description"
                 else
-                    text_output+="  • $name"$'\n'
+                    line="  • $name"
                 fi
+
+                if [[ "$include_ports" == "true" && "$ports_json" != "[]" ]]; then
+                    local ports_text
+                    ports_text=$(echo "$ports_json" | jq -r 'map("\(.key)=\(.port)") | join(", ")' 2>/dev/null || echo "")
+                    if [[ -n "$ports_text" ]]; then
+                        line+=" (ports: $ports_text)"
+                    fi
+                fi
+
+                text_output+="$line"$'\n'
             fi
         fi
     done

@@ -75,3 +75,6 @@ results:
     started_at: "2025-09-17T02:11:19-04:00"
     success: true
     timeout_allowed: 51m0s
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true

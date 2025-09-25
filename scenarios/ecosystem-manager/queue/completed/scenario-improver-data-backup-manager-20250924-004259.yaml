@@ -34,3 +34,6 @@ results:
     started_at: "2025-09-24T11:59:58-04:00"
     success: true
     timeout_allowed: 30m0s
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true

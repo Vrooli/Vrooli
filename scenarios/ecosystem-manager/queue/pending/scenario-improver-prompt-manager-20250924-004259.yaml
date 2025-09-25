@@ -36,3 +36,6 @@ results:
     success: false
     timeout_allowed: 30m0s
     timeout_failure: false
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true
