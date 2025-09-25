@@ -2,7 +2,9 @@ package queue
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -221,6 +223,12 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		vrooliRoot = detectVrooliRoot()
 	}
 
+	if err := qp.ensureValidClaudeConfig(); err != nil {
+		msg := fmt.Sprintf("Claude configuration validation failed: %v", err)
+		log.Printf(msg)
+		return &tasks.ClaudeCodeResponse{Success: false, Error: msg}, cleanup, nil
+	}
+
 	timeoutSeconds := int(timeoutDuration.Seconds())
 	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
 	defer cancel()
@@ -423,26 +431,29 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 			if strings.Contains(combinedOutput, "## Task Completion Summary") || strings.Contains(combinedOutput, "## Summary") {
 				qp.appendTaskLog(task.ID, agentTag, "stderr", "INFO: Idle watchdog cancelled context, but Claude returned a summary. Treating as success.")
 				waitErr = nil
+				// Let execution continue as a success path below
 			}
 		}
 
-		if detectMaxTurnsExceeded(combinedOutput) {
-			maxTurnsMsg := fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", currentSettings.MaxTurns)
-			qp.appendTaskLog(task.ID, agentTag, "stderr", maxTurnsMsg)
-			return &tasks.ClaudeCodeResponse{
-				Success:          false,
-				Error:            maxTurnsMsg,
-				Output:           combinedOutput,
-				MaxTurnsExceeded: true,
-			}, cleanup, nil
-		}
+		if waitErr != nil {
+			if detectMaxTurnsExceeded(combinedOutput) {
+				maxTurnsMsg := fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", currentSettings.MaxTurns)
+				qp.appendTaskLog(task.ID, agentTag, "stderr", maxTurnsMsg)
+				return &tasks.ClaudeCodeResponse{
+					Success:          false,
+					Error:            maxTurnsMsg,
+					Output:           combinedOutput,
+					MaxTurnsExceeded: true,
+				}, cleanup, nil
+			}
 
-		if response, handled := qp.handleNonZeroExit(waitErr, combinedOutput, task, agentTag, currentSettings.MaxTurns); handled {
-			return response, cleanup, nil
-		}
+			if response, handled := qp.handleNonZeroExit(waitErr, combinedOutput, task, agentTag, currentSettings.MaxTurns); handled {
+				return response, cleanup, nil
+			}
 
-		log.Printf("Claude Code process errored for task %s: %v", task.ID, waitErr)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to execute Claude Code: %v", waitErr), Output: combinedOutput}, cleanup, nil
+			log.Printf("Claude Code process errored for task %s: %v", task.ID, waitErr)
+			return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to execute Claude Code: %v", waitErr), Output: combinedOutput}, cleanup, nil
+		}
 	}
 
 	if ctxErr == context.Canceled {
@@ -632,6 +643,84 @@ func exitCodeFromError(err error) (int, bool) {
 func detectMaxTurnsExceeded(output string) bool {
 	lower := strings.ToLower(output)
 	return strings.Contains(lower, "max turns") && strings.Contains(lower, "reached")
+}
+
+func (qp *Processor) ensureValidClaudeConfig() error {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("resolve home directory: %w", err)
+	}
+
+	configPaths := []string{
+		filepath.Join(homeDir, ".claude", ".claude.json"),
+		filepath.Join(homeDir, ".claude.json"),
+	}
+
+	validFound := false
+	for _, path := range configPaths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("read claude config %s: %w", path, err)
+		}
+
+		if isValidClaudeConfig(data) {
+			validFound = true
+			continue
+		}
+
+		if err := qp.resetClaudeConfig(path, data); err != nil {
+			return err
+		}
+		log.Printf("Detected invalid Claude config at %s; reset to defaults for automation execution.", path)
+		validFound = true
+	}
+
+	if !validFound {
+		path := configPaths[0]
+		if err := qp.resetClaudeConfig(path, nil); err != nil {
+			return err
+		}
+		log.Printf("Claude config not found; created default config at %s", path)
+	}
+
+	return nil
+}
+
+func (qp *Processor) resetClaudeConfig(path string, original []byte) error {
+	trimmed := bytes.TrimSpace(original)
+	if len(trimmed) > 0 {
+		backupPath := fmt.Sprintf("%s.invalid.%d", path, time.Now().Unix())
+		if err := os.WriteFile(backupPath, original, 0o600); err != nil {
+			log.Printf("Warning: failed to back up invalid Claude config %s: %v", path, err)
+		}
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("ensure claude config directory for %s: %w", path, err)
+	}
+
+	if err := os.WriteFile(path, []byte("{\n}\n"), 0o600); err != nil {
+		return fmt.Errorf("write default claude config to %s: %w", path, err)
+	}
+
+	return nil
+}
+
+func isValidClaudeConfig(data []byte) bool {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return false
+	}
+
+	var parsed map[string]interface{}
+	if err := json.Unmarshal(trimmed, &parsed); err != nil {
+		return false
+	}
+
+	return true
 }
 
 // broadcastUpdate sends updates to all connected WebSocket clients

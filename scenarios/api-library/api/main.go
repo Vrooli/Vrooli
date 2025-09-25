@@ -51,9 +51,9 @@ type PricingTier struct {
 	APIID            string     `json:"api_id"`
 	Name             string     `json:"name"`
 	PricePerRequest  float64    `json:"price_per_request"`
-	PricePerMB       float64    `json:"price_per_mb"`
-	MonthlyC         ***float64 `json:"monthly_cost"`
-	FreeTierRequests int        `json:"free_tier_requests"`
+	PricePerMB       float64 `json:"price_per_mb"`
+	MonthlyCost      float64 `json:"monthly_cost"`
+	FreeTierRequests int     `json:"free_tier_requests"`
 }
 
 type SearchRequest struct {
@@ -143,6 +143,7 @@ func initDB() {
 
 		psqlInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 			dbHost, dbPort, dbUser, dbPassword, dbName)
+		log.Printf("📊 Connecting to database: %s on %s:%s", dbName, dbHost, dbPort)
 	}
 
 	var err error

@@ -927,6 +927,9 @@ func (qp *Processor) getExternalActiveTaskIDsInternal() map[string]struct{} {
 	if err != nil {
 		log.Printf("Warning: failed to list claude-code agents: %v", err)
 	}
+	if tags == nil {
+		tags = make(map[string]struct{})
+	}
 
 	processTags := qp.detectAgentsViaProcesses()
 	for tag := range processTags {

@@ -106,13 +106,16 @@ curl -X POST http://localhost:3250/api/v1/algorithms/validate \
 
 ## Initial Algorithm Set
 
-The library comes pre-seeded with fundamental algorithms:
-- **Sorting**: QuickSort, MergeSort, BubbleSort
-- **Searching**: Binary Search, Linear Search
-- **Graph**: DFS, BFS
-- **Dynamic Programming**: Fibonacci
-- **Trees**: (Coming in v2)
-- **Advanced**: (Coming in v2)
+The library comes pre-seeded with 50+ fundamental algorithms:
+- **Sorting** (15): QuickSort, MergeSort, HeapSort, InsertionSort, BubbleSort, RadixSort, CountingSort, BucketSort, ShellSort, TimSort, and more
+- **Searching** (2): Binary Search, Linear Search  
+- **Graph** (9): DFS, BFS, Dijkstra, Kruskal, Topological Sort, Bellman-Ford, Floyd-Warshall, Prim, and more
+- **Dynamic Programming** (8): Fibonacci, Knapsack, LCS, Edit Distance, Coin Change, Kadane's Algorithm, and more
+- **Tree** (8): Binary Tree Traversal, BST Operations, AVL Tree, Heap Operations, Red-Black Tree, Segment Tree, and more
+- **String** (5): KMP, Rabin-Karp, Boyer-Moore, Z Algorithm, Manacher's Algorithm
+- **Mathematical** (6): GCD, Sieve of Eratosthenes, Fast Exponentiation, Matrix Multiplication, and more
+- **Backtracking** (6): N-Queens, Sudoku Solver, Permutations, Combinations, and more
+- **Greedy** (3): Activity Selection, Huffman Coding, Job Scheduling
 
 ## Future Enhancements
 
@@ -158,9 +161,22 @@ New algorithms can be added via:
 
 All submissions must pass the full test suite before being accepted into the library.
 
+## Known Issues
+
+### Judge0 Integration
+- **Issue**: Judge0 execution fails with cgroup configuration errors
+- **Impact**: Algorithm validation via Judge0 is currently non-functional
+- **Workaround**: Use native Go execution for testing (under development)
+- **Resolution**: Requires system-level cgroup configuration on the host
+
+### API Endpoints
+- Categories and Stats endpoints have minor SQL issues (under investigation)
+- Core search and retrieval endpoints are fully functional
+
 ---
 
-**Status**: Ready for deployment  
+**Status**: ✅ Operational (with Judge0 limitation)  
 **Version**: 1.0.0  
-**Port Range**: 3250-3251  
-**Resource Requirements**: Medium (2GB RAM, Judge0 container)
+**Port Range**: API on dynamic port (check `vrooli scenario status`)  
+**Resource Requirements**: Medium (2GB RAM, Judge0 container)  
+**Last Updated**: 2025-09-24

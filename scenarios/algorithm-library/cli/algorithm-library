@@ -50,6 +50,7 @@ usage() {
     echo -e "  ${GREEN}search${NC}          Search algorithms by query and filters"
     echo -e "  ${GREEN}get${NC}             Get algorithm details and implementations"
     echo -e "  ${GREEN}validate${NC}        Validate your implementation against test cases"
+    echo -e "  ${GREEN}benchmark${NC}       Benchmark algorithm performance"
     echo -e "  ${GREEN}categories${NC}      List all algorithm categories"
     echo -e "  ${GREEN}stats${NC}           Show library statistics"
     echo -e "  ${GREEN}health${NC}          Check service health"
@@ -599,6 +600,128 @@ cmd_health() {
     fi
 }
 
+# Benchmark command
+cmd_benchmark() {
+    local algorithm=""
+    local file=""
+    local language=""
+    local input_sizes="10,100,1000"
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --language)
+                language="$2"
+                shift 2
+                ;;
+            --sizes)
+                input_sizes="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: algorithm-library benchmark <algorithm> <file> [OPTIONS]"
+                echo ""
+                echo "Benchmark your algorithm implementation"
+                echo ""
+                echo "Arguments:"
+                echo "  <algorithm>   Algorithm name or ID"
+                echo "  <file>        Path to implementation file"
+                echo ""
+                echo "Options:"
+                echo "  --language <lang>     Programming language (auto-detected if not specified)"
+                echo "  --sizes <n1,n2,n3>    Input sizes to test (default: 10,100,1000)"
+                echo "  --json                Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  algorithm-library benchmark quicksort my_quicksort.py"
+                echo "  algorithm-library benchmark mergesort sort.py --sizes 100,1000,10000"
+                return 0
+                ;;
+            -*) 
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$algorithm" ]]; then
+                    algorithm="$1"
+                elif [[ -z "$file" ]]; then
+                    file="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$algorithm" ]] || [[ -z "$file" ]]; then
+        echo -e "${RED}❌ Error: Algorithm name and file path are required${NC}" >&2
+        echo "Usage: algorithm-library benchmark <algorithm> <file> [OPTIONS]" >&2
+        return 1
+    fi
+    
+    if [[ ! -f "$file" ]]; then
+        echo -e "${RED}❌ Error: File not found: $file${NC}" >&2
+        return 1
+    fi
+    
+    # Auto-detect language from file extension if not specified
+    if [[ -z "$language" ]]; then
+        case "$file" in
+            *.py)
+                language="python"
+                ;;
+            *.js)
+                language="javascript"
+                ;;
+            *.go)
+                language="go"
+                ;;
+            *.java)
+                language="java"
+                ;;
+            *.cpp|*.cc|*.cxx)
+                language="cpp"
+                ;;
+            *)
+                echo -e "${RED}❌ Error: Could not detect language. Please specify with --language${NC}" >&2
+                return 1
+                ;;
+        esac
+    fi
+    
+    # Read file content
+    local code=$(cat "$file" | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+    
+    # Convert comma-separated sizes to JSON array
+    local sizes_json="[$(echo "$input_sizes" | sed 's/,/,/g')]"
+    
+    echo -e "${BLUE}⚡ Benchmarking $algorithm implementation${NC}"
+    echo "   Language: $language"
+    echo "   Input sizes: $input_sizes"
+    echo ""
+    
+    local response
+    response=$(api_request "POST" "/api/v1/algorithms/benchmark" "{\"algorithm_id\":\"$algorithm\",\"language\":\"$language\",\"code\":\"$code\",\"input_sizes\":$sizes_json}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}Benchmark Results:${NC}"
+        echo ""
+        echo "$response" | jq -r '.results[]? |
+            "Input size: \(.input_size)",
+            "  Execution time: \(.execution_time_ms) ms",
+            "  Memory used: \(.memory_used_bytes) bytes",
+            ""' 2>/dev/null || echo "$response"
+        
+        echo "$response" | jq -r '"Average time: \(.average_time_ms) ms", "Complexity fit: \(.complexity_fit)"' 2>/dev/null
+    fi
+}
+
 # Status command
 cmd_status() {
     echo -e "${CYAN}📚 Algorithm Library Status${NC}"
@@ -666,6 +789,9 @@ main() {
             ;;
         validate)
             cmd_validate "$@"
+            ;;
+        benchmark)
+            cmd_benchmark "$@"
             ;;
         categories)
             cmd_categories "$@"

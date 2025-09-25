@@ -177,17 +177,18 @@ func main() {
 	// Health check
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
-	// Algorithm routes
+	// Algorithm routes - Specific routes MUST come before parameterized routes
 	router.HandleFunc("/api/v1/algorithms/search", searchAlgorithmsHandler).Methods("GET")
-	router.HandleFunc("/api/v1/algorithms/{id}", getAlgorithmHandler).Methods("GET")
-	router.HandleFunc("/api/v1/algorithms/{id}/implementations", getImplementationsHandler).Methods("GET")
-	router.HandleFunc("/api/v1/algorithms/validate", validateAlgorithmHandler).Methods("POST")
 	router.HandleFunc("/api/v1/algorithms/categories", getCategoriesHandler).Methods("GET")
 	router.HandleFunc("/api/v1/algorithms/stats", getStatsHandler).Methods("GET")
+	router.HandleFunc("/api/v1/algorithms/validate", validateAlgorithmHandler).Methods("POST")
+	router.HandleFunc("/api/v1/algorithms/{id}", getAlgorithmHandler).Methods("GET")
+	router.HandleFunc("/api/v1/algorithms/{id}/implementations", getImplementationsHandler).Methods("GET")
 
 	// Algorithm execution endpoints (replaces n8n workflows)
 	router.HandleFunc("/api/algorithm/execute", algorithmExecuteHandler).Methods("POST")
 	router.HandleFunc("/api/algorithm/validate-batch", algorithmValidateBatchHandler).Methods("POST")
+	router.HandleFunc("/api/v1/algorithms/benchmark", benchmarkHandler).Methods("POST")
 
 	// Enable CORS
 	c := cors.New(cors.Options{
@@ -293,17 +294,21 @@ func searchAlgorithmsHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var algo Algorithm
 		var tagsJSON []byte
+		var hasValidatedImpl sql.NullBool
 		
 		err := rows.Scan(
 			&algo.ID, &algo.Name, &algo.DisplayName, &algo.Category,
 			&algo.Description, &algo.ComplexityTime, &algo.ComplexitySpace,
 			&algo.Difficulty, &tagsJSON, &algo.LanguageCount,
-			&algo.TestCaseCount, &algo.HasValidatedImpl,
+			&algo.TestCaseCount, &hasValidatedImpl,
 		)
 		if err != nil {
 			log.Printf("Row scan error: %v", err)
 			continue
 		}
+
+		// Handle nullable boolean
+		algo.HasValidatedImpl = hasValidatedImpl.Valid && hasValidatedImpl.Bool
 
 		// Parse tags JSON
 		if tagsJSON != nil {
@@ -349,7 +354,7 @@ func getAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 			a.complexity_time, a.complexity_space, a.difficulty,
 			array_to_json(a.tags) as tags
 		FROM algorithms a
-		WHERE a.id = $1 OR a.name = $1
+		WHERE a.id::text = $1 OR a.name = $1
 	`, id).Scan(
 		&algo.ID, &algo.Name, &algo.DisplayName, &algo.Category,
 		&algo.Description, &algo.ComplexityTime, &algo.ComplexitySpace,
@@ -389,7 +394,7 @@ func getImplementationsHandler(w http.ResponseWriter, r *http.Request) {
 			a.complexity_time, a.complexity_space, a.difficulty,
 			array_to_json(a.tags) as tags
 		FROM algorithms a
-		WHERE a.id = $1 OR a.name = $1
+		WHERE a.id::text = $1 OR a.name = $1
 	`, id).Scan(
 		&algo.ID, &algo.Name, &algo.DisplayName, &algo.Category,
 		&algo.Description, &algo.ComplexityTime, &algo.ComplexitySpace,

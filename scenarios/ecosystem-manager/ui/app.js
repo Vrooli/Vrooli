@@ -50,10 +50,23 @@ class EcosystemManager {
             failed: []
         };
         this.pendingTargetRefresh = null;
+        this.filterState = {
+            type: '',
+            operation: '',
+            priority: '',
+            search: ''
+        };
+        this.filterQueryParamMap = {
+            type: 'filterType',
+            operation: 'filterOperation',
+            priority: 'filterPriority',
+            search: 'filterSearch'
+        };
 
         // Bind methods
         this.init = this.init.bind(this);
         this.refreshAll = this.refreshAll.bind(this);
+        this.handlePopState = this.handlePopState.bind(this);
     }
 
     async init() {
@@ -102,6 +115,7 @@ class EcosystemManager {
         // Set up modals
         this.setupModals();
         this.initializeTargetSelector();
+        this.initializeFilterControls();
         
         // Initialize tabs if they exist
         const tabButtons = document.querySelectorAll('.tab-button');
@@ -113,6 +127,90 @@ class EcosystemManager {
         if (tabButtons.length > 0) {
             this.switchTab('tasks');
         }
+    }
+
+    initializeFilterControls() {
+        const stateFromUrl = this.getFiltersFromUrl();
+        this.applyFilterStateToUI(stateFromUrl);
+        this.filterState = this.collectFilterStateFromUI();
+        this.filterTasks(this.filterState);
+        window.addEventListener('popstate', this.handlePopState);
+    }
+
+    getFiltersFromUrl() {
+        const params = new URLSearchParams(window.location.search || '');
+        return {
+            type: params.get(this.filterQueryParamMap.type) || '',
+            operation: params.get(this.filterQueryParamMap.operation) || '',
+            priority: params.get(this.filterQueryParamMap.priority) || '',
+            search: params.get(this.filterQueryParamMap.search) || ''
+        };
+    }
+
+    applyFilterStateToUI(state = {}) {
+        const typeSelect = document.getElementById('filter-type');
+        const operationSelect = document.getElementById('filter-operation');
+        const prioritySelect = document.getElementById('filter-priority');
+        const searchInput = document.getElementById('search-input');
+
+        if (typeSelect && typeof state.type === 'string') {
+            typeSelect.value = state.type;
+        }
+
+        if (operationSelect && typeof state.operation === 'string') {
+            operationSelect.value = state.operation;
+        }
+
+        if (prioritySelect && typeof state.priority === 'string') {
+            prioritySelect.value = state.priority;
+        }
+
+        if (searchInput && typeof state.search === 'string') {
+            searchInput.value = state.search;
+        }
+    }
+
+    collectFilterStateFromUI() {
+        return {
+            type: document.getElementById('filter-type')?.value || '',
+            operation: document.getElementById('filter-operation')?.value || '',
+            priority: document.getElementById('filter-priority')?.value || '',
+            search: document.getElementById('search-input')?.value?.trim() || ''
+        };
+    }
+
+    hasFilterStateChanged(newState = {}) {
+        return ['type', 'operation', 'priority', 'search'].some(
+            key => (newState[key] || '') !== (this.filterState?.[key] || '')
+        );
+    }
+
+    updateUrlWithFilters(filterState = {}) {
+        const params = new URLSearchParams(window.location.search || '');
+
+        Object.entries(this.filterQueryParamMap).forEach(([stateKey, paramKey]) => {
+            const value = filterState[stateKey] || '';
+            if (value) {
+                params.set(paramKey, value);
+            } else {
+                params.delete(paramKey);
+            }
+        });
+
+        const queryString = params.toString();
+        const newUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ''}${window.location.hash || ''}`;
+        const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash || ''}`;
+
+        if (newUrl !== currentUrl) {
+            window.history.replaceState({ filters: filterState }, '', newUrl);
+        }
+    }
+
+    handlePopState() {
+        const stateFromUrl = this.getFiltersFromUrl();
+        this.applyFilterStateToUI(stateFromUrl);
+        this.filterState = this.collectFilterStateFromUI();
+        this.filterTasks(this.filterState);
     }
 
     getSelectedTargets() {
@@ -641,6 +739,7 @@ class EcosystemManager {
             counter.textContent = normalizedTasks.length;
         }
 
+        this.filterTasks(this.filterState);
         this.scheduleTargetAvailabilityRefresh();
     }
 
@@ -1525,6 +1624,7 @@ class EcosystemManager {
                 });
                 
                 card.replaceWith(newCard);
+                this.filterTasks(this.filterState);
             }
         } catch (error) {
             console.error('Error refreshing task card:', error);
@@ -2353,11 +2453,11 @@ class EcosystemManager {
         }
     }
 
-    applyFilters() {
-        const type = document.getElementById('filter-type')?.value;
-        const operation = document.getElementById('filter-operation')?.value;
-        const priority = document.getElementById('filter-priority')?.value;
-        const searchText = document.getElementById('search-input')?.value?.toLowerCase();
+    filterTasks(filterState = {}) {
+        const type = filterState.type || '';
+        const operation = filterState.operation || '';
+        const priority = filterState.priority || '';
+        const searchText = ((filterState.search || '').trim()).toLowerCase();
 
         document.querySelectorAll('.task-card').forEach(card => {
             let visible = true;
@@ -2365,23 +2465,41 @@ class EcosystemManager {
             if (type && !card.classList.contains(type)) visible = false;
             if (operation && !card.classList.contains(operation)) visible = false;
             if (priority && !card.classList.contains(priority)) visible = false;
-            if (searchText) {
-                const title = card.querySelector('.task-title')?.textContent?.toLowerCase();
-                const notes = card.querySelector('.task-notes')?.textContent?.toLowerCase();
-                if (!title?.includes(searchText) && !notes?.includes(searchText)) {
-                    visible = false;
-                }
+
+            if (visible && searchText) {
+                const title = card.querySelector('.task-title')?.textContent?.toLowerCase() || '';
+                const notes = card.querySelector('.task-notes')?.textContent?.toLowerCase() || '';
+                visible = title.includes(searchText) || notes.includes(searchText);
             }
 
             card.style.display = visible ? 'block' : 'none';
         });
     }
 
+    applyFilters(options = {}) {
+        const skipUrlUpdate = options.skipUrlUpdate || false;
+        const newState = this.collectFilterStateFromUI();
+        const stateChanged = this.hasFilterStateChanged(newState);
+
+        this.filterState = newState;
+        this.filterTasks(newState);
+
+        if (!skipUrlUpdate && stateChanged) {
+            this.updateUrlWithFilters(newState);
+        }
+    }
+
     clearFilters() {
-        document.getElementById('filter-type').value = '';
-        document.getElementById('filter-operation').value = '';
-        document.getElementById('filter-priority').value = '';
-        document.getElementById('search-input').value = '';
+        const typeSelect = document.getElementById('filter-type');
+        const operationSelect = document.getElementById('filter-operation');
+        const prioritySelect = document.getElementById('filter-priority');
+        const searchInput = document.getElementById('search-input');
+
+        if (typeSelect) typeSelect.value = '';
+        if (operationSelect) operationSelect.value = '';
+        if (prioritySelect) prioritySelect.value = '';
+        if (searchInput) searchInput.value = '';
+
         this.applyFilters();
     }
 

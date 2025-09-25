@@ -289,6 +289,106 @@ SELECT b.id, l.id, 'optimizes', 'Binary search optimizes linear search for sorte
 FROM algorithms b, algorithms l
 WHERE b.name = 'binary_search' AND l.name = 'linear_search';
 
+-- Additional algorithms (50+ total required by PRD)
+INSERT INTO algorithms (name, display_name, category, description, complexity_time, complexity_space, difficulty, tags, common_applications) VALUES
+-- Additional sorting algorithms
+('heapsort', 'HeapSort', 'sorting', 'Comparison-based sorting using binary heap data structure', 'O(n log n)', 'O(1)', 'medium',
+    ARRAY['heap', 'in-place', 'comparison-sort'],
+    ARRAY['Systems programming', 'Embedded systems with memory constraints']),
+('insertion_sort', 'Insertion Sort', 'sorting', 'Builds final sorted array one item at a time', 'O(n²)', 'O(1)', 'easy',
+    ARRAY['stable', 'in-place', 'adaptive', 'online'],
+    ARRAY['Small datasets', 'Nearly sorted data', 'Online algorithms']),
+('selection_sort', 'Selection Sort', 'sorting', 'Divides input into sorted and unsorted regions', 'O(n²)', 'O(1)', 'easy',
+    ARRAY['in-place', 'unstable', 'comparison-sort'],
+    ARRAY['Small datasets', 'Memory-constrained systems']),
+('radix_sort', 'Radix Sort', 'sorting', 'Non-comparative integer sorting algorithm', 'O(nk)', 'O(n+k)', 'hard',
+    ARRAY['non-comparison', 'stable', 'integer-sort'],
+    ARRAY['Large integer datasets', 'String sorting', 'Parallel processing']),
+('counting_sort', 'Counting Sort', 'sorting', 'Sorts by counting objects having distinct key values', 'O(n+k)', 'O(k)', 'medium',
+    ARRAY['non-comparison', 'stable', 'integer-sort'],
+    ARRAY['Small integer range', 'Histogram generation']),
+
+-- Tree algorithms  
+('binary_tree_traversal', 'Binary Tree Traversal', 'tree', 'Inorder, preorder, and postorder tree traversal', 'O(n)', 'O(h)', 'easy',
+    ARRAY['recursion', 'tree-traversal'],
+    ARRAY['Expression evaluation', 'Syntax tree processing']),
+('bst_insert', 'BST Insert', 'tree', 'Insert node in binary search tree maintaining BST property', 'O(h)', 'O(1)', 'easy',
+    ARRAY['binary-search-tree', 'insertion'],
+    ARRAY['Database indexing', 'Symbol tables']),
+('avl_tree', 'AVL Tree Operations', 'tree', 'Self-balancing binary search tree operations', 'O(log n)', 'O(1)', 'hard',
+    ARRAY['self-balancing', 'rotation', 'height-balanced'],
+    ARRAY['Database systems', 'File systems']),
+('heap_operations', 'Heap Operations', 'tree', 'Binary heap insert, delete, heapify operations', 'O(log n)', 'O(1)', 'medium',
+    ARRAY['priority-queue', 'complete-tree'],
+    ARRAY['Priority queues', 'Heap sort', 'Dijkstra algorithm']),
+
+-- More graph algorithms
+('dijkstra', 'Dijkstra Algorithm', 'graph', 'Shortest path in weighted graph with non-negative edges', 'O(E log V)', 'O(V)', 'hard',
+    ARRAY['shortest-path', 'greedy', 'weighted-graph'],
+    ARRAY['GPS navigation', 'Network routing', 'Flight connections']),
+('kruskal', 'Kruskal Algorithm', 'graph', 'Minimum spanning tree using edge sorting', 'O(E log E)', 'O(V)', 'medium',
+    ARRAY['mst', 'greedy', 'union-find'],
+    ARRAY['Network design', 'Circuit design']),
+('topological_sort', 'Topological Sort', 'graph', 'Linear ordering of vertices in DAG', 'O(V + E)', 'O(V)', 'medium',
+    ARRAY['dag', 'ordering', 'dependency'],
+    ARRAY['Build systems', 'Course scheduling', 'Package managers']),
+
+-- Dynamic programming algorithms
+('knapsack_01', '0/1 Knapsack', 'dynamic_programming', 'Select items with maximum value within weight limit', 'O(nW)', 'O(nW)', 'medium',
+    ARRAY['optimization', 'subset-selection'],
+    ARRAY['Resource allocation', 'Budget management']),
+('longest_common_subsequence', 'LCS', 'dynamic_programming', 'Find longest subsequence common to two sequences', 'O(mn)', 'O(mn)', 'medium',
+    ARRAY['string-matching', 'sequence-alignment'],
+    ARRAY['DNA analysis', 'Diff tools', 'Version control']),
+('edit_distance', 'Edit Distance', 'dynamic_programming', 'Minimum operations to transform one string to another', 'O(mn)', 'O(mn)', 'medium',
+    ARRAY['string-matching', 'levenshtein'],
+    ARRAY['Spell correction', 'DNA sequence alignment']),
+('coin_change', 'Coin Change', 'dynamic_programming', 'Minimum coins needed to make change', 'O(nS)', 'O(S)', 'medium',
+    ARRAY['optimization', 'counting'],
+    ARRAY['Currency systems', 'Making change']),
+('kadane_algorithm', 'Kadane Algorithm', 'dynamic_programming', 'Maximum sum subarray', 'O(n)', 'O(1)', 'medium',
+    ARRAY['maximum-subarray', 'optimization'],
+    ARRAY['Financial analysis', 'Image processing']),
+
+-- String algorithms
+('kmp', 'KMP Pattern Matching', 'string', 'Knuth-Morris-Pratt string matching algorithm', 'O(n+m)', 'O(m)', 'hard',
+    ARRAY['pattern-matching', 'failure-function'],
+    ARRAY['Text editors', 'Plagiarism detection']),
+('rabin_karp', 'Rabin-Karp', 'string', 'String matching using rolling hash', 'O(nm)', 'O(1)', 'medium',
+    ARRAY['pattern-matching', 'rolling-hash'],
+    ARRAY['Multiple pattern search', 'Plagiarism detection']),
+
+-- Mathematical algorithms  
+('gcd', 'GCD (Euclidean)', 'math', 'Greatest common divisor using Euclidean algorithm', 'O(log min(a,b))', 'O(1)', 'easy',
+    ARRAY['number-theory', 'euclidean'],
+    ARRAY['Fraction simplification', 'Cryptography']),
+('sieve_eratosthenes', 'Sieve of Eratosthenes', 'math', 'Find all prime numbers up to n', 'O(n log log n)', 'O(n)', 'easy',
+    ARRAY['prime-numbers', 'sieve'],
+    ARRAY['Prime generation', 'Cryptography']),
+('fast_exponentiation', 'Fast Exponentiation', 'math', 'Compute a^n efficiently using binary exponentiation', 'O(log n)', 'O(1)', 'medium',
+    ARRAY['exponentiation', 'binary-method'],
+    ARRAY['Cryptography', 'Matrix operations']),
+
+-- Backtracking algorithms
+('n_queens', 'N-Queens', 'backtracking', 'Place N queens on NxN chessboard with no attacks', 'O(N!)', 'O(N)', 'medium',
+    ARRAY['constraint-satisfaction', 'recursion'],
+    ARRAY['Puzzle solving', 'Constraint programming']),
+('sudoku_solver', 'Sudoku Solver', 'backtracking', 'Solve Sudoku puzzle using backtracking', 'O(9^m)', 'O(1)', 'medium',
+    ARRAY['constraint-satisfaction', 'puzzle'],
+    ARRAY['Game solving', 'Constraint satisfaction']),
+('permutations', 'Generate Permutations', 'backtracking', 'Generate all permutations of a sequence', 'O(n!)', 'O(n)', 'easy',
+    ARRAY['combinatorics', 'recursion'],
+    ARRAY['Combinatorial problems', 'Testing']),
+
+-- Greedy algorithms
+('activity_selection', 'Activity Selection', 'greedy', 'Select maximum non-overlapping activities', 'O(n log n)', 'O(1)', 'easy',
+    ARRAY['interval-scheduling', 'optimization'],
+    ARRAY['Resource scheduling', 'Meeting rooms']),
+('huffman_coding', 'Huffman Coding', 'greedy', 'Optimal prefix-free encoding', 'O(n log n)', 'O(n)', 'medium',
+    ARRAY['compression', 'prefix-codes', 'priority-queue'],
+    ARRAY['Data compression', 'File encoding'])
+ON CONFLICT (name) DO NOTHING;
+
 -- Insert initial performance benchmarks (sample data)
 INSERT INTO benchmarks (algorithm_id, language, input_size, execution_time_ms, memory_used_mb, environment_info)
 SELECT a.id, lang, size, 

@@ -74,7 +74,7 @@ clean: ## Clean build artifacts
 build: ## Build the scenario (if applicable)
 	@echo "$(BLUE)🏗️  Building $(SCENARIO_NAME)...$(RESET)"
 	@if [ -f api/go.mod ]; then \
-		cd api && go build -o $(SCENARIO_NAME)-api ./cmd/server/main.go 2>/dev/null || go build -o $(SCENARIO_NAME)-api main.go 2>/dev/null || echo "Could not build Go API"; \
+		cd api && go build -o $(SCENARIO_NAME)-api *.go 2>/dev/null || echo "Could not build Go API"; \
 	elif [ -f ui/package.json ]; then \
 		cd ui && npm run build 2>/dev/null || echo "Could not build UI"; \
 	else \

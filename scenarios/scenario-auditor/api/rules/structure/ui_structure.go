@@ -1,0 +1,381 @@
+package structure
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+
+	rules "scenario-auditor/rules"
+)
+
+var (
+	ruleDir = discoverRuleDir()
+)
+
+type uiStructurePayload struct {
+	Scenario string   `json:"scenario"`
+	Files    []string `json:"files"`
+}
+
+/*
+Rule: Scenario UI Structure
+Description: Validates that scenarios ship a usable UI shell with the iframe bridge contract implemented
+Reason: Monitoring and orchestration flows depend on a consistent UI entry point and iframe bridge
+Category: structure
+Severity: high
+Targets: ui, structure
+
+<test-case id="missing-ui-directory" should-fail="true">
+  <description>Scenario without a ui directory should fail</description>
+  <input language="json">
+{
+  "scenario": "demo",
+  "files": [
+    "api/main.go"
+  ]
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Missing required ui directory</expected-message>
+</test-case>
+
+<test-case id="missing-index" should-fail="true" path="testdata/missing-index">
+  <description>ui directory exists but index.html missing</description>
+  <input language="json">
+{
+  "scenario": "demo",
+  "files": [
+    "ui/app.js",
+    "ui/src/main.tsx"
+  ]
+}
+  </input>
+  <expected-violations>2</expected-violations>
+  <expected-message>Missing required UI entry file</expected-message>
+</test-case>
+
+<test-case id="missing-bridge" should-fail="true" path="testdata/missing-bridge">
+  <description>Missing iframe bridge file should be flagged</description>
+  <input language="json">
+{
+  "scenario": "demo",
+  "files": [
+    "ui/index.html",
+    "ui/src/main.tsx"
+  ]
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Missing iframe bridge implementation</expected-message>
+</test-case>
+
+<test-case id="missing-bridge-reference" should-fail="false" path="testdata/missing-reference">
+  <description>Bridge exists but nothing imports it (structure-only check should pass)</description>
+  <input language="json">
+{
+  "scenario": "demo",
+  "files": [
+    "ui/index.html",
+    "ui/src/iframeBridgeChild.ts",
+    "ui/src/main.tsx"
+  ]
+}
+  </input>
+</test-case>
+
+<test-case id="react-success" should-fail="false" path="testdata/react-success">
+  <description>React/Vite style UI with bridge wired up</description>
+  <input language="json">
+{
+  "scenario": "demo",
+  "files": [
+    "ui/index.html",
+    "ui/package.json",
+    "ui/src/App.tsx",
+    "ui/src/iframeBridgeChild.ts",
+    "ui/src/main.tsx",
+    "ui/vite.config.ts",
+    "ui/tsconfig.json"
+  ]
+}
+  </input>
+</test-case>
+
+<test-case id="static-success" should-fail="false" path="testdata/static-success">
+  <description>Static HTML UI that includes the bridge script</description>
+  <input language="json">
+{
+  "scenario": "demo",
+  "files": [
+    "ui/index.html",
+    "ui/app.js",
+    "ui/iframeBridgeChild.js",
+    "ui/styles.css"
+  ]
+}
+  </input>
+</test-case>
+*/
+
+// CheckUICore validates the UI shell for required bridge and entry assets.
+func CheckUICore(content string, scenarioPath string, scenario string) ([]rules.Violation, error) {
+	var payload uiStructurePayload
+	if err := json.Unmarshal([]byte(content), &payload); err != nil {
+		return []rules.Violation{newUIViolation("ui", fmt.Sprintf("UI structure payload is invalid JSON: %v", err))}, nil
+	}
+
+	scenarioPath = resolveScenarioRoot(scenarioPath, payload.Scenario)
+	if scenarioPath == "" {
+		if strings.TrimSpace(payload.Scenario) != "" {
+			scenarioPath = resolveScenarioRoot(payload.Scenario, "")
+		} else {
+			return []rules.Violation{newUIViolation("ui", "Unable to determine scenario root for UI validation")}, nil
+		}
+	}
+
+	filesSet := make(map[string]struct{}, len(payload.Files))
+	for _, f := range payload.Files {
+		filesSet[filepath.ToSlash(strings.TrimSpace(f))] = struct{}{}
+	}
+
+	var violations []rules.Violation
+
+	if !uiDirectoryExists(scenarioPath, "ui", filesSet) {
+		violations = append(violations, newUIViolation("ui", "Missing required ui directory"))
+		return violations, nil
+	}
+
+	if !uiFileExists(scenarioPath, "ui/index.html", filesSet) {
+		violations = append(violations, newUIViolation("ui/index.html", "Missing required UI entry file: ui/index.html"))
+	}
+
+	if !hasUIEntrypoint(scenarioPath, filesSet) {
+		violations = append(violations, newUIViolation("ui", "Missing required UI entry script"))
+	}
+
+	if _, ok := findBridgeFile(scenarioPath, filesSet); !ok {
+		violations = append(violations, newUIViolation("ui/iframeBridgeChild", "Missing iframe bridge implementation"))
+	}
+
+	return violations, nil
+}
+
+func hasUIEntrypoint(root string, files map[string]struct{}) bool {
+	entryCandidates := []string{
+		"ui/src/main.tsx",
+		"ui/src/main.ts",
+		"ui/src/main.jsx",
+		"ui/src/main.js",
+		"ui/src/index.tsx",
+		"ui/src/index.ts",
+		"ui/src/index.jsx",
+		"ui/src/index.js",
+		"ui/app.js",
+		"ui/app.ts",
+		"ui/app.tsx",
+		"ui/script.js",
+		"ui/script.ts",
+		"ui/js/app.js",
+		"ui/js/main.js",
+		"ui/server.js",
+		"ui/server.ts",
+	}
+
+	for _, candidate := range entryCandidates {
+		if uiFileExists(root, candidate, files) {
+			return true
+		}
+	}
+	return false
+}
+
+func findBridgeFile(root string, files map[string]struct{}) (string, bool) {
+	candidates := []string{
+		"ui/src/iframeBridgeChild.ts",
+		"ui/src/iframeBridgeChild.tsx",
+		"ui/src/iframeBridgeChild.js",
+		"ui/src/iframeBridgeChild.jsx",
+		"ui/iframeBridgeChild.ts",
+		"ui/iframeBridgeChild.tsx",
+		"ui/iframeBridgeChild.js",
+		"ui/iframeBridgeChild.jsx",
+		"ui/public/iframeBridgeChild.js",
+		"ui/public/iframeBridgeChild.ts",
+		"ui/public/iframeBridgeChild.tsx",
+		"ui/public/iframeBridgeChild.jsx",
+	}
+
+	for _, candidate := range candidates {
+		if uiFileExists(root, candidate, files) {
+			return filepath.ToSlash(candidate), true
+		}
+	}
+	return "", false
+}
+
+func newUIViolation(path, message string) rules.Violation {
+	recommendation := fmt.Sprintf("Add the required resource at %s", path)
+	return rules.Violation{
+		Severity:       "high",
+		Message:        message,
+		FilePath:       filepath.ToSlash(path),
+		Recommendation: recommendation,
+	}
+}
+
+func uiFileExists(root, rel string, known map[string]struct{}) bool {
+	rel = filepath.ToSlash(rel)
+	if _, ok := known[rel]; ok {
+		return true
+	}
+	_, err := os.Stat(filepath.Join(root, rel))
+	return err == nil
+}
+
+func uiDirectoryExists(root, rel string, known map[string]struct{}) bool {
+	rel = filepath.ToSlash(rel)
+	if _, ok := known[rel]; ok {
+		return true
+	}
+	prefix := rel
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+	for path := range known {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+
+	info, err := os.Stat(filepath.Join(root, rel))
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
+
+func resolveScenarioRoot(input string, fallback string) string {
+	candidates := []string{strings.TrimSpace(input), strings.TrimSpace(fallback)}
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+		if resolved := resolveCandidate(candidate); resolved != "" {
+			return resolved
+		}
+	}
+	return ""
+}
+
+func resolveCandidate(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	if filepath.IsAbs(path) {
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			return filepath.Clean(path)
+		}
+		return ""
+	}
+
+	tryPaths := []string{
+		path,
+		filepath.Join(ruleDir, path),
+		filepath.Join(filepath.Dir(ruleDir), path),
+		filepath.Join(filepath.Dir(filepath.Dir(ruleDir)), path),
+	}
+
+	for _, envVar := range []string{"VROOLI_ROOT", "APP_ROOT"} {
+		if base := strings.TrimSpace(os.Getenv(envVar)); base != "" {
+			tryPaths = append(tryPaths, filepath.Join(base, path))
+		}
+	}
+
+	if wd, err := os.Getwd(); err == nil {
+		tryPaths = append(tryPaths,
+			filepath.Join(wd, path),
+			filepath.Join(wd, "rules", "structure", path),
+			filepath.Join(wd, "api", "rules", "structure", path),
+			filepath.Join(wd, "scenarios", "scenario-auditor", "api", "rules", "structure", path),
+		)
+	}
+
+	for _, candidate := range tryPaths {
+		if candidate == "" {
+			continue
+		}
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			if abs, err := filepath.Abs(candidate); err == nil {
+				return abs
+			}
+			return candidate
+		}
+	}
+
+	return ""
+}
+
+func discoverRuleDir() string {
+	if _, file, _, ok := runtime.Caller(0); ok {
+		if strings.HasSuffix(file, "ui_structure.go") {
+			return filepath.Dir(file)
+		}
+	}
+
+	if wd, err := os.Getwd(); err == nil {
+		if dir := searchRuleDirFrom(wd); dir != "" {
+			return dir
+		}
+	}
+
+	for _, envVar := range []string{"VROOLI_ROOT", "APP_ROOT"} {
+		if base := strings.TrimSpace(os.Getenv(envVar)); base != "" {
+			if dir := searchRuleDirFrom(base); dir != "" {
+				return dir
+			}
+		}
+	}
+
+	return "."
+}
+
+func searchRuleDirFrom(start string) string {
+	start = strings.TrimSpace(start)
+	if start == "" {
+		return ""
+	}
+	current := filepath.Clean(start)
+	visited := map[string]struct{}{}
+	for {
+		if _, seen := visited[current]; seen {
+			break
+		}
+		visited[current] = struct{}{}
+
+		candidates := []string{
+			current,
+			filepath.Join(current, "rules", "structure"),
+			filepath.Join(current, "api", "rules", "structure"),
+			filepath.Join(current, "scenarios", "scenario-auditor", "api", "rules", "structure"),
+		}
+
+		for _, candidate := range candidates {
+			file := filepath.Join(candidate, "ui_structure.go")
+			if info, err := os.Stat(file); err == nil && !info.IsDir() {
+				return filepath.Dir(file)
+			}
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+
+	return ""
+}

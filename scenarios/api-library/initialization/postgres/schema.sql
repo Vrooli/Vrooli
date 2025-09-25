@@ -27,13 +27,8 @@ CREATE TABLE IF NOT EXISTS apis (
     tags TEXT[], -- Array of tags for categorization
     capabilities TEXT[], -- Array of capability keywords
     
-    -- Search optimization
-    search_vector tsvector GENERATED ALWAYS AS (
-        setweight(to_tsvector('english', coalesce(name, '')), 'A') ||
-        setweight(to_tsvector('english', coalesce(provider, '')), 'B') ||
-        setweight(to_tsvector('english', coalesce(description, '')), 'C') ||
-        setweight(to_tsvector('english', coalesce(array_to_string(tags, ' '), '')), 'D')
-    ) STORED
+    -- Search optimization (added as separate column, will be populated via trigger)
+    search_vector tsvector
 );
 
 -- Endpoints table
@@ -204,8 +199,24 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Create search vector update trigger
+CREATE OR REPLACE FUNCTION update_search_vector()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.search_vector := 
+        setweight(to_tsvector('english', coalesce(NEW.name, '')), 'A') ||
+        setweight(to_tsvector('english', coalesce(NEW.provider, '')), 'B') ||
+        setweight(to_tsvector('english', coalesce(NEW.description, '')), 'C') ||
+        setweight(to_tsvector('english', coalesce(array_to_string(NEW.tags, ' '), '')), 'D');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TRIGGER update_apis_updated_at BEFORE UPDATE ON apis
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_apis_search_vector BEFORE INSERT OR UPDATE ON apis
+    FOR EACH ROW EXECUTE FUNCTION update_search_vector();
 
 CREATE TRIGGER update_endpoints_updated_at BEFORE UPDATE ON endpoints
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
