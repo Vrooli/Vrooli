@@ -12,8 +12,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// RecurringInvoice represents a recurring invoice template
-type RecurringInvoice struct {
+// RecurringInvoiceTemplate represents a recurring invoice template
+type RecurringInvoiceTemplate struct {
 	ID             string        `json:"id"`
 	CompanyID      string        `json:"company_id"`
 	ClientID       string        `json:"client_id"`
@@ -38,7 +38,7 @@ type RecurringInvoice struct {
 
 // CreateRecurringInvoiceHandler creates a new recurring invoice template
 func createRecurringInvoiceHandler(w http.ResponseWriter, r *http.Request) {
-	var recurring RecurringInvoice
+	var recurring RecurringInvoiceTemplate
 	if err := json.NewDecoder(r.Body).Decode(&recurring); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -197,10 +197,11 @@ func generateDueInvoices() {
 	defer rows.Close()
 	
 	for rows.Next() {
-		var recurring RecurringInvoice
+		var recurring RecurringInvoiceTemplate
 		var endDate sql.NullString
+		var idInt int
 		
-		err := rows.Scan(&recurring.ID, &recurring.CompanyID, &recurring.ClientID,
+		err := rows.Scan(&idInt, &recurring.CompanyID, &recurring.ClientID,
 			&recurring.TemplateName, &recurring.Frequency, &recurring.NextDate,
 			&endDate, &recurring.Currency, &recurring.TaxRate, &recurring.TaxName,
 			&recurring.Notes, &recurring.Terms, &recurring.DaysDue, &recurring.AutoSend)
@@ -210,6 +211,7 @@ func generateDueInvoices() {
 			continue
 		}
 		
+		recurring.ID = fmt.Sprintf("%d", idInt)
 		if endDate.Valid {
 			recurring.EndDate = endDate.String
 		}

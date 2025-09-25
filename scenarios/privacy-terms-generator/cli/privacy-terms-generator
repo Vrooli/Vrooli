@@ -222,9 +222,14 @@ cmd_generate() {
     print_info "Generating ${doc_type} for ${business_name}..."
     
     local content
-    content=$(generate_document "$doc_type" "$business_name" "$business_type" "$jurisdiction" "$format" "$custom_data")
+    content=$(generate_document "$doc_type" "$business_name" "$business_type" "$jurisdiction" "$format" "$custom_data" 2>/dev/null)
     
-    if [ $? -eq 0 ]; then
+    # Fallback to simple generator if database fails
+    if [ -z "$content" ] || [ $? -ne 0 ]; then
+        content=$("${SCENARIO_ROOT}/lib/simple-generator.sh" "$doc_type" "$business_name" "$jurisdiction" "$email" "$website")
+    fi
+    
+    if [ -n "$content" ]; then
         if [ -n "$output_file" ]; then
             echo "$content" > "$output_file"
             print_success "Document saved to ${output_file}"

@@ -93,15 +93,26 @@ func initLogger() {
 func initDB() error {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		// Build from individual components - REQUIRED, no defaults
+		// Build from individual components with sensible defaults for Vrooli
 		dbHost := os.Getenv("POSTGRES_HOST")
+		if dbHost == "" {
+			dbHost = "localhost"
+		}
 		dbPort := os.Getenv("POSTGRES_PORT")
+		if dbPort == "" {
+			dbPort = "5433" // Vrooli postgres runs on 5433
+		}
 		dbUser := os.Getenv("POSTGRES_USER")
+		if dbUser == "" {
+			dbUser = "vrooli"
+		}
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		if dbPassword == "" {
+			dbPassword = "vrooli"
+		}
 		dbName := os.Getenv("POSTGRES_DB")
-		
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			return fmt.Errorf("database configuration missing. Provide DATABASE_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		if dbName == "" {
+			dbName = "vrooli"
 		}
 		
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -508,9 +519,12 @@ func main() {
 	}
 
 	// Start server
-	port := os.Getenv("PORT")
+	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = "3250"
+		port = os.Getenv("PORT")
+		if port == "" {
+			port = "3250"
+		}
 	}
 
 	srv := &http.Server{

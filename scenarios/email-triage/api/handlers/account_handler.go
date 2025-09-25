@@ -3,10 +3,10 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	
 	"email-triage/models"
@@ -334,6 +334,7 @@ func (ah *AccountHandler) SyncAccount(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	accountID := vars["id"]
+	_ = accountID // TODO: Use accountID for sync
 
 	// TODO: Implement email synchronization
 	// This would fetch new emails from the account and process them
@@ -359,6 +360,5 @@ func getUserIDFromContext(r *http.Request) string {
 }
 
 func generateUUID() string {
-	// Placeholder UUID generation - use proper UUID library in production
-	return fmt.Sprintf("uuid-%d", time.Now().UnixNano())
+	return uuid.New().String()
 }

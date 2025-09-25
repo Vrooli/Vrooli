@@ -526,7 +526,7 @@ func (app *App) CreateComparison(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) DeleteComparison(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	comparisonID := vars["id"]
+	_ = vars["id"] // comparisonID - TODO: implement undo logic
 	
 	// TODO: Implement undo logic (revert ratings)
 	// For now, just mark as deleted or remove
@@ -627,7 +627,7 @@ func (app *App) getProgress(listID string) (Progress, error) {
 	}
 	
 	// Total possible comparisons is n*(n-1)/2
-	totalPossible := itemCount * (itemCount - 1) / 2
+	// totalPossible := itemCount * (itemCount - 1) / 2
 	
 	// But we don't need all comparisons for good rankings
 	// Use n*log(n) as a reasonable target

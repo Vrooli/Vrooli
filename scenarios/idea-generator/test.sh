@@ -60,7 +60,7 @@ run_test() {
 
 # Test Functions
 test_postgres_connection() {
-    local port="${RESOURCE_PORTS[postgres]:-5432}"
+    local port="${RESOURCE_PORTS_POSTGRES:-5432}"
     PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" psql \
         -h localhost \
         -p "$port" \
@@ -70,37 +70,37 @@ test_postgres_connection() {
 }
 
 test_redis_connection() {
-    local port="${RESOURCE_PORTS[redis]:-6379}"
+    local port="${RESOURCE_PORTS_REDIS:-6379}"
     redis-cli -p "$port" ping >/dev/null 2>&1
 }
 
 test_minio_connection() {
-    local port="${RESOURCE_PORTS[minio]:-9000}"
+    local port="${RESOURCE_PORTS_MINIO:-9000}"
     curl -f "http://localhost:$port/minio/health/live" >/dev/null 2>&1
 }
 
 test_qdrant_connection() {
-    local port="${RESOURCE_PORTS[qdrant]:-6333}"
+    local port="${RESOURCE_PORTS_QDRANT:-6333}"
     curl -f "http://localhost:$port/health" >/dev/null 2>&1
 }
 
 test_ollama_connection() {
-    local port="${RESOURCE_PORTS[ollama]:-11434}"
+    local port="${RESOURCE_PORTS_OLLAMA:-11434}"
     curl -f "http://localhost:$port/api/version" >/dev/null 2>&1
 }
 
 test_unstructured_connection() {
-    local port="${RESOURCE_PORTS[unstructured-io]:-11450}"
+    local port="${RESOURCE_PORTS_UNSTRUCTURED:-11450}"
     curl -f "http://localhost:$port/healthcheck" >/dev/null 2>&1
 }
 
 test_n8n_connection() {
-    local port="${RESOURCE_PORTS[n8n]:-5678}"
+    local port="${RESOURCE_PORTS_N8N:-5678}"
     curl -f "http://localhost:$port/healthz" >/dev/null 2>&1
 }
 
 test_windmill_connection() {
-    local port="${RESOURCE_PORTS[windmill]:-5681}"
+    local port="${RESOURCE_PORTS_WINDMILL:-5681}"
     curl -f "http://localhost:$port/api/version" >/dev/null 2>&1
 }
 
@@ -122,7 +122,7 @@ test_database_schema() {
 }
 
 test_qdrant_collections() {
-    local port="${RESOURCE_PORTS[qdrant]:-6333}"
+    local port="${RESOURCE_PORTS_QDRANT:-6333}"
     local response=$(curl -s "http://localhost:$port/collections")
     echo "$response" | grep -q "ideas" && \
     echo "$response" | grep -q "documents" && \
@@ -130,20 +130,20 @@ test_qdrant_collections() {
 }
 
 test_minio_buckets() {
-    local port="${RESOURCE_PORTS[minio]:-9000}"
+    local port="${RESOURCE_PORTS_MINIO:-9000}"
     # Check if key buckets exist
     curl -s -I "http://localhost:$port/idea-documents" | grep -q "200\|404" && \
     curl -s -I "http://localhost:$port/processed-content" | grep -q "200\|404"
 }
 
 test_n8n_workflows() {
-    local port="${RESOURCE_PORTS[n8n]:-5678}"
+    local port="${RESOURCE_PORTS_N8N:-5678}"
     local workflows=$(curl -s "http://localhost:$port/rest/workflows" | grep -o '"name"' | wc -l)
     [[ $workflows -ge 5 ]] # We expect at least 5 workflows
 }
 
 test_idea_generation_workflow() {
-    local port="${RESOURCE_PORTS[n8n]:-5678}"
+    local port="${RESOURCE_PORTS_N8N:-5678}"
     # Test the idea generation workflow
     local response=$(curl -s -X POST "http://localhost:$port/webhook/generate-ideas" \
         -H "Content-Type: application/json" \
@@ -157,7 +157,7 @@ test_idea_generation_workflow() {
 }
 
 test_semantic_search_workflow() {
-    local port="${RESOURCE_PORTS[n8n]:-5678}"
+    local port="${RESOURCE_PORTS_N8N:-5678}"
     # Test the semantic search workflow
     local response=$(curl -s -X POST "http://localhost:$port/webhook/semantic-search" \
         -H "Content-Type: application/json" \
@@ -170,7 +170,7 @@ test_semantic_search_workflow() {
 }
 
 test_campaign_operations() {
-    local port="${RESOURCE_PORTS[n8n]:-5678}"
+    local port="${RESOURCE_PORTS_N8N:-5678}"
     # Test campaign sync workflow
     local response=$(curl -s -X POST "http://localhost:$port/webhook/campaign-sync" \
         -H "Content-Type: application/json" \
@@ -184,14 +184,14 @@ test_campaign_operations() {
 }
 
 test_windmill_app() {
-    local port="${RESOURCE_PORTS[windmill]:-5681}"
+    local port="${RESOURCE_PORTS_WINDMILL:-5681}"
     # Check if Windmill app is deployed
     local apps=$(curl -s "http://localhost:$port/api/apps" 2>/dev/null || echo '[]')
     echo "$apps" | grep -q "Idea Generator" || [[ "$apps" != "[]" ]]
 }
 
 test_ollama_models() {
-    local port="${RESOURCE_PORTS[ollama]:-11434}"
+    local port="${RESOURCE_PORTS_OLLAMA:-11434}"
     # Check if required models are available
     local models=$(curl -s "http://localhost:$port/api/tags" 2>/dev/null || echo '{}')
     echo "$models" | grep -q "llama3.2\|mistral"

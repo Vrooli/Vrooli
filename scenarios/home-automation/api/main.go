@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -125,18 +126,24 @@ func main() {
 	// Setup routes
 	router := mux.NewRouter()
 	
+	// Root health check for lifecycle system
+	router.HandleFunc("/health", app.HealthCheck).Methods("GET")
+	
 	// API routes
 	api := router.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/health", app.HealthCheck).Methods("GET")
 	
 	// Device Control routes
 	api.HandleFunc("/devices/control", app.ControlDevice).Methods("POST")
+	api.HandleFunc("/devices/{id}/control", app.ControlDevice).Methods("POST")
 	api.HandleFunc("/devices/{id}/status", app.GetDeviceStatus).Methods("GET")
 	api.HandleFunc("/devices", app.ListDevices).Methods("GET")
 	
-	// Safety Validation routes
+	// Automation routes
+	api.HandleFunc("/automations/generate", app.GenerateAutomation).Methods("POST")
 	api.HandleFunc("/automations/validate", app.ValidateAutomation).Methods("POST")
 	api.HandleFunc("/automations/{id}/safety-check", app.GetSafetyStatus).Methods("GET")
+	api.HandleFunc("/automations", app.ListAutomations).Methods("GET")
 	
 	// Calendar Automation routes
 	api.HandleFunc("/calendar/trigger", app.HandleCalendarEvent).Methods("POST")
@@ -287,12 +294,23 @@ func (app *App) checkDatabaseHealth() map[string]interface{} {
 	var deviceCount int
 	deviceQuery := "SELECT COUNT(*) FROM devices"
 	if err := app.DB.QueryRowContext(ctx, deviceQuery).Scan(&deviceCount); err != nil {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code": "DATABASE_DEVICES_TABLE_ERROR",
-			"message": "Failed to query devices table: " + err.Error(),
-			"category": "resource",
-			"retryable": true,
+		// Check if table doesn't exist vs other errors
+		if strings.Contains(err.Error(), "does not exist") {
+			health["status"] = "degraded"
+			health["error"] = map[string]interface{}{
+				"code": "DATABASE_TABLES_MISSING",
+				"message": "Database tables not initialized. Run database setup.",
+				"category": "resource",
+				"retryable": true,
+			}
+		} else {
+			health["status"] = "degraded"
+			health["error"] = map[string]interface{}{
+				"code": "DATABASE_DEVICES_TABLE_ERROR",
+				"message": "Failed to query devices table: " + err.Error(),
+				"category": "resource",
+				"retryable": true,
+			}
 		}
 	} else {
 		health["checks"].(map[string]interface{})["devices_table"] = "ok"
@@ -321,7 +339,7 @@ func (app *App) checkDatabaseHealth() map[string]interface{} {
 
 	// Test automation_rules table query
 	var ruleCount int
-	ruleQuery := "SELECT COUNT(*) FROM automation_rules WHERE is_active = true"
+	ruleQuery := "SELECT COUNT(*) FROM automation_rules WHERE active = true"
 	if err := app.DB.QueryRowContext(ctx, ruleQuery).Scan(&ruleCount); err != nil {
 		if health["status"] == "healthy" {
 			health["status"] = "degraded"
@@ -485,7 +503,7 @@ func (app *App) checkCalendarScheduler() map[string]interface{} {
 
 	// Check scheduled automation count
 	var scheduledCount int
-	scheduledQuery := "SELECT COUNT(*) FROM scheduled_automations WHERE is_active = true"
+	scheduledQuery := "SELECT COUNT(*) FROM automation_rules WHERE trigger_type = 'schedule' AND active = true"
 	if err := app.DB.QueryRowContext(ctx, scheduledQuery).Scan(&scheduledCount); err != nil {
 		if health["status"] == "healthy" {
 			health["status"] = "degraded"
@@ -562,6 +580,46 @@ func (app *App) ListDevices(w http.ResponseWriter, r *http.Request) {
 }
 
 // Safety Validation handlers
+func (app *App) GenerateAutomation(w http.ResponseWriter, r *http.Request) {
+	// Parse request body
+	var req struct {
+		Description string   `json:"description"`
+		ProfileID   string   `json:"profile_id"`
+		Context     string   `json:"schedule_context,omitempty"`
+		Devices     []string `json:"target_devices,omitempty"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	// TODO: Integrate with Claude Code for generation
+	// For now, return a mock response
+	response := map[string]interface{}{
+		"automation_id":        "auto-" + fmt.Sprintf("%d", time.Now().Unix()),
+		"generated_code":       "# Generated automation placeholder",
+		"explanation":          "Automation generation via Claude Code pending integration",
+		"estimated_energy_impact": "minimal",
+		"conflicts":            []string{},
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (app *App) ListAutomations(w http.ResponseWriter, r *http.Request) {
+	// TODO: Query database for automations
+	// For now, return empty list
+	response := map[string]interface{}{
+		"automations": []map[string]interface{}{},
+		"total":       0,
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func (app *App) ValidateAutomation(w http.ResponseWriter, r *http.Request) {
 	var req AutomationValidationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

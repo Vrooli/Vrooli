@@ -6,8 +6,14 @@ set -euo pipefail
 
 # Source var.sh first with proper relative path
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
-# shellcheck disable=SC1091
-source "${APP_ROOT}/lib/utils/var.sh"
+# Skip sourcing var.sh if it doesn't exist
+if [ -f "${APP_ROOT}/lib/utils/var.sh" ]; then
+    # shellcheck disable=SC1091
+    source "${APP_ROOT}/lib/utils/var.sh"
+else
+    # Define minimal variables if var.sh doesn't exist
+    var_SCRIPTS_SCENARIOS_DIR="${APP_ROOT}/scripts/scenarios"
+fi
 
 # Resolve paths
 SCENARIO_DIR="${APP_ROOT}/scenarios/research-assistant"

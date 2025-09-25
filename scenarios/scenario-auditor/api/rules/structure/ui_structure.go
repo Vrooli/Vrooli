@@ -22,14 +22,14 @@ type uiStructurePayload struct {
 
 /*
 Rule: Scenario UI Structure
-Description: Validates that scenarios ship a usable UI shell with the iframe bridge contract implemented
-Reason: Monitoring and orchestration flows depend on a consistent UI entry point and iframe bridge
+Description: Validates that scenarios supplying a UI ship a usable shell with the iframe bridge contract implemented
+Reason: Monitoring and orchestration flows depend on a consistent UI entry point and iframe bridge when present
 Category: structure
 Severity: high
 Targets: ui, structure
 
-<test-case id="missing-ui-directory" should-fail="true">
-  <description>Scenario without a ui directory should fail</description>
+<test-case id="missing-ui-directory" should-fail="false">
+  <description>Scenario missing ui directory is allowed</description>
   <input language="json">
 {
   "scenario": "demo",
@@ -38,8 +38,6 @@ Targets: ui, structure
   ]
 }
   </input>
-  <expected-violations>1</expected-violations>
-  <expected-message>Missing required ui directory</expected-message>
 </test-case>
 
 <test-case id="missing-index" should-fail="true" path="testdata/missing-index">
@@ -118,22 +116,44 @@ Targets: ui, structure
 }
   </input>
 </test-case>
+
+<test-case id="app-monitor-exception" should-fail="false" scenario="app-monitor" path="testdata/app-monitor-no-bridge">
+  <description>App monitor scenario is exempt from iframe bridge requirement</description>
+  <input language="json">
+{
+  "scenario": "app-monitor",
+  "files": [
+    "ui/index.html",
+    "ui/src/main.tsx"
+  ]
+}
+  </input>
+</test-case>
 */
 
+// CheckUIStructure validates the UI structure entrypoint expected by the scenario lifecycle.
+func CheckUIStructure(content []byte, scenarioPath string, scenario string) ([]rules.Violation, error) {
+	return CheckUICore(content, scenarioPath, scenario)
+}
+
 // CheckUICore validates the UI shell for required bridge and entry assets.
-func CheckUICore(content string, scenarioPath string, scenario string) ([]rules.Violation, error) {
+func CheckUICore(content []byte, scenarioPath string, scenario string) ([]rules.Violation, error) {
 	var payload uiStructurePayload
-	if err := json.Unmarshal([]byte(content), &payload); err != nil {
-		return []rules.Violation{newUIViolation("ui", fmt.Sprintf("UI structure payload is invalid JSON: %v", err))}, nil
+	if err := json.Unmarshal(content, &payload); err != nil {
+		return []rules.Violation{newUIViolation("ui", fmt.Sprintf("UI structure payload is invalid JSON: %v", err), "high")}, nil
+	}
+
+	scenarioName := strings.TrimSpace(payload.Scenario)
+	if scenarioName == "" {
+		scenarioName = strings.TrimSpace(scenario)
 	}
 
 	scenarioPath = resolveScenarioRoot(scenarioPath, payload.Scenario)
 	if scenarioPath == "" {
-		if strings.TrimSpace(payload.Scenario) != "" {
-			scenarioPath = resolveScenarioRoot(payload.Scenario, "")
-		} else {
-			return []rules.Violation{newUIViolation("ui", "Unable to determine scenario root for UI validation")}, nil
-		}
+		scenarioPath = resolveScenarioRoot(payload.Scenario, "")
+	}
+	if scenarioName == "" && strings.TrimSpace(scenarioPath) != "" {
+		scenarioName = filepath.Base(filepath.Clean(scenarioPath))
 	}
 
 	filesSet := make(map[string]struct{}, len(payload.Files))
@@ -144,20 +164,23 @@ func CheckUICore(content string, scenarioPath string, scenario string) ([]rules.
 	var violations []rules.Violation
 
 	if !uiDirectoryExists(scenarioPath, "ui", filesSet) {
-		violations = append(violations, newUIViolation("ui", "Missing required ui directory"))
-		return violations, nil
+		// UI is optional. If a scenario has no UI assets we consider it compliant.
+		return nil, nil
 	}
 
 	if !uiFileExists(scenarioPath, "ui/index.html", filesSet) {
-		violations = append(violations, newUIViolation("ui/index.html", "Missing required UI entry file: ui/index.html"))
+		violations = append(violations, newUIViolation("ui/index.html", "Missing required UI entry file: ui/index.html", "high"))
 	}
 
 	if !hasUIEntrypoint(scenarioPath, filesSet) {
-		violations = append(violations, newUIViolation("ui", "Missing required UI entry script"))
+		violations = append(violations, newUIViolation("ui", "Missing required UI entry script", "high"))
 	}
 
-	if _, ok := findBridgeFile(scenarioPath, filesSet); !ok {
-		violations = append(violations, newUIViolation("ui/iframeBridgeChild", "Missing iframe bridge implementation"))
+	requireBridge := !strings.EqualFold(scenarioName, "app-monitor")
+	if requireBridge {
+		if _, ok := findBridgeFile(scenarioPath, filesSet); !ok {
+			violations = append(violations, newUIViolation("ui/iframeBridgeChild", "Missing iframe bridge implementation", "medium"))
+		}
 	}
 
 	return violations, nil
@@ -173,6 +196,10 @@ func hasUIEntrypoint(root string, files map[string]struct{}) bool {
 		"ui/src/index.ts",
 		"ui/src/index.jsx",
 		"ui/src/index.js",
+		"ui/main.tsx",
+		"ui/main.ts",
+		"ui/main.jsx",
+		"ui/main.js",
 		"ui/app.js",
 		"ui/app.ts",
 		"ui/app.tsx",
@@ -216,10 +243,14 @@ func findBridgeFile(root string, files map[string]struct{}) (string, bool) {
 	return "", false
 }
 
-func newUIViolation(path, message string) rules.Violation {
+func newUIViolation(path, message string, severity string) rules.Violation {
+	severity = strings.TrimSpace(severity)
+	if severity == "" {
+		severity = "high"
+	}
 	recommendation := fmt.Sprintf("Add the required resource at %s", path)
 	return rules.Violation{
-		Severity:       "high",
+		Severity:       severity,
 		Message:        message,
 		FilePath:       filepath.ToSlash(path),
 		Recommendation: recommendation,

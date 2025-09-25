@@ -81,6 +81,65 @@ type InflationResult struct {
 	TotalInflation   float64 `json:"total_inflation_percent"`
 }
 
+type EmergencyFundInput struct {
+	MonthlyExpenses      float64 `json:"monthly_expenses"`
+	JobStability         string  `json:"job_stability"` // stable, moderate, unstable
+	NumberOfDependents   int     `json:"number_of_dependents"`
+	HasDisabilityInsurance bool  `json:"has_disability_insurance"`
+}
+
+type EmergencyFundResult struct {
+	MinimumMonths       int     `json:"minimum_months"`
+	RecommendedMonths   int     `json:"recommended_months"`
+	MinimumAmount       float64 `json:"minimum_amount"`
+	RecommendedAmount   float64 `json:"recommended_amount"`
+	CurrentShortfall    float64 `json:"current_shortfall,omitempty"`
+}
+
+type DebtPayoffInput struct {
+	Debts              []Debt  `json:"debts"`
+	ExtraPayment       float64 `json:"extra_monthly_payment"`
+	Method             string  `json:"method"` // "avalanche" or "snowball"
+}
+
+type Debt struct {
+	Name               string  `json:"name"`
+	Balance            float64 `json:"balance"`
+	MinimumPayment     float64 `json:"minimum_payment"`
+	InterestRate       float64 `json:"interest_rate"`
+}
+
+type DebtPayoffResult struct {
+	Method             string           `json:"method"`
+	TotalMonths        int              `json:"total_months"`
+	TotalInterestPaid  float64          `json:"total_interest_paid"`
+	TotalPaid          float64          `json:"total_paid"`
+	PayoffSchedule     []DebtSchedule   `json:"payoff_schedule"`
+	SavingsVsMinimum   float64          `json:"savings_vs_minimum"`
+}
+
+type DebtSchedule struct {
+	DebtName          string  `json:"debt_name"`
+	PayoffMonth       int     `json:"payoff_month"`
+	TotalPaid         float64 `json:"total_paid"`
+	InterestPaid      float64 `json:"interest_paid"`
+}
+
+type BudgetAllocationInput struct {
+	MonthlyIncome       float64 `json:"monthly_income"`
+	BudgetMethod        string  `json:"budget_method"` // 50-30-20, 70-20-10, zero-based
+}
+
+type BudgetAllocationResult struct {
+	Needs               float64 `json:"needs_amount"`
+	NeedsPercent        float64 `json:"needs_percent"`
+	Wants               float64 `json:"wants_amount"`
+	WantsPercent        float64 `json:"wants_percent"`
+	Savings             float64 `json:"savings_amount"`
+	SavingsPercent      float64 `json:"savings_percent"`
+	Method              string  `json:"method"`
+}
+
 func CalculateFIRE(input FIREInput) FIREResult {
 	if input.TargetWithdrawalRate == 0 {
 		input.TargetWithdrawalRate = 4.0
@@ -234,5 +293,179 @@ func CalculateInflation(input InflationInput) InflationResult {
 		FutureValue:     futureValue,
 		PurchasingPower: purchasingPower,
 		TotalInflation:  totalInflation,
+	}
+}
+
+func CalculateEmergencyFund(input EmergencyFundInput) EmergencyFundResult {
+	// Base months needed based on job stability
+	minMonths := 3
+	recMonths := 6
+	
+	switch input.JobStability {
+	case "unstable":
+		minMonths = 6
+		recMonths = 12
+	case "moderate":
+		minMonths = 4
+		recMonths = 9
+	case "stable":
+		minMonths = 3
+		recMonths = 6
+	}
+	
+	// Add months for dependents
+	if input.NumberOfDependents > 0 {
+		minMonths += input.NumberOfDependents
+		recMonths += input.NumberOfDependents * 2
+	}
+	
+	// Reduce if has disability insurance
+	if input.HasDisabilityInsurance {
+		minMonths = int(float64(minMonths) * 0.8)
+		recMonths = int(float64(recMonths) * 0.8)
+	}
+	
+	minAmount := float64(minMonths) * input.MonthlyExpenses
+	recAmount := float64(recMonths) * input.MonthlyExpenses
+	
+	return EmergencyFundResult{
+		MinimumMonths:     minMonths,
+		RecommendedMonths: recMonths,
+		MinimumAmount:     minAmount,
+		RecommendedAmount: recAmount,
+	}
+}
+
+func CalculateDebtPayoff(input DebtPayoffInput) DebtPayoffResult {
+	// Sort debts based on method
+	debts := make([]Debt, len(input.Debts))
+	copy(debts, input.Debts)
+	
+	if input.Method == "avalanche" {
+		// Sort by interest rate (highest first)
+		for i := 0; i < len(debts)-1; i++ {
+			for j := i + 1; j < len(debts); j++ {
+				if debts[j].InterestRate > debts[i].InterestRate {
+					debts[i], debts[j] = debts[j], debts[i]
+				}
+			}
+		}
+	} else { // snowball - sort by balance (lowest first)
+		for i := 0; i < len(debts)-1; i++ {
+			for j := i + 1; j < len(debts); j++ {
+				if debts[j].Balance < debts[i].Balance {
+					debts[i], debts[j] = debts[j], debts[i]
+				}
+			}
+		}
+	}
+	
+	// Calculate payoff schedule
+	totalMonths := 0
+	totalInterest := 0.0
+	totalPaid := 0.0
+	schedule := []DebtSchedule{}
+	extraPayment := input.ExtraPayment
+	
+	// Working copies of debt balances
+	workingDebts := make([]Debt, len(debts))
+	copy(workingDebts, debts)
+	
+	// Simple simulation - pay minimum on all, extra on targeted debt
+	for len(workingDebts) > 0 {
+		totalMonths++
+		monthlyPayment := 0.0
+		
+		// Pay debts in order
+		for i := 0; i < len(workingDebts); i++ {
+			monthlyRate := workingDebts[i].InterestRate / 100 / 12
+			interest := workingDebts[i].Balance * monthlyRate
+			
+			payment := workingDebts[i].MinimumPayment
+			if i == 0 && extraPayment > 0 {
+				payment += extraPayment
+			}
+			
+			if payment > workingDebts[i].Balance + interest {
+				payment = workingDebts[i].Balance + interest
+			}
+			
+			principal := payment - interest
+			workingDebts[i].Balance -= principal
+			monthlyPayment += payment
+			totalInterest += interest
+			
+			// Check if debt is paid off
+			if workingDebts[i].Balance <= 0.01 {
+				schedule = append(schedule, DebtSchedule{
+					DebtName:     workingDebts[i].Name,
+					PayoffMonth:  totalMonths,
+					TotalPaid:    payment,
+					InterestPaid: interest,
+				})
+				
+				// Roll extra payment to next debt
+				extraPayment += workingDebts[i].MinimumPayment
+				
+				// Remove paid debt
+				workingDebts = append(workingDebts[:i], workingDebts[i+1:]...)
+				i--
+			}
+		}
+		
+		totalPaid += monthlyPayment
+		
+		// Safety check - prevent infinite loop
+		if totalMonths > 360 {
+			break
+		}
+	}
+	
+	return DebtPayoffResult{
+		Method:            input.Method,
+		TotalMonths:       totalMonths,
+		TotalInterestPaid: totalInterest,
+		TotalPaid:         totalPaid,
+		PayoffSchedule:    schedule,
+		SavingsVsMinimum:  0, // Would need to calculate minimum payment scenario
+	}
+}
+
+func CalculateBudgetAllocation(input BudgetAllocationInput) BudgetAllocationResult {
+	var needsPercent, wantsPercent, savingsPercent float64
+	
+	switch input.BudgetMethod {
+	case "50-30-20":
+		needsPercent = 50
+		wantsPercent = 30
+		savingsPercent = 20
+	case "70-20-10":
+		needsPercent = 70
+		wantsPercent = 20
+		savingsPercent = 10
+	case "60-20-20":
+		needsPercent = 60
+		wantsPercent = 20
+		savingsPercent = 20
+	default:
+		// Default to 50-30-20
+		needsPercent = 50
+		wantsPercent = 30
+		savingsPercent = 20
+		input.BudgetMethod = "50-30-20"
+	}
+	
+	needsAmount := input.MonthlyIncome * (needsPercent / 100)
+	wantsAmount := input.MonthlyIncome * (wantsPercent / 100)
+	savingsAmount := input.MonthlyIncome * (savingsPercent / 100)
+	
+	return BudgetAllocationResult{
+		Needs:          needsAmount,
+		NeedsPercent:   needsPercent,
+		Wants:          wantsAmount,
+		WantsPercent:   wantsPercent,
+		Savings:        savingsAmount,
+		SavingsPercent: savingsPercent,
+		Method:         input.BudgetMethod,
 	}
 }

@@ -31,9 +31,7 @@ CREATE TABLE IF NOT EXISTS email_accounts (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Constraints and indexes
-    UNIQUE(user_id, email_address), -- One account per email per user
-    INDEX idx_email_accounts_user_id ON email_accounts(user_id),
-    INDEX idx_email_accounts_sync_enabled ON email_accounts(sync_enabled) WHERE sync_enabled = true
+    UNIQUE(user_id, email_address) -- One account per email per user
 );
 
 -- Triage rules table for AI-generated and manual rules
@@ -53,10 +51,7 @@ CREATE TABLE IF NOT EXISTS triage_rules (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Constraints and indexes
-    CONSTRAINT valid_priority CHECK (priority >= 0 AND priority <= 1000),
-    INDEX idx_triage_rules_user_id ON triage_rules(user_id),
-    INDEX idx_triage_rules_enabled ON triage_rules(user_id, enabled) WHERE enabled = true,
-    INDEX idx_triage_rules_priority ON triage_rules(user_id, priority, created_at)
+    CONSTRAINT valid_priority CHECK (priority >= 0 AND priority <= 1000)
 );
 
 -- Processed emails table
@@ -76,13 +71,7 @@ CREATE TABLE IF NOT EXISTS processed_emails (
     metadata JSONB DEFAULT '{}'::jsonb, -- Additional email metadata
     
     -- Constraints and indexes
-    UNIQUE(account_id, message_id), -- Prevent duplicate processing
-    INDEX idx_processed_emails_account_id ON processed_emails(account_id),
-    INDEX idx_processed_emails_processed_at ON processed_emails(processed_at DESC),
-    INDEX idx_processed_emails_priority_score ON processed_emails(priority_score DESC),
-    INDEX idx_processed_emails_sender ON processed_emails(sender_email),
-    -- Full-text search index on subject and body_preview
-    INDEX idx_processed_emails_search ON processed_emails USING gin(to_tsvector('english', subject || ' ' || COALESCE(body_preview, '')))
+    UNIQUE(account_id, message_id) -- Prevent duplicate processing
 );
 
 -- Rule execution log for performance analytics
@@ -97,9 +86,7 @@ CREATE TABLE IF NOT EXISTS rule_executions (
     executed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Indexes for analytics
-    INDEX idx_rule_executions_rule_id ON rule_executions(rule_id),
-    INDEX idx_rule_executions_executed_at ON rule_executions(executed_at DESC),
-    INDEX idx_rule_executions_performance ON rule_executions(rule_id, matched, execution_time_ms)
+    dummy_field BOOLEAN DEFAULT NULL -- Removed inline index
 );
 
 -- User activity log for audit and analytics
@@ -111,10 +98,8 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     details JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
-    -- Indexes
-    INDEX idx_activity_logs_user_id ON activity_logs(user_id),
-    INDEX idx_activity_logs_created_at ON activity_logs(created_at DESC),
-    INDEX idx_activity_logs_type ON activity_logs(activity_type)
+    -- Indexes (created separately below)
+    dummy_field BOOLEAN DEFAULT NULL
 );
 
 -- Usage tracking for subscription limits
@@ -129,8 +114,7 @@ CREATE TABLE IF NOT EXISTS usage_tracking (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Constraints and indexes
-    UNIQUE(user_id, tracking_month), -- One record per user per month
-    INDEX idx_usage_tracking_user_month ON usage_tracking(user_id, tracking_month DESC)
+    UNIQUE(user_id, tracking_month) -- One record per user per month
 );
 
 -- Functions and triggers for automatic timestamp updates
@@ -202,6 +186,30 @@ INSERT INTO users (id, plan_type) VALUES
     ('00000000-0000-0000-0000-000000000001', 'free'),
     ('00000000-0000-0000-0000-000000000002', 'pro')
 ON CONFLICT (id) DO NOTHING;
+
+-- Create indexes separately (PostgreSQL syntax)
+CREATE INDEX idx_email_accounts_user_id ON email_accounts(user_id);
+CREATE INDEX idx_email_accounts_sync_enabled ON email_accounts(sync_enabled) WHERE sync_enabled = true;
+
+CREATE INDEX idx_triage_rules_user_id ON triage_rules(user_id);
+CREATE INDEX idx_triage_rules_enabled ON triage_rules(user_id, enabled) WHERE enabled = true;
+CREATE INDEX idx_triage_rules_priority ON triage_rules(user_id, priority, created_at);
+
+CREATE INDEX idx_processed_emails_account_id ON processed_emails(account_id);
+CREATE INDEX idx_processed_emails_processed_at ON processed_emails(processed_at DESC);
+CREATE INDEX idx_processed_emails_priority_score ON processed_emails(priority_score DESC);
+CREATE INDEX idx_processed_emails_sender ON processed_emails(sender_email);
+CREATE INDEX idx_processed_emails_search ON processed_emails USING gin(to_tsvector('english', subject || ' ' || COALESCE(body_preview, '')));
+
+CREATE INDEX idx_rule_executions_rule_id ON rule_executions(rule_id);
+CREATE INDEX idx_rule_executions_executed_at ON rule_executions(executed_at DESC);
+CREATE INDEX idx_rule_executions_performance ON rule_executions(rule_id, matched, execution_time_ms);
+
+CREATE INDEX idx_activity_logs_user_id ON activity_logs(user_id);
+CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at DESC);
+CREATE INDEX idx_activity_logs_type ON activity_logs(activity_type);
+
+CREATE INDEX idx_usage_tracking_user_month ON usage_tracking(user_id, tracking_month DESC);
 
 -- Performance optimization: Analyze tables
 ANALYZE users;

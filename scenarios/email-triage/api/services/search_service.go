@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/qdrant/go-client/qdrant"
+	pb "github.com/qdrant/go-client/qdrant"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	
@@ -15,7 +15,7 @@ import (
 
 // SearchService handles vector search operations with Qdrant
 type SearchService struct {
-	client         qdrant.PointsClient
+	client         pb.PointsClient
 	collectionName string
 	conn           *grpc.ClientConn
 }
@@ -23,11 +23,14 @@ type SearchService struct {
 // NewSearchService creates a new SearchService instance
 func NewSearchService(qdrantURL string) *SearchService {
 	// Extract host:port from URL
-	// For simplicity, assuming format like "http://localhost:6333"
+	// Default to localhost:6334 for gRPC (REST is on 6333)
 	host := "localhost:6334" // Qdrant gRPC port
 	if qdrantURL != "" {
-		// Parse URL and extract host - simplified for now
-		host = "localhost:6334"
+		// Parse URL and convert to gRPC port
+		// If REST URL is http://localhost:6333, gRPC is localhost:6334
+		if qdrantURL == "http://localhost:6333" {
+			host = "localhost:6334"
+		}
 	}
 	
 	// Create gRPC connection
@@ -37,7 +40,7 @@ func NewSearchService(qdrantURL string) *SearchService {
 		return nil
 	}
 	
-	client := qdrant.NewPointsClient(conn)
+	client := pb.NewPointsClient(conn)
 	
 	return &SearchService{
 		client:         client,
@@ -64,8 +67,8 @@ func (ss *SearchService) HealthCheck() bool {
 	defer cancel()
 	
 	// Try to get collection info
-	collectionsClient := qdrant.NewCollectionsClient(ss.conn)
-	_, err := collectionsClient.Get(ctx, &qdrant.GetCollectionInfoRequest{
+	collectionsClient := pb.NewCollectionsClient(ss.conn)
+	_, err := collectionsClient.Get(ctx, &pb.GetCollectionInfoRequest{
 		CollectionName: ss.collectionName,
 	})
 	
@@ -82,10 +85,10 @@ func (ss *SearchService) CreateCollection() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	
-	collectionsClient := qdrant.NewCollectionsClient(ss.conn)
+	collectionsClient := pb.NewCollectionsClient(ss.conn)
 	
 	// Check if collection exists
-	_, err := collectionsClient.Get(ctx, &qdrant.GetCollectionInfoRequest{
+	_, err := collectionsClient.Get(ctx, &pb.GetCollectionInfoRequest{
 		CollectionName: ss.collectionName,
 	})
 	
@@ -99,13 +102,13 @@ func (ss *SearchService) CreateCollection() error {
 	}
 	
 	// Create collection
-	_, err = collectionsClient.Create(ctx, &qdrant.CreateCollection{
+	_, err = collectionsClient.Create(ctx, &pb.CreateCollection{
 		CollectionName: ss.collectionName,
-		VectorsConfig: &qdrant.VectorsConfig{
-			Config: &qdrant.VectorsConfig_Params{
-				Params: &qdrant.VectorParams{
+		VectorsConfig: &pb.VectorsConfig{
+			Config: &pb.VectorsConfig_Params{
+				Params: &pb.VectorParams{
 					Size:     384, // Dimension for all-MiniLM-L6-v2 embeddings
-					Distance: qdrant.Distance_Cosine,
+					Distance: pb.Distance_Cosine,
 				},
 			},
 		},
@@ -129,27 +132,27 @@ func (ss *SearchService) IndexEmail(email *models.ProcessedEmail, embedding []fl
 	defer cancel()
 	
 	// Prepare point payload
-	payload := map[string]*qdrant.Value{
-		"email_id":       {Kind: &qdrant.Value_StringValue{StringValue: email.ID}},
-		"account_id":     {Kind: &qdrant.Value_StringValue{StringValue: email.AccountID}},
-		"subject":        {Kind: &qdrant.Value_StringValue{StringValue: email.Subject}},
-		"sender":         {Kind: &qdrant.Value_StringValue{StringValue: email.SenderEmail}},
-		"priority_score": {Kind: &qdrant.Value_DoubleValue{DoubleValue: email.PriorityScore}},
-		"processed_at":   {Kind: &qdrant.Value_IntegerValue{IntegerValue: email.ProcessedAt.Unix()}},
+	payload := map[string]*pb.Value{
+		"email_id":       {Kind: &pb.Value_StringValue{StringValue: email.ID}},
+		"account_id":     {Kind: &pb.Value_StringValue{StringValue: email.AccountID}},
+		"subject":        {Kind: &pb.Value_StringValue{StringValue: email.Subject}},
+		"sender":         {Kind: &pb.Value_StringValue{StringValue: email.SenderEmail}},
+		"priority_score": {Kind: &pb.Value_DoubleValue{DoubleValue: email.PriorityScore}},
+		"processed_at":   {Kind: &pb.Value_IntegerValue{IntegerValue: email.ProcessedAt.Unix()}},
 	}
 	
 	// Create point
-	point := &qdrant.PointStruct{
-		Id:      &qdrant.PointId{PointIdOptions: &qdrant.PointId_Uuid{Uuid: email.ID}},
-		Vectors: &qdrant.Vectors{VectorsOptions: &qdrant.Vectors_Vector{Vector: &qdrant.Vector{Data: embedding}}},
+	point := &pb.PointStruct{
+		Id:      &pb.PointId{PointIdOptions: &pb.PointId_Uuid{Uuid: email.ID}},
+		Vectors: &pb.Vectors{VectorsOptions: &pb.Vectors_Vector{Vector: &pb.Vector{Data: embedding}}},
 		Payload: payload,
 	}
 	
 	// Upsert point
-	_, err := ss.client.Upsert(ctx, &qdrant.UpsertPoints{
+	_, err := ss.client.Upsert(ctx, &pb.UpsertPoints{
 		CollectionName: ss.collectionName,
 		Wait:          &[]bool{true}[0], // Wait for indexing to complete
-		Points:        []*qdrant.PointStruct{point},
+		Points:        []*pb.PointStruct{point},
 	})
 	
 	if err != nil {
@@ -170,18 +173,18 @@ func (ss *SearchService) SearchEmails(userID string, queryEmbedding []float32, l
 	
 	// Create filter for user's emails only (through account_id)
 	// This is a simplified version - in production you'd need to join with accounts table
-	filter := &qdrant.Filter{
+	filter := &pb.Filter{
 		// For now, we'll search all emails and filter by user in the application layer
 		// TODO: Implement proper user filtering
 	}
 	
 	// Perform search
-	searchResult, err := ss.client.Search(ctx, &qdrant.SearchPoints{
+	searchResult, err := ss.client.Search(ctx, &pb.SearchPoints{
 		CollectionName: ss.collectionName,
 		Vector:         queryEmbedding,
 		Limit:          uint64(limit),
 		Filter:         filter,
-		WithPayload:    &qdrant.WithPayloadSelector{SelectorOptions: &qdrant.WithPayloadSelector_Enable{Enable: true}},
+		WithPayload:    &pb.WithPayloadSelector{SelectorOptions: &pb.WithPayloadSelector_Enable{Enable: true}},
 	})
 	
 	if err != nil {
@@ -219,14 +222,14 @@ func (ss *SearchService) DeleteEmailVector(emailID string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	
-	_, err := ss.client.Delete(ctx, &qdrant.DeletePoints{
+	_, err := ss.client.Delete(ctx, &pb.DeletePoints{
 		CollectionName: ss.collectionName,
 		Wait:          &[]bool{true}[0],
-		Points: &qdrant.PointsSelector{
-			PointsSelectorOneOf: &qdrant.PointsSelector_Points{
-				Points: &qdrant.PointsIdsList{
-					Ids: []*qdrant.PointId{
-						{PointIdOptions: &qdrant.PointId_Uuid{Uuid: emailID}},
+		Points: &pb.PointsSelector{
+			PointsSelectorOneOf: &pb.PointsSelector_Points{
+				Points: &pb.PointsIdsList{
+					Ids: []*pb.PointId{
+						{PointIdOptions: &pb.PointId_Uuid{Uuid: emailID}},
 					},
 				},
 			},
@@ -241,7 +244,7 @@ func (ss *SearchService) DeleteEmailVector(emailID string) error {
 }
 
 // Helper functions for payload extraction
-func getStringFromPayload(payload map[string]*qdrant.Value, key string) string {
+func getStringFromPayload(payload map[string]*pb.Value, key string) string {
 	if val, ok := payload[key]; ok {
 		if strVal := val.GetStringValue(); strVal != "" {
 			return strVal
@@ -250,14 +253,14 @@ func getStringFromPayload(payload map[string]*qdrant.Value, key string) string {
 	return ""
 }
 
-func getDoubleFromPayload(payload map[string]*qdrant.Value, key string) float64 {
+func getDoubleFromPayload(payload map[string]*pb.Value, key string) float64 {
 	if val, ok := payload[key]; ok {
 		return val.GetDoubleValue()
 	}
 	return 0
 }
 
-func getIntFromPayload(payload map[string]*qdrant.Value, key string) int64 {
+func getIntFromPayload(payload map[string]*pb.Value, key string) int64 {
 	if val, ok := payload[key]; ok {
 		return val.GetIntegerValue()
 	}

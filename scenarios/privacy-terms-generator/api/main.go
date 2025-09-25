@@ -1,0 +1,172 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/exec"
+	"time"
+)
+
+type GenerateRequest struct {
+	BusinessName   string   `json:"business_name"`
+	BusinessType   string   `json:"business_type"`
+	Jurisdictions  []string `json:"jurisdictions"`
+	DocumentType   string   `json:"document_type"`
+	DataTypes      []string `json:"data_types,omitempty"`
+	CustomClauses  []string `json:"custom_clauses,omitempty"`
+	Email          string   `json:"email,omitempty"`
+	Website        string   `json:"website,omitempty"`
+}
+
+type GenerateResponse struct {
+	DocumentID   string    `json:"document_id"`
+	Content      string    `json:"content"`
+	Format       string    `json:"format"`
+	GeneratedAt  time.Time `json:"generated_at"`
+	TemplateVersion string `json:"template_version"`
+	PreviewURL   string    `json:"preview_url"`
+}
+
+type HealthResponse struct {
+	Status     string `json:"status"`
+	Timestamp  string `json:"timestamp"`
+	Components map[string]string `json:"components"`
+}
+
+type TemplateFreshnessResponse struct {
+	LastUpdate      time.Time     `json:"last_update"`
+	StaleTemplates  []interface{} `json:"stale_templates"`
+	UpdateAvailable bool          `json:"update_available"`
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	components := make(map[string]string)
+	
+	// Check PostgreSQL
+	cmd := exec.Command("resource-postgres", "status", "--json")
+	if err := cmd.Run(); err == nil {
+		components["postgres"] = "healthy"
+	} else {
+		components["postgres"] = "unhealthy"
+	}
+	
+	// Check Ollama
+	cmd = exec.Command("resource-ollama", "status", "--json")
+	if err := cmd.Run(); err == nil {
+		components["ollama"] = "healthy"
+	} else {
+		components["ollama"] = "unhealthy"
+	}
+	
+	response := HealthResponse{
+		Status:     "healthy",
+		Timestamp:  time.Now().Format(time.RFC3339),
+		Components: components,
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func generateHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	var req GenerateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	// Validate required fields
+	if req.BusinessName == "" || req.DocumentType == "" || len(req.Jurisdictions) == 0 {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
+	
+	// Generate document using CLI (for now, as a bridge)
+	args := []string{
+		"generate", req.DocumentType,
+		"--business-name", req.BusinessName,
+		"--jurisdiction", req.Jurisdictions[0],
+		"--format", "markdown",
+	}
+	
+	if req.BusinessType != "" {
+		args = append(args, "--business-type", req.BusinessType)
+	}
+	if req.Email != "" {
+		args = append(args, "--email", req.Email)
+	}
+	if req.Website != "" {
+		args = append(args, "--website", req.Website)
+	}
+	
+	cmd := exec.Command("/home/matthalloran8/Vrooli/scenarios/privacy-terms-generator/cli/privacy-terms-generator", args...)
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Document generation failed: %v", err)
+		http.Error(w, "Document generation failed", http.StatusInternalServerError)
+		return
+	}
+	
+	response := GenerateResponse{
+		DocumentID:      fmt.Sprintf("doc_%d", time.Now().Unix()),
+		Content:         string(output),
+		Format:          "markdown",
+		GeneratedAt:     time.Now(),
+		TemplateVersion: "1.0.0",
+		PreviewURL:      fmt.Sprintf("/preview/%d", time.Now().Unix()),
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func templateFreshnessHandler(w http.ResponseWriter, r *http.Request) {
+	response := TemplateFreshnessResponse{
+		LastUpdate:      time.Now().AddDate(0, 0, -7), // Mock: 7 days ago
+		StaleTemplates:  []interface{}{},
+		UpdateAvailable: false,
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		
+		next(w, r)
+	}
+}
+
+func main() {
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		port = "15000"
+	}
+	
+	// API endpoints
+	http.HandleFunc("/api/health", corsMiddleware(healthHandler))
+	http.HandleFunc("/api/v1/legal/generate", corsMiddleware(generateHandler))
+	http.HandleFunc("/api/v1/legal/templates/freshness", corsMiddleware(templateFreshnessHandler))
+	
+	log.Printf("Privacy & Terms Generator API starting on port %s", port)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatal(err)
+	}
+}

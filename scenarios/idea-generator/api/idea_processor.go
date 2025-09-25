@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -431,7 +432,7 @@ func (ip *IdeaProcessor) getRecentIdeas(ctx context.Context, campaignID string) 
 	return ideas, nil
 }
 
-func (ip *IdeaProcessor) buildEnrichedPrompt(campaign, documents, existingIdeas map[string]interface{}, req GenerateIdeasRequest) string {
+func (ip *IdeaProcessor) buildEnrichedPrompt(campaign map[string]interface{}, documents, existingIdeas []map[string]interface{}, req GenerateIdeasRequest) string {
 	var sb strings.Builder
 	
 	sb.WriteString("Campaign Context:\n")
@@ -443,9 +444,9 @@ func (ip *IdeaProcessor) buildEnrichedPrompt(campaign, documents, existingIdeas 
 	sb.WriteString("\n")
 	
 	// Add document context if available
-	if docs, ok := documents.([]map[string]interface{}); ok && len(docs) > 0 {
+	if len(documents) > 0 {
 		sb.WriteString("Supporting Documents:\n")
-		for _, doc := range docs {
+		for _, doc := range documents {
 			sb.WriteString(fmt.Sprintf("Document: %s\n", doc["original_name"]))
 			if text, ok := doc["extracted_text"].(string); ok && text != "" {
 				preview := text
@@ -459,9 +460,9 @@ func (ip *IdeaProcessor) buildEnrichedPrompt(campaign, documents, existingIdeas 
 	}
 	
 	// Add existing ideas to avoid duplication
-	if ideas, ok := existingIdeas.([]map[string]interface{}); ok && len(ideas) > 0 {
+	if len(existingIdeas) > 0 {
 		sb.WriteString("Recent Ideas for Reference (avoid duplication):\n")
-		for _, idea := range ideas {
+		for _, idea := range existingIdeas {
 			sb.WriteString(fmt.Sprintf("Previous Idea: %s\n", idea["title"]))
 			sb.WriteString(fmt.Sprintf("Category: %s\n", idea["category"]))
 			if content, ok := idea["content"].(string); ok && content != "" {

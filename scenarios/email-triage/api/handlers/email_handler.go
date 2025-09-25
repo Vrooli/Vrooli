@@ -80,10 +80,16 @@ func (eh *EmailHandler) SearchEmails(w http.ResponseWriter, r *http.Request) {
 	// Apply additional filters (account, date range) if specified
 	filteredResults := eh.applySearchFilters(results, accountID, dateFrom, dateTo)
 
+	// Convert []*models.SearchResult to []models.SearchResult
+	resultsValues := make([]models.SearchResult, len(filteredResults))
+	for i, r := range filteredResults {
+		resultsValues[i] = *r
+	}
+
 	queryTimeMs := int(time.Since(startTime).Nanoseconds() / 1000000)
 
 	response := models.SearchEmailsResponse{
-		Results:     filteredResults,
+		Results:     resultsValues,
 		Total:       len(filteredResults),
 		QueryTimeMs: queryTimeMs,
 		Page:        1, // TODO: Implement pagination

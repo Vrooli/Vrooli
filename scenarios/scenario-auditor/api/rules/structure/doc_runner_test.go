@@ -6,23 +6,25 @@ package structure
 import (
 	"testing"
 
+	rules "scenario-auditor/rules"
 	"scenario-auditor/rules/testkit"
 )
 
-func runDocTests(t *testing.T, filename, defaultPath string, fn func(string, string, string) ([]Violation, error)) {
+func runDocTests(t *testing.T, filename, defaultPath string, fn func(string, string, string) ([]rules.Violation, error)) {
 	t.Helper()
 	cases := testkit.LoadDocCases(t, filename)
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.ID, func(t *testing.T) {
 			path := testkit.DefaultPath(tc, defaultPath)
-			violations, err := fn(tc.Input, path, "demo")
+			scenario := testkit.DefaultScenario(tc, "demo")
+			violations, err := fn(tc.Input, path, scenario)
 			testkit.EvaluateDocCase(t, tc, len(violations), collectMessages(violations), err)
 		})
 	}
 }
 
-func collectMessages(vs []Violation) []string {
+func collectMessages(vs []rules.Violation) []string {
 	messages := make([]string, 0, len(vs))
 	for _, v := range vs {
 		if v.Message != "" {

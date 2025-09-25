@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -79,9 +78,26 @@ func NewServer() *Server {
 	registry.Register(webp.New())
 	registry.Register(svg.New())
 	
+	// Initialize storage service (MinIO if available, local fallback)
+	var storage StorageService
+	if os.Getenv("MINIO_DISABLED") != "true" {
+		minioStorage, err := NewMinIOStorage()
+		if err != nil {
+			log.Printf("Warning: MinIO storage initialization failed, using local storage: %v", err)
+			storage = NewLocalStorage()
+		} else {
+			storage = minioStorage
+			log.Println("✓ MinIO storage initialized successfully")
+		}
+	} else {
+		storage = NewLocalStorage()
+		log.Println("Using local filesystem storage (MinIO disabled)")
+	}
+	
 	return &Server{
 		app:      app,
 		registry: registry,
+		storage:  storage,
 	}
 }
 
@@ -214,8 +230,11 @@ func (s *Server) checkPluginRegistry() fiber.Map {
 	// Check essential plugins are loaded
 	requiredPlugins := []string{"jpeg", "png", "webp", "svg"}
 	loadedPlugins := make(map[string]bool)
-	for _, plugin := range plugins {
-		loadedPlugins[plugin] = true
+	for pluginName, formats := range plugins {
+		for _, format := range formats {
+			loadedPlugins[format] = true
+		}
+		_ = pluginName // Use pluginName if needed
 	}
 
 	missingPlugins := []string{}
@@ -505,9 +524,16 @@ func (s *Server) handleCompress(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "No image provided"})
 	}
 	
-	var req CompressRequest
-	if err := c.BodyParser(&req); err != nil {
-		req.Quality = 85
+	// Parse form values instead of body for multipart
+	quality := 85
+	if q := c.FormValue("quality"); q != "" {
+		if _, err := fmt.Sscanf(q, "%d", &quality); err != nil {
+			quality = 85
+		}
+	}
+	format := c.FormValue("format")
+	if format == "" {
+		format = getFileFormat(file.Filename)
 	}
 	
 	src, err := file.Open()
@@ -516,14 +542,23 @@ func (s *Server) handleCompress(c *fiber.Ctx) error {
 	}
 	defer src.Close()
 	
-	format := getFileFormat(file.Filename)
+	// Get original file size
+	originalData, err := io.ReadAll(src)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to read file"})
+	}
+	originalSize := len(originalData)
+	
+	// Reset reader
+	src.Seek(0, 0)
+	
 	plugin, ok := s.registry.GetPlugin(format)
 	if !ok {
 		return c.Status(400).JSON(fiber.Map{"error": fmt.Sprintf("Unsupported format: %s", format)})
 	}
 	
 	options := plugins.ProcessOptions{
-		Quality: req.Quality,
+		Quality: quality,
 	}
 	
 	result, err := plugin.Compress(src, options)
@@ -537,11 +572,16 @@ func (s *Server) handleCompress(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to save compressed image"})
 	}
 	
+	savingsPercent := 0.0
+	if originalSize > 0 {
+		savingsPercent = (float64(originalSize) - float64(result.ProcessedSize)) / float64(originalSize) * 100
+	}
+	
 	return c.JSON(fiber.Map{
 		"url":             url,
-		"original_size":   result.OriginalSize,
+		"original_size":   originalSize,
 		"compressed_size": result.ProcessedSize,
-		"savings_percent": result.SavingsPercent,
+		"savings_percent": savingsPercent,
 		"format":          format,
 	})
 }
@@ -603,9 +643,9 @@ func (s *Server) handleConvert(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "No image provided"})
 	}
 	
-	var req ConvertRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid convert parameters"})
+	targetFormat := c.FormValue("target_format")
+	if targetFormat == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "No target format provided"})
 	}
 	
 	src, err := file.Open()
@@ -616,25 +656,25 @@ func (s *Server) handleConvert(c *fiber.Ctx) error {
 	
 	sourceFormat := getFileFormat(file.Filename)
 	
-	if sourceFormat == req.TargetFormat {
+	if sourceFormat == targetFormat {
 		return c.Status(400).JSON(fiber.Map{"error": "Source and target formats are the same"})
 	}
 	
-	targetPlugin, ok := s.registry.GetPlugin(req.TargetFormat)
+	targetPlugin, ok := s.registry.GetPlugin(targetFormat)
 	if !ok {
-		return c.Status(400).JSON(fiber.Map{"error": fmt.Sprintf("Unsupported target format: %s", req.TargetFormat)})
+		return c.Status(400).JSON(fiber.Map{"error": fmt.Sprintf("Unsupported target format: %s", targetFormat)})
 	}
 	
 	options := plugins.ProcessOptions{
-		CustomOptions: req.Options,
+		CustomOptions: make(map[string]interface{}),
 	}
 	
-	result, err := targetPlugin.Convert(src, req.TargetFormat, options)
+	result, err := targetPlugin.Convert(src, targetFormat, options)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	
-	outputKey := fmt.Sprintf("converted/%s.%s", uuid.New().String(), req.TargetFormat)
+	outputKey := fmt.Sprintf("converted/%s.%s", uuid.New().String(), targetFormat)
 	url, err := s.saveToStorage(outputKey, result.OutputData)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to save converted image"})
@@ -642,7 +682,7 @@ func (s *Server) handleConvert(c *fiber.Ctx) error {
 	
 	return c.JSON(fiber.Map{
 		"url":    url,
-		"format": req.TargetFormat,
+		"format": targetFormat,
 		"size":   result.ProcessedSize,
 	})
 }

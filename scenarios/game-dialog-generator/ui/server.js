@@ -13,17 +13,31 @@ const PORT = process.env.UI_PORT || 3200;
 const API_PORT = process.env.API_PORT || 8080;
 const API_BASE_URL = `http://localhost:${API_PORT}`;
 
+const localFrameAncestors = [
+    "'self'",
+    'http://localhost:*',
+    'http://127.0.0.1:*',
+    'http://[::1]:*'
+];
+
+const extraFrameAncestors = (process.env.FRAME_ANCESTORS || '')
+    .split(/\s+/)
+    .filter(Boolean);
+
 // Security middleware
 app.use(helmet({
+    frameguard: false,
     contentSecurityPolicy: {
+        useDefaults: true,
         directives: {
             defaultSrc: ["'self'"],
             scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", API_BASE_URL],
+            connectSrc: ["'self'", API_BASE_URL, 'ws:', 'wss:'],
             mediaSrc: ["'self'"],
+            frameAncestors: [...localFrameAncestors, ...extraFrameAncestors],
         },
     },
 }));

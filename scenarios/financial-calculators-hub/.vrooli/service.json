@@ -117,7 +117,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go build -o financial-calculators-api .",
+          "run": "cd api && go build -o financial-calculators-hub-api .",
           "description": "Build Go API server"
         },
         {

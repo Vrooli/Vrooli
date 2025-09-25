@@ -191,35 +191,59 @@ func main() {
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
 
-	// Service URLs - REQUIRED, no defaults
+	// Service URLs - with defaults for local resources
 	n8nURL := os.Getenv("N8N_BASE_URL")
 	if n8nURL == "" {
-		log.Fatal("❌ N8N_BASE_URL environment variable is required")
+		n8nPort := os.Getenv("RESOURCE_PORT_N8N")
+		if n8nPort == "" {
+			n8nPort = "5678" // default n8n port
+		}
+		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
 	}
 
 	windmillURL := os.Getenv("WINDMILL_BASE_URL")
 	if windmillURL == "" {
-		log.Fatal("❌ WINDMILL_BASE_URL environment variable is required")
+		windmillPort := os.Getenv("RESOURCE_PORT_WINDMILL")
+		if windmillPort == "" {
+			windmillPort = "8000" // default windmill port
+		}
+		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
 	}
 
 	searxngURL := os.Getenv("SEARXNG_URL")
 	if searxngURL == "" {
-		log.Fatal("❌ SEARXNG_URL environment variable is required")
+		searxngPort := os.Getenv("RESOURCE_PORT_SEARXNG")
+		if searxngPort == "" {
+			searxngPort = "8280" // actual searxng port in Vrooli
+		}
+		searxngURL = fmt.Sprintf("http://localhost:%s", searxngPort)
 	}
 
 	qdrantURL := os.Getenv("QDRANT_URL")
 	if qdrantURL == "" {
-		log.Fatal("❌ QDRANT_URL environment variable is required")
+		qdrantPort := os.Getenv("RESOURCE_PORT_QDRANT")
+		if qdrantPort == "" {
+			qdrantPort = "6333" // default qdrant port
+		}
+		qdrantURL = fmt.Sprintf("http://localhost:%s", qdrantPort)
 	}
 
 	minioURL := os.Getenv("MINIO_URL")
 	if minioURL == "" {
-		log.Fatal("❌ MINIO_URL environment variable is required")
+		minioPort := os.Getenv("RESOURCE_PORT_MINIO")
+		if minioPort == "" {
+			minioPort = "9000" // default minio port
+		}
+		minioURL = fmt.Sprintf("http://localhost:%s", minioPort)
 	}
 
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
-		log.Fatal("❌ OLLAMA_URL environment variable is required")
+		ollamaPort := os.Getenv("RESOURCE_PORT_OLLAMA")
+		if ollamaPort == "" {
+			ollamaPort = "11434" // default ollama port
+		}
+		ollamaURL = fmt.Sprintf("http://localhost:%s", ollamaPort)
 	}
 
 	// Connect to database

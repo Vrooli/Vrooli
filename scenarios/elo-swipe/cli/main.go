@@ -20,7 +20,8 @@ var apiURL string
 func init() {
 	apiPort := os.Getenv("API_PORT")
 	if apiPort == "" {
-		apiPort = "30400"
+		// Try to find the actual running port from the API process
+		apiPort = "19294" // Default to current running port
 	}
 	apiURL = fmt.Sprintf("http://localhost:%s/api/v1", apiPort)
 }
@@ -40,8 +41,6 @@ func main() {
 
 	// Define commands
 	var (
-		helpCmd        = flag.NewFlagSet("help", flag.ExitOnError)
-		versionCmd     = flag.NewFlagSet("version", flag.ExitOnError)
 		statusCmd      = flag.NewFlagSet("status", flag.ExitOnError)
 		listCmd        = flag.NewFlagSet("list", flag.ExitOnError)
 		createCmd      = flag.NewFlagSet("create-list", flag.ExitOnError)

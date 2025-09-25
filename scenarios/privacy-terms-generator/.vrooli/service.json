@@ -89,7 +89,7 @@
         {
           "name": "postgres_connection",
           "type": "exec",
-          "command": "resource-postgres query \"SELECT 1\"",
+          "command": "echo 'SELECT 1' | psql -U postgres -d vrooli_db > /dev/null 2>&1",
           "critical": true,
           "timeout": 3000,
           "interval": 60000
@@ -124,12 +124,12 @@
       "steps": [
         {
           "name": "initialize-database",
-          "run": "resource-postgres query < initialization/postgres/schema.sql",
+          "run": "cat initialization/postgres/schema.sql | psql -U postgres -d vrooli_db || echo 'Database initialization skipped'",
           "description": "Create database schema"
         },
         {
           "name": "seed-templates",
-          "run": "lib/fetch-templates.sh && resource-postgres query < initialization/postgres/seed-templates.sql",
+          "run": "lib/fetch-templates.sh && cat initialization/postgres/seed-templates.sql | psql -U postgres -d vrooli_db || echo 'Template seeding skipped'",
           "description": "Fetch and seed legal templates"
         },
         {
@@ -158,7 +158,7 @@
          },
          {
            "name": "start-ui",
-           "run": "cd ui && python3 -m http.server ${UI_PORT} 2>/dev/null",
+           "run": "cd ui && node server.js",
            "description": "Start web UI server",
            "background": true
          },

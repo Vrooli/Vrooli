@@ -13,7 +13,7 @@ fetch_gdpr_requirements() {
     echo "Fetching GDPR requirements..."
     
     # Use Ollama to structure the requirements we found
-    local requirements=$(resource-ollama prompt "Based on GDPR requirements, list the mandatory sections for a privacy policy in JSON format. Include: data_controller_identity, purpose_of_processing, legal_basis, data_subject_rights, retention_period, data_transfers, dpo_contact. Format as a JSON array of objects with 'section' and 'description' fields." --model llama3.2)
+    local requirements=$(resource-ollama content prompt "Based on GDPR requirements, list the mandatory sections for a privacy policy in JSON format. Include: data_controller_identity, purpose_of_processing, legal_basis, data_subject_rights, retention_period, data_transfers, dpo_contact. Format as a JSON array of objects with 'section' and 'description' fields." --model llama3.2)
     
     # Update compliance requirements in database
     db_query "UPDATE compliance_requirements 
@@ -28,7 +28,7 @@ fetch_gdpr_requirements() {
 fetch_ccpa_requirements() {
     echo "Fetching CCPA requirements..."
     
-    local requirements=$(resource-ollama prompt "Based on CCPA requirements, list the mandatory sections for a privacy policy in JSON format. Include: categories_collected, purposes_of_use, right_to_delete, right_to_know, right_to_opt_out, non_discrimination. Format as a JSON array of objects with 'section' and 'description' fields." --model llama3.2)
+    local requirements=$(resource-ollama content prompt "Based on CCPA requirements, list the mandatory sections for a privacy policy in JSON format. Include: categories_collected, purposes_of_use, right_to_delete, right_to_know, right_to_opt_out, non_discrimination. Format as a JSON array of objects with 'section' and 'description' fields." --model llama3.2)
     
     db_query "UPDATE compliance_requirements 
               SET last_checked = CURRENT_TIMESTAMP,

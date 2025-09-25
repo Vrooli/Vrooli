@@ -64,6 +64,18 @@ INSERT INTO home_profiles (user_id, name, permissions, preferences) VALUES
         }'::jsonb
     );
 
+-- Insert demo devices (mock Home Assistant devices)
+INSERT INTO devices (device_id, entity_id, name, device_type, manufacturer, model, capabilities, room, available) VALUES
+    ('light.living_room', 'light.living_room', 'Living Room Lights', 'lights', 'Philips', 'Hue White', '{"brightness": true, "color": true, "temperature": true}', 'Living Room', true),
+    ('light.bedroom', 'light.bedroom', 'Bedroom Lights', 'lights', 'Philips', 'Hue Go', '{"brightness": true, "color": false, "temperature": true}', 'Bedroom', true),
+    ('light.bedroom_kid', 'light.bedroom_kid', 'Kids Bedroom Light', 'lights', 'LIFX', 'Color 1000', '{"brightness": true, "color": true, "temperature": true}', 'Kids Bedroom', true),
+    ('switch.coffee_maker', 'switch.coffee_maker', 'Coffee Maker', 'switches', 'TP-Link', 'Smart Plug', '{"on_off": true, "timer": true}', 'Kitchen', true),
+    ('sensor.temperature', 'sensor.living_room_temperature', 'Living Room Temperature', 'sensors', 'Ecobee', 'SmartSensor', '{"temperature": true, "occupancy": true}', 'Living Room', true),
+    ('sensor.humidity', 'sensor.living_room_humidity', 'Living Room Humidity', 'sensors', 'Ecobee', 'SmartSensor', '{"humidity": true}', 'Living Room', true),
+    ('climate.thermostat', 'climate.main_thermostat', 'Main Thermostat', 'climate', 'Ecobee', 'SmartThermostat', '{"temperature": true, "mode": true, "fan": true, "schedule": true}', 'Hallway', true),
+    ('lock.front_door', 'lock.front_door', 'Front Door Lock', 'locks', 'August', 'Smart Lock Pro', '{"lock": true, "unlock": true, "codes": true, "auto_lock": true}', 'Entrance', true)
+ON CONFLICT (device_id) DO NOTHING;
+
 -- Insert demo device states (mock Home Assistant devices)
 INSERT INTO device_states (device_id, entity_id, name, device_type, state, attributes, available) VALUES
     (

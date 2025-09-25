@@ -12,7 +12,7 @@ INSERT INTO compliance_requirements (jurisdiction, requirement_type, description
 ('US', 'CCPA', 'California Consumer Privacy Act',
  ARRAY['categories_collected', 'purposes_of_use', 'right_to_delete', 'right_to_know', 'right_to_opt_out', 'non_discrimination'],
  '2020-01-01', 'https://oag.ca.gov/privacy/ccpa'),
-('US', 'COPPA', 'Children\'s Online Privacy Protection Act',
+('US', 'COPPA', 'Childrens Online Privacy Protection Act',
  ARRAY['parental_consent', 'data_collection_disclosure', 'parental_review_rights', 'data_deletion', 'security_measures'],
  '2000-04-21', 'https://www.ftc.gov/legal-library/browse/rules/childrens-online-privacy-protection-rule-coppa'),
 ('UK', 'UK-GDPR', 'UK General Data Protection Regulation',

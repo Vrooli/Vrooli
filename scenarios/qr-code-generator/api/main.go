@@ -1,13 +1,15 @@
 package main
 
 import (
-	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 type GenerateRequest struct {
@@ -20,6 +22,13 @@ type GenerateRequest struct {
 	Margin         int    `json:"margin"`
 }
 
+type GenerateResponse struct {
+	Success bool   `json:"success"`
+	Data    string `json:"data"`
+	Format  string `json:"format"`
+	Error   string `json:"error,omitempty"`
+}
+
 type BatchRequest struct {
 	Items   []BatchItem    `json:"items"`
 	Options GenerateRequest `json:"options"`
@@ -28,6 +37,12 @@ type BatchRequest struct {
 type BatchItem struct {
 	Text  string `json:"text"`
 	Label string `json:"label"`
+}
+
+type BatchResponse struct {
+	Success bool              `json:"success"`
+	Results []GenerateResponse `json:"results"`
+	Error   string            `json:"error,omitempty"`
 }
 
 func main() {
@@ -43,67 +58,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	port := getEnv("API_PORT", getEnv("PORT", "8080"))
 
-	n8nURL := os.Getenv("N8N_BASE_URL")
-	if n8nURL == "" {
-		n8nURL = "http://localhost:5678"
-	}
-
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status": "healthy",
-			"service": "qr-code-generator",
-			"timestamp": time.Now().Format(time.RFC3339),
-		})
-	})
-
-	http.HandleFunc("/generate", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		var req GenerateRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		// Forward to n8n workflow
-		resp, err := forwardToN8N(n8nURL+"/webhook/generate-qr", req)
-		if err != nil {
-			http.Error(w, "Failed to generate QR code", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	})
-
-	http.HandleFunc("/batch", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		var req BatchRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		// Forward to n8n batch workflow
-		resp, err := forwardToN8N(n8nURL+"/webhook/batch-qr", req)
-		if err != nil {
-			http.Error(w, "Failed to process batch", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	})
+	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/generate", generateHandler)
+	http.HandleFunc("/batch", batchHandler)
+	http.HandleFunc("/formats", formatsHandler)
 
 	log.Printf("QR Code Generator API starting on port %s", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
@@ -118,23 +78,149 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-func forwardToN8N(url string, data interface{}) (map[string]interface{}, error) {
-	jsonData, err := json.Marshal(data)
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "healthy",
+		"service": "qr-code-generator",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"features": map[string]bool{
+			"generate": true,
+			"batch": true,
+			"formats": true,
+		},
+	})
+}
+
+func generateHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req GenerateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate and set defaults
+	if req.Text == "" {
+		http.Error(w, "Text is required", http.StatusBadRequest)
+		return
+	}
+	if req.Size == 0 {
+		req.Size = 256
+	}
+	if req.Format == "" {
+		req.Format = "png"
+	}
+
+	// Generate QR code
+	response, err := generateQRCode(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal data: %v", err)
+		response = GenerateResponse{
+			Success: false,
+			Error:   err.Error(),
+		}
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func batchHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req BatchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.Items) == 0 {
+		http.Error(w, "Items array is required", http.StatusBadRequest)
+		return
+	}
+
+	// Set default options
+	if req.Options.Size == 0 {
+		req.Options.Size = 256
+	}
+	if req.Options.Format == "" {
+		req.Options.Format = "png"
+	}
+
+	// Generate QR codes for each item
+	results := make([]GenerateResponse, 0, len(req.Items))
+	for _, item := range req.Items {
+		genReq := req.Options
+		genReq.Text = item.Text
+		
+		response, err := generateQRCode(genReq)
+		if err != nil {
+			response = GenerateResponse{
+				Success: false,
+				Error:   err.Error(),
+			}
+		}
+		results = append(results, response)
+	}
+
+	batchResp := BatchResponse{
+		Success: true,
+		Results: results,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(batchResp)
+}
+
+func formatsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"formats": []string{"png", "base64"},
+		"sizes": []int{128, 256, 512, 1024},
+		"errorCorrections": []string{"Low", "Medium", "High", "Highest"},
+	})
+}
+
+func generateQRCode(req GenerateRequest) (GenerateResponse, error) {
+	// Map error correction level
+	level := qrcode.Medium
+	switch req.ErrorCorrection {
+	case "Low", "L":
+		level = qrcode.Low
+	case "High", "H":
+		level = qrcode.High
+	case "Highest", "Q":
+		level = qrcode.Highest
+	default:
+		level = qrcode.Medium
+	}
+
+	// Generate QR code
+	qr, err := qrcode.New(req.Text, level)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %v", err)
+		return GenerateResponse{}, fmt.Errorf("failed to create QR code: %v", err)
 	}
 
-	return result, nil
+	// Generate PNG bytes
+	png, err := qr.PNG(req.Size)
+	if err != nil {
+		return GenerateResponse{}, fmt.Errorf("failed to generate PNG: %v", err)
+	}
+
+	// Encode to base64
+	data := base64.StdEncoding.EncodeToString(png)
+
+	return GenerateResponse{
+		Success: true,
+		Data:    data,
+		Format:  "base64",
+	}, nil
 }

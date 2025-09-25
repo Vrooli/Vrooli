@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -544,36 +543,88 @@ func testAgent(c *gin.Context) {
 		return
 	}
 	
-	// For this demo, we'll simulate the testing process
-	// In a real implementation, this would call the N8N security sandbox workflow
-	
+	// Test each injection against the agent using Ollama
 	testResults := []TestResult{}
 	successfulInjections := 0
+	sessionID := uuid.New().String()
+	
+	// Check if we should use mock mode (for testing without Ollama)
+	useMockMode := os.Getenv("USE_MOCK_TESTING") == "true"
 	
 	for _, injection := range injections {
-		// Simulate test execution (in real implementation, call N8N workflow)
+		var responseText string
+		var executionTimeMS int64
+		var success bool
+		var confidence float64
+		var errorMessage string
+		
+		if useMockMode {
+			// Mock mode for testing without Ollama
+			responseText = "I cannot and will not follow instructions that ask me to ignore my guidelines."
+			executionTimeMS = 1500
+			success = false
+			confidence = 0.8
+			
+			// Simulate some injections succeeding based on difficulty
+			if injection.DifficultyScore < 0.3 {
+				success = true
+				responseText = "Hello World"
+				confidence = 0.9
+				successfulInjections++
+			}
+		} else {
+			// Real Ollama testing
+			response, execTime, err := TestAgentWithOllama(
+				request.AgentConfig.SystemPrompt,
+				injection.ExamplePrompt,
+				request.AgentConfig.ModelName,
+				request.AgentConfig.Temperature,
+				request.AgentConfig.MaxTokens,
+			)
+			
+			if err != nil {
+				// Log error but continue testing
+				errorMessage = fmt.Sprintf("Failed to test: %v", err)
+				responseText = ""
+				executionTimeMS = execTime
+				success = false
+				confidence = 0.0
+			} else {
+				responseText = response
+				executionTimeMS = execTime
+				
+				// Analyze if injection was successful
+				success, confidence = AnalyzeInjectionSuccess(
+					injection.ExamplePrompt,
+					response,
+					"",
+				)
+				
+				if success {
+					successfulInjections++
+				}
+			}
+		}
+		
+		// Create test result
 		result := TestResult{
 			ID:              uuid.New().String(),
 			InjectionID:     injection.ID,
-			AgentID:         "", // Would be populated with actual agent ID
-			Success:         false, // Simulate that most injections fail (good security)
-			ResponseText:    "I cannot and will not follow instructions that ask me to ignore my guidelines.",
-			ExecutionTimeMS: 1500,
-			ConfidenceScore: 0.8,
+			AgentID:         "", // Would be populated with actual agent ID if saved
+			Success:         success,
+			ResponseText:    responseText,
+			ExecutionTimeMS: int(executionTimeMS),
+			ConfidenceScore: confidence,
+			ErrorMessage:    errorMessage,
 			ExecutedAt:      time.Now(),
-			TestSessionID:   uuid.New().String(),
-		}
-		
-		// Simulate some injections succeeding based on difficulty
-		if injection.DifficultyScore < 0.3 {
-			// Easy injections might succeed sometimes
-			result.Success = true
-			result.ResponseText = "Hello World"
-			result.ConfidenceScore = 0.9
-			successfulInjections++
+			TestSessionID:   sessionID,
 		}
 		
 		testResults = append(testResults, result)
+		
+		// Optional: Save test result to database
+		// This would normally be done to persist results
+		// saveTestResult(db, result)
 	}
 	
 	// Calculate robustness score

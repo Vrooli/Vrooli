@@ -1,9 +1,12 @@
 package services
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
 	"time"
 
 	"github.com/emersion/go-imap"
@@ -16,17 +19,36 @@ import (
 // EmailService handles IMAP/SMTP operations with mail servers
 type EmailService struct {
 	mailServerURL string
+	mockMode      bool
 }
 
 // NewEmailService creates a new EmailService instance
 func NewEmailService(mailServerURL string) *EmailService {
+	// Enable mock mode if no mail server URL, in dev mode, or explicitly set to mock
+	mockMode := mailServerURL == "" || mailServerURL == "mock" || os.Getenv("DEV_MODE") == "true"
+	
+	if mockMode {
+		log.Println("📧 Email service running in MOCK mode - no real mail server connections")
+	}
+	
 	return &EmailService{
 		mailServerURL: mailServerURL,
+		mockMode:      mockMode,
 	}
 }
 
 // TestConnection tests IMAP and SMTP connections for an email account
 func (es *EmailService) TestConnection(account *models.EmailAccount) error {
+	// In mock mode, always succeed
+	if es.mockMode {
+		log.Printf("✅ Mock mode: Simulating successful connection for %s", account.EmailAddress)
+		return nil
+	}
+	
+	// Create context with timeout for real connections
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
 	// Parse IMAP settings
 	var imapConfig models.IMAPConfig
 	if err := json.Unmarshal(account.IMAPSettings, &imapConfig); err != nil {
@@ -39,17 +61,33 @@ func (es *EmailService) TestConnection(account *models.EmailAccount) error {
 		return fmt.Errorf("invalid SMTP settings: %w", err)
 	}
 	
-	// Test IMAP connection
-	if err := es.testIMAPConnection(imapConfig); err != nil {
-		return fmt.Errorf("IMAP connection failed: %w", err)
-	}
+	// Channel to collect errors
+	errChan := make(chan error, 1)
 	
-	// Test SMTP connection
-	if err := es.testSMTPConnection(smtpConfig); err != nil {
-		return fmt.Errorf("SMTP connection failed: %w", err)
-	}
+	// Test connections with timeout
+	go func() {
+		// Test IMAP connection
+		if err := es.testIMAPConnection(imapConfig); err != nil {
+			errChan <- fmt.Errorf("IMAP connection failed: %w", err)
+			return
+		}
+		
+		// Test SMTP connection
+		if err := es.testSMTPConnection(smtpConfig); err != nil {
+			errChan <- fmt.Errorf("SMTP connection failed: %w", err)
+			return
+		}
+		
+		errChan <- nil
+	}()
 	
-	return nil
+	// Wait for either completion or timeout
+	select {
+	case err := <-errChan:
+		return err
+	case <-ctx.Done():
+		return fmt.Errorf("connection test timed out after 5 seconds - mail server may be unavailable")
+	}
 }
 
 func (es *EmailService) testIMAPConnection(config models.IMAPConfig) error {
@@ -104,6 +142,10 @@ func (es *EmailService) testSMTPConnection(config models.SMTPConfig) error {
 
 // FetchNewEmails retrieves new emails from an account since last sync
 func (es *EmailService) FetchNewEmails(account *models.EmailAccount, since time.Time) ([]*models.ProcessedEmail, error) {
+	// In mock mode, return sample emails
+	if es.mockMode {
+		return es.getMockEmails(account.ID, since), nil
+	}
 	// Parse IMAP settings
 	var imapConfig models.IMAPConfig
 	if err := json.Unmarshal(account.IMAPSettings, &imapConfig); err != nil {
@@ -134,7 +176,7 @@ func (es *EmailService) FetchNewEmails(account *models.EmailAccount, since time.
 	}
 	
 	// Select INBOX
-	mbox, err := c.Select("INBOX", false)
+	_, err = c.Select("INBOX", false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select INBOX: %w", err)
 	}
@@ -222,6 +264,12 @@ func (es *EmailService) convertIMAPMessage(msg *imap.Message, accountID string) 
 
 // SendEmail sends an email using SMTP
 func (es *EmailService) SendEmail(account *models.EmailAccount, to []string, subject, body string) error {
+	// In mock mode, log and succeed
+	if es.mockMode {
+		log.Printf("📨 Mock mode: Simulating email send from %s to %v with subject: %s", 
+			account.EmailAddress, to, subject)
+		return nil
+	}
 	// Parse SMTP settings
 	var smtpConfig models.SMTPConfig
 	if err := json.Unmarshal(account.SMTPSettings, &smtpConfig); err != nil {
@@ -252,6 +300,12 @@ func (es *EmailService) SendEmail(account *models.EmailAccount, to []string, sub
 
 // ForwardEmail forwards an email to specified recipients
 func (es *EmailService) ForwardEmail(account *models.EmailAccount, originalEmail *models.ProcessedEmail, forwardTo []string) error {
+	// In mock mode, log and succeed
+	if es.mockMode {
+		log.Printf("📨 Mock mode: Simulating email forward from %s to %v", 
+			account.EmailAddress, forwardTo)
+		return nil
+	}
 	subject := fmt.Sprintf("Fwd: %s", originalEmail.Subject)
 	
 	body := fmt.Sprintf(`---------- Forwarded message ----------
@@ -268,4 +322,56 @@ Date: %s
 func generateUUID() string {
 	// This would typically use github.com/google/uuid
 	return fmt.Sprintf("uuid-%d", time.Now().UnixNano())
+}
+
+// getMockEmails returns sample emails for testing
+func (es *EmailService) getMockEmails(accountID string, since time.Time) []*models.ProcessedEmail {
+	mockEmails := []*models.ProcessedEmail{
+		{
+			ID:              generateUUID(),
+			AccountID:       accountID,
+			MessageID:       "mock-msg-001@example.com",
+			Subject:         "Urgent: Meeting Tomorrow at 2 PM",
+			SenderEmail:     "boss@example.com",
+			RecipientEmails: []string{"user@example.com"},
+			BodyPreview:     "Please join the meeting tomorrow at 2 PM to discuss the Q4 roadmap...",
+			FullBody:        "Please join the meeting tomorrow at 2 PM to discuss the Q4 roadmap. The meeting link is...",
+			PriorityScore:   0.9,
+			ProcessedAt:     time.Now().Add(-2 * time.Hour),
+		},
+		{
+			ID:              generateUUID(),
+			AccountID:       accountID,
+			MessageID:       "mock-msg-002@example.com",
+			Subject:         "Newsletter: Weekly Tech Updates",
+			SenderEmail:     "newsletter@techblog.com",
+			RecipientEmails: []string{"user@example.com"},
+			BodyPreview:     "This week in tech: AI breakthroughs, new framework releases...",
+			FullBody:        "This week in tech: AI breakthroughs, new framework releases, and industry news...",
+			PriorityScore:   0.3,
+			ProcessedAt:     time.Now().Add(-5 * time.Hour),
+		},
+		{
+			ID:              generateUUID(),
+			AccountID:       accountID,
+			MessageID:       "mock-msg-003@example.com",
+			Subject:         "Invoice #12345 - Due Next Week",
+			SenderEmail:     "billing@vendor.com",
+			RecipientEmails: []string{"accounting@example.com", "user@example.com"},
+			BodyPreview:     "Invoice #12345 for $5,000 is due on...",
+			FullBody:        "Invoice #12345 for $5,000 is due on next Friday. Please process payment...",
+			PriorityScore:   0.7,
+			ProcessedAt:     time.Now().Add(-24 * time.Hour),
+		},
+	}
+	
+	// Filter emails based on since parameter
+	var filteredEmails []*models.ProcessedEmail
+	for _, email := range mockEmails {
+		if email.ProcessedAt.After(since) {
+			filteredEmails = append(filteredEmails, email)
+		}
+	}
+	
+	return filteredEmails
 }

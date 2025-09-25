@@ -153,7 +153,7 @@
           },
           {
             "name": "show-urls",
-            "run": "echo '🖼️ Image Tools initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: image-tools --help'",
+            "run": "echo \"🖼️ Image Tools initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: image-tools --help\"",
             "description": "Display service access URLs"
           }
         ]
@@ -163,7 +163,7 @@
        "steps": [
           {
             "name": "start-api",
-             "run": "cd api && ./image-tools-api",
+             "run": "cd api && PORT=${API_PORT} ./image-tools-api",
             "description": "Start Go API server in background",
             "background": true,
             "condition": {
@@ -178,7 +178,7 @@
          },
          {
            "name": "show-urls",
-           "run": "echo '🖼️ Image Tools running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: image-tools --help'",
+           "run": "echo \"🖼️ Image Tools running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: image-tools --help\"",
            "description": "Display all running service URLs"
          }
        ]

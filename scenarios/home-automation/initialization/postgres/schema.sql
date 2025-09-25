@@ -45,6 +45,26 @@ CREATE INDEX idx_automation_rules_active ON automation_rules(active);
 CREATE INDEX idx_automation_rules_trigger_type ON automation_rules(trigger_type);
 CREATE INDEX idx_automation_rules_generated_by_ai ON automation_rules(generated_by_ai);
 
+-- Devices table for device management
+CREATE TABLE devices (
+    device_id VARCHAR(255) PRIMARY KEY,
+    entity_id VARCHAR(255) NOT NULL, -- Home Assistant entity ID
+    name VARCHAR(255) NOT NULL,
+    device_type VARCHAR(100) NOT NULL,
+    manufacturer VARCHAR(255),
+    model VARCHAR(255),
+    capabilities JSONB DEFAULT '{}',
+    room VARCHAR(255),
+    available BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Create indexes for device queries
+CREATE INDEX idx_devices_type ON devices(device_type);
+CREATE INDEX idx_devices_available ON devices(available);
+CREATE INDEX idx_devices_room ON devices(room);
+
 -- Device state cache for real-time updates
 CREATE TABLE device_states (
     device_id VARCHAR(255) PRIMARY KEY,
@@ -58,7 +78,7 @@ CREATE TABLE device_states (
     last_seen TIMESTAMP DEFAULT NOW()
 );
 
--- Create indexes for device queries
+-- Create indexes for device state queries
 CREATE INDEX idx_device_states_type ON device_states(device_type);
 CREATE INDEX idx_device_states_available ON device_states(available);
 CREATE INDEX idx_device_states_updated ON device_states(last_updated);

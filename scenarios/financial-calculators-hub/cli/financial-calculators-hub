@@ -1,7 +1,21 @@
 #!/bin/bash
 
-API_PORT="${API_PORT:-20100}"
-API_URL="http://localhost:${API_PORT}"
+# ALWAYS discover the correct port for financial-calculators-hub from logs
+# Ignore any API_PORT environment variable since it could be for a different service
+FINANCIAL_API_PORT=$(vrooli scenario logs financial-calculators-hub --step start-api 2>&1 | grep "Financial Calculators API starting on port" | tail -1 | sed 's/.*port //')
+
+# If discovery failed, try checking if the API is running on common ports
+if [[ -z "$FINANCIAL_API_PORT" ]] || [[ ! "$FINANCIAL_API_PORT" =~ ^[0-9]+$ ]]; then
+    # Try the default port
+    if curl -sf "http://localhost:19514/health" 2>/dev/null | grep -q "financial-calculators-hub"; then
+        FINANCIAL_API_PORT="19514"
+    else
+        # Last resort: use hardcoded default
+        FINANCIAL_API_PORT="19514"
+    fi
+fi
+
+API_URL="http://localhost:${FINANCIAL_API_PORT}"
 
 show_help() {
     cat << EOF
@@ -350,7 +364,29 @@ show_status() {
 
 show_version() {
     echo "Financial Calculators Hub v1.0.0"
-    echo "API Port: $API_PORT"
+    echo "API Port: $FINANCIAL_API_PORT"
+}
+
+show_status() {
+    echo "Financial Calculators Hub Status"
+    echo "================================"
+    echo "API URL: $API_URL"
+    echo "API Port: $FINANCIAL_API_PORT"
+    
+    # Check if API is responding
+    if curl -sf "${API_URL}/health" >/dev/null 2>&1; then
+        echo "API Status: ✅ Online"
+        local health=$(curl -sf "${API_URL}/health" 2>/dev/null)
+        echo "API Health: $health"
+    else
+        echo "API Status: ❌ Offline or unreachable"
+        echo "Debug: Testing direct connection to port $FINANCIAL_API_PORT..."
+        if curl -sf "http://localhost:$FINANCIAL_API_PORT/health" >/dev/null 2>&1; then
+            echo "Debug: Direct connection works. CLI may have wrong port."
+        else
+            echo "Debug: API not responding on port $FINANCIAL_API_PORT"
+        fi
+    fi
 }
 
 case "${1:-}" in

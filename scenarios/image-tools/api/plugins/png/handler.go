@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"io"
 	
@@ -154,13 +155,13 @@ func (p *PNGPlugin) GetInfo(input io.Reader) (*plugins.ImageInfo, error) {
 	
 	colorSpace := "RGB"
 	switch config.ColorModel {
-	case image.GrayModel:
+	case color.GrayModel:
 		colorSpace = "Grayscale"
-	case image.Gray16Model:
+	case color.Gray16Model:
 		colorSpace = "Grayscale16"
-	case image.RGBAModel:
+	case color.RGBAModel:
 		colorSpace = "RGBA"
-	case image.RGBA64Model:
+	case color.RGBA64Model:
 		colorSpace = "RGBA64"
 	}
 	

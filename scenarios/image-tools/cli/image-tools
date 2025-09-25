@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-API_URL="${IMAGE_TOOLS_API_URL:-http://localhost:8080}"
+API_URL="${IMAGE_TOOLS_API_URL:-http://localhost:19362}"
 VERSION="1.0.0"
 
 show_help() {
@@ -102,7 +102,7 @@ compress_image() {
         return 1
     fi
     
-    echo "Compressing $file with quality $quality..."
+    echo "Compressing $file with quality $quality..." >&2
     
     response=$(curl -s -X POST \
         -F "image=@$file" \
@@ -114,7 +114,7 @@ compress_image() {
     else
         original_size=$(echo "$response" | jq -r '.original_size // 0')
         compressed_size=$(echo "$response" | jq -r '.compressed_size // 0')
-        savings=$(echo "$response" | jq -r '.savings_percent // 0')
+        savings=$(echo "$response" | jq -r '.savings_percent // 0' | cut -d. -f1)
         
         echo "✓ Compression complete"
         echo "  Original: $(format_size $original_size)"
@@ -340,7 +340,7 @@ batch_process() {
     echo "Processing images in $dir..."
     
     local count=0
-    for file in "$dir"/*.{jpg,jpeg,png,webp,gif} 2>/dev/null; do
+    for file in "$dir"/*.{jpg,jpeg,png,webp,gif}; do
         if [[ -f "$file" ]]; then
             echo "Processing: $(basename "$file")"
             compress_image "$file" "$@"

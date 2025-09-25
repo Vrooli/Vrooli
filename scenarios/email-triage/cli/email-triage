@@ -6,7 +6,7 @@
 set -euo pipefail
 
 CLI_VERSION="1.0.0"
-API_BASE_URL="${EMAIL_TRIAGE_API_URL:-http://localhost:3200}"
+API_BASE_URL="${EMAIL_TRIAGE_API_URL:-http://localhost:${API_PORT:-19548}}"
 CONFIG_DIR="${HOME}/.vrooli/email-triage"
 CONFIG_FILE="${CONFIG_DIR}/config.yaml"
 

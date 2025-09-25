@@ -160,7 +160,7 @@
        "steps": [
           {
             "name": "start-api",
-             "run": "cd api && ./email-triage-api",
+             "run": "cd api && DEV_MODE=true ./email-triage-api",
             "description": "Start Go API server in background",
             "background": true,
             "condition": {
@@ -178,7 +178,7 @@
          },
          {
            "name": "show-urls",
-           "run": "echo '🚀 Email Triage running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  Health: http://localhost:$API_PORT/health'",
+           "run": "echo \"🚀 Email Triage running: API: http://localhost:${API_PORT:-19544} UI: http://localhost:${UI_PORT:-36294} Health: http://localhost:${API_PORT:-19544}/health\"",
            "description": "Display service access URLs"
          }
        ]

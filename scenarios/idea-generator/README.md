@@ -76,10 +76,19 @@ vrooli service develop .
 ```
 
 ### Access Points
-- **UI**: http://localhost:${RESOURCE_PORTS[windmill]} (Windmill Dashboard)
-- **Workflows**: http://localhost:${RESOURCE_PORTS[n8n]} (n8n)
-- **API**: http://localhost:${API_PORT} (Coordination API)
+- **UI**: Check logs for actual port (typically 35000-39999 range)
+- **API**: Check logs for actual port (typically 15000-19999 range) 
+- **API Health**: `curl http://localhost:<API_PORT>/health`
+- **Workflows**: http://localhost:5678 (n8n if running)
+- **Windmill**: http://localhost:5681 (if running)
 - **CLI**: `idea-generator --help`
+
+### Current Status (2025-09-24)
+- ✅ API Server: Running and healthy
+- ✅ UI Server: Running and serving web interface
+- ✅ CLI: Installed and functional
+- ⚠️  Resources: Some resources may need to be started separately
+- ℹ️  Ports are dynamically allocated - check `make logs` for actual ports
 
 ### CLI Usage
 The scenario includes a lightweight CLI for managing the platform:

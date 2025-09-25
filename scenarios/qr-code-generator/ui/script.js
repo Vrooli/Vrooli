@@ -1,13 +1,23 @@
 // QR Code Generator JavaScript
-const API_URL = window.location.hostname === 'localhost' 
-    ? `http://localhost:${process.env.API_PORT || 9100}`
-    : '/api';
-
+let API_URL = '';
 let currentQRData = null;
 let batchItems = [];
 
+// Fetch API configuration
+async function initAPI() {
+    try {
+        const response = await fetch('/config');
+        const config = await response.json();
+        API_URL = `http://localhost:${config.apiPort}`;
+    } catch (error) {
+        // Fallback to default port
+        API_URL = 'http://localhost:17320';
+    }
+}
+
 // Initialize event listeners
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await initAPI();
     // Main generator
     document.getElementById('generate-btn').addEventListener('click', generateQRCode);
     document.getElementById('download-btn').addEventListener('click', downloadQR);

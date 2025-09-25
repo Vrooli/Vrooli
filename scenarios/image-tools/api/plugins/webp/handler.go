@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/color"
 	"io"
 	
 	"github.com/chai2010/webp"
@@ -167,9 +168,9 @@ func (p *WebPPlugin) GetInfo(input io.Reader) (*plugins.ImageInfo, error) {
 	
 	colorSpace := "RGB"
 	switch config.ColorModel {
-	case image.GrayModel:
+	case color.GrayModel:
 		colorSpace = "Grayscale"
-	case image.RGBAModel:
+	case color.RGBAModel:
 		colorSpace = "RGBA"
 	}
 	

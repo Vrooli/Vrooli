@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"time"
-	"strconv"
 	"math"
 )
 
@@ -155,7 +154,7 @@ func (ip *InvoiceProcessor) ProcessInvoice(ctx context.Context, req InvoiceProce
 	}
 
 	// Calculate totals
-	processedItems, subtotal, totalTax := ip.calculateInvoiceTotals(invoice.Items)
+	_, subtotal, totalTax := ip.calculateInvoiceTotals(invoice.Items)
 	invoice.Subtotal = subtotal
 	invoice.TotalTax = totalTax
 	invoice.Total = subtotal + totalTax
@@ -458,7 +457,7 @@ func (ip *InvoiceProcessor) calculateInvoiceTotals(items []InvoiceItem) ([]Proce
 }
 
 func (ip *InvoiceProcessor) createInvoice(ctx context.Context, invoice InvoiceData) error {
-	itemsJSON, _ := json.Marshal(invoice.Items)
+	_, _ = json.Marshal(invoice.Items)
 
 	query := `
 		INSERT INTO invoices (

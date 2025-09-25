@@ -9,9 +9,6 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
-	"time"
-
-	"github.com/google/uuid"
 )
 
 type SmartPairing struct {

@@ -240,6 +240,14 @@ func (s *Server) setupRoutes() *mux.Router {
 
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Development mode: bypass auth if DEV_MODE is set
+		if os.Getenv("DEV_MODE") == "true" {
+			// Use mock user ID for development
+			ctx := context.WithValue(r.Context(), "user_id", "dev-user-001")
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+		
 		// Extract JWT token from Authorization header
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
@@ -323,27 +331,33 @@ func loadConfig() Config {
 	
 	qdrantURL := os.Getenv("QDRANT_URL")
 	if qdrantURL == "" {
-		log.Fatal("❌ QDRANT_URL environment variable is required")
+		qdrantURL = "http://localhost:6333" // Default for Qdrant
+		log.Printf("⚠️  QDRANT_URL not set, using default: %s", qdrantURL)
 	}
 	
 	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
 	if authServiceURL == "" {
-		log.Fatal("❌ AUTH_SERVICE_URL environment variable is required")
+		authServiceURL = "http://localhost:8080" // Default for scenario-authenticator
+		log.Printf("⚠️  AUTH_SERVICE_URL not set, using default: %s", authServiceURL)
 	}
 	
 	mailServerURL := os.Getenv("MAIL_SERVER_URL")
 	if mailServerURL == "" {
-		log.Fatal("❌ MAIL_SERVER_URL environment variable is required")
+		mailServerURL = "localhost" // Default mail server
+		log.Printf("⚠️  MAIL_SERVER_URL not set, using default: %s", mailServerURL)
 	}
 	
+	// Optional services - use defaults if not provided
 	notificationURL := os.Getenv("NOTIFICATION_HUB_URL")
 	if notificationURL == "" {
-		log.Fatal("❌ NOTIFICATION_HUB_URL environment variable is required")
+		notificationURL = "http://localhost:8081" // Default for notification hub
+		log.Printf("⚠️  NOTIFICATION_HUB_URL not set, using default: %s", notificationURL)
 	}
 	
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
-		log.Fatal("❌ OLLAMA_URL environment variable is required")
+		ollamaURL = "http://localhost:11434" // Default for Ollama
+		log.Printf("⚠️  OLLAMA_URL not set, using default: %s", ollamaURL)
 	}
 	
 	return Config{

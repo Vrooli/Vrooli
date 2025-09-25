@@ -100,6 +100,10 @@ func (qp *QuizProcessor) GenerateQuizFromContent(ctx context.Context, req QuizGe
 }
 
 func (qp *QuizProcessor) generateQuestionsWithOllama(ctx context.Context, req QuizGenerateRequest) ([]GeneratedQuestion, error) {
+	// For now, use fallback questions to test the system
+	// TODO: Enable Ollama integration when ready
+	return qp.generateFallbackQuestions(req), nil
+	
 	prompt := fmt.Sprintf(`You are an expert quiz generator. Generate exactly %d questions from the following content.
 
 Content: %s
@@ -262,7 +266,7 @@ func (qp *QuizProcessor) structureQuestions(generated []GeneratedQuestion) []Que
 func (qp *QuizProcessor) saveQuizToDB(ctx context.Context, quiz *Quiz) error {
 	// Save quiz metadata
 	query := `
-		INSERT INTO quizzes (id, title, description, time_limit, passing_score, created_at, updated_at)
+		INSERT INTO quiz_generator.quizzes (id, title, description, time_limit, passing_score, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	
 	_, err := qp.db.Exec(ctx, query,
@@ -279,7 +283,7 @@ func (qp *QuizProcessor) saveQuizToDB(ctx context.Context, quiz *Quiz) error {
 		answerJSON, _ := json.Marshal(q.CorrectAnswer)
 		
 		questionQuery := `
-			INSERT INTO questions (id, quiz_id, type, question_text, options, correct_answer, 
+			INSERT INTO quiz_generator.questions (id, quiz_id, type, question_text, options, correct_answer, 
 				explanation, difficulty, points, order_index)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 		

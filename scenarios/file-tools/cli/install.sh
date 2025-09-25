@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../.." && builtin pwd)}"
-CLI_DIR="${APP_ROOT}/scripts/scenarios/templates/full/cli"
-source "${APP_ROOT}/scripts/scenarios/templates/full/scripts/lib/utils/cli-install.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLI_NAME="file-tools"
 
-install_cli "$CLI_DIR/CLI_NAME_PLACEHOLDER" "CLI_NAME_PLACEHOLDER"
+# Make CLI executable
+chmod +x "${SCRIPT_DIR}/${CLI_NAME}"
+
+# Create symlink in a directory that's likely in PATH
+if [ -d "$HOME/.local/bin" ]; then
+    ln -sf "${SCRIPT_DIR}/${CLI_NAME}" "$HOME/.local/bin/${CLI_NAME}"
+    echo "✅ ${CLI_NAME} installed to ~/.local/bin/"
+elif [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
+    ln -sf "${SCRIPT_DIR}/${CLI_NAME}" "/usr/local/bin/${CLI_NAME}"
+    echo "✅ ${CLI_NAME} installed to /usr/local/bin/"
+else
+    echo "⚠️  Could not install ${CLI_NAME} to PATH. Please add ${SCRIPT_DIR} to your PATH."
+fi

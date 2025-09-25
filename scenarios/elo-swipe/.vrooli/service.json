@@ -162,7 +162,7 @@
   },
   "health": {
     "api": {
-      "endpoint": "http://localhost:${API_PORT}/health",
+      "endpoint": "http://localhost:${API_PORT}/api/v1/health",
       "method": "GET",
       "expected_status": 200
     },
@@ -183,6 +183,13 @@
       "preference-learning",
       "elo-ratings"
     ]
+  },
+  "environment": {
+    "POSTGRES_HOST": "localhost",
+    "POSTGRES_PORT": "5433",
+    "POSTGRES_USER": "vrooli",
+    "POSTGRES_PASSWORD": "vrooli",
+    "POSTGRES_DB": "vrooli"
   },
    "lifecycle": {
      "setup": {
@@ -250,7 +257,7 @@
          },
          {
            "name": "start-ui",
-           "run": "cd ui && python -m http.server 8080",
+           "run": "cd ui && node server.js",
            "description": "Start UI server",
            "background": true
          },

@@ -1,7 +1,6 @@
 package svg
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"regexp"

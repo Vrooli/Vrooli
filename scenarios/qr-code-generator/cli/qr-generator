@@ -5,7 +5,9 @@ set -e
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scenarios/qr-code-generator/cli"
-API_URL="${API_URL:-http://localhost:9100}"
+# Find API port from running process or use default
+API_PORT=$(lsof -i -P 2>/dev/null | grep "qr-code.*LISTEN" | awk '{print $9}' | cut -d: -f2 | head -1)
+API_URL="${API_URL:-http://localhost:${API_PORT:-17320}}"
 
 show_help() {
     cat << EOF
@@ -58,7 +60,7 @@ generate_qr() {
         -d "{\"text\":\"$text\",\"size\":$size,\"color\":\"$color\",\"background\":\"$bg\"}")
     
     if [[ -n "$output" ]]; then
-        echo "$response" | jq -r '.base64' | base64 -d > "$output"
+        echo "$response" | jq -r '.data' | base64 -d > "$output"
         echo "QR code saved to: $output"
     else
         echo "$response" | jq .

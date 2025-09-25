@@ -368,12 +368,23 @@ func spinHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // If no options provided, look up wheel by ID
+    options := spinRequest.Options
+    if len(options) == 0 && spinRequest.WheelID != "" {
+        for _, wheel := range wheels {
+            if wheel.ID == spinRequest.WheelID {
+                options = wheel.Options
+                break
+            }
+        }
+    }
+
     // Select random option based on weights
     var selectedOption string
-    if len(spinRequest.Options) > 0 {
+    if len(options) > 0 {
         // Calculate total weight
         var totalWeight float64
-        for _, option := range spinRequest.Options {
+        for _, option := range options {
             totalWeight += option.Weight
         }
         
@@ -381,7 +392,7 @@ func spinHandler(w http.ResponseWriter, r *http.Request) {
         randValue := rand.Float64() * totalWeight
         var currentWeight float64
         
-        for _, option := range spinRequest.Options {
+        for _, option := range options {
             currentWeight += option.Weight
             if randValue <= currentWeight {
                 selectedOption = option.Label

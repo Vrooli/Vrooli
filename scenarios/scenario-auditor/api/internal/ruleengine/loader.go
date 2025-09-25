@@ -55,6 +55,14 @@ func (l *Loader) Load() (map[string]Info, error) {
 
 	err := l.walkRuleFiles(func(info Info) error {
 		exec, status := compileGoRule(&info, l.opts.ModuleRoot)
+
+		if status.Valid {
+			if err := validateMetadata(info); err != nil {
+				status.Valid = false
+				status.Error = err.Error()
+				exec = nil
+			}
+		}
 		info = info.WithExecutor(exec, status)
 		rules[info.Rule.ID] = info
 		return nil
@@ -200,6 +208,20 @@ func parseCommentBlock(lines []string, info Info) Info {
 	}
 
 	return info
+}
+
+func validateMetadata(info Info) error {
+	missing := []string{}
+	if strings.TrimSpace(info.Rule.Name) == "" {
+		missing = append(missing, "Rule (use 'Rule:' in the doc block)")
+	}
+	if strings.TrimSpace(info.Rule.Description) == "" {
+		missing = append(missing, "Description")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required metadata: %s", strings.Join(missing, ", "))
+	}
+	return nil
 }
 
 // BuildExecutionInfo documents the invocation contract for a rule's Check function.

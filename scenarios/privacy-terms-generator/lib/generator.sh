@@ -13,10 +13,13 @@ SCENARIO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEFAULT_MODEL="llama3.2"
 DB_SCHEMA="legal_generator"
 
-# Function to query PostgreSQL
+# Function to query PostgreSQL using resource-postgres
 db_query() {
     local query="$1"
-    resource-postgres query "SET search_path TO ${DB_SCHEMA}; ${query}"
+    # Use -t flag equivalent by parsing output more carefully
+    local result=$(resource-postgres content execute "SET search_path TO ${DB_SCHEMA}; ${query}" 2>/dev/null)
+    # Skip header lines and extract just the data
+    echo "$result" | tail -n +4 | head -n -2 | sed 's/^ *//; s/ *$//' || echo ""
 }
 
 # Function to escape JSON for PostgreSQL
@@ -45,7 +48,7 @@ Instructions:
 4. Do not add any explanatory text outside the document itself
 5. Return only the final document content"
 
-    resource-ollama prompt "${prompt}" --model "${model}"
+    resource-ollama content prompt "${prompt}" --model "${model}"
 }
 
 # Function to fetch template from database

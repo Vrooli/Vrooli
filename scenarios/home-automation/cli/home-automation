@@ -1,0 +1,400 @@
+#!/bin/bash
+
+# Home Automation CLI - Interface to home automation system
+
+set -e
+
+# Configuration
+readonly API_URL="${HOME_AUTOMATION_API_URL:-http://localhost:${HOME_AUTOMATION_API_PORT:-15335}}"
+readonly VERSION="1.0.0"
+readonly SCRIPT_NAME=$(basename "$0")
+
+# Color output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[0;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Helper functions
+print_help() {
+    cat << EOF
+🏠 Home Automation CLI v${VERSION}
+
+USAGE:
+    ${SCRIPT_NAME} <command> [options]
+
+COMMANDS:
+    status          Show system status and health
+    devices         List and control devices
+    scenes          Manage scenes
+    automations     Create and manage automations
+    profiles        Manage user profiles and permissions
+    help            Show this help message
+    version         Show version information
+
+OPTIONS:
+    --json          Output in JSON format
+    --verbose       Verbose output
+    --profile ID    Use specific user profile
+
+EXAMPLES:
+    ${SCRIPT_NAME} status --json
+    ${SCRIPT_NAME} devices list --filter lights
+    ${SCRIPT_NAME} devices control light.living_room on
+    ${SCRIPT_NAME} scenes activate "Evening"
+    ${SCRIPT_NAME} automations create --description "Turn off lights at midnight"
+
+For detailed command help, use: ${SCRIPT_NAME} <command> --help
+EOF
+}
+
+# API request helper
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="$3"
+    local response
+    
+    if [ -n "$data" ]; then
+        response=$(curl -s -X "$method" \
+            -H "Content-Type: application/json" \
+            -d "$data" \
+            "${API_URL}${endpoint}" 2>/dev/null || true)
+    else
+        response=$(curl -s -X "$method" \
+            "${API_URL}${endpoint}" 2>/dev/null || true)
+    fi
+    
+    echo "$response"
+}
+
+# Command: status
+cmd_status() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --verbose)
+                set -x
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Check API health
+    local health=$(api_request GET "/health")
+    
+    if [ "$json_output" = true ]; then
+        echo "$health"
+    else
+        echo -e "${BLUE}🏠 Home Automation Status${NC}"
+        echo "================================"
+        
+        # Parse JSON response (basic parsing without jq)
+        if echo "$health" | grep -q '"status":"healthy"'; then
+            echo -e "${GREEN}✅ API Status: Healthy${NC}"
+        else
+            echo -e "${RED}❌ API Status: Unhealthy${NC}"
+        fi
+        
+        # Check dependencies
+        echo ""
+        echo "Dependencies:"
+        
+        # Home Assistant
+        if command -v resource-home-assistant &> /dev/null; then
+            if resource-home-assistant status &> /dev/null; then
+                echo -e "  ${GREEN}✅ Home Assistant: Connected${NC}"
+            else
+                echo -e "  ${YELLOW}⚠️  Home Assistant: Disconnected${NC}"
+            fi
+        else
+            echo -e "  ${RED}❌ Home Assistant: Not installed${NC}"
+        fi
+        
+        # Authenticator
+        local auth_health=$(curl -s http://localhost:3252/health 2>/dev/null || echo "{}")
+        if echo "$auth_health" | grep -q '"status":"healthy"'; then
+            echo -e "  ${GREEN}✅ Authenticator: Connected${NC}"
+        else
+            echo -e "  ${YELLOW}⚠️  Authenticator: Disconnected${NC}"
+        fi
+        
+        # Calendar
+        local cal_health=$(curl -s http://localhost:3300/health 2>/dev/null || echo "{}")
+        if echo "$cal_health" | grep -q '"status":"healthy"'; then
+            echo -e "  ${GREEN}✅ Calendar: Connected${NC}"
+        else
+            echo -e "  ${YELLOW}⚠️  Calendar: Disconnected${NC}"
+        fi
+        
+        echo ""
+        echo -e "${BLUE}URLs:${NC}"
+        echo "  API: ${API_URL}"
+        echo "  UI: http://localhost:${HOME_AUTOMATION_UI_PORT:-35335}"
+    fi
+}
+
+# Command: devices
+cmd_devices() {
+    local action="${1:-list}"
+    shift || true
+    
+    case "$action" in
+        list)
+            local filter=""
+            local profile=""
+            local json_output=false
+            
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --filter)
+                        filter="$2"
+                        shift 2
+                        ;;
+                    --profile)
+                        profile="$2"
+                        shift 2
+                        ;;
+                    --json)
+                        json_output=true
+                        shift
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+            
+            local query="?"
+            [ -n "$filter" ] && query="${query}filter=${filter}&"
+            [ -n "$profile" ] && query="${query}profile_id=${profile}&"
+            
+            local devices=$(api_request GET "/api/v1/devices${query}")
+            
+            if [ "$json_output" = true ]; then
+                echo "$devices"
+            else
+                echo -e "${BLUE}📱 Available Devices${NC}"
+                echo "===================="
+                echo "$devices" | grep -oE '"name":"[^"]+' | cut -d'"' -f4 | while read -r device; do
+                    echo "  • $device"
+                done
+            fi
+            ;;
+            
+        control)
+            local device_id="$1"
+            local action="$2"
+            shift 2 || { echo "Usage: ${SCRIPT_NAME} devices control <device_id> <action>"; exit 1; }
+            
+            local profile=""
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --profile)
+                        profile="$2"
+                        shift 2
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+            
+            local data="{\"action\":\"${action}\""
+            [ -n "$profile" ] && data="${data},\"profile_id\":\"${profile}\""
+            data="${data}}"
+            
+            local response=$(api_request POST "/api/v1/devices/${device_id}/control" "$data")
+            
+            if echo "$response" | grep -q '"success":true'; then
+                echo -e "${GREEN}✅ Device controlled successfully${NC}"
+            else
+                echo -e "${RED}❌ Failed to control device${NC}"
+                echo "$response"
+            fi
+            ;;
+            
+        --help|help)
+            echo "Usage: ${SCRIPT_NAME} devices [action] [options]"
+            echo ""
+            echo "Actions:"
+            echo "  list              List available devices"
+            echo "  control           Control a specific device"
+            echo ""
+            echo "Options:"
+            echo "  --filter TYPE     Filter devices by type (lights, sensors, switches)"
+            echo "  --profile ID      Use specific user profile"
+            echo "  --json           Output in JSON format"
+            ;;
+            
+        *)
+            echo "Unknown action: $action"
+            echo "Use '${SCRIPT_NAME} devices --help' for usage"
+            exit 1
+            ;;
+    esac
+}
+
+# Command: scenes
+cmd_scenes() {
+    local action="${1:-list}"
+    shift || true
+    
+    case "$action" in
+        list)
+            echo -e "${BLUE}🎬 Available Scenes${NC}"
+            echo "==================="
+            echo "  • Morning Routine"
+            echo "  • Evening Relaxation"
+            echo "  • Movie Night"
+            echo "  • Away Mode"
+            ;;
+            
+        activate)
+            local scene_name="$1"
+            [ -z "$scene_name" ] && { echo "Usage: ${SCRIPT_NAME} scenes activate <scene_name>"; exit 1; }
+            
+            echo -e "${GREEN}✅ Activating scene: ${scene_name}${NC}"
+            # TODO: Implement scene activation via API
+            ;;
+            
+        --help|help)
+            echo "Usage: ${SCRIPT_NAME} scenes [action] [options]"
+            echo ""
+            echo "Actions:"
+            echo "  list              List available scenes"
+            echo "  activate          Activate a specific scene"
+            echo "  create            Create a new scene from current state"
+            ;;
+            
+        *)
+            echo "Unknown action: $action"
+            exit 1
+            ;;
+    esac
+}
+
+# Command: automations
+cmd_automations() {
+    local action="${1:-list}"
+    shift || true
+    
+    case "$action" in
+        create)
+            local description=""
+            local schedule=""
+            
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --description)
+                        description="$2"
+                        shift 2
+                        ;;
+                    --schedule)
+                        schedule="$2"
+                        shift 2
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+            
+            [ -z "$description" ] && { echo "Error: --description is required"; exit 1; }
+            
+            echo -e "${BLUE}🤖 Creating automation...${NC}"
+            echo "Description: $description"
+            [ -n "$schedule" ] && echo "Schedule: $schedule"
+            
+            local data="{\"description\":\"${description}\""
+            [ -n "$schedule" ] && data="${data},\"schedule\":\"${schedule}\""
+            data="${data}}"
+            
+            local response=$(api_request POST "/api/v1/automations/generate" "$data")
+            echo "$response"
+            ;;
+            
+        list)
+            echo -e "${BLUE}🔄 Active Automations${NC}"
+            echo "===================="
+            local automations=$(api_request GET "/api/v1/automations")
+            echo "$automations"
+            ;;
+            
+        --help|help)
+            echo "Usage: ${SCRIPT_NAME} automations [action] [options]"
+            echo ""
+            echo "Actions:"
+            echo "  create            Create new automation from description"
+            echo "  list              List all automations"
+            echo "  enable/disable    Enable or disable an automation"
+            echo ""
+            echo "Options:"
+            echo "  --description     Natural language description"
+            echo "  --schedule        Schedule expression"
+            ;;
+            
+        *)
+            echo "Unknown action: $action"
+            exit 1
+            ;;
+    esac
+}
+
+# Command: profiles
+cmd_profiles() {
+    echo -e "${BLUE}👤 User Profiles${NC}"
+    echo "==============="
+    echo "Profile management coming soon..."
+}
+
+# Command: version
+cmd_version() {
+    echo "Home Automation CLI v${VERSION}"
+    echo "API: ${API_URL}"
+}
+
+# Main command dispatcher
+case "${1:-help}" in
+    status)
+        shift
+        cmd_status "$@"
+        ;;
+    devices)
+        shift
+        cmd_devices "$@"
+        ;;
+    scenes)
+        shift
+        cmd_scenes "$@"
+        ;;
+    automations)
+        shift
+        cmd_automations "$@"
+        ;;
+    profiles)
+        shift
+        cmd_profiles "$@"
+        ;;
+    version|--version|-v)
+        cmd_version
+        ;;
+    help|--help|-h)
+        print_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo ""
+        print_help
+        exit 1
+        ;;
+esac

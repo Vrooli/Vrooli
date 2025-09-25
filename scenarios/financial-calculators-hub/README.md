@@ -30,6 +30,21 @@ This scenario provides accurate, fast financial calculations accessible via REST
    - Purchasing power analysis
    - Long-term inflation effects
 
+5. **Emergency Fund Calculator**
+   - Personalized recommendations based on job stability
+   - Accounts for dependents and insurance
+   - Minimum and recommended fund targets
+
+6. **Budget Allocation (50/30/20 Rule)**
+   - Automatic budget distribution
+   - Supports multiple budgeting methods
+   - Needs, wants, and savings breakdown
+
+7. **Debt Payoff Calculator**
+   - Avalanche vs snowball method comparison
+   - Payoff timeline projections
+   - Total interest savings calculations
+
 ## 🚀 Quick Start
 
 ### Using the CLI

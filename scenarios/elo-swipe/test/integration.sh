@@ -4,7 +4,7 @@
 
 set -e
 
-API_PORT=${API_PORT:-30400}
+API_PORT=${API_PORT:-19294}
 API_URL="http://localhost:$API_PORT/api/v1"
 
 echo "Running Elo Swipe integration tests..."
