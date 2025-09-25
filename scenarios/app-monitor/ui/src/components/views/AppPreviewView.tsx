@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, KeyboardEvent, MouseEvent } from 'react';
+import type { ChangeEvent, FormEvent, KeyboardEvent, MouseEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { ArrowLeft, ArrowRight, ExternalLink, Info, RefreshCw, ScrollText } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bug, ExternalLink, Info, Loader2, Power, RefreshCw, RotateCcw, ScrollText, X } from 'lucide-react';
 import { appService } from '@/services/api';
 import { logger } from '@/services/logger';
 import type { App } from '@/types';
@@ -30,6 +30,17 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const [fetchAttempted, setFetchAttempted] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [pendingAction, setPendingAction] = useState<null | 'start' | 'stop' | 'restart'>(null);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportMessage, setReportMessage] = useState('');
+  const [reportIncludeScreenshot, setReportIncludeScreenshot] = useState(false);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportResult, setReportResult] = useState<{ issueId?: string; message?: string } | null>(null);
+  const [reportScreenshotData, setReportScreenshotData] = useState<string | null>(null);
+  const [reportScreenshotLoading, setReportScreenshotLoading] = useState(false);
+  const [reportScreenshotError, setReportScreenshotError] = useState<string | null>(null);
+  const [reportScreenshotRequestId, setReportScreenshotRequestId] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
   const complianceRunRef = useRef(false);
@@ -61,6 +72,10 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     previewUrl,
     onLocation: handleBridgeLocation,
   });
+
+  const activePreviewUrl = useMemo(() => bridgeState.href || previewUrl || '', [bridgeState.href, previewUrl]);
+  const canCaptureScreenshot = useMemo(() => Boolean(activePreviewUrl), [activePreviewUrl]);
+  const targetAppIdentifier = useMemo(() => currentApp?.id ?? appId ?? '', [appId, currentApp]);
 
   useEffect(() => {
     if (!appId) {
@@ -245,6 +260,14 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   }, [bridgeState.href, bridgeState.isReady, bridgeState.isSupported, runComplianceCheck]);
 
   const handleAppAction = useCallback(async (appToControl: string, action: 'start' | 'stop' | 'restart') => {
+    setPendingAction(action);
+    const actionInProgressMessage = action === 'stop'
+      ? 'Stopping application...'
+      : action === 'start'
+        ? 'Starting application...'
+        : 'Restarting application...';
+    setStatusMessage(actionInProgressMessage);
+
     try {
       const success = await appService.controlApp(appToControl, action);
       if (success) {
@@ -273,12 +296,33 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
           : action === 'start'
             ? 'Application started. Preview will refresh automatically.'
             : 'Application restarted. Preview will refresh automatically.');
+      } else {
+        setStatusMessage(`Unable to ${action} the application. Check logs for details.`);
       }
     } catch (error) {
       logger.error(`Failed to ${action} app ${appToControl}`, error);
       setStatusMessage(`Unable to ${action} the application. Check logs for details.`);
+    } finally {
+      setPendingAction(null);
     }
   }, [setApps]);
+
+  const handleToggleApp = useCallback(() => {
+    if (!currentApp || pendingAction) {
+      return;
+    }
+
+    const action: 'start' | 'stop' = isRunningStatus(currentApp.status) ? 'stop' : 'start';
+    handleAppAction(currentApp.id, action);
+  }, [currentApp, handleAppAction, pendingAction]);
+
+  const handleRestartApp = useCallback(() => {
+    if (!currentApp || pendingAction || !isRunningStatus(currentApp.status)) {
+      return;
+    }
+
+    handleAppAction(currentApp.id, 'restart');
+  }, [currentApp, handleAppAction, pendingAction]);
 
   const applyPreviewUrlInput = useCallback(() => {
     const trimmed = previewUrlInput.trim();
@@ -434,6 +478,171 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     }
   }, [currentApp, navigate]);
 
+  const handleOpenReportDialog = useCallback(() => {
+    setReportDialogOpen(true);
+    setReportMessage('');
+    setReportError(null);
+    setReportResult(null);
+    setReportScreenshotData(null);
+    setReportScreenshotError(null);
+    setReportScreenshotLoading(false);
+    setReportIncludeScreenshot(canCaptureScreenshot);
+    setReportScreenshotRequestId(prev => prev + 1);
+  }, [canCaptureScreenshot]);
+
+  const handleCloseReportDialog = useCallback(() => {
+    setReportDialogOpen(false);
+    setReportSubmitting(false);
+    setReportError(null);
+    setReportResult(null);
+    setReportMessage('');
+    setReportIncludeScreenshot(canCaptureScreenshot);
+    setReportScreenshotData(null);
+    setReportScreenshotError(null);
+    setReportScreenshotLoading(false);
+    setReportScreenshotRequestId(0);
+  }, [canCaptureScreenshot]);
+
+  const handleReportMessageChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
+    setReportMessage(event.target.value);
+    if (reportError) {
+      setReportError(null);
+    }
+  }, [reportError]);
+
+  const handleReportIncludeScreenshotChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const nextValue = event.target.checked;
+    setReportIncludeScreenshot(nextValue);
+    if (nextValue) {
+      setReportScreenshotRequestId(prev => prev + 1);
+    } else {
+      setReportScreenshotData(null);
+      setReportScreenshotError(null);
+      setReportScreenshotLoading(false);
+    }
+  }, []);
+
+  const handleRetryScreenshotCapture = useCallback(() => {
+    setReportScreenshotRequestId(prev => prev + 1);
+  }, []);
+
+  const handleSubmitReport = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const trimmed = reportMessage.trim();
+    if (!trimmed) {
+      setReportError('Please add a short description of the issue.');
+      return;
+    }
+
+    const targetAppId = currentApp?.id ?? appId ?? '';
+    if (!targetAppId) {
+      setReportError('Unable to determine which application to report.');
+      return;
+    }
+
+    setReportSubmitting(true);
+    setReportError(null);
+
+    try {
+      const includeScreenshot = reportIncludeScreenshot && canCaptureScreenshot;
+      const previewContextUrl = activePreviewUrl || null;
+
+      const response = await appService.reportAppIssue(targetAppId, {
+        message: trimmed,
+        includeScreenshot,
+        previewUrl: previewContextUrl,
+        appName: currentApp?.name ?? null,
+        scenarioName: currentApp?.scenario_name ?? null,
+        source: 'app-monitor',
+        screenshotData: includeScreenshot ? reportScreenshotData ?? null : null,
+      });
+
+      const issueId = response.data?.issue_id;
+      setReportResult({
+        issueId,
+        message: response.message ?? 'Issue report sent successfully.',
+      });
+      setReportMessage('');
+    } catch (error: unknown) {
+      const fallbackMessage = (error as { message?: string })?.message ?? 'Failed to send issue report.';
+      setReportError(fallbackMessage);
+    } finally {
+      setReportSubmitting(false);
+    }
+  }, [activePreviewUrl, appId, canCaptureScreenshot, currentApp, reportIncludeScreenshot, reportMessage]);
+
+  useEffect(() => {
+    if (!reportDialogOpen) {
+      return;
+    }
+
+    const keyListener = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape' && !reportSubmitting) {
+        event.preventDefault();
+        handleCloseReportDialog();
+      }
+    };
+
+    window.addEventListener('keydown', keyListener);
+    return () => {
+      window.removeEventListener('keydown', keyListener);
+    };
+  }, [handleCloseReportDialog, reportDialogOpen, reportSubmitting]);
+
+  useEffect(() => {
+    if (!reportDialogOpen) {
+      return;
+    }
+
+    if (!reportIncludeScreenshot) {
+      setReportScreenshotLoading(false);
+      setReportScreenshotError(null);
+      return;
+    }
+
+    if (!canCaptureScreenshot || !activePreviewUrl || !targetAppIdentifier) {
+      setReportScreenshotLoading(false);
+      if (!canCaptureScreenshot) {
+        setReportScreenshotError(null);
+      }
+      return;
+    }
+
+    let cancelled = false;
+    setReportScreenshotLoading(true);
+    setReportScreenshotError(null);
+
+    appService.fetchReportScreenshot(targetAppIdentifier, activePreviewUrl)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        const screenshot = response.data?.screenshot ?? null;
+        setReportScreenshotData(screenshot ?? null);
+        if (!screenshot) {
+          setReportScreenshotError('Screenshot capture returned no data.');
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        const fallbackMessage = (error as { message?: string })?.message ?? 'Failed to capture screenshot.';
+        setReportScreenshotError(fallbackMessage);
+        setReportScreenshotData(null);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setReportScreenshotLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reportDialogOpen, reportIncludeScreenshot, canCaptureScreenshot, activePreviewUrl, targetAppIdentifier, reportScreenshotRequestId]);
+
   const urlStatusClass = useMemo(() => {
     if (!currentApp) {
       return 'unknown';
@@ -448,6 +657,19 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     const status = currentApp.status ?? 'Unknown';
     return `Status: ${status}`;
   }, [currentApp]);
+
+  const isAppRunning = useMemo(() => (currentApp ? isRunningStatus(currentApp.status) : false), [currentApp]);
+  const scenarioDisplayName = useMemo(() => {
+    if (!currentApp) {
+      return 'application';
+    }
+    return currentApp.name || currentApp.scenario_name || currentApp.id || 'application';
+  }, [currentApp]);
+
+  const toggleActionLabel = isAppRunning ? 'Stop scenario' : 'Start scenario';
+  const restartActionLabel = `Restart ${scenarioDisplayName}`;
+  const toggleTooltip = `${toggleActionLabel}${currentApp ? ` (${currentApp.id})` : ''}`;
+  const actionInProgress = pendingAction !== null;
 
   const bridgeIssueMessage = useMemo(() => {
     if (!bridgeState.isSupported || !bridgeCompliance || bridgeCompliance.ok) {
@@ -539,6 +761,42 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
         <div className="preview-toolbar__group preview-toolbar__group--right">
           <button
             type="button"
+            className={clsx(
+              'preview-toolbar__icon-btn',
+              isAppRunning && 'preview-toolbar__icon-btn--danger',
+              (pendingAction === 'start' || pendingAction === 'stop') && 'preview-toolbar__icon-btn--waiting',
+            )}
+            onClick={handleToggleApp}
+            disabled={!currentApp || actionInProgress}
+            aria-label={toggleTooltip}
+            title={toggleTooltip}
+          >
+            {(pendingAction === 'start' || pendingAction === 'stop') ? (
+              <Loader2 aria-hidden size={18} className="spinning" />
+            ) : (
+              <Power aria-hidden size={18} />
+            )}
+          </button>
+          <button
+            type="button"
+            className={clsx(
+              'preview-toolbar__icon-btn',
+              'preview-toolbar__icon-btn--secondary',
+              pendingAction === 'restart' && 'preview-toolbar__icon-btn--waiting',
+            )}
+            onClick={handleRestartApp}
+            disabled={!currentApp || !isAppRunning || actionInProgress}
+            aria-label={restartActionLabel}
+            title={restartActionLabel}
+          >
+            {pendingAction === 'restart' ? (
+              <Loader2 aria-hidden size={18} className="spinning" />
+            ) : (
+              <RotateCcw aria-hidden size={18} />
+            )}
+          </button>
+          <button
+            type="button"
             className="preview-toolbar__icon-btn"
             onClick={handleViewLogs}
             disabled={!currentApp}
@@ -547,14 +805,18 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
           >
             <ScrollText aria-hidden size={18} />
           </button>
+          <button
+            type="button"
+            className={clsx('preview-toolbar__icon-btn', 'preview-toolbar__icon-btn--report')}
+            onClick={handleOpenReportDialog}
+            disabled={!currentApp}
+            aria-label="Report an issue"
+            title="Report an issue"
+          >
+            <Bug aria-hidden size={18} />
+          </button>
         </div>
       </div>
-
-      {statusMessage && (
-        <div className="preview-status">
-          {statusMessage}
-        </div>
-      )}
 
       {bridgeIssueMessage && (
         <div className="preview-status">
@@ -589,6 +851,153 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
             navigate(`/logs/${appIdentifier}`);
           }}
         />
+      )}
+
+      {reportDialogOpen && (
+        <div
+          className="report-dialog__overlay"
+          role="presentation"
+          onClick={() => {
+            if (!reportSubmitting) {
+              handleCloseReportDialog();
+            }
+          }}
+        >
+          <div
+            className="report-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="app-report-dialog-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="report-dialog__header">
+              <h2 id="app-report-dialog-title">Report an Issue</h2>
+              <button
+                type="button"
+                className="report-dialog__close"
+                onClick={handleCloseReportDialog}
+                disabled={reportSubmitting}
+                aria-label="Close report dialog"
+              >
+                <X aria-hidden size={16} />
+              </button>
+            </div>
+
+            {reportResult ? (
+              <div className="report-dialog__state">
+                <p className="report-dialog__success">
+                  {reportResult.message ?? 'Issue report sent successfully.'}
+                </p>
+                {reportResult.issueId && (
+                  <p className="report-dialog__success-id">
+                    Tracking ID: <span>{reportResult.issueId}</span>
+                  </p>
+                )}
+                <div className="report-dialog__actions">
+                  <button
+                    type="button"
+                    className="report-dialog__button report-dialog__button--primary"
+                    onClick={handleCloseReportDialog}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form className="report-dialog__form" onSubmit={handleSubmitReport}>
+                <label htmlFor="app-report-message" className="report-dialog__label">
+                  Describe the issue
+                </label>
+                <textarea
+                  id="app-report-message"
+                  className="report-dialog__textarea"
+                  value={reportMessage}
+                  onChange={handleReportMessageChange}
+                  rows={6}
+                  placeholder="What are you seeing? Include steps to reproduce if possible."
+                  disabled={reportSubmitting}
+                  required
+                />
+
+                <label className="report-dialog__checkbox">
+                  <input
+                    type="checkbox"
+                    checked={reportIncludeScreenshot && canCaptureScreenshot}
+                    onChange={handleReportIncludeScreenshotChange}
+                    disabled={!canCaptureScreenshot || reportSubmitting}
+                  />
+                  <span>Include screenshot of the current preview</span>
+                </label>
+                {!canCaptureScreenshot && (
+                  <p className="report-dialog__hint">Load the preview to capture a screenshot.</p>
+                )}
+                {reportIncludeScreenshot && canCaptureScreenshot && (
+                  <div className="report-dialog__preview" aria-live="polite">
+                    {reportScreenshotLoading ? (
+                      <div className="report-dialog__preview-loading">
+                        <Loader2 aria-hidden size={18} className="spinning" />
+                        <span>Capturing screenshot…</span>
+                      </div>
+                    ) : reportScreenshotError ? (
+                      <div className="report-dialog__preview-error">
+                        <p>{reportScreenshotError}</p>
+                        <button
+                          type="button"
+                          className="report-dialog__button report-dialog__button--ghost"
+                          onClick={handleRetryScreenshotCapture}
+                          disabled={reportScreenshotLoading}
+                        >
+                          Retry capture
+                        </button>
+                      </div>
+                    ) : reportScreenshotData ? (
+                      <div className="report-dialog__preview-image">
+                        <img
+                          src={`data:image/png;base64,${reportScreenshotData}`}
+                          alt="Preview screenshot"
+                          loading="lazy"
+                        />
+                      </div>
+                    ) : (
+                      <p className="report-dialog__preview-hint">Ready to capture the current preview.</p>
+                    )}
+                  </div>
+                )}
+
+                {reportError && (
+                  <p className="report-dialog__error" role="alert">
+                    {reportError}
+                  </p>
+                )}
+
+                <div className="report-dialog__actions">
+                  <button
+                    type="button"
+                    className="report-dialog__button"
+                    onClick={handleCloseReportDialog}
+                    disabled={reportSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="report-dialog__button report-dialog__button--primary"
+                    disabled={reportSubmitting}
+                  >
+                    {reportSubmitting ? (
+                      <>
+                        <Loader2 aria-hidden size={16} className="spinning" />
+                        Sending…
+                      </>
+                    ) : (
+                      'Send Report'
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

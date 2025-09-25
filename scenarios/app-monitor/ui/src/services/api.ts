@@ -45,6 +45,16 @@ api.interceptors.response.use(
   }
 );
 
+export interface ReportIssuePayload {
+  message: string;
+  includeScreenshot?: boolean;
+  previewUrl?: string | null;
+  appName?: string | null;
+  scenarioName?: string | null;
+  source?: string;
+  screenshotData?: string | null;
+}
+
 // App Management
 export const appService = {
   // Get fast-loading summaries
@@ -113,6 +123,28 @@ export const appService = {
       return false;
     }
   },
+
+  async reportAppIssue(appId: string, payload: ReportIssuePayload): Promise<ApiResponse<{ issue_id?: string }>> {
+    try {
+      const { data } = await api.post<ApiResponse<{ issue_id?: string }>>(`/apps/${encodeURIComponent(appId)}/report`, payload);
+      return data;
+    } catch (error) {
+      logger.error(`Failed to report issue for app ${appId}`, error);
+      throw error;
+    }
+  },
+
+  async fetchReportScreenshot(appId: string, previewUrl: string): Promise<ApiResponse<{ screenshot?: string }>> {
+    try {
+      const { data } = await api.get<ApiResponse<{ screenshot?: string }>>(`/apps/${encodeURIComponent(appId)}/report/screenshot`, {
+        params: { preview_url: previewUrl },
+      });
+      return data;
+    } catch (error) {
+      logger.error(`Failed to capture screenshot for app ${appId}`, error);
+      throw error;
+    }
+  },
 };
 
 // Resource Management
@@ -177,28 +209,27 @@ export const logService = {
   },
 };
 
-// System Information
-export const systemService = {
-  async getSystemInfo(): Promise<any> {
-    try {
-      const { data } = await api.get('/system/info');
-      return data;
-    } catch (error) {
-      logger.error('Failed to fetch system info', error);
-      return null;
-    }
-  },
-};
-
 // Health Check
+export interface ApiHealthResponse {
+  status?: string;
+  service?: string;
+  metrics?: {
+    uptime_seconds?: number;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
 export const healthService = {
-  async checkHealth(): Promise<boolean> {
+  async checkHealth(): Promise<ApiHealthResponse | null> {
     try {
-      const { data } = await api.get('/health');
-      return data.status === 'healthy';
+      const { data } = await axios.get<ApiHealthResponse>('/api/health', {
+        timeout: 10000,
+      });
+      return data ?? null;
     } catch (error) {
       logger.error('Health check failed', error);
-      return false;
+      return null;
     }
   },
 

@@ -183,9 +183,16 @@ func (d *Database) GetOrCreateConversation(chatbotID, sessionID, userIP string) 
 	if err == sql.ErrNoRows {
 		// Create new conversation
 		conversationID = uuid.New().String()
+		
+		// Handle empty IP address - use NULL for empty string
+		var ipValue interface{} = nil
+		if userIP != "" {
+			ipValue = userIP
+		}
+		
 		_, err = d.db.Exec(
 			"INSERT INTO conversations (id, chatbot_id, session_id, user_ip, started_at) VALUES ($1, $2, $3, $4, $5)",
-			conversationID, chatbotID, sessionID, userIP, time.Now(),
+			conversationID, chatbotID, sessionID, ipValue, time.Now(),
 		)
 		return conversationID, err
 	}

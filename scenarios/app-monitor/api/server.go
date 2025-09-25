@@ -69,7 +69,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	handlers := &Handlers{
 		health:    handlers.NewHealthHandler(db, redis, docker),
 		app:       handlers.NewAppHandler(appService),
-		system:    handlers.NewSystemHandler(metricsService, cfg.Orchestrator.StatusURL),
+		system:    handlers.NewSystemHandler(metricsService),
 		docker:    handlers.NewDockerHandler(docker),
 		websocket: handlers.NewWebSocketHandler(middleware.SecureWebSocketUpgrader(), redis),
 	}
@@ -121,7 +121,6 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 	v1 := r.Group("/api/v1")
 	{
 		// System endpoints
-		v1.GET("/system/info", h.system.GetSystemInfo)
 		v1.GET("/system/metrics", h.system.GetSystemMetrics)
 
 		// App management endpoints
@@ -131,6 +130,8 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 		v1.POST("/apps/:id/start", h.app.StartApp)
 		v1.POST("/apps/:id/stop", h.app.StopApp)
 		v1.POST("/apps/:id/restart", h.app.RestartApp)
+		v1.POST("/apps/:id/report", h.app.ReportAppIssue)
+		v1.GET("/apps/:id/report/screenshot", h.app.GetAppReportScreenshot)
 		v1.GET("/apps/:id/logs", h.app.GetAppLogs)
 		v1.GET("/apps/:id/logs/lifecycle", h.app.GetAppLifecycleLogs)
 		v1.GET("/apps/:id/logs/background", h.app.GetAppBackgroundLogs)

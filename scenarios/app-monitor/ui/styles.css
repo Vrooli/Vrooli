@@ -127,25 +127,52 @@ body {
 
 .status-bar {
     display: flex;
-    gap: 2rem;
+    justify-content: flex-end;
 }
 
-.status-item {
-    text-align: center;
+.status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid rgba(0, 255, 65, 0.35);
+    border-radius: 999px;
+    background: rgba(0, 255, 65, 0.08);
+    color: var(--matrix-green);
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
-.status-label {
-    display: block;
-    font-size: 0.7rem;
-    color: var(--matrix-dark-green);
-    margin-bottom: 0.2rem;
+.status-chip.offline {
+    background: rgba(255, 65, 105, 0.12);
+    border-color: rgba(255, 65, 105, 0.4);
+    color: var(--matrix-red);
 }
 
-.status-value {
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: var(--matrix-light-green);
-    text-shadow: 0 0 5px currentColor;
+.status-indicator {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 999px;
+    box-shadow: 0 0 10px currentColor;
+}
+
+.status-indicator.online {
+    background: var(--matrix-green);
+}
+
+.status-indicator.offline {
+    background: var(--matrix-red);
+}
+
+.status-text {
+    line-height: 1;
+}
+
+.status-chip.offline .status-text {
+    color: var(--matrix-red);
 }
 
 /* Dashboard Layout */
@@ -202,6 +229,12 @@ body {
     bottom: 0;
     width: 3px;
     background: var(--matrix-green);
+}
+
+.menu-count {
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    color: var(--matrix-dark-green);
 }
 
 .menu-icon {

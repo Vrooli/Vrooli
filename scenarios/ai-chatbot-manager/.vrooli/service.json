@@ -85,17 +85,17 @@
     },
     "POSTGRES_PORT": {
       "description": "PostgreSQL port",
-      "default": "5432",
+      "default": "5433",
       "required": false
     },
     "POSTGRES_USER": {
       "description": "PostgreSQL username",
-      "default": "postgres",
+      "default": "vrooli",
       "required": false
     },
     "POSTGRES_PASSWORD": {
       "description": "PostgreSQL password",
-      "default": "postgres",
+      "default": "vrooli",
       "required": false
     },
     "POSTGRES_DB": {
@@ -243,7 +243,7 @@
         },
         {
           "name": "test-chatbot-endpoints",
-          "run": "bash test/test-chatbot-api.sh",
+          "run": "bash test/test-api-endpoints-improved.sh",
           "description": "Test chatbot CRUD endpoints"
         },
         {

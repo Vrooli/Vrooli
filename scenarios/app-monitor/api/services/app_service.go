@@ -1,9 +1,16 @@
 package services
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
 	"os/exec"
 	"sort"
 	"strconv"
@@ -688,4 +695,397 @@ func (s *AppService) GetAppStatusHistory(ctx context.Context, appID string, hour
 		return nil, fmt.Errorf("database not available")
 	}
 	return s.repo.GetAppStatusHistory(ctx, appID, hours)
+}
+
+// IssueReportRequest captures a request to forward an issue to app-issue-tracker
+type IssueReportRequest struct {
+	AppID             string `json:"-"`
+	Message           string `json:"message"`
+	IncludeScreenshot bool   `json:"includeScreenshot"`
+	PreviewURL        string `json:"previewUrl"`
+	AppName           string `json:"appName"`
+	ScenarioName      string `json:"scenarioName"`
+	Source            string `json:"source"`
+	ScreenshotData    string `json:"screenshotData"`
+}
+
+// IssueReportResult represents the outcome of forwarding an issue report
+type IssueReportResult struct {
+	IssueID string
+	Message string
+}
+
+// ReportAppIssue forwards an issue report to the app-issue-tracker scenario
+func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest) (*IssueReportResult, error) {
+	if req == nil {
+		return nil, errors.New("request payload is required")
+	}
+
+	appID := strings.TrimSpace(req.AppID)
+	if appID == "" {
+		return nil, errors.New("app identifier is required")
+	}
+
+	message := strings.TrimSpace(req.Message)
+	if message == "" {
+		return nil, errors.New("issue message is required")
+	}
+
+	reportedAt := time.Now().UTC()
+
+	appName := strings.TrimSpace(req.AppName)
+	scenarioName := strings.TrimSpace(req.ScenarioName)
+
+	if app, err := s.GetApp(ctx, appID); err == nil && app != nil {
+		if appName == "" {
+			appName = app.Name
+		}
+		if scenarioName == "" {
+			scenarioName = app.ScenarioName
+		}
+	}
+
+	if appName == "" {
+		appName = appID
+	}
+	if scenarioName == "" {
+		scenarioName = appID
+	}
+
+	previewURL := normalizePreviewURL(req.PreviewURL)
+
+	screenshotData := strings.TrimSpace(req.ScreenshotData)
+	if screenshotData != "" {
+		if _, err := base64.StdEncoding.DecodeString(screenshotData); err != nil {
+			fmt.Printf("Warning: invalid screenshot data provided, ignoring: %v\n", err)
+			screenshotData = ""
+		}
+	}
+
+	if screenshotData == "" && req.IncludeScreenshot && previewURL != "" {
+		if data, err := capturePreviewScreenshot(ctx, previewURL); err == nil {
+			screenshotData = data
+		} else {
+			fmt.Printf("Warning: failed to capture preview screenshot: %v\n", err)
+		}
+	}
+
+	title := fmt.Sprintf("[app-monitor] %s", summarizeIssueTitle(message))
+	description := buildIssueDescription(appName, scenarioName, previewURL, req.Source, message, screenshotData, reportedAt)
+	hasScreenshot := screenshotData != ""
+	tags := buildIssueTags(hasScreenshot)
+	environment := buildIssueEnvironment(appID, appName, previewURL, req.Source, reportedAt)
+
+	port, err := s.locateIssueTrackerAPIPort(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	payload := map[string]interface{}{
+		"title":       title,
+		"description": description,
+		"type":        "bug",
+		"priority":    "medium",
+		"app_id":      scenarioName,
+		"tags":        tags,
+		"environment": environment,
+	}
+
+	result, err := submitIssueToTracker(ctx, port, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error) {
+	apps, err := s.GetAppsFromOrchestrator(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to inspect scenarios: %w", err)
+	}
+
+	for _, candidate := range apps {
+		name := strings.ToLower(strings.TrimSpace(candidate.ScenarioName))
+		if name == "" {
+			name = strings.ToLower(strings.TrimSpace(candidate.ID))
+		}
+		if name != "app-issue-tracker" {
+			continue
+		}
+
+		port := resolvePort(candidate.PortMappings, []string{"api", "api_port", "API", "API_PORT"})
+		if port > 0 {
+			return port, nil
+		}
+	}
+
+	return 0, errors.New("app-issue-tracker is not running or no API port was found")
+}
+
+// CaptureIssueScreenshot captures a screenshot of the provided preview URL
+func (s *AppService) CaptureIssueScreenshot(ctx context.Context, appID string, previewURL string) (string, error) {
+	_ = appID // currently unused but kept for future validation
+
+	normalized := normalizePreviewURL(previewURL)
+	if normalized == "" {
+		return "", errors.New("invalid preview URL")
+	}
+
+	return capturePreviewScreenshot(ctx, normalized)
+}
+
+func resolvePort(portMappings map[string]interface{}, preferredKeys []string) int {
+	if len(portMappings) == 0 {
+		return 0
+	}
+
+	for _, key := range preferredKeys {
+		for label, value := range portMappings {
+			if strings.EqualFold(label, key) {
+				if port, ok := parsePortValue(value); ok {
+					return port
+				}
+			}
+		}
+	}
+
+	for _, value := range portMappings {
+		if port, ok := parsePortValue(value); ok {
+			return port
+		}
+	}
+
+	return 0
+}
+
+func parsePortValue(value interface{}) (int, bool) {
+	switch v := value.(type) {
+	case int:
+		if v > 0 {
+			return v, true
+		}
+	case int32:
+		if v > 0 {
+			return int(v), true
+		}
+	case int64:
+		if v > 0 {
+			return int(v), true
+		}
+	case float64:
+		port := int(v)
+		if port > 0 {
+			return port, true
+		}
+	case json.Number:
+		if i, err := v.Int64(); err == nil && i > 0 {
+			return int(i), true
+		}
+		if f, err := v.Float64(); err == nil {
+			port := int(f)
+			if port > 0 {
+				return port, true
+			}
+		}
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return 0, false
+		}
+		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed > 0 {
+			return parsed, true
+		}
+	}
+
+	return 0, false
+}
+
+func normalizePreviewURL(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return ""
+	}
+
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return ""
+	}
+
+	return parsed.String()
+}
+
+func capturePreviewScreenshot(ctx context.Context, targetURL string) (string, error) {
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	file, err := os.CreateTemp("", "app-monitor-preview-*.png")
+	if err != nil {
+		return "", err
+	}
+	tmpPath := file.Name()
+	file.Close()
+	defer os.Remove(tmpPath)
+
+	cmd := exec.CommandContext(ctxWithTimeout, "resource-browserless", "screenshot", targetURL, "--output", tmpPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("screenshot command failed: %w (output: %s)", err, string(output))
+	}
+
+	imageBytes, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(imageBytes), nil
+}
+
+func summarizeIssueTitle(message string) string {
+	trimmed := strings.TrimSpace(message)
+	if trimmed == "" {
+		return "Issue reported from App Monitor"
+	}
+
+	firstLine := trimmed
+	if idx := strings.IndexAny(trimmed, "\n\r"); idx != -1 {
+		firstLine = strings.TrimSpace(trimmed[:idx])
+	}
+
+	runes := []rune(firstLine)
+	if len(runes) > 60 {
+		return string(runes[:60]) + "..."
+	}
+
+	return firstLine
+}
+
+func buildIssueDescription(appName, scenarioName, previewURL, source, message, screenshotData string, reportedAt time.Time) string {
+	var builder strings.Builder
+	builder.WriteString("## App Monitor Issue Report\n\n")
+	builder.WriteString(fmt.Sprintf("- App Name: %s\n", appName))
+	builder.WriteString(fmt.Sprintf("- Scenario Identifier: %s\n", scenarioName))
+	if previewURL != "" {
+		builder.WriteString(fmt.Sprintf("- Preview URL: %s\n", previewURL))
+	}
+	if source != "" {
+		builder.WriteString(fmt.Sprintf("- Reported By: %s\n", source))
+	}
+	builder.WriteString(fmt.Sprintf("- Reported At: %s\n", reportedAt.Format(time.RFC3339)))
+
+	builder.WriteString("\n### Reporter Notes\n\n")
+	builder.WriteString(message)
+	builder.WriteString("\n")
+
+	if screenshotData != "" {
+		builder.WriteString("\n### Screenshot\n\n")
+		builder.WriteString("![Preview Screenshot](data:image/png;base64,")
+		builder.WriteString(screenshotData)
+		builder.WriteString(")\n")
+	}
+
+	return builder.String()
+}
+
+func buildIssueTags(hasScreenshot bool) []string {
+	tags := []string{"app-monitor", "preview"}
+	if hasScreenshot {
+		tags = append(tags, "screenshot")
+	}
+	return tags
+}
+
+func buildIssueEnvironment(appID, appName, previewURL, source string, reportedAt time.Time) map[string]string {
+	environment := map[string]string{
+		"app_id":      appID,
+		"app_name":    appName,
+		"reported_at": reportedAt.Format(time.RFC3339),
+	}
+
+	if previewURL != "" {
+		environment["preview_url"] = previewURL
+	}
+
+	if source != "" {
+		environment["source"] = source
+	}
+
+	return environment
+}
+
+type issueTrackerAPIResponse struct {
+	Success bool                   `json:"success"`
+	Message string                 `json:"message"`
+	Error   string                 `json:"error"`
+	Data    map[string]interface{} `json:"data"`
+}
+
+func submitIssueToTracker(ctx context.Context, port int, payload map[string]interface{}) (*IssueReportResult, error) {
+	if port <= 0 {
+		return nil, errors.New("invalid app-issue-tracker port")
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	endpoint := fmt.Sprintf("http://localhost:%d/api/v1/issues", port)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 25 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call app-issue-tracker: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("app-issue-tracker returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(bodyBytes)))
+	}
+
+	var trackerResp issueTrackerAPIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&trackerResp); err != nil {
+		return nil, fmt.Errorf("failed to decode app-issue-tracker response: %w", err)
+	}
+
+	if !trackerResp.Success {
+		message := strings.TrimSpace(trackerResp.Error)
+		if message == "" {
+			message = strings.TrimSpace(trackerResp.Message)
+		}
+		if message == "" {
+			message = "app-issue-tracker rejected the issue report"
+		}
+		return nil, errors.New(message)
+	}
+
+	issueID := ""
+	if trackerResp.Data != nil {
+		if value, ok := trackerResp.Data["issue_id"].(string); ok {
+			issueID = value
+		} else if value, ok := trackerResp.Data["issueId"].(string); ok {
+			issueID = value
+		}
+	}
+
+	resultMessage := strings.TrimSpace(trackerResp.Message)
+	if resultMessage == "" {
+		resultMessage = "Issue reported successfully"
+	}
+
+	return &IssueReportResult{
+		IssueID: issueID,
+		Message: resultMessage,
+	}, nil
 }

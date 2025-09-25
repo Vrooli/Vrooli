@@ -56,7 +56,6 @@ export API_KEY="your-secret-key"                              # Optional API aut
 - `GET /api/v1/logs/:appName` - Get logs by app name
 
 ### System Information
-- `GET /api/v1/system/info` - Get system and orchestrator information
 - `GET /api/v1/system/metrics` - Get system metrics
 - `GET /api/v1/resources` - Get resource status
 

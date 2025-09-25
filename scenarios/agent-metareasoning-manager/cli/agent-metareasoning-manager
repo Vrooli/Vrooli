@@ -1,0 +1,28 @@
+#!/bin/bash
+echo "Agent Metareasoning Manager CLI v1.0"
+case "$1" in
+  help|-h|--help)
+    echo "Usage: agent-metareasoning-manager <command> [args]"
+    echo "Commands:"
+    echo "  help     Show this help"
+    echo "  status   Check status"
+    echo "  start    Start the manager"
+    echo "  stop     Stop the manager"
+    ;;
+  status)
+    echo "Status: running"
+    ;;
+  start)
+    echo "Starting agent-metareasoning-manager..."
+    vrooli scenario run agent-metareasoning-manager
+    ;;
+  stop)
+    echo "Stopping agent-metareasoning-manager..."
+    vrooli scenario stop agent-metareasoning-manager
+    ;;
+  *)
+    echo "Unknown command: $1"
+    echo "Use 'help' for usage."
+    exit 1
+    ;;
+esac

@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"app-monitor-api/services"
 
@@ -199,4 +200,72 @@ func (h *AppHandler) GetAppBackgroundLogs(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, structuredLogs)
+}
+
+// GetAppReportScreenshot captures a preview screenshot for verification
+func (h *AppHandler) GetAppReportScreenshot(c *gin.Context) {
+	appID := c.Param("id")
+	previewURL := c.Query("preview_url")
+
+	if strings.TrimSpace(previewURL) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "preview_url query parameter is required",
+		})
+		return
+	}
+
+	screenshot, err := h.appService.CaptureIssueScreenshot(c.Request.Context(), appID, previewURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"screenshot": screenshot,
+		},
+	})
+}
+
+// ReportAppIssue forwards an application issue report to the issue tracker scenario
+func (h *AppHandler) ReportAppIssue(c *gin.Context) {
+	appID := c.Param("id")
+
+	var payload services.IssueReportRequest
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid issue report payload",
+		})
+		return
+	}
+
+	payload.AppID = appID
+
+	result, err := h.appService.ReportAppIssue(c.Request.Context(), &payload)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	response := gin.H{
+		"success": true,
+		"message": result.Message,
+	}
+
+	if result.IssueID != "" {
+		response["data"] = gin.H{
+			"issue_id": result.IssueID,
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
 }

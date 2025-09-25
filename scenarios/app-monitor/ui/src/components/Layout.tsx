@@ -12,10 +12,32 @@ import {
   ScrollText,
   Server,
 } from 'lucide-react';
-import { appService, resourceService, systemService } from '@/services/api';
+import { appService, resourceService, healthService } from '@/services/api';
 import type { App } from '@/types';
 import { locateAppByIdentifier } from '@/utils/appPreview';
 import './Layout.css';
+
+const OFFLINE_STATES = new Set(['unhealthy', 'offline', 'critical']);
+
+const formatSecondsToDuration = (seconds: number): string => {
+  if (!Number.isFinite(seconds) || Number.isNaN(seconds)) {
+    return '--:--:--';
+  }
+
+  const totalSeconds = Math.max(0, Math.floor(seconds));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours.toString().padStart(2, '0')}h ${minutes.toString().padStart(2, '0')}m`;
+  }
+
+  return [hours, minutes, secs]
+    .map(value => value.toString().padStart(2, '0'))
+    .join(':');
+};
 
 interface LayoutProps {
   children: ReactNode;
@@ -28,49 +50,94 @@ export default function Layout({ children, isConnected, apps }: LayoutProps) {
   const location = useLocation();
   const [appCount, setAppCount] = useState(0);
   const [resourceCount, setResourceCount] = useState(0);
-  const [uptime, setUptime] = useState('00:00:00');
-  const [isFetching, setIsFetching] = useState(false);
+  const [uptime, setUptime] = useState('--:--:--');
+  const [healthStatus, setHealthStatus] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const mobileViewportRef = useRef(false);
   const desktopCollapsedRef = useRef(false);
+  const pollingRef = useRef(false);
 
   // Fetch counts and system info
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
-      // Skip if already fetching to prevent request stacking
-      if (isFetching) {
-        console.log('Skipping fetch - already in progress');
+      if (pollingRef.current) {
         return;
       }
-      
-      setIsFetching(true);
+
+      pollingRef.current = true;
       try {
-        // Fetch app count
-        const apps = await appService.getApps();
-        setAppCount(apps.length);
-        
-        // Fetch resource count
-        const resources = await resourceService.getResources();
-        setResourceCount(resources.length);
-        
-        // Fetch system info for uptime
-        const systemInfo = await systemService.getSystemInfo();
-        if (systemInfo && systemInfo.orchestrator_running && systemInfo.uptime) {
-          setUptime(systemInfo.uptime);
+        const [appsResult, resourcesResult, healthResult] = await Promise.allSettled([
+          appService.getApps(),
+          resourceService.getResources(),
+          healthService.checkHealth(),
+        ]);
+
+        if (!isMounted) {
+          return;
         }
+
+        if (appsResult.status === 'fulfilled') {
+          setAppCount(appsResult.value.length);
+        }
+
+        if (resourcesResult.status === 'fulfilled') {
+          setResourceCount(resourcesResult.value.length);
+        }
+
+        if (appsResult.status === 'rejected') {
+          console.error('Failed to fetch app list for layout metrics:', appsResult.reason);
+        }
+
+        if (resourcesResult.status === 'rejected') {
+          console.error('Failed to fetch resource list for layout metrics:', resourcesResult.reason);
+        }
+
+        if (healthResult.status === 'fulfilled' && healthResult.value) {
+          const normalizedStatus = typeof healthResult.value.status === 'string'
+            ? healthResult.value.status.toLowerCase()
+            : null;
+          setHealthStatus(normalizedStatus);
+
+          if (normalizedStatus === 'unhealthy') {
+            setUptime('--:--:--');
+          }
+
+          const healthUptimeSeconds = typeof healthResult.value.metrics?.uptime_seconds === 'number'
+            ? healthResult.value.metrics.uptime_seconds
+            : null;
+
+          if (healthUptimeSeconds !== null && normalizedStatus !== 'unhealthy') {
+            const formatted = formatSecondsToDuration(healthUptimeSeconds);
+            setUptime(prev => (prev === formatted ? prev : formatted));
+          }
+        } else if (healthResult.status === 'rejected') {
+          console.error('Health check failed:', healthResult.reason);
+          setHealthStatus('unhealthy');
+          setUptime('--:--:--');
+        }
+
       } catch (error) {
-        console.error('Failed to fetch layout data:', error);
+        if (isMounted) {
+          console.error('Failed to fetch layout data:', error);
+          setHealthStatus('unhealthy');
+          setUptime('--:--:--');
+        }
       } finally {
-        setIsFetching(false);
+        pollingRef.current = false;
       }
     };
-    
+
     fetchData();
     const interval = setInterval(fetchData, 60000); // Update every 60 seconds (reduced from 10s to prevent CPU overload)
-    
-    return () => clearInterval(interval);
-  }, [isFetching]);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -174,11 +241,11 @@ export default function Layout({ children, isConnected, apps }: LayoutProps) {
 
   const headerTitle = isPreviewRoute ? (previewAppName ?? 'Loading…') : 'Vrooli';
 
-  const menuItems: Array<{ path: string; label: string; Icon: LucideIcon }> = [
-    { path: '/apps', label: 'APPLICATIONS', Icon: LayoutDashboard },
+  const menuItems: Array<{ path: string; label: string; Icon: LucideIcon; count?: number }> = useMemo(() => ([
+    { path: '/apps', label: 'APPLICATIONS', Icon: LayoutDashboard, count: appCount },
     { path: '/logs', label: 'SYSTEM LOGS', Icon: ScrollText },
-    { path: '/resources', label: 'RESOURCES', Icon: Server },
-  ];
+    { path: '/resources', label: 'RESOURCES', Icon: Server, count: resourceCount },
+  ]), [appCount, resourceCount]);
 
   const quickActions: Array<{
     label: string;
@@ -205,6 +272,11 @@ export default function Layout({ children, isConnected, apps }: LayoutProps) {
       title: 'Trigger a system health check',
     },
   ];
+
+  const isSystemOnline = healthStatus
+    ? !OFFLINE_STATES.has(healthStatus)
+    : isConnected;
+  const statusText = isSystemOnline ? uptime : 'Offline';
 
   return (
     <>
@@ -234,23 +306,16 @@ export default function Layout({ children, isConnected, apps }: LayoutProps) {
             </div>
           </div>
           <div className="status-bar">
-            <div className="status-item">
-              <span className="status-label">SYSTEM</span>
-              <span className={clsx('status-value', isConnected ? 'online' : 'offline')}>
-                {isConnected ? 'ONLINE' : 'OFFLINE'}
-              </span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">APPS</span>
-              <span className="status-value">{appCount}</span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">RESOURCES</span>
-              <span className="status-value">{resourceCount}</span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">UPTIME</span>
-              <span className="status-value">{uptime}</span>
+            <div
+              className={clsx('status-chip', { offline: !isSystemOnline })}
+              role="status"
+              aria-live="polite"
+            >
+              <span
+                className={clsx('status-indicator', isSystemOnline ? 'online' : 'offline')}
+                aria-hidden
+              />
+              <span className="status-text">{statusText}</span>
             </div>
           </div>
         </div>
@@ -288,7 +353,12 @@ export default function Layout({ children, isConnected, apps }: LayoutProps) {
                     onClick={handleNavClick}
                   >
                     <item.Icon aria-hidden className="menu-icon" />
-                    <span className="menu-label">{item.label}</span>
+                    <span className="menu-label">
+                      {item.label}
+                      {typeof item.count === 'number' && (
+                        <span className="menu-count">({item.count})</span>
+                      )}
+                    </span>
                   </NavLink>
                 </li>
               ))}

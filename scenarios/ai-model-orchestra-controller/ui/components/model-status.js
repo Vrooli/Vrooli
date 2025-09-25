@@ -6,6 +6,15 @@
 import apiClient from '../services/api-client.js';
 import formatters from '../utils/formatters.js';
 
+const escapeHtml = (unsafe) => {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+};
+
 export class ModelStatusComponent {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
@@ -98,7 +107,7 @@ export class ModelStatusComponent {
         return `
             <div class="model-card ${statusColor} p-4 rounded-lg shadow">
                 <div class="model-header">
-                    <h3 class="font-semibold">${model.model_name}</h3>
+                    <h3 class="font-semibold">${escapeHtml(model.model_name)}</h3>
                     <span class="status-badge">${statusIcon} ${statusText}</span>
                 </div>
                 

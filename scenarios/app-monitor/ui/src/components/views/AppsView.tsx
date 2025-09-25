@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
+import { Search as SearchIcon, SlidersHorizontal, X } from 'lucide-react';
 import { appService } from '@/services/api';
 import { logger } from '@/services/logger';
 import type { App, AppViewMode } from '@/types';
@@ -14,17 +15,99 @@ interface AppsViewProps {
   setApps: React.Dispatch<React.SetStateAction<App[]>>;
 }
 
-// Memoized search input component
-const SearchInput = memo(({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
-  <input
-    type="text"
-    className="search-box"
-    placeholder="SEARCH..."
-    value={value}
-    onChange={(e) => onChange(e.target.value)}
-  />
+// Memoized search input component with iconography and clear affordance
+const SearchInput = memo(({ 
+  value, 
+  onChange,
+  onClear,
+  inputRef,
+}: { 
+  value: string; 
+  onChange: (value: string) => void;
+  onClear: () => void;
+  inputRef: React.RefObject<HTMLInputElement>;
+}) => (
+  <div className="search-control">
+    <SearchIcon className="search-icon" aria-hidden="true" />
+    <input
+      ref={inputRef}
+      type="text"
+      className="search-box"
+      placeholder="Search applications"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && value) {
+          event.preventDefault();
+          onClear();
+        }
+      }}
+      aria-label="Search applications"
+    />
+    {value && (
+      <button
+        type="button"
+        className="search-clear"
+        onClick={onClear}
+        aria-label="Clear search"
+      >
+        <X size={14} aria-hidden="true" />
+      </button>
+    )}
+  </div>
 ));
 SearchInput.displayName = 'SearchInput';
+
+type SortOption = 'status' | 'name-asc' | 'name-desc';
+
+const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
+  { value: 'status', label: 'Status · active first' },
+  { value: 'name-asc', label: 'Name · A → Z' },
+  { value: 'name-desc', label: 'Name · Z → A' },
+];
+
+const SORT_OPTION_SET = new Set<SortOption>(SORT_OPTIONS.map(({ value }) => value));
+const DEFAULT_SORT: SortOption = 'status';
+
+const STATUS_PRIORITY: Record<string, number> = {
+  running: 0,
+  healthy: 0,
+  starting: 0,
+  booting: 0,
+  initializing: 0,
+  unknown: 0,
+  degraded: 1,
+  unhealthy: 1,
+  warning: 1,
+  syncing: 1,
+  partial: 1,
+  stopping: 2,
+  paused: 2,
+  error: 2,
+  failed: 2,
+  crashed: 2,
+  offline: 4,
+  stopped: 4,
+};
+
+const SortSelect = memo(({ value, onChange }: { value: SortOption; onChange: (value: SortOption) => void }) => (
+  <div className="sort-control">
+    <SlidersHorizontal className="sort-icon" aria-hidden="true" />
+    <select
+      className="sort-select"
+      value={value}
+      onChange={(event) => onChange(event.target.value as SortOption)}
+      aria-label="Sort applications"
+    >
+      {SORT_OPTIONS.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  </div>
+));
+SortSelect.displayName = 'SortSelect';
 
 // Memoized view toggle button
 const ViewToggle = memo(({ viewMode, onClick }: { viewMode: AppViewMode; onClick: () => void }) => (
@@ -239,19 +322,43 @@ AppListRow.displayName = 'AppListRow';
 // Main AppsView component with optimizations
 const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [hydrating, setHydrating] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
+  const initialSortParam = searchParams.get('sort');
+  const [sortOption, setSortOption] = useState<SortOption>(
+    initialSortParam && SORT_OPTION_SET.has(initialSortParam as SortOption)
+      ? (initialSortParam as SortOption)
+      : DEFAULT_SORT,
+  );
   const [viewMode, setViewMode] = useState<AppViewMode>('grid');
   const [selectedApp, setSelectedApp] = useState<App | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const isMountedRef = useRef(true);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const initialPositionsRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    const nextSearch = searchParams.get('q') ?? '';
+    if (nextSearch !== search) {
+      setSearch(nextSearch);
+    }
+  }, [searchParams, search]);
+
+  useEffect(() => {
+    apps.forEach((app, index) => {
+      if (!initialPositionsRef.current.has(app.id)) {
+        initialPositionsRef.current.set(app.id, index);
+      }
+    });
+  }, [apps]);
 
   const mergeAppData = useCallback((existing: App[], updates: App[]) => {
     if (updates.length === 0) {
@@ -300,6 +407,39 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
     return merged;
   }, []);
 
+  const updateSearchParam = useCallback((key: 'q' | 'sort', value: string | null) => {
+    const next = new URLSearchParams(searchParams);
+    if (value && value.length > 0) {
+      next.set(key, value);
+    } else {
+      next.delete(key);
+    }
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const param = searchParams.get('sort');
+    if (param && SORT_OPTION_SET.has(param as SortOption)) {
+      const normalized = param as SortOption;
+      if (normalized !== sortOption) {
+        setSortOption(normalized);
+      }
+      return;
+    }
+
+    if (param && !SORT_OPTION_SET.has(param as SortOption)) {
+      if (sortOption !== DEFAULT_SORT) {
+        setSortOption(DEFAULT_SORT);
+      }
+      updateSearchParam('sort', null);
+      return;
+    }
+
+    if (!param && sortOption !== DEFAULT_SORT) {
+      setSortOption(DEFAULT_SORT);
+    }
+  }, [searchParams, sortOption, updateSearchParam]);
+
   const fetchApps = useCallback(async () => {
     setLoading(true);
     logger.time('fetchApps.summary');
@@ -343,37 +483,87 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
   }, [fetchApps]);
 
   const filteredApps = useMemo(() => {
-    const statusPriority: Record<string, number> = {
-      running: 0,
-      healthy: 0,
-      degraded: 1,
-      unhealthy: 1,
-      error: 2,
-      unknown: 3,
-      stopped: 4,
-    };
+    const normalizedSearch = search.trim().toLowerCase();
 
     const matchesSearch = (app: App) => {
-      if (!search) return true;
-      const searchLower = search.toLowerCase();
-      return (
-        app.name.toLowerCase().includes(searchLower) ||
-        app.status.toLowerCase().includes(searchLower)
-      );
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const haystacks: string[] = [
+        app.name,
+        app.id,
+        app.status ?? '',
+        app.scenario_name ?? '',
+        app.description ?? '',
+        ...(app.tags ?? []),
+      ];
+
+      Object.entries(app.port_mappings ?? {}).forEach(([key, mapping]) => {
+        haystacks.push(key);
+        if (mapping == null) {
+          return;
+        }
+        if (typeof mapping === 'string' || typeof mapping === 'number') {
+          haystacks.push(String(mapping));
+          return;
+        }
+
+        if (typeof mapping === 'object') {
+          const record = mapping as Record<string, unknown>;
+          ['label', 'name', 'value', 'port', 'description', 'url'].forEach((field) => {
+            const candidate = record[field];
+            if (typeof candidate === 'string' || typeof candidate === 'number') {
+              haystacks.push(String(candidate));
+            }
+          });
+        }
+      });
+
+      return haystacks.some((item) => item && item.toLowerCase().includes(normalizedSearch));
     };
 
-    return apps
-      .filter(matchesSearch)
-      .slice()
-      .sort((a, b) => {
-        const priorityA = statusPriority[a.status] ?? 5;
-        const priorityB = statusPriority[b.status] ?? 5;
-        if (priorityA !== priorityB) {
-          return priorityA - priorityB;
-        }
-        return a.name.localeCompare(b.name);
-      });
-  }, [apps, search]);
+    const baseList = apps.filter(matchesSearch);
+
+    const compareByInitialPosition = (a: App, b: App) => {
+      const positionA = initialPositionsRef.current.get(a.id) ?? 0;
+      const positionB = initialPositionsRef.current.get(b.id) ?? 0;
+      if (positionA !== positionB) {
+        return positionA - positionB;
+      }
+      return a.name.localeCompare(b.name);
+    };
+
+    const compareByNameAsc = (a: App, b: App) => a.name.localeCompare(b.name);
+    const compareByNameDesc = (a: App, b: App) => b.name.localeCompare(a.name);
+
+    const compareByStatus = (a: App, b: App) => {
+      const statusA = (a.status ?? '').toLowerCase();
+      const statusB = (b.status ?? '').toLowerCase();
+      const priorityA = STATUS_PRIORITY[statusA] ?? 3;
+      const priorityB = STATUS_PRIORITY[statusB] ?? 3;
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      return compareByInitialPosition(a, b);
+    };
+
+    switch (sortOption) {
+      case 'name-asc':
+        return baseList.slice().sort((a, b) => {
+          const result = compareByNameAsc(a, b);
+          return result === 0 ? compareByInitialPosition(a, b) : result;
+        });
+      case 'name-desc':
+        return baseList.slice().sort((a, b) => {
+          const result = compareByNameDesc(a, b);
+          return result === 0 ? compareByInitialPosition(a, b) : result;
+        });
+      case 'status':
+      default:
+        return baseList.slice().sort(compareByStatus);
+    }
+  }, [apps, search, sortOption]);
 
   const handleAppAction = useCallback(async (appId: string, action: 'start' | 'stop' | 'restart') => {
     logger.info(`App action: ${action} for ${appId}`);
@@ -419,7 +609,25 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
 
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
-  }, []);
+    updateSearchParam('q', value ? value : null);
+  }, [updateSearchParam]);
+
+  const handleSearchClear = useCallback(() => {
+    setSearch('');
+    updateSearchParam('q', null);
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => {
+        searchInputRef.current?.focus();
+      });
+    } else {
+      searchInputRef.current?.focus();
+    }
+  }, [updateSearchParam]);
+
+  const handleSortChange = useCallback((value: SortOption) => {
+    setSortOption(value);
+    updateSearchParam('sort', value === DEFAULT_SORT ? null : value);
+  }, [updateSearchParam]);
 
   const useVirtualScrolling = viewMode === 'grid' && filteredApps.length > 100;
 
@@ -428,7 +636,13 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
       <div className="panel-header">
         <h2>ACTIVE APPLICATIONS</h2>
         <div className="panel-controls">
-          <SearchInput value={search} onChange={handleSearchChange} />
+          <SearchInput
+            value={search}
+            onChange={handleSearchChange}
+            onClear={handleSearchClear}
+            inputRef={searchInputRef}
+          />
+          <SortSelect value={sortOption} onChange={handleSortChange} />
           <ViewToggle viewMode={viewMode} onClick={toggleViewMode} />
           {hydrating && !loading && (
             <span className="control-status" title="Fetching live orchestrator data">
@@ -450,8 +664,10 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
         <AppsGridSkeleton count={6} viewMode={viewMode} />
       ) : filteredApps.length === 0 ? (
         <div className="empty-state">
-          <p>NO APPLICATIONS FOUND</p>
-          {search && <p className="hint">Try adjusting your search</p>}
+          <p>No applications found.</p>
+          <p className="hint">
+            {search ? 'Try adjusting your search.' : 'Launch an application to see it appear here.'}
+          </p>
         </div>
       ) : viewMode === 'list' ? (
         <div className="apps-list">

@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"os/exec"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -26,76 +24,16 @@ type resourceCache struct {
 
 // SystemHandler handles system-related endpoints
 type SystemHandler struct {
-	metricsService   *services.MetricsService
-	resourceCache    *resourceCache
-	orchestratorURL  string
+	metricsService *services.MetricsService
+	resourceCache  *resourceCache
 }
 
 // NewSystemHandler creates a new system handler
-func NewSystemHandler(metricsService *services.MetricsService, orchestratorURL string) *SystemHandler {
+func NewSystemHandler(metricsService *services.MetricsService) *SystemHandler {
 	return &SystemHandler{
-		metricsService:  metricsService,
-		resourceCache:   &resourceCache{},
-		orchestratorURL: orchestratorURL,
+		metricsService: metricsService,
+		resourceCache:  &resourceCache{},
 	}
-}
-
-// GetSystemInfo returns system information including orchestrator status
-func (h *SystemHandler) GetSystemInfo(c *gin.Context) {
-	// Create context with timeout (5s for system info)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	
-	// Get orchestrator PID
-	pidCmd := exec.CommandContext(ctx, "bash", "-c", "ps aux | grep 'enhanced_orchestrator.py' | grep -v grep | awk '{print $2}' | head -1")
-	pidOutput, err := pidCmd.Output()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get orchestrator process",
-		})
-		return
-	}
-
-	pid := strings.TrimSpace(string(pidOutput))
-	if pid == "" {
-		c.JSON(http.StatusOK, gin.H{
-			"orchestrator_running": false,
-			"uptime":               "00:00:00",
-			"uptime_seconds":       0,
-		})
-		return
-	}
-
-	// Get uptime using the PID (reuse context)
-	uptimeCmd := exec.CommandContext(ctx, "ps", "-p", pid, "-o", "etime=")
-	uptimeOutput, err := uptimeCmd.Output()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get orchestrator uptime",
-		})
-		return
-	}
-
-	uptime := strings.TrimSpace(string(uptimeOutput))
-	uptimeSeconds := parseUptimeToSeconds(uptime)
-
-	// Get orchestrator status from API
-	orchStatus := make(map[string]interface{})
-	if h.orchestratorURL != "" {
-		resp, err := http.Get(h.orchestratorURL)
-		if err == nil {
-			defer resp.Body.Close()
-			json.NewDecoder(resp.Body).Decode(&orchStatus)
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"orchestrator_running": true,
-		"orchestrator_pid":     pid,
-		"uptime":               uptime,
-		"uptime_seconds":       uptimeSeconds,
-		"orchestrator_status":  orchStatus,
-	})
 }
 
 // GetSystemMetrics placeholder - metrics are now handled by system-monitor iframe
@@ -121,7 +59,7 @@ func (h *SystemHandler) GetResources(c *gin.Context) {
 	// Prevent concurrent fetches
 	h.resourceCache.fetchMutex.Lock()
 	defer h.resourceCache.fetchMutex.Unlock()
-	
+
 	// Check cache again after acquiring lock (another request might have updated it)
 	h.resourceCache.mu.RLock()
 	if time.Since(h.resourceCache.timestamp) < 20*time.Second && len(h.resourceCache.data) > 0 {
@@ -131,12 +69,12 @@ func (h *SystemHandler) GetResources(c *gin.Context) {
 		return
 	}
 	h.resourceCache.mu.RUnlock()
-	
+
 	// Mark as fetching
 	h.resourceCache.mu.Lock()
 	h.resourceCache.fetching = true
 	h.resourceCache.mu.Unlock()
-	
+
 	defer func() {
 		h.resourceCache.mu.Lock()
 		h.resourceCache.fetching = false
@@ -147,7 +85,7 @@ func (h *SystemHandler) GetResources(c *gin.Context) {
 	// 30 second timeout to account for slow resources that need attention
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	cmd := exec.CommandContext(ctx, "vrooli", "resource", "status", "--json")
 	output, err := cmd.Output()
 	if err != nil {
@@ -160,7 +98,7 @@ func (h *SystemHandler) GetResources(c *gin.Context) {
 			return
 		}
 		h.resourceCache.mu.RUnlock()
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to fetch resources",
 		})
@@ -207,35 +145,4 @@ func (h *SystemHandler) GetResources(c *gin.Context) {
 	h.resourceCache.mu.Unlock()
 
 	c.JSON(http.StatusOK, transformedResources)
-}
-
-// Helper function to parse uptime string to seconds
-func parseUptimeToSeconds(uptime string) int {
-	uptime = strings.TrimSpace(uptime)
-	parts := strings.Split(uptime, ":")
-
-	switch len(parts) {
-	case 2: // MM:SS
-		minutes, _ := strconv.Atoi(parts[0])
-		seconds, _ := strconv.Atoi(parts[1])
-		return minutes*60 + seconds
-	case 3: // HH:MM:SS or DD-HH:MM
-		if strings.Contains(parts[0], "-") {
-			// DD-HH:MM format
-			dayHour := strings.Split(parts[0], "-")
-			days, _ := strconv.Atoi(dayHour[0])
-			hours, _ := strconv.Atoi(dayHour[1])
-			minutes, _ := strconv.Atoi(parts[1])
-			seconds, _ := strconv.Atoi(parts[2])
-			return days*86400 + hours*3600 + minutes*60 + seconds
-		} else {
-			// HH:MM:SS format
-			hours, _ := strconv.Atoi(parts[0])
-			minutes, _ := strconv.Atoi(parts[1])
-			seconds, _ := strconv.Atoi(parts[2])
-			return hours*3600 + minutes*60 + seconds
-		}
-	default:
-		return 0
-	}
 }

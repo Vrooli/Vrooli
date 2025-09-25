@@ -1,3 +1,12 @@
+function escapeHtml(unsafe) {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+}
+
 // Global state
 let currentSection = 'overview';
 let refreshInterval;
@@ -193,7 +202,7 @@ function createModelCard(model) {
     const successRate = model.request_count > 0 ? Math.round((model.success_count / model.request_count) * 100) : 100;
     
     card.innerHTML = `
-        <div class="model-name">${model.model_name}</div>
+        <div class="model-name">${escapeHtml(model.model_name)}</div>
         <div class="model-stats">
             <div class="model-stat">
                 <div class="model-stat-value">${model.request_count || 0}</div>
@@ -266,7 +275,7 @@ function createAlertElement(alert) {
     element.innerHTML = `
         <div class="alert-icon">${icons[alert.type] || 'ℹ️'}</div>
         <div class="alert-content">
-            <div class="alert-message">${alert.message}</div>
+            <div class="alert-message">${escapeHtml(alert.message)}</div>
             <div class="alert-time">${new Date(alert.time).toLocaleString()}</div>
         </div>
     `;
@@ -319,7 +328,7 @@ function startAutoRefresh() {
 // Error handling
 function showError(message) {
     const errorContainer = document.getElementById('error-container');
-    errorContainer.innerHTML = `<div class="error-message">⚠️ ${message}</div>`;
+    errorContainer.innerHTML = `<div class="error-message">⚠️ ${escapeHtml(message)}</div>`;
     
     // Auto-hide error after 5 seconds
     setTimeout(() => {

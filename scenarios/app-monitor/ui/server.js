@@ -78,6 +78,12 @@ app.use('/api/v1', (req, res) => {
 // Legacy API proxy (redirect to v1)
 app.use('/api', (req, res) => {
     // Skip if already versioned
+    if (req.url.startsWith('/health')) {
+        const fullApiPath = '/api' + req.url;
+        proxyToApi(req, res, fullApiPath);
+        return;
+    }
+
     if (req.url.startsWith('/v1')) {
         const fullApiPath = '/api' + req.url;
         proxyToApi(req, res, fullApiPath);
