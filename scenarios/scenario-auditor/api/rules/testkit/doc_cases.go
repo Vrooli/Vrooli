@@ -20,6 +20,7 @@ type DocCase struct {
 	ExpectedViolations *int
 	ExpectedMessage    string
 	Path               string
+	Scenario           string
 }
 
 var testCaseRegex = regexp.MustCompile(`(?s)<test-case\s+([^>]+)>(.*?)</test-case>`)
@@ -45,8 +46,9 @@ func LoadDocCases(t *testing.T, filename string) []DocCase {
 		body := string(match[2])
 
 		tc := DocCase{
-			ID:   attrs["id"],
-			Path: attrs["path"],
+			ID:       attrs["id"],
+			Path:     attrs["path"],
+			Scenario: attrs["scenario"],
 		}
 		if tc.ID == "" {
 			t.Fatalf("test case missing id attribute in %s", filename)
@@ -189,6 +191,13 @@ func extractSimpleTag(body, name string) string {
 func DefaultPath(tc DocCase, fallback string) string {
 	if tc.Path != "" {
 		return tc.Path
+	}
+	return fallback
+}
+
+func DefaultScenario(tc DocCase, fallback string) string {
+	if strings.TrimSpace(tc.Scenario) != "" {
+		return strings.TrimSpace(tc.Scenario)
 	}
 	return fallback
 }

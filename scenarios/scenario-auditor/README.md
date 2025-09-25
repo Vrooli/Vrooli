@@ -137,6 +137,11 @@ scenario-auditor health
 - ✅ Error handling display
 - ✅ Consistent naming conventions
 
+### Iframe Bridge Canonical Implementation
+- Copy the canonical TypeScript bridge from `ui/src/iframeBridgeChild.ts` when bootstrapping new scenarios.
+- Static bundles can use the maintained JavaScript variant at `ui/canonical/iframeBridgeChild.js` (the rule accepts both forms).
+- Entrypoint scripts must import/require the bridge, guard initialization with `window.parent !== window`, and call `initIframeBridgeChild` with an `appId` so orchestration can identify the UI.
+
 ### Phase-Based Testing
 - ✅ test/phases/ directory structure
 - ✅ Unit, integration, business, dependencies tests
