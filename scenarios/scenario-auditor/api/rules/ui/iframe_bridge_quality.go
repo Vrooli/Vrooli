@@ -24,7 +24,9 @@ Targets: ui
 <test-case id="bridge-ts-valid" should-fail="false" path="testdata/bridge-ts-valid/ui/src/iframeBridgeChild.ts">
   <description>Canonical TypeScript bridge passes without violations</description>
   <input language="typescript"><![CDATA[
-export type BridgeCapability = 'history' | 'hash' | 'title' | 'deeplink' | 'resize';
+export type BridgeCapability = 'history' | 'hash' | 'title' | 'deeplink' | 'resize' | 'screenshot';
+
+type Html2CanvasFn = (element: HTMLElement, options?: Record<string, unknown>) => Promise<HTMLCanvasElement>;
 
 export interface BridgeChildOptions {
   parentOrigin?: string;
@@ -40,8 +42,52 @@ export interface BridgeChildController {
 declare global {
   interface Window {
     __vrooliBridgeChildInstalled?: boolean;
+    html2canvas?: Html2CanvasFn;
   }
 }
+
+const loadHtml2Canvas = (() => {
+  let loader: Promise<Html2CanvasFn> | null = null;
+  return (): Promise<Html2CanvasFn> => {
+    if (typeof window !== 'undefined' && typeof window.html2canvas === 'function') {
+      return Promise.resolve(window.html2canvas);
+    }
+
+    if (!loader) {
+      loader = new Promise<Html2CanvasFn>((resolve, reject) => {
+        const existing = document.querySelector<HTMLScriptElement>('script[data-html2canvas="true"]');
+        if (existing) {
+          existing.addEventListener('load', () => {
+            if (typeof window.html2canvas === 'function') {
+              resolve(window.html2canvas);
+            } else {
+              reject(new Error('html2canvas failed to initialize'));
+            }
+          });
+          existing.addEventListener('error', () => reject(new Error('Failed to load html2canvas script')));
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        script.async = true;
+        script.crossOrigin = 'anonymous';
+        script.dataset.html2canvas = 'true';
+        script.onload = () => {
+          if (typeof window.html2canvas === 'function') {
+            resolve(window.html2canvas);
+          } else {
+            reject(new Error('html2canvas failed to initialize'));
+          }
+        };
+        script.onerror = () => reject(new Error('Failed to load html2canvas script'));
+        document.head.appendChild(script);
+      });
+    }
+
+    return loader;
+  };
+})();
 
 const inferParentOrigin = (): string | null => {
   try {
@@ -87,7 +133,7 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
     };
   }
 
-  const caps: BridgeCapability[] = ['history', 'hash', 'title', 'deeplink'];
+  const caps: BridgeCapability[] = ['history', 'hash', 'title', 'deeplink', 'screenshot'];
   let resolvedOrigin = options.parentOrigin ?? inferParentOrigin() ?? '*';
 
   const post = (payload: Record<string, unknown>) => {
@@ -138,6 +184,41 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
       }
     } else if (message.t === 'PING' && typeof message.ts === 'number') {
       post({ v: 1, t: 'PONG', ts: message.ts });
+    } else if (message.t === 'CAPTURE' && message.cmd === 'SCREENSHOT' && typeof message.id === 'string') {
+      const capture = async () => {
+        try {
+          const html2canvas = await loadHtml2Canvas();
+          const target = document.documentElement as HTMLElement;
+          const scale = typeof message.options === 'object' && typeof message.options?.scale === 'number'
+            ? message.options.scale
+            : window.devicePixelRatio || 1;
+          const canvas = await html2canvas(target, {
+            scale,
+            logging: false,
+            useCORS: true,
+          });
+          const dataUrl = canvas.toDataURL('image/png');
+          const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+          post({
+            v: 1,
+            t: 'SCREENSHOT_RESULT',
+            id: message.id,
+            ok: true,
+            data: base64,
+            width: canvas.width,
+            height: canvas.height,
+          });
+        } catch (error) {
+          post({
+            v: 1,
+            t: 'SCREENSHOT_RESULT',
+            id: message.id,
+            ok: false,
+            error: (error as Error)?.message ?? String(error),
+          });
+        }
+      };
+      void capture();
     }
   };
 
@@ -199,6 +280,48 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
 <test-case id="bridge-js-valid" should-fail="false" path="testdata/bridge-js-valid/ui/iframeBridgeChild.js">
   <description>Canonical JavaScript bridge passes without violations</description>
   <input language="javascript"><![CDATA[
+let html2canvasLoader = null;
+
+const loadHtml2Canvas = () => {
+  if (typeof window !== 'undefined' && typeof window.html2canvas === 'function') {
+    return Promise.resolve(window.html2canvas);
+  }
+
+  if (!html2canvasLoader) {
+    html2canvasLoader = new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-html2canvas="true"]');
+      if (existing) {
+        existing.addEventListener('load', () => {
+          if (typeof window.html2canvas === 'function') {
+            resolve(window.html2canvas);
+          } else {
+            reject(new Error('html2canvas failed to initialize'));
+          }
+        });
+        existing.addEventListener('error', () => reject(new Error('Failed to load html2canvas script')));
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+      script.async = true;
+      script.crossOrigin = 'anonymous';
+      script.dataset.html2canvas = 'true';
+      script.onload = () => {
+        if (typeof window.html2canvas === 'function') {
+          resolve(window.html2canvas);
+        } else {
+          reject(new Error('html2canvas failed to initialize'));
+        }
+      };
+      script.onerror = () => reject(new Error('Failed to load html2canvas script'));
+      document.head.appendChild(script);
+    });
+  }
+
+  return html2canvasLoader;
+};
+
 export function initIframeBridgeChild(options = {}) {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     return {
@@ -243,7 +366,7 @@ export function initIframeBridgeChild(options = {}) {
     canGoFwd: true,
   });
 
-  const caps = ['history', 'hash', 'title', 'deeplink'];
+  const caps = ['history', 'hash', 'title', 'deeplink', 'screenshot'];
   let resolvedOrigin = options.parentOrigin ?? inferParentOrigin() ?? '*';
 
   const post = (payload) => {
@@ -296,6 +419,41 @@ export function initIframeBridgeChild(options = {}) {
       }
     } else if (message.t === 'PING' && typeof message.ts === 'number') {
       post({ v: 1, t: 'PONG', ts: message.ts });
+    } else if (message.t === 'CAPTURE' && message.cmd === 'SCREENSHOT' && typeof message.id === 'string') {
+      const capture = async () => {
+        try {
+          const html2canvas = await loadHtml2Canvas();
+          const target = document.documentElement;
+          const scale = message.options && typeof message.options.scale === 'number'
+            ? message.options.scale
+            : (window.devicePixelRatio || 1);
+          const canvas = await html2canvas(target, {
+            scale,
+            logging: false,
+            useCORS: true,
+          });
+          const dataUrl = canvas.toDataURL('image/png');
+          const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+          post({
+            v: 1,
+            t: 'SCREENSHOT_RESULT',
+            id: message.id,
+            ok: true,
+            data: base64,
+            width: canvas.width,
+            height: canvas.height,
+          });
+        } catch (error) {
+          post({
+            v: 1,
+            t: 'SCREENSHOT_RESULT',
+            id: message.id,
+            ok: false,
+            error: (error && error.message) ? error.message : String(error),
+          });
+        }
+      };
+      capture();
     }
   };
 
