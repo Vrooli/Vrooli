@@ -207,7 +207,9 @@ func (h *SettingsHandlers) GetRecyclerModelsHandler(w http.ResponseWriter, r *ht
 // TestRecyclerHandler generates a recycler summary for a mock task using current settings.
 func (h *SettingsHandlers) TestRecyclerHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		OutputText string `json:"output_text"`
+		OutputText    string `json:"output_text"`
+		ModelProvider string `json:"model_provider"`
+		ModelName     string `json:"model_name"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -224,17 +226,41 @@ func (h *SettingsHandlers) TestRecyclerHandler(w http.ResponseWriter, r *http.Re
 	settingsSnapshot := settings.GetSettings()
 	config := settingsSnapshot.Recycler
 
+	overrideProvider := strings.ToLower(strings.TrimSpace(req.ModelProvider))
+	overrideModel := strings.TrimSpace(req.ModelName)
+
+	selectedProvider := config.ModelProvider
+	selectedModel := config.ModelName
+
+	if overrideProvider != "" {
+		switch overrideProvider {
+		case "ollama", "openrouter":
+			selectedProvider = overrideProvider
+		default:
+			http.Error(w, "model_provider must be 'ollama' or 'openrouter'", http.StatusBadRequest)
+			return
+		}
+		if overrideModel == "" {
+			http.Error(w, "model_name is required when overriding model_provider", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if overrideModel != "" {
+		selectedModel = overrideModel
+	}
+
 	result, err := summarizer.GenerateNote(
 		context.Background(),
-		summarizer.Config{Provider: config.ModelProvider, Model: config.ModelName},
+		summarizer.Config{Provider: selectedProvider, Model: selectedModel},
 		summarizer.Input{Output: output},
 	)
 
 	response := map[string]interface{}{
 		"success":  err == nil,
 		"result":   result,
-		"provider": config.ModelProvider,
-		"model":    config.ModelName,
+		"provider": selectedProvider,
+		"model":    selectedModel,
 	}
 
 	if err != nil {

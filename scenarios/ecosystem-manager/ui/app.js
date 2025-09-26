@@ -489,6 +489,7 @@ class EcosystemManager {
         this.recyclerTestPresets = RECYCLER_TEST_PRESETS;
         this.recyclerSuiteResults = [];
         this.recyclerSuiteRunning = false;
+        this.recyclerSuiteCancelRequested = false;
         this.recyclerTestMode = 'custom';
 
         // Bind methods
@@ -1233,7 +1234,13 @@ class EcosystemManager {
 
     async runRecyclerPresetSuite() {
         if (this.recyclerSuiteRunning) {
-            this.showToast('Preset suite already running.', 'info');
+            if (!this.recyclerSuiteCancelRequested) {
+                this.recyclerSuiteCancelRequested = true;
+                this.updateRecyclerSuiteControls();
+                this.updateRecyclerSuiteSummary();
+                this.renderRecyclerSuiteResults();
+                this.showToast('Canceling preset suite after the current run completes.', 'info');
+            }
             return;
         }
 
@@ -1243,21 +1250,38 @@ class EcosystemManager {
         }
 
         this.recyclerSuiteResults = [];
+        this.recyclerSuiteCancelRequested = false;
         this.setRecyclerTestMode('suite');
         this.setRecyclerSuiteRunning(true);
 
+        let cancelled = false;
         try {
             for (const preset of this.recyclerTestPresets) {
+                if (this.recyclerSuiteCancelRequested) {
+                    cancelled = true;
+                    break;
+                }
+
                 await this.runRecyclerTestWithPreset(preset, {
                     silent: true,
                     showLoading: false,
                 });
+
+                if (this.recyclerSuiteCancelRequested) {
+                    cancelled = true;
+                    break;
+                }
             }
-            this.showToast('Preset suite completed.', 'success');
+            if (cancelled) {
+                this.showToast('Preset suite cancelled.', 'warning');
+            } else {
+                this.showToast('Preset suite completed.', 'success');
+            }
         } catch (error) {
             console.error('Recycler preset suite failed:', error);
             this.showToast(`Preset suite failed: ${error.message}`, 'error');
         } finally {
+            this.recyclerSuiteCancelRequested = false;
             this.setRecyclerSuiteRunning(false);
         }
     }
@@ -1265,16 +1289,7 @@ class EcosystemManager {
     setRecyclerSuiteRunning(isRunning) {
         this.recyclerSuiteRunning = isRunning;
 
-        const toggleDisabled = (id) => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.disabled = isRunning;
-            }
-        };
-
-        toggleDisabled('recycler-run-suite');
-        toggleDisabled('recycler-clear-suite');
-        toggleDisabled('recycler-test-run');
+        this.updateRecyclerSuiteControls();
 
         const summary = document.getElementById('recycler-suite-summary');
         if (summary) {
@@ -1282,6 +1297,29 @@ class EcosystemManager {
         }
 
         this.renderRecyclerSuiteResults();
+    }
+
+    updateRecyclerSuiteControls() {
+        const isRunning = this.recyclerSuiteRunning;
+        const isCancelling = this.recyclerSuiteCancelRequested;
+
+        const runButton = document.getElementById('recycler-run-suite');
+        if (runButton) {
+            runButton.disabled = false;
+            runButton.textContent = isRunning
+                ? (isCancelling ? 'Canceling…' : 'Cancel Preset Suite')
+                : 'Run All Presets';
+        }
+
+        const clearButton = document.getElementById('recycler-clear-suite');
+        if (clearButton) {
+            clearButton.disabled = isRunning;
+        }
+
+        const singleRunButton = document.getElementById('recycler-test-run');
+        if (singleRunButton) {
+            singleRunButton.disabled = isRunning;
+        }
     }
 
     clearRecyclerSuiteResults() {
@@ -1364,12 +1402,13 @@ class EcosystemManager {
     renderRecyclerLoadingRow(processedCount) {
         const total = this.recyclerTestPresets.length;
         const progress = `${processedCount}/${total}`;
+        const isCancelling = this.recyclerSuiteCancelRequested;
         return `
             <tr class="pending">
                 <td colspan="5">
                     <div class="suite-loading-row">
                         <span class="loading-spinner-icon"><i class="fas fa-spinner fa-spin"></i></span>
-                        <span>Running preset suite… ${progress} processed</span>
+                        <span>${isCancelling ? 'Canceling preset suite…' : 'Running preset suite…'} ${progress} processed</span>
                     </div>
                 </td>
             </tr>
@@ -1382,17 +1421,21 @@ class EcosystemManager {
             return;
         }
 
+        const isRunning = this.recyclerSuiteRunning;
+        const isCancelling = this.recyclerSuiteCancelRequested;
+        const totalPresets = this.recyclerTestPresets.length;
+
         if (this.recyclerSuiteResults.length === 0) {
-            summary.textContent = this.recyclerSuiteRunning
-                ? `Running… 0/${this.recyclerTestPresets.length} processed`
+            summary.textContent = isRunning
+                ? `${isCancelling ? 'Canceling…' : 'Running…'} 0/${totalPresets} processed`
                 : '';
             return;
         }
 
         const matches = this.recyclerSuiteResults.filter(result => result.match).length;
         const processed = this.recyclerSuiteResults.length;
-        if (this.recyclerSuiteRunning) {
-            summary.textContent = `Running… ${processed}/${this.recyclerTestPresets.length} processed (${matches} match)`;
+        if (isRunning) {
+            summary.textContent = `${isCancelling ? 'Canceling…' : 'Running…'} ${processed}/${totalPresets} processed (${matches} match)`;
         } else {
             summary.textContent = `${matches}/${processed} matches`;
         }
@@ -1405,6 +1448,7 @@ class EcosystemManager {
 
         const { silent = false, showLoading = true } = options;
         const payload = { ...preset.payload };
+        Object.assign(payload, this.getRecyclerModelOverrides());
 
         this.resetRecyclerResultCard();
 
@@ -1650,11 +1694,11 @@ class EcosystemManager {
                                 <label for="edit-task-status">Status</label>
                                 <select id="edit-task-status" name="status">
                                     <option value="pending" ${task.status === 'pending' ? 'selected' : ''}>Pending</option>
-                                    <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+                                    <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>Active</option>
                                     <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
-                                    <option value="completed-finalized" ${task.status === 'completed-finalized' ? 'selected' : ''}>Completed – Finalized</option>
+                                    <option value="completed-finalized" ${task.status === 'completed-finalized' ? 'selected' : ''}>Finished</option>
                                     <option value="failed" ${task.status === 'failed' ? 'selected' : ''}>Failed</option>
-                                    <option value="failed-blocked" ${task.status === 'failed-blocked' ? 'selected' : ''}>Failed – Blocked</option>
+                                    <option value="failed-blocked" ${task.status === 'failed-blocked' ? 'selected' : ''}>Blocked</option>
                                 </select>
                             </div>
                             
@@ -1676,7 +1720,7 @@ class EcosystemManager {
                                 <select id="edit-task-phase" name="current_phase">
                                     <option value="">No Phase</option>
                                     <option value="pending" ${task.current_phase === 'pending' ? 'selected' : ''}>Pending</option>
-                                    <option value="in-progress" ${task.current_phase === 'in-progress' ? 'selected' : ''}>In Progress</option>
+                                    <option value="in-progress" ${task.current_phase === 'in-progress' ? 'selected' : ''}>Active</option>
                                     <option value="completed" ${task.current_phase === 'completed' ? 'selected' : ''}>Completed</option>
                                     <option value="finalized" ${task.current_phase === 'finalized' ? 'selected' : ''}>Finalized</option>
                                     <option value="failed" ${task.current_phase === 'failed' ? 'selected' : ''}>Failed</option>
@@ -2565,7 +2609,9 @@ class EcosystemManager {
         const outputField = document.getElementById('recycler-test-output');
         const outputText = outputField?.value ?? '';
 
-        if (requireOutput && !outputText.trim()) {
+        const trimmedOutput = outputText.trim();
+
+        if (requireOutput && !trimmedOutput) {
             this.showToast('Provide mock output text to test the recycler.', 'error');
             if (outputField) {
                 outputField.focus();
@@ -2573,7 +2619,27 @@ class EcosystemManager {
             return null;
         }
 
-        return { output_text: outputText };
+        const payload = { output_text: trimmedOutput };
+        Object.assign(payload, this.getRecyclerModelOverrides());
+        return payload;
+    }
+
+    getRecyclerModelOverrides() {
+        const overrides = {};
+        const providerField = document.getElementById('settings-recycler-model-provider');
+        const modelField = document.getElementById('settings-recycler-model-name');
+
+        const provider = (providerField?.value || '').toString().trim().toLowerCase();
+        if (provider) {
+            overrides.model_provider = provider;
+        }
+
+        const model = (modelField?.value || '').toString().trim();
+        if (model) {
+            overrides.model_name = model;
+        }
+
+        return overrides;
     }
 
     resetRecyclerResultCard() {
@@ -3451,7 +3517,7 @@ class EcosystemManager {
 
             if (visible && searchText) {
                 const title = card.querySelector('.task-title')?.textContent?.toLowerCase() || '';
-                const notes = card.querySelector('.task-notes')?.textContent?.toLowerCase() || '';
+                const notes = card.dataset.notesText || '';
                 visible = title.includes(searchText) || notes.includes(searchText);
             }
 

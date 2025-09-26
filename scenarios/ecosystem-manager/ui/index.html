@@ -154,8 +154,8 @@
         <div class="kanban-column" data-status="pending">
             <div class="column-header">
                 <div class="column-title">
-                    <i class="fas fa-clock"></i>
-                    <span>Pending</span>
+                    <i class="fas fa-clock" title="Tasks waiting to be started."></i>
+                    <span title="Tasks waiting to be started.">Pending</span>
                     <span class="task-count" id="pending-count">0</span>
                 </div>
                 <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('pending')" title="Hide Column">
@@ -167,12 +167,12 @@
             </div>
         </div>
 
-        <!-- In Progress Column -->
+        <!-- Active Column -->
         <div class="kanban-column" data-status="in-progress">
             <div class="column-header">
                 <div class="column-title">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>In Progress</span>
+                    <i class="fas fa-spinner fa-spin" title="Tasks currently being worked on."></i>
+                    <span title="Tasks currently being worked on.">Active</span>
                     <span class="task-count" id="in-progress-count">0</span>
                 </div>
                 <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('in-progress')" title="Hide Column">
@@ -189,8 +189,8 @@
         <div class="kanban-column" data-status="completed">
             <div class="column-header">
                 <div class="column-title">
-                    <i class="fas fa-check-circle"></i>
-                    <span>Completed</span>
+                    <i class="fas fa-check-circle" title="Tasks completed and awaiting verification."></i>
+                    <span title="Tasks completed and awaiting verification.">Completed</span>
                     <span class="task-count" id="completed-count">0</span>
                 </div>
                 <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('completed')" title="Hide Column">
@@ -202,12 +202,12 @@
             </div>
         </div>
 
-        <!-- Finalized Column -->
+        <!-- Finished Column -->
         <div class="kanban-column success" data-status="completed-finalized">
             <div class="column-header success">
                 <div class="column-title">
-                    <i class="fas fa-check-double"></i>
-                    <span>Completed – Finalized</span>
+                    <i class="fas fa-check-double" title="Tasks finalized and fully delivered."></i>
+                    <span title="Tasks finalized and fully delivered.">Finished</span>
                     <span class="task-count" id="completed-finalized-count">0</span>
                 </div>
                 <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('completed-finalized')" title="Hide Column">
@@ -223,8 +223,8 @@
         <div class="kanban-column" data-status="failed">
             <div class="column-header error">
                 <div class="column-title">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span>Failed</span>
+                    <i class="fas fa-exclamation-triangle" title="Tasks that ended unsuccessfully and need attention."></i>
+                    <span title="Tasks that ended unsuccessfully and need attention.">Failed</span>
                     <span class="task-count" id="failed-count">0</span>
                 </div>
                 <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('failed')" title="Hide Column">
@@ -240,8 +240,8 @@
         <div class="kanban-column danger" data-status="failed-blocked">
             <div class="column-header danger">
                 <div class="column-title">
-                    <i class="fas fa-ban"></i>
-                    <span>Failed – Blocked</span>
+                    <i class="fas fa-ban" title="Tasks blocked by external issues."></i>
+                    <span title="Tasks blocked by external issues.">Blocked</span>
                     <span class="task-count" id="failed-blocked-count">0</span>
                 </div>
                 <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('failed-blocked')" title="Hide Column">

@@ -73,32 +73,31 @@ func buildPrompt(input Input) string {
 	}
 
 	var builder strings.Builder
-	builder.WriteString("You are an expert operator for the Vrooli Ecosystem Manager. Review the raw execution output of a single task run and produce an updated note plus a completion classification.\n")
+	builder.WriteString("You are an expert operator for the Vrooli Ecosystem Manager. Review the raw execution output of a single task run and tidy the final response without removing information.\n")
 	builder.WriteString("Respond ONLY in plain text using this exact layout:\n")
 	builder.WriteString("classification: <full_complete|partial_progress|uncertain>\n")
 	builder.WriteString("note:\n")
-	builder.WriteString("<multi-line note content>\n")
-	builder.WriteString("Do not include any other labels, JSON, or decorative formatting.\n")
-	builder.WriteString("\nRules:\n")
-	builder.WriteString("- Base every decision strictly on the provided output text. Assume no other context, counters, or previous notes.\n")
-	builder.WriteString("- Use EXACTLY one of these note templates:\n")
-	builder.WriteString("  1. 'Not sure current status' when the output is missing, corrupt, mostly errors, or fails to demonstrate forward progress. Classification MUST be 'uncertain'.\n")
-	builder.WriteString("  2. 'Notes from last time:' followed by concise bullets when there is real progress but clear unfinished work or follow-up items. Classification MUST be 'partial_progress'.\n")
-	builder.WriteString("  3. 'Already pretty good, but could use some additional validation/tidying. Notes from last time:' + bullets when the output claims substantial completion yet still mentions optional polish, validation gaps, or outstanding checks. Classification MUST be 'partial_progress'.\n")
-	builder.WriteString("  4. 'Ready for finalization. Highlights:' + bullets when the output proves the task is truly finished with zero follow-up work, no failing tests, and complete validation evidence. Classification MUST be 'full_complete'.\n")
-	builder.WriteString("- When the transcript supplies bullet lists or numbered sections, carry them forward verbatim; return as many bullets as appear in the source material.\n")
-	builder.WriteString("\n- Keep the note under 1800 characters.\n")
-	builder.WriteString("- Classification guidance:\n  * full_complete – output must prove the task is finished, all critical tests pass, and there are NO TODOs, next steps (even optional ones), or validation gaps.\n  * partial_progress – output shows momentum but highlights remaining work, optional follow-ups, pending validation, or incomplete testing.\n  * uncertain – output is inconclusive, broken, or dominated by failures.\n")
-	builder.WriteString("- Never assign classification 'full_complete' if the output references TODOs, next steps, skipped tests, failing checks, missing coverage, open risks, or anything left to verify. Default to 'partial_progress' instead.\n")
-	builder.WriteString("- Ignore orchestration boilerplate lines that begin with tokens like [HEADER], [INFO], [WARNING], or shell prompts — never mention them in the note.\n")
-	builder.WriteString("- Do not repeat raw headings such as 'Task Completion Summary', 'Task ID', or 'Status'; blend the underlying facts into the required template.\n")
-	builder.WriteString("- When the output shows blockers, crashes, failed checks, or ongoing outages, you MUST choose classification 'uncertain' and the 'Not sure current status' template.\n")
-	builder.WriteString("- When constructing bullet lists, restate every substantive point, validation artifact, or risk with minimal compression. Prefer verbatim phrasing (minus boilerplate) so that downstream agents retain the nuance.\n")
-	builder.WriteString("- There is no upper limit on bullet count if the transcript is dense; do not merge ideas together or omit quantitative details, command outputs, or follow-up guidance.\n")
-	builder.WriteString("- Each bullet should be a complete sentence and may reference inline code, command output, metrics, or section labels exactly as provided.\n")
-	builder.WriteString("- If the transcript includes multiple sections (Accomplishments, Validation, Pending work, etc.), mirror each section by emitting bullets in the same order so nothing is lost.\n")
-	builder.WriteString("- Do not cut important details for brevity. The goal is to preserve nearly all of the substantive content without the outer headings.\n")
-	builder.WriteString("- Never include fields outside note and classification.\n")
+	builder.WriteString("<multi-line note content that keeps the required sections>\n")
+	builder.WriteString("Do not include any other labels, JSON, decorative formatting, or summary sentences outside the required structure.\n")
+	builder.WriteString("\nOutput Format Requirements:\n")
+	builder.WriteString("1. Present the four required sections exactly once and in this order, each on its own line using the agent format:\n")
+	builder.WriteString("   - **What was accomplished:** <detailed content>\n")
+	builder.WriteString("   - **Current status:** <detailed content>\n")
+	builder.WriteString("   - **Remaining issues or limitations:** <detailed content>\n")
+	builder.WriteString("   - **Validation evidence:** <detailed content>\n")
+	builder.WriteString("   Keep the field labels identical (including capitalization and punctuation).\n")
+	builder.WriteString("2. Preserve every concrete fact, metric, command output, log line, checklist item, or nuance from the transcript by restating it inside the relevant section. When the source supplies multiple bullets or numbered items, carry each item forward as its own sub-bullet (using '- ') beneath the appropriate section.\n")
+	builder.WriteString("3. Only tidy grammar, spacing, or obvious duplication. Never drop, merge, or generalize distinct data points.\n")
+	builder.WriteString("4. If the transcript lacks information for a section, write 'None reported' or 'Not captured in output' rather than omitting the section.\n")
+	builder.WriteString("5. Do not add any introductory sentence or lead-in; the system will prepend one automatically based on your classification.\n")
+	builder.WriteString("6. Classification guidance:\n")
+	builder.WriteString("   - full_complete – transcript proves the task is finished, all critical tests pass, and there are no TODOs or pending validation.\n")
+	builder.WriteString("   - partial_progress – transcript shows progress but leaves unfinished work, TODOs, optional polish, or pending validation.\n")
+	builder.WriteString("   - uncertain – transcript is inconclusive, dominated by failures, or missing.\n")
+	builder.WriteString("   Never assign 'full_complete' if the output references TODOs, skipped tests, failing checks, open risks, or follow-up actions.\n")
+	builder.WriteString("7. Ignore orchestration boilerplate lines that begin with tokens like [HEADER], [INFO], or shell prompts, but retain any meaningful diagnostics that follow them.\n")
+	builder.WriteString("8. Keep the entire note under 1800 characters while still capturing all substantive details.\n")
+	builder.WriteString("9. Never include fields outside 'classification' and 'note'.\n")
 
 	if output == "" {
 		builder.WriteString("\nNo execution output was captured. Respond accordingly.\n")
@@ -238,7 +237,62 @@ func parseResult(raw string) (Result, error) {
 		classification = classificationUncertain
 	}
 
-	return Result{Note: note, Classification: classification}, nil
+	return Result{Note: decorateNote(classification, note), Classification: classification}, nil
+}
+
+func decorateNote(classification, note string) string {
+	trimmed := strings.TrimSpace(note)
+	var lead string
+	switch classification {
+	case classificationFull:
+		lead = "Likely complete, but may benefit from additional validation/tidying. Notes from last time:"
+	case classificationPartial:
+		lead = choosePartialLead(trimmed)
+	case classificationUncertain:
+		lead = "Not sure current status"
+	default:
+		lead = "Notes from last time:"
+	}
+
+	if trimmed == "" {
+		return lead
+	}
+
+	if strings.HasPrefix(trimmed, lead) {
+		return trimmed
+	}
+
+	return lead + "\n\n" + trimmed
+}
+
+func choosePartialLead(note string) string {
+	const (
+		standardLead = "Notes from last time:"
+		nuanceLead   = "Already pretty good, but could use some additional validation/tidying. Notes from last time:"
+	)
+
+	lower := strings.ToLower(note)
+	marker := strings.ToLower("**Remaining issues or limitations:**")
+	idx := strings.Index(lower, marker)
+	if idx == -1 {
+		return standardLead
+	}
+
+	segment := lower[idx+len(marker):]
+	if newline := strings.Index(segment, "\n"); newline != -1 {
+		segment = segment[:newline]
+	}
+
+	segment = strings.TrimSpace(segment)
+	if segment == "" {
+		return nuanceLead
+	}
+
+	if strings.Contains(segment, "none") || strings.Contains(segment, "not captured") || strings.Contains(segment, "n/a") {
+		return nuanceLead
+	}
+
+	return standardLead
 }
 
 func resolveVrooliRoot() string {

@@ -1,13 +1,9 @@
 // UI Components Module
 export class UIComponents {
     static createTaskCard(task, runningProcesses = {}) {
-        const escapedNotes = this.escapeHtml(task.notes || 'No notes available');
-        const truncatedNotes = escapedNotes.length > 150 ? 
-            escapedNotes.substring(0, 150) + '...' : 
-            escapedNotes;
-        
         const isRunning = !!runningProcesses[task.id];
         const targetMarkup = this.renderTaskTarget(task);
+        const normalizedNotes = typeof task.notes === 'string' ? task.notes : '';
         
         const card = document.createElement('div');
         const statusClass = this.getStatusClass(task.status);
@@ -22,6 +18,7 @@ export class UIComponents {
         card.className = cardClasses.join(' ');
         card.id = `task-${task.id}`;
         card.draggable = true;
+        card.dataset.notesText = normalizedNotes.toLowerCase();
 
         const completionCount = Number.isInteger(task.completion_count) ? task.completion_count : 0;
         const completionLabel = completionCount === 1 ? 'completed run' : 'completed runs';
@@ -57,7 +54,6 @@ export class UIComponents {
                 </span>
             </div>
             ${this.renderStreakInfo(task)}
-            ${truncatedNotes ? `<p class="task-notes">${truncatedNotes}</p>` : ''}
             ${isRunning ? `
                 <div class="task-execution-indicator">
                     <i class="fas fa-brain fa-spin"></i>

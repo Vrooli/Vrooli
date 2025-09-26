@@ -70,10 +70,11 @@ cd /home/matthalloran8/Vrooli/scenarios/ecosystem-manager/cli && ./install.sh
 
 ### **Kanban Columns**
 - **Pending** ⏳ - Tasks waiting to start
-- **In Progress** 🔄 - Currently being worked on  
-- **Review** 👁️ - Ready for validation
-- **Completed** ✅ - Successfully finished
-- **Failed** ❌ - Needs attention
+- **Active** 🔄 - Currently being worked on  
+- **Completed** 👁️ - Implementation finished and awaiting verification
+- **Finished** ✅ - Fully delivered and closed out
+- **Failed** ❌ - Attempts that ended unsuccessfully
+- **Blocked** 🚫 - Work items stuck on external issues
 
 ### **Smart Filters**
 - **Type**: Resource vs Scenario
