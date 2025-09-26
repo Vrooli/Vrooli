@@ -129,28 +129,5 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
-// Higher-order component for easier usage
-export function withErrorBoundary<P extends object>(
-  Component: React.ComponentType<P>,
-  fallback?: React.ComponentType<ErrorFallbackProps>
-) {
-  const WrappedComponent = (props: P) => (
-    <ErrorBoundary fallback={fallback}>
-      <Component {...props} />
-    </ErrorBoundary>
-  );
-  
-  WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
-  
-  return WrappedComponent;
-}
-
-// Hook for throwing errors in functional components (useful for testing)
-export function useErrorHandler() {
-  return (error: Error) => {
-    throw error;
-  };
-}
-
 export type { ErrorBoundaryProps, ErrorFallbackProps };
 export default ErrorBoundary;

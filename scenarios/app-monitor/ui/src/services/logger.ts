@@ -14,7 +14,7 @@ export enum LogLevel {
 class Logger {
   private level: LogLevel;
   private isDevelopment: boolean;
-  private logHistory: Array<{ timestamp: Date; level: LogLevel; message: string; data?: any }> = [];
+  private logHistory: Array<{ timestamp: Date; level: LogLevel; message: string; data?: unknown }> = [];
   private maxHistorySize = 100;
 
   constructor() {
@@ -32,7 +32,7 @@ class Logger {
     return level >= this.level;
   }
 
-  private addToHistory(level: LogLevel, message: string, data?: any) {
+  private addToHistory(level: LogLevel, message: string, data?: unknown) {
     this.logHistory.push({
       timestamp: new Date(),
       level,
@@ -51,7 +51,7 @@ class Logger {
     return `[${timestamp}] [${level}] ${message}`;
   }
 
-  debug(message: string, data?: any) {
+  debug(message: string, data?: unknown) {
     if (this.shouldLog(LogLevel.DEBUG)) {
       const formatted = this.formatMessage('DEBUG', message);
       if (data) {
@@ -63,7 +63,7 @@ class Logger {
     }
   }
 
-  info(message: string, data?: any) {
+  info(message: string, data?: unknown) {
     if (this.shouldLog(LogLevel.INFO)) {
       const formatted = this.formatMessage('INFO', message);
       if (data) {
@@ -75,7 +75,7 @@ class Logger {
     }
   }
 
-  warn(message: string, data?: any) {
+  warn(message: string, data?: unknown) {
     if (this.shouldLog(LogLevel.WARN)) {
       const formatted = this.formatMessage('WARN', message);
       if (data) {
@@ -87,7 +87,7 @@ class Logger {
     }
   }
 
-  error(message: string, error?: Error | any) {
+  error(message: string, error?: unknown) {
     if (this.shouldLog(LogLevel.ERROR)) {
       const formatted = this.formatMessage('ERROR', message);
       if (error) {
@@ -154,7 +154,7 @@ class Logger {
   /**
    * API call logging helper
    */
-  logAPICall(method: string, url: string, data?: any) {
+  logAPICall(method: string, url: string, data?: unknown) {
     if (this.shouldLog(LogLevel.DEBUG)) {
       this.debug(`API ${method.toUpperCase()} ${url}`, data);
     }
@@ -163,7 +163,7 @@ class Logger {
   /**
    * API response logging helper
    */
-  logAPIResponse(url: string, status: number, data?: any) {
+  logAPIResponse(url: string, status: number, data?: unknown) {
     if (this.shouldLog(LogLevel.DEBUG)) {
       const level = status >= 400 ? LogLevel.ERROR : LogLevel.DEBUG;
       const message = `API Response ${url} - Status: ${status}`;

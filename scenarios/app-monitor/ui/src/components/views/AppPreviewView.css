@@ -645,6 +645,7 @@
   border-radius: 10px;
   overflow: hidden;
   display: flex;
+  position: relative;
 }
 
 .preview-iframe {
@@ -653,6 +654,40 @@
   height: 100%;
   border: none;
   background: #060a06;
+}
+
+.preview-iframe-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: rgba(3, 15, 10, 0.84);
+  color: var(--matrix-cyan);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 1.5rem;
+  z-index: 2;
+  backdrop-filter: blur(2px);
+}
+
+.preview-iframe-overlay svg {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.preview-iframe-overlay--waiting,
+.preview-iframe-overlay--restart {
+  color: var(--matrix-cyan);
+}
+
+.preview-iframe-overlay--error {
+  color: var(--matrix-red);
+  background: rgba(32, 0, 4, 0.85);
 }
 
 .preview-placeholder {

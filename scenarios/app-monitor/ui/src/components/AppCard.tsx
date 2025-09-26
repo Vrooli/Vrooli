@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import type { LucideIcon } from 'lucide-react';
 import { ActivitySquare, Cable, Clock3, Cpu, Info, Play, Square } from 'lucide-react';
 import type { App } from '@/types';
+import { orderedPortMetrics } from '@/utils/appPreview';
 import './AppCard.css';
 
 interface AppCardProps {
@@ -93,26 +94,6 @@ const MetricChip = memo(({ label, value, Icon }: MetricProps) => {
   );
 });
 MetricChip.displayName = 'MetricChip';
-
-export const orderedPortMetrics = (app: App) => {
-  const entries = Object.entries(app.port_mappings || {})
-    .map(([label, value]) => ({
-      label: label.toUpperCase(),
-      value: typeof value === 'number' ? String(value) : String(value ?? ''),
-    }))
-    .filter(({ value }) => value !== '');
-
-  const priorityOrder = ['UI_PORT', 'API_PORT'];
-  const prioritized = entries
-    .filter((entry) => priorityOrder.includes(entry.label))
-    .sort((a, b) => priorityOrder.indexOf(a.label) - priorityOrder.indexOf(b.label));
-
-  const remaining = entries
-    .filter((entry) => !priorityOrder.includes(entry.label))
-    .sort((a, b) => a.label.localeCompare(b.label));
-
-  return [...prioritized, ...remaining];
-};
 
 const AppCard = memo<AppCardProps>(({ 
   app,

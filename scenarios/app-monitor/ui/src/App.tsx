@@ -29,7 +29,7 @@ function App() {
         return prev;
       });
     },
-    onMetricUpdate: (_newMetrics) => {
+    onMetricUpdate: () => {
       // Metrics are now handled by system-monitor iframe
     },
     onLogEntry: (log) => {

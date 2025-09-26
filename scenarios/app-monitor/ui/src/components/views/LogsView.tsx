@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { ChangeEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { appService } from '@/services/api';
 import type { App } from '@/types';
@@ -14,9 +15,39 @@ export default function LogsView() {
   const [loading, setLoading] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetchApps();
+  const scrollToBottom = useCallback(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
+
+  const fetchApps = useCallback(async () => {
+    const fetchedApps = await appService.getApps();
+    setApps(fetchedApps);
+  }, []);
+
+  const fetchLogs = useCallback(async () => {
+    if (!selectedApp) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const appName = apps.find(a => a.id === selectedApp)?.name || selectedApp;
+      const result = await appService.getAppLogs(appName, logType);
+      setLogs(result.logs || []);
+      window.setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    } catch (error) {
+      console.error('Failed to fetch logs:', error);
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [apps, logType, scrollToBottom, selectedApp]);
+
+  useEffect(() => {
+    void fetchApps();
+  }, [fetchApps]);
 
   useEffect(() => {
     if (appId) {
@@ -26,38 +57,17 @@ export default function LogsView() {
 
   useEffect(() => {
     if (selectedApp) {
-      fetchLogs();
+      void fetchLogs();
     }
-  }, [selectedApp, logType]);
-
-  const fetchApps = async () => {
-    const fetchedApps = await appService.getApps();
-    setApps(fetchedApps);
-  };
-
-  const fetchLogs = async () => {
-    if (!selectedApp) return;
-    
-    setLoading(true);
-    try {
-      const appName = apps.find(a => a.id === selectedApp)?.name || selectedApp;
-      const result = await appService.getAppLogs(appName, logType);
-      setLogs(result.logs || []);
-      setTimeout(() => scrollToBottom(), 100);
-    } catch (error) {
-      console.error('Failed to fetch logs:', error);
-      setLogs([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const scrollToBottom = () => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, [fetchLogs, selectedApp]);
 
   const clearLogs = () => {
     setLogs([]);
+  };
+
+  const handleLogTypeChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const nextType = event.target.value as 'both' | 'lifecycle' | 'background';
+    setLogType(nextType);
   };
 
   const getLogClass = (line: string): string => {
@@ -72,7 +82,7 @@ export default function LogsView() {
 
   const formatLogLine = (line: string, index: number): JSX.Element => {
     // Try to extract timestamp if present
-    const timestampMatch = line.match(/^\[([\d\-T:\.Z]+)\]/);
+    const timestampMatch = line.match(/^\[([\dT:.Z-]+)\]/);
     const timestamp = timestampMatch ? timestampMatch[1] : null;
     const content = timestampMatch ? line.substring(timestampMatch[0].length).trim() : line;
 
@@ -104,7 +114,7 @@ export default function LogsView() {
           <select
             className="log-filter"
             value={logType}
-            onChange={(e) => setLogType(e.target.value as any)}
+            onChange={handleLogTypeChange}
           >
             <option value="both">ALL LOGS</option>
             <option value="lifecycle">LIFECYCLE</option>

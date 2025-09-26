@@ -387,7 +387,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
         window.addEventListener('message', listener);
       });
     },
-    [childOrigin],
+    [childOrigin, iframeRef],
   );
 
   const runComplianceCheck = useCallback(async (): Promise<BridgeComplianceResult> => {

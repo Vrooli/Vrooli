@@ -126,3 +126,28 @@ export const locateAppByIdentifier = (apps: App[], identifier: string): App | nu
     null
   );
 };
+
+export interface PortMetric {
+  label: string;
+  value: string;
+}
+
+export const orderedPortMetrics = (app: App): PortMetric[] => {
+  const entries = Object.entries(app.port_mappings || {})
+    .map(([label, value]) => ({
+      label: label.toUpperCase(),
+      value: typeof value === 'number' ? String(value) : String(value ?? ''),
+    }))
+    .filter(({ value }) => value !== '');
+
+  const priorityOrder = ['UI_PORT', 'API_PORT'];
+  const prioritized = entries
+    .filter((entry) => priorityOrder.includes(entry.label))
+    .sort((a, b) => priorityOrder.indexOf(a.label) - priorityOrder.indexOf(b.label));
+
+  const remaining = entries
+    .filter((entry) => !priorityOrder.includes(entry.label))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  return [...prioritized, ...remaining];
+};

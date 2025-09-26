@@ -91,27 +91,42 @@ export function useAppWebSocket(options: WebSocketHookOptions = {}) {
       
       // Route message to appropriate handler
       switch (message.type) {
-        case 'app_update':
-          onAppUpdate?.(message.payload as Partial<App>);
+        case 'app_update': {
+          if (message.payload && typeof message.payload === 'object') {
+            onAppUpdate?.(message.payload as Partial<App>);
+          }
           break;
-        
-        case 'metric_update':
-          onMetricUpdate?.(message.payload as SystemMetrics);
+        }
+
+        case 'metric_update': {
+          if (message.payload && typeof message.payload === 'object') {
+            onMetricUpdate?.(message.payload as SystemMetrics);
+          }
           break;
-        
-        case 'log_entry':
-          onLogEntry?.(message.payload as LogEntry);
+        }
+
+        case 'log_entry': {
+          if (message.payload && typeof message.payload === 'object') {
+            onLogEntry?.(message.payload as LogEntry);
+          }
           break;
-        
-        case 'connection':
+        }
+
+        case 'connection': {
           console.log('[WebSocket] Connection status:', message.payload);
           break;
-        
-        case 'error':
-          console.error('[WebSocket] Server error:', message.payload);
-          onError?.(message.payload.message || 'Server error');
+        }
+
+        case 'error': {
+          const payload = message.payload;
+          console.error('[WebSocket] Server error:', payload);
+          const messageText = (typeof payload === 'object' && payload && 'message' in payload && typeof (payload as { message: unknown }).message === 'string')
+            ? (payload as { message: string }).message
+            : 'Server error';
+          onError?.(messageText);
           break;
-        
+        }
+
         default:
           console.warn('[WebSocket] Unknown message type:', message.type);
       }

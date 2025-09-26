@@ -96,6 +96,8 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const [reportSelectionRect, setReportSelectionRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [reportScreenshotClip, setReportScreenshotClip] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [reportScreenshotInfo, setReportScreenshotInfo] = useState<string | null>(null);
+  const [previewReloadToken, setPreviewReloadToken] = useState(0);
+  const [previewOverlay, setPreviewOverlay] = useState<null | { type: 'restart' | 'waiting' | 'error'; message: string }>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
@@ -104,6 +106,8 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const reportScreenshotContainerRef = useRef<HTMLDivElement | null>(null);
   const reportScreenshotContainerSizeRef = useRef<{ width: number; height: number } | null>(null);
   const reportDragStateRef = useRef<{ pointerId: number; startX: number; startY: number; containerWidth: number; containerHeight: number } | null>(null);
+  const restartMonitorRef = useRef<{ cancel: () => void } | null>(null);
+  const lastRefreshRequestRef = useRef(0);
 
   const handleBridgeLocation = useCallback((message: { href: string; title?: string | null }) => {
     if (message.href) {
@@ -138,6 +142,132 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     previewUrl,
     onLocation: handleBridgeLocation,
   });
+
+  const resetPreviewState = useCallback((options?: { force?: boolean }) => {
+    if (!options?.force && hasCustomPreviewUrl) {
+      return;
+    }
+
+    setPreviewUrl(null);
+    setPreviewUrlInput('');
+    setHistory([]);
+    setHistoryIndex(-1);
+    initialPreviewUrlRef.current = null;
+  }, [hasCustomPreviewUrl]);
+
+  const applyDefaultPreviewUrl = useCallback((url: string) => {
+    initialPreviewUrlRef.current = url;
+    setPreviewUrl(url);
+    setPreviewUrlInput(url);
+    setHistory(prevHistory => {
+      if (prevHistory.length === 0) {
+        setHistoryIndex(0);
+        return [url];
+      }
+
+      if (prevHistory[prevHistory.length - 1] === url) {
+        setHistoryIndex(prevHistory.length - 1);
+        return prevHistory;
+      }
+
+      const nextHistory = [...prevHistory, url];
+      setHistoryIndex(nextHistory.length - 1);
+      return nextHistory;
+    });
+  }, [setHistoryIndex]);
+
+  const commitAppUpdate = useCallback((nextApp: App) => {
+    setApps(prev => {
+      const index = prev.findIndex(app => app.id === nextApp.id);
+      if (index === -1) {
+        return [...prev, nextApp];
+      }
+
+      const updated = [...prev];
+      updated[index] = nextApp;
+      return updated;
+    });
+
+    setCurrentApp(prev => {
+      if (!prev) {
+        return !appId || appId === nextApp.id ? nextApp : prev;
+      }
+
+      return prev.id === nextApp.id ? nextApp : prev;
+    });
+  }, [appId, setApps]);
+
+  const stopRestartMonitor = useCallback(() => {
+    if (restartMonitorRef.current) {
+      restartMonitorRef.current.cancel();
+      restartMonitorRef.current = null;
+    }
+  }, []);
+
+  const reloadPreview = useCallback(() => {
+    resetState();
+    setPreviewReloadToken(prev => prev + 1);
+  }, [resetState]);
+
+  const beginRestartMonitor = useCallback((appIdentifier: string) => {
+    stopRestartMonitor();
+
+    let cancelled = false;
+    restartMonitorRef.current = {
+      cancel: () => {
+        cancelled = true;
+      },
+    };
+
+    const poll = async () => {
+      const maxAttempts = 30;
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        if (cancelled) {
+          return;
+        }
+
+        try {
+          const fetched = await appService.getApp(appIdentifier);
+          if (cancelled) {
+            return;
+          }
+
+          if (fetched) {
+            commitAppUpdate(fetched);
+
+            if (isRunningStatus(fetched.status) && !isStoppedStatus(fetched.status)) {
+              const candidateUrl = buildPreviewUrl(fetched);
+              if (candidateUrl) {
+                setStatusMessage('Application restarted. Refreshing preview...');
+                setPreviewOverlay(null);
+                setLoading(false);
+                reloadPreview();
+                stopRestartMonitor();
+                window.setTimeout(() => {
+                  if (!cancelled) {
+                    setStatusMessage(null);
+                  }
+                }, 1500);
+                return;
+              }
+            }
+          }
+        } catch (error) {
+          logger.warn('Restart monitor poll failed', error);
+        }
+
+        const delay = attempt < 5 ? 1000 : 2000;
+        await new Promise(resolve => window.setTimeout(resolve, delay));
+      }
+
+      if (!cancelled) {
+        setLoading(false);
+        setPreviewOverlay({ type: 'error', message: 'Application has not come back online yet. Try refreshing.' });
+      }
+    };
+
+    void poll();
+  }, [commitAppUpdate, reloadPreview, setLoading, setPreviewOverlay, setStatusMessage, stopRestartMonitor]);
 
   const activePreviewUrl = useMemo(() => bridgeState.href || previewUrl || '', [bridgeState.href, previewUrl]);
   const canCaptureScreenshot = useMemo(() => Boolean(activePreviewUrl), [activePreviewUrl]);
@@ -409,7 +539,15 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
   useEffect(() => {
     setFetchAttempted(false);
-  }, [appId]);
+    stopRestartMonitor();
+    setPreviewOverlay(null);
+  }, [appId, stopRestartMonitor]);
+
+  useEffect(() => {
+    return () => {
+      stopRestartMonitor();
+    };
+  }, [stopRestartMonitor]);
 
   useEffect(() => {
     setHasCustomPreviewUrl(false);
@@ -451,17 +589,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       try {
         const fetched = await appService.getApp(appId);
         if (fetched) {
-          setCurrentApp(fetched);
-          setApps(prev => {
-            const index = prev.findIndex(app => app.id === fetched.id);
-            if (index === -1) {
-              return [...prev, fetched];
-            }
-
-            const updated = [...prev];
-            updated[index] = fetched;
-            return updated;
-          });
+          commitAppUpdate(fetched);
           setStatusMessage(null);
         } else {
           setStatusMessage('Application not found.');
@@ -477,72 +605,46 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     fetchApp().catch((error) => {
       logger.error('Preview fetch failed', error);
     });
-  }, [appId, apps, fetchAttempted, setApps]);
+  }, [appId, apps, commitAppUpdate, fetchAttempted]);
 
   useEffect(() => {
     if (!currentApp) {
-      if (!hasCustomPreviewUrl) {
-        setPreviewUrl(null);
-        setPreviewUrlInput('');
-        setHistory([]);
-        setHistoryIndex(-1);
-        initialPreviewUrlRef.current = null;
-      }
+      resetPreviewState();
       return;
     }
 
-    if (currentApp.is_partial) {
-      setStatusMessage('Loading application details...');
-      setLoading(true);
-      if (!hasCustomPreviewUrl) {
-        setPreviewUrl(null);
-        setPreviewUrlInput('');
-        setHistory([]);
-        setHistoryIndex(-1);
-        initialPreviewUrlRef.current = null;
+    const isRunning = isRunningStatus(currentApp.status) && !isStoppedStatus(currentApp.status);
+    const candidateUrl = isRunning ? buildPreviewUrl(currentApp) : null;
+
+    if (!isRunning) {
+      resetPreviewState();
+      setStatusMessage('Application is not running. Start it from the Applications view to access the UI preview.');
+      setLoading(false);
+      return;
+    }
+
+    if (!candidateUrl) {
+      if (currentApp.is_partial) {
+        setStatusMessage('Loading application details...');
+        setLoading(true);
+      } else {
+        setStatusMessage('This application does not expose a UI endpoint to preview.');
+        setLoading(false);
       }
+      resetPreviewState();
       return;
     }
 
     setLoading(false);
-
-    if (!isRunningStatus(currentApp.status) || isStoppedStatus(currentApp.status)) {
-      if (!hasCustomPreviewUrl) {
-        setPreviewUrl(null);
-        setPreviewUrlInput('');
-        setHistory([]);
-        setHistoryIndex(-1);
-        initialPreviewUrlRef.current = null;
-      }
-      setStatusMessage('Application is not running. Start it from the Applications view to access the UI preview.');
-      return;
-    }
-
-    const url = buildPreviewUrl(currentApp);
-    if (!url) {
-      if (!hasCustomPreviewUrl) {
-        setPreviewUrl(null);
-        setPreviewUrlInput('');
-        setHistory([]);
-        setHistoryIndex(-1);
-        initialPreviewUrlRef.current = null;
-      }
-      setStatusMessage('This application does not expose a UI endpoint to preview.');
-      return;
-    }
-
     setStatusMessage(null);
+
     if (!hasCustomPreviewUrl) {
-      initialPreviewUrlRef.current = url;
-      setPreviewUrl(url);
-      setPreviewUrlInput(url);
-      setHistory([url]);
-      setHistoryIndex(0);
+      applyDefaultPreviewUrl(candidateUrl);
     } else if (previewUrl === null) {
-      initialPreviewUrlRef.current = url;
-      setPreviewUrl(url);
+      initialPreviewUrlRef.current = candidateUrl;
+      setPreviewUrl(candidateUrl);
     }
-  }, [currentApp, hasCustomPreviewUrl, previewUrl]);
+  }, [applyDefaultPreviewUrl, currentApp, hasCustomPreviewUrl, previewUrl, resetPreviewState]);
 
   useEffect(() => {
     if (!appId) {
@@ -583,7 +685,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     };
   }, [bridgeState.href, bridgeState.isReady, bridgeState.isSupported, runComplianceCheck]);
 
-  const handleAppAction = useCallback(async (appToControl: string, action: 'start' | 'stop' | 'restart') => {
+  const executeAppAction = useCallback(async (appToControl: string, action: 'start' | 'stop' | 'restart') => {
     setPendingAction(action);
     const actionInProgressMessage = action === 'stop'
       ? 'Stopping application...'
@@ -594,42 +696,36 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
     try {
       const success = await appService.controlApp(appToControl, action);
-      if (success) {
-        setApps(prev => prev.map(app => {
-          if (app.id === appToControl) {
-            return {
-              ...app,
-              status: action === 'stop' ? 'stopped' : 'running',
-              updated_at: new Date().toISOString(),
-            };
-          }
-          return app;
-        }));
-        setCurrentApp(prev => {
-          if (prev && prev.id === appToControl) {
-            return {
-              ...prev,
-              status: action === 'stop' ? 'stopped' : 'running',
-              updated_at: new Date().toISOString(),
-            };
-          }
-          return prev;
-        });
+      if (!success) {
+        setStatusMessage(`Unable to ${action} the application. Check logs for details.`);
+        return false;
+      }
+
+      const timestamp = new Date().toISOString();
+      if (action === 'start' || action === 'stop') {
+        const nextStatus: App['status'] = action === 'stop' ? 'stopped' : 'running';
+        setApps(prev => prev.map(app => (app.id === appToControl ? { ...app, status: nextStatus, updated_at: timestamp } : app)));
+        setCurrentApp(prev => (prev && prev.id === appToControl ? { ...prev, status: nextStatus, updated_at: timestamp } : prev));
         setStatusMessage(action === 'stop'
           ? 'Application stopped. Start it again to relaunch the UI preview.'
-          : action === 'start'
-            ? 'Application started. Preview will refresh automatically.'
-            : 'Application restarted. Preview will refresh automatically.');
+          : 'Application started. Preview will refresh automatically.');
       } else {
-        setStatusMessage(`Unable to ${action} the application. Check logs for details.`);
+        setStatusMessage('Restart command sent. Waiting for application to return...');
       }
+
+      return true;
     } catch (error) {
       logger.error(`Failed to ${action} app ${appToControl}`, error);
       setStatusMessage(`Unable to ${action} the application. Check logs for details.`);
+      return false;
     } finally {
       setPendingAction(null);
     }
   }, [setApps]);
+
+  const handleAppAction = useCallback(async (appToControl: string, action: 'start' | 'stop' | 'restart') => {
+    await executeAppAction(appToControl, action);
+  }, [executeAppAction]);
 
   const handleToggleApp = useCallback(() => {
     if (!currentApp || pendingAction) {
@@ -637,7 +733,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     }
 
     const action: 'start' | 'stop' = isRunningStatus(currentApp.status) ? 'stop' : 'start';
-    handleAppAction(currentApp.id, action);
+    void handleAppAction(currentApp.id, action);
   }, [currentApp, handleAppAction, pendingAction]);
 
   const handleRestartApp = useCallback(() => {
@@ -645,8 +741,22 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       return;
     }
 
-    handleAppAction(currentApp.id, 'restart');
-  }, [currentApp, handleAppAction, pendingAction]);
+    const targetId = currentApp.id;
+    setPreviewOverlay({ type: 'restart', message: 'Restarting application...' });
+    setLoading(true);
+    reloadPreview();
+
+    void executeAppAction(targetId, 'restart').then(success => {
+      if (!success) {
+        setLoading(false);
+        setPreviewOverlay({ type: 'error', message: 'Unable to restart the application. Check logs for details.' });
+        return;
+      }
+
+      setPreviewOverlay({ type: 'waiting', message: 'Waiting for application to restart...' });
+      beginRestartMonitor(targetId);
+    });
+  }, [beginRestartMonitor, currentApp, executeAppAction, pendingAction, reloadPreview]);
 
   const applyPreviewUrlInput = useCallback(() => {
     const trimmed = previewUrlInput.trim();
@@ -715,38 +825,43 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       return;
     }
 
+    const requestId = Date.now();
+    lastRefreshRequestRef.current = requestId;
+
+    setPreviewOverlay(null);
     setLoading(true);
     setStatusMessage('Refreshing application status...');
 
+    if (previewUrl || bridgeState.href || hasCustomPreviewUrl) {
+      reloadPreview();
+    }
+
     appService.getApp(appId)
       .then(fetched => {
-        if (fetched) {
-          setCurrentApp(fetched);
-          setApps(prev => {
-            const index = prev.findIndex(app => app.id === fetched.id);
-            if (index === -1) {
-              return [...prev, fetched];
-            }
+        if (lastRefreshRequestRef.current !== requestId) {
+          return;
+        }
 
-            const updated = [...prev];
-            updated[index] = fetched;
-            return updated;
-          });
-          if (!hasCustomPreviewUrl) {
-            setStatusMessage(null);
-          }
+        if (fetched) {
+          commitAppUpdate(fetched);
+          setStatusMessage(null);
         } else {
           setStatusMessage('Application not found.');
         }
       })
       .catch(error => {
+        if (lastRefreshRequestRef.current !== requestId) {
+          return;
+        }
         logger.error('Failed to refresh application preview', error);
         setStatusMessage('Failed to refresh application preview.');
       })
       .finally(() => {
-        setLoading(false);
+        if (lastRefreshRequestRef.current === requestId) {
+          setLoading(false);
+        }
       });
-  }, [appId, hasCustomPreviewUrl, setApps]);
+  }, [appId, bridgeState.href, commitAppUpdate, hasCustomPreviewUrl, previewUrl, reloadPreview]);
 
   const handleGoBack = useCallback(() => {
     if (bridgeState.isSupported) {
@@ -1399,12 +1514,26 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       {previewUrl ? (
         <div className="preview-iframe-container" ref={previewContainerRef}>
           <iframe
+            key={previewReloadToken}
             src={previewUrl}
             title={`${currentApp?.name ?? 'Application'} preview`}
             className="preview-iframe"
             loading="lazy"
             ref={iframeRef}
           />
+          {previewOverlay && (
+            <div
+              className={clsx('preview-iframe-overlay', `preview-iframe-overlay--${previewOverlay.type}`)}
+              aria-live="polite"
+            >
+              {(previewOverlay.type === 'restart' || previewOverlay.type === 'waiting') ? (
+                <Loader2 aria-hidden size={26} className="spinning" />
+              ) : (
+                <Info aria-hidden size={26} />
+              )}
+              <span>{previewOverlay.message}</span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="preview-placeholder">
