@@ -28,6 +28,8 @@ set -euo pipefail
 
 # Test realm and webhook configuration
 TEST_REALM="test-webhooks-$$"
+# Initialize token variable
+token=""
 TEST_WEBHOOK_URL="https://webhook.site/test-$$"
 TEST_SECRET="webhook-test-secret-$$"
 
@@ -127,7 +129,7 @@ fi
 echo "[INFO] Cleaning up test data..."
 
 # Delete test realm if it was created
-if [[ -n "$token" ]]; then
+if [[ -n "${token:-}" ]]; then
     curl -s -X DELETE \
         -H "Authorization: Bearer $token" \
         "http://localhost:${KEYCLOAK_PORT}/admin/realms/${TEST_REALM}" 2>&1 >/dev/null || true

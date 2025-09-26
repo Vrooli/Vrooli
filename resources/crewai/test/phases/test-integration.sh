@@ -19,3 +19,4 @@ source "${CREWAI_ROOT}/lib/test.sh"
 
 # Run integration tests directly
 crewai::test::integration
+exit $?

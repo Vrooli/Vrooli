@@ -146,6 +146,33 @@ neo4j_test_integration() {
         ((failed++))
     fi
     
+    # Test 7: Backup functionality
+    echo -n "7. Create backup... "
+    local test_backup
+    test_backup="/tmp/neo4j_test_backup_$(date +%s)"
+    
+    # Create some test data first
+    neo4j_query "CREATE (n:BackupTest {name: 'test_backup', value: 42})" &>/dev/null
+    
+    if neo4j_backup "$test_backup" &>/dev/null; then
+        # Check for either .json or .cypher file (supports both formats)
+        if [[ -f "${test_backup}.json" ]] || [[ -f "${test_backup}.cypher" ]] || \
+           docker exec "$NEO4J_CONTAINER_NAME" test -f "/var/lib/neo4j/data/dumps/$(basename "${test_backup}").json" &>/dev/null || \
+           docker exec "$NEO4J_CONTAINER_NAME" test -f "/var/lib/neo4j/data/dumps/$(basename "${test_backup}").cypher" &>/dev/null; then
+            echo "✓ PASS"
+        else
+            echo "✗ FAIL (backup file not created)"
+            ((failed++))
+        fi
+    else
+        echo "✗ FAIL (backup command failed)"
+        ((failed++))
+    fi
+    
+    # Clean up test data and backup file
+    neo4j_query "MATCH (n:BackupTest) DETACH DELETE n" &>/dev/null
+    rm -f "${test_backup}.cypher" "${test_backup}.json" 2>/dev/null
+    
     echo
     if [[ $failed -eq 0 ]]; then
         echo "✅ All integration tests passed"
@@ -201,6 +228,17 @@ neo4j_test_unit() {
     # Test 4: Port configuration
     echo -n "4. Port configuration... "
     if [[ "$NEO4J_HTTP_PORT" == "7474" ]] && [[ "$NEO4J_BOLT_PORT" == "7687" ]]; then
+        echo "✓ PASS"
+    else
+        echo "✗ FAIL"
+        ((failed++))
+    fi
+    
+    # Test 5: Performance metrics
+    echo -n "5. Performance metrics... "
+    local metrics
+    metrics=$(neo4j_get_performance_metrics 2>/dev/null || echo "")
+    if [[ -n "$metrics" ]]; then
         echo "✓ PASS"
     else
         echo "✗ FAIL"

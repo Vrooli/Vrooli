@@ -43,7 +43,7 @@ crewai::manage::restart() {
 }
 
 crewai::status::check() {
-    if is_running; then
+    if crewai::is_running; then
         log::success "CrewAI is running (port ${CREWAI_PORT})"
         return 0
     else

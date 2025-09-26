@@ -58,7 +58,7 @@ inject_crew_file() {
         log::success "  ✅ Crew injected: ${crew_name}"
         
         # Notify server via API
-        if is_running; then
+        if crewai::is_running; then
             local response=$(curl -s -X POST -H "Content-Type: application/json" \
                 -d "{\"file_path\":\"$dest_file\",\"file_type\":\"crew\"}" \
                 "http://localhost:${CREWAI_PORT}/inject" 2>/dev/null)
@@ -98,7 +98,7 @@ inject_agent_file() {
         log::success "  ✅ Agent injected: ${agent_name}"
         
         # Notify server via API
-        if is_running; then
+        if crewai::is_running; then
             local response=$(curl -s -X POST -H "Content-Type: application/json" \
                 -d "{\"file_path\":\"$dest_file\",\"file_type\":\"agent\"}" \
                 "http://localhost:${CREWAI_PORT}/inject" 2>/dev/null)

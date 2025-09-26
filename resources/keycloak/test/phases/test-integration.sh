@@ -16,8 +16,11 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 source "${RESOURCE_DIR}/config/defaults.sh"
 
-# Get port - use default if not set
+# Get configuration - use defaults if not set
 KEYCLOAK_PORT="${KEYCLOAK_PORT:-8070}"
+KEYCLOAK_CONTAINER_NAME="${KEYCLOAK_CONTAINER_NAME:-vrooli-keycloak}"
+KEYCLOAK_ADMIN_USER="${KEYCLOAK_ADMIN_USER:-admin}"
+KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-admin}"
 
 # Test data
 TEST_REALM="test-realm-$$"

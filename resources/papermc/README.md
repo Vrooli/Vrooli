@@ -80,7 +80,7 @@ PAPERMC_MAX_PLAYERS=20
 
 - `25565` - Minecraft game server (players connect here)
 - `25575` - RCON remote console (mcrcon connects here)
-- `11460` - Health check endpoint (changed from 11459 to avoid conflicts)
+- `11461` - Health check endpoint (allocated in port_registry.sh)
 
 ## Commands
 
@@ -152,7 +152,10 @@ The PaperMC resource includes a built-in plugin management system:
 ### Supported Plugins
 - **EssentialsX** - Core server utilities (`essentialsx`)
 - **Vault** - Economy and permissions API (`vault`)
-- **WorldEdit** - World editing tools (`worldedit`)
+- **WorldEdit** - World editing tools (`worldedit`) - requires direct URL
+- **LuckPerms** - Advanced permissions system (`luckperms`)
+- **CoreProtect** - Block logging and rollback (`coreprotect`)
+- **ProtocolLib** - Packet modification API (`protocollib`)
 
 ### Installing Plugins
 

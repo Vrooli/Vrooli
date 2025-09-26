@@ -22,9 +22,9 @@ NEO4J_CLI_DIR="${APP_ROOT}/resources/neo4j"
 
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
-# shellcheck disable=SC1091
+# shellcheck disable=SC1091,SC2154
 source "${var_LOG_FILE}"
-# shellcheck disable=SC1091
+# shellcheck disable=SC1091,SC2154
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
@@ -44,6 +44,7 @@ done
 cli::init "neo4j" "Neo4j graph database management" "v2"
 
 # Override default handlers to point directly to neo4j implementations
+# shellcheck disable=SC2034  # CLI_COMMAND_HANDLERS is used by the framework
 CLI_COMMAND_HANDLERS["manage::install"]="neo4j_install"
 CLI_COMMAND_HANDLERS["manage::uninstall"]="neo4j_uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="neo4j_start"  
@@ -66,6 +67,9 @@ cli::register_subcommand "content" "restore" "Restore graph database" "neo4j::co
 cli::register_subcommand "content" "metrics" "Get performance metrics" "neo4j_get_performance_metrics"
 cli::register_subcommand "content" "monitor" "Monitor query performance" "neo4j_monitor_query"
 cli::register_subcommand "content" "slow-queries" "Get slow queries" "neo4j_get_slow_queries"
+
+# Data import
+cli::register_subcommand "content" "import-csv" "Import CSV data" "neo4j::content::import_csv"
 
 # Graph algorithm commands  
 cli::register_subcommand "content" "pagerank" "Run PageRank algorithm" "neo4j_algo_pagerank"
@@ -90,6 +94,9 @@ cli::register_subcommand "content" "cluster-backup" "Cluster backup strategy" "n
 cli::register_command "status" "Show detailed resource status" "neo4j_status"
 cli::register_command "logs" "Show Neo4j logs" "neo4j_logs"
 
+# APOC plugin management
+cli::register_subcommand "manage" "install-apoc" "Install APOC plugin for graph algorithms" "neo4j_install_apoc"
+
 # Define missing content and docker functions
 neo4j::content::get() {
     echo "Content retrieval not implemented for Neo4j"
@@ -103,9 +110,54 @@ neo4j::content::remove() {
     return 1
 }
 
+neo4j::content::import_csv() {
+    local csv_file="${1:-}"
+    local import_query="${2:-}"
+    
+    if [[ -z "$csv_file" ]]; then
+        echo "Error: CSV file path required"
+        echo "Usage: resource-neo4j content import-csv /path/to/file.csv 'LOAD CSV WITH HEADERS FROM \"file:///file.csv\" AS row CREATE (n:Node {id: row.id, name: row.name})'"
+        return 1
+    fi
+    
+    if [[ -z "$import_query" ]]; then
+        # Provide a default query template
+        local filename
+        filename=$(basename "$csv_file")
+        echo "No import query provided. Using example template:"
+        echo "LOAD CSV WITH HEADERS FROM 'file:///$filename' AS row CREATE (n:Node) SET n = row"
+        echo ""
+        echo "To use custom query:"
+        echo "resource-neo4j content import-csv $csv_file 'YOUR_CYPHER_QUERY'"
+        return 1
+    fi
+    
+    neo4j_import_csv "$csv_file" "$import_query"
+}
+
 neo4j::content::backup() {
-    # Use the core backup function
-    neo4j_backup "$@"
+    local backup_file=""
+    
+    # Parse --output parameter
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --output)
+                backup_file="$2"
+                shift 2
+                ;;
+            *)
+                backup_file="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    # Use the core backup function with parsed filename
+    if [[ -n "$backup_file" ]]; then
+        neo4j_backup "$backup_file"
+    else
+        neo4j_backup
+    fi
 }
 
 neo4j::content::restore() {

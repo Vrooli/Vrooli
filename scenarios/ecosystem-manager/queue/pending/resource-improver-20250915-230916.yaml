@@ -1,0 +1,28 @@
+id: resource-improver-20250915-230916
+title: Update Apache Superset
+type: resource
+operation: improver
+category: misc
+priority: low
+effort_estimate: 4h
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: ""
+started_at: ""
+completed_at: ""
+completion_count: 1
+last_completed_at: "2025-09-16T10:34:14-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-15T23:09:16-04:00"
+updated_at: "2025-09-26T11:30:34-04:00"
+tags: []
+notes: "Already pretty good, but could use some additional validation/tidying. Notes from last time:\n\n**What was accomplished:**\n- Fixed Port Registry Compliance - Removed hardcoded port fallbacks, now fails explicitly if port registry is missing (per port-allocation guidelines)\n- Fixed API Test Reliability - Updated smoke test to use valid API endpoint instead of non-existent `/api/v1/` endpoint\n- Validated All P0 Requirements:\n  - Docker Stack Deployment working with all containers\n  - Health Check Endpoint responding properly  \n  - Database Connectivity pre-configured\n  - CLI Commands fully v2.0 compliant\n  - Automation Interface with API authentication\n- Updated Documentation - Clarified current capabilities in PRD and README\n\n**Current status:**\n- **P0 Completion**: 100% (5/5 requirements) \n- **Overall Progress**: 45%\n- All services running and healthy\n- Test suite passing (except dashboard creation which requires CSRF - a P1 feature)\n\n**Remaining issues or limitations:**\n- CSRF protection remains enabled for security (WTF_CSRF_ENABLED = True)\n- Dashboard creation via API requires proper CSRF token handling\n\n**Suggested next actions:** None reported\n\n**Validation evidence:**\nTest Results:\n```\nSmoke Tests: All passed\nIntegration Tests: 2 issues (dashboard creation - expected due to CSRF)\nUnit Tests: All passed\n```"
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: false

@@ -19,3 +19,4 @@ source "${CREWAI_ROOT}/lib/test.sh"
 
 # Run unit tests directly
 crewai::test::unit
+exit $?

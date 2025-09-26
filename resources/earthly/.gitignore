@@ -1,5 +1,6 @@
 # Temporary test directories and artifacts
 tmp/
+test-earthfile/
 *.log
 
 # Earthly cache
@@ -13,3 +14,10 @@ artifacts/
 # Test artifacts
 test-output.txt
 test-result.txt
+
+# Secrets (NEVER commit)
+secrets/
+*.secret
+*.key
+*.pem
+*.env

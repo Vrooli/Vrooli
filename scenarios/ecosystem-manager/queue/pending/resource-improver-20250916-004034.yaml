@@ -1,0 +1,82 @@
+id: resource-improver-20250916-004034
+title: Update openmct
+type: resource
+operation: improver
+category: misc
+priority: low
+effort_estimate: 4h
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: ""
+started_at: ""
+completed_at: ""
+completion_count: 1
+last_completed_at: "2025-09-16T11:53:30-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-16T00:40:34-04:00"
+updated_at: "2025-09-26T12:51:07-04:00"
+tags: []
+notes: |-
+    Already pretty good, but could use some additional validation/tidying. Notes from last time:
+
+    **What was accomplished:**
+    - Fixed port conflicts by changing the WebSocket port from 8100 to 8198 to avoid GeoNode conflict and updated port registry and configuration.
+    - Resolved Docker build issues by adding required npm dependencies (sqlite3, ws, express) and correcting server.js and index.html integration.
+    - Implemented a custom dashboard with Open MCT interface, configured telemetry providers, and added pre-configured telemetry streams.
+    - Created external adapters for MQTT and Traccar telemetry ingestion.
+
+    **Current status:**
+    - P0 Requirements: 100% complete
+      - Containerized Open MCT with NASA framework
+      - Sample telemetry streams (satellite, sensors, metrics)
+      - Health check endpoint working
+      - WebSocket support on port 8198
+      - REST API for telemetry ingestion
+      - Basic dashboard with time navigation
+      - SQLite historical data storage
+      - CLI management commands
+      - Smoke tests passing
+    - P1 Requirements: 33% complete
+      - External data source adapters (MQTT, Traccar)
+      - Export workflows to PostgreSQL/Qdrant
+
+    **Remaining issues or limitations:**
+    - Plugin health monitoring not implemented
+    - Custom telemetry types not implemented
+    - Alert integration not implemented
+    - Authentication not implemented
+
+    **Suggested next actions:**
+    - Implement plugin health monitoring
+    - Develop custom telemetry types
+    - Integrate alert system
+    - Set up authentication
+
+    **Validation evidence:**
+    ```bash
+    # Health check working
+    curl -sf http://localhost:8099/health
+    # {"status":"healthy","timestamp":1758037661060}
+
+    # Telemetry ingestion working
+    curl -X POST http://localhost:8099/api/telemetry/test_stream/data \
+      -d '{"timestamp": 1700000000000, "value": 42.5}'
+    # {"success":true}
+
+    # WebSocket on correct port
+    docker ps | grep openmct
+    # Shows ports 8099 and 8198 exposed
+
+    # Test results
+    vrooli resource openmct test smoke
+    # All 5 smoke tests passing
+    ```
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: false

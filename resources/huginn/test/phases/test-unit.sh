@@ -43,12 +43,14 @@ test::config_loading() {
 test::message_functions() {
     echo -n "Testing message functions... "
     
-    # Check if message variables are defined
-    if [[ -n "${MSG_INSTALL_START:-}" ]] && [[ -n "${MSG_STATUS_RUNNING:-}" ]]; then
+    # Check if message functions are defined (modern approach)
+    if type -t huginn::show_installing &>/dev/null && \
+       type -t huginn::show_status_header &>/dev/null && \
+       type -t huginn::usage &>/dev/null; then
         echo "✅ PASS"
         return 0
     else
-        echo "⚠️  WARN: Some message variables undefined"
+        echo "⚠️  WARN: Some message functions not defined"
         return 0
     fi
 }

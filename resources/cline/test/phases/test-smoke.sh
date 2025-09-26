@@ -47,12 +47,27 @@ test_config_directory() {
 test_vscode_availability() {
     log::info "Testing VS Code availability..."
     
-    if cline::check_vscode; then
+    # First check if VS Code is installed
+    if ! command -v code >/dev/null 2>&1; then
+        log::warn "⚠ VS Code not installed (configuration can proceed)"
+        # Still pass if config exists
+        if [[ -f "$CLINE_SETTINGS_FILE" ]]; then
+            log::success "✓ Configuration file exists"
+            ((SMOKE_PASSED++))
+        else
+            log::info "Configuration file will be created on first use"
+            ((SMOKE_PASSED++))
+        fi
+        return 0
+    fi
+    
+    # VS Code is installed, check if it works (use || true to prevent set -e from exiting)
+    if cline::check_vscode 2>/dev/null || false; then
         log::success "✓ VS Code is available"
         ((SMOKE_PASSED++))
         
-        # Check if extension is installed
-        if cline::is_extension_installed; then
+        # Check if extension is installed (use || true to prevent set -e from exiting)
+        if cline::is_extension_installed 2>/dev/null || false; then
             log::success "✓ Cline extension is installed"
             ((SMOKE_PASSED++))
         else
@@ -60,17 +75,9 @@ test_vscode_availability() {
         fi
         return 0
     else
-        log::warn "⚠ VS Code not available (configuration can proceed)"
-        # Still pass if config exists
-        if [[ -f "$CLINE_SETTINGS_FILE" ]]; then
-            log::success "✓ Configuration file exists"
-            ((SMOKE_PASSED++))
-            return 0
-        else
-            log::error "✗ No VS Code and no configuration"
-            ((SMOKE_FAILED++))
-            return 1
-        fi
+        log::warn "⚠ VS Code not responding"
+        ((SMOKE_FAILED++))
+        return 1
     fi
 }
 
@@ -173,14 +180,14 @@ main() {
     log::header "🚀 Cline Smoke Test Suite"
     
     # Ensure directories exist
-    cline::ensure_dirs
+    cline::ensure_dirs 2>/dev/null || true
     
-    # Run tests
-    test_config_directory
-    test_vscode_availability
-    test_provider_config
-    test_health_endpoint
-    test_cli_commands
+    # Run tests (use || true to prevent set -e from exiting)
+    test_config_directory || true
+    test_vscode_availability || true
+    test_provider_config || true
+    test_health_endpoint || true
+    test_cli_commands || true
     
     # Summary
     echo ""

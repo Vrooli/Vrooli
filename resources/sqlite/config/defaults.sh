@@ -36,6 +36,13 @@ export SQLITE_VERBOSE="${SQLITE_VERBOSE:-false}"        # Verbose output
 # Health check settings (for compatibility, even though SQLite is serverless)
 export SQLITE_HEALTH_CHECK_INTERVAL="${SQLITE_HEALTH_CHECK_INTERVAL:-60}"  # seconds
 
+# Replication settings
+export SQLITE_REPLICATION_ENABLED="${SQLITE_REPLICATION_ENABLED:-true}"
+export SQLITE_REPLICATION_PATH="${SQLITE_REPLICATION_PATH:-${VROOLI_DATA}/sqlite/replicas}"
+export SQLITE_REPLICATION_SYNC_INTERVAL="${SQLITE_REPLICATION_SYNC_INTERVAL:-300}"  # seconds (5 minutes)
+export SQLITE_REPLICATION_MONITOR_ENABLED="${SQLITE_REPLICATION_MONITOR_ENABLED:-false}"  # Auto-monitoring off by default
+export SQLITE_REPLICATION_MONITOR_INTERVAL="${SQLITE_REPLICATION_MONITOR_INTERVAL:-60}"  # seconds
+
 # Resource metadata
 export SQLITE_VERSION="${SQLITE_VERSION:-3.43.0}"
 export SQLITE_RESOURCE_VERSION="${SQLITE_RESOURCE_VERSION:-1.0.0}"

@@ -10,6 +10,29 @@ if ! declare -f kicad::init_dirs &>/dev/null; then
     source "${KICAD_CONTENT_LIB_DIR}/common.sh"
 fi
 
+# Add content (import projects/libraries)
+kicad::content::add() {
+    local source_path="${1:-}"
+    
+    if [[ -z "$source_path" ]]; then
+        log::error "Usage: resource-kicad content add <file/directory>"
+        return 1
+    fi
+    
+    if [[ ! -e "$source_path" ]]; then
+        log::error "Source path does not exist: $source_path"
+        return 1
+    fi
+    
+    # Use the existing inject functionality
+    if declare -f kicad::inject &>/dev/null; then
+        kicad::inject "$source_path"
+    else
+        log::error "Inject functionality not available"
+        return 1
+    fi
+}
+
 # List all content (projects and libraries)
 kicad::content::list() {
     kicad::content::list_projects
@@ -200,10 +223,11 @@ kicad::content::execute() {
                     echo "[Mock 3D Visualization of $(basename "$board")]" > "$output_file"
                 }
                 echo "3D visualization saved to: $output_file"
-            elif command -v kicad-cli &>/dev/null; then
+            elif [[ -n "$(kicad::get_cli_path)" ]]; then
                 # Use kicad-cli to export STEP file for 3D viewing
+                local kicad_cli=$(kicad::get_cli_path)
                 local step_file="${KICAD_OUTPUTS_DIR}/$(basename "$board" .kicad_pcb).step"
-                kicad-cli pcb export step "$board" -o "$step_file"
+                "$kicad_cli" pcb export step "$board" -o "$step_file"
                 echo "3D STEP file exported to: $step_file"
                 echo "Note: Open this file in a 3D viewer like FreeCAD or KiCad's 3D viewer"
             else
@@ -257,8 +281,11 @@ kicad::export::project() {
     
     echo "Exporting project: $project to format: $format"
     
+    # Get KiCad CLI path
+    local kicad_cli=$(kicad::get_cli_path)
+    
     # Use kicad-cli if available, otherwise use mock
-    if command -v kicad-cli &>/dev/null; then
+    if [[ -n "$kicad_cli" ]] && [[ "$kicad_cli" != *"mock"* ]]; then
         # Find actual PCB and schematic files
         local pcb_file=$(find "$project_path" -name "*.kicad_pcb" 2>/dev/null | head -1)
         local sch_file=$(find "$project_path" -name "*.kicad_sch" 2>/dev/null | head -1)
@@ -270,29 +297,29 @@ kicad::export::project() {
         
         case "$format" in
             gerber)
-                kicad-cli pcb export gerber "$pcb_file" -o "$output_dir" 2>/dev/null || {
+                "$kicad_cli" pcb export gerber "$pcb_file" -o "$output_dir" 2>/dev/null || {
                     echo "Warning: Gerber export failed"
                     return 1
                 }
                 ;;
             pdf)
                 if [[ -n "$pcb_file" ]]; then
-                    kicad-cli pcb export pdf "$pcb_file" -o "$output_dir/board.pdf" 2>/dev/null || echo "Warning: PCB PDF export failed"
+                    "$kicad_cli" pcb export pdf "$pcb_file" -o "$output_dir/board.pdf" 2>/dev/null || echo "Warning: PCB PDF export failed"
                 fi
                 if [[ -n "$sch_file" ]]; then
-                    kicad-cli sch export pdf "$sch_file" -o "$output_dir/schematic.pdf" 2>/dev/null || echo "Warning: Schematic PDF export failed"
+                    "$kicad_cli" sch export pdf "$sch_file" -o "$output_dir/schematic.pdf" 2>/dev/null || echo "Warning: Schematic PDF export failed"
                 fi
                 ;;
             svg)
                 if [[ -n "$pcb_file" ]]; then
-                    kicad-cli pcb export svg "$pcb_file" -o "$output_dir" 2>/dev/null || echo "Warning: PCB SVG export failed"
+                    "$kicad_cli" pcb export svg "$pcb_file" -o "$output_dir" 2>/dev/null || echo "Warning: PCB SVG export failed"
                 fi
                 if [[ -n "$sch_file" ]]; then
-                    kicad-cli sch export svg "$sch_file" -o "$output_dir" 2>/dev/null || echo "Warning: Schematic SVG export failed"
+                    "$kicad_cli" sch export svg "$sch_file" -o "$output_dir" 2>/dev/null || echo "Warning: Schematic SVG export failed"
                 fi
                 ;;
             step)
-                kicad-cli pcb export step "$pcb_file" -o "$output_dir/board.step" 2>/dev/null || {
+                "$kicad_cli" pcb export step "$pcb_file" -o "$output_dir/board.step" 2>/dev/null || {
                     echo "Warning: STEP export failed"
                     return 1
                 }
@@ -302,9 +329,9 @@ kicad::export::project() {
                 return 1
                 ;;
         esac
-    elif [[ -f "${KICAD_DATA_DIR}/kicad-cli-mock" ]]; then
+    elif [[ -n "$kicad_cli" ]] && [[ "$kicad_cli" == *"mock"* ]]; then
         # Use mock implementation
-        "${KICAD_DATA_DIR}/kicad-cli-mock" pcb export "$format" "$project_path"/*.kicad_pcb -o "$output_dir"
+        "$kicad_cli" pcb export "$format" "$project_path"/*.kicad_pcb -o "$output_dir"
         echo "Mock: Export complete (using mock implementation)"
     else
         echo "Warning: KiCad not installed. Cannot export project."

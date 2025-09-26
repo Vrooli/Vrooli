@@ -65,7 +65,7 @@ crewai::content::remove() {
 
 crewai::content::execute() {
     log::info "CrewAI execution through API endpoints"
-    if is_running; then
+    if crewai::is_running; then
         curl -s "http://localhost:${CREWAI_PORT}/health" | python3 -m json.tool 2>/dev/null || echo "Server running on port ${CREWAI_PORT}"
     else
         log::error "CrewAI server is not running. Start it with: resource-crewai manage start"

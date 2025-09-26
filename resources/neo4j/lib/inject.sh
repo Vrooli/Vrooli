@@ -27,7 +27,8 @@ neo4j_inject() {
     fi
     
     # Get filename
-    local filename=$(basename "$file_path")
+    local filename
+    filename=$(basename "$file_path")
     local injected_dir="$NEO4J_RESOURCE_DIR/injected"
     
     # Create injected directory if needed
@@ -39,9 +40,9 @@ neo4j_inject() {
     # Execute Cypher file (use password from NEO4J_AUTH environment variable)
     local password="${NEO4J_AUTH#*/}"  # Extract password from neo4j/password format
     echo "Injecting Cypher queries from $filename..."
-    cat "$file_path" | docker exec -i "$NEO4J_CONTAINER_NAME" cypher-shell \
+    docker exec -i "$NEO4J_CONTAINER_NAME" cypher-shell \
         -u neo4j -p "$password" \
-        --format plain || {
+        --format plain < "$file_path" || {
         echo "Error: Failed to execute Cypher queries"
         return 1
     }

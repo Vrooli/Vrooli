@@ -39,7 +39,7 @@ fi
 source "${CLINE_CLI_DIR}/config/defaults.sh"
 
 # Source Cline libraries
-for lib in common status install start stop logs config inject test content agents; do
+for lib in common status install start stop logs config inject test content agents integrate cache; do
     lib_file="${CLINE_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -58,6 +58,7 @@ CLI_COMMAND_HANDLERS["manage::stop"]="cline::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="cline::restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="cline::test::smoke"
 CLI_COMMAND_HANDLERS["test::integration"]="cline::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="cline::test::unit"
 CLI_COMMAND_HANDLERS["test::all"]="cline::test::all"
 
 # Override content handlers for Cline-specific functionality
@@ -89,6 +90,62 @@ cline::agents::command() {
 export -f cline::agents::command
 
 cli::register_command "agents" "Manage running Cline agents" "cline::agents::command"
+
+# Integration Hub commands
+cli::register_command "integrate" "Manage resource integrations" "cline::integrate"
+cline::integrate() {
+    local action="${1:-list}"
+    shift || true
+    
+    case "$action" in
+        list)
+            cline::integrate::list
+            ;;
+        enable)
+            cline::integrate::enable "$@"
+            ;;
+        disable)
+            cline::integrate::disable "$@"
+            ;;
+        execute)
+            cline::integrate::execute "$@"
+            ;;
+        *)
+            log::error "Unknown integrate action: $action"
+            echo "Usage: cline integrate [list|enable|disable|execute]"
+            return 1
+            ;;
+    esac
+}
+export -f cline::integrate
+
+# Cache management commands
+cli::register_command "cache" "Manage response cache" "cline::cache"
+cline::cache() {
+    local action="${1:-stats}"
+    shift || true
+    
+    case "$action" in
+        stats)
+            cline::cache::stats
+            ;;
+        clear)
+            cline::cache::clear
+            ;;
+        enable)
+            cline::cache::enable
+            ;;
+        disable)
+            cline::cache::disable
+            ;;
+        *)
+            log::error "Unknown cache action: $action"
+            echo "Usage: cline cache [stats|clear|enable|disable]"
+            return 1
+            ;;
+    esac
+}
+export -f cline::cache
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

@@ -4,8 +4,9 @@
 
 set -e
 
-# Get the directory of this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the directory of this script (resolve symlinks)
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 RESOURCE_NAME="kafka"
 
 # Source configuration
@@ -45,6 +46,9 @@ main() {
         credentials)
             show_credentials "$@"
             ;;
+        metrics)
+            show_metrics "$@"
+            ;;
         *)
             echo "Error: Unknown command: $command"
             show_help
@@ -80,9 +84,12 @@ Commands:
     get [topic]       Describe a topic
     remove [topic]    Delete a topic
     execute [cmd]     Execute Kafka CLI command
+    produce-batch     Produce batch messages
+    consume-batch     Consume batch messages
   status [--json]     Show detailed status
   logs [--tail N]     View Kafka logs
   credentials         Show connection details
+  metrics             Show performance and JMX metrics
 
 Examples:
   resource-kafka manage start --wait
@@ -210,9 +217,15 @@ handle_content() {
         execute)
             execute_command "$@"
             ;;
+        produce-batch)
+            produce_batch "$@"
+            ;;
+        consume-batch)
+            consume_batch "$@"
+            ;;
         *)
             echo "Error: Unknown content subcommand: $subcommand"
-            echo "Available: add, list, get, remove, execute"
+            echo "Available: add, list, get, remove, execute, produce-batch, consume-batch"
             exit 1
             ;;
     esac

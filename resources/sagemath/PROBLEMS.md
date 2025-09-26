@@ -5,6 +5,40 @@ This document tracks known issues, limitations, and their solutions for the Sage
 
 ## Solved Problems
 
+### 5. Parallel Compute --cores Parameter Issue (SOLVED)
+**Problem**: The `parallel compute --cores N` command failed with NameError about 'cores' not being defined.
+
+**Symptoms**:
+- Command `resource-sagemath parallel compute --cores 4 "code"` failed
+- Error: `NameError: name 'cores' is not defined`
+- Parallel compute worked without --cores parameter
+
+**Root Cause**: 
+- CLI was using positional parameters instead of parsing --cores flag
+- Missing parallel.sh library (was calling non-existent gpu.sh)
+- Improper argument parsing in sagemath::parallel::compute function
+
+**Solution**:
+```bash
+# Created lib/parallel.sh with proper implementation
+# Updated CLI to parse --cores flag properly
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --cores)
+            cores="$2"
+            shift 2
+            ;;
+        *)
+            code="$1"
+            shift
+            ;;
+    esac
+done
+```
+
+**Status**: ✅ FIXED (2025-09-26)
+**Additional Fix**: Fixed undefined `error` function and missing result output in parallel.sh
+
 ### 1. Performance Benchmarks Hanging (SOLVED)
 **Problem**: Performance benchmarks would hang on complex matrix operations and missing library imports.
 

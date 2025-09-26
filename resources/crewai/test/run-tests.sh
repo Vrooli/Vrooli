@@ -29,7 +29,9 @@ main() {
     log::info "Test Phase: $test_phase"
     
     # Ensure service is running for tests
-    if ! "${CREWAI_ROOT}/cli.sh" status | grep -q "Running: Yes"; then
+    if vrooli resource crewai status 2>/dev/null | grep -q "Running: Yes"; then
+        log::info "CrewAI is already running"
+    else
         log::info "Starting CrewAI for testing..."
         "${CREWAI_ROOT}/cli.sh" manage start --wait
         sleep 2

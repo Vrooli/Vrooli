@@ -28,23 +28,27 @@ keycloak::logs() {
 }
 
 keycloak::credentials() {
-    # Source defaults to get actual password
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    source "${script_dir}/../config/defaults.sh"
-    
-    local password_display="$KEYCLOAK_ADMIN_PASSWORD"
+    # Use already loaded configuration from CLI initialization
+    # The CLI already sources defaults.sh at line 36, so variables should be available
+    local password_display="${KEYCLOAK_ADMIN_PASSWORD:-admin}"
+    local port="${KEYCLOAK_PORT:-8070}"
+    local admin_user="${KEYCLOAK_ADMIN_USER:-admin}"
     
     # Check if using default password and warn
-    if [[ "$KEYCLOAK_ADMIN_PASSWORD" == "admin" ]]; then
-        log::warning "Using DEFAULT admin password. Consider setting KEYCLOAK_ADMIN_PASSWORD for production."
+    if [[ "$password_display" == "admin" ]]; then
+        if command -v log::warning &>/dev/null; then
+            log::warning "Using DEFAULT admin password. Consider setting KEYCLOAK_ADMIN_PASSWORD for production."
+        else
+            echo "[WARNING] Using DEFAULT admin password. Consider setting KEYCLOAK_ADMIN_PASSWORD for production." >&2
+        fi
     fi
     
     cat << EOF
 Keycloak Admin Credentials:
 ===========================
-URL:      http://localhost:${KEYCLOAK_PORT:-8070}
-Admin UI: http://localhost:${KEYCLOAK_PORT:-8070}/admin
-Username: ${KEYCLOAK_ADMIN_USER:-admin}
+URL:      http://localhost:${port}
+Admin UI: http://localhost:${port}/admin
+Username: ${admin_user}
 Password: ${password_display}
 
 Note: For production use, set KEYCLOAK_ADMIN_PASSWORD environment variable

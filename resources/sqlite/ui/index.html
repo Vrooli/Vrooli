@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQLite Batch Operations</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            color: #666;
+        }
+
+        .tab:hover {
+            background: #e8e8e8;
+        }
+
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            margin-bottom: -2px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        select, input[type="file"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        select:focus, input[type="file"]:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 200px;
+            font-family: 'Courier New', Courier, monospace;
+            resize: vertical;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .results h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .results pre {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .status {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .progress {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 500;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .file-info {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗂️ SQLite Batch Operations</h1>
+            <p>Execute batch SQL operations, import/export CSV data</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="batch">Batch SQL</div>
+            <div class="tab" data-tab="import">Import CSV</div>
+            <div class="tab" data-tab="export">Export CSV</div>
+            <div class="tab" data-tab="stats">Database Stats</div>
+        </div>
+
+        <div class="content">
+            <div class="status" id="status"></div>
+
+            <!-- Batch SQL Tab -->
+            <div class="tab-content active" id="batch">
+                <div class="form-group">
+                    <label for="batch-database">Select Database:</label>
+                    <select id="batch-database">
+                        <option value="">Loading databases...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="batch-sql">SQL Commands:</label>
+                    <textarea id="batch-sql" placeholder="Enter your SQL commands here...
+Example:
+CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT);
+INSERT INTO users (name, email) VALUES ('John', 'john@example.com');
+INSERT INTO users (name, email) VALUES ('Jane', 'jane@example.com');"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="batch-file">Or upload SQL file:</label>
+                    <input type="file" id="batch-file" accept=".sql,.txt">
+                    <div class="file-info" id="batch-file-info" style="display:none;"></div>
+                </div>
+
+                <button onclick="executeBatch()">Execute Batch</button>
+
+                <div class="progress" id="batch-progress">
+                    <div class="progress-bar" id="batch-progress-bar">0%</div>
+                </div>
+
+                <div class="results" id="batch-results" style="display:none;">
+                    <h3>Execution Results</h3>
+                    <pre id="batch-output"></pre>
+                </div>
+            </div>
+
+            <!-- Import CSV Tab -->
+            <div class="tab-content" id="import">
+                <div class="form-group">
+                    <label for="import-database">Select Database:</label>
+                    <select id="import-database">
+                        <option value="">Loading databases...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="import-table">Table Name:</label>
+                    <input type="text" id="import-table" placeholder="Enter table name" 
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                </div>
+
+                <div class="form-group">
+                    <label for="import-file">Select CSV File:</label>
+                    <input type="file" id="import-file" accept=".csv">
+                    <div class="file-info" id="import-file-info" style="display:none;"></div>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="import-header" checked>
+                    <label for="import-header">First row contains headers</label>
+                </div>
+
+                <button onclick="importCSV()">Import CSV</button>
+
+                <div class="progress" id="import-progress">
+                    <div class="progress-bar" id="import-progress-bar">0%</div>
+                </div>
+
+                <div class="results" id="import-results" style="display:none;">
+                    <h3>Import Results</h3>
+                    <pre id="import-output"></pre>
+                </div>
+            </div>
+
+            <!-- Export CSV Tab -->
+            <div class="tab-content" id="export">
+                <div class="form-group">
+                    <label for="export-database">Select Database:</label>
+                    <select id="export-database">
+                        <option value="">Loading databases...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="export-table">Select Table:</label>
+                    <select id="export-table">
+                        <option value="">Select a database first</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="export-filename">Export Filename (optional):</label>
+                    <input type="text" id="export-filename" placeholder="Leave empty for auto-generated name" 
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                </div>
+
+                <button onclick="exportCSV()">Export to CSV</button>
+
+                <div class="results" id="export-results" style="display:none;">
+                    <h3>Export Results</h3>
+                    <pre id="export-output"></pre>
+                    <button id="download-csv" style="display:none; margin-top: 15px;">Download CSV</button>
+                </div>
+            </div>
+
+            <!-- Database Stats Tab -->
+            <div class="tab-content" id="stats">
+                <div class="form-group">
+                    <label for="stats-database">Select Database:</label>
+                    <select id="stats-database">
+                        <option value="">Loading databases...</option>
+                    </select>
+                </div>
+
+                <button onclick="loadStats()">Load Statistics</button>
+
+                <div class="stats-grid" id="stats-grid" style="display:none;">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-tables">0</div>
+                        <div class="stat-label">Tables</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-rows">0</div>
+                        <div class="stat-label">Total Rows</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-size">0 KB</div>
+                        <div class="stat-label">Database Size</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-indexes">0</div>
+                        <div class="stat-label">Indexes</div>
+                    </div>
+                </div>
+
+                <div class="results" id="stats-details" style="display:none;">
+                    <h3>Detailed Statistics</h3>
+                    <pre id="stats-output"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

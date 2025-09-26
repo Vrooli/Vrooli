@@ -69,6 +69,29 @@ handle_manage() {
     local subcommand="${1:-}"
     shift || true
     
+    # Show help if requested
+    if [[ "${subcommand}" == "--help" ]] || [[ "${subcommand}" == "-h" ]]; then
+        cat << EOF
+⚙️  MANAGE - Resource Lifecycle Management
+
+📋 USAGE:
+    resource-earthly manage <subcommand> [options]
+
+📖 SUBCOMMANDS:
+    install              Install Earthly and dependencies
+    uninstall            Remove Earthly (use --keep-data to preserve data)
+    start                Start Earthly daemon
+    stop                 Stop Earthly daemon
+    restart              Restart Earthly daemon
+
+💡 EXAMPLES:
+    resource-earthly manage install
+    resource-earthly manage start
+    resource-earthly manage uninstall --keep-data
+EOF
+        return 0
+    fi
+    
     case "${subcommand}" in
         install)
             install_earthly "$@"
@@ -88,6 +111,7 @@ handle_manage() {
         *)
             log_error "Unknown manage subcommand: ${subcommand}"
             echo "Available subcommands: install, uninstall, start, stop, restart"
+            echo "Use 'resource-earthly manage --help' for more information"
             return 1
             ;;
     esac
@@ -99,7 +123,8 @@ install_earthly() {
     
     # Check if already installed
     if command -v earthly &> /dev/null; then
-        local installed_version=$(earthly --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        local installed_version
+        installed_version=$(earthly --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
         if [[ "${installed_version}" == "${EARTHLY_VERSION}" ]]; then
             log_info "Earthly v${EARTHLY_VERSION} already installed"
             return 2  # Already installed
@@ -221,6 +246,39 @@ handle_content() {
     local subcommand="${1:-}"
     shift || true
     
+    # Show help if requested
+    if [[ "${subcommand}" == "--help" ]] || [[ "${subcommand}" == "-h" ]]; then
+        cat << EOF
+📄 CONTENT - Build and Artifact Management
+
+📋 USAGE:
+    resource-earthly content <subcommand> [options]
+
+📖 SUBCOMMANDS:
+    add                  Add Earthfile or secret
+    list                 List Earthfiles, artifacts, or secrets
+    get                  Retrieve specific content
+    remove               Remove content
+    execute              Execute build targets
+    clear                Clear build cache
+    configure            Configure build settings
+
+💡 EXAMPLES:
+    resource-earthly content add --file=Earthfile
+    resource-earthly content execute --target=+build --cache
+    resource-earthly content list artifacts
+    resource-earthly content configure --optimize-cache
+
+⚙️  OPTIONS:
+    --file               Path to Earthfile
+    --target             Build target (e.g., +build, +test)
+    --cache              Enable caching
+    --parallel           Enable parallel execution
+    --platform           Target platform(s)
+EOF
+        return 0
+    fi
+    
     case "${subcommand}" in
         add)
             add_content "$@"
@@ -246,6 +304,7 @@ handle_content() {
         *)
             log_error "Unknown content subcommand: ${subcommand}"
             echo "Available subcommands: add, list, get, remove, execute, clear, configure"
+            echo "Use 'resource-earthly content --help' for more information"
             return 1
             ;;
     esac
@@ -256,6 +315,7 @@ add_content() {
     local file=""
     local type="earthfile"
     local name=""
+    local value=""
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -271,12 +331,48 @@ add_content() {
                 name="$2"
                 shift 2
                 ;;
+            --value)
+                value="$2"
+                shift 2
+                ;;
             *)
                 shift
                 ;;
         esac
     done
     
+    # Handle secrets separately (they use value, not file)
+    if [[ "${type}" == "secret" ]]; then
+        if [[ -z "${name}" ]]; then
+            log_error "Secret name required: --name <name>"
+            return 1
+        fi
+        if [[ -z "${value}" && -z "${file}" ]]; then
+            log_error "Secret value or file required: --value <value> or --file <path>"
+            return 1
+        fi
+        
+        # Store secret securely
+        mkdir -p "${EARTHLY_CONFIG_DIR}/secrets"
+        chmod 700 "${EARTHLY_CONFIG_DIR}/secrets"
+        
+        if [[ -n "${value}" ]]; then
+            # Store value directly
+            echo "${value}" > "${EARTHLY_CONFIG_DIR}/secrets/${name}"
+        elif [[ -f "${file}" ]]; then
+            # Store file contents
+            cat "${file}" > "${EARTHLY_CONFIG_DIR}/secrets/${name}"
+        else
+            log_error "File not found: ${file}"
+            return 1
+        fi
+        
+        chmod 600 "${EARTHLY_CONFIG_DIR}/secrets/${name}"
+        log_info "Secret '${name}' stored securely"
+        return 0
+    fi
+    
+    # For non-secret types, require file
     if [[ -z "${file}" ]]; then
         log_error "File path required: --file <path>"
         return 1
@@ -294,12 +390,6 @@ add_content() {
         fi
         cp "${file}" "${dest}"
         log_info "Earthfile added successfully to ${dest}"
-    elif [[ "${type}" == "secret" && -n "${name}" ]]; then
-        # Store secret securely
-        mkdir -p "${EARTHLY_CONFIG_DIR}/secrets"
-        echo "${file}" > "${EARTHLY_CONFIG_DIR}/secrets/${name}"
-        chmod 600 "${EARTHLY_CONFIG_DIR}/secrets/${name}"
-        log_info "Secret '${name}' stored securely"
     else
         cp "${file}" "${EARTHLY_ARTIFACTS_DIR}/"
         log_info "Artifact added: $(basename "${file}")"
@@ -339,11 +429,11 @@ list_content() {
                 echo "{"
                 echo "  \"earthfiles\": ["
                 local first=true
-                for file in $(find "${EARTHLY_HOME}" -name "Earthfile*" -type f 2>/dev/null); do
+                while IFS= read -r -d '' file; do
                     if [[ "${first}" != "true" ]]; then echo ","; fi
                     echo -n "    \"${file}\""
                     first=false
-                done
+                done < <(find "${EARTHLY_HOME}" -name "Earthfile*" -type f -print0 2>/dev/null)
                 echo ""
                 echo "  ]"
                 echo "}"
@@ -352,16 +442,47 @@ list_content() {
                 find "${EARTHLY_HOME}" -name "Earthfile*" -type f 2>/dev/null || echo "No Earthfiles found"
             fi
             ;;
+        secrets)
+            if [[ -d "${EARTHLY_CONFIG_DIR}/secrets" ]]; then
+                if [[ "${json_output}" == "--json" ]]; then
+                    echo "{"
+                    echo "  \"secrets\": ["
+                    local first=true
+                    for secret in "${EARTHLY_CONFIG_DIR}/secrets"/*; do
+                        if [[ -f "${secret}" ]]; then
+                            if [[ "${first}" != "true" ]]; then echo ","; fi
+                            echo -n "    \"$(basename "${secret}")\""
+                            first=false
+                        fi
+                    done
+                    echo ""
+                    echo "  ]"
+                    echo "}"
+                else
+                    log_info "Stored secrets (names only):"
+                    ls -1 "${EARTHLY_CONFIG_DIR}/secrets" 2>/dev/null || echo "No secrets found"
+                fi
+            else
+                if [[ "${json_output}" == "--json" ]]; then
+                    echo '{"secrets": []}'
+                else
+                    log_info "No secrets stored"
+                fi
+            fi
+            ;;
         *)
             if [[ "${json_output}" == "--json" ]]; then
                 echo "{"
                 list_content earthfiles --json | sed 's/^{//' | sed 's/^}/,/'
-                list_content artifacts --json | sed 's/^{//' | sed 's/^}//'
+                list_content artifacts --json | sed 's/^{//' | sed 's/^}/,/'
+                list_content secrets --json | sed 's/^{//' | sed 's/^}//'
                 echo "}"
             else
                 list_content earthfiles
                 echo ""
                 list_content artifacts
+                echo ""
+                list_content secrets
             fi
             ;;
     esac
@@ -374,7 +495,7 @@ remove_content() {
     
     if [[ -z "${type}" || -z "${name}" ]]; then
         log_error "Usage: remove <type> <name>"
-        echo "Types: artifact, earthfile"
+        echo "Types: artifact, earthfile, secret"
         return 1
     fi
     
@@ -399,9 +520,19 @@ remove_content() {
                 return 1
             fi
             ;;
+        secret)
+            local secret_path="${EARTHLY_CONFIG_DIR}/secrets/${name}"
+            if [[ -f "${secret_path}" ]]; then
+                rm -f "${secret_path}"
+                log_info "Removed secret: ${name}"
+            else
+                log_error "Secret not found: ${name}"
+                return 1
+            fi
+            ;;
         *)
             log_error "Unknown type: ${type}"
-            echo "Valid types: artifact, earthfile"
+            echo "Valid types: artifact, earthfile, secret"
             return 1
             ;;
     esac
@@ -539,7 +670,8 @@ execute_build() {
     
     # Create build log directory
     mkdir -p "${EARTHLY_LOGS_DIR}"
-    local build_log="${EARTHLY_LOGS_DIR}/build-$(date +%Y%m%d-%H%M%S).log"
+    local build_log
+    build_log="${EARTHLY_LOGS_DIR}/build-$(date +%Y%m%d-%H%M%S).log"
     
     # Performance optimization: Set BuildKit settings
     export BUILDKIT_PROGRESS=plain
@@ -547,7 +679,8 @@ execute_build() {
     export EARTHLY_BUILDKIT_MAX_PARALLELISM="${EARTHLY_PARALLEL_LIMIT}"
     
     # Run the build with performance tracking
-    local start_time=$(date +%s)
+    local start_time
+    start_time=$(date +%s)
     
     # Run with optimized settings
     # Copy Earthfile to current directory as earthly expects it there
@@ -557,11 +690,20 @@ execute_build() {
         temp_earthfile="./Earthfile"
     fi
     
-    if earthly ${platform} ${cache_opt} ${no_cache_opt} ${parallel_opt} ${metrics_opt} ${satellite_opt} \
-            --config "${EARTHLY_CONFIG_DIR}/config.yml" \
-            "${target}" 2>&1 | tee "${build_log}"; then
+    # Build command array for proper expansion
+    local earthly_cmd=(earthly)
+    [[ -n "${platform}" ]] && earthly_cmd+=("${platform}")
+    [[ -n "${cache_opt}" ]] && earthly_cmd+=("${cache_opt}")
+    [[ -n "${no_cache_opt}" ]] && earthly_cmd+=("${no_cache_opt}")
+    [[ -n "${parallel_opt}" ]] && earthly_cmd+=("${parallel_opt}")
+    [[ -n "${metrics_opt}" ]] && earthly_cmd+=("${metrics_opt}")
+    [[ -n "${satellite_opt}" ]] && earthly_cmd+=("${satellite_opt}")
+    earthly_cmd+=(--config "${EARTHLY_CONFIG_DIR}/config.yml" "${target}")
+    
+    if "${earthly_cmd[@]}" 2>&1 | tee "${build_log}"; then
         
-        local end_time=$(date +%s)
+        local end_time
+        end_time=$(date +%s)
         local build_time=$((end_time - start_time))
         log_info "Build completed in ${build_time} seconds"
         log_info "Build log saved to: ${build_log}"
@@ -575,7 +717,8 @@ execute_build() {
         echo "${target},${build_time},$(date +%Y-%m-%d_%H:%M:%S),success" >> "${EARTHLY_LOGS_DIR}/metrics.csv"
         return 0
     else
-        local end_time=$(date +%s)
+        local end_time
+        end_time=$(date +%s)
         local build_time=$((end_time - start_time))
         log_error "Build failed after ${build_time} seconds"
         log_info "Build log saved to: ${build_log}"
@@ -639,7 +782,8 @@ EOF
             export EARTHLY_USE_INLINE_CACHE=true
             export EARTHLY_CACHE_INLINE_SIZE_MB=500
             export EARTHLY_MAX_PARALLEL_STEPS=30
-            export EARTHLY_BUILDKIT_MAX_PARALLELISM=$(nproc)
+            export EARTHLY_BUILDKIT_MAX_PARALLELISM
+            EARTHLY_BUILDKIT_MAX_PARALLELISM=$(nproc)
             
             # Create optimized config with advanced settings
             cat > "${EARTHLY_CONFIG_DIR}/config.yml" << EOF
@@ -786,7 +930,8 @@ EOF
     
     # Check Earthly installation
     if command -v earthly &> /dev/null; then
-        local version=$(earthly --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        local version
+        version=$(earthly --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
         echo "✅ Earthly installed: v${version}"
     else
         echo "❌ Earthly not installed"
@@ -802,13 +947,15 @@ EOF
     
     # Check cache usage
     if [[ -d "${EARTHLY_CACHE_DIR}" ]]; then
-        local cache_size=$(du -sh "${EARTHLY_CACHE_DIR}" 2>/dev/null | cut -f1)
+        local cache_size
+        cache_size=$(du -sh "${EARTHLY_CACHE_DIR}" 2>/dev/null | cut -f1)
         echo "📊 Cache usage: ${cache_size:-0}"
     fi
     
     # Check artifacts
     if [[ -d "${EARTHLY_ARTIFACTS_DIR}" ]]; then
-        local artifact_count=$(find "${EARTHLY_ARTIFACTS_DIR}" -type f 2>/dev/null | wc -l)
+        local artifact_count
+        artifact_count=$(find "${EARTHLY_ARTIFACTS_DIR}" -type f 2>/dev/null | wc -l)
         echo "📦 Artifacts: ${artifact_count}"
     fi
     
@@ -825,13 +972,15 @@ EOF
             echo ""
             echo "Recent Builds:"
             echo "-------------"
-            tail -5 "${EARTHLY_LOGS_DIR}/metrics.csv" | while IFS=',' read -r target duration timestamp status; do
+            tail -5 "${EARTHLY_LOGS_DIR}/metrics.csv" | while IFS=',' read -r target duration _timestamp status; do
                 echo "  ${target}: ${duration}s (${status})"
             done
             
             # Calculate average build time
-            local avg_time=$(awk -F',' '$4=="success" {sum+=$2; count++} END {if(count>0) printf "%.1f", sum/count}' "${EARTHLY_LOGS_DIR}/metrics.csv")
-            local success_rate=$(awk -F',' '{total++} $4=="success" {success++} END {if(total>0) printf "%.1f", success*100/total}' "${EARTHLY_LOGS_DIR}/metrics.csv")
+            local avg_time
+            avg_time=$(awk -F',' '$4=="success" {sum+=$2; count++} END {if(count>0) printf "%.1f", sum/count}' "${EARTHLY_LOGS_DIR}/metrics.csv")
+            local success_rate
+            success_rate=$(awk -F',' '{total++} $4=="success" {success++} END {if(total>0) printf "%.1f", success*100/total}' "${EARTHLY_LOGS_DIR}/metrics.csv")
             
             echo ""
             echo "Statistics:"
@@ -918,38 +1067,43 @@ EOF
     
     # Run benchmarks
     log_info "Testing serial execution..."
-    local serial_start=$(date +%s)
+    local serial_start serial_end serial_time
+    serial_start=$(date +%s)
     earthly --config "${EARTHLY_CONFIG_DIR}/config.yml" \
             -f "${benchmark_file}" +benchmark-serial &>/dev/null
-    local serial_end=$(date +%s)
-    local serial_time=$((serial_end - serial_start))
+    serial_end=$(date +%s)
+    serial_time=$((serial_end - serial_start))
     
     log_info "Testing parallel execution..."
-    local parallel_start=$(date +%s)
+    local parallel_start parallel_end parallel_time
+    parallel_start=$(date +%s)
     earthly --config "${EARTHLY_CONFIG_DIR}/config.yml" \
             -f "${benchmark_file}" +benchmark-parallel &>/dev/null
-    local parallel_end=$(date +%s)
-    local parallel_time=$((parallel_end - parallel_start))
+    parallel_end=$(date +%s)
+    parallel_time=$((parallel_end - parallel_start))
     
     log_info "Testing cache performance..."
     # First build (cold cache)
     earthly prune -a &>/dev/null
-    local cold_start=$(date +%s)
+    local cold_start cold_end cold_time
+    cold_start=$(date +%s)
     earthly --config "${EARTHLY_CONFIG_DIR}/config.yml" \
             -f "${benchmark_file}" +benchmark-cache &>/dev/null
-    local cold_end=$(date +%s)
-    local cold_time=$((cold_end - cold_start))
+    cold_end=$(date +%s)
+    cold_time=$((cold_end - cold_start))
     
     # Second build (warm cache)
-    local warm_start=$(date +%s)
+    local warm_start warm_end warm_time
+    warm_start=$(date +%s)
     earthly --config "${EARTHLY_CONFIG_DIR}/config.yml" \
             -f "${benchmark_file}" +benchmark-cache &>/dev/null
-    local warm_end=$(date +%s)
-    local warm_time=$((warm_end - warm_start))
+    warm_end=$(date +%s)
+    warm_time=$((warm_end - warm_start))
     
     # Calculate metrics
-    local speedup=$(echo "scale=2; $serial_time / $parallel_time" | bc 2>/dev/null || echo "N/A")
-    local cache_improvement=$(echo "scale=2; ($cold_time - $warm_time) * 100 / $cold_time" | bc 2>/dev/null || echo "N/A")
+    local speedup cache_improvement
+    speedup=$(echo "scale=2; $serial_time / $parallel_time" | bc 2>/dev/null || echo "N/A")
+    cache_improvement=$(echo "scale=2; ($cold_time - $warm_time) * 100 / $cold_time" | bc 2>/dev/null || echo "N/A")
     
     echo ""
     echo "🏁 Performance Benchmark Results"

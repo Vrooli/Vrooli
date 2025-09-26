@@ -55,6 +55,24 @@ test_smoke() {
         test_passed=1
     fi
     
+    # Test 4: KRaft mode verification
+    echo -n "4. Verifying KRaft mode (no Zookeeper)... "
+    if ! docker exec "$KAFKA_CONTAINER_NAME" ps aux 2>/dev/null | grep -v grep | grep -q zookeeper; then
+        echo "PASS"
+    else
+        echo "FAIL (Zookeeper detected)"
+        test_passed=1
+    fi
+    
+    # Test 5: Port availability check
+    echo -n "5. Checking port accessibility... "
+    if timeout 2 nc -zv localhost "${KAFKA_PORT}" &>/dev/null; then
+        echo "PASS"
+    else
+        echo "FAIL (port ${KAFKA_PORT} not accessible)"
+        test_passed=1
+    fi
+    
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
     
@@ -139,25 +157,118 @@ test_integration() {
         test_passed=1
     fi
     
-    # Test 7: Performance test
-    echo -n "7. Performance test (1000 messages)... "
+    # Test 7: Consumer Group Management
+    echo -n "7. Testing consumer groups... "
+    local group_topic="group-test-$(date +%s)"
+    add_topic "$group_topic" --partitions 2 >/dev/null 2>&1
+    
+    # Create consumer group
+    echo "Group test message" | docker exec -i "$KAFKA_CONTAINER_NAME" \
+        /opt/kafka/bin/kafka-console-producer.sh \
+        --topic "$group_topic" \
+        --bootstrap-server "localhost:${KAFKA_PORT}" >/dev/null 2>&1
+    
+    timeout 5 docker exec "$KAFKA_CONTAINER_NAME" \
+        /opt/kafka/bin/kafka-console-consumer.sh \
+        --topic "$group_topic" \
+        --group "test-group-123" \
+        --from-beginning \
+        --max-messages 1 \
+        --bootstrap-server "localhost:${KAFKA_PORT}" >/dev/null 2>&1
+    
+    # Check if group exists
+    if docker exec "$KAFKA_CONTAINER_NAME" \
+        /opt/kafka/bin/kafka-consumer-groups.sh \
+        --list \
+        --bootstrap-server "localhost:${KAFKA_PORT}" 2>/dev/null | grep -q "test-group-123"; then
+        echo "PASS"
+    else
+        echo "FAIL (consumer group not created)"
+        test_passed=1
+    fi
+    
+    remove_topic "$group_topic" >/dev/null 2>&1
+    
+    # Test 8: Message Ordering
+    echo -n "8. Testing message ordering... "
+    local order_topic="order-test-$(date +%s)"
+    add_topic "$order_topic" --partitions 1 >/dev/null 2>&1
+    
+    # Produce ordered messages
+    for i in 1 2 3 4 5; do
+        echo "Order-$i"
+    done | docker exec -i "$KAFKA_CONTAINER_NAME" \
+        /opt/kafka/bin/kafka-console-producer.sh \
+        --topic "$order_topic" \
+        --bootstrap-server "localhost:${KAFKA_PORT}" >/dev/null 2>&1
+    
+    # Consume and verify order
+    local consumed=$(timeout 5 docker exec "$KAFKA_CONTAINER_NAME" \
+        /opt/kafka/bin/kafka-console-consumer.sh \
+        --topic "$order_topic" \
+        --from-beginning \
+        --max-messages 5 \
+        --bootstrap-server "localhost:${KAFKA_PORT}" 2>/dev/null | tr '\n' ' ')
+    
+    if [[ "$consumed" == *"Order-1"*"Order-2"*"Order-3"*"Order-4"*"Order-5"* ]]; then
+        echo "PASS"
+    else
+        echo "FAIL (messages out of order)"
+        test_passed=1
+    fi
+    
+    remove_topic "$order_topic" >/dev/null 2>&1
+    
+    # Test 9: Multi-partition validation
+    echo -n "9. Testing multi-partition validation... "
+    local multi_topic="multi-part-$(date +%s)"
+    add_topic "$multi_topic" --partitions 4 >/dev/null 2>&1
+    
+    # Produce messages with keys to ensure distribution
+    for i in {1..20}; do
+        echo "key$((i % 4)):Message-$i"
+    done | docker exec -i "$KAFKA_CONTAINER_NAME" \
+        /opt/kafka/bin/kafka-console-producer.sh \
+        --topic "$multi_topic" \
+        --property "parse.key=true" \
+        --property "key.separator=:" \
+        --bootstrap-server "localhost:${KAFKA_PORT}" >/dev/null 2>&1
+    
+    # Check partition count from topic description
+    local partition_count=$(docker exec "$KAFKA_CONTAINER_NAME" \
+        /opt/kafka/bin/kafka-topics.sh \
+        --describe \
+        --topic "$multi_topic" \
+        --bootstrap-server "localhost:${KAFKA_PORT}" 2>/dev/null | \
+        grep -c "Partition:")
+    
+    if [ "$partition_count" -eq 4 ]; then
+        echo "PASS"
+    else
+        echo "FAIL (expected 4 partitions, got $partition_count)"
+        test_passed=1
+    fi
+    
+    remove_topic "$multi_topic" >/dev/null 2>&1
+    
+    # Test 10: Performance test
+    echo -n "10. Performance test (10000 messages)... "
     local perf_topic="perf-test-$(date +%s)"
     add_topic "$perf_topic" --partitions 3 >/dev/null 2>&1
     
-    # Produce 1000 messages
+    # Produce 10000 messages and measure throughput
     local perf_start=$(date +%s%N)
-    for i in {1..1000}; do
-        echo "Message $i"
-    done | docker exec -i "$KAFKA_CONTAINER_NAME" \
+    seq 1 10000 | sed 's/^/Message-/' | docker exec -i "$KAFKA_CONTAINER_NAME" \
         /opt/kafka/bin/kafka-console-producer.sh \
         --topic "$perf_topic" \
         --bootstrap-server "localhost:${KAFKA_PORT}" >/dev/null 2>&1
     
     local perf_end=$(date +%s%N)
     local perf_duration=$(( (perf_end - perf_start) / 1000000 ))
+    local throughput=$(( 10000 * 1000 / perf_duration ))
     
-    if [ $perf_duration -lt 10000 ]; then  # Less than 10 seconds
-        echo "PASS (${perf_duration}ms)"
+    if [ $perf_duration -lt 30000 ]; then  # Less than 30 seconds
+        echo "PASS (${throughput} msg/sec, ${perf_duration}ms total)"
     else
         echo "FAIL (too slow: ${perf_duration}ms)"
         test_passed=1
@@ -189,7 +300,10 @@ test_unit() {
     
     # Test 1: Configuration validation
     echo -n "1. Testing configuration validation... "
-    if validate_config; then
+    # Skip port validation if Kafka is already running
+    if docker ps --format '{{.Names}}' | grep -q "^${KAFKA_CONTAINER_NAME}$"; then
+        echo "SKIP (Kafka already running)"
+    elif validate_config; then
         echo "PASS"
     else
         echo "FAIL"

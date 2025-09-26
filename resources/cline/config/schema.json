@@ -6,9 +6,9 @@
   "properties": {
     "provider": {
       "type": "string",
-      "enum": ["ollama", "openrouter", "anthropic", "openai", "google"],
+      "enum": ["ollama", "openrouter"],
       "default": "ollama",
-      "description": "AI provider to use for inference"
+      "description": "AI provider to use for inference (only ollama and openrouter currently implemented)"
     },
     "model": {
       "type": "string",

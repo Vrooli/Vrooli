@@ -10,15 +10,17 @@ CLINE_DIR="${APP_ROOT}/resources/cline"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/lib/utils/format.sh"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/scripts/resources/port_registry.sh"
+# Port registry not needed for Cline as it doesn't run a traditional service
+# source "${APP_ROOT}/scripts/resources/port_registry.sh"
 
 # Resource constants
 export CLINE_NAME="cline"
 export CLINE_CATEGORY="agents"
-export CLINE_CONFIG_DIR="${var_vrooli_dir:-${HOME}/.vrooli}/cline"
+export CLINE_CONFIG_DIR="${HOME}/.cline/config"
 export CLINE_DATA_DIR="${var_vrooli_data_dir:-${HOME}/.vrooli/data}/cline"
 export CLINE_EXTENSION_ID="saoudrizwan.claude-dev"
-export CLINE_PORT="${CLINE_PORT:-8100}"
+# Cline doesn't run a network service with a port
+# export CLINE_PORT="${CLINE_PORT:-8100}"
 export CLINE_SETTINGS_FILE="${CLINE_CONFIG_DIR}/settings.json"
 export CLINE_DEFAULT_PROVIDER="${CLINE_DEFAULT_PROVIDER:-ollama}"
 export CLINE_DEFAULT_MODEL="${CLINE_DEFAULT_MODEL:-llama3.2:3b}"
@@ -59,7 +61,7 @@ cline::check_vscode() {
 # Check if extension is installed
 cline::is_extension_installed() {
     if cline::check_vscode; then
-        code --list-extensions 2>/dev/null | grep -q "^${CLINE_EXTENSION_ID}$"
+        timeout 2 code --list-extensions 2>/dev/null | grep -q "^${CLINE_EXTENSION_ID}$" || return 1
     else
         return 1
     fi
@@ -120,8 +122,8 @@ cline::get_endpoint() {
 
 # Get Cline version
 cline::get_version() {
-    if cline::is_extension_installed; then
-        code --list-extensions --show-versions 2>/dev/null | grep "${CLINE_EXTENSION_ID}" | cut -d'@' -f2
+    if cline::check_vscode && timeout 2 code --list-extensions --show-versions 2>/dev/null | grep "${CLINE_EXTENSION_ID}"; then
+        timeout 2 code --list-extensions --show-versions 2>/dev/null | grep "${CLINE_EXTENSION_ID}" | cut -d'@' -f2
     else
         echo "not installed"
     fi

@@ -9,7 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESOURCE_DIR="$(dirname "$SCRIPT_DIR")"
 DATA_DIR="${RESOURCE_DIR}/data"
 CONFIG_DIR="${RESOURCE_DIR}/config"
-OPENEMS_DATA_DIR="${DATA_DIR}"
+# OPENEMS_DATA_DIR exported for external script use
+export OPENEMS_DATA_DIR="${DATA_DIR}"
 
 # Load configuration
 source "${CONFIG_DIR}/defaults.sh"
@@ -70,16 +71,19 @@ openems::metrics() {
         
         # Get telemetry metrics if available
         if [[ -d "${DATA_DIR}/telemetry" ]]; then
-            local telemetry_count=$(find "${DATA_DIR}/telemetry" -name "*.json" 2>/dev/null | wc -l)
+            local telemetry_count
+            telemetry_count=$(find "${DATA_DIR}/telemetry" -name "*.json" 2>/dev/null | wc -l)
             echo ""
             echo "Telemetry Metrics:"
             echo "  Data points collected: ${telemetry_count}"
             
             # Get latest telemetry timestamp
             if [[ ${telemetry_count} -gt 0 ]]; then
-                local latest_file=$(ls -t "${DATA_DIR}/telemetry"/*.json 2>/dev/null | head -1)
+                local latest_file
+                latest_file=$(find "${DATA_DIR}/telemetry" -name "*.json" -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -f2- -d' ')
                 if [[ -n "${latest_file}" ]]; then
-                    local timestamp=$(basename "${latest_file}" .json)
+                    local timestamp
+                    timestamp=$(basename "${latest_file}" .json)
                     echo "  Latest data point: ${timestamp}"
                 fi
             fi
@@ -88,9 +92,11 @@ openems::metrics() {
         # Check API response time using WebSocket connectivity
         echo ""
         echo "API Performance:"
-        local start_time=$(date +%s%3N)
+        local start_time
+        start_time=$(date +%s%3N)
         if timeout 2 nc -zv localhost "${OPENEMS_JSONRPC_PORT}" &>/dev/null; then
-            local end_time=$(date +%s%3N)
+            local end_time
+            end_time=$(date +%s%3N)
             local response_time=$((end_time - start_time))
             echo "  WebSocket connectivity: ${response_time}ms"
             echo "  Status: ✅ Service responding"
@@ -121,9 +127,11 @@ openems::benchmark() {
     local successful=0
     
     for i in {1..10}; do
-        local start_time=$(date +%s%3N)
+        local start_time
+        start_time=$(date +%s%3N)
         if timeout 2 nc -zv localhost "${OPENEMS_JSONRPC_PORT}" &>/dev/null; then
-            local end_time=$(date +%s%3N)
+            local end_time
+            end_time=$(date +%s%3N)
             local response_time=$((end_time - start_time))
             total_time=$((total_time + response_time))
             successful=$((successful + 1))
@@ -159,7 +167,8 @@ openems::benchmark() {
     # Test telemetry ingestion rate
     echo ""
     echo "Telemetry Ingestion Test:"
-    local start_count=$(find "${DATA_DIR}/telemetry" -name "*.json" 2>/dev/null | wc -l)
+    local start_count
+    start_count=$(find "${DATA_DIR}/telemetry" -name "*.json" 2>/dev/null | wc -l)
     
     # Run solar simulation for 5 seconds
     "${SCRIPT_DIR}/der_simulator.sh" solar 5000 5 &>/dev/null &
@@ -168,7 +177,8 @@ openems::benchmark() {
     sleep 6
     kill ${sim_pid} 2>/dev/null || true
     
-    local end_count=$(find "${DATA_DIR}/telemetry" -name "*.json" 2>/dev/null | wc -l)
+    local end_count
+    end_count=$(find "${DATA_DIR}/telemetry" -name "*.json" 2>/dev/null | wc -l)
     local ingested=$((end_count - start_count))
     
     echo "  Data points ingested in 5s: ${ingested}"
@@ -392,7 +402,7 @@ content::list() {
     
     # List configuration files
     if [[ -d "${DATA_DIR}/configs" ]]; then
-        ls -la "${DATA_DIR}/configs" 2>/dev/null | grep -E "\.(json|xml)$" | awk '{print $9}' || echo "No configurations found"
+        find "${DATA_DIR}/configs" -maxdepth 1 \( -name "*.json" -o -name "*.xml" \) -exec basename {} \; 2>/dev/null || echo "No configurations found"
     fi
     
     # List available commands
@@ -565,8 +575,10 @@ openems::simulate_solar() {
         [[ $actual_power -lt 0 ]] && actual_power=0
         
         local voltage=400
-        local current=$(awk "BEGIN {print $actual_power / $voltage}")
-        local energy=$(awk "BEGIN {print $actual_power * 1 / 3600}")
+        local current
+        current=$(awk "BEGIN {print $actual_power / $voltage}")
+        local energy
+        energy=$(awk "BEGIN {print $actual_power * 1 / 3600}")
         
         # Send telemetry (allow failures)
         openems::send_telemetry "solar_01" "solar" "${actual_power}" "${energy}" "${voltage}" "${current}" "0" "35" 2>/dev/null || true
@@ -814,7 +826,8 @@ openems::send_telemetry() {
     # Send to QuestDB if available (with error handling)
     if [[ -n "${QUESTDB_HOST}" ]] && [[ -n "${QUESTDB_PORT}" ]] && \
        timeout 2 curl -sf "http://${QUESTDB_HOST}:${QUESTDB_PORT}/exec" &>/dev/null; then
-        local timestamp="$(date +%s)000000000"
+        local timestamp
+        timestamp="$(date +%s)000000000"
         local insert_sql="INSERT INTO der_telemetry VALUES(
             ${timestamp},
             '${asset_id}',
@@ -874,21 +887,24 @@ openems::core::get_telemetry() {
     if [[ -n "${REDIS_HOST}" ]] && [[ -n "${REDIS_PORT}" ]] && \
        command -v redis-cli &>/dev/null && \
        timeout 2 nc -zv "${REDIS_HOST}" "${REDIS_PORT}" &>/dev/null 2>&1; then
-        local battery_data=$(redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" HGETALL "openems:assets:battery0" 2>/dev/null)
-        local solar_data=$(redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" HGETALL "openems:assets:solar0" 2>/dev/null)
-        local grid_data=$(redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" HGETALL "openems:assets:grid0" 2>/dev/null)
+        local battery_data solar_data grid_data
+        battery_data=$(redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" HGETALL "openems:assets:battery0" 2>/dev/null)
+        solar_data=$(redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" HGETALL "openems:assets:solar0" 2>/dev/null)
+        grid_data=$(redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" HGETALL "openems:assets:grid0" 2>/dev/null)
         
         # Parse Redis data into JSON
-        local battery_soc=$(echo "$battery_data" | awk '/^soc/{getline; print}' | head -1)
-        local solar_power=$(echo "$solar_data" | awk '/^power/{getline; print}' | head -1)
-        local grid_power=$(echo "$grid_data" | awk '/^power/{getline; print}' | head -1)
+        local battery_soc solar_power grid_power
+        battery_soc=$(echo "$battery_data" | awk '/^soc/{getline; print}' | head -1)
+        solar_power=$(echo "$solar_data" | awk '/^power/{getline; print}' | head -1)
+        grid_power=$(echo "$grid_data" | awk '/^power/{getline; print}' | head -1)
         
         # Check grid status
         local grid_status="connected"
         [[ -z "$grid_power" || "$grid_power" == "0" ]] && grid_status="disconnected"
         
         # Check daylight (simplified - between 6 AM and 8 PM)
-        local hour=$(date +%H)
+        local hour
+        hour=$(date +%H)
         local daylight="false"
         [[ "$hour" -ge 6 && "$hour" -le 20 ]] && daylight="true"
         
@@ -906,7 +922,8 @@ EOF
     else
         # Fall back to last local telemetry
         if [[ -f "${DATA_DIR}/edge/data/telemetry.jsonl" ]]; then
-            local last_line=$(tail -1 "${DATA_DIR}/edge/data/telemetry.jsonl" 2>/dev/null)
+            local last_line
+            last_line=$(tail -1 "${DATA_DIR}/edge/data/telemetry.jsonl" 2>/dev/null)
             if [[ -n "$last_line" ]]; then
                 telemetry_json="$last_line"
             fi

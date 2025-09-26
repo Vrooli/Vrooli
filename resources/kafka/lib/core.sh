@@ -124,6 +124,15 @@ start_kafka() {
         -e KAFKA_LOG_RETENTION_HOURS="$KAFKA_LOG_RETENTION_HOURS" \
         -e KAFKA_LOG_SEGMENT_BYTES="$KAFKA_LOG_SEGMENT_BYTES" \
         -e KAFKA_HEAP_OPTS="$KAFKA_HEAP_OPTS" \
+        -e KAFKA_NUM_NETWORK_THREADS="8" \
+        -e KAFKA_NUM_IO_THREADS="8" \
+        -e KAFKA_SOCKET_SEND_BUFFER_BYTES="102400" \
+        -e KAFKA_SOCKET_RECEIVE_BUFFER_BYTES="102400" \
+        -e KAFKA_SOCKET_REQUEST_MAX_BYTES="104857600" \
+        -e KAFKA_NUM_PARTITIONS="3" \
+        -e KAFKA_NUM_RECOVERY_THREADS_PER_DATA_DIR="2" \
+        -e KAFKA_LOG_FLUSH_INTERVAL_MESSAGES="10000" \
+        -e KAFKA_LOG_FLUSH_INTERVAL_MS="1000" \
         -e CLUSTER_ID="$CLUSTER_ID" \
         "$KAFKA_IMAGE" || return 1
     
@@ -419,4 +428,103 @@ execute_command() {
     
     echo "Executing: $command"
     docker exec "$KAFKA_CONTAINER_NAME" /opt/kafka/bin/$command
+}
+
+# Produce batch messages to a topic
+produce_batch() {
+    local topic_name="${1:-}"
+    local count="${2:-100}"
+    local message_prefix="${3:-test-message}"
+    
+    if [ -z "$topic_name" ]; then
+        echo "Error: Topic name required"
+        echo "Usage: resource-kafka content produce-batch <topic-name> [count] [message-prefix]"
+        return 1
+    fi
+    
+    echo "Producing $count messages to topic: $topic_name"
+    
+    # Generate messages and produce them
+    for i in $(seq 1 "$count"); do
+        echo "${message_prefix}-${i}"
+    done | docker exec -i "$KAFKA_CONTAINER_NAME" \
+        /opt/kafka/bin/kafka-console-producer.sh \
+        --bootstrap-server "localhost:${KAFKA_PORT}" \
+        --topic "$topic_name" \
+        --producer-property "batch.size=16384" \
+        --producer-property "linger.ms=10"
+    
+    echo "Produced $count messages successfully"
+}
+
+# Consume batch messages from a topic
+consume_batch() {
+    local topic_name="${1:-}"
+    local max_messages="${2:-100}"
+    
+    if [ -z "$topic_name" ]; then
+        echo "Error: Topic name required"
+        echo "Usage: resource-kafka content consume-batch <topic-name> [max-messages]"
+        return 1
+    fi
+    
+    echo "Consuming up to $max_messages messages from topic: $topic_name"
+    
+    timeout 5 docker exec "$KAFKA_CONTAINER_NAME" \
+        /opt/kafka/bin/kafka-console-consumer.sh \
+        --bootstrap-server "localhost:${KAFKA_PORT}" \
+        --topic "$topic_name" \
+        --from-beginning \
+        --max-messages "$max_messages" || true
+}
+
+# Show metrics
+show_metrics() {
+    local format="${1:-text}"
+    
+    if ! docker ps --format '{{.Names}}' | grep -q "^${KAFKA_CONTAINER_NAME}$"; then
+        echo "Error: Kafka is not running"
+        return 1
+    fi
+    
+    echo "=== Kafka Metrics ==="
+    
+    # Get container resource usage
+    echo "Container Resources:"
+    docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.PIDs}}" "$KAFKA_CONTAINER_NAME"
+    
+    # Get broker metadata
+    echo ""
+    echo "Broker Information:"
+    docker exec "$KAFKA_CONTAINER_NAME" /opt/kafka/bin/kafka-metadata.sh \
+        --snapshot /var/lib/kafka/data/__cluster_metadata-0/00000000000000000000.log \
+        2>/dev/null | head -10 || echo "  Using KRaft mode (no Zookeeper)"
+    
+    # Get topic statistics
+    echo ""
+    echo "Topic Statistics:"
+    local topic_count=$(docker exec "$KAFKA_CONTAINER_NAME" /opt/kafka/bin/kafka-topics.sh --list --bootstrap-server "localhost:${KAFKA_PORT}" 2>/dev/null | wc -l)
+    echo "  Total Topics: $topic_count"
+    
+    if [ "$topic_count" -gt 0 ]; then
+        echo ""
+        echo "Topic Details:"
+        docker exec "$KAFKA_CONTAINER_NAME" /opt/kafka/bin/kafka-topics.sh \
+            --describe \
+            --bootstrap-server "localhost:${KAFKA_PORT}" 2>/dev/null | head -20
+    fi
+    
+    # Get log directory info
+    echo ""
+    echo "Log Directory Usage:"
+    docker exec "$KAFKA_CONTAINER_NAME" du -sh /var/lib/kafka/data 2>/dev/null || echo "  Unable to determine"
+    
+    # Get consumer group info
+    echo ""
+    echo "Consumer Groups:"
+    docker exec "$KAFKA_CONTAINER_NAME" /opt/kafka/bin/kafka-consumer-groups.sh \
+        --list \
+        --bootstrap-server "localhost:${KAFKA_PORT}" 2>/dev/null | head -10 || echo "  No consumer groups"
+    
+    echo "===================="
 }

@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${SAGEMATH_CLI_DIR}/config/defaults.sh"
 
 # Source SageMath libraries
-for lib in common docker install status content test health mathematics gpu export; do
+for lib in common docker install status content test health mathematics gpu export parallel; do
     lib_file="${SAGEMATH_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -220,22 +220,38 @@ sagemath::cache::stats() {
 
 
 sagemath::parallel::compute() {
-    local code="${1:-}"
-    local cores="${2:-4}"
+    local code=""
+    local cores="4"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --cores)
+                cores="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$code" ]]; then
+                    code="$1"
+                else
+                    # If not a flag, treat as part of the code (for backward compatibility)
+                    code="$code $1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
     if [[ -z "$code" ]]; then
-        error "Usage: resource-sagemath parallel compute \"<code>\" [num_cores]"
+        error "Usage: resource-sagemath parallel compute \"<code>\" [--cores <num>]"
         exit 1
     fi
-    "${SAGEMATH_CLI_DIR}/lib/gpu.sh" parallel "$code" "$cores"
+    
+    sagemath::parallel::execute "$code" "$cores"
 }
 
 sagemath::parallel::status() {
-    local status=$(docker exec "$SAGEMATH_CONTAINER_NAME" python3 -c 'import multiprocessing; print(multiprocessing.cpu_count())')
-    echo "Available CPU cores: ${status}"
-    
-    # Check if parallel sage is available
-    local parallel_check=$(docker exec "$SAGEMATH_CONTAINER_NAME" sage -c 'from sage.parallel.decorate import parallel; print("Parallel computing available")')
-    echo "${parallel_check}"
+    sagemath::parallel::check_status
 }
 
 # Test parallel processing
@@ -253,7 +269,7 @@ for r in results:
     print(f"Prime check {r[0][0]}: {r[1]}")
 '
     
-    "${SAGEMATH_CLI_DIR}/lib/gpu.sh" parallel "$test_code" 4
+    sagemath::parallel::execute "$test_code" 4
     echo "Parallel processing test complete!"
 }
 

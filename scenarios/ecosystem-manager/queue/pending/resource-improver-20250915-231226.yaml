@@ -1,0 +1,57 @@
+id: resource-improver-20250915-231226
+title: Update eclipse ditto
+type: resource
+operation: improver
+category: misc
+priority: low
+effort_estimate: 4h
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: ""
+started_at: ""
+completed_at: ""
+completion_count: 1
+last_completed_at: "2025-09-16T08:27:29-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-15T23:12:26-04:00"
+updated_at: "2025-09-26T11:30:37-04:00"
+tags: []
+notes: |-
+    Notes from last time:
+
+    **What was accomplished:**
+    1. ✅ V2.0 Contract Compliance: Resource structure fully compliant with v2.0 universal contract
+    2. ✅ Docker Deployment: Services deploy successfully with MongoDB persistence
+    3. ✅ CLI Commands: Comprehensive CLI interface for resource management
+    4. ✅ Documentation: Updated PRD with accurate status, created PROBLEMS.md with detailed analysis
+
+    **Current status:**
+    - Status: Degraded - Services start but gateway not accessible
+    - Key Issue: Eclipse Ditto 3.5.6 requires cluster formation even in standalone mode
+    - Impact: API endpoints, WebSocket, and authentication features blocked by gateway issues
+
+    **Remaining issues or limitations:**
+    - Clustering requirement cannot be bypassed through environment variables alone
+    - Version compatibility issue with Eclipse Ditto 3.5.6
+    - Official docs may not cover edge cases like single-node deployments
+
+    **Suggested next actions:**
+    1. Try Eclipse Ditto 2.x which may have better standalone support
+    2. Deploy 2+ gateway instances to satisfy clustering requirements
+    3. Build modified images with clustering disabled
+    4. Consider alternative digital twin platforms if standalone is critical
+
+    **Validation evidence:**
+    - PRD updated with accurate progress tracking
+    - PROBLEMS.md created with comprehensive issue documentation
+    - Docker-compose.yml simplified and port conflicts resolved
+    - Multiple configuration approaches tested and documented
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: false

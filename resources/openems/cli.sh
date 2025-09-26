@@ -6,7 +6,7 @@
 set -euo pipefail
 
 CLI_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCE_NAME="openems"
+export RESOURCE_NAME="openems"
 
 # Source the resource contract validator (if needed for advanced features)
 # source "${CLI_SCRIPT_DIR}/../../scripts/resources/lib/cli-command-framework-v2.sh"

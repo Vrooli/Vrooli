@@ -4,16 +4,16 @@ VS Code AI coding assistant powered by Claude and other LLMs.
 
 ## Overview
 
-Cline (formerly Claude Dev) is a powerful VS Code extension that brings AI-powered coding assistance directly into your IDE. It supports multiple AI providers including OpenRouter, Anthropic, and local models via Ollama.
+Cline (formerly Claude Dev) is a powerful VS Code extension that brings AI-powered coding assistance directly into your IDE. It supports multiple AI providers including OpenRouter and local models via Ollama.
 
 ## Installation
 
 ```bash
-# Install Cline
-vrooli resource cline install
+# Install Cline (v2.0 compliant)
+vrooli resource cline manage install
 
 # Or using the direct CLI
-./resources/cline/cli.sh install
+./resources/cline/cli.sh manage install
 ```
 
 ## Configuration
@@ -22,10 +22,7 @@ Cline can be configured to use different AI providers:
 
 ```bash
 # Configure with OpenRouter (default)
-vrooli resource cline inject api openrouter
-
-# Configure with Anthropic
-vrooli resource cline inject api anthropic YOUR_API_KEY
+vrooli resource cline content execute provider openrouter
 
 # Configure with Ollama for local models
 export CLINE_USE_OLLAMA=true
@@ -41,8 +38,37 @@ vrooli resource cline configure
 # Check if Cline is installed and configured
 vrooli resource cline status
 
-# Detailed health check
-vrooli resource cline health
+# Run smoke tests for quick health check
+vrooli resource cline test smoke
+```
+
+### Resource Integrations
+
+```bash
+# List available integrations
+vrooli resource cline integrate list
+
+# Enable integrations
+vrooli resource cline integrate enable judge0    # Auto-generate tests
+vrooli resource cline integrate enable ollama    # Local LLM models
+vrooli resource cline integrate enable redis     # Response caching
+
+# Execute integration commands
+vrooli resource cline integrate execute judge0 test script.py
+```
+
+### Performance Optimization
+
+```bash
+# View cache statistics
+vrooli resource cline cache stats
+
+# Enable/disable caching
+vrooli resource cline cache enable
+vrooli resource cline cache disable
+
+# Clear cache
+vrooli resource cline cache clear
 ```
 
 ### Terminal Integration
@@ -119,11 +145,20 @@ vrooli resource cline content execute instructions activate code-style
 vrooli resource cline content execute instructions remove code-style
 ```
 
-### Update
+### Lifecycle Management
 
 ```bash
-# Update to latest version
-vrooli resource cline update
+# Start Cline (ensure configuration is active)
+vrooli resource cline manage start
+
+# Stop Cline (clean shutdown)
+vrooli resource cline manage stop
+
+# Restart Cline
+vrooli resource cline manage restart
+
+# Uninstall Cline
+vrooli resource cline manage uninstall
 ```
 
 ## Integration with Vrooli
@@ -136,7 +171,7 @@ Cline integrates with other Vrooli resources:
 
 ## Environment Variables
 
-- `CLINE_DEFAULT_PROVIDER`: Default API provider (openrouter, anthropic, openai, ollama)
+- `CLINE_DEFAULT_PROVIDER`: Default API provider (openrouter, ollama)
 - `CLINE_DEFAULT_MODEL`: Default model to use
 - `CLINE_USE_OLLAMA`: Enable Ollama integration (true/false)
 - `CLINE_OLLAMA_BASE_URL`: Ollama server URL
@@ -152,11 +187,12 @@ If VS Code is not detected, ensure it's installed and the `code` command is avai
 
 Cline will attempt to fetch API keys from:
 1. Vault (if available)
-2. Environment variables (OPENROUTER_API_KEY, ANTHROPIC_API_KEY, etc.)
+2. Environment variables (OPENROUTER_API_KEY for OpenRouter)
 
 ### Extension Not Loading
 
-Try reinstalling with force:
+Try reinstalling with clean option:
 ```bash
-vrooli resource cline install --force
+vrooli resource cline manage uninstall
+vrooli resource cline manage install
 ```

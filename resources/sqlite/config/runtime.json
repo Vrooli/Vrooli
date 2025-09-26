@@ -12,7 +12,11 @@
     "Serverless",
     "ACID transactions",
     "SQL92 compliant",
-    "File-based storage"
+    "File-based storage",
+    "Database replication",
+    "Encryption support",
+    "Batch operations",
+    "Schema migrations"
   ],
   "resource_requirements": {
     "memory": "50MB",

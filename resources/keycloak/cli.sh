@@ -22,7 +22,7 @@ if [[ -L "${BASH_SOURCE[0]}" ]]; then
     # Recalculate APP_ROOT from resolved symlink location
     APP_ROOT="$(builtin cd "${SCRIPT_DIR}/../.." && builtin pwd)"
 fi
-KEYCLOAK_CLI_DIR="${APP_ROOT}/resources/keycloak"
+export KEYCLOAK_CLI_DIR="${APP_ROOT}/resources/keycloak"
 
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"

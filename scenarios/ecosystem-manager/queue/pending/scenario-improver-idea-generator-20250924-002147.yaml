@@ -1,0 +1,87 @@
+id: scenario-improver-idea-generator-20250924-002147
+title: Enhance scenario idea-generator
+type: scenario
+operation: improver
+target: idea-generator
+targets:
+    - idea-generator
+category: ""
+priority: medium
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: ""
+started_at: ""
+completed_at: ""
+completion_count: 1
+last_completed_at: "2025-09-24T20:02:27-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-24T00:21:47-04:00"
+updated_at: "2025-09-26T00:03:42-04:00"
+tags: []
+notes: |-
+    Notes from last time:
+
+    **What was accomplished:**
+    - Fixed Critical P0 Issues:
+      - Database Connectivity: Created simplified schema without vector extension, initialized successfully
+      - Missing API Endpoint: Implemented `/api/ideas/generate` endpoint that was completely missing
+      - Response Times: Fixed timeout issues - API now responds in milliseconds instead of timing out
+      - CLI Integration: Verified CLI works when pointed to correct API port
+
+    **Current status:**
+    - ✅ API server running and healthy (port 15208)
+    - ✅ Database properly initialized with schema
+    - ✅ Health endpoint responding quickly (~10ms)
+    - ✅ CLI commands working when configured correctly
+    - ✅ Basic campaign structure in database
+
+    **Remaining issues or limitations:**
+    - ❌ No actual AI generation (Ollama not integrated)
+    - ❌ Vector search impossible (PostgreSQL lacks extension)
+    - ❌ UI not connected to API
+    - ❌ Document processing pipeline missing
+    - ❌ Multi-agent system not implemented
+    - ❌ WebSocket real-time features missing
+
+    **Suggested next actions:**
+    1. Integrate Ollama for actual AI generation
+    2. Implement vector search capabilities by adding the required PostgreSQL extension
+    3. Connect UI to API and make it functional
+    4. Establish document processing pipeline
+    5. Develop multi-agent system
+    6. Implement WebSocket real-time features
+
+    **Validation evidence:**
+    ```bash
+    # Health check works instantly
+    curl http://localhost:15208/health  # < 10ms response
+
+    # CLI integration functional
+    IDEA_GENERATOR_API_URL=http://localhost:15208 ./cli/idea-generator health  # Shows all services healthy
+
+    # Database properly initialized
+    docker exec vrooli-postgres-main psql -U vrooli -d vrooli -c "\dt"  # Shows campaigns, ideas, chat_sessions tables
+
+    # API endpoint exists and responds
+    curl -X POST http://localhost:15208/api/ideas/generate  # Responds in ~6ms (though needs Ollama integration)
+    ```
+results:
+    completed_at: "2025-09-24T20:02:27-04:00"
+    execution_time: 15m30s
+    message: Task completed successfully
+    output: "[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 1800 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 24196 chars)\n\n## Task Completion Summary\n\n### What Was Accomplished\n✅ **Fixed Critical P0 Issues**:\n1. **Database Connectivity**: Created simplified schema without vector extension, initialized successfully\n2. **Missing API Endpoint**: Implemented `/api/ideas/generate` endpoint that was completely missing\n3. **Response Times**: Fixed timeout issues - API now responds in milliseconds instead of timing out\n4. **CLI Integration**: Verified CLI works when pointed to correct API port\n\n### Current Status\nThe idea-generator scenario is now **minimally functional** with:\n- ✅ API server running and healthy (port 15208)\n- ✅ Database properly initialized with schema\n- ✅ Health endpoint responding quickly (~10ms)\n- ✅ CLI commands working when configured correctly\n- ✅ Basic campaign structure in database\n\n### Remaining Issues\nThe following critical features remain unimplemented:\n- ❌ No actual AI generation (Ollama not integrated)\n- ❌ Vector search impossible (PostgreSQL lacks extension)\n- ❌ UI not connected to API\n- ❌ Document processing pipeline missing\n- ❌ Multi-agent system not implemented\n- ❌ WebSocket real-time features missing\n\n### Evidence of Improvements\n```bash\n# Health check works instantly\ncurl http://localhost:15208/health  # < 10ms response\n\n# CLI integration functional\nIDEA_GENERATOR_API_URL=http://localhost:15208 ./cli/idea-generator health  # Shows all services healthy\n\n# Database properly initialized\ndocker exec vrooli-postgres-main psql -U vrooli -d vrooli -c \"\\dt\"  # Shows campaigns, ideas, chat_sessions tables\n\n# API endpoint exists and responds\ncurl -X POST http://localhost:15208/api/ideas/generate  # Responds in ~6ms (though needs Ollama integration)\n```\n\n### PRD Updated\nThe PRD has been updated to accurately reflect the current state - removing false checkmarks and documenting actual progress made. The scenario went from completely non-functional (no database, missing endpoints, timeouts) to having a basic working foundation that future improvements can build upon.\n"
+    prompt_size: 24378 chars (23.81 KB)
+    recycler_classification: some_progress
+    recycler_updated_at: "2025-09-26T00:03:42-04:00"
+    started_at: "2025-09-24T19:46:58-04:00"
+    success: true
+    timeout_allowed: 30m0s
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true

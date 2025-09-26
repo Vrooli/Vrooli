@@ -46,7 +46,52 @@ COMMANDS:
     
     status                        Show service status
     logs                          View service logs
-    credentials                   Display API credentials
+    
+    credentials show              Display API credentials
+    credentials store             Store credential securely
+    credentials list              List stored credentials
+    credentials remove            Remove a credential
+    
+    schedule create               Create a sync schedule
+    schedule list                 List all schedules
+    schedule enable               Enable a schedule
+    schedule disable              Disable a schedule
+    
+    webhook register              Register a webhook
+    webhook list                  List all webhooks
+    webhook test                  Test a webhook
+    webhook stats                 Show webhook statistics
+    
+    transform init                Initialize DBT project
+    transform install             Install DBT dependencies
+    transform create              Create a transformation model
+    transform run                 Run transformations
+    transform list                List available transformations
+    transform apply               Apply transformation to connection
+    
+    pipeline performance          Monitor sync performance metrics
+    pipeline optimize             Optimize sync configuration
+    pipeline quality              Analyze data quality
+    pipeline batch                Execute batch syncs
+    pipeline resources            Analyze resource usage
+    
+    cdk init                      Initialize custom connector
+    cdk build                     Build connector Docker image
+    cdk test                      Test custom connector
+    cdk deploy                    Deploy connector to Airbyte
+    cdk list                      List custom connectors
+    
+    workspace create              Create new workspace
+    workspace list                List all workspaces
+    workspace switch              Switch active workspace
+    workspace delete              Delete a workspace
+    workspace export              Export workspace configuration
+    
+    metrics enable                Enable Prometheus metrics
+    metrics disable               Disable metrics export
+    metrics status                Check metrics configuration
+    metrics export                Export current metrics
+    metrics dashboard             Show metrics dashboard
 
 EXAMPLES:
     # Start Airbyte
@@ -103,6 +148,30 @@ main() {
             ;;
         credentials)
             cmd_credentials "$@"
+            ;;
+        schedule)
+            cmd_schedule "$@"
+            ;;
+        webhook)
+            cmd_webhook "$@"
+            ;;
+        transform)
+            cmd_transform "$@"
+            ;;
+        pipeline)
+            cmd_pipeline "$@"
+            ;;
+        cdk)
+            source "${SCRIPT_DIR}/lib/cdk.sh"
+            cmd_cdk "$@"
+            ;;
+        workspace)
+            source "${SCRIPT_DIR}/lib/workspace.sh"
+            cmd_workspace "$@"
+            ;;
+        metrics)
+            source "${SCRIPT_DIR}/lib/metrics.sh"
+            cmd_metrics "$@"
             ;;
         *)
             echo "Error: Unknown command: $command" >&2

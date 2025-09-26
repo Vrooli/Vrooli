@@ -12,7 +12,7 @@
   },
   "health_check": {
     "type": "http",
-    "port": 11459,
+    "port": 11461,
     "path": "/health",
     "interval": 10,
     "timeout": 5
@@ -20,7 +20,7 @@
   "ports": {
     "game": 25565,
     "rcon": 25575,
-    "health": 11459
+    "health": 11461
   },
   "volumes": {
     "data": "${HOME}/.papermc",

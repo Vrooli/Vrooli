@@ -19,3 +19,4 @@ source "${CREWAI_ROOT}/lib/test.sh"
 
 # Run smoke tests directly
 crewai::test::smoke
+exit $?

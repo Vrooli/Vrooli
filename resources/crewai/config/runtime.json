@@ -2,7 +2,13 @@
   "startup_order": 480,
   "startup_timeout": 25,
   "startup_time_estimate": "8-15s",
-  "dependencies": [],
+  "dependencies": ["qdrant", "ollama"],
   "recovery_attempts": 2,
-  "priority": "medium"
+  "priority": "medium",
+  "performance": {
+    "cache_config": true,
+    "max_concurrent_tasks": 10,
+    "health_check_cache_ttl": 5,
+    "connection_pool_size": 5
+  }
 }

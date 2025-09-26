@@ -15,6 +15,9 @@ APP_ROOT="$(cd "${RESOURCE_DIR}/../.." && pwd)"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 
+# Source resource defaults to ensure environment is set
+source "${RESOURCE_DIR}/config/defaults.sh"
+
 # Test phase mapping
 declare -A TEST_PHASES=(
     ["smoke"]="test-smoke.sh"

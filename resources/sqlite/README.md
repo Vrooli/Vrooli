@@ -148,10 +148,14 @@ Configuration is managed through environment variables. Default values are defin
 |----------|---------|-------------|
 | `SQLITE_DATABASE_PATH` | `${VROOLI_DATA}/sqlite/databases` | Where databases are stored |
 | `SQLITE_BACKUP_PATH` | `${VROOLI_DATA}/sqlite/backups` | Where backups are stored |
+| `SQLITE_REPLICATION_PATH` | `${VROOLI_DATA}/sqlite/replicas` | Where replicas are stored |
 | `SQLITE_JOURNAL_MODE` | `WAL` | Journal mode (WAL recommended) |
 | `SQLITE_BUSY_TIMEOUT` | `10000` | Busy timeout in milliseconds |
 | `SQLITE_CACHE_SIZE` | `2000` | Cache size in pages |
 | `SQLITE_FILE_PERMISSIONS` | `600` | Unix permissions for database files |
+| `SQLITE_REPLICATION_ENABLED` | `true` | Enable replication features |
+| `SQLITE_REPLICATION_SYNC_INTERVAL` | `300` | Default sync interval (seconds) |
+| `SQLITE_REPLICATION_MONITOR_ENABLED` | `false` | Auto-monitoring off by default |
 
 ## Advanced Features
 

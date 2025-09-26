@@ -7,6 +7,8 @@ export AIRBYTE_VERSION="${AIRBYTE_VERSION:-latest}"
 # Load ports from registry
 PORT_REGISTRY="${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh"
 if [[ -f "$PORT_REGISTRY" ]]; then
+    # Set flag to prevent port_registry from executing its CLI logic
+    export SOURCED_PORT_REGISTRY=1
     source "$PORT_REGISTRY"
     export AIRBYTE_WEBAPP_PORT="${RESOURCE_PORTS[airbyte]:-8002}"
     export AIRBYTE_SERVER_PORT="${RESOURCE_PORTS[airbyte-server]:-8003}"
@@ -32,3 +34,8 @@ export AIRBYTE_CPU_LIMIT="${AIRBYTE_CPU_LIMIT:-2}"
 
 # Debug mode
 export DEBUG="${DEBUG:-false}"
+
+# Deployment method
+# Airbyte v1.x+ requires abctl (Kubernetes-in-Docker) deployment
+# docker-compose was deprecated in August 2024
+export AIRBYTE_USE_ABCTL="${AIRBYTE_USE_ABCTL:-true}"

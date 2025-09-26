@@ -50,6 +50,8 @@ neo4j_start() {
         --env NEO4J_server_memory_heap_initial__size="$NEO4J_HEAP_SIZE" \
         --env NEO4J_server_memory_heap_max__size="$NEO4J_HEAP_SIZE" \
         --env NEO4J_PLUGINS='["apoc"]' \
+        --env NEO4J_apoc_export_file_enabled=true \
+        --env NEO4J_apoc_import_file_enabled=true \
         "$NEO4J_IMAGE" >/dev/null 2>&1 || {
         echo "Error: Failed to start Neo4j"
         return 1

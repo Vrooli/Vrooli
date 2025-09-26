@@ -95,6 +95,12 @@ All tests pass in mock mode. When KiCad is installed:
 **Fixed**: Content get/remove commands now prevent path traversal attacks
 **Solution**: Added validation to block path separators and '..' sequences in project names, plus realpath verification
 
+### 5. Port Configuration for Framework Compatibility (2025-09-26)
+**Note**: KiCad resource has KICAD_PORT=8095 defined but doesn't use it
+**Impact**: None - KiCad is a desktop application without network services
+**Reason**: Required for v2.0 framework compatibility and test suite expectations
+**Resolution**: Keep for framework consistency, documented as intentional placeholder
+
 ## Support
 
 For KiCad-specific issues:

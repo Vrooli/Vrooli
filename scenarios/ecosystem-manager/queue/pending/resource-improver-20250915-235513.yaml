@@ -1,0 +1,64 @@
+id: resource-improver-20250915-235513
+title: Update openemr
+type: resource
+operation: improver
+category: misc
+priority: low
+effort_estimate: 4h
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: ""
+started_at: ""
+completed_at: ""
+completion_count: 1
+last_completed_at: "2025-09-16T11:41:07-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-15T23:55:13-04:00"
+updated_at: "2025-09-26T12:50:52-04:00"
+tags: []
+notes: |-
+    Already pretty good, but could use some additional validation/tidying. Notes from last time:
+
+    **What was accomplished:**
+    - Created proper Docker Compose configuration with OpenEMR 7.0.2 and MySQL 8.0
+    - Configured health checks and container dependencies
+    - Set up proper networking with openemr-network
+    - Added OpenEMR ports to the central registry (8010-8012)
+    - Updated configuration to use registered ports
+    - Avoided conflicts with existing services
+    - Fixed SCRIPT_DIR path issues in cli.sh, core.sh, and test.sh
+    - Implemented full lifecycle commands (install, start, stop, restart, uninstall)
+    - Added health check validation with proper timeouts
+    - Created content management framework (add, list, get, remove, export)
+
+    **Current status:**
+    - CLI commands execute properly
+    - Health checks validate service status
+    - Docker Compose configuration is valid
+    - Port allocation prevents conflicts
+    - Documentation is comprehensive
+
+    **Remaining issues or limitations:**
+    - Authentication (OAuth2 pending)
+    - Appointment Scheduling (API integration needed)
+    - FHIR Export (configuration required)
+
+    **Suggested next actions:**
+    - Complete OAuth2 token retrieval structure
+    - Finish API integration for appointment scheduling and FHIR export
+    - Validate CLI functionality with additional tests
+
+    **Validation evidence:**
+    - Smoke tests for quick validation
+    - Integration tests for functionality
+    - Unit tests for library functions
+    - All test phases properly structured
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: false

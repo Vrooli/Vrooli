@@ -104,7 +104,7 @@ crewai::status::collect_data() {
         installed="true"
         version=$(get_version)
         
-        if is_running; then
+        if crewai::is_running; then
             running="true"
             health="healthy"
             health_msg="Healthy - CrewAI service is operational"

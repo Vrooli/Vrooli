@@ -125,8 +125,8 @@ start_papermc() {
         
         # Start server with JVM options
         nohup java \
-            -Xms${PAPERMC_MEMORY} \
-            -Xmx${PAPERMC_MAX_MEMORY} \
+            -Xms"${PAPERMC_MEMORY}" \
+            -Xmx"${PAPERMC_MAX_MEMORY}" \
             ${PAPERMC_JVM_OPTS} \
             -jar paper.jar \
             --nogui \
@@ -237,7 +237,12 @@ is_server_running() {
 # Check if server is ready (RCON responsive)
 is_server_ready() {
     # Simple check: try to connect to RCON port
-    nc -z -w2 localhost "${PAPERMC_RCON_PORT}" 2>/dev/null
+    # Returns 0 if ready, 1 if not
+    if nc -z -w2 localhost "${PAPERMC_RCON_PORT}" 2>/dev/null; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 # Execute RCON command
@@ -255,18 +260,23 @@ execute_rcon_command() {
         return 1
     fi
     
-    # Check if mcrcon is available
-    if ! command -v mcrcon &> /dev/null; then
-        # Try using the mcrcon resource if available
-        if command -v vrooli &> /dev/null; then
-            vrooli resource mcrcon content execute "${command}"
-        else
-            echo "Error: mcrcon is not available" >&2
-            echo "Please install the mcrcon resource: vrooli resource mcrcon manage install" >&2
-            return 1
-        fi
+    # Try to find mcrcon in various locations
+    local mcrcon_cmd=""
+    if [[ -x "/home/matthalloran8/.mcrcon/bin/mcrcon" ]]; then
+        mcrcon_cmd="/home/matthalloran8/.mcrcon/bin/mcrcon"
+    elif command -v mcrcon &> /dev/null; then
+        mcrcon_cmd="mcrcon"
+    fi
+    
+    if [[ -n "${mcrcon_cmd}" ]]; then
+        "${mcrcon_cmd}" -H localhost -P "${PAPERMC_RCON_PORT}" -p "${PAPERMC_RCON_PASSWORD}" "${command}"
+    elif command -v vrooli &> /dev/null; then
+        # Fallback to vrooli resource if available
+        vrooli resource mcrcon content execute "${command}"
     else
-        mcrcon -H localhost -P "${PAPERMC_RCON_PORT}" -p "${PAPERMC_RCON_PASSWORD}" "${command}"
+        echo "Error: mcrcon is not available" >&2
+        echo "Please install the mcrcon resource: vrooli resource mcrcon manage install" >&2
+        return 1
     fi
 }
 
@@ -274,7 +284,8 @@ execute_rcon_command() {
 backup_world() {
     echo "Creating backup..."
     
-    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local timestamp
+    timestamp=$(date +%Y%m%d_%H%M%S)
     local backup_file="${PAPERMC_BACKUP_DIR}/backup_${timestamp}.tar.gz"
     
     mkdir -p "${PAPERMC_BACKUP_DIR}"
@@ -314,10 +325,11 @@ list_plugins() {
         local plugin_count=0
         for plugin in "${PAPERMC_PLUGINS_DIR}"/*.jar; do
             if [[ -f "${plugin}" ]]; then
-                local plugin_name=$(basename "${plugin}")
-                local plugin_size=$(du -h "${plugin}" | cut -f1)
+                local plugin_name plugin_size
+                plugin_name=$(basename "${plugin}")
+                plugin_size=$(du -h "${plugin}" | cut -f1)
                 echo "  - ${plugin_name} (${plugin_size})"
-                ((plugin_count++))
+                plugin_count=$((plugin_count + 1))
             fi
         done
         if [[ ${plugin_count} -eq 0 ]]; then
@@ -346,7 +358,8 @@ add_plugin() {
     # Check if it's a URL
     if [[ "${plugin_source}" =~ ^https?:// ]]; then
         echo "Downloading plugin from URL: ${plugin_source}"
-        local filename=$(basename "${plugin_source}")
+        local filename
+        filename=$(basename "${plugin_source}")
         curl -L -o "${PAPERMC_PLUGINS_DIR}/${filename}" "${plugin_source}" || {
             echo "Error: Failed to download plugin" >&2
             return 1
@@ -359,17 +372,35 @@ add_plugin() {
         # Common Paper plugins (examples)
         case "${plugin_source,,}" in
             "essentialsx"|"essentials")
-                local url="https://github.com/EssentialsX/Essentials/releases/latest/download/EssentialsX.jar"
+                local url="https://github.com/EssentialsX/Essentials/releases/download/2.21.2/EssentialsX-2.21.2.jar"
                 ;;
             "vault")
-                local url="https://github.com/MilkBowl/Vault/releases/latest/download/Vault.jar"
+                local url="https://github.com/MilkBowl/Vault/releases/download/1.7.3/Vault.jar"
                 ;;
             "worldedit")
-                local url="https://mediafilez.forgecdn.net/files/5596/548/worldedit-bukkit-7.3.4.jar"
+                echo "Note: WorldEdit requires CurseForge authentication." >&2
+                echo "Please download from: https://www.curseforge.com/minecraft/bukkit-plugins/worldedit" >&2
+                echo "And use: add-plugin <direct-url>" >&2
+                return 1
+                ;;
+            "luckperms")
+                echo "Note: LuckPerms download URLs change frequently." >&2
+                echo "Please download from: https://luckperms.net/download" >&2
+                echo "And use: add-plugin <direct-url>" >&2
+                return 1
+                ;;
+            "coreprotect")
+                local url="https://github.com/PlayPro/CoreProtect/releases/download/v21.2/CoreProtect-21.2.jar"
+                ;;
+            "protocollib")
+                local url="https://github.com/dmulloy2/ProtocolLib/releases/download/5.3.0/ProtocolLib.jar"
                 ;;
             *)
                 echo "Error: Unknown plugin '${plugin_source}'" >&2
                 echo "Please provide a direct download URL instead" >&2
+                echo "" >&2
+                echo "Working plugins: essentialsx, vault, coreprotect, protocollib" >&2
+                echo "Manual download needed: worldedit, luckperms (provide direct URLs)" >&2
                 return 1
                 ;;
         esac
@@ -404,7 +435,8 @@ remove_plugin() {
     local plugin_file
     for file in "${PAPERMC_PLUGINS_DIR}"/*.jar; do
         if [[ -f "${file}" ]]; then
-            local basename=$(basename "${file}")
+            local basename
+            basename=$(basename "${file}")
             if [[ "${basename,,}" == *"${plugin_name,,}"* ]]; then
                 plugin_file="${file}"
                 break
@@ -517,7 +549,7 @@ analyze_logs() {
     
     if [[ "${PAPERMC_SERVER_TYPE}" == "docker" ]]; then
         # Get logs from Docker (suppress the tee output)
-        docker logs --tail "${lines}" "${PAPERMC_CONTAINER_NAME}" 2>&1 > "${log_file}"
+        docker logs --tail "${lines}" "${PAPERMC_CONTAINER_NAME}" > "${log_file}" 2>&1
     else
         if [[ ! -f "${PAPERMC_LOG_FILE}" ]]; then
             echo "No log file found"
@@ -655,8 +687,6 @@ show_logs() {
 # Create docker-compose.yml
 create_docker_compose() {
     cat > "${PAPERMC_DATA_DIR}/docker-compose.yml" << EOF
-version: '3.8'
-
 services:
   minecraft:
     image: ${PAPERMC_DOCKER_IMAGE}:${PAPERMC_DOCKER_TAG}
@@ -739,7 +769,7 @@ import socketserver
 import sys
 import socket
 
-PORT = int(os.environ.get('PAPERMC_HEALTH_PORT', '11459'))
+PORT = int(os.environ.get('PAPERMC_HEALTH_PORT', '11461'))
 
 class HealthHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -836,7 +866,7 @@ stop_health_service() {
     
     # Clean up any processes using the health port  
     local pids
-    pids=$(lsof -t -i:${PAPERMC_HEALTH_PORT} 2>/dev/null || true)
+    pids=$(lsof -t -i:"${PAPERMC_HEALTH_PORT}" 2>/dev/null || true)
     if [[ -n "${pids}" ]]; then
         echo "Cleaning up processes on port ${PAPERMC_HEALTH_PORT}..."
         echo "${pids}" | xargs -r kill -9 2>/dev/null || true

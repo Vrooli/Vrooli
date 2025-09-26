@@ -171,13 +171,23 @@ minio::docker::restart() {
     log::info "Restarting MinIO..."
     
     if docker::restart_container "$MINIO_CONTAINER_NAME"; then
-        # Wait for container to be ready
-        if minio::common::wait_for_ready; then
-            log::success "${MSG_RESTART_SUCCESS}"
-            log::info "${MSG_CONSOLE_AVAILABLE}: ${MINIO_CONSOLE_URL}"
-            return 0
+        # Simple wait for container to be ready
+        log::info "Waiting for MinIO to be ready..."
+        sleep 10
+        
+        # Check if container is still running and healthy
+        if docker ps --format "{{.Names}}" | grep -q "^${MINIO_CONTAINER_NAME}$"; then
+            # Verify health endpoint
+            if timeout 5 curl -sf "http://localhost:${MINIO_PORT:-9000}/minio/health/live" &>/dev/null; then
+                log::success "${MSG_RESTART_SUCCESS}"
+                log::info "${MSG_CONSOLE_AVAILABLE}: ${MINIO_CONSOLE_URL}"
+                return 0
+            else
+                log::error "MinIO restarted but health check failed"
+                return 1
+            fi
         else
-            log::error "MinIO restarted but failed to become ready"
+            log::error "MinIO container not running after restart"
             return 1
         fi
     else

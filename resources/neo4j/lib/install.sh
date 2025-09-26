@@ -25,6 +25,30 @@ neo4j_install() {
         }
     fi
     
+    # Download APOC plugin if enabled (optional)
+    if [[ "${NEO4J_INSTALL_APOC:-false}" == "true" ]]; then
+        echo "Downloading APOC plugin..."
+        local apoc_version="5.15.0"
+        local apoc_url="https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/${apoc_version}/apoc-${apoc_version}-core.jar"
+        
+        if command -v wget >/dev/null 2>&1; then
+            wget -q -O "$NEO4J_PLUGINS_DIR/apoc-${apoc_version}-core.jar" "$apoc_url" || {
+                echo "Warning: Failed to download APOC plugin"
+            }
+        elif command -v curl >/dev/null 2>&1; then
+            curl -sL -o "$NEO4J_PLUGINS_DIR/apoc-${apoc_version}-core.jar" "$apoc_url" || {
+                echo "Warning: Failed to download APOC plugin"
+            }
+        else
+            echo "Warning: Neither wget nor curl available - cannot download APOC plugin"
+            echo "You can manually download from: $apoc_url"
+        fi
+        
+        if [[ -f "$NEO4J_PLUGINS_DIR/apoc-${apoc_version}-core.jar" ]]; then
+            echo "APOC plugin downloaded successfully"
+        fi
+    fi
+    
     echo "Neo4j installed successfully"
     return 0
 }

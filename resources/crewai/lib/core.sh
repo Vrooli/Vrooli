@@ -3,8 +3,7 @@ set -euo pipefail
 
 # CrewAI Core Functions
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-CREWAI_LIB_DIR="${APP_ROOT}/resources/crewai/lib"
-CREWAI_ROOT_DIR="${APP_ROOT}/resources/crewai"
+# Unused variables removed for cleaner code
 
 # Source utilities
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
@@ -114,7 +113,7 @@ import json
 import uuid
 from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from datetime import datetime
+from datetime import datetime, timezone
 import shutil
 from urllib.parse import urlparse, parse_qs
 import threading
@@ -158,7 +157,7 @@ class CrewAIHandler(BaseHTTPRequestHandler):
         elif path == "/health":
             self.send_json_response(200, {
                 "status": "healthy",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "crews_loaded": len(loaded_crews),
                 "agents_loaded": len(loaded_agents),
                 "active_tasks": len([t for t in task_executions.values() if t["status"] == "running"])
@@ -272,9 +271,36 @@ class CrewAIHandler(BaseHTTPRequestHandler):
                 self.send_json_response(400, {"error": "Missing file_path or file_type"})
                 return
             
-            source_path = Path(file_path)
+            # Basic security validation to prevent directory traversal
+            source_path = Path(file_path).resolve()
+            
+            # Check if path is within workspace or temp directories
+            workspace_parent = Path(os.environ.get("VROOLI_ROOT", os.path.expanduser("~/Vrooli"))).resolve()
+            tmp_parent = Path("/tmp").resolve()
+            
+            # Check if file is under allowed paths
+            is_valid = False
+            try:
+                source_path.relative_to(workspace_parent)
+                is_valid = True
+            except ValueError:
+                try:
+                    source_path.relative_to(tmp_parent)
+                    is_valid = True
+                except ValueError:
+                    pass
+            
+            if not is_valid:
+                self.send_json_response(403, {"error": "File path must be within workspace or /tmp directory"})
+                return
+            
             if not source_path.exists():
                 self.send_json_response(404, {"error": f"File not found: {file_path}"})
+                return
+            
+            # Ensure it's a regular file, not a directory or symlink
+            if not source_path.is_file():
+                self.send_json_response(400, {"error": "Path must be a regular file"})
                 return
             
             if file_type == "crew":
@@ -308,7 +334,7 @@ class CrewAIHandler(BaseHTTPRequestHandler):
                 "name": crew_name,
                 "agents": agents,
                 "tasks": tasks,
-                "created": datetime.utcnow().isoformat()
+                "created": datetime.now(timezone.utc).isoformat()
             }
             
             crew_file = CREWS_DIR / f"{crew_name}.json"
@@ -335,7 +361,7 @@ class CrewAIHandler(BaseHTTPRequestHandler):
                 "role": role,
                 "goal": goal,
                 "backstory": backstory,
-                "created": datetime.utcnow().isoformat()
+                "created": datetime.now(timezone.utc).isoformat()
             }
             
             agent_file = AGENTS_DIR / f"{agent_name}.json"
@@ -371,7 +397,7 @@ class CrewAIHandler(BaseHTTPRequestHandler):
                 "crew": crew_name,
                 "input": input_data,
                 "status": "running",
-                "started": datetime.utcnow().isoformat(),
+                "started": datetime.now(timezone.utc).isoformat(),
                 "progress": 0,
                 "result": None
             }
@@ -385,7 +411,7 @@ class CrewAIHandler(BaseHTTPRequestHandler):
                     task_executions[task_id]["progress"] = i * 10
                 
                 task_executions[task_id]["status"] = "completed"
-                task_executions[task_id]["completed"] = datetime.utcnow().isoformat()
+                task_executions[task_id]["completed"] = datetime.now(timezone.utc).isoformat()
                 task_executions[task_id]["result"] = {
                     "output": f"Mock execution of {crew_name} completed",
                     "data": input_data
@@ -507,7 +533,7 @@ import json
 import uuid
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 import threading
 import time
 from flask import Flask, request, jsonify
@@ -556,22 +582,32 @@ task_executions = {}
 crewai_agents = {}  # Store actual CrewAI Agent objects
 crewai_crews = {}   # Store actual CrewAI Crew objects
 
-# Initialize Qdrant client if available
+# Initialize Qdrant client if available with retry logic
 qdrant_client = None
 if QDRANT_AVAILABLE:
-    try:
-        qdrant_client = QdrantClient(host="localhost", port=6333)
-        # Create collection for agent memories if it doesn't exist
+    max_retries = 3
+    retry_delay = 1
+    
+    for attempt in range(max_retries):
         try:
-            qdrant_client.get_collection("agent_memories")
-        except:
-            qdrant_client.create_collection(
-                collection_name="agent_memories",
-                vectors_config=VectorParams(size=384, distance=Distance.COSINE)
-            )
-    except Exception as e:
-        print(f"Warning: Could not connect to Qdrant: {e}", file=sys.stderr)
-        qdrant_client = None
+            qdrant_client = QdrantClient(host="localhost", port=6333, timeout=5)
+            # Create collection for agent memories if it doesn't exist
+            try:
+                qdrant_client.get_collection("agent_memories")
+            except:
+                qdrant_client.create_collection(
+                    collection_name="agent_memories",
+                    vectors_config=VectorParams(size=384, distance=Distance.COSINE)
+                )
+            print(f"Successfully connected to Qdrant on attempt {attempt + 1}", file=sys.stderr)
+            break
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"Warning: Qdrant connection attempt {attempt + 1} failed, retrying in {retry_delay}s...", file=sys.stderr)
+                time.sleep(retry_delay)
+            else:
+                print(f"Warning: Could not connect to Qdrant after {max_retries} attempts: {e}", file=sys.stderr)
+                qdrant_client = None
 
 # Tool definitions for agents
 def get_tool_by_name(tool_name):
@@ -753,19 +789,31 @@ def create_memory_retrieve_tool():
 
 # Helper functions
 def load_agent_config(agent_name):
-    """Load agent configuration from JSON file"""
+    """Load agent configuration from JSON file with caching"""
+    # Check cache first
+    if agent_name in loaded_agents:
+        return loaded_agents[agent_name]
+    
     agent_file = AGENTS_DIR / f"{agent_name}.json"
     if agent_file.exists():
         with open(agent_file) as f:
-            return json.load(f)
+            config = json.load(f)
+            loaded_agents[agent_name] = config  # Cache the config
+            return config
     return None
 
 def load_crew_config(crew_name):
-    """Load crew configuration from JSON file"""
+    """Load crew configuration from JSON file with caching"""
+    # Check cache first
+    if crew_name in loaded_crews:
+        return loaded_crews[crew_name]
+    
     crew_file = CREWS_DIR / f"{crew_name}.json"
     if crew_file.exists():
         with open(crew_file) as f:
-            return json.load(f)
+            config = json.load(f)
+            loaded_crews[crew_name] = config  # Cache the config
+            return config
     return None
 
 def create_crewai_agent(agent_config):
@@ -780,15 +828,39 @@ def create_crewai_agent(agent_config):
         if tool:
             tools.append(tool)
     
-    return Agent(
-        role=agent_config.get("role", "Assistant"),
-        goal=agent_config.get("goal", "Help with tasks"),
-        backstory=agent_config.get("backstory", "An AI assistant"),
-        verbose=True,
-        allow_delegation=agent_config.get("allow_delegation", False),
-        max_iter=agent_config.get("max_iter", 5),
-        tools=tools
-    )
+    # Configure to use Ollama if no OpenAI key is set
+    llm_config = {}
+    if not os.environ.get("OPENAI_API_KEY"):
+        # Check if Ollama is available before configuring it
+        try:
+            import requests
+            # Quick check with short timeout to see if Ollama is running
+            response = requests.get("http://localhost:11434/api/tags", timeout=0.5)
+            if response.status_code == 200:
+                # Use Ollama via litellm if available
+                llm_config = {
+                    "llm": "ollama/llama3.2:3b",  # Default to a small, fast model
+                    "base_url": "http://localhost:11434"
+                }
+        except:
+            # Ollama not available, will try to use default OpenAI or fail gracefully
+            pass
+    
+    try:
+        return Agent(
+            role=agent_config.get("role", "Assistant"),
+            goal=agent_config.get("goal", "Help with tasks"),
+            backstory=agent_config.get("backstory", "An AI assistant"),
+            verbose=True,
+            allow_delegation=agent_config.get("allow_delegation", False),
+            max_iter=agent_config.get("max_iter", 5),
+            tools=tools,
+            **llm_config
+        )
+    except Exception as e:
+        # Log the error but don't crash - return None to indicate agent couldn't be created
+        print(f"Warning: Could not create CrewAI agent: {e}", file=sys.stderr)
+        return None
 
 def create_crewai_crew(crew_config, agents):
     """Create a real CrewAI Crew from configuration"""
@@ -830,16 +902,26 @@ def root():
 
 @app.route("/health", methods=["GET"])
 def health():
-    """Health check endpoint"""
-    return jsonify({
+    """Health check endpoint with dependency validation"""
+    health_status = {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "crewai_available": CREWAI_AVAILABLE,
         "qdrant_available": qdrant_client is not None,
         "crews_loaded": len(loaded_crews),
         "agents_loaded": len(loaded_agents),
         "active_tasks": len([t for t in task_executions.values() if t.get("status") == "running"])
-    })
+    }
+    
+    # Check Ollama availability with timeout
+    try:
+        import requests
+        response = requests.get("http://localhost:11434/api/tags", timeout=0.5)
+        health_status["ollama_available"] = response.status_code == 200
+    except:
+        health_status["ollama_available"] = False
+    
+    return jsonify(health_status)
 
 @app.route("/tools", methods=["GET"])
 def tools():
@@ -880,17 +962,38 @@ def agents():
     
     elif request.method == "POST":
         data = request.json or {}
-        agent_name = data.get("name", f"agent_{int(time.time())}")
+        
+        # Validate required fields
+        agent_name = data.get("name", "").strip()
+        if not agent_name:
+            agent_name = f"agent_{int(time.time())}"
+        
+        # Validate agent name (alphanumeric and underscore only)
+        if not agent_name.replace("_", "").replace("-", "").isalnum():
+            return jsonify({"error": "Invalid agent name. Use only alphanumeric characters, hyphens, and underscores"}), 400
+        
+        # Check if agent already exists
+        if (AGENTS_DIR / f"{agent_name}.json").exists():
+            return jsonify({"error": f"Agent '{agent_name}' already exists"}), 409
+        
+        # Validate required fields have meaningful values
+        role = data.get("role", "").strip()
+        goal = data.get("goal", "").strip()
+        
+        if not role:
+            return jsonify({"error": "Agent role is required and cannot be empty"}), 400
+        if not goal:
+            return jsonify({"error": "Agent goal is required and cannot be empty"}), 400
         
         agent_data = {
             "name": agent_name,
-            "role": data.get("role", "Assistant"),
-            "goal": data.get("goal", "Help with tasks"),
-            "backstory": data.get("backstory", "An AI assistant"),
+            "role": role,
+            "goal": goal,
+            "backstory": data.get("backstory", "An AI assistant").strip() or "An AI assistant",
             "allow_delegation": data.get("allow_delegation", False),
-            "max_iter": data.get("max_iter", 5),
+            "max_iter": min(max(data.get("max_iter", 5), 1), 20),  # Limit iterations between 1-20
             "tools": data.get("tools", []),  # Add tools support
-            "created": datetime.utcnow().isoformat()
+            "created": datetime.now(timezone.utc).isoformat()
         }
         
         # Save configuration
@@ -951,14 +1054,41 @@ def crews():
     
     elif request.method == "POST":
         data = request.json or {}
-        crew_name = data.get("name", f"crew_{int(time.time())}")
+        
+        # Validate crew name
+        crew_name = data.get("name", "").strip()
+        if not crew_name:
+            crew_name = f"crew_{int(time.time())}"
+        
+        # Validate crew name (alphanumeric and underscore only)
+        if not crew_name.replace("_", "").replace("-", "").isalnum():
+            return jsonify({"error": "Invalid crew name. Use only alphanumeric characters, hyphens, and underscores"}), 400
+        
+        # Check if crew already exists
+        if (CREWS_DIR / f"{crew_name}.json").exists():
+            return jsonify({"error": f"Crew '{crew_name}' already exists"}), 409
+        
+        # Validate agents list
+        agents = data.get("agents", [])
+        if not isinstance(agents, list):
+            return jsonify({"error": "Agents must be a list"}), 400
+        
+        # Validate tasks list
+        tasks = data.get("tasks", [])
+        if not isinstance(tasks, list):
+            return jsonify({"error": "Tasks must be a list"}), 400
+        
+        # Validate process type
+        process = data.get("process", "sequential")
+        if process not in ["sequential", "hierarchical"]:
+            return jsonify({"error": "Process must be 'sequential' or 'hierarchical'"}), 400
         
         crew_data = {
             "name": crew_name,
-            "agents": data.get("agents", []),
-            "tasks": data.get("tasks", []),
-            "process": data.get("process", "sequential"),
-            "created": datetime.utcnow().isoformat()
+            "agents": agents,
+            "tasks": tasks,
+            "process": process,
+            "created": datetime.now(timezone.utc).isoformat()
         }
         
         # Save configuration
@@ -971,17 +1101,17 @@ def crews():
         # Create real CrewAI crew if available
         if CREWAI_AVAILABLE:
             # Load agents for the crew
-            agents = []
+            crew_agents = []
             for agent_name in crew_data.get("agents", []):
                 if agent_name not in crewai_agents:
                     agent_config = load_agent_config(agent_name)
                     if agent_config:
                         crewai_agents[agent_name] = create_crewai_agent(agent_config)
                 if agent_name in crewai_agents:
-                    agents.append(crewai_agents[agent_name])
+                    crew_agents.append(crewai_agents[agent_name])
             
-            if agents:
-                crewai_crews[crew_name] = create_crewai_crew(crew_data, agents)
+            if crew_agents:
+                crewai_crews[crew_name] = create_crewai_crew(crew_data, crew_agents)
         
         return jsonify({
             "status": "created",
@@ -1031,7 +1161,7 @@ def execute():
         "crew": crew_name,
         "input": input_data,
         "status": "running",
-        "started": datetime.utcnow().isoformat(),
+        "started": datetime.now(timezone.utc).isoformat(),
         "progress": 0,
         "result": None
     }
@@ -1047,7 +1177,7 @@ def execute():
                 result = crew.kickoff(inputs=input_data)
                 
                 task_executions[task_id]["status"] = "completed"
-                task_executions[task_id]["completed"] = datetime.utcnow().isoformat()
+                task_executions[task_id]["completed"] = datetime.now(timezone.utc).isoformat()
                 task_executions[task_id]["result"] = {
                     "output": str(result),
                     "data": input_data
@@ -1059,7 +1189,7 @@ def execute():
                     task_executions[task_id]["progress"] = i * 10
                 
                 task_executions[task_id]["status"] = "completed"
-                task_executions[task_id]["completed"] = datetime.utcnow().isoformat()
+                task_executions[task_id]["completed"] = datetime.now(timezone.utc).isoformat()
                 task_executions[task_id]["result"] = {
                     "output": f"Mock execution of {crew_name} completed",
                     "data": input_data,
@@ -1068,7 +1198,7 @@ def execute():
         except Exception as e:
             task_executions[task_id]["status"] = "failed"
             task_executions[task_id]["error"] = str(e)
-            task_executions[task_id]["completed"] = datetime.utcnow().isoformat()
+            task_executions[task_id]["completed"] = datetime.now(timezone.utc).isoformat()
     
     thread = threading.Thread(target=execute_crew)
     thread.daemon = True
@@ -1174,15 +1304,58 @@ def metrics():
 def inject():
     """Inject crew or agent files"""
     data = request.json or {}
-    file_path = data.get("file_path")
+    # Support both 'path' and 'file_path' for compatibility
+    file_path = data.get("path") or data.get("file_path")
     file_type = data.get("file_type")
     
-    if not file_path or not file_type:
-        return jsonify({"error": "Missing file_path or file_type"}), 400
+    if not file_path:
+        return jsonify({"error": "Missing path or file_path parameter"}), 400
     
-    source_path = Path(file_path)
+    # Basic security validation to prevent directory traversal
+    source_path = Path(file_path).resolve()
+    
+    # Check if path is within workspace or temp directories
+    workspace_parent = Path(os.environ.get("VROOLI_ROOT", os.path.expanduser("~/Vrooli"))).resolve()
+    tmp_parent = Path("/tmp").resolve()
+    
+    # Check if file is under allowed paths
+    is_valid = False
+    try:
+        source_path.relative_to(workspace_parent)
+        is_valid = True
+    except ValueError:
+        try:
+            source_path.relative_to(tmp_parent)
+            is_valid = True
+        except ValueError:
+            pass
+    
+    if not is_valid:
+        return jsonify({"error": "File path must be within workspace or /tmp directory"}), 403
+    
     if not source_path.exists():
         return jsonify({"error": f"File not found: {file_path}"}), 404
+    
+    # Ensure it's a regular file, not a directory or symlink
+    if not source_path.is_file():
+        return jsonify({"error": "Path must be a regular file"}), 400
+    
+    # Auto-detect file type if not provided
+    if not file_type:
+        try:
+            with open(source_path) as f:
+                content = json.load(f)
+            # Check if it's a crew (has 'agents' list) or agent (has 'role')
+            if "agents" in content and isinstance(content.get("agents"), list):
+                file_type = "crew"
+            elif "role" in content:
+                file_type = "agent"
+            else:
+                return jsonify({"error": "Could not auto-detect file type. Please specify file_type parameter."}), 400
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid JSON file"}), 400
+        except Exception as e:
+            return jsonify({"error": f"Failed to read file: {e}"}), 400
     
     if file_type == "crew":
         dest_dir = CREWS_DIR
@@ -1322,7 +1495,8 @@ start_crewai() {
 # Stop CrewAI service
 stop_crewai() {
     if [[ -f "${CREWAI_PID_FILE}" ]]; then
-        local pid=$(cat "${CREWAI_PID_FILE}")
+        local pid
+        pid=$(cat "${CREWAI_PID_FILE}")
         if kill -0 "$pid" 2>/dev/null; then
             log::info "Stopping CrewAI..."
             
@@ -1332,7 +1506,9 @@ stop_crewai() {
                 agent_ids=$(jq -r --arg pid "$pid" '.agents | to_entries[] | select(.value.pid == ($pid | tonumber)) | .key' "${APP_ROOT}/.vrooli/crewai-agents.json" 2>/dev/null || echo "")
                 if [[ -n "$agent_ids" ]]; then
                     while IFS= read -r agent_id; do
-                        [[ -n "$agent_id" ]] && agents::unregister "$agent_id" 2>/dev/null || true
+                        if [[ -n "$agent_id" ]]; then
+                            agents::unregister "$agent_id" 2>/dev/null || true
+                        fi
                     done <<< "$agent_ids"
                 fi
             fi
@@ -1355,7 +1531,8 @@ stop_crewai() {
 # Check if running
 crewai::is_running() {
     if [[ -f "${CREWAI_PID_FILE}" ]]; then
-        local pid=$(cat "${CREWAI_PID_FILE}")
+        local pid
+        pid=$(cat "${CREWAI_PID_FILE}")
         if kill -0 "$pid" 2>/dev/null; then
             return 0
         else

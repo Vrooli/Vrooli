@@ -23,6 +23,67 @@ source "${NEO4J_RESOURCE_DIR}/lib/inject.sh" 2>/dev/null || true
 ################################################################################
 
 #######################################
+# Install APOC plugin
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+neo4j_install_apoc() {
+    echo "Installing APOC plugin for enhanced graph algorithms..."
+    
+    # Use latest compatible APOC version
+    local apoc_version="2025.09.0"
+    local apoc_url="https://github.com/neo4j/apoc/releases/download/${apoc_version}/apoc-${apoc_version}-core.jar"
+    local temp_file="/tmp/apoc-${apoc_version}-core.jar"
+    
+    # Download APOC jar to temp location first
+    if command -v wget >/dev/null 2>&1; then
+        wget -q -O "$temp_file" "$apoc_url" || {
+            echo "Error: Failed to download APOC plugin"
+            return 1
+        }
+    elif command -v curl >/dev/null 2>&1; then
+        curl -sL -o "$temp_file" "$apoc_url" || {
+            echo "Error: Failed to download APOC plugin"
+            return 1
+        }
+    else
+        echo "Error: Neither wget nor curl available"
+        return 1
+    fi
+    
+    # Copy plugin to container if running
+    if neo4j_is_running; then
+        docker cp "$temp_file" \
+            "$NEO4J_CONTAINER_NAME:/var/lib/neo4j/plugins/apoc-${apoc_version}-core.jar" || {
+            echo "Error: Failed to copy APOC plugin to container"
+            rm -f "$temp_file"
+            return 1
+        }
+        
+        # Add APOC configuration
+        docker exec "$NEO4J_CONTAINER_NAME" bash -c "
+            echo 'apoc.export.file.enabled=true' >> /var/lib/neo4j/conf/apoc.conf
+            echo 'apoc.import.file.enabled=true' >> /var/lib/neo4j/conf/apoc.conf
+            echo 'apoc.import.file.use_neo4j_config=true' >> /var/lib/neo4j/conf/apoc.conf
+        " 2>/dev/null || true
+        
+        echo "APOC plugin installed. Restart Neo4j to activate: vrooli resource neo4j manage restart"
+    else
+        # Copy to local plugins dir for future container starts
+        if [[ -d "$NEO4J_PLUGINS_DIR" ]]; then
+            cp "$temp_file" "$NEO4J_PLUGINS_DIR/" 2>/dev/null || \
+                echo "Note: Could not copy to local plugins directory (permission denied). Plugin will be activated when Neo4j starts."
+        fi
+        echo "APOC plugin downloaded. It will be activated when Neo4j starts."
+    fi
+    
+    # Clean up temp file
+    rm -f "$temp_file"
+    
+    return 0
+}
+
+#######################################
 # Execute a Cypher query
 # Args:
 #   $1 - Cypher query to execute
@@ -200,7 +261,26 @@ neo4j_wait_ready() {
 #   0 on success, 1 on failure
 #######################################
 neo4j_backup() {
-    local backup_file="${1:-neo4j-backup-$(date +%Y%m%d-%H%M%S).dump}"
+    local backup_path="${1:-}"
+    local backup_file
+    local backup_dir="/var/lib/neo4j/data/dumps"
+    
+    # Parse backup path - if it contains a path separator, extract filename
+    if [[ -n "$backup_path" ]]; then
+        if [[ "$backup_path" == *"/"* ]]; then
+            # Full path provided - extract just the filename for container use
+            backup_file=$(basename "$backup_path")
+        else
+            # Just filename provided
+            backup_file="$backup_path"
+        fi
+    else
+        # No argument - generate default name
+        backup_file="neo4j-backup-$(date +%Y%m%d-%H%M%S)"
+    fi
+    
+    # Remove any extension - we'll add the appropriate one
+    backup_file="${backup_file%.*}"
     
     if ! neo4j_is_running; then
         echo "Error: Neo4j is not running"
@@ -208,7 +288,7 @@ neo4j_backup() {
     fi
     
     # Ensure backup directory exists in container
-    docker exec "$NEO4J_CONTAINER_NAME" mkdir -p /var/lib/neo4j/data/dumps 2>/dev/null || true
+    docker exec "$NEO4J_CONTAINER_NAME" mkdir -p "$backup_dir" 2>/dev/null || true
     
     echo "Note: Community Edition requires stopping database for backup"
     echo "Creating backup: $backup_file"
@@ -216,41 +296,72 @@ neo4j_backup() {
     # For Community Edition, we need to export data via Cypher
     # This approach works while the database is running
     
-    # Determine auth parameters for cypher-shell
-    local auth_params=""
-    if [[ "$NEO4J_AUTH" != "none" ]] && [[ -n "$NEO4J_AUTH" ]]; then
-        auth_params="-u neo4j -p '${NEO4J_AUTH#*/}'"
-    fi
+    # Try APOC first if available (use relative path for APOC)
+    local apoc_result
+    apoc_result=$(docker exec "$NEO4J_CONTAINER_NAME" cypher-shell --format plain \
+        'CALL apoc.export.json.all("'${backup_file}'.json", {useTypes:true}) YIELD file, nodes, relationships RETURN file' 2>&1 || echo "")
     
-    local nodes_json
-    nodes_json=$(docker exec "$NEO4J_CONTAINER_NAME" bash -c "
-        cypher-shell $auth_params --format plain 'CALL apoc.export.json.all(\"/var/lib/neo4j/data/dumps/${backup_file}.json\", {useTypes:true})'
-    " 2>/dev/null || echo "")
-    
-    if [[ -n "$nodes_json" ]] && [[ ! "$nodes_json" =~ "Unknown procedure" ]]; then
-        echo "Backup completed successfully: ${backup_file}.json"
+    if [[ "$apoc_result" =~ "file" ]] && [[ ! "$apoc_result" =~ "ProcedureNotFound" ]]; then
+        echo "Backup completed successfully using APOC: ${backup_file}.json"
+        # Copy backup to host (APOC exports to import directory)
+        if [[ -n "$backup_path" ]]; then
+            if [[ "$backup_path" == *"/"* ]]; then
+                # Full path provided - copy to exact location
+                docker cp "$NEO4J_CONTAINER_NAME:/var/lib/neo4j/import/${backup_file}.json" "${backup_path}.json" 2>/dev/null || true
+            else
+                # Just filename - copy to current directory
+                docker cp "$NEO4J_CONTAINER_NAME:/var/lib/neo4j/import/${backup_file}.json" "${backup_path}.json" 2>/dev/null || true
+            fi
+        fi
         return 0
     else
-        # Fallback: Create a simple Cypher export with all data
+        # Fallback: Create a simple JSON export with all data
         echo "APOC not available, using basic export..."
         
-        # Export nodes and relationships separately, then combine
-        if docker exec "$NEO4J_CONTAINER_NAME" bash -c "
-            {
-                echo '// Neo4j Backup - $(date)'
-                echo '// Nodes'
-                cypher-shell $auth_params --format plain 'MATCH (n) RETURN n'
-                echo '// Relationships'
-                cypher-shell $auth_params --format plain 'MATCH ()-[r]->() RETURN r'
-            } > /var/lib/neo4j/data/dumps/${backup_file}.cypher
-        " 2>&1; then
-            # Success - continue
-            true
+        # First, get all nodes
+        local nodes_data
+        nodes_data=$(docker exec "$NEO4J_CONTAINER_NAME" cypher-shell --format json \
+            'MATCH (n) RETURN id(n) as id, labels(n) as labels, properties(n) as properties' 2>/dev/null || echo "[]")
+        
+        # Then get all relationships
+        local rels_data
+        rels_data=$(docker exec "$NEO4J_CONTAINER_NAME" cypher-shell --format json \
+            'MATCH (a)-[r]->(b) RETURN id(a) as from, id(b) as to, type(r) as type, properties(r) as properties' 2>/dev/null || echo "[]")
+        
+        # Create the backup JSON file
+        if docker exec "$NEO4J_CONTAINER_NAME" bash -c "cat > ${backup_dir}/${backup_file}.json" <<EOF
+{
+  "nodes": ${nodes_data:-[]},
+  "relationships": ${rels_data:-[]},
+  "metadata": {
+    "backup_date": "$(date -Iseconds)",
+    "format": "json",
+    "neo4j_version": "5.15.0"
+  }
+}
+EOF
+        then
+            echo "Basic backup completed: ${backup_file}.json"
+            # Copy backup to host
+            if [[ -n "$backup_path" ]]; then
+                if [[ "$backup_path" == *"/"* ]]; then
+                    # Full path provided - copy to exact location
+                    docker cp "$NEO4J_CONTAINER_NAME:${backup_dir}/${backup_file}.json" "${backup_path}.json" 2>/dev/null || {
+                        echo "Note: Could not copy backup to ${backup_path}.json"
+                        echo "Backup available in container at ${backup_dir}/${backup_file}.json"
+                    }
+                else
+                    # Just filename - copy to current directory
+                    docker cp "$NEO4J_CONTAINER_NAME:${backup_dir}/${backup_file}.json" "${backup_path}.json" 2>/dev/null || {
+                        echo "Note: Could not copy backup to ${backup_path}.json"
+                        echo "Backup available in container at ${backup_dir}/${backup_file}.json"
+                    }
+                fi
+            fi
         else
             echo "Error: Backup failed"
             return 1
         fi
-        echo "Basic backup completed: ${backup_file}.cypher"
     fi
     
     return 0
@@ -279,9 +390,13 @@ neo4j_import_csv() {
         return 1
     fi
     
-    # Copy CSV to import directory
-    cp "$csv_file" "$NEO4J_IMPORT_DIR/"
-    # csv_name variable removed - was unused (SC2034)
+    # Copy CSV to import directory using docker cp to handle permissions
+    local csv_filename
+    csv_filename=$(basename "$csv_file")
+    docker cp "$csv_file" "$NEO4J_CONTAINER_NAME:/var/lib/neo4j/import/$csv_filename" || {
+        echo "Error: Failed to copy CSV file to Neo4j import directory"
+        return 1
+    }
     
     # Execute import query
     neo4j_query "$import_query" || {
@@ -312,19 +427,14 @@ neo4j_get_performance_metrics() {
     
     # Get memory usage from container
     local memory_stats
-    memory_stats=$(docker stats "$NEO4J_CONTAINER_NAME" --no-stream --format "{{.MemUsage}}" 2>/dev/null | sed 's/[^0-9.]//g' | head -1 || echo "0")
+    memory_stats=$(docker stats "$NEO4J_CONTAINER_NAME" --no-stream --format "{{.MemUsage}}" 2>/dev/null | awk '{print $1}' | sed 's/[^0-9.]//g' || echo "0")
     
     # Get database size
     local db_size
     db_size=$(docker exec "$NEO4J_CONTAINER_NAME" du -sh /data/databases/neo4j 2>/dev/null | awk '{print $1}' || echo "unknown")
     
-    # Try to get transaction info if available
-    local tx_info
-    tx_info=$(neo4j_query "SHOW TRANSACTIONS" 2>/dev/null || echo "")
+    # Skip transaction info - SHOW TRANSACTIONS can hang in Community Edition
     local tx_count=0
-    if [[ -n "$tx_info" ]] && [[ "$tx_info" != *"Error"* ]]; then
-        tx_count=$(echo "$tx_info" | grep -c "transaction" || echo "0")
-    fi
     
     # Build metrics JSON
     cat <<EOF
@@ -458,7 +568,9 @@ neo4j_algo_pagerank() {
     
     echo "Running PageRank Algorithm..."
     echo "=============================="
-    neo4j_query "$query" 2>/dev/null || {
+    if result=$(neo4j_query "$query" 2>&1); then
+        echo "$result"
+    else
         # Fallback to simple degree centrality if PageRank fails
         echo "PageRank not available, using degree centrality..."
         neo4j_query "
@@ -468,7 +580,7 @@ neo4j_algo_pagerank() {
             RETURN n.name as name, n.id as id, degree
             ORDER BY degree DESC LIMIT 10
         "
-    }
+    fi
 }
 
 #######################################
@@ -1110,7 +1222,7 @@ EOF
 # Export all functions
 export -f neo4j_query neo4j_list_injected neo4j_health_check
 export -f neo4j_get_version neo4j_get_stats neo4j_wait_ready
-export -f neo4j_backup neo4j_import_csv
+export -f neo4j_backup neo4j_import_csv neo4j_install_apoc
 export -f neo4j_get_performance_metrics neo4j_monitor_query neo4j_get_slow_queries
 export -f neo4j_algo_pagerank neo4j_algo_shortest_path neo4j_algo_community_detection
 export -f neo4j_algo_centrality neo4j_algo_similarity

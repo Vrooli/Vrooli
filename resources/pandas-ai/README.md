@@ -25,6 +25,8 @@ curl -X POST http://localhost:8095/analyze \
 - **Enhanced Visualizations**: 10+ chart types with full customization
 - **Performance Monitoring**: Real-time dashboard for tracking operations
 - **Data Profiling**: Comprehensive data quality analysis and recommendations
+- **ML Model Suggestions**: Intelligent model recommendations based on data characteristics
+- **Streaming Analysis**: Real-time data stream processing and anomaly detection
 - **Report Generation**: Creates professional data reports
 - **Code Generation**: Converts queries to pandas code for transparency
 - **Safety Controls**: Built-in safety checks for direct code execution
@@ -293,6 +295,51 @@ curl -X POST http://localhost:8095/analyze \
 - `triangle`: Show only lower triangle in heatmaps (true/false)
 - `stacked`: Stack areas in area charts (true/false)
 - `bins`: Number of bins for histograms (default: 30)
+
+### Machine Learning Model Suggestions
+```bash
+# Get ML model recommendations based on data characteristics
+curl -X POST http://localhost:8095/ml/suggest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": [
+      {"feature1": 1.2, "feature2": 3.4, "target": 1},
+      {"feature1": 2.1, "feature2": 4.3, "target": 0}
+    ],
+    "target_column": "target",
+    "task_type": "auto"
+  }'
+
+# Response includes:
+# - Detected/specified task type (classification/regression/clustering)
+# - List of recommended models with pros/cons
+# - Hyperparameter suggestions for each model
+# - Data insights (shape, types, missing values)
+# - Preprocessing steps needed
+# - Feature importance scores (if target provided)
+```
+
+### Real-Time Streaming Analysis
+```bash
+# Analyze streaming data with sliding window
+curl -X POST http://localhost:8095/streaming/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "analyze streaming data for anomalies",
+    "batch_size": 100,
+    "window_size": 500,
+    "aggregation_interval": 30
+  }'
+
+# Response includes:
+# - Window size and aggregations (count, mean, min, max, std)
+# - Category distributions
+# - Trend analysis (increasing/decreasing)
+# - Detected anomalies using z-score method
+# - Real-time insights
+# - Last window data points
+# - Processing time metrics
+```
 
 ### Performance Monitoring Dashboard
 ```bash

@@ -26,8 +26,8 @@ export KAFKA_DATA_DIR="${KAFKA_DATA_DIR:-/var/lib/kafka/data}"
 export KAFKA_LOG_DIR="${KAFKA_LOG_DIR:-/var/lib/kafka/logs}"
 export KAFKA_VOLUME_NAME="${KAFKA_VOLUME_NAME:-kafka-data}"
 
-# Memory configuration
-export KAFKA_HEAP_OPTS="${KAFKA_HEAP_OPTS:--Xmx1G -Xms1G}"
+# Memory configuration (optimized for performance)
+export KAFKA_HEAP_OPTS="${KAFKA_HEAP_OPTS:--Xmx2G -Xms2G}"
 
 # Retention configuration
 export KAFKA_LOG_RETENTION_HOURS="${KAFKA_LOG_RETENTION_HOURS:-168}"  # 7 days

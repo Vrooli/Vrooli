@@ -59,10 +59,11 @@ vrooli resource sqlite query insert test_db test_table "name='New'"
 **Workaround**: Manual database restoration from backups if rollback is needed.
 **Priority**: P2 - Nice to have
 
-### 2. No Encryption Support
-**Description**: SQLite encryption extensions are not supported.
-**Workaround**: Use file system encryption or handle encryption at application layer.
-**Priority**: P2 - Nice to have
+### 2. Encryption Support (FIXED: 2025-09-15)
+**Description**: SQLite encryption extensions were not supported.
+**Solution**: Implemented database encryption using OpenSSL with AES-256 encryption.
+**Usage**: Use `vrooli resource sqlite content encrypt <db_name>` and `decrypt <db_name>` commands.
+**Status**: Fully implemented and tested
 
 ### 3. No Web UI
 **Description**: No graphical interface for database exploration.

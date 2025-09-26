@@ -1,12 +1,14 @@
 # PaperMC Resource - Known Problems
 
+Updated: 2025-09-26
+
 ## Health Service Port Conflict
 
 ### Problem
 The original health service port (11459) was conflicting with a system-level health monitor that continuously spawned `nc` processes on that port, preventing the PaperMC health service from starting.
 
 ### Solution
-Changed the default health port from 11459 to 11460 in `config/defaults.sh`.
+Changed the default health port to 11461, properly allocated in `scripts/resources/port_registry.sh`. Updated all configuration files (`config/defaults.sh`, `config/runtime.json`, `lib/core.sh`) to use the new port consistently.
 
 ### Workaround
 If you encounter port conflicts, you can override the health port:
@@ -31,19 +33,27 @@ The health service requires Python 3 to be installed on the system, which may no
 ### Solution
 Consider implementing a simple bash-based health check using netcat as a fallback when Python is not available.
 
-## Limited Plugin Repository
+## Plugin Download URLs
 
 ### Problem
-The built-in plugin repository only supports a few common plugins (EssentialsX, Vault, WorldEdit). Users need to know direct download URLs for other plugins.
+Plugin download URLs change frequently as new versions are released. GitHub release URLs need exact version numbers. Some plugins (WorldEdit) use different distribution methods like CurseForge which require authentication.
 
 ### Solution
-Users can provide direct download URLs for any plugin:
+Updated plugin URLs to use specific working versions:
+- EssentialsX: v2.21.2 (working)
+- Vault: v1.7.3 (working)
+- CoreProtect: v21.2 (latest with release assets, v23.0 has no JAR)
+- ProtocolLib: v5.3.0 (working)
+- LuckPerms: Requires manual download (URLs change frequently)
+- WorldEdit: Requires manual download (CurseForge authentication)
+
+For plugins that require manual download, get the JAR file from the official site and use:
 ```bash
 vrooli resource papermc content add-plugin https://example.com/plugin.jar
 ```
 
 ### Future Enhancement
-Consider integrating with Spigot/Bukkit/Paper plugin repositories API for automatic plugin discovery.
+Consider implementing dynamic plugin URL resolution using GitHub API or plugin repository APIs.
 
 ## Docker Permissions
 
@@ -56,10 +66,10 @@ The itzg/minecraft-server Docker image handles most permission issues automatica
 ## RCON Command Limitations
 
 ### Problem
-Some Minecraft commands may not work properly through RCON, especially those requiring player context or interactive responses.
+Some Minecraft commands may not work properly through RCON, especially those requiring player context or interactive responses. The `memory` command is not recognized by PaperMC server.
 
 ### Solution
-Most standard server commands work fine. For advanced operations, consider using plugins that provide RCON-friendly alternatives.
+Most standard server commands work fine. For memory usage, use Docker container stats instead of RCON commands. For advanced operations, consider using plugins that provide RCON-friendly alternatives.
 
 ## Memory Configuration
 
@@ -86,3 +96,19 @@ vrooli resource papermc manage start --wait
 ```
 
 The health check endpoint will show "starting" status during initialization.
+
+## Docker Compose Version Warning
+
+### Problem
+Docker Compose showed a warning about the `version` attribute being obsolete in the compose file.
+
+### Solution
+Fixed by removing the `version` field from the docker-compose.yml generation in core.sh. The compose file now starts directly with `services:` which is compatible with all modern Docker Compose versions.
+
+## Plugin List Command Partial Output
+
+### Problem
+The `./cli.sh content list-plugins` command was showing only one plugin due to an issue with arithmetic operations in bash strict mode (`set -euo pipefail`) where `((plugin_count++))` returns exit code 1 when plugin_count is 0.
+
+### Solution
+Fixed by replacing `((plugin_count++))` with `plugin_count=$((plugin_count + 1))` which correctly handles the increment without triggering error exit. The command now properly lists all installed plugins.

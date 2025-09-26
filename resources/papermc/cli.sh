@@ -14,7 +14,6 @@ source "${SCRIPT_DIR}/lib/core.sh"
 source "${SCRIPT_DIR}/lib/test.sh"
 
 # Resource metadata
-readonly RESOURCE_NAME="papermc"
 readonly RESOURCE_VERSION="1.0.0"
 
 # Show help information

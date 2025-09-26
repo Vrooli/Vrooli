@@ -28,6 +28,12 @@ source "${RESOURCE_DIR}/lib/common.sh" 2>/dev/null || true
 # Now enable error handling for the test itself
 set -e
 
+# Set defaults if not already set by sourcing
+KEYCLOAK_CONTAINER_NAME="${KEYCLOAK_CONTAINER_NAME:-vrooli-keycloak}"
+KEYCLOAK_PORT="${KEYCLOAK_PORT:-8070}"
+KEYCLOAK_ADMIN_USER="${KEYCLOAK_ADMIN_USER:-admin}"
+KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-admin}"
+
 # Test configuration
 TEST_REALM="test-social-e2e-$(date +%s)"
 TEST_CLIENT="test-app"

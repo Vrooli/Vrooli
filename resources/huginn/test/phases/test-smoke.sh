@@ -17,7 +17,7 @@ source "${var_LOG_FILE}"
 source "${RESOURCE_DIR}/config/defaults.sh"
 
 # Test configuration
-HUGINN_PORT="${HUGINN_PORT:-4111}"
+# HUGINN_PORT is already set from defaults.sh (readonly)
 HUGINN_URL="http://localhost:${HUGINN_PORT}"
 MAX_WAIT=30
 

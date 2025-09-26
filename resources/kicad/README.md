@@ -44,6 +44,7 @@ vrooli resource kicad status
 - **macOS**: Uses Homebrew to install KiCad cask
 - **Mock Mode**: If KiCad cannot be installed, the resource operates in mock mode for development/testing
 - **Full Installation**: For complete functionality, install KiCad manually from https://www.kicad.org/
+- **Binary Detection**: Automatically detects KiCad installations in standard locations (/usr/bin, /usr/local/bin, /opt/kicad, /Applications/KiCad)
 
 **Operating Modes**:
 1. **Full Mode**: With KiCad installed - all features available
@@ -54,11 +55,14 @@ vrooli resource kicad status
 # List projects and libraries
 vrooli resource kicad content list
 
-# Import a project
-vrooli resource kicad inject my-circuit.kicad_sch
+# Import a project or library
+vrooli resource kicad content add my-circuit.kicad_sch
 
 # Export to manufacturing files
-vrooli resource kicad export my-board gerber,pdf
+vrooli resource kicad content export my-board gerber,pdf
+
+# Get project details
+vrooli resource kicad content get my-project
 ```
 
 ### Programmatic Operations

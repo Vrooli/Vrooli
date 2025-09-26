@@ -56,3 +56,28 @@ vrooli resource earthly content configure --optimize-cache
 - First build: Full execution (20-30 seconds typical)
 - Subsequent builds with cache: 50-90% faster
 - Cache hit rate: >80% for unchanged dependencies
+
+## Code Quality (Updated: 2025-09-26)
+- All shellcheck warnings fully resolved:
+  - SC2155: Fixed all "declare and assign separately" warnings in both core.sh and test.sh
+  - SC2034: Fixed unused variable warning (timestamp → _timestamp)
+  - SC2086: Fixed quoting issues for safer variable expansion using array command building
+- Clean code with proper error handling and best practices
+- Comprehensive test coverage (100% pass rate)
+- Test artifacts properly excluded from version control (.gitignore updated)
+- CLI documentation enhanced with detailed help for all subcommands
+- Command building uses proper array expansion pattern for safety and clarity
+
+### Test Performance (Fixed: 2025-09-26)
+**Issue**: Parallel execution test was hanging with 60-second timeout
+**Cause**: Complex sleep operations in test targets caused unnecessary delays
+**Solution**: Simplified test targets (removed sleep) and reduced timeout to 30 seconds
+**Result**: All tests now complete reliably within 2 minutes
+## Known Limitations
+
+### Satellite Builds
+Satellite builds (--satellite flag) require additional setup:
+- Cannot be used simultaneously with local buildkit
+- Requires Earthly Cloud account setup
+- For most Vrooli use cases, local builds with caching are sufficient
+- If distributed builds are needed, configure satellite separately from local daemon

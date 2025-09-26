@@ -361,8 +361,12 @@ sqlite::content::execute() {
         return 1
     fi
     
-    # Execute query with timeout
-    timeout "${SQLITE_CLI_TIMEOUT}" sqlite3 "$db_path" "$query"
+    # Execute query with timeout and proper pragmas for concurrency
+    timeout "${SQLITE_CLI_TIMEOUT}" sqlite3 "$db_path" <<EOF
+PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT};
+PRAGMA journal_mode = ${SQLITE_JOURNAL_MODE};
+$query
+EOF
     return $?
 }
 
