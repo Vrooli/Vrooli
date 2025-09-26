@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-export type BridgeCapability = 'history' | 'hash' | 'title' | 'deeplink' | 'resize';
+export type BridgeCapability = 'history' | 'hash' | 'title' | 'deeplink' | 'resize' | 'screenshot';
 
 type BridgeHelloMessage = {
   v: 1;
@@ -38,18 +38,32 @@ type BridgePongMessage = {
   ts: number;
 };
 
+type BridgeScreenshotResultMessage = {
+  v: 1;
+  t: 'SCREENSHOT_RESULT';
+  id: string;
+  ok: boolean;
+  data?: string;
+  width?: number;
+  height?: number;
+  note?: string;
+  error?: string;
+};
+
 type BridgeChildToParentMessage =
   | BridgeHelloMessage
   | BridgeReadyMessage
   | BridgeLocationMessage
   | BridgeErrorMessage
-  | BridgePongMessage;
+  | BridgePongMessage
+  | BridgeScreenshotResultMessage;
 
 type BridgeParentToChildMessage =
   | { v: 1; t: 'NAV'; cmd: 'GO'; to?: string }
   | { v: 1; t: 'NAV'; cmd: 'BACK' }
   | { v: 1; t: 'NAV'; cmd: 'FWD' }
-  | { v: 1; t: 'PING'; ts: number };
+  | { v: 1; t: 'PING'; ts: number }
+  | { v: 1; t: 'CAPTURE'; cmd: 'SCREENSHOT'; id: string; options?: { scale?: number } };
 
 export interface BridgeComplianceResult {
   ok: boolean;
@@ -98,6 +112,12 @@ export interface UseIframeBridgeReturn {
   sendPing: () => boolean;
   runComplianceCheck: () => Promise<BridgeComplianceResult>;
   resetState: () => void;
+  requestScreenshot: (options?: { scale?: number }) => Promise<{
+    data: string;
+    width: number;
+    height: number;
+    note?: string;
+  }>;
 }
 
 const deriveOrigin = (url: string | null): string | null => {
@@ -121,12 +141,22 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
   const helloReceivedRef = useRef(false);
   const readyReceivedRef = useRef(false);
   const effectiveOriginRef = useRef<string | null>(null);
+  const pendingScreenshotRequestsRef = useRef(new Map<string, {
+    resolve: (value: { data: string; width: number; height: number; note?: string }) => void;
+    reject: (error: Error) => void;
+    timeoutHandle: number;
+  }>());
 
   const resetState = useCallback(() => {
     helloReceivedRef.current = false;
     readyReceivedRef.current = false;
     lastHrefRef.current = '';
     effectiveOriginRef.current = null;
+    pendingScreenshotRequestsRef.current.forEach(({ reject, timeoutHandle }) => {
+      window.clearTimeout(timeoutHandle);
+      reject(new Error('bridge-reset'));
+    });
+    pendingScreenshotRequestsRef.current.clear();
     setState(initialBridgeState);
   }, []);
 
@@ -208,6 +238,24 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
           break;
         }
 
+        case 'SCREENSHOT_RESULT': {
+          if (!message.id) {
+            break;
+          }
+          const pending = pendingScreenshotRequestsRef.current.get(message.id);
+          if (!pending) {
+            break;
+          }
+          pendingScreenshotRequestsRef.current.delete(message.id);
+          window.clearTimeout(pending.timeoutHandle);
+          if (message.ok && typeof message.data === 'string' && typeof message.width === 'number' && typeof message.height === 'number') {
+            pending.resolve({ data: message.data, width: message.width, height: message.height, note: message.note });
+          } else {
+            pending.reject(new Error(message.error || 'screenshot-failed'));
+          }
+          break;
+        }
+
         default: {
           break;
         }
@@ -258,6 +306,45 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
   const sendPing = useCallback(() => {
     return postMessage({ v: 1, t: 'PING', ts: Date.now() });
   }, [postMessage]);
+
+  const requestScreenshot = useCallback(
+    (options?: { scale?: number }) => {
+      return new Promise<{
+        data: string;
+        width: number;
+        height: number;
+        note?: string;
+      }>((resolve, reject) => {
+        const iframeWindow = iframeRef.current?.contentWindow;
+        if (!iframeWindow) {
+          reject(new Error('missing-iframe'));
+          return;
+        }
+
+        const id = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `shot-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+        const timeoutHandle = window.setTimeout(() => {
+          const pending = pendingScreenshotRequestsRef.current.get(id);
+          if (pending) {
+            pendingScreenshotRequestsRef.current.delete(id);
+            pending.reject(new Error('screenshot-timeout'));
+          }
+        }, 7000);
+
+        pendingScreenshotRequestsRef.current.set(id, { resolve, reject, timeoutHandle });
+
+        const sent = postMessage({ v: 1, t: 'CAPTURE', cmd: 'SCREENSHOT', id, options });
+        if (!sent) {
+          window.clearTimeout(timeoutHandle);
+          pendingScreenshotRequestsRef.current.delete(id);
+          reject(new Error('screenshot-unsupported'));
+        }
+      });
+    },
+    [iframeRef, postMessage],
+  );
 
   const waitForMessage = useCallback(
     (predicate: (message: BridgeChildToParentMessage) => boolean, timeoutMs: number) => {
@@ -380,6 +467,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
     sendPing,
     runComplianceCheck,
     resetState,
+    requestScreenshot,
   };
 };
 

@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"os/exec"
 	"sort"
 	"strconv"
@@ -762,14 +761,6 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		}
 	}
 
-	if screenshotData == "" && req.IncludeScreenshot && previewURL != "" {
-		if data, err := capturePreviewScreenshot(ctx, previewURL); err == nil {
-			screenshotData = data
-		} else {
-			fmt.Printf("Warning: failed to capture preview screenshot: %v\n", err)
-		}
-	}
-
 	title := fmt.Sprintf("[app-monitor] %s", summarizeIssueTitle(message))
 	description := buildIssueDescription(appName, scenarioName, previewURL, req.Source, message, screenshotData, reportedAt)
 	hasScreenshot := screenshotData != ""
@@ -821,18 +812,6 @@ func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error)
 	}
 
 	return 0, errors.New("app-issue-tracker is not running or no API port was found")
-}
-
-// CaptureIssueScreenshot captures a screenshot of the provided preview URL
-func (s *AppService) CaptureIssueScreenshot(ctx context.Context, appID string, previewURL string) (string, error) {
-	_ = appID // currently unused but kept for future validation
-
-	normalized := normalizePreviewURL(previewURL)
-	if normalized == "" {
-		return "", errors.New("invalid preview URL")
-	}
-
-	return capturePreviewScreenshot(ctx, normalized)
 }
 
 func resolvePort(portMappings map[string]interface{}, preferredKeys []string) int {
@@ -918,32 +897,6 @@ func normalizePreviewURL(raw string) string {
 	}
 
 	return parsed.String()
-}
-
-func capturePreviewScreenshot(ctx context.Context, targetURL string) (string, error) {
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	file, err := os.CreateTemp("", "app-monitor-preview-*.png")
-	if err != nil {
-		return "", err
-	}
-	tmpPath := file.Name()
-	file.Close()
-	defer os.Remove(tmpPath)
-
-	cmd := exec.CommandContext(ctxWithTimeout, "resource-browserless", "screenshot", targetURL, "--output", tmpPath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("screenshot command failed: %w (output: %s)", err, string(output))
-	}
-
-	imageBytes, err := os.ReadFile(tmpPath)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.StdEncoding.EncodeToString(imageBytes), nil
 }
 
 func summarizeIssueTitle(message string) string {

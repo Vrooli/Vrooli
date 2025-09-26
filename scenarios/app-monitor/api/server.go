@@ -131,7 +131,6 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 		v1.POST("/apps/:id/stop", h.app.StopApp)
 		v1.POST("/apps/:id/restart", h.app.RestartApp)
 		v1.POST("/apps/:id/report", h.app.ReportAppIssue)
-		v1.GET("/apps/:id/report/screenshot", h.app.GetAppReportScreenshot)
 		v1.GET("/apps/:id/logs", h.app.GetAppLogs)
 		v1.GET("/apps/:id/logs/lifecycle", h.app.GetAppLifecycleLogs)
 		v1.GET("/apps/:id/logs/background", h.app.GetAppBackgroundLogs)

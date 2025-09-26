@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"strings"
 
 	"app-monitor-api/services"
 
@@ -200,36 +199,6 @@ func (h *AppHandler) GetAppBackgroundLogs(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, structuredLogs)
-}
-
-// GetAppReportScreenshot captures a preview screenshot for verification
-func (h *AppHandler) GetAppReportScreenshot(c *gin.Context) {
-	appID := c.Param("id")
-	previewURL := c.Query("preview_url")
-
-	if strings.TrimSpace(previewURL) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "preview_url query parameter is required",
-		})
-		return
-	}
-
-	screenshot, err := h.appService.CaptureIssueScreenshot(c.Request.Context(), appID, previewURL)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": gin.H{
-			"screenshot": screenshot,
-		},
-	})
 }
 
 // ReportAppIssue forwards an application issue report to the issue tracker scenario

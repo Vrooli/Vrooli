@@ -133,18 +133,6 @@ export const appService = {
       throw error;
     }
   },
-
-  async fetchReportScreenshot(appId: string, previewUrl: string): Promise<ApiResponse<{ screenshot?: string }>> {
-    try {
-      const { data } = await api.get<ApiResponse<{ screenshot?: string }>>(`/apps/${encodeURIComponent(appId)}/report/screenshot`, {
-        params: { preview_url: previewUrl },
-      });
-      return data;
-    } catch (error) {
-      logger.error(`Failed to capture screenshot for app ${appId}`, error);
-      throw error;
-    }
-  },
 };
 
 // Resource Management

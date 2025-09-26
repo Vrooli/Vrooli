@@ -1,9 +1,60 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, FormEvent, KeyboardEvent, MouseEvent } from 'react';
+import type { ChangeEvent, FormEvent, KeyboardEvent, MouseEvent, PointerEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { ArrowLeft, ArrowRight, Bug, ExternalLink, Info, Loader2, Power, RefreshCw, RotateCcw, ScrollText, X } from 'lucide-react';
 import { appService } from '@/services/api';
+
+type Html2CanvasFn = (element: HTMLElement, options?: Record<string, unknown>) => Promise<HTMLCanvasElement>;
+
+declare global {
+  interface Window {
+    html2canvas?: Html2CanvasFn;
+  }
+}
+
+const loadHtml2Canvas = (() => {
+  let loader: Promise<Html2CanvasFn> | null = null;
+  return async (): Promise<Html2CanvasFn> => {
+    if (typeof window !== 'undefined' && typeof window.html2canvas === 'function') {
+      return window.html2canvas;
+    }
+
+    if (!loader) {
+      loader = new Promise<Html2CanvasFn>((resolve, reject) => {
+        const existingScript = document.querySelector<HTMLScriptElement>('script[data-html2canvas="true"]');
+        if (existingScript) {
+          existingScript.addEventListener('load', () => {
+            if (window.html2canvas) {
+              resolve(window.html2canvas);
+            } else {
+              reject(new Error('html2canvas failed to initialize.'));
+            }
+          });
+          existingScript.addEventListener('error', () => reject(new Error('Failed to load html2canvas script.')));
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        script.async = true;
+        script.crossOrigin = 'anonymous';
+        script.dataset.html2canvas = 'true';
+        script.onload = () => {
+          if (window.html2canvas) {
+            resolve(window.html2canvas);
+          } else {
+            reject(new Error('html2canvas failed to initialize.'));
+          }
+        };
+        script.onerror = () => reject(new Error('Failed to load html2canvas script.'));
+        document.head.appendChild(script);
+      });
+    }
+
+    return loader;
+  };
+})();
 import { logger } from '@/services/logger';
 import type { App } from '@/types';
 import AppModal from '../AppModal';
@@ -38,13 +89,21 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportResult, setReportResult] = useState<{ issueId?: string; message?: string } | null>(null);
   const [reportScreenshotData, setReportScreenshotData] = useState<string | null>(null);
+  const [reportScreenshotOriginalData, setReportScreenshotOriginalData] = useState<string | null>(null);
   const [reportScreenshotLoading, setReportScreenshotLoading] = useState(false);
   const [reportScreenshotError, setReportScreenshotError] = useState<string | null>(null);
-  const [reportScreenshotRequestId, setReportScreenshotRequestId] = useState(0);
+  const [reportScreenshotOriginalDimensions, setReportScreenshotOriginalDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [reportSelectionRect, setReportSelectionRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [reportScreenshotClip, setReportScreenshotClip] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [reportScreenshotInfo, setReportScreenshotInfo] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
   const complianceRunRef = useRef(false);
   const initialPreviewUrlRef = useRef<string | null>(null);
+  const reportScreenshotContainerRef = useRef<HTMLDivElement | null>(null);
+  const reportScreenshotContainerSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const reportDragStateRef = useRef<{ pointerId: number; startX: number; startY: number; containerWidth: number; containerHeight: number } | null>(null);
 
   const handleBridgeLocation = useCallback((message: { href: string; title?: string | null }) => {
     if (message.href) {
@@ -67,7 +126,14 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     setStatusMessage(null);
   }, []);
 
-  const { state: bridgeState, childOrigin, sendNav: sendBridgeNav, runComplianceCheck, resetState } = useIframeBridge({
+  const {
+    state: bridgeState,
+    childOrigin,
+    sendNav: sendBridgeNav,
+    runComplianceCheck,
+    resetState,
+    requestScreenshot,
+  } = useIframeBridge({
     iframeRef,
     previewUrl,
     onLocation: handleBridgeLocation,
@@ -75,7 +141,265 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
   const activePreviewUrl = useMemo(() => bridgeState.href || previewUrl || '', [bridgeState.href, previewUrl]);
   const canCaptureScreenshot = useMemo(() => Boolean(activePreviewUrl), [activePreviewUrl]);
-  const targetAppIdentifier = useMemo(() => currentApp?.id ?? appId ?? '', [appId, currentApp]);
+  const isPreviewSameOrigin = useMemo(() => {
+    if (typeof window === 'undefined' || !activePreviewUrl) {
+      return false;
+    }
+
+    try {
+      const targetOrigin = new URL(activePreviewUrl, window.location.href).origin;
+      return targetOrigin === window.location.origin;
+    } catch (error) {
+      logger.warn('Failed to evaluate preview origin', { activePreviewUrl, error });
+      return false;
+    }
+  }, [activePreviewUrl]);
+  const bridgeSupportsScreenshot = useMemo(
+    () => bridgeState.isSupported && bridgeState.caps.includes('screenshot'),
+    [bridgeState.caps, bridgeState.isSupported],
+  );
+
+  const captureIframeScreenshot = useCallback(async () => {
+    if (!reportDialogOpen || !reportIncludeScreenshot || !canCaptureScreenshot) {
+      return;
+    }
+
+    setReportScreenshotLoading(true);
+    setReportScreenshotError(null);
+    setReportScreenshotInfo(null);
+    setReportScreenshotClip(null);
+    setReportSelectionRect(null);
+    setReportScreenshotOriginalData(null);
+    setReportScreenshotData(null);
+    setReportScreenshotOriginalDimensions(null);
+    reportScreenshotContainerSizeRef.current = null;
+
+    const produceFromCanvas = (canvas: HTMLCanvasElement, infoMessage?: string) => {
+      const dataUrl = canvas.toDataURL('image/png');
+      const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+      setReportScreenshotOriginalData(base64);
+      setReportScreenshotData(base64);
+      setReportScreenshotOriginalDimensions({ width: canvas.width, height: canvas.height });
+      if (infoMessage) {
+        setReportScreenshotInfo(infoMessage);
+      }
+      return true;
+    };
+
+    const wrapText = (
+      context: CanvasRenderingContext2D,
+      text: string,
+      x: number,
+      y: number,
+      maxWidth: number,
+      lineHeight: number,
+    ) => {
+      const words = text.split(/\s+/);
+      let line = '';
+      let currentY = y;
+      for (const word of words) {
+        const testLine = line ? `${line} ${word}` : word;
+        const metrics = context.measureText(testLine);
+        if (metrics.width > maxWidth && line) {
+          context.fillText(line, x, currentY);
+          line = word;
+          currentY += lineHeight;
+        } else {
+          line = testLine;
+        }
+      }
+      if (line) {
+        context.fillText(line, x, currentY);
+        currentY += lineHeight;
+      }
+      return currentY;
+    };
+
+    const createPlaceholderCanvas = (
+      width: number,
+      height: number,
+      reason: 'cross-origin' | 'fallback',
+    ): HTMLCanvasElement | null => {
+      const canvas = document.createElement('canvas');
+      const paddedWidth = Math.max(320, Math.round(width) || 0) || 640;
+      const paddedHeight = Math.max(220, Math.round(height) || 0) || 360;
+      canvas.width = paddedWidth;
+      canvas.height = paddedHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return null;
+      }
+
+      const gradient = ctx.createLinearGradient(0, 0, paddedWidth, paddedHeight);
+      gradient.addColorStop(0, '#01161b');
+      gradient.addColorStop(1, '#042a31');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, paddedWidth, paddedHeight);
+
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(18, 18, paddedWidth - 36, paddedHeight - 36);
+
+      ctx.fillStyle = 'rgba(224, 255, 249, 0.9)';
+      ctx.font = '20px "Inter", "Segoe UI", sans-serif';
+      ctx.textBaseline = 'top';
+      ctx.fillText('Preview capture not available', 32, 34);
+
+      ctx.font = '15px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = 'rgba(224, 255, 249, 0.75)';
+      const reasonText = reason === 'cross-origin'
+        ? 'The application preview runs on a different origin, so browsers block direct screenshots.'
+        : 'The preview could not be captured automatically. A fallback frame is attached instead.';
+      const detailsBaseline = wrapText(ctx, reasonText, 32, 66, paddedWidth - 64, 22);
+
+      if (activePreviewUrl) {
+        ctx.fillStyle = 'rgba(0, 255, 255, 0.85)';
+        ctx.font = '15px "Inter", "Segoe UI", sans-serif';
+        wrapText(ctx, activePreviewUrl, 32, Math.min(detailsBaseline + 20, paddedHeight - 80), paddedWidth - 64, 20);
+      }
+
+      return canvas;
+    };
+
+    const captureContainerCanvas = async (
+      reason: 'cross-origin' | 'missing-iframe' | 'fallback',
+    ): Promise<boolean> => {
+      const container = previewContainerRef.current;
+      if (!container) {
+        setReportScreenshotError('Preview container is not available for capture.');
+        if (reason !== 'fallback') {
+          setReportIncludeScreenshot(false);
+        }
+        return false;
+      }
+
+      try {
+        const html2canvas = await loadHtml2Canvas();
+        const containerBackground = window.getComputedStyle(container).backgroundColor || '#060a06';
+        const canvas = await html2canvas(container, {
+          backgroundColor: containerBackground,
+          logging: false,
+          useCORS: true,
+          scale: window.devicePixelRatio || 1,
+        });
+        const infoMessage = reason === 'cross-origin'
+          ? 'Captured the preview frame using a fallback because the app runs on a different origin. The embedded content may appear blank.'
+          : 'Captured the preview frame using a fallback of the surrounding interface.';
+        return produceFromCanvas(canvas, infoMessage);
+      } catch (error) {
+        console.error('Failed to capture preview frame container', error);
+        const bounds = container.getBoundingClientRect();
+        const placeholder = createPlaceholderCanvas(bounds.width, bounds.height, reason === 'cross-origin' ? 'cross-origin' : 'fallback');
+        if (placeholder) {
+          const infoMessage = reason === 'cross-origin'
+            ? 'Attached a placeholder frame because the app runs on a different origin.'
+            : 'Attached a placeholder frame because the live preview could not be captured automatically.';
+          return produceFromCanvas(placeholder, infoMessage);
+        }
+        setReportScreenshotError('Unable to capture this preview automatically. Try opening the app in a new tab and attach a manual screenshot.');
+        setReportIncludeScreenshot(false);
+        return false;
+      }
+    };
+
+    const captureIframeCanvas = async (): Promise<'captured' | 'cross-origin' | 'missing' | 'failed'> => {
+      const iframe = iframeRef.current;
+      if (!iframe) {
+        return 'missing';
+      }
+
+      let iframeDocument: Document | null = null;
+
+      try {
+        iframeDocument = iframe.contentDocument;
+      } catch (error) {
+        console.warn('Restricted from accessing iframe document (likely cross-origin).', error);
+        return 'cross-origin';
+      }
+
+      if (!iframeDocument) {
+        try {
+          iframeDocument = iframe.contentWindow ? iframe.contentWindow.document : null;
+        } catch (error) {
+          console.warn('Restricted from accessing iframe window document (cross-origin).', error);
+          return 'cross-origin';
+        }
+      }
+
+      if (!iframeDocument) {
+        return 'missing';
+      }
+
+      try {
+        const html2canvas = await loadHtml2Canvas();
+        const target = iframeDocument.documentElement as HTMLElement;
+        const computedBackground = iframeDocument.body ? window.getComputedStyle(iframeDocument.body).backgroundColor : undefined;
+        const backgroundColor = computedBackground && computedBackground !== 'rgba(0, 0, 0, 0)'
+          ? computedBackground
+          : iframeDocument.body?.style?.backgroundColor || undefined;
+        const canvas = await html2canvas(target, {
+          backgroundColor,
+          logging: false,
+          useCORS: true,
+          scale: window.devicePixelRatio || 1,
+        });
+        produceFromCanvas(canvas);
+        return 'captured';
+      } catch (error) {
+        console.error('Failed to capture iframe screenshot', error);
+        return 'failed';
+      }
+    };
+
+    let handled = false;
+
+    if (bridgeSupportsScreenshot) {
+      try {
+        const result = await requestScreenshot({ scale: window.devicePixelRatio || 1 });
+        setReportScreenshotOriginalData(result.data);
+        setReportScreenshotData(result.data);
+        setReportScreenshotOriginalDimensions({ width: result.width, height: result.height });
+        setReportScreenshotInfo(result.note ?? null);
+        handled = true;
+      } catch (error) {
+        logger.warn('Bridge screenshot capture failed, falling back to client capture', error);
+      }
+    }
+
+    if (handled) {
+      setReportScreenshotLoading(false);
+      return;
+    }
+
+    try {
+      if (!isPreviewSameOrigin) {
+        await captureContainerCanvas('cross-origin');
+      } else {
+        const result = await captureIframeCanvas();
+        if (result === 'captured') {
+          handled = true;
+          return;
+        }
+        if (result === 'cross-origin') {
+          await captureContainerCanvas('cross-origin');
+        } else if (result === 'missing') {
+          await captureContainerCanvas('missing-iframe');
+        } else {
+          await captureContainerCanvas('fallback');
+        }
+      }
+    } finally {
+      setReportScreenshotLoading(false);
+    }
+  }, [
+    activePreviewUrl,
+    bridgeSupportsScreenshot,
+    canCaptureScreenshot,
+    isPreviewSameOrigin,
+    reportDialogOpen,
+    reportIncludeScreenshot,
+    requestScreenshot,
+  ]);
 
   useEffect(() => {
     if (!appId) {
@@ -94,7 +418,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     complianceRunRef.current = false;
     setBridgeCompliance(null);
     resetState();
-  }, [appId]);
+  }, [appId, resetState]);
 
   useEffect(() => {
     complianceRunRef.current = false;
@@ -483,12 +807,20 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     setReportMessage('');
     setReportError(null);
     setReportResult(null);
+    setReportScreenshotOriginalData(null);
     setReportScreenshotData(null);
     setReportScreenshotError(null);
+    setReportScreenshotInfo(null);
     setReportScreenshotLoading(false);
+    setReportScreenshotOriginalDimensions(null);
+    setReportSelectionRect(null);
+    setReportScreenshotClip(null);
+    reportScreenshotContainerSizeRef.current = null;
     setReportIncludeScreenshot(canCaptureScreenshot);
-    setReportScreenshotRequestId(prev => prev + 1);
-  }, [canCaptureScreenshot]);
+    if (canCaptureScreenshot) {
+      void captureIframeScreenshot();
+    }
+  }, [canCaptureScreenshot, captureIframeScreenshot]);
 
   const handleCloseReportDialog = useCallback(() => {
     setReportDialogOpen(false);
@@ -497,10 +829,15 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     setReportResult(null);
     setReportMessage('');
     setReportIncludeScreenshot(canCaptureScreenshot);
+    setReportScreenshotOriginalData(null);
     setReportScreenshotData(null);
     setReportScreenshotError(null);
+    setReportScreenshotInfo(null);
     setReportScreenshotLoading(false);
-    setReportScreenshotRequestId(0);
+    setReportScreenshotOriginalDimensions(null);
+    setReportSelectionRect(null);
+    setReportScreenshotClip(null);
+    reportScreenshotContainerSizeRef.current = null;
   }, [canCaptureScreenshot]);
 
   const handleReportMessageChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -514,17 +851,255 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     const nextValue = event.target.checked;
     setReportIncludeScreenshot(nextValue);
     if (nextValue) {
-      setReportScreenshotRequestId(prev => prev + 1);
+      setReportSelectionRect(null);
+      setReportScreenshotClip(null);
+      reportScreenshotContainerSizeRef.current = null;
+      setReportScreenshotError(null);
+      setReportScreenshotInfo(null);
+      setReportScreenshotOriginalData(null);
+      setReportScreenshotData(null);
+      setReportScreenshotOriginalDimensions(null);
+      if (canCaptureScreenshot) {
+        void captureIframeScreenshot();
+      }
     } else {
+      setReportScreenshotOriginalData(null);
       setReportScreenshotData(null);
       setReportScreenshotError(null);
+      setReportScreenshotInfo(null);
       setReportScreenshotLoading(false);
+      setReportSelectionRect(null);
+      setReportScreenshotOriginalDimensions(null);
+      setReportScreenshotClip(null);
+      reportScreenshotContainerSizeRef.current = null;
+    }
+  }, [canCaptureScreenshot, captureIframeScreenshot]);
+
+  const handleRetryScreenshotCapture = useCallback(() => {
+    if (!reportScreenshotLoading) {
+      setReportScreenshotClip(null);
+      setReportSelectionRect(null);
+      reportScreenshotContainerSizeRef.current = null;
+      setReportScreenshotOriginalData(null);
+      setReportScreenshotData(null);
+      setReportScreenshotOriginalDimensions(null);
+      setReportScreenshotInfo(null);
+      void captureIframeScreenshot();
+    }
+  }, [captureIframeScreenshot, reportScreenshotLoading]);
+
+  const handleResetScreenshotSelection = useCallback(() => {
+    if (reportScreenshotLoading || !reportScreenshotOriginalData) {
+      return;
+    }
+    setReportScreenshotData(reportScreenshotOriginalData);
+    setReportSelectionRect(null);
+    setReportScreenshotClip(null);
+    setReportScreenshotError(null);
+    reportScreenshotContainerSizeRef.current = null;
+  }, [reportScreenshotLoading, reportScreenshotOriginalData]);
+
+  const clampValue = useCallback((value: number, min: number, max: number) => {
+    if (Number.isNaN(value)) {
+      return min;
+    }
+    return Math.max(min, Math.min(max, value));
+  }, []);
+
+  const cropScreenshot = useCallback(async (clip: { x: number; y: number; width: number; height: number }) => {
+    if (!reportScreenshotOriginalData) {
+      return null;
+    }
+
+    const image = new Image();
+    image.src = `data:image/png;base64,${reportScreenshotOriginalData}`;
+
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('Failed to load base screenshot.'));
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = clip.width;
+    canvas.height = clip.height;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return null;
+    }
+
+    context.drawImage(
+      image,
+      clip.x,
+      clip.y,
+      clip.width,
+      clip.height,
+      0,
+      0,
+      clip.width,
+      clip.height,
+    );
+
+    const croppedDataUrl = canvas.toDataURL('image/png');
+    return croppedDataUrl.replace(/^data:image\/png;base64,/, '');
+  }, [reportScreenshotOriginalData]);
+
+  const handleScreenshotImageLoad = useCallback(() => {
+    const container = reportScreenshotContainerRef.current;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        reportScreenshotContainerSizeRef.current = { width: rect.width, height: rect.height };
+      }
     }
   }, []);
 
-  const handleRetryScreenshotCapture = useCallback(() => {
-    setReportScreenshotRequestId(prev => prev + 1);
-  }, []);
+  const handleScreenshotPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (!reportScreenshotData || reportScreenshotLoading || reportScreenshotClip || !reportScreenshotOriginalDimensions) {
+      return;
+    }
+
+    const container = reportScreenshotContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const rect = container.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const x = clampValue(event.clientX - rect.left, 0, rect.width);
+    const y = clampValue(event.clientY - rect.top, 0, rect.height);
+
+    reportDragStateRef.current = {
+      pointerId: event.pointerId,
+      startX: x,
+      startY: y,
+      containerWidth: rect.width,
+      containerHeight: rect.height,
+    };
+    reportScreenshotContainerSizeRef.current = { width: rect.width, height: rect.height };
+
+    setReportSelectionRect({ x, y, width: 0, height: 0 });
+
+    try {
+      container.setPointerCapture(event.pointerId);
+    } catch {
+      // ignore pointer capture errors
+    }
+  }, [clampValue, reportScreenshotClip, reportScreenshotData, reportScreenshotOriginalDimensions, reportScreenshotLoading]);
+
+  const handleScreenshotPointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    const dragState = reportDragStateRef.current;
+    if (!dragState) {
+      return;
+    }
+
+    const container = reportScreenshotContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const rect = container.getBoundingClientRect();
+    const currentX = clampValue(event.clientX - rect.left, 0, rect.width);
+    const currentY = clampValue(event.clientY - rect.top, 0, rect.height);
+
+    const x = Math.min(dragState.startX, currentX);
+    const y = Math.min(dragState.startY, currentY);
+    const width = Math.abs(currentX - dragState.startX);
+    const height = Math.abs(currentY - dragState.startY);
+
+    setReportSelectionRect({ x, y, width, height });
+
+    reportDragStateRef.current = {
+      ...dragState,
+      containerWidth: rect.width,
+      containerHeight: rect.height,
+    };
+    reportScreenshotContainerSizeRef.current = { width: rect.width, height: rect.height };
+  }, [clampValue]);
+
+  const finalizeScreenshotSelection = useCallback((event: PointerEvent<HTMLDivElement>, cancelledDrag = false) => {
+    const dragState = reportDragStateRef.current;
+    const selection = reportSelectionRect;
+    reportDragStateRef.current = null;
+
+    const container = reportScreenshotContainerRef.current;
+    if (container) {
+      try {
+        container.releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
+    }
+
+    if (cancelledDrag || !selection || !dragState || !reportScreenshotOriginalDimensions) {
+      setReportSelectionRect(null);
+      return;
+    }
+
+    const minDisplaySize = 12;
+    if (selection.width < minDisplaySize || selection.height < minDisplaySize) {
+      setReportSelectionRect(null);
+      return;
+    }
+
+    const scaleX = reportScreenshotOriginalDimensions.width / dragState.containerWidth;
+    const scaleY = reportScreenshotOriginalDimensions.height / dragState.containerHeight;
+
+    const rawClip = {
+      x: Math.max(0, Math.round(selection.x * scaleX)),
+      y: Math.max(0, Math.round(selection.y * scaleY)),
+      width: Math.max(1, Math.round(selection.width * scaleX)),
+      height: Math.max(1, Math.round(selection.height * scaleY)),
+    };
+
+    rawClip.width = Math.min(rawClip.width, Math.max(1, reportScreenshotOriginalDimensions.width-rawClip.x));
+    rawClip.height = Math.min(rawClip.height, Math.max(1, reportScreenshotOriginalDimensions.height-rawClip.y));
+
+    const minClipSize = 24;
+    if (rawClip.width < minClipSize || rawClip.height < minClipSize) {
+      setReportSelectionRect(null);
+      return;
+    }
+
+    setReportSelectionRect(null);
+    setReportScreenshotLoading(true);
+    setReportScreenshotError(null);
+
+    void (async () => {
+      try {
+        const cropped = await cropScreenshot(rawClip);
+        if (!cropped) {
+          setReportScreenshotError('Failed to crop screenshot.');
+          setReportScreenshotLoading(false);
+          return;
+        }
+
+        setReportScreenshotData(cropped);
+        setReportScreenshotClip(rawClip);
+      } catch (error) {
+        console.error('Failed to crop screenshot', error);
+        setReportScreenshotError('Unable to crop the screenshot. Try again.');
+      } finally {
+        setReportScreenshotLoading(false);
+      }
+    })();
+  }, [cropScreenshot, reportScreenshotOriginalDimensions, reportSelectionRect]);
+
+  const handleScreenshotPointerUp = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    finalizeScreenshotSelection(event, false);
+  }, [finalizeScreenshotSelection]);
+
+  const handleScreenshotPointerLeave = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (!reportDragStateRef.current) {
+      return;
+    }
+    finalizeScreenshotSelection(event, true);
+  }, [finalizeScreenshotSelection]);
 
   const handleSubmitReport = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -541,11 +1116,16 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       return;
     }
 
+    const includeScreenshot = reportIncludeScreenshot && canCaptureScreenshot;
+    if (includeScreenshot && !reportScreenshotData) {
+      setReportError('Capture a screenshot before sending the report.');
+      return;
+    }
+
     setReportSubmitting(true);
     setReportError(null);
 
     try {
-      const includeScreenshot = reportIncludeScreenshot && canCaptureScreenshot;
       const previewContextUrl = activePreviewUrl || null;
 
       const response = await appService.reportAppIssue(targetAppId, {
@@ -570,7 +1150,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     } finally {
       setReportSubmitting(false);
     }
-  }, [activePreviewUrl, appId, canCaptureScreenshot, currentApp, reportIncludeScreenshot, reportMessage]);
+  }, [activePreviewUrl, appId, canCaptureScreenshot, currentApp, reportIncludeScreenshot, reportMessage, reportScreenshotData]);
 
   useEffect(() => {
     if (!reportDialogOpen) {
@@ -591,57 +1171,29 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   }, [handleCloseReportDialog, reportDialogOpen, reportSubmitting]);
 
   useEffect(() => {
-    if (!reportDialogOpen) {
+    if (!reportDialogOpen || !reportIncludeScreenshot) {
       return;
     }
 
-    if (!reportIncludeScreenshot) {
-      setReportScreenshotLoading(false);
-      setReportScreenshotError(null);
+    if (!canCaptureScreenshot) {
+      setReportScreenshotError('Load the preview to capture a screenshot.');
       return;
     }
 
-    if (!canCaptureScreenshot || !activePreviewUrl || !targetAppIdentifier) {
-      setReportScreenshotLoading(false);
-      if (!canCaptureScreenshot) {
-        setReportScreenshotError(null);
-      }
+    if (reportScreenshotLoading || reportScreenshotOriginalData) {
       return;
     }
 
-    let cancelled = false;
-    setReportScreenshotLoading(true);
-    setReportScreenshotError(null);
-
-    appService.fetchReportScreenshot(targetAppIdentifier, activePreviewUrl)
-      .then((response) => {
-        if (cancelled) {
-          return;
-        }
-        const screenshot = response.data?.screenshot ?? null;
-        setReportScreenshotData(screenshot ?? null);
-        if (!screenshot) {
-          setReportScreenshotError('Screenshot capture returned no data.');
-        }
-      })
-      .catch((error: unknown) => {
-        if (cancelled) {
-          return;
-        }
-        const fallbackMessage = (error as { message?: string })?.message ?? 'Failed to capture screenshot.';
-        setReportScreenshotError(fallbackMessage);
-        setReportScreenshotData(null);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setReportScreenshotLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [reportDialogOpen, reportIncludeScreenshot, canCaptureScreenshot, activePreviewUrl, targetAppIdentifier, reportScreenshotRequestId]);
+    void captureIframeScreenshot();
+  }, [
+    captureIframeScreenshot,
+    canCaptureScreenshot,
+    reportDialogOpen,
+    reportIncludeScreenshot,
+    reportScreenshotLoading,
+    reportScreenshotOriginalData,
+    activePreviewUrl,
+  ]);
 
   const urlStatusClass = useMemo(() => {
     if (!currentApp) {
@@ -682,6 +1234,26 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const canGoBack = bridgeState.isSupported ? bridgeState.canGoBack : historyIndex > 0;
   const canGoForward = bridgeState.isSupported ? bridgeState.canGoForward : (historyIndex >= 0 && historyIndex < history.length - 1);
   const openPreviewTarget = bridgeState.isSupported && bridgeState.href ? bridgeState.href : previewUrl;
+
+  const selectionDimensionLabel = useMemo(() => {
+    if (!reportSelectionRect || !reportScreenshotOriginalDimensions) {
+      return null;
+    }
+
+    const containerSize = reportScreenshotContainerSizeRef.current;
+    if (!containerSize || containerSize.width === 0 || containerSize.height === 0) {
+      return null;
+    }
+
+    const width = Math.round((reportScreenshotOriginalDimensions.width / containerSize.width) * reportSelectionRect.width);
+    const height = Math.round((reportScreenshotOriginalDimensions.height / containerSize.height) * reportSelectionRect.height);
+
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return null;
+    }
+
+    return `${width} × ${height}px`;
+  }, [reportSelectionRect, reportScreenshotOriginalDimensions]);
 
   return (
     <div className="app-preview-view">
@@ -825,7 +1397,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       )}
 
       {previewUrl ? (
-        <div className="preview-iframe-container">
+        <div className="preview-iframe-container" ref={previewContainerRef}>
           <iframe
             src={previewUrl}
             title={`${currentApp?.name ?? 'Application'} preview`}
@@ -933,12 +1505,14 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
                 )}
                 {reportIncludeScreenshot && canCaptureScreenshot && (
                   <div className="report-dialog__preview" aria-live="polite">
-                    {reportScreenshotLoading ? (
+                    {reportScreenshotLoading && (
                       <div className="report-dialog__preview-loading">
                         <Loader2 aria-hidden size={18} className="spinning" />
                         <span>Capturing screenshot…</span>
                       </div>
-                    ) : reportScreenshotError ? (
+                    )}
+
+                    {!reportScreenshotLoading && reportScreenshotError && (
                       <div className="report-dialog__preview-error">
                         <p>{reportScreenshotError}</p>
                         <button
@@ -950,15 +1524,96 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
                           Retry capture
                         </button>
                       </div>
-                    ) : reportScreenshotData ? (
-                      <div className="report-dialog__preview-image">
-                        <img
-                          src={`data:image/png;base64,${reportScreenshotData}`}
-                          alt="Preview screenshot"
-                          loading="lazy"
-                        />
-                      </div>
-                    ) : (
+                    )}
+
+                    {!reportScreenshotLoading && !reportScreenshotError && reportScreenshotInfo && (
+                      <p className="report-dialog__preview-info">{reportScreenshotInfo}</p>
+                    )}
+
+                    {!reportScreenshotLoading && !reportScreenshotError && reportScreenshotData && (
+                      <>
+                        <div
+                          className={clsx(
+                            'report-dialog__preview-image',
+                            reportScreenshotClip === null && 'report-dialog__preview-image--selectable',
+                          )}
+                          ref={reportScreenshotContainerRef}
+                          onPointerDown={handleScreenshotPointerDown}
+                          onPointerMove={handleScreenshotPointerMove}
+                          onPointerUp={handleScreenshotPointerUp}
+                          onPointerLeave={handleScreenshotPointerLeave}
+                          onPointerCancel={handleScreenshotPointerLeave}
+                        >
+                          <img
+                            src={`data:image/png;base64,${reportScreenshotData}`}
+                            alt="Preview screenshot"
+                            loading="lazy"
+                            draggable={false}
+                            onLoad={handleScreenshotImageLoad}
+                          />
+                          {reportSelectionRect && (
+                            <div
+                              className="report-dialog__selection"
+                              style={{
+                                left: `${reportSelectionRect.x}px`,
+                                top: `${reportSelectionRect.y}px`,
+                                width: `${reportSelectionRect.width}px`,
+                                height: `${reportSelectionRect.height}px`,
+                              }}
+                            >
+                              {selectionDimensionLabel && (
+                                <span className="report-dialog__selection-label">{selectionDimensionLabel}</span>
+                              )}
+                            </div>
+                          )}
+                          {reportScreenshotClip && (
+                            <div className="report-dialog__selection-indicator">
+                              Selection locked. Reset to choose another area.
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="report-dialog__preview-actions">
+                          <div className="report-dialog__preview-meta">
+                            {reportScreenshotOriginalDimensions && (
+                              <span className="report-dialog__preview-meta-item">
+                                Base: {reportScreenshotOriginalDimensions.width} × {reportScreenshotOriginalDimensions.height}px
+                              </span>
+                            )}
+                            {reportScreenshotClip && (
+                              <span className="report-dialog__preview-meta-item">
+                                Crop: {reportScreenshotClip.width} × {reportScreenshotClip.height}px
+                              </span>
+                            )}
+                          </div>
+                          <div className="report-dialog__preview-buttons">
+                            <button
+                              type="button"
+                              className="report-dialog__button report-dialog__button--ghost"
+                              onClick={handleRetryScreenshotCapture}
+                              disabled={reportScreenshotLoading}
+                            >
+                              Re-capture
+                            </button>
+                            <button
+                              type="button"
+                              className="report-dialog__button report-dialog__button--ghost"
+                              onClick={handleResetScreenshotSelection}
+                              disabled={reportScreenshotLoading || !reportScreenshotClip}
+                            >
+                              Reset area
+                            </button>
+                          </div>
+                          <p className="report-dialog__preview-hint">
+                            {reportScreenshotClip === null
+                              ? 'Drag on the screenshot to focus on the area that needs attention.'
+                              : 'Crop saved. Reset the area if you need a different view.'}
+                          </p>
+                        </div>
+                      </>
+                    )}
+
+                    {!reportScreenshotLoading && !reportScreenshotError && !reportScreenshotData && (
                       <p className="report-dialog__preview-hint">Ready to capture the current preview.</p>
                     )}
                   </div>
@@ -982,7 +1637,11 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
                   <button
                     type="submit"
                     className="report-dialog__button report-dialog__button--primary"
-                    disabled={reportSubmitting}
+                    disabled={
+                      reportSubmitting || (
+                        reportIncludeScreenshot && canCaptureScreenshot && (reportScreenshotLoading || !reportScreenshotData)
+                      )
+                    }
                   >
                     {reportSubmitting ? (
                       <>

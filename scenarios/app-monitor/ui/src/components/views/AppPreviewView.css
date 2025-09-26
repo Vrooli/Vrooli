@@ -544,12 +544,82 @@
   overflow: hidden;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(0, 255, 255, 0.15);
+  position: relative;
+  cursor: default;
 }
 
 .report-dialog__preview-image img {
   display: block;
   width: 100%;
   height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.report-dialog__preview-image--selectable {
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.report-dialog__selection {
+  position: absolute;
+  border: 1px dashed rgba(0, 255, 255, 0.85);
+  background: rgba(0, 176, 255, 0.1);
+  box-shadow: 0 0 0 1px rgba(0, 176, 255, 0.2);
+  pointer-events: none;
+}
+
+.report-dialog__selection-label {
+  position: absolute;
+  top: -1.5rem;
+  left: 0;
+  background: rgba(0, 255, 255, 0.85);
+  color: var(--matrix-bg);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.report-dialog__selection-indicator {
+  position: absolute;
+  inset: auto 0 0;
+  background: linear-gradient(90deg, rgba(0, 176, 255, 0.2), rgba(0, 255, 255, 0.4));
+  color: rgba(224, 255, 249, 0.92);
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  padding: 0.4rem 0.75rem;
+  text-align: center;
+  pointer-events: none;
+}
+
+.report-dialog__preview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.report-dialog__preview-meta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  color: rgba(224, 255, 249, 0.75);
+}
+
+.report-dialog__preview-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.report-dialog__preview-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .report-dialog__preview-hint {
@@ -557,6 +627,13 @@
   font-size: 0.85rem;
   letter-spacing: 0.05em;
   color: rgba(0, 255, 255, 0.6);
+}
+
+.report-dialog__preview-info {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  color: rgba(224, 255, 249, 0.75);
 }
 
 .preview-iframe-container {
