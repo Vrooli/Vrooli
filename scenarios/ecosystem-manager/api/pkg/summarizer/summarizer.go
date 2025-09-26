@@ -3,6 +3,7 @@ package summarizer
 import (
 	"bufio"
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"os"
@@ -16,13 +17,19 @@ const (
 	providerOllama     = "ollama"
 	providerOpenRouter = "openrouter"
 
-	classificationFull      = "full_complete"
-	classificationPartial   = "partial_progress"
-	classificationUncertain = "uncertain"
+	classificationFull        = "full_complete"
+	classificationSignificant = "significant_progress"
+	classificationSome        = "some_progress"
+	classificationUncertain   = "uncertain"
 
 	defaultTimeout = 45 * time.Second
 	maxOutputChars = 12000
 )
+
+const rawSectionPlaceholder = "{{RAW_SECTION}}"
+
+//go:embed prompt_template.txt
+var promptTemplate string
 
 // Config defines summarizer execution settings.
 type Config struct {
@@ -32,7 +39,8 @@ type Config struct {
 
 // Input carries the execution output that should be summarized.
 type Input struct {
-	Output string
+	Output         string
+	PromptOverride string
 }
 
 // Result captures the summarizer outcome.
@@ -54,7 +62,10 @@ func GenerateNote(ctx context.Context, cfg Config, input Input) (Result, error) 
 		defer cancel()
 	}
 
-	prompt := buildPrompt(input)
+	prompt := strings.TrimSpace(input.PromptOverride)
+	if prompt == "" {
+		prompt = BuildPrompt(input.Output)
+	}
 
 	switch trimmedProvider {
 	case providerOllama:
@@ -66,47 +77,29 @@ func GenerateNote(ctx context.Context, cfg Config, input Input) (Result, error) 
 	}
 }
 
-func buildPrompt(input Input) string {
-	output := strings.TrimSpace(input.Output)
+// BuildPrompt generates the default recycler summarizer prompt for the provided output text.
+func BuildPrompt(rawOutput string) string {
+	output := strings.TrimSpace(rawOutput)
 	if len(output) > maxOutputChars {
 		output = output[:maxOutputChars] + "\n[TRUNCATED]"
 	}
 
-	var builder strings.Builder
-	builder.WriteString("You are an expert operator for the Vrooli Ecosystem Manager. Review the raw execution output of a single task run and tidy the final response without removing information.\n")
-	builder.WriteString("Respond ONLY in plain text using this exact layout:\n")
-	builder.WriteString("classification: <full_complete|partial_progress|uncertain>\n")
-	builder.WriteString("note:\n")
-	builder.WriteString("<multi-line note content that keeps the required sections>\n")
-	builder.WriteString("Do not include any other labels, JSON, decorative formatting, or summary sentences outside the required structure.\n")
-	builder.WriteString("\nOutput Format Requirements:\n")
-	builder.WriteString("1. Present the four required sections exactly once and in this order, each on its own line using the agent format:\n")
-	builder.WriteString("   - **What was accomplished:** <detailed content>\n")
-	builder.WriteString("   - **Current status:** <detailed content>\n")
-	builder.WriteString("   - **Remaining issues or limitations:** <detailed content>\n")
-	builder.WriteString("   - **Validation evidence:** <detailed content>\n")
-	builder.WriteString("   Keep the field labels identical (including capitalization and punctuation).\n")
-	builder.WriteString("2. Preserve every concrete fact, metric, command output, log line, checklist item, or nuance from the transcript by restating it inside the relevant section. When the source supplies multiple bullets or numbered items, carry each item forward as its own sub-bullet (using '- ') beneath the appropriate section.\n")
-	builder.WriteString("3. Only tidy grammar, spacing, or obvious duplication. Never drop, merge, or generalize distinct data points.\n")
-	builder.WriteString("4. If the transcript lacks information for a section, write 'None reported' or 'Not captured in output' rather than omitting the section.\n")
-	builder.WriteString("5. Do not add any introductory sentence or lead-in; the system will prepend one automatically based on your classification.\n")
-	builder.WriteString("6. Classification guidance:\n")
-	builder.WriteString("   - full_complete – transcript proves the task is finished, all critical tests pass, and there are no TODOs or pending validation.\n")
-	builder.WriteString("   - partial_progress – transcript shows progress but leaves unfinished work, TODOs, optional polish, or pending validation.\n")
-	builder.WriteString("   - uncertain – transcript is inconclusive, dominated by failures, or missing.\n")
-	builder.WriteString("   Never assign 'full_complete' if the output references TODOs, skipped tests, failing checks, open risks, or follow-up actions.\n")
-	builder.WriteString("7. Ignore orchestration boilerplate lines that begin with tokens like [HEADER], [INFO], or shell prompts, but retain any meaningful diagnostics that follow them.\n")
-	builder.WriteString("8. Keep the entire note under 1800 characters while still capturing all substantive details.\n")
-	builder.WriteString("9. Never include fields outside 'classification' and 'note'.\n")
-
+	template := promptTemplate
+	if template == "" {
+		return ""
+	}
+	var rawSection string
 	if output == "" {
-		builder.WriteString("\nNo execution output was captured. Respond accordingly.\n")
+		rawSection = "\nNo execution output was captured. Respond accordingly.\n"
 	} else {
-		builder.WriteString("\nRaw execution output:\n")
-		builder.WriteString(output)
+		rawSection = "\nRaw execution output:\n" + output
 	}
 
-	return builder.String()
+	if !strings.Contains(template, rawSectionPlaceholder) {
+		return template + rawSection
+	}
+
+	return strings.ReplaceAll(template, rawSectionPlaceholder, rawSection)
 }
 
 func runOllama(ctx context.Context, model, prompt string) (Result, error) {
@@ -195,7 +188,9 @@ func parseResult(raw string) (Result, error) {
 	classification := strings.TrimSpace(firstLine[len("classification:"):])
 	classification = strings.ToLower(classification)
 	switch classification {
-	case classificationFull, classificationPartial, classificationUncertain:
+	case classificationFull, classificationSignificant, classificationSome, classificationUncertain:
+	case "partial_progress":
+		classification = classificationSome
 	default:
 		classification = classificationUncertain
 	}
@@ -246,8 +241,10 @@ func decorateNote(classification, note string) string {
 	switch classification {
 	case classificationFull:
 		lead = "Likely complete, but may benefit from additional validation/tidying. Notes from last time:"
-	case classificationPartial:
-		lead = choosePartialLead(trimmed)
+	case classificationSignificant:
+		lead = "Already pretty good, but could use some additional validation/tidying. Notes from last time:"
+	case classificationSome:
+		lead = "Notes from last time:"
 	case classificationUncertain:
 		lead = "Not sure current status"
 	default:
@@ -263,36 +260,6 @@ func decorateNote(classification, note string) string {
 	}
 
 	return lead + "\n\n" + trimmed
-}
-
-func choosePartialLead(note string) string {
-	const (
-		standardLead = "Notes from last time:"
-		nuanceLead   = "Already pretty good, but could use some additional validation/tidying. Notes from last time:"
-	)
-
-	lower := strings.ToLower(note)
-	marker := strings.ToLower("**Remaining issues or limitations:**")
-	idx := strings.Index(lower, marker)
-	if idx == -1 {
-		return standardLead
-	}
-
-	segment := lower[idx+len(marker):]
-	if newline := strings.Index(segment, "\n"); newline != -1 {
-		segment = segment[:newline]
-	}
-
-	segment = strings.TrimSpace(segment)
-	if segment == "" {
-		return nuanceLead
-	}
-
-	if strings.Contains(segment, "none") || strings.Contains(segment, "not captured") || strings.Contains(segment, "n/a") {
-		return nuanceLead
-	}
-
-	return standardLead
 }
 
 func resolveVrooliRoot() string {
@@ -327,5 +294,5 @@ func DefaultResult() Result {
 
 // SupportedClassifications exposes the canonical classification values.
 func SupportedClassifications() []string {
-	return []string{classificationFull, classificationPartial, classificationUncertain}
+	return []string{classificationFull, classificationSignificant, classificationSome, classificationUncertain}
 }

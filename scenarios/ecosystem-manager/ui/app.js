@@ -518,6 +518,10 @@ class EcosystemManager {
             search: 'filterSearch'
         };
 
+        this.recyclerPromptDirty = false;
+        this.recyclerPromptRefreshTimer = null;
+        this.recyclerPromptLoading = false;
+
         this.recyclerTestPresets = RECYCLER_TEST_PRESETS;
         this.recyclerSuiteResults = [];
         this.recyclerSuiteRunning = false;
@@ -1186,6 +1190,23 @@ class EcosystemManager {
         if (recyclerTestBtn) {
             recyclerTestBtn.addEventListener('click', () => this.runRecyclerTest());
         }
+
+        const recyclerOutputField = document.getElementById('recycler-test-output');
+        if (recyclerOutputField) {
+            recyclerOutputField.addEventListener('input', () => this.handleRecyclerOutputChange());
+        }
+
+        const recyclerPromptField = document.getElementById('recycler-test-prompt');
+        if (recyclerPromptField) {
+            recyclerPromptField.addEventListener('input', () => this.handleRecyclerPromptInput());
+        }
+
+        const recyclerPromptRefreshBtn = document.getElementById('recycler-prompt-refresh');
+        if (recyclerPromptRefreshBtn) {
+            recyclerPromptRefreshBtn.addEventListener('click', () => {
+                this.reloadRecyclerPrompt({ force: true, showToast: true });
+            });
+        }
     }
 
     // Recycler Testbed Helpers
@@ -1206,6 +1227,151 @@ class EcosystemManager {
 
         this.updateRecyclerPresetPreview();
         this.setRecyclerTestMode(this.recyclerTestMode);
+
+        this.reloadRecyclerPrompt({ force: true }).catch(err => {
+            console.error('Failed to load initial recycler prompt:', err);
+        });
+    }
+
+    handleRecyclerOutputChange() {
+        const outputField = document.getElementById('recycler-test-output');
+        const promptField = document.getElementById('recycler-test-prompt');
+        if (!outputField || !promptField) {
+            return;
+        }
+
+        const rawOutput = outputField.value || '';
+
+        if (rawOutput.trim() === '') {
+            if (this.recyclerPromptRefreshTimer) {
+                clearTimeout(this.recyclerPromptRefreshTimer);
+                this.recyclerPromptRefreshTimer = null;
+            }
+            promptField.value = '';
+            this.recyclerPromptDirty = false;
+            return;
+        }
+
+        if (this.recyclerPromptDirty) {
+            return;
+        }
+
+        if (this.recyclerPromptRefreshTimer) {
+            clearTimeout(this.recyclerPromptRefreshTimer);
+        }
+
+        this.recyclerPromptRefreshTimer = setTimeout(() => {
+            this.refreshRecyclerPromptFromOutput().catch(err => {
+                console.error('Failed to refresh recycler prompt:', err);
+            });
+        }, 450);
+    }
+
+    handleRecyclerPromptInput() {
+        this.recyclerPromptDirty = true;
+        if (this.recyclerPromptRefreshTimer) {
+            clearTimeout(this.recyclerPromptRefreshTimer);
+            this.recyclerPromptRefreshTimer = null;
+        }
+    }
+
+    async reloadRecyclerPrompt(options = {}) {
+        const { force = false, showToast = false } = options;
+        if (force) {
+            this.recyclerPromptDirty = false;
+        }
+        if (this.recyclerPromptRefreshTimer) {
+            clearTimeout(this.recyclerPromptRefreshTimer);
+            this.recyclerPromptRefreshTimer = null;
+        }
+
+        return this.refreshRecyclerPromptFromOutput({ force, showToast });
+    }
+
+    async refreshRecyclerPromptFromOutput(options = {}) {
+        const { force = false, showToast = false } = options;
+        const outputField = document.getElementById('recycler-test-output');
+        const promptField = document.getElementById('recycler-test-prompt');
+        if (!outputField || !promptField) {
+            return;
+        }
+
+        if (this.recyclerPromptRefreshTimer) {
+            clearTimeout(this.recyclerPromptRefreshTimer);
+            this.recyclerPromptRefreshTimer = null;
+        }
+
+        const outputText = outputField.value || '';
+        const trimmed = outputText.trim();
+
+        if (trimmed === '') {
+            promptField.value = '';
+            this.recyclerPromptDirty = false;
+            if (showToast) {
+                this.showToast('Enter mock output to build a prompt.', 'info');
+            }
+            return;
+        }
+
+        if (!force && this.recyclerPromptDirty) {
+            return;
+        }
+
+        if (this.recyclerPromptLoading) {
+            return;
+        }
+
+        this.recyclerPromptLoading = true;
+        try {
+            const prompt = await this.fetchRecyclerPrompt(outputText);
+            this.applyPromptToTextarea(prompt);
+            if (showToast) {
+                this.showToast('Default recycler prompt loaded.', 'success');
+            }
+        } catch (error) {
+            console.error('Failed to load recycler prompt:', error);
+            this.showToast(`Failed to load default prompt: ${error.message}`, 'error');
+        } finally {
+            this.recyclerPromptLoading = false;
+        }
+    }
+
+    async fetchRecyclerPrompt(outputText) {
+        const response = await fetch(`${this.apiBase}/recycler/preview-prompt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ output_text: outputText })
+        });
+
+        let data = {};
+        try {
+            data = await response.json();
+        } catch (error) {
+            console.warn('Failed to parse recycler prompt response:', error);
+        }
+
+        if (!response.ok) {
+            const message = data?.error || response.statusText || 'Failed to load prompt';
+            throw new Error(message);
+        }
+
+        const prompt = typeof data?.prompt === 'string' ? data.prompt : '';
+        if (prompt.trim() === '') {
+            throw new Error('Preview response missing prompt content');
+        }
+
+        return prompt;
+    }
+
+    applyPromptToTextarea(prompt, options = {}) {
+        const promptField = document.getElementById('recycler-test-prompt');
+        if (!promptField) {
+            return;
+        }
+
+        promptField.value = prompt;
+        const { markDirty = false } = options;
+        this.recyclerPromptDirty = Boolean(markDirty);
     }
 
     setRecyclerTestMode(mode) {
@@ -1262,6 +1428,10 @@ class EcosystemManager {
         if (outputField) {
             outputField.value = preset.payload?.output_text ?? '';
         }
+
+        this.reloadRecyclerPrompt({ force: true }).catch(err => {
+            console.error('Failed to reload recycler prompt for preset:', err);
+        });
     }
 
     async runRecyclerPresetSuite() {
@@ -1483,9 +1653,17 @@ class EcosystemManager {
         Object.assign(payload, this.getRecyclerModelOverrides());
 
         this.resetRecyclerResultCard();
+        if (!silent) {
+            this.showRecyclerResultLoading();
+        }
+
+        const globalLoading = silent ? showLoading : false;
 
         try {
-            const data = await this.executeRecyclerTest(payload, { showLoading });
+            const data = await this.executeRecyclerTest(payload, { showLoading: globalLoading });
+            if (!silent && data?.prompt) {
+                this.applyPromptToTextarea(data.prompt);
+            }
             const expectedRaw = (preset.expected || '').toLowerCase();
             const actualRaw = (data?.result?.classification || 'unknown').toLowerCase();
             const match = expectedRaw === actualRaw;
@@ -2640,6 +2818,8 @@ class EcosystemManager {
         const { requireOutput = true } = options;
         const outputField = document.getElementById('recycler-test-output');
         const outputText = outputField?.value ?? '';
+        const promptField = document.getElementById('recycler-test-prompt');
+        const promptText = promptField?.value ?? '';
 
         const trimmedOutput = outputText.trim();
 
@@ -2652,6 +2832,9 @@ class EcosystemManager {
         }
 
         const payload = { output_text: trimmedOutput };
+        if (promptText && promptText.trim() !== '') {
+            payload.prompt_override = promptText;
+        }
         Object.assign(payload, this.getRecyclerModelOverrides());
         return payload;
     }
@@ -2680,6 +2863,21 @@ class EcosystemManager {
             resultContainer.style.display = 'none';
             resultContainer.innerHTML = '';
         }
+    }
+
+    showRecyclerResultLoading() {
+        const resultContainer = document.getElementById('recycler-test-result');
+        if (!resultContainer) {
+            return;
+        }
+        resultContainer.style.display = 'block';
+        resultContainer.innerHTML = `
+            <div class="recycler-result-skeleton">
+                <div class="skeleton-line w-30"></div>
+                <div class="skeleton-line w-20"></div>
+                <div class="skeleton-block"></div>
+            </div>
+        `;
     }
 
     async executeRecyclerTest(payload, { showLoading = true } = {}) {
@@ -2737,9 +2935,13 @@ class EcosystemManager {
         }
 
         this.resetRecyclerResultCard();
+        this.showRecyclerResultLoading();
 
         try {
-            const data = await this.executeRecyclerTest(payload, { showLoading: true });
+            const data = await this.executeRecyclerTest(payload, { showLoading: false });
+            if (data?.prompt) {
+                this.applyPromptToTextarea(data.prompt);
+            }
             this.renderRecyclerTestResult(data);
 
             if (data.success) {

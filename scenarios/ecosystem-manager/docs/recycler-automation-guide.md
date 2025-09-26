@@ -57,11 +57,11 @@ Create a new Recycler tab in the settings modal and extend the API schema:
 2. Enumerate `completed/` then `failed/` directories to find the first eligible task matching enabled types.
 3. Verify `processor_auto_requeue` is true and task not already in terminal status.
 4. Summarize output:
-   - If `results.output` present, call LLM with prompt returning JSON `{ "note": "", "classification": "full_complete|partial_progress|uncertain" }`.
+   - If `results.output` present, call LLM with prompt returning JSON `{ "note": "", "classification": "full_complete|significant_progress|some_progress|uncertain" }`.
    - On failure or missing output, fallback to conservative note (`Not sure current status`) and classification `uncertain`.
 5. Update note and streak counters:
    - `full_complete`: increment completion streak, reset failure streak.
-   - `partial_progress`: reset completion streak, reset failure streak.
+   - `significant_progress` / `some_progress`: reset completion streak, reset failure streak.
    - `uncertain`: reset completion streak, reset failure streak only if there was no error.
    - Failed tasks without output: increment failure streak, reset completion streak.
 6. Compare streaks to thresholds:
@@ -91,7 +91,7 @@ LLM prompt should request JSON response to keep parsing deterministic:
 You are summarizing the latest execution of an ecosystem-manager task.
 Return JSON with keys:
 - note: string (one of the canonical note patterns, include trimmed summary)
-- classification: one of ["full_complete", "partial_progress", "uncertain"]
+- classification: one of ["full_complete", "significant_progress", "some_progress", "uncertain"]
 ```
 
 Include relevant context: task title/type/operation, previous notes if needed, raw output text (truncated to safe length).
@@ -153,4 +153,3 @@ Include relevant context: task title/type/operation, previous notes if needed, r
 - Batch processing or priority heuristics if queue grows large.
 - Historical note archive for audit trail.
 - Automated alerts when tasks reach blocked state.
-

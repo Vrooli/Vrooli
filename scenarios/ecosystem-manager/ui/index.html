@@ -786,6 +786,18 @@ The calendar scenario is now production-ready with all P0 requirements verified.
                                     </div>
 
                                     <div class="form-group">
+                                        <div class="recycler-prompt-label">
+                                            <label for="recycler-test-prompt">Prompt (editable)</label>
+                                            <button type="button" class="btn btn-outline" id="recycler-prompt-refresh">
+                                                <i class="fas fa-sync-alt"></i>
+                                                Reload Default Prompt
+                                            </button>
+                                        </div>
+                                        <textarea id="recycler-test-prompt" rows="14" spellcheck="false"></textarea>
+                                        <small class="form-help">The testbed loads the actual recycler prompt using the mock output. Edit it to experiment; reload to sync with the current template.</small>
+                                    </div>
+
+                                    <div class="form-group">
                                         <button type="button" class="btn btn-primary" id="recycler-test-run">
                                             <i class="fas fa-play"></i>
                                             Run Recycler Test

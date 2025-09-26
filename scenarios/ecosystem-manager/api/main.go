@@ -197,6 +197,7 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/queue/trigger", queueHandlers.TriggerQueueProcessingHandler).Methods("POST")
 	api.HandleFunc("/queue/reset-rate-limit", queueHandlers.ResetRateLimitHandler).Methods("POST")
 	api.HandleFunc("/recycler/test", settingsHandlers.TestRecyclerHandler).Methods("POST")
+	api.HandleFunc("/recycler/preview-prompt", settingsHandlers.PreviewRecyclerPromptHandler).Methods("POST")
 
 	// System logs
 	api.HandleFunc("/logs", handlers.LogsHandler).Methods("GET")

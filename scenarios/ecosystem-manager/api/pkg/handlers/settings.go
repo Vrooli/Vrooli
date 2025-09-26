@@ -207,9 +207,10 @@ func (h *SettingsHandlers) GetRecyclerModelsHandler(w http.ResponseWriter, r *ht
 // TestRecyclerHandler generates a recycler summary for a mock task using current settings.
 func (h *SettingsHandlers) TestRecyclerHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		OutputText    string `json:"output_text"`
-		ModelProvider string `json:"model_provider"`
-		ModelName     string `json:"model_name"`
+		OutputText     string `json:"output_text"`
+		ModelProvider  string `json:"model_provider"`
+		ModelName      string `json:"model_name"`
+		PromptOverride string `json:"prompt_override"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -250,17 +251,25 @@ func (h *SettingsHandlers) TestRecyclerHandler(w http.ResponseWriter, r *http.Re
 		selectedModel = overrideModel
 	}
 
+	input := summarizer.Input{Output: output, PromptOverride: req.PromptOverride}
+
 	result, err := summarizer.GenerateNote(
 		context.Background(),
 		summarizer.Config{Provider: selectedProvider, Model: selectedModel},
-		summarizer.Input{Output: output},
+		input,
 	)
+
+	promptUsed := strings.TrimSpace(req.PromptOverride)
+	if promptUsed == "" {
+		promptUsed = summarizer.BuildPrompt(output)
+	}
 
 	response := map[string]interface{}{
 		"success":  err == nil,
 		"result":   result,
 		"provider": selectedProvider,
 		"model":    selectedModel,
+		"prompt":   promptUsed,
 	}
 
 	if err != nil {
@@ -272,6 +281,29 @@ func (h *SettingsHandlers) TestRecyclerHandler(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// PreviewRecyclerPromptHandler builds the recycler LLM prompt for mock output without executing the model.
+func (h *SettingsHandlers) PreviewRecyclerPromptHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		OutputText string `json:"output_text"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	output := strings.TrimSpace(req.OutputText)
+	if output == "" {
+		http.Error(w, "output_text is required", http.StatusBadRequest)
+		return
+	}
+
+	prompt := summarizer.BuildPrompt(output)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"prompt": prompt})
 }
 
 // ResetSettingsHandler resets settings to defaults
