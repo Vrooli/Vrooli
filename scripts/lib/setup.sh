@@ -54,6 +54,8 @@ source "${var_LIB_UTILS_DIR}/sudo.sh"  # Sudo utilities
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/clock.sh"
 # shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/kernel_config.sh"
+# shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/diagnostics/network_diagnostics.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
@@ -198,6 +200,9 @@ setup::generic_main() {
         # Skip system package updates - let apps decide if needed
         log::debug "System package updates skipped (handle in app-specific setup if needed)"
     fi
+
+    # Kernel parameter tuning (inotify limits, resource requirements)
+    kernel_config::configure_for_resources || log::warning "Kernel parameter configuration skipped or failed"
     
     # Step 2: Install Common Dependencies
     log::header "🔧 Installing Dependencies"

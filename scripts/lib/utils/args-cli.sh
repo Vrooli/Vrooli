@@ -358,8 +358,8 @@ args::register_sudo_mode() {
         --flag "m" \
         --desc "What to do when encountering sudo commands without elevated privileges" \
         --type "value" \
-        --options "error|skip" \
-        --default "${SUDO_MODE:-error}"
+        --options "ask|error|skip" \
+        --default "${SUDO_MODE:-ask}"
 }
 
 args::register_yes() {      

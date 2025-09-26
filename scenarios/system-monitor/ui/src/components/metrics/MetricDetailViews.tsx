@@ -10,7 +10,7 @@ import {
   Tooltip,
   Legend
 } from 'recharts';
-import { ArrowLeft, Cpu, MemoryStick, Network, HardDrive } from 'lucide-react';
+import { ArrowLeft, Cpu, MemoryStick, Network, HardDrive, CircuitBoard } from 'lucide-react';
 
 import { ProcessMonitor } from '../monitoring/ProcessMonitor';
 import type {
@@ -23,7 +23,8 @@ import type {
   DiskInfo,
   DiskDetailResponse,
   DiskPartitionInfo,
-  DiskUsageEntry
+  DiskUsageEntry,
+  GPUMetrics
 } from '../../types';
 
 interface MetricDetailLayoutProps {
@@ -81,6 +82,12 @@ interface DiskDetailViewProps {
   storageIO?: StorageIOInfo | null;
   metricHistory: MetricHistory | null;
   diskLastUpdated?: string;
+  onBack: () => void;
+}
+
+interface GpuDetailViewProps {
+  detailedMetrics: DetailedMetrics | null;
+  metricHistory: MetricHistory | null;
   onBack: () => void;
 }
 
@@ -151,6 +158,13 @@ const defaultValueFormatter = (unit?: string) => (value: number) => {
 const formatPercentage = (value: number) => `${value.toFixed(1)}%`;
 const formatInteger = (value: number) => Math.round(value).toLocaleString();
 const formatMbPerSecond = (value: number) => `${value.toFixed(2)} MB/s`;
+
+const formatMegabytes = (value?: number) => {
+  if (!Number.isFinite(value ?? NaN)) {
+    return '—';
+  }
+  return `${Number(value).toFixed(0)} MB`;
+};
 
 const formatBytes = (value?: number) => {
   if (!Number.isFinite(value ?? NaN) || (value ?? 0) <= 0) {
@@ -715,6 +729,17 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
   );
   const diskUsageHistory = useMemo(() => buildSingleSeriesData(metricHistory?.diskUsage), [metricHistory?.diskUsage]);
   const fileDescriptors = detailedMetrics?.system_details?.file_descriptors;
+  const inotifyWatchers = detailedMetrics?.system_details?.inotify_watchers;
+  const watchersSupported = inotifyWatchers?.supported ?? true;
+  const watcherPercent = inotifyWatchers && Number.isFinite(inotifyWatchers.watches_percent)
+    ? inotifyWatchers.watches_percent
+    : undefined;
+  const watcherInstancePercent = inotifyWatchers && Number.isFinite(inotifyWatchers.instances_percent)
+    ? inotifyWatchers.instances_percent
+    : undefined;
+  const getUtilizationColor = (percent: number) => (
+    percent >= 85 ? 'var(--color-error)' : percent >= 70 ? 'var(--color-warning)' : 'var(--color-success)'
+  );
 
   const fetchDiskDetails = useCallback(
     async (mount: string, nextDepth: number, includeFilesValue: boolean) => {
@@ -908,22 +933,18 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                 Tracks open file handles across all services
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <div style={{ color: 'var(--color-text-bright)', fontSize: 'var(--font-size-xl)', fontWeight: 600 }}>
-                {fileDescriptors.used.toLocaleString()} / {fileDescriptors.max.toLocaleString()}
-              </div>
-              <div style={{
-                color: fileDescriptors.percent >= 85
-                  ? 'var(--color-error)'
-                  : fileDescriptors.percent >= 70
-                    ? 'var(--color-warning)'
-                    : 'var(--color-success)',
-                fontSize: 'var(--font-size-lg)',
-                fontWeight: 600
-              }}>
-                {fileDescriptors.percent.toFixed(1)}%
-              </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <div style={{ color: 'var(--color-text-bright)', fontSize: 'var(--font-size-xl)', fontWeight: 600 }}>
+              {fileDescriptors.used.toLocaleString()} / {fileDescriptors.max.toLocaleString()}
             </div>
+            <div style={{
+              color: getUtilizationColor(fileDescriptors.percent),
+              fontSize: 'var(--font-size-lg)',
+              fontWeight: 600
+            }}>
+              {fileDescriptors.percent.toFixed(1)}%
+            </div>
+          </div>
             <div style={{
               width: '100%',
               height: '6px',
@@ -935,11 +956,9 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                 style={{
                   width: `${Math.min(Math.max(fileDescriptors.percent, 0), 100)}%`,
                   height: '100%',
-                  background: fileDescriptors.percent >= 85
-                    ? 'var(--color-error)'
-                    : fileDescriptors.percent >= 70
-                      ? 'var(--color-warning)'
-                      : 'linear-gradient(90deg, var(--color-accent), var(--color-text-bright))',
+                  background: fileDescriptors.percent >= 70
+                    ? getUtilizationColor(fileDescriptors.percent)
+                    : 'linear-gradient(90deg, var(--color-accent), var(--color-text-bright))',
                   transition: 'width var(--transition-normal)'
                 }}
               />
@@ -947,6 +966,66 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)', letterSpacing: '0.06em' }}>
               Sustained values above 80% risk "too many open files" errors during heavy disk activity.
             </div>
+          </div>
+        )}
+
+        {inotifyWatchers && (
+          <div className="card" style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+            <div>
+              <h3 style={{ margin: 0, color: 'var(--color-text-bright)' }}>Inotify Watcher Utilization</h3>
+              <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em', fontSize: 'var(--font-size-sm)' }}>
+                Kernel file watcher instances and watch descriptors in use
+              </div>
+            </div>
+            {watchersSupported ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <div style={{ color: 'var(--color-text-bright)', fontSize: 'var(--font-size-lg)', fontWeight: 600 }}>
+                    {inotifyWatchers.watches_used.toLocaleString()} / {inotifyWatchers.watches_max.toLocaleString()} watches
+                  </div>
+                  <div style={{
+                    color: watcherPercent !== undefined ? getUtilizationColor(watcherPercent) : 'var(--color-text-dim)',
+                    fontSize: 'var(--font-size-md)',
+                    fontWeight: 600
+                  }}>
+                    {watcherPercent !== undefined ? `${watcherPercent.toFixed(1)}%` : '—'}
+                  </div>
+                </div>
+                <div style={{
+                  width: '100%',
+                  height: '6px',
+                  background: 'rgba(0, 255, 0, 0.2)',
+                  borderRadius: '3px',
+                  overflow: 'hidden'
+                }}>
+                  <div
+                    style={{
+                      width: `${Math.min(Math.max(watcherPercent ?? 0, 0), 100)}%`,
+                      height: '100%',
+                      background: watcherPercent !== undefined && watcherPercent >= 70
+                        ? getUtilizationColor(watcherPercent)
+                        : 'linear-gradient(90deg, var(--color-accent), var(--color-text-bright))',
+                      transition: 'width var(--transition-normal)'
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)', letterSpacing: '0.06em' }}>
+                  <span>
+                    Instances: {inotifyWatchers.instances_used.toLocaleString()} / {inotifyWatchers.instances_max.toLocaleString()}
+                  </span>
+                  <span style={{ color: watcherInstancePercent !== undefined ? getUtilizationColor(watcherInstancePercent) : 'var(--color-text-dim)' }}>
+                    {watcherInstancePercent !== undefined ? `${watcherInstancePercent.toFixed(1)}%` : '—'}
+                  </span>
+                </div>
+                <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)', letterSpacing: '0.06em' }}>
+                  Keep watcher usage below 80% to avoid hitting Linux inotify limits that break file watchers and dev servers.
+                </div>
+              </>
+            ) : (
+              <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em', fontSize: 'var(--font-size-sm)' }}>
+                Inotify watcher metrics are not available on this platform.
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1188,6 +1267,167 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
           yDomain={[0, 100]}
           height={260}
         />
+      </div>
+    </MetricDetailLayout>
+  );
+};
+
+export const GpuDetailView = ({ detailedMetrics, metricHistory, onBack }: GpuDetailViewProps) => {
+  const gpuMetrics: GPUMetrics | null = detailedMetrics?.gpu_details ?? null;
+  const gpuHistory = useMemo(() => buildSingleSeriesData(metricHistory?.gpu), [metricHistory?.gpu]);
+
+  const headline = gpuMetrics
+    ? `${gpuMetrics.summary.average_utilization_percent.toFixed(1)}% Avg`
+    : 'Awaiting telemetry';
+
+  const subheadParts: string[] = [];
+  if (gpuMetrics?.driver_version) {
+    subheadParts.push(`Driver ${gpuMetrics.driver_version}`);
+  }
+  if (gpuMetrics?.primary_model) {
+    subheadParts.push(gpuMetrics.primary_model);
+  }
+
+  return (
+    <MetricDetailLayout
+      title="GPU UTILIZATION"
+      icon={<CircuitBoard size={18} />}
+      headline={headline}
+      subhead={subheadParts.length > 0 ? subheadParts.join(' • ') : undefined}
+      onBack={onBack}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+        <MetricLineChart
+          data={gpuHistory}
+          lines={[{ dataKey: 'value', name: 'Utilization', color: 'var(--color-info)', strokeWidth: 2 }]}
+          unit="%"
+          yDomain={[0, 100]}
+          valueFormatter={formatPercentage}
+        />
+
+        {gpuMetrics ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: 'var(--spacing-md)'
+            }}>
+              {[{
+                label: 'Devices',
+                value: String(gpuMetrics.summary.device_count)
+              }, {
+                label: 'Average Utilization',
+                value: `${gpuMetrics.summary.average_utilization_percent.toFixed(1)}%`
+              }, {
+                label: 'Memory Used',
+                value: `${gpuMetrics.summary.used_memory_mb.toFixed(0)} / ${gpuMetrics.summary.total_memory_mb.toFixed(0)} MB`
+              }, {
+                label: 'Average Temperature',
+                value: gpuMetrics.summary.device_count > 0 && gpuMetrics.summary.average_temperature_c > 0
+                  ? `${gpuMetrics.summary.average_temperature_c.toFixed(1)}°C`
+                  : '—'
+              }].map(stat => (
+                <div key={stat.label} style={{
+                  border: '1px solid rgba(0,255,0,0.2)',
+                  borderRadius: 'var(--border-radius-md)',
+                  padding: 'var(--spacing-md)',
+                  background: 'rgba(0, 40, 0, 0.2)'
+                }}>
+                  <div style={{ color: 'var(--color-text-dim)', letterSpacing: '0.08em', fontSize: 'var(--font-size-xs)', marginBottom: 'var(--spacing-xs)' }}>
+                    {stat.label}
+                  </div>
+                  <div style={{ color: 'var(--color-text-bright)', fontSize: 'var(--font-size-lg)', fontWeight: 600 }}>
+                    {stat.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {gpuMetrics.errors && gpuMetrics.errors.length > 0 && (
+              <div style={{
+                border: '1px solid var(--color-warning)',
+                borderRadius: 'var(--border-radius-md)',
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                color: 'var(--color-warning)',
+                fontSize: 'var(--font-size-sm)'
+              }}>
+                {gpuMetrics.errors.join(' • ')}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+              {gpuMetrics.devices.length > 0 ? (
+                gpuMetrics.devices.map(device => (
+                  <div key={device.uuid || device.index} style={{
+                    border: '1px solid rgba(0,255,0,0.2)',
+                    borderRadius: 'var(--border-radius-md)',
+                    padding: 'var(--spacing-md)',
+                    background: 'rgba(0,0,0,0.35)'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 'var(--spacing-sm)'
+                    }}>
+                      <span style={{ color: 'var(--color-text-bright)', fontWeight: 600 }}>
+                        {device.name} (GPU {device.index})
+                      </span>
+                      <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-sm)' }}>
+                        {device.utilization_percent.toFixed(1)}%
+                      </span>
+                    </div>
+
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                      gap: 'var(--spacing-sm)',
+                      color: 'var(--color-text-dim)',
+                      fontSize: 'var(--font-size-xs)'
+                    }}>
+                      <div>Memory: <span style={{ color: 'var(--color-text-bright)' }}>{formatMegabytes(device.memory_used_mb)} / {formatMegabytes(device.memory_total_mb)}</span></div>
+                      <div>Memory Util: <span style={{ color: 'var(--color-text-bright)' }}>{formatPercentage(device.memory_utilization_percent)}</span></div>
+                      <div>Temperature: <span style={{ color: 'var(--color-text-bright)' }}>{device.temperature_c != null ? `${device.temperature_c.toFixed(1)}°C` : '—'}</span></div>
+                      <div>Fan: <span style={{ color: 'var(--color-text-bright)' }}>{device.fan_speed_percent != null ? `${device.fan_speed_percent.toFixed(0)}%` : '—'}</span></div>
+                      <div>Power: <span style={{ color: 'var(--color-text-bright)' }}>{device.power_draw_w != null ? `${device.power_draw_w.toFixed(1)} W` : '—'}</span></div>
+                      <div>SM Clock: <span style={{ color: 'var(--color-text-bright)' }}>{device.sm_clock_mhz != null ? `${device.sm_clock_mhz.toFixed(0)} MHz` : '—'}</span></div>
+                      <div>Mem Clock: <span style={{ color: 'var(--color-text-bright)' }}>{device.memory_clock_mhz != null ? `${device.memory_clock_mhz.toFixed(0)} MHz` : '—'}</span></div>
+                    </div>
+
+                    {device.processes && device.processes.length > 0 && (
+                      <div style={{ marginTop: 'var(--spacing-sm)' }}>
+                        <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)', marginBottom: 'var(--spacing-xxs)' }}>
+                          Processes
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xxs)' }}>
+                          {device.processes.map(process => (
+                            <div key={`${device.uuid || device.index}-${process.pid}`} style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              color: 'var(--color-text-bright)',
+                              fontSize: 'var(--font-size-xs)'
+                            }}>
+                              <span>{process.process_name} ({process.pid})</span>
+                              <span>{formatMegabytes(process.memory_used_mb)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+                  No GPU devices detected.
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+            GPU metrics unavailable on this host.
+          </div>
+        )}
       </div>
     </MetricDetailLayout>
   );

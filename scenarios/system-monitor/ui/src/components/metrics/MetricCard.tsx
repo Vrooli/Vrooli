@@ -5,7 +5,8 @@ import type {
   MemoryMetrics,
   NetworkMetrics,
   ChartDataPoint,
-  DiskCardDetails
+  DiskCardDetails,
+  GPUCardDetails
 } from '../../types';
 import { MetricSparkline } from './MetricSparkline';
 
@@ -28,10 +29,10 @@ interface MetricCardProps {
   type: CardType;
   label: string;
   unit: string;
-  value: number;
+  value?: number | null;
   isExpanded: boolean;
   onToggle: () => void;
-  details?: CPUMetrics | MemoryMetrics | NetworkMetrics | DiskCardDetails;
+  details?: CPUMetrics | MemoryMetrics | NetworkMetrics | DiskCardDetails | GPUCardDetails;
   alertCount: number;
   history?: ChartDataPoint[];
   historyWindowSeconds?: number;
@@ -59,14 +60,22 @@ export const MetricCard = ({
   onOpenDetails,
   detailButtonLabel = 'VIEW DETAIL'
 }: MetricCardProps) => {
+  const hasNumericValue = typeof value === 'number' && Number.isFinite(value);
+  const resolvedValue = hasNumericValue ? (value as number) : null;
   
   const getProgressValue = (): number => {
-    return Math.min(value, 100);
+    if (!hasNumericValue || resolvedValue === null) {
+      return 0;
+    }
+    return Math.min(resolvedValue, 100);
   };
 
   const getValueColor = (): string => {
-    if (value >= 90) return 'var(--color-error)';
-    if (value >= 70) return 'var(--color-warning)';
+    if (!hasNumericValue || resolvedValue === null) {
+      return 'var(--color-text-dim)';
+    }
+    if (resolvedValue >= 90) return 'var(--color-error)';
+    if (resolvedValue >= 70) return 'var(--color-warning)';
     return 'var(--color-text-bright)';
   };
 
@@ -80,6 +89,8 @@ export const MetricCard = ({
         return 'var(--color-accent)';
       case 'disk':
         return 'var(--color-info)';
+      case 'gpu':
+        return 'var(--color-info)';
       default:
         return 'var(--color-accent)';
     }
@@ -88,7 +99,8 @@ export const MetricCard = ({
   const defaultThresholds: Partial<Record<CardType, number>> = {
     cpu: 75,
     memory: 80,
-    disk: 80
+    disk: 80,
+    gpu: 85
   };
 
   const sparklineThreshold = typeof threshold === 'number' ? threshold : defaultThresholds[type];
@@ -112,11 +124,28 @@ export const MetricCard = ({
     if (type === 'network') {
       return ' connections';
     }
+    if (type === 'gpu') {
+      return '%';
+    }
     if (unit === '%') {
       return '%';
     }
     return unit ? ` ${unit}` : undefined;
   })();
+
+  const formatPercentage = (val?: number | null) => {
+    if (!Number.isFinite(val ?? NaN)) {
+      return '—';
+    }
+    return `${Number(val).toFixed(1)}%`;
+  };
+
+  const formatMegabytes = (val?: number | null) => {
+    if (!Number.isFinite(val ?? NaN)) {
+      return '—';
+    }
+    return `${Number(val).toFixed(0)} MB`;
+  };
 
   const renderExpandedContent = () => {
     if (!isExpanded || !details) return null;
@@ -359,6 +388,148 @@ export const MetricCard = ({
           </div>
         );
 
+      case 'gpu':
+        const gpuDetails = details as GPUCardDetails;
+        const metrics = gpuDetails?.metrics;
+        if (!metrics) {
+          return (
+            <div style={{ marginTop: 'var(--spacing-md)', color: 'var(--color-text-dim)' }}>
+              GPU metrics unavailable. Ensure compatible NVIDIA drivers are installed.
+            </div>
+          );
+        }
+
+        const { summary, devices, errors } = metrics;
+
+        return (
+          <div className="metric-details" style={{ marginTop: 'var(--spacing-md)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+            <div className="detail-row" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: 'var(--spacing-md)'
+            }}>
+              <div className="detail-item">
+                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>Devices:</span>
+                <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>{summary.device_count}</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>Average Utilization:</span>
+                <span className="detail-value" style={{ color: 'var(--color-accent)' }}>{summary.average_utilization_percent.toFixed(1)}%</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>Memory:</span>
+                <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                  {summary.used_memory_mb.toFixed(0)} / {summary.total_memory_mb.toFixed(0)} MB
+                </span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>Avg Temp:</span>
+                <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                  {summary.device_count > 0 && summary.average_temperature_c > 0 ? `${summary.average_temperature_c.toFixed(1)}°C` : '—'}
+                </span>
+              </div>
+            </div>
+
+            {metrics.driver_version && (
+              <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+                Driver Version: <span style={{ color: 'var(--color-text-bright)' }}>{metrics.driver_version}</span>
+              </div>
+            )}
+
+            {metrics.primary_model && (
+              <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+                Primary Model: <span style={{ color: 'var(--color-text-bright)' }}>{metrics.primary_model}</span>
+              </div>
+            )}
+
+            {errors && errors.length > 0 && (
+              <div style={{
+                border: '1px solid var(--color-warning)',
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                borderRadius: 'var(--border-radius-md)',
+                color: 'var(--color-warning)',
+                fontSize: 'var(--font-size-sm)'
+              }}>
+                {errors.join(' • ')}
+              </div>
+            )}
+
+            {devices.length > 0 ? (
+              <div className="device-list" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                {devices.map(device => (
+                  <div key={device.uuid || device.index} style={{
+                    border: '1px solid var(--color-surface)',
+                    borderRadius: 'var(--border-radius-md)',
+                    padding: 'var(--spacing-md)',
+                    background: 'rgba(0, 40, 0, 0.25)'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 'var(--spacing-sm)'
+                    }}>
+                      <span style={{ color: 'var(--color-text-bright)', fontWeight: 600 }}>
+                        {device.name} (GPU {device.index})
+                      </span>
+                      <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-sm)' }}>
+                        {device.utilization_percent.toFixed(1)}%
+                      </span>
+                    </div>
+
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                      gap: 'var(--spacing-sm)',
+                      fontSize: 'var(--font-size-xs)',
+                      color: 'var(--color-text-dim)'
+                    }}>
+                      <div>Memory: <span style={{ color: 'var(--color-text-bright)' }}>{formatMegabytes(device.memory_used_mb)} / {formatMegabytes(device.memory_total_mb)}</span></div>
+                      <div>Memory Util: <span style={{ color: 'var(--color-text-bright)' }}>{formatPercentage(device.memory_utilization_percent)}</span></div>
+                      <div>Temp: <span style={{ color: 'var(--color-text-bright)' }}>{device.temperature_c != null ? `${device.temperature_c.toFixed(1)}°C` : '—'}</span></div>
+                      <div>Fan: <span style={{ color: 'var(--color-text-bright)' }}>{device.fan_speed_percent != null ? `${device.fan_speed_percent.toFixed(0)}%` : '—'}</span></div>
+                      <div>Power: <span style={{ color: 'var(--color-text-bright)' }}>{device.power_draw_w != null ? `${device.power_draw_w.toFixed(1)} W` : '—'}</span></div>
+                      <div>SM Clock: <span style={{ color: 'var(--color-text-bright)' }}>{device.sm_clock_mhz != null ? `${device.sm_clock_mhz.toFixed(0)} MHz` : '—'}</span></div>
+                      <div>Mem Clock: <span style={{ color: 'var(--color-text-bright)' }}>{device.memory_clock_mhz != null ? `${device.memory_clock_mhz.toFixed(0)} MHz` : '—'}</span></div>
+                    </div>
+
+                    {device.processes && device.processes.length > 0 && (
+                      <div style={{ marginTop: 'var(--spacing-sm)' }}>
+                        <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)', marginBottom: 'var(--spacing-xs)' }}>
+                          Active Processes
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xxs)' }}>
+                          {device.processes.slice(0, 5).map(process => (
+                            <div key={`${device.uuid}-${process.pid}`} style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              fontSize: 'var(--font-size-xs)',
+                              color: 'var(--color-text-bright)'
+                            }}>
+                              <span>{process.process_name} ({process.pid})</span>
+                              <span>{formatMegabytes(process.memory_used_mb)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+                No GPU devices detected.
+              </div>
+            )}
+
+            {gpuDetails.lastUpdated && (
+              <div style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)' }}>
+                Updated {new Date(gpuDetails.lastUpdated).toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+        );
+
       case 'network':
         const networkDetails = details as NetworkMetrics;
         return (
@@ -486,7 +657,7 @@ export const MetricCard = ({
         textShadow: 'var(--text-shadow-glow)',
         marginBottom: 'var(--spacing-sm)'
       }}>
-        {value.toFixed(1)}
+        {resolvedValue !== null ? resolvedValue.toFixed(1) : '—'}
       </div>
 
       {history && history.length > 0 ? (

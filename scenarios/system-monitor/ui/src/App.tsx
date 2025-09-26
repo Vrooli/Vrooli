@@ -3,7 +3,7 @@ import type { ErrorInfo } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Header } from './components/common/Header';
 import { MetricsGrid } from './components/metrics/MetricsGrid';
-import { CpuDetailView, MemoryDetailView, NetworkDetailView, DiskDetailView } from './components/metrics/MetricDetailViews';
+import { CpuDetailView, MemoryDetailView, NetworkDetailView, DiskDetailView, GpuDetailView } from './components/metrics/MetricDetailViews';
 import { InfrastructureMonitor } from './components/monitoring/InfrastructureMonitor';
 import { AlertPanel } from './components/common/AlertPanel';
 import { InvestigationsSection } from './components/investigations/InvestigationsSection';
@@ -368,6 +368,16 @@ function App() {
                 element={(
                   <NetworkDetailView
                     metrics={metrics}
+                    detailedMetrics={detailedMetrics}
+                    metricHistory={metricHistory}
+                    onBack={handleBackToDashboard}
+                  />
+                )}
+              />
+              <Route
+                path="/metrics/gpu"
+                element={(
+                  <GpuDetailView
                     detailedMetrics={detailedMetrics}
                     metricHistory={metricHistory}
                     onBack={handleBackToDashboard}

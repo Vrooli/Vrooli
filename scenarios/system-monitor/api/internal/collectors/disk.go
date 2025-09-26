@@ -1,8 +1,10 @@
 package collectors
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,6 +33,7 @@ func (c *DiskCollector) Collect(ctx context.Context) (*MetricData, error) {
 	diskUsage := c.getDiskUsage()
 	ioStats := c.getIOStats()
 	fileDescriptors := c.getFileDescriptors()
+	inotifyStats := c.getInotifyStats()
 
 	return &MetricData{
 		CollectorName: c.GetName(),
@@ -40,6 +43,7 @@ func (c *DiskCollector) Collect(ctx context.Context) (*MetricData, error) {
 			"usage":            diskUsage,
 			"io_stats":         ioStats,
 			"file_descriptors": fileDescriptors,
+			"inotify_watchers": inotifyStats,
 		},
 	}, nil
 }
@@ -166,6 +170,136 @@ func (c *DiskCollector) getFileDescriptors() map[string]interface{} {
 	}
 
 	return fdInfo
+}
+
+// getInotifyStats returns inotify watcher and instance utilisation
+func (c *DiskCollector) getInotifyStats() map[string]interface{} {
+	stats := map[string]interface{}{
+		"supported":         runtime.GOOS == "linux",
+		"watches_used":      0,
+		"watches_max":       0,
+		"watches_percent":   float64(0),
+		"instances_used":    0,
+		"instances_max":     0,
+		"instances_percent": float64(0),
+	}
+
+	if runtime.GOOS != "linux" {
+		// Provide representative sample values for non-Linux environments
+		stats["watches_used"] = 128
+		stats["watches_max"] = 524288
+		stats["instances_used"] = 4
+		stats["instances_max"] = 1024
+		stats["watches_percent"] = (float64(stats["watches_used"].(int)) / float64(stats["watches_max"].(int))) * 100
+		stats["instances_percent"] = (float64(stats["instances_used"].(int)) / float64(stats["instances_max"].(int))) * 100
+		return stats
+	}
+
+	watchesMax, err := readIntFromFile("/proc/sys/fs/inotify/max_user_watches")
+	if err == nil {
+		stats["watches_max"] = watchesMax
+	}
+
+	instancesMax, err := readIntFromFile("/proc/sys/fs/inotify/max_user_instances")
+	if err == nil {
+		stats["instances_max"] = instancesMax
+	}
+
+	watchesUsed, instancesUsed := countInotifyUsage(watchesMax, instancesMax)
+	stats["watches_used"] = watchesUsed
+	stats["instances_used"] = instancesUsed
+
+	if watchesMax > 0 {
+		stats["watches_percent"] = math.Min(100, (float64(watchesUsed)/float64(watchesMax))*100)
+	}
+
+	if instancesMax > 0 {
+		stats["instances_percent"] = math.Min(100, (float64(instancesUsed)/float64(instancesMax))*100)
+	}
+
+	return stats
+}
+
+func readIntFromFile(path string) (int, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(strings.TrimSpace(string(data)))
+}
+
+func countInotifyUsage(watchLimit, instanceLimit int) (int, int) {
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return 0, 0
+	}
+
+	watchesUsed := 0
+	instancesUsed := 0
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		pid := entry.Name()
+		if _, err := strconv.Atoi(pid); err != nil {
+			continue
+		}
+
+		fdinfoPath := filepath.Join("/proc", pid, "fdinfo")
+		fdEntries, err := os.ReadDir(fdinfoPath)
+		if err != nil {
+			continue
+		}
+
+		for _, fdEntry := range fdEntries {
+			filePath := filepath.Join(fdinfoPath, fdEntry.Name())
+			file, err := os.Open(filePath)
+			if err != nil {
+				continue
+			}
+
+			scanner := bufio.NewScanner(file)
+			hasInotify := false
+			watchersInFile := 0
+
+			for scanner.Scan() {
+				line := scanner.Text()
+				if strings.HasPrefix(line, "inotify") {
+					hasInotify = true
+					if strings.HasPrefix(line, "inotify wd:") {
+						watchersInFile++
+					}
+				}
+			}
+
+			file.Close()
+
+			if !hasInotify {
+				continue
+			}
+
+			instancesUsed++
+			if watchersInFile == 0 {
+				// Treat a descriptor with no explicit watches as at least one watcher
+				watchersInFile = 1
+			}
+			watchesUsed += watchersInFile
+
+			if watchLimit > 0 && watchesUsed >= watchLimit && instanceLimit > 0 && instancesUsed >= instanceLimit {
+				return watchLimit, instanceLimit
+			}
+		}
+	}
+
+	if watchLimit > 0 && watchesUsed > watchLimit {
+		watchesUsed = watchLimit
+	}
+	if instanceLimit > 0 && instancesUsed > instanceLimit {
+		instancesUsed = instanceLimit
+	}
+
+	return watchesUsed, instancesUsed
 }
 
 // GetDiskPartitions returns information about disk partitions

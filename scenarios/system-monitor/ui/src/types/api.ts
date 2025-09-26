@@ -5,6 +5,7 @@ export interface MetricsResponse {
   cpu_usage: number;
   memory_usage: number;
   tcp_connections: number;
+  gpu_usage?: number | null;
   timestamp: string;
 }
 
@@ -13,6 +14,7 @@ export interface MetricTimelineSample {
   cpu_usage: number;
   memory_usage: number;
   tcp_connections: number;
+  gpu_usage?: number | null;
 }
 
 export interface MetricsTimelineResponse {
@@ -25,6 +27,7 @@ export interface DetailedMetrics {
   cpu_details: CPUMetrics;
   memory_details: MemoryMetrics;
   network_details: NetworkMetrics;
+  gpu_details?: GPUMetrics;
   system_details: SystemHealth;
   timestamp: string;
 }
@@ -56,6 +59,7 @@ export interface SystemHealth {
   file_descriptors: FileDescriptorInfo;
   service_dependencies: ServiceHealth[];
   certificates: CertificateInfo[];
+  inotify_watchers?: InotifyWatcherInfo;
 }
 
 export interface ProcessInfo {
@@ -134,6 +138,48 @@ export interface DiskInfo {
   percent: number;
 }
 
+export interface GPUMetrics {
+  summary: GPUSummary;
+  devices: GPUDeviceMetrics[];
+  errors?: string[];
+  driver_version?: string;
+  primary_model?: string;
+}
+
+export interface GPUSummary {
+  total_utilization_percent: number;
+  average_utilization_percent: number;
+  total_memory_mb: number;
+  used_memory_mb: number;
+  average_temperature_c: number;
+  device_count: number;
+}
+
+export interface GPUDeviceMetrics {
+  index: number;
+  uuid: string;
+  name: string;
+  utilization_percent: number;
+  memory_utilization_percent: number;
+  memory_used_mb: number;
+  memory_total_mb: number;
+  temperature_c?: number;
+  fan_speed_percent?: number;
+  power_draw_w?: number;
+  power_limit_w?: number;
+  sm_clock_mhz?: number;
+  memory_clock_mhz?: number;
+  processes?: GPUProcessInfo[];
+}
+
+export interface GPUProcessInfo {
+  pid: number;
+  process_name: string;
+  memory_used_mb: number;
+  sm_utilization_percent?: number;
+  gpu_instance_id?: string;
+}
+
 export interface DiskPartitionInfo {
   device: string;
   mount_point: string;
@@ -172,6 +218,16 @@ export interface FileDescriptorInfo {
   used: number;
   max: number;
   percent: number;
+}
+
+export interface InotifyWatcherInfo {
+  supported: boolean;
+  watches_used: number;
+  watches_max: number;
+  watches_percent: number;
+  instances_used: number;
+  instances_max: number;
+  instances_percent: number;
 }
 
 export interface ProcessMonitorData {

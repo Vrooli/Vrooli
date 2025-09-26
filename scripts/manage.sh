@@ -52,15 +52,49 @@ manage::main() {
         esac
     done
     
-    # Check for --dry-run early
+    # Check for --dry-run early and capture sudo-mode preference
     local dry_run_flag="false"
+    local sudo_mode_arg=""
+    local expecting_sudo_value="false"
     for arg in "$@"; do
-        [[ "$arg" == "--dry-run" ]] && {
-            dry_run_flag="true"
-            export DRY_RUN="true"
-            break
-        }
+        if [[ "$expecting_sudo_value" == "true" ]]; then
+            sudo_mode_arg="$arg"
+            expecting_sudo_value="false"
+            continue
+        fi
+
+        case "$arg" in
+            --dry-run)
+                dry_run_flag="true"
+                export DRY_RUN="true"
+                ;;
+            --sudo-mode)
+                expecting_sudo_value="true"
+                ;;
+            --sudo-mode=*)
+                sudo_mode_arg="${arg#*=}"
+                ;;
+        esac
     done
+
+    if [[ "$expecting_sudo_value" == "true" ]]; then
+        log::error "Missing value for --sudo-mode"
+        exit 1
+    fi
+
+    if [[ -n "$sudo_mode_arg" ]]; then
+        sudo_mode_arg="${sudo_mode_arg,,}"
+        case "$sudo_mode_arg" in
+            ask|skip|error)
+                export SUDO_MODE="$sudo_mode_arg"
+                export SUDO_MODE_EXPLICIT="$sudo_mode_arg"
+                ;;
+            *)
+                log::error "Invalid value for --sudo-mode: $sudo_mode_arg"
+                exit 1
+                ;;
+        esac
+    fi
     
     # Handle special flags
     case "$phase" in

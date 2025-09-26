@@ -65,55 +65,43 @@ ast_grep::install() {
             ;;
     esac
 
-    # Get the latest release from GitHub API
-    log::info "🔍 Fetching latest ast-grep release information..."
-    
-    # Get the latest release info from GitHub API
-    local latest_release_info
-    if latest_release_info=$(retry::download "https://api.github.com/repos/ast-grep/ast-grep/releases/latest" 2>/dev/null); then
-        log::info "Retrieved latest release information from GitHub API"
-    else
-        log::warning "Could not fetch latest release from GitHub API, using fallback versions"
-        latest_release_info=""
-    fi
+    # Build list of candidate download URLs
+    local -a versions_to_try=()
 
-    # List of ast-grep versions to try
-    local versions_to_try=()
-    
-    # Add latest version first if we got it from API
-    if [[ -n "$latest_release_info" ]]; then
+    log::info "🔍 Fetching latest ast-grep release information..."
+    local latest_release_info=""
+    if latest_release_info=$(curl -fsSL --retry 3 --retry-delay 2 "https://api.github.com/repos/ast-grep/ast-grep/releases/latest" 2>/dev/null); then
         local latest_tag
         latest_tag=$(echo "$latest_release_info" | jq -r '.tag_name' 2>/dev/null || echo "")
-        
         if [[ -n "$latest_tag" && "$latest_tag" != "null" ]]; then
-            # Look for the asset with our architecture
-            local latest_url
-            latest_url=$(echo "$latest_release_info" | jq -r ".assets[] | select(.name | contains(\"${arch}\")) | .browser_download_url" 2>/dev/null | head -1)
-            
-            if [[ -n "$latest_url" && "$latest_url" != "null" ]]; then
-                versions_to_try+=("$latest_tag:$latest_url")
-                log::info "Found latest release: $latest_tag"
-            fi
+            while IFS=$'\t' read -r asset_name asset_url; do
+                [[ -z "$asset_url" || "$asset_url" == "null" ]] && continue
+                versions_to_try+=("${latest_tag}|${asset_url}")
+                log::info "Found release asset ${asset_name} for ${latest_tag}"
+            done < <(echo "$latest_release_info" | jq -r --arg arch "$arch" '.assets[] | select(.name | contains($arch)) | [.name, .browser_download_url] | @tsv')
         fi
+    else
+        log::warning "Could not fetch latest release from GitHub API, using fallback versions"
     fi
-    
-    # Add fallback versions (these are known working versions)
-    local fallback_versions=("0.25.5" "0.25.4" "0.25.3" "0.25.2" "0.24.2")
+
+    # Add fallback versions covering both historical naming schemes
+    local fallback_versions=("0.39.5" "0.39.4" "0.39.3" "0.39.2" "0.39.1" "0.38.4" "0.37.3")
     for version in "${fallback_versions[@]}"; do
-        local fallback_url="https://github.com/ast-grep/ast-grep/releases/download/${version}/ast-grep-${arch}.zip"
-        versions_to_try+=("${version}:$fallback_url")
+        versions_to_try+=("${version}|https://github.com/ast-grep/ast-grep/releases/download/${version}/app-${arch}.zip")
+        versions_to_try+=("${version}|https://github.com/ast-grep/ast-grep/releases/download/${version}/ast-grep-${arch}.zip")
     done
 
+    local version_info
     for version_info in "${versions_to_try[@]}"; do
-        IFS=':' read -r version download_url <<< "$version_info"
+        IFS='|' read -r version download_url <<< "$version_info"
+        [[ -z "$download_url" ]] && continue
         log::header "📥 Attempting to download ast-grep ${version} for ${arch}"
         tmpdir=$(mktemp -d)
         
         # Try downloading the release zip file
         if curl -fsSL "$download_url" -o "$tmpdir/ast-grep.zip" && 
-           cd "$tmpdir" && 
-           unzip -q ast-grep.zip; then
-            
+           unzip -q "$tmpdir/ast-grep.zip" -d "$tmpdir"; then
+
             # Find the ast-grep binary (it might be in a subdirectory)
             local ast_grep_binary
             ast_grep_binary=$(find "$tmpdir" -name "ast-grep" -type f -executable | head -1)
@@ -150,11 +138,23 @@ ast_grep::install() {
     # Final fallback: try npm installation if Node.js is available
     if system::is_command npm; then
         log::info "Attempting fallback installation via npm..."
-        if npm install -g @ast-grep/cli; then
-            log::success "ast-grep installed via npm"
-            return 0
+        if [[ "$use_sudo" == "true" ]]; then
+            if npm install -g @ast-grep/cli; then
+                log::success "ast-grep installed via npm"
+                return 0
+            else
+                log::warning "npm installation also failed"
+            fi
         else
-            log::warning "npm installation also failed"
+            local npm_prefix="${HOME}/.local"
+            mkdir -p "${npm_prefix}/bin"
+            if NPM_CONFIG_PREFIX="$npm_prefix" npm install -g @ast-grep/cli; then
+                export PATH="${npm_prefix}/bin:$PATH"
+                log::success "ast-grep installed via npm (user prefix)"
+                return 0
+            else
+                log::warning "npm installation also failed"
+            fi
         fi
     fi
 

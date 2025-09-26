@@ -6,6 +6,7 @@ import type {
   MetricHistory,
   StorageIOInfo,
   DiskCardDetails,
+  GPUCardDetails,
   ChartDataPoint
 } from '../../types';
 import { MetricCard } from './MetricCard';
@@ -74,11 +75,21 @@ export const MetricsGrid = ({
       lastUpdated: diskLastUpdated ?? detailedMetrics.timestamp
     };
   }, [detailedMetrics, storageIO, diskLastUpdated]);
+
+  const gpuDetails = useMemo<GPUCardDetails | undefined>(() => {
+    if (!detailedMetrics?.gpu_details) {
+      return undefined;
+    }
+    return {
+      metrics: detailedMetrics.gpu_details,
+      lastUpdated: detailedMetrics.timestamp
+    };
+  }, [detailedMetrics]);
   
   const handleCardToggle = (cardType: CardType) => {
     if (isDesktop) {
       // On desktop, toggle all metric cards together
-      const allMetricCards: CardType[] = ['cpu', 'memory', 'disk', 'network'];
+      const allMetricCards: CardType[] = ['cpu', 'memory', 'gpu', 'disk', 'network'];
       const isAnyExpanded = allMetricCards.some(card => expandedCards.has(card));
       
       // If any card is expanded, collapse all. If none are expanded, expand all.
@@ -103,7 +114,7 @@ export const MetricsGrid = ({
     }
   };
   return (
-    <div className="grid grid-4" style={{ gap: 'var(--spacing-lg)' }}>
+    <div className="grid grid-5" style={{ gap: 'var(--spacing-lg)' }}>
       
       {/* CPU Usage Card */}
       <MetricCard
@@ -136,6 +147,24 @@ export const MetricsGrid = ({
         historyWindowSeconds={metricHistory?.windowSeconds}
         valueDomain={[0, 100]}
         onOpenDetails={() => onOpenDetail('memory')}
+        detailButtonLabel="OPEN DETAIL"
+      />
+
+      {/* GPU Card */}
+      <MetricCard
+        type="gpu"
+        label="GPU"
+        unit="%"
+        value={metrics?.gpu_usage ?? null}
+        isExpanded={expandedCards.has('gpu')}
+        onToggle={() => handleCardToggle('gpu')}
+        details={gpuDetails}
+        alertCount={0}
+        history={metricHistory?.gpu}
+        historyWindowSeconds={metricHistory?.windowSeconds}
+        valueDomain={[0, 100]}
+        historyUnit=" %"
+        onOpenDetails={() => onOpenDetail('gpu')}
         detailButtonLabel="OPEN DETAIL"
       />
 

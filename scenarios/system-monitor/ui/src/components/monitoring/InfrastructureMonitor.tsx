@@ -9,6 +9,14 @@ interface InfrastructureMonitorProps {
 }
 
 export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth }: InfrastructureMonitorProps) => {
+  const getUtilizationColor = (percent: number) => (
+    percent >= 85 ? 'var(--color-error)' : percent >= 70 ? 'var(--color-warning)' : 'var(--color-success)'
+  );
+  const fdInfo = systemHealth?.file_descriptors;
+  const inotifyWatchers = systemHealth?.inotify_watchers;
+  const watcherPercent = inotifyWatchers && inotifyWatchers.supported ? inotifyWatchers.watches_percent : undefined;
+  const watcherInstancePercent = inotifyWatchers && inotifyWatchers.supported ? inotifyWatchers.instances_percent : undefined;
+
   return (
     <section className="monitoring-panel collapsible card">
       <div 
@@ -174,9 +182,93 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                           {data.message_queues.background_jobs.failed}
                         </span>
                       </div>
-                    </div>
                   </div>
                 </div>
+
+                {(fdInfo || (inotifyWatchers && inotifyWatchers.supported)) && (
+                  <div className="monitor-section">
+                    <h3 style={{ color: 'var(--color-text-bright)', marginBottom: 'var(--spacing-md)' }}>
+                      Kernel Resource Limits:
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                      {fdInfo && (
+                        <div style={{
+                          padding: 'var(--spacing-sm)',
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          borderRadius: 'var(--border-radius-sm)',
+                          border: '1px solid rgba(0, 255, 0, 0.15)'
+                        }}>
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: 'var(--font-size-sm)',
+                            color: 'var(--color-text-bright)'
+                          }}>
+                            <span>File Descriptors</span>
+                            <span style={{ color: getUtilizationColor(fdInfo.percent) }}>
+                              {fdInfo.percent.toFixed(1)}%
+                            </span>
+                          </div>
+                          <div style={{
+                            color: 'var(--color-text-dim)',
+                            fontSize: 'var(--font-size-xs)',
+                            letterSpacing: '0.06em'
+                          }}>
+                            {fdInfo.used.toLocaleString()} / {fdInfo.max.toLocaleString()}
+                          </div>
+                        </div>
+                      )}
+
+                      {inotifyWatchers && (
+                        <div style={{
+                          padding: 'var(--spacing-sm)',
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          borderRadius: 'var(--border-radius-sm)',
+                          border: '1px solid rgba(0, 255, 0, 0.15)'
+                        }}>
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: 'var(--font-size-sm)',
+                            color: 'var(--color-text-bright)'
+                          }}>
+                            <span>Inotify Watches</span>
+                            <span style={{ color: watcherPercent !== undefined ? getUtilizationColor(watcherPercent) : 'var(--color-text-dim)' }}>
+                              {watcherPercent !== undefined ? `${watcherPercent.toFixed(1)}%` : '—'}
+                            </span>
+                          </div>
+                          {inotifyWatchers.supported ? (
+                            <>
+                              <div style={{
+                                color: 'var(--color-text-dim)',
+                                fontSize: 'var(--font-size-xs)',
+                                letterSpacing: '0.06em'
+                              }}>
+                                {inotifyWatchers.watches_used.toLocaleString()} / {inotifyWatchers.watches_max.toLocaleString()} watch descriptors
+                              </div>
+                              <div style={{
+                                color: 'var(--color-text-dim)',
+                                fontSize: 'var(--font-size-xs)',
+                                letterSpacing: '0.06em'
+                              }}>
+                                Instances: {inotifyWatchers.instances_used.toLocaleString()} / {inotifyWatchers.instances_max.toLocaleString()} ({watcherInstancePercent !== undefined ? `${watcherInstancePercent.toFixed(1)}%` : '—'})
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{
+                              color: 'var(--color-text-dim)',
+                              fontSize: 'var(--font-size-xs)',
+                              letterSpacing: '0.06em'
+                            }}>
+                              Inotify metrics unavailable on this host.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
                 <div className="monitor-section">
                   <h3 style={{ color: 'var(--color-text-bright)', marginBottom: 'var(--spacing-md)' }}>

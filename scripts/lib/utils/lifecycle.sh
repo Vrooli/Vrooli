@@ -370,7 +370,7 @@ lifecycle::execute_phase() {
             lifecycle::start_tracked_process "$phase" "$name" "$cmd"
         else
             # Foreground execution
-            if (cd "$(pwd)" && bash -c "$cmd"); then
+            if (cd "$(pwd)" && LIFECYCLE_PHASE="$phase" VROOLI_LIFECYCLE_MANAGED="true" bash -c "$cmd"); then
                 # Command succeeded
                 true
             else

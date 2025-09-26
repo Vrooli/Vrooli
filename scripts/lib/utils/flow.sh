@@ -82,19 +82,12 @@ flow::can_run_sudo() {
     fi
 
     # If sudo is not installed, skip privileged ops
-    # NOTE: Don't use system::is_command here, because it will cause a circular dependency
     if ! command -v sudo >/dev/null 2>&1; then
         log::info "sudo not found: skipping $operation"
         return 1
     fi
 
-    # Test for passwordless sudo, but don't let 'set -e' kill us
-    set +e
-    sudo -n true >/dev/null 2>&1
-    local status=$?
-    set -e
-
-    if [[ $status -eq 0 ]]; then
+    if sudo::can_use_sudo; then
         return 0
     fi
 
@@ -106,7 +99,7 @@ flow::can_run_sudo() {
             flow::exit_with_error "Unable to run sudo for: $operation. Either run setup with 'sudo' prefix, or use --sudo-mode skip to bypass privileged operations." "$EXIT_GENERAL_ERROR"
         fi
     else
-        log::info "sudo requires password or is blocked, skipping $operation"
+        log::info "sudo credentials were not granted; skipping $operation"
         return 1
     fi
 }
@@ -118,4 +111,3 @@ flow::maybe_run_sudo() {
         "$@"
     fi
 }
-

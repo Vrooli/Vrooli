@@ -50,10 +50,11 @@ type HealthResponse struct {
 }
 
 type MetricsResponse struct {
-	CPUUsage       float64 `json:"cpu_usage"`
-	MemoryUsage    float64 `json:"memory_usage"`
-	TCPConnections int     `json:"tcp_connections"`
-	Timestamp      string  `json:"timestamp"`
+	CPUUsage       float64  `json:"cpu_usage"`
+	MemoryUsage    float64  `json:"memory_usage"`
+	TCPConnections int      `json:"tcp_connections"`
+	GPUUsage       *float64 `json:"gpu_usage,omitempty"`
+	Timestamp      string   `json:"timestamp"`
 }
 
 // metricHistorySample tracks raw samples for rolling history retention
@@ -62,14 +63,16 @@ type metricHistorySample struct {
 	cpuUsage       float64
 	memoryUsage    float64
 	tcpConnections int
+	gpuUsage       *float64
 }
 
 // MetricTimelineSample is returned to the UI for sparkline rendering
 type MetricTimelineSample struct {
-	Timestamp      string  `json:"timestamp"`
-	CPUUsage       float64 `json:"cpu_usage"`
-	MemoryUsage    float64 `json:"memory_usage"`
-	TCPConnections int     `json:"tcp_connections"`
+	Timestamp      string   `json:"timestamp"`
+	CPUUsage       float64  `json:"cpu_usage"`
+	MemoryUsage    float64  `json:"memory_usage"`
+	TCPConnections int      `json:"tcp_connections"`
+	GPUUsage       *float64 `json:"gpu_usage,omitempty"`
 }
 
 // MetricsTimelineResponse bundles recent samples for the UI graphs
@@ -229,6 +232,7 @@ type DetailedMetricsResponse struct {
 		NetworkStats    NetworkStats         `json:"network_stats"`
 		ConnectionPools []ConnectionPoolInfo `json:"connection_pools"`
 	} `json:"network_details"`
+	GPUDetails    *models.GPUMetrics  `json:"gpu_details,omitempty"`
 	SystemDetails SystemHealthDetails `json:"system_details"`
 	Timestamp     string              `json:"timestamp"`
 }
@@ -985,11 +989,13 @@ func collectMetricSample() (MetricsResponse, metricHistorySample) {
 	cpu := getCPUUsage()
 	mem := getMemoryUsage()
 	tcp := getTCPConnections()
+	gpu := getGPUUsage()
 
 	metrics := MetricsResponse{
 		CPUUsage:       cpu,
 		MemoryUsage:    mem,
 		TCPConnections: tcp,
+		GPUUsage:       gpu,
 		Timestamp:      now.Format(time.RFC3339),
 	}
 
@@ -998,6 +1004,7 @@ func collectMetricSample() (MetricsResponse, metricHistorySample) {
 		cpuUsage:       cpu,
 		memoryUsage:    mem,
 		tcpConnections: tcp,
+		gpuUsage:       gpu,
 	}
 
 	return metrics, sample
@@ -1057,6 +1064,7 @@ func metricsResponseFromSample(sample metricHistorySample) MetricsResponse {
 		CPUUsage:       sample.cpuUsage,
 		MemoryUsage:    sample.memoryUsage,
 		TCPConnections: sample.tcpConnections,
+		GPUUsage:       sample.gpuUsage,
 		Timestamp:      sample.timestamp.Format(time.RFC3339),
 	}
 }
@@ -1138,6 +1146,7 @@ func getMetricsTimelineHandler(w http.ResponseWriter, r *http.Request) {
 			CPUUsage:       sample.cpuUsage,
 			MemoryUsage:    sample.memoryUsage,
 			TCPConnections: sample.tcpConnections,
+			GPUUsage:       sample.gpuUsage,
 		})
 	}
 
@@ -1490,6 +1499,28 @@ func getMemoryUsage() float64 {
 
 	// Fallback for non-Linux systems
 	return float64(45 + (time.Now().Second() % 20)) // Mock varying memory usage
+}
+
+func getGPUUsage() *float64 {
+	gpuCollector := collectors.NewGPUCollector()
+	if !gpuCollector.IsEnabled() {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	data, err := gpuCollector.Collect(ctx)
+	if err != nil || data == nil {
+		return nil
+	}
+
+	if usage, ok := data.Values["total_usage_percent"].(float64); ok {
+		value := usage
+		return &value
+	}
+
+	return nil
 }
 
 func getTCPConnections() int {
@@ -3317,6 +3348,32 @@ func getDetailedMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	contextSwitches := getContextSwitches()
 	fdUsed, fdMax := getSystemFileDescriptors()
 
+	var gpuDetails *models.GPUMetrics
+	if gpuCollector := collectors.NewGPUCollector(); gpuCollector.IsEnabled() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		data, err := gpuCollector.Collect(ctx)
+		cancel()
+		if err == nil && data != nil {
+			metrics := models.GPUMetrics{}
+			if summary, ok := data.Values["summary"].(models.GPUSummary); ok {
+				metrics.Summary = summary
+			}
+			if devices, ok := data.Values["devices"].([]models.GPUDeviceMetrics); ok {
+				metrics.Devices = devices
+			}
+			if warnings, ok := data.Values["warnings"].([]string); ok {
+				metrics.Errors = warnings
+			}
+			if driver, ok := data.Values["driver_version"].(string); ok {
+				metrics.Driver = driver
+			}
+			if model, ok := data.Values["primary_model"].(string); ok {
+				metrics.Model = model
+			}
+			gpuDetails = &metrics
+		}
+	}
+
 	response := DetailedMetricsResponse{
 		CPUDetails: struct {
 			Usage           float64       `json:"usage"`
@@ -3370,6 +3427,7 @@ func getDetailedMetricsHandler(w http.ResponseWriter, r *http.Request) {
 			NetworkStats:    getNetworkStats(),
 			ConnectionPools: getHTTPConnectionPools(),
 		},
+		GPUDetails: gpuDetails,
 		SystemDetails: SystemHealthDetails{
 			FileDescriptors: struct {
 				Used    int     `json:"used"`

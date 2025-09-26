@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -49,6 +50,9 @@ func (s *MonitorService) registerCollectors() {
 	s.collectors.Register(collectors.NewNetworkCollector())
 	s.collectors.Register(collectors.NewDiskCollector())
 	s.collectors.Register(collectors.NewProcessCollector())
+	if gpuCollector := collectors.NewGPUCollector(); gpuCollector.IsEnabled() {
+		s.collectors.Register(gpuCollector)
+	}
 }
 
 // Start begins the monitoring service
@@ -122,10 +126,15 @@ func (s *MonitorService) collectCurrentMetrics(ctx context.Context) (*models.Met
 	cpuCollector := collectors.NewCPUCollector()
 	memCollector := collectors.NewMemoryCollector()
 	netCollector := collectors.NewNetworkCollector()
+	gpuCollector := collectors.NewGPUCollector()
 
 	cpuData, _ := cpuCollector.Collect(ctx)
 	memData, _ := memCollector.Collect(ctx)
 	netData, _ := netCollector.Collect(ctx)
+	var gpuData *collectors.MetricData
+	if gpuCollector.IsEnabled() {
+		gpuData, _ = gpuCollector.Collect(ctx)
+	}
 
 	cpuUsage := 0.0
 	if cpuData != nil {
@@ -148,10 +157,19 @@ func (s *MonitorService) collectCurrentMetrics(ctx context.Context) (*models.Met
 		}
 	}
 
+	var gpuUsagePtr *float64
+	if gpuData != nil {
+		if val, ok := gpuData.Values["total_usage_percent"].(float64); ok {
+			usage := val
+			gpuUsagePtr = &usage
+		}
+	}
+
 	return &models.MetricsResponse{
 		CPUUsage:       cpuUsage,
 		MemoryUsage:    memUsage,
 		TCPConnections: tcpConnections,
+		GPUUsage:       gpuUsagePtr,
 		Timestamp:      time.Now(),
 	}, nil
 }
@@ -164,12 +182,17 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 	netCollector := collectors.NewNetworkCollector()
 	diskCollector := collectors.NewDiskCollector()
 	processCollector := collectors.NewProcessCollector()
+	gpuCollector := collectors.NewGPUCollector()
 
 	cpuData, _ := cpuCollector.Collect(ctx)
 	memData, _ := memCollector.Collect(ctx)
 	netData, _ := netCollector.Collect(ctx)
 	diskData, _ := diskCollector.Collect(ctx)
 	_, _ = processCollector.Collect(ctx) // Collected but not used here
+	var gpuData *collectors.MetricData
+	if gpuCollector.IsEnabled() {
+		gpuData, _ = gpuCollector.Collect(ctx)
+	}
 
 	// Get top processes
 	topCPUProcs, _ := collectors.GetTopProcessesByCPU(5)
@@ -261,6 +284,40 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 				Percent: getFloat64Value(fdInfo, "percent"),
 			}
 		}
+
+		if inotifyInfo, ok := diskData.Values["inotify_watchers"].(map[string]interface{}); ok {
+			info := models.InotifyWatcherInfo{
+				Supported:        getBoolValue(inotifyInfo, "supported"),
+				WatchesUsed:      getIntValue(inotifyInfo, "watches_used"),
+				WatchesMax:       getIntValue(inotifyInfo, "watches_max"),
+				WatchesPercent:   getFloat64Value(inotifyInfo, "watches_percent"),
+				InstancesUsed:    getIntValue(inotifyInfo, "instances_used"),
+				InstancesMax:     getIntValue(inotifyInfo, "instances_max"),
+				InstancesPercent: getFloat64Value(inotifyInfo, "instances_percent"),
+			}
+			detailed.SystemDetails.InotifyWatchers = &info
+		}
+	}
+
+	// GPU Details
+	if gpuData != nil {
+		metrics := models.GPUMetrics{}
+		if summary, ok := gpuData.Values["summary"].(models.GPUSummary); ok {
+			metrics.Summary = summary
+		}
+		if devices, ok := gpuData.Values["devices"].([]models.GPUDeviceMetrics); ok {
+			metrics.Devices = devices
+		}
+		if driver, ok := gpuData.Values["driver_version"].(string); ok {
+			metrics.Driver = driver
+		}
+		if model, ok := gpuData.Values["primary_model"].(string); ok {
+			metrics.Model = model
+		}
+		if warnings, ok := gpuData.Values["warnings"].([]string); ok {
+			metrics.Errors = warnings
+		}
+		detailed.GPUDetails = &metrics
 	}
 
 	// Add service dependencies check
@@ -465,4 +522,17 @@ func getStringValue(m map[string]interface{}, key string) string {
 		return val
 	}
 	return ""
+}
+
+func getBoolValue(m map[string]interface{}, key string) bool {
+	if val, ok := m[key].(bool); ok {
+		return val
+	}
+	if val, ok := m[key].(string); ok {
+		return strings.EqualFold(val, "true") || val == "1"
+	}
+	if val, ok := m[key].(float64); ok {
+		return val != 0
+	}
+	return false
 }

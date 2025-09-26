@@ -47,6 +47,7 @@ const ensureHistoryBase = (history: MetricHistory | null): MetricHistory => ({
   cpu: history?.cpu ? [...history.cpu] : [],
   memory: history?.memory ? [...history.memory] : [],
   network: history?.network ? [...history.network] : [],
+  gpu: history?.gpu ? [...history.gpu] : [],
   diskUsage: cloneSeries(history?.diskUsage),
   diskRead: cloneSeries(history?.diskRead),
   diskWrite: cloneSeries(history?.diskWrite)
@@ -113,6 +114,19 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     if (data) {
       setMetrics(data);
       setError(null);
+      if (typeof data.gpu_usage === 'number' && Number.isFinite(data.gpu_usage)) {
+        const timestamp = data.timestamp ?? new Date().toISOString();
+        setMetricHistory(prev => {
+          const base = ensureHistoryBase(prev);
+          return {
+            ...base,
+            gpu: appendHistoryPoint(base.gpu, {
+              timestamp,
+              value: data.gpu_usage as number
+            })
+          };
+        });
+      }
     }
   }, [handleApiCall]);
 
@@ -160,7 +174,13 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
         network: data.samples.map(sample => ({
           timestamp: sample.timestamp,
           value: sample.tcp_connections
-        }))
+        })),
+        gpu: data.samples
+          .filter(sample => typeof sample.gpu_usage === 'number' && Number.isFinite(sample.gpu_usage as number))
+          .map(sample => ({
+            timestamp: sample.timestamp,
+            value: Number(sample.gpu_usage)
+          }))
       };
     });
   }, [handleApiCall]);
