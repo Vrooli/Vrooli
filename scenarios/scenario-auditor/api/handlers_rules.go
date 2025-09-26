@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -626,6 +627,115 @@ func testRuleHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		logger.Error("Failed to encode test response", err)
 		HTTPError(w, "Failed to encode response", http.StatusInternalServerError, err)
+	}
+}
+
+func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
+	logger := NewLogger()
+
+	vars := mux.Vars(r)
+	ruleID := strings.TrimSpace(vars["ruleId"])
+	if ruleID == "" {
+		HTTPError(w, "Rule ID is required", http.StatusBadRequest, nil)
+		return
+	}
+
+	var req struct {
+		Scenario string `json:"scenario"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
+		return
+	}
+
+	scenarioName := strings.TrimSpace(req.Scenario)
+	if scenarioName == "" {
+		HTTPError(w, "Scenario is required", http.StatusBadRequest, nil)
+		return
+	}
+
+	svc, err := ruleService()
+	if err != nil {
+		HTTPError(w, "Failed to initialise rule engine", http.StatusInternalServerError, err)
+		return
+	}
+
+	ruleInfo, exists, err := svc.Get(ruleID)
+	if err != nil {
+		HTTPError(w, "Failed to load rule", http.StatusInternalServerError, err)
+		return
+	}
+	if !exists {
+		HTTPError(w, "Rule not found", http.StatusNotFound, nil)
+		return
+	}
+
+	if !ruleInfo.Implementation.Valid {
+		HTTPError(w, fmt.Sprintf("Rule implementation unavailable: %s", firstNonEmpty(ruleInfo.Implementation.Error, "failed to load")), http.StatusUnprocessableEntity, nil)
+		return
+	}
+
+	normalizedTargets := ruleInfo.Targets
+	if len(normalizedTargets) == 0 {
+		normalizedTargets = defaultTargetsForRule(ruleInfo)
+	} else {
+		normalizedTargets = normalizeTargets(normalizedTargets)
+	}
+
+	if len(normalizedTargets) == 0 {
+		HTTPError(w, "Rule has no targets configured; add a Targets: metadata entry to run it against scenarios.", http.StatusUnprocessableEntity, nil)
+		return
+	}
+
+	sortedTargets := append([]string(nil), normalizedTargets...)
+	sort.Strings(sortedTargets)
+	containsStructure := false
+	for _, target := range sortedTargets {
+		if target == targetStructure {
+			containsStructure = true
+			break
+		}
+	}
+
+	start := time.Now()
+	violations, filesScanned, _, evalErr := evaluateRuleOnScenario(ruleInfo, scenarioName)
+	if evalErr != nil {
+		if os.IsNotExist(evalErr) {
+			HTTPError(w, "Scenario not found", http.StatusNotFound, evalErr)
+			return
+		}
+		logger.Error(fmt.Sprintf("Failed to execute rule %s on scenario %s", ruleID, scenarioName), evalErr)
+		HTTPError(w, "Failed to evaluate rule on scenario", http.StatusInternalServerError, evalErr)
+		return
+	}
+
+	warning := ""
+	if filesScanned == 0 && len(violations) == 0 && !containsStructure {
+		warning = fmt.Sprintf("No matching files were scanned for this rule in the selected scenario. Targets evaluated: %s.", strings.Join(sortedTargets, ", "))
+	}
+
+	if violations == nil {
+		violations = []StandardsViolation{}
+	}
+
+	response := map[string]interface{}{
+		"rule_id":       ruleID,
+		"scenario":      scenarioName,
+		"files_scanned": filesScanned,
+		"violations":    violations,
+		"targets":       sortedTargets,
+		"duration_ms":   time.Since(start).Milliseconds(),
+	}
+	if warning != "" {
+		response["warning"] = warning
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.Error("Failed to encode scenario test response", err)
+		HTTPError(w, "Failed to encode response", http.StatusInternalServerError, err)
+		return
 	}
 }
 

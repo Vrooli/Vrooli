@@ -319,6 +319,16 @@ export interface RuleImplementationStatus {
   details?: string
 }
 
+export interface RuleScenarioTestResult {
+  rule_id: string
+  scenario: string
+  files_scanned: number
+  duration_ms: number
+  targets: string[]
+  violations: StandardsViolation[]
+  warning?: string
+}
+
 export interface FixAgentResponse {
   success: boolean
   message: string

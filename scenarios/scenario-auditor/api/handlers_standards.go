@@ -646,6 +646,147 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 	return violations, filesScanned, nil
 }
 
+func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViolation, int, []string, error) {
+	logger := NewLogger()
+
+	if strings.TrimSpace(scenarioName) == "" {
+		return nil, 0, nil, fmt.Errorf("scenario name is required")
+	}
+
+	if !rule.Implementation.Valid {
+		return nil, 0, nil, fmt.Errorf("rule implementation unavailable: %s", firstNonEmpty(rule.Implementation.Error, "unavailable"))
+	}
+
+	scenarioRoot := getScenariosRoot()
+	scenarioPath := filepath.Join(scenarioRoot, scenarioName)
+	info, err := os.Stat(scenarioPath)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+	if !info.IsDir() {
+		return nil, 0, nil, fmt.Errorf("scenario path %s is not a directory", scenarioPath)
+	}
+
+	targets := rule.Targets
+	if len(targets) == 0 {
+		targets = defaultTargetsForRule(rule)
+	} else {
+		targets = normalizeTargets(targets)
+	}
+
+	if len(targets) == 0 {
+		return nil, 0, nil, fmt.Errorf("rule %s has no targets configured", rule.ID)
+	}
+
+	allowedTargets := make(map[string]struct{}, len(targets))
+	for _, target := range targets {
+		allowedTargets[target] = struct{}{}
+	}
+
+	structureRequested := false
+	if _, ok := allowedTargets[targetStructure]; ok {
+		structureRequested = true
+	}
+
+	structureFiles := make(map[string]struct{})
+	orderedStructureFiles := make([]string, 0)
+	filesScanned := 0
+	var violations []StandardsViolation
+	ruleCategory := strings.ToLower(strings.TrimSpace(rule.Rule.Category))
+
+	err = filepath.Walk(scenarioPath, func(path string, entry os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		if entry.IsDir() {
+			if shouldSkipDirectory(path) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		scn, relative, fileTargets := classifyFileTargets(path)
+		if scn == "" {
+			return nil
+		}
+
+		if structureRequested && relative != "" {
+			relative = filepath.ToSlash(relative)
+			if _, exists := structureFiles[relative]; !exists {
+				structureFiles[relative] = struct{}{}
+				orderedStructureFiles = append(orderedStructureFiles, relative)
+			}
+		}
+
+		runRule := false
+		for _, target := range fileTargets {
+			if _, ok := allowedTargets[target]; !ok {
+				continue
+			}
+			if ruleCategory == "structure" && target != targetStructure {
+				continue
+			}
+			runRule = true
+			break
+		}
+
+		if !runRule {
+			return nil
+		}
+
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			logger.Error(fmt.Sprintf("Failed to read %s", path), readErr)
+			return nil
+		}
+
+		filesScanned++
+		ruleViolations, execErr := rule.Check(string(content), path, scenarioName)
+		if execErr != nil {
+			logger.Error(fmt.Sprintf("Rule %s execution failed on %s", rule.ID, path), execErr)
+			return nil
+		}
+
+		for _, rv := range ruleViolations {
+			relativePath := filepath.ToSlash(relative)
+			violations = append(violations, convertRuleViolationToStandards(rule, rv, scenarioName, relativePath))
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return violations, filesScanned, targets, err
+	}
+
+	if structureRequested {
+		sort.Strings(orderedStructureFiles)
+		payload := struct {
+			Scenario string   `json:"scenario"`
+			Files    []string `json:"files"`
+		}{
+			Scenario: scenarioName,
+			Files:    orderedStructureFiles,
+		}
+		encoded, marshalErr := json.Marshal(payload)
+		if marshalErr != nil {
+			return violations, filesScanned, targets, marshalErr
+		}
+
+		ruleViolations, execErr := rule.Check(string(encoded), scenarioPath, scenarioName)
+		if execErr != nil {
+			return violations, filesScanned, targets, execErr
+		}
+
+		for _, rv := range ruleViolations {
+			violations = append(violations, convertRuleViolationToStandards(rule, rv, scenarioName, rv.FilePath))
+		}
+	}
+
+	return violations, filesScanned, targets, nil
+}
+
 func buildRuleBuckets(ruleInfos map[string]RuleInfo, specific []string) (map[string][]RuleInfo, map[string]RuleInfo) {
 	allowed := make(map[string]struct{})
 	for _, item := range specific {

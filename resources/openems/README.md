@@ -211,6 +211,30 @@ Available forecasts:
 - Consumption patterns and anomalies
 - Demand response potential
 
+## 📊 Performance Monitoring
+
+Monitor real-time performance and resource usage:
+
+```bash
+# Display current performance metrics
+vrooli resource openems metrics
+
+# Run comprehensive benchmark tests
+vrooli resource openems benchmark
+```
+
+The metrics command shows:
+- Container resource usage (CPU, memory, I/O)
+- Telemetry data collection statistics
+- WebSocket connectivity latency
+- Service health status
+
+The benchmark command performs:
+- 10 WebSocket connectivity tests with latency measurements
+- Performance grading (Excellent/Good/Acceptable/Slow)
+- Telemetry ingestion rate testing
+- Automatic service startup if needed
+
 ## 🔒 Security
 
 - All DER commands are validated before execution

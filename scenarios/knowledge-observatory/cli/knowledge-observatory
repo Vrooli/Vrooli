@@ -4,7 +4,9 @@ set -euo pipefail
 
 SCRIPT_NAME="knowledge-observatory"
 VERSION="1.0.0"
-API_URL="${KNOWLEDGE_OBSERVATORY_API_URL:-http://localhost:20270}"
+# Use API_PORT environment variable if set, otherwise default to 20270
+DEFAULT_PORT="${API_PORT:-20270}"
+API_URL="${KNOWLEDGE_OBSERVATORY_API_URL:-http://localhost:${DEFAULT_PORT}}"
 RESOURCE_QDRANT_CLI="${RESOURCE_QDRANT_CLI:-resource-qdrant}"
 
 show_help() {
@@ -512,7 +514,7 @@ main() {
         status)
             shift
             local json="false"
-            [[ "$1" == "--json" ]] && json="true"
+            [[ "${1:-}" == "--json" ]] && json="true"
             cmd_status "$json"
             ;;
         search)

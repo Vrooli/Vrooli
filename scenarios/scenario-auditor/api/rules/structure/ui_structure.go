@@ -26,7 +26,7 @@ Description: Validates that scenarios supplying a UI ship a usable shell with th
 Reason: Monitoring and orchestration flows depend on a consistent UI entry point and iframe bridge when present
 Category: structure
 Severity: high
-Targets: ui, structure
+Targets: structure
 
 <test-case id="missing-ui-directory" should-fail="false">
   <description>Scenario missing ui directory is allowed</description>

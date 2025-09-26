@@ -9,14 +9,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESOURCE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 CLI="${RESOURCE_DIR}/cli.sh"
 
-# Set default ports for testing
-export OPENEMS_PORT="${OPENEMS_PORT:-8084}"
-export OPENEMS_JSONRPC_PORT="${OPENEMS_JSONRPC_PORT:-8085}"
-export OPENEMS_MODBUS_PORT="${OPENEMS_MODBUS_PORT:-502}"
-export OPENEMS_BACKEND_PORT="${OPENEMS_BACKEND_PORT:-8086}"
+# Enable quiet mode for testing to suppress non-critical warnings
+export OPENEMS_QUIET_MODE="true"
 
-# Source configuration if available (but don't fail if it doesn't work)
-source "${RESOURCE_DIR}/config/defaults.sh" 2>/dev/null || true
+# Source configuration to get correct ports from registry
+source "${RESOURCE_DIR}/config/defaults.sh" || {
+    echo "❌ Failed to load configuration"
+    exit 1
+}
 
 # Test counters
 TESTS_RUN=0
@@ -67,11 +67,11 @@ run_test "DER configuration" "$CLI content execute configure-der --type solar --
 # Test 5: Get status
 run_test "status retrieval" "$CLI content execute get-status"
 
-# Test 6: Simulate solar generation
-run_test "solar simulation" "$CLI content execute simulate-solar 5000"
+# Test 6: Simulate solar generation (with shorter duration for testing)
+run_test "solar simulation" "$CLI content execute simulate-solar 5000 2"
 
-# Test 7: Simulate load
-run_test "load simulation" "$CLI content execute simulate-load 3000"
+# Test 7: Simulate load (with shorter duration for testing)
+run_test "load simulation" "$CLI content execute simulate-load 3000 2"
 
 # Test 8: Add configuration
 echo "test_config" > /tmp/test_openems.json

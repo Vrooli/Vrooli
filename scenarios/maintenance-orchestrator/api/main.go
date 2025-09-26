@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"path/filepath"
 )
 
 const (
@@ -36,7 +37,12 @@ func main() {
 
 	// Change working directory to project root for scenario discovery
 	// API runs from scenarios/maintenance-orchestrator/api/, so go up 3 levels to project root
-	if err := os.Chdir("../../../"); err != nil {
+	root, err := filepath.Abs(filepath.Clean("../../../"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "❌ Failed to resolve project root directory: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.Chdir(root); err != nil {
 		fmt.Fprintf(os.Stderr, "❌ Failed to change to project root directory: %v\n", err)
 		os.Exit(1)
 	}

@@ -361,6 +361,7 @@ func main() {
 	api.HandleFunc("/rules/{ruleId}", updateRuleHandler).Methods("PUT")
 	api.HandleFunc("/rules/{ruleId}/toggle", toggleRuleHandler).Methods("POST")
 	api.HandleFunc("/rules/{ruleId}/test", testRuleHandler).Methods("POST")
+	api.HandleFunc("/rules/{ruleId}/scenario-test", testRuleOnScenarioHandler).Methods("POST")
 	api.HandleFunc("/rules/{ruleId}/validate", validateRuleHandler).Methods("POST")
 	api.HandleFunc("/rules/{ruleId}/test-cache", clearTestCacheHandler).Methods("DELETE")
 

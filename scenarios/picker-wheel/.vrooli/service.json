@@ -206,7 +206,7 @@
         },
         {
           "name": "test-spin-endpoint",
-          "run": "curl -sf -X POST http://localhost:$API_PORT/api/spin -H 'Content-Type: application/json' -d '{\\\"wheel_id\\\":\\\"yes-or-no\\\"}'",
+          "run": "curl -sf -X POST http://localhost:$API_PORT/api/spin -H 'Content-Type: application/json' -d '{\"wheel_id\":\"yes-or-no\"}'",
           "description": "Test API spin endpoint"
         },
         {

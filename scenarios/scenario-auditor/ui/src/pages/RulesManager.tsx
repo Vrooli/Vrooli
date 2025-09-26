@@ -1,6 +1,6 @@
-import { AgentInfo, RuleImplementationStatus, RuleTestStatus } from '@/types/api'
+import { AgentInfo, RuleImplementationStatus, RuleScenarioTestResult, RuleTestStatus, Scenario } from '@/types/api'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Brain, CheckCircle, ChevronDown, CircleStop, Clock, Code, Eye, EyeOff, Info, Play, Plus, Shield, Terminal, TestTube, X, XCircle } from 'lucide-react'
+import { AlertTriangle, Brain, CheckCircle, ChevronDown, CircleStop, Clock, Code, Eye, EyeOff, Info, Play, Plus, Shield, Target, Terminal, TestTube, X, XCircle } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
 import React, { useEffect, useMemo, useState } from 'react'
 import { CodeEditor } from '../components/CodeEditor'
@@ -45,7 +45,8 @@ function CodeBlock({ code }: { code: string }) {
             <code className="block">
               {tokens.map((line, i) => {
                 const lineProps = getLineProps({ line, key: i })
-                const { className: lineClassName = '', key: lineKey, ...restLineProps } = lineProps
+                const lineKey = lineProps.key as React.Key | null | undefined
+                const { className: lineClassName = '', key: _lineKey, ...restLineProps } = lineProps
 
                 return (
                   <div
@@ -59,7 +60,8 @@ function CodeBlock({ code }: { code: string }) {
                     <span className="table-cell">
                       {line.map((token, key) => {
                         const tokenProps = getTokenProps({ token, key })
-                        const { className: tokenClassName = '', key: tokenKey, ...restTokenProps } = tokenProps
+                        const tokenKey = tokenProps.key as React.Key | null | undefined
+                        const { className: tokenClassName = '', key: _tokenKey, ...restTokenProps } = tokenProps
                         return <span key={tokenKey ?? key} className={tokenClassName} {...restTokenProps} />
                       })}
                     </span>
@@ -255,6 +257,13 @@ export default function RulesManager() {
     severity: 'medium',
     motivation: '',
   })
+  const [isScenarioTestModalOpen, setIsScenarioTestModalOpen] = useState(false)
+  const [isRunningScenarioTest, setIsRunningScenarioTest] = useState(false)
+  const [scenarioTestResult, setScenarioTestResult] = useState<RuleScenarioTestResult | null>(null)
+  const [scenarioTestError, setScenarioTestError] = useState<string | null>(null)
+  const [scenarioTestScenario, setScenarioTestScenario] = useState<string | null>(null)
+  const [scenarioTestCompletedAt, setScenarioTestCompletedAt] = useState<Date | null>(null)
+  const [scenarioSearchTerm, setScenarioSearchTerm] = useState('')
   const queryClient = useQueryClient()
 
   const { data: activeAgentsData } = useQuery({
@@ -278,6 +287,33 @@ export default function RulesManager() {
       return `${mins}m ${secs}s`
     }
     return `${secs}s`
+  }
+
+  const formatDurationMs = (milliseconds: number) => {
+    if (!milliseconds || milliseconds < 1) {
+      return '<1ms'
+    }
+    if (milliseconds < 1000) {
+      return `${Math.round(milliseconds)}ms`
+    }
+
+    const totalSeconds = milliseconds / 1000
+    if (totalSeconds < 60) {
+      if (totalSeconds >= 10) {
+        return `${totalSeconds.toFixed(1)}s`
+      }
+      return `${totalSeconds.toFixed(2)}s`
+    }
+
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = Math.round(totalSeconds - minutes*60)
+    if (minutes < 60) {
+      return `${minutes}m ${seconds}s`
+    }
+
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+    return `${hours}h ${remainingMinutes}m`
   }
 
   const describeAgentAction = (action: string) => {
@@ -307,6 +343,12 @@ export default function RulesManager() {
     enabled: !!selectedRule,
   })
 
+  const { data: scenarioOptions, isFetching: isFetchingScenarios } = useQuery<Scenario[]>({
+    queryKey: ['scenarios', 'rule-tests'],
+    queryFn: () => apiService.getScenarios(),
+    enabled: isScenarioTestModalOpen,
+  })
+
   const apiCategories = (rulesData?.categories || {}) as Record<string, { name?: string }>
   const executionInfo = ruleDetail?.execution_info
 
@@ -314,8 +356,27 @@ export default function RulesManager() {
     setExecutionInfoExpanded(false)
   }, [selectedRule])
 
+  useEffect(() => {
+    setScenarioTestResult(null)
+    setScenarioTestError(null)
+    setScenarioTestScenario(null)
+    setScenarioTestCompletedAt(null)
+  }, [selectedRule])
+
   const ruleStatuses = (rulesData?.rule_statuses || {}) as Record<string, RuleTestStatus>
   const currentRuleStatus = selectedRule ? ruleStatuses[selectedRule] : undefined
+  const scenarioTargets = scenarioTestResult?.targets ?? []
+  const scenarioViolations = scenarioTestResult?.violations ?? []
+  const scenarioFilesScanned = scenarioTestResult?.files_scanned ?? 0
+  const scenarioDurationMs = scenarioTestResult?.duration_ms ?? 0
+  const filteredScenarioOptions = useMemo(() => {
+    const list = Array.isArray(scenarioOptions) ? scenarioOptions : []
+    const term = scenarioSearchTerm.trim().toLowerCase()
+    if (!term) {
+      return list
+    }
+    return list.filter(option => option.name.toLowerCase().includes(term))
+  }, [scenarioOptions, scenarioSearchTerm])
   const allTestsPassing = useMemo(() => {
     if (testResults) {
       if (testResults.error) {
@@ -358,6 +419,28 @@ export default function RulesManager() {
       setTestResults({ error: 'Failed to run tests' })
     } finally {
       setIsRunningTests(false)
+    }
+  }
+
+  const handleRunScenarioTest = async (scenarioName: string) => {
+    if (!selectedRule || !scenarioName) return
+
+    setScenarioTestScenario(scenarioName)
+    setScenarioTestError(null)
+    setIsRunningScenarioTest(true)
+    setIsScenarioTestModalOpen(false)
+
+    try {
+      const result = await apiService.testRuleOnScenario(selectedRule, scenarioName)
+      setScenarioTestResult(result)
+      setScenarioTestCompletedAt(new Date())
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to run scenario test'
+      setScenarioTestError(message)
+      setScenarioTestResult(null)
+      setScenarioTestCompletedAt(new Date())
+    } finally {
+      setIsRunningScenarioTest(false)
     }
   }
 
@@ -687,6 +770,98 @@ export default function RulesManager() {
           <p className="mt-1 text-sm text-gray-500">
             {selectedCategory ? 'No rules in this category.' : 'Get started by creating your first rule.'}
           </p>
+        </div>
+      )}
+
+      {isScenarioTestModalOpen && (
+        <div className="fixed inset-0 z-[70] overflow-y-auto">
+          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              onClick={() => setIsScenarioTestModalOpen(false)}
+            />
+            <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+              <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
+                <button
+                  type="button"
+                  className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  onClick={() => setIsScenarioTestModalOpen(false)}
+                >
+                  <span className="sr-only">Close</span>
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div>
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                  <Target className="h-6 w-6 text-slate-700" />
+                </div>
+                <div className="mt-3 text-center sm:mt-4">
+                  <h3 className="text-base font-semibold leading-6 text-gray-900">Select scenario to evaluate</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Run this rule against any scenario without toggling global standards scans.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                <div>
+                  <label htmlFor="scenario-search" className="sr-only">Search scenarios</label>
+                  <input
+                    id="scenario-search"
+                    type="text"
+                    value={scenarioSearchTerm}
+                    onChange={(event) => setScenarioSearchTerm(event.target.value)}
+                    placeholder="Search scenarios"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="max-h-64 overflow-y-auto rounded-md border border-gray-200">
+                  {isFetchingScenarios ? (
+                    <div className="flex items-center justify-center gap-2 px-3 py-6 text-sm text-gray-600">
+                      <Clock className="h-4 w-4 animate-spin" />
+                      <span>Loading scenarios...</span>
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-gray-200 text-left text-sm">
+                      {filteredScenarioOptions.length === 0 ? (
+                        <li className="px-3 py-4 text-center text-gray-500">
+                          No scenarios match your search.
+                        </li>
+                      ) : (
+                        filteredScenarioOptions.map(option => (
+                          <li key={option.name} className="px-3 py-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{option.name}</p>
+                                {option.description && (
+                                  <p className="text-xs text-gray-500">{option.description}</p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRunScenarioTest(option.name)}
+                                disabled={isRunningScenarioTest}
+                                className="inline-flex items-center rounded-md border border-transparent bg-slate-700 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 disabled:opacity-50"
+                              >
+                                {isRunningScenarioTest ? (
+                                  <Clock className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Target className="h-4 w-4" />
+                                )}
+                                <span className="ml-2">Run</span>
+                              </button>
+                            </div>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1049,6 +1224,21 @@ export default function RulesManager() {
                           <Brain className="h-4 w-4 mr-2" />
                           Add Tests (AI)
                         </button>
+                        <button
+                          onClick={() => {
+                            setScenarioSearchTerm('')
+                            setIsScenarioTestModalOpen(true)
+                          }}
+                          disabled={isRunningScenarioTest || !selectedRule}
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-slate-700 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 disabled:opacity-50"
+                        >
+                          {isRunningScenarioTest ? (
+                            <Clock className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Target className="h-4 w-4 mr-2" />
+                          )}
+                          {isRunningScenarioTest ? 'Testing...' : 'Test on Scenario'}
+                        </button>
                         {!allTestsPassing && (
                           <button
                             onClick={() => handleStartAgent('fix_rule_tests')}
@@ -1061,6 +1251,123 @@ export default function RulesManager() {
                         )}
                       </div>
                     </div>
+
+                    {isRunningScenarioTest && (
+                      <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
+                        <Clock className="h-4 w-4 animate-spin" />
+                        <span>
+                          Testing rule on {scenarioTestScenario || 'selected scenario'}...
+                        </span>
+                      </div>
+                    )}
+
+                    {scenarioTestError && (
+                      <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        <p className="font-semibold">Failed to test on {scenarioTestScenario || 'scenario'}.</p>
+                        <p className="mt-1 text-red-600">{scenarioTestError}</p>
+                      </div>
+                    )}
+
+                    {scenarioTestResult && (
+                      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <h5 className="text-sm font-semibold text-slate-900">
+                              Scenario run: {scenarioTestResult.scenario}
+                            </h5>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                              <span>{scenarioFilesScanned} file{scenarioFilesScanned === 1 ? '' : 's'} scanned</span>
+                              <span>•</span>
+                              <span>{scenarioViolations.length} violation{scenarioViolations.length === 1 ? '' : 's'}</span>
+                              <span>•</span>
+                              <span>{formatDurationMs(scenarioDurationMs)}</span>
+                            </div>
+                            {scenarioTestResult.warning && (
+                              <p className="mt-2 inline-flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700">
+                                <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                                <span>{scenarioTestResult.warning}</span>
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {scenarioTestCompletedAt && (
+                              <span>Last run {scenarioTestCompletedAt.toLocaleTimeString()}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {scenarioTargets.map((target, index) => {
+                            const badgeClass = TARGET_BADGE_CLASSES[target] || 'bg-gray-100 text-gray-700'
+                            const category = TARGET_CATEGORY_CONFIG.find(cfg => cfg.id === target)
+                            return (
+                              <span
+                                key={`scenario-target-${target}-${index}`}
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}`}
+                              >
+                                {category?.label || target}
+                              </span>
+                            )
+                          })}
+                        </div>
+                        <div className="mt-4">
+                          {scenarioViolations.length === 0 ? (
+                            <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                              No violations detected for this scenario.
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {scenarioViolations.map((violation, index) => (
+                                <div key={violation.id || `${violation.file_path || 'violation'}-${index}`} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                    <div className="space-y-1">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${violation.severity === 'critical'
+                                          ? 'bg-red-100 text-red-800'
+                                          : violation.severity === 'high'
+                                            ? 'bg-orange-100 text-orange-800'
+                                            : violation.severity === 'medium'
+                                              ? 'bg-yellow-100 text-yellow-800'
+                                              : 'bg-green-100 text-green-800'
+                                          }`}>
+                                          {violation.severity}
+                                        </span>
+                                        {violation.file_path && (
+                                          <span className="font-mono text-xs text-slate-600">{violation.file_path}</span>
+                                        )}
+                                        {violation.line_number ? (
+                                          <span className="text-xs text-slate-500">Line {violation.line_number}</span>
+                                        ) : null}
+                                      </div>
+                                      <p className="text-sm font-medium text-slate-900">
+                                        {violation.title || violation.description || 'Rule violation detected'}
+                                      </p>
+                                      {violation.description && (
+                                        <p className="text-sm text-slate-700">{violation.description}</p>
+                                      )}
+                                    </div>
+                                    {violation.standard && (
+                                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                        {violation.standard}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {violation.recommendation && (
+                                    <p className="mt-2 text-xs text-slate-600">
+                                      <span className="font-semibold text-slate-700">Recommended fix:</span> {violation.recommendation}
+                                    </p>
+                                  )}
+                                  {violation.code_snippet && (
+                                    <pre className="mt-2 max-h-40 overflow-auto rounded bg-slate-900 p-2 text-xs text-slate-100 whitespace-pre-wrap">
+                                      {violation.code_snippet}
+                                    </pre>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {agentError && (
                       <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700">

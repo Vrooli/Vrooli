@@ -16,6 +16,7 @@ import {
   StandardsViolation,
   StandardsScanStatus,
   AutomatedFixJobSnapshot,
+  RuleScenarioTestResult,
 } from '@/types/api'
 
 const API_BASE = '/api/v1'
@@ -336,6 +337,13 @@ class ApiService {
   async testRule(ruleId: string): Promise<any> {
     return this.fetch(`/rules/${encodeURIComponent(ruleId)}/test`, {
       method: 'POST'
+    })
+  }
+
+  async testRuleOnScenario(ruleId: string, scenario: string): Promise<RuleScenarioTestResult> {
+    return this.fetch(`/rules/${encodeURIComponent(ruleId)}/scenario-test`, {
+      method: 'POST',
+      body: JSON.stringify({ scenario })
     })
   }
 
