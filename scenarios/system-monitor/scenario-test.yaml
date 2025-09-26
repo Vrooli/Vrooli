@@ -30,10 +30,10 @@ tests:
     flow: anomaly-detection-flow
     expected: deployed
 
-  - name: Claude Code Integration
+  - name: OpenCode Investigation Endpoint
     type: connectivity
-    service: claude-code
-    endpoint: /api/claude/investigate
+    service: opencode
+    endpoint: /api/investigations/trigger
     method: OPTIONS
     expected: 200
 

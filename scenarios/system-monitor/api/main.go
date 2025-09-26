@@ -31,6 +31,13 @@ import (
 	"system-monitor-api/internal/services"
 )
 
+const (
+	investigationAgentModel        = "openrouter/openai/gpt-5-codex"
+	investigationAgentAllowedTools = "read,write,edit,bash,ls,glob,grep"
+	investigationAgentMaxTurns     = 75
+	investigationAgentTimeoutSecs  = 600
+)
+
 type HealthResponse struct {
 	Status           string                 `json:"status"`
 	Service          string                 `json:"service"`
@@ -788,6 +795,7 @@ func main() {
 	r.HandleFunc("/api/maintenance/state", settingsHandler.SetMaintenanceState).Methods("POST")
 
 	// Investigation endpoints
+	r.HandleFunc("/api/investigations", listInvestigationsHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/latest", getLatestInvestigationHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/trigger", triggerInvestigationHandler).Methods("POST")
 	r.HandleFunc("/api/investigations/scripts", listInvestigationScriptsHandler).Methods("GET")
@@ -1823,6 +1831,35 @@ func spawnAgentHandler(w http.ResponseWriter, r *http.Request) {
 	triggerInvestigationHandler(w, r)
 }
 
+func listInvestigationsHandler(w http.ResponseWriter, r *http.Request) {
+	investigationsMutex.RLock()
+	defer investigationsMutex.RUnlock()
+
+	list := make([]*Investigation, 0, len(investigations))
+	for _, inv := range investigations {
+		invCopy := *inv
+		if inv.Details != nil {
+			detailsCopy := make(map[string]interface{}, len(inv.Details))
+			for k, v := range inv.Details {
+				detailsCopy[k] = v
+			}
+			invCopy.Details = detailsCopy
+		}
+		list = append(list, &invCopy)
+	}
+
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].StartTime.After(list[j].StartTime)
+	})
+
+	if len(list) > 20 {
+		list = list[:20]
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(list)
+}
+
 func getAgentStatusHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -1846,6 +1883,7 @@ func getAgentStatusHandler(w http.ResponseWriter, r *http.Request) {
 		"status":   investigation.Status,
 		"progress": investigation.Progress,
 		"findings": investigation.Findings,
+		"details":  investigation.Details,
 	})
 }
 
@@ -1865,13 +1903,41 @@ func getCurrentAgentHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if currentAgent != nil {
+		agent := map[string]interface{}{
+			"id":        currentAgent.ID,
+			"status":    currentAgent.Status,
+			"progress":  currentAgent.Progress,
+			"startTime": currentAgent.StartTime.Format(time.RFC3339),
+		}
+
+		if currentAgent.Details != nil {
+			detailsCopy := make(map[string]interface{}, len(currentAgent.Details))
+			for k, v := range currentAgent.Details {
+				detailsCopy[k] = v
+			}
+			agent["details"] = detailsCopy
+			if mode, ok := detailsCopy["operation_mode"]; ok {
+				agent["operation_mode"] = mode
+			}
+			if autoFix, ok := detailsCopy["auto_fix"]; ok {
+				agent["auto_fix"] = autoFix
+			}
+			if model, ok := detailsCopy["agent_model"]; ok {
+				agent["agent_model"] = model
+			}
+			if resource, ok := detailsCopy["agent_resource"]; ok {
+				agent["agent_resource"] = resource
+			}
+			if note, ok := detailsCopy["user_note"]; ok {
+				agent["note"] = note
+			}
+			if risk, ok := detailsCopy["risk_level"]; ok {
+				agent["risk_level"] = risk
+			}
+		}
+
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"agent": map[string]interface{}{
-				"id":        currentAgent.ID,
-				"status":    currentAgent.Status,
-				"progress":  currentAgent.Progress,
-				"startTime": currentAgent.StartTime.Format(time.RFC3339),
-			},
+			"agent": agent,
 		})
 	} else {
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -1911,6 +1977,8 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 	if !reqBody.AutoFix {
 		investigation.Details["operation_mode"] = "report-only"
 	}
+	investigation.Details["agent_model"] = investigationAgentModel
+	investigation.Details["agent_resource"] = "resource-opencode"
 
 	// Store optional user note if provided
 	if reqBody.Note != "" {
@@ -1925,17 +1993,32 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Start investigation in background
 	go func() {
-		runClaudeInvestigation(investigationID, reqBody.AutoFix, reqBody.Note)
+		runOpenCodeInvestigation(investigationID, reqBody.AutoFix, reqBody.Note)
 	}()
 
 	// Return immediate response with API info
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	response := map[string]interface{}{
 		"status":           "queued",
 		"investigation_id": investigationID,
 		"api_base_url":     "http://localhost:8080",
-		"message":          "Investigation queued for Claude Code processing",
-	})
+		"message":          "Investigation queued for OpenCode processing",
+		"auto_fix":         reqBody.AutoFix,
+		"note":             reqBody.Note,
+		"operation_mode":   investigation.Details["operation_mode"],
+		"agent_model":      investigation.Details["agent_model"],
+		"agent_resource":   investigation.Details["agent_resource"],
+		"start_time":       investigation.StartTime.Format(time.RFC3339),
+	}
+	if investigation.Details != nil && len(investigation.Details) > 0 {
+		detailsCopy := make(map[string]interface{}, len(investigation.Details))
+		for k, v := range investigation.Details {
+			detailsCopy[k] = v
+		}
+		response["details"] = detailsCopy
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 // getCooldownStatusHandler returns the current cooldown status
@@ -2204,38 +2287,29 @@ func updateTriggerThresholdHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 }
 
-func runClaudeInvestigation(investigationID string, autoFix bool, userNote string) {
-	// Update status to in_progress
+func runOpenCodeInvestigation(investigationID string, autoFix bool, userNote string) {
 	updateInvestigationField(investigationID, "Status", "in_progress")
 	updateInvestigationField(investigationID, "Progress", 10)
 
-	// Get current system metrics for context
 	cpuUsage := getCPUUsage()
 	memoryUsage := getMemoryUsage()
 	tcpConnections := getTCPConnections()
 	timestamp := time.Now().Format(time.RFC3339)
 
-	// Try Claude Code first, but have a good fallback
 	var findings string
 	var details map[string]interface{}
 
-	// Determine operation mode
 	operationMode := "report-only"
 	if autoFix {
 		operationMode = "auto-fix"
 	}
 
-	// Load investigation prompt with system context and script capabilities
 	prompt, err := loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage, tcpConnections, timestamp, investigationID, operationMode, userNote)
 	if err != nil {
 		log.Printf("Failed to load prompt template: %v", err)
-		// Enhanced fallback prompt with investigation scripts context
 		userNoteSection := ""
 		if userNote != "" {
-			userNoteSection = fmt.Sprintf(`
-
-## User Instructions
-**Note from user**: %s`, userNote)
+			userNoteSection = fmt.Sprintf("\n\n## User Instructions\n**Note from user**: %s", userNote)
 		}
 
 		prompt = fmt.Sprintf(`# System Anomaly Investigation
@@ -2276,89 +2350,65 @@ Please begin your systematic investigation now, utilizing the investigation scri
 			investigationID, operationMode, timestamp, userNoteSection, cpuUsage, memoryUsage, tcpConnections)
 	}
 
-	// Try Claude Code investigation with proper timeout and settings
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		if homeDir, err := os.UserHomeDir(); err == nil {
-			vrooliRoot = filepath.Join(homeDir, "Vrooli")
-		}
-	}
-	if vrooliRoot == "" {
-		vrooliRoot = "." // Fallback to current directory
+	baseDetails := map[string]interface{}{
+		"agent_resource": "resource-opencode",
+		"agent_model":    investigationAgentModel,
+		"auto_fix":       autoFix,
+		"operation_mode": operationMode,
 	}
 
-	// Set timeout (10 minutes for investigation)
-	timeoutDuration := 10 * time.Minute
-	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
+	workingDir := resolveInvestigationWorkingDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	// Use resource-claude-code directly with proper arguments
-	cmd := exec.CommandContext(ctx, "resource-claude-code", "run", "-")
-	cmd.Dir = vrooliRoot
-
-	// Apply Claude execution settings via environment variables
-	cmd.Env = append(os.Environ(),
-		"MAX_TURNS=75",
-		"ALLOWED_TOOLS=Read,Write,Edit,Bash,LS,Glob,Grep",
-		"TIMEOUT=600", // 10 minutes in seconds
-		"SKIP_PERMISSIONS=yes",
-	)
-
-	// Set up pipes and execute Claude Code
-	var output []byte
-	var claudeWorked bool
-
-	stdinPipe, err := cmd.StdinPipe()
-	if err != nil {
-		log.Printf("Failed to create stdin pipe for Claude Code: %v", err)
-		claudeWorked = false
-	} else {
-		stdoutPipe, err := cmd.StdoutPipe()
-		if err != nil {
-			log.Printf("Failed to create stdout pipe for Claude Code: %v", err)
-			claudeWorked = false
-		} else {
-			// Start the command
-			if err := cmd.Start(); err != nil {
-				log.Printf("Failed to start Claude Code: %v", err)
-				claudeWorked = false
-			} else {
-				// Write prompt to stdin in a goroutine
-				go func() {
-					defer stdinPipe.Close()
-					if _, err := stdinPipe.Write([]byte(prompt)); err != nil {
-						log.Printf("Failed to write prompt to Claude Code stdin: %v", err)
-					}
-				}()
-
-				// Read output
-				output, err = io.ReadAll(stdoutPipe)
-
-				// Wait for command to complete
-				waitErr := cmd.Wait()
-
-				// Check if Claude Code actually worked
-				claudeWorked = err == nil && waitErr == nil && !strings.Contains(string(output), "USAGE:") && !strings.Contains(string(output), "Failed to load library")
-
-				if !claudeWorked {
-					log.Printf("Claude Code execution failed - err: %v, waitErr: %v, output preview: %.500s", err, waitErr, string(output))
-				}
-			}
-		}
+	args := []string{
+		"agents", "run",
+		"--model", investigationAgentModel,
+		"--prompt", prompt,
+		"--allowed-tools", investigationAgentAllowedTools,
+		"--max-turns", strconv.Itoa(investigationAgentMaxTurns),
+		"--task-timeout", strconv.Itoa(investigationAgentTimeoutSecs),
+		"--skip-permissions",
 	}
 
-	if claudeWorked {
-		findings = string(output)
+	start := time.Now()
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	cmd := exec.CommandContext(ctx, "resource-opencode", args...)
+	cmd.Dir = workingDir
+	cmd.Env = os.Environ()
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	runErr := cmd.Run()
+	agentOutput := strings.TrimSpace(stdout.String())
+	agentWorked := runErr == nil && agentOutput != "" && !strings.Contains(strings.ToLower(agentOutput), "usage:")
+
+	if runErr != nil {
+		log.Printf("OpenCode agent execution failed: %v; stderr: %.400s", runErr, truncateForLog(stderr.String(), 400))
+	} else if !agentWorked && stderr.Len() > 0 {
+		log.Printf("OpenCode agent returned no actionable output; stderr: %.400s", truncateForLog(stderr.String(), 400))
+	}
+
+	if agentWorked {
+		findings = agentOutput
 		details = map[string]interface{}{
-			"source":     "claude_code",
-			"risk_level": "low",
+			"source":           "resource-opencode",
+			"risk_level":       "low",
+			"duration_seconds": int(time.Since(start).Seconds()),
 		}
+		for k, v := range baseDetails {
+			details[k] = v
+		}
+		if stderr.Len() > 0 {
+			details["agent_warnings"] = truncateForLog(stderr.String(), 400)
+		}
+		updateInvestigationField(investigationID, "Progress", 90)
 	} else {
-		// Fallback: Perform basic system analysis
-		log.Printf("Claude Code unavailable, using fallback investigation")
+		log.Printf("OpenCode agent unavailable, using fallback investigation")
 		updateInvestigationField(investigationID, "Progress", 25)
 
-		// Analyze system metrics
 		riskLevel := "low"
 		anomalies := []string{}
 		recommendations := []string{}
@@ -2397,10 +2447,10 @@ Please begin your systematic investigation now, utilizing the investigation scri
 			recommendations = append(recommendations, "Review network connections with 'netstat -tuln'")
 		}
 
-		// Build findings report
 		findings = fmt.Sprintf(`### Investigation Summary
 
 **Status**: %s
+**Agent**: Fallback heuristics (OpenCode agent unavailable)
 **Investigation ID**: %s
 **Timestamp**: %s
 
@@ -2435,22 +2485,26 @@ System metrics are %s. %s`,
 				if len(anomalies) == 0 {
 					return "- No anomalies detected"
 				}
-				result := ""
+				var sb strings.Builder
 				for _, a := range anomalies {
-					result += fmt.Sprintf("- %s\n", a)
+					sb.WriteString("- ")
+					sb.WriteString(a)
+					sb.WriteByte('\n')
 				}
-				return result
+				return sb.String()
 			}(),
 			riskLevel,
 			func() string {
 				if len(recommendations) == 0 {
 					return "- Continue normal monitoring"
 				}
-				result := ""
+				var sb strings.Builder
 				for _, r := range recommendations {
-					result += fmt.Sprintf("- %s\n", r)
+					sb.WriteString("- ")
+					sb.WriteString(r)
+					sb.WriteByte('\n')
 				}
-				return result
+				return sb.String()
 			}(),
 			func() string {
 				if len(anomalies) == 0 {
@@ -2459,12 +2513,14 @@ System metrics are %s. %s`,
 				return "showing some concerns"
 			}(),
 			func() string {
-				if riskLevel == "high" {
+				switch riskLevel {
+				case "high":
 					return "Immediate attention recommended."
-				} else if riskLevel == "medium" {
+				case "medium":
 					return "Monitor closely for escalation."
+				default:
+					return "No immediate action required."
 				}
-				return "No immediate action required."
 			}(),
 		)
 
@@ -2475,9 +2531,18 @@ System metrics are %s. %s`,
 			"recommendations_count": len(recommendations),
 			"critical_issues":       riskLevel == "high",
 		}
+		for k, v := range baseDetails {
+			details[k] = v
+		}
+
+		if runErr != nil {
+			details["agent_error"] = truncateForLog(runErr.Error(), 400)
+		}
+		if stderr.Len() > 0 {
+			details["agent_stderr"] = truncateForLog(stderr.String(), 400)
+		}
 	}
 
-	// Update investigation with findings
 	investigationsMutex.Lock()
 	if inv, exists := investigations[investigationID]; exists {
 		inv.Findings = findings
@@ -2489,44 +2554,69 @@ System metrics are %s. %s`,
 	investigationsMutex.Unlock()
 }
 
-func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, investigationID string, operationMode string, userNote string) (string, error) {
-	// Get VROOLI_ROOT with proper fallback
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		homeDir := os.Getenv("HOME")
-		if homeDir == "" {
-			homeDir = "/root" // fallback for containers
+func resolveInvestigationWorkingDir() string {
+	if custom := strings.TrimSpace(os.Getenv("SYSTEM_MONITOR_INVESTIGATION_ROOT")); custom != "" {
+		if info, err := os.Stat(custom); err == nil && info.IsDir() {
+			return custom
 		}
-		vrooliRoot = filepath.Join(homeDir, "Vrooli")
 	}
 
-	// Construct scenarios directory path
-	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			vrooliRoot = filepath.Join(homeDir, "Vrooli")
+		}
+	}
 
-	// Construct path to prompt file
-	// Try multiple locations where the prompt file might exist
+	if vrooliRoot == "" {
+		if cwd, err := os.Getwd(); err == nil {
+			vrooliRoot = cwd
+		} else {
+			return "."
+		}
+	}
+
+	scenarioPath := filepath.Join(vrooliRoot, "scenarios", "system-monitor")
+	if info, err := os.Stat(scenarioPath); err == nil && info.IsDir() {
+		return scenarioPath
+	}
+
+	return vrooliRoot
+}
+
+func truncateForLog(raw string, limit int) string {
+	trimmed := strings.TrimSpace(raw)
+	if limit <= 0 || len(trimmed) <= limit {
+		return trimmed
+	}
+	if limit < 4 {
+		return trimmed[:limit]
+	}
+	return trimmed[:limit-3] + "..."
+}
+
+func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpConnections int, timestamp, investigationID, operationMode, userNote string) (string, error) {
+	scenarioRoot := resolveInvestigationWorkingDir()
 	promptPaths := []string{
-		filepath.Join(scenariosDir, "system-monitor", "initialization", "claude-code", "anomaly-check.md"),
-		filepath.Join("initialization", "claude-code", "anomaly-check.md"), // Relative path as fallback
+		filepath.Join(scenarioRoot, "initialization", "claude-code", "anomaly-check.md"),
+		filepath.Join("initialization", "claude-code", "anomaly-check.md"),
 	}
 
 	var promptContent []byte
 	var err error
 
-	// Try each path until we find the file
 	for _, path := range promptPaths {
 		promptContent, err = os.ReadFile(path)
 		if err == nil {
-			log.Printf("Loaded prompt from: %s", path)
+			log.Printf("Loaded investigation prompt from %s", path)
 			break
 		}
 	}
 
 	if err != nil {
-		return "", fmt.Errorf("could not read prompt file from any location: %v", err)
+		return "", fmt.Errorf("could not read investigation prompt: %w", err)
 	}
 
-	// Replace placeholders with actual values
 	prompt := string(promptContent)
 	prompt = strings.ReplaceAll(prompt, "{{CPU_USAGE}}", fmt.Sprintf("%.2f", cpuUsage))
 	prompt = strings.ReplaceAll(prompt, "{{MEMORY_USAGE}}", fmt.Sprintf("%.2f", memoryUsage))
@@ -2536,37 +2626,45 @@ func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpCon
 	prompt = strings.ReplaceAll(prompt, "{{API_BASE_URL}}", "http://localhost:8080")
 	prompt = strings.ReplaceAll(prompt, "{{OPERATION_MODE}}", operationMode)
 
-	// Add user note if provided
-	if userNote != "" {
-		prompt = strings.ReplaceAll(prompt, "{{USER_NOTE}}", userNote)
-	} else {
+	trimmedNote := strings.TrimSpace(userNote)
+	if trimmedNote == "" {
 		prompt = strings.ReplaceAll(prompt, "{{USER_NOTE}}", "No specific instructions provided.")
+	} else {
+		prompt = strings.ReplaceAll(prompt, "{{USER_NOTE}}", trimmedNote)
 	}
 
-	// Process conditional sections based on operation mode
-	if operationMode == "auto-fix" {
-		// Remove report-only sections and their markers
-		reportOnlyStart := strings.Index(prompt, "{{#IF_REPORT_ONLY}}")
-		reportOnlyEnd := strings.Index(prompt, "{{/IF_REPORT_ONLY}}")
-		if reportOnlyStart != -1 && reportOnlyEnd != -1 {
-			prompt = prompt[:reportOnlyStart] + prompt[reportOnlyEnd+len("{{/IF_REPORT_ONLY}}"):]
-		}
-		// Remove auto-fix markers but keep content
+	prompt = applyConditionalSections(prompt, strings.EqualFold(operationMode, "auto-fix"))
+
+	return prompt, nil
+}
+
+func applyConditionalSections(prompt string, autoFix bool) string {
+	if autoFix {
+		prompt = removeConditionalSection(prompt, "{{#IF_REPORT_ONLY}}", "{{/IF_REPORT_ONLY}}")
 		prompt = strings.ReplaceAll(prompt, "{{#IF_AUTO_FIX}}", "")
 		prompt = strings.ReplaceAll(prompt, "{{/IF_AUTO_FIX}}", "")
 	} else {
-		// Remove auto-fix sections and their markers
-		autoFixStart := strings.Index(prompt, "{{#IF_AUTO_FIX}}")
-		autoFixEnd := strings.Index(prompt, "{{/IF_AUTO_FIX}}")
-		if autoFixStart != -1 && autoFixEnd != -1 {
-			prompt = prompt[:autoFixStart] + prompt[autoFixEnd+len("{{/IF_AUTO_FIX}}"):]
-		}
-		// Remove report-only markers but keep content
+		prompt = removeConditionalSection(prompt, "{{#IF_AUTO_FIX}}", "{{/IF_AUTO_FIX}}")
 		prompt = strings.ReplaceAll(prompt, "{{#IF_REPORT_ONLY}}", "")
 		prompt = strings.ReplaceAll(prompt, "{{/IF_REPORT_ONLY}}", "")
 	}
+	return prompt
+}
 
-	return prompt, nil
+func removeConditionalSection(input, startToken, endToken string) string {
+	for {
+		start := strings.Index(input, startToken)
+		if start == -1 {
+			break
+		}
+		end := strings.Index(input[start+len(startToken):], endToken)
+		if end == -1 {
+			break
+		}
+		end += start + len(startToken)
+		input = input[:start] + input[end+len(endToken):]
+	}
+	return input
 }
 
 // Helper function to update investigation fields

@@ -219,7 +219,7 @@ All acceptance criteria satisfied with no TODOs remaining; scenario ready for fi
     {
         id: 'ditto-partial',
         label: 'Resource • Eclipse Ditto blockers',
-        expected: 'partial_progress',
+        expected: 'some_progress',
         payload: {
             output_text: `[INFO]    Started health monitor for claude-code (PID: 63311, interval: 30s)
 [HEADER]  🤖 Running Claude Code
@@ -253,7 +253,7 @@ Status: Partially improved — needs architecture decision before we can call it
     {
         id: 'onboarding-partial',
         label: 'Scenario • Onboarding assistant progress',
-        expected: 'partial_progress',
+        expected: 'significant_progress',
         payload: {
             output_text: `[INFO]    Started health monitor for claude-code (PID: 64082, interval: 30s)
 [HEADER]  🤖 Running Claude Code
@@ -281,9 +281,41 @@ Recommendation: queue another improver run focused on notifications, RBAC, and a
         },
     },
     {
+        id: 'knowledge-base-foundation',
+        label: 'Scenario • Knowledge base initial scaffolding',
+        expected: 'some_progress',
+        payload: {
+            output_text: `[INFO]    Started health monitor for claude-code (PID: 64512, interval: 30s)
+[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 1500 claude --print --max-turns 60 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 14220 chars)
+
+## Task Completion Summary
+
+### Groundwork Laid
+- Created service.json plus docker-compose entries for postgres + api placeholders.
+- Added FastAPI skeleton with \`/health\` endpoint returning 200 and logged version.
+- Scaffolding for React frontend (Vite) with loading state + placeholder layout.
+- Drafted README with install instructions and stitched Makefile targets (\`make run\`, \`make stop\`).
+
+### Validation Performed
+- \`make lint\` and \`npm run build\` both pass on the new scaffolding.
+- Health endpoint responds: \`curl http://localhost:20340/health -> {"status":"bootstrapped"}\`.
+
+### Remaining Work
+- Knowledge ingestion pipeline unimplemented (no database models aside from migrations stub).
+- Search endpoints return 501 and the worker process is a TODO.
+- Frontend displays static copy; no queries or auth wiring yet.
+- Documentation still missing schema diagrams and ops procedures.
+
+Summary: Foundations in place, but this is still an early pass focused on setup.`,
+        },
+    },
+    {
         id: 'opentrip-partial',
         label: 'Resource • OpenTripPlanner gaps',
-        expected: 'partial_progress',
+        expected: 'significant_progress',
         payload: {
             output_text: `[INFO]    Started health monitor for claude-code (PID: 65244, interval: 30s)
 [HEADER]  🤖 Running Claude Code
@@ -317,7 +349,7 @@ Verdict: solid progress, but keep task cycling until trip API + monitoring land.
     {
         id: 'data-backup-partial',
         label: 'Scenario • Data Backup Manager follow-ups',
-        expected: 'partial_progress',
+        expected: 'significant_progress',
         payload: {
             output_text: `[HEADER]  🤖 Running Claude Code
 [INFO]    Non-TTY environment detected - using automation-friendly settings
@@ -2796,8 +2828,12 @@ class EcosystemManager {
         switch (normalized) {
             case 'full_complete':
                 return 'full complete';
+            case 'significant_progress':
+                return 'significant progress';
+            case 'some_progress':
+                return 'some progress';
             case 'partial_progress':
-                return 'partial progress';
+                return 'some progress';
             case 'uncertain':
                 return 'uncertain';
             case 'unknown':

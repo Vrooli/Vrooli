@@ -131,7 +131,7 @@ func Load() *Config {
 			QuestDBURL:     getEnv("QUESTDB_URL", "http://localhost:9000"),
 			NodeRedURL:     getEnv("NODE_RED_URL", "http://localhost:1880"),
 			OllamaURL:      getEnv("OLLAMA_URL", "http://localhost:11434"),
-			ClaudeCodePath: getEnv("CLAUDE_CODE_PATH", "vrooli resource claude-code run"),
+			ClaudeCodePath: getEnv("CLAUDE_CODE_PATH", "resource-opencode agents run"),
 			GrafanaURL:     getEnv("GRAFANA_URL", "http://localhost:3004"),
 		},
 		Alerts: AlertConfig{

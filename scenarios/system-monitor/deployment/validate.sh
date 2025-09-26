@@ -28,11 +28,11 @@ else
     exit 1
 fi
 
-# Check Claude Code integration
-if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/claude/investigate -X OPTIONS | grep -q "200\|404"; then
-    echo "✓ Claude Code integration endpoint"
+# Check OpenCode investigation endpoint
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:8083/api/investigations/trigger -X OPTIONS | grep -q "200\|404"; then
+    echo "✓ OpenCode investigation endpoint"
 else
-    echo "✗ Claude Code integration not available"
+    echo "✗ OpenCode investigation endpoint not available"
 fi
 
 # Check Grafana
@@ -68,4 +68,4 @@ fi
 
 echo ""
 echo "System Monitor validation successful!"
-echo "Anomaly detection and Claude investigation ready."
+echo "Anomaly detection and OpenCode investigations ready."

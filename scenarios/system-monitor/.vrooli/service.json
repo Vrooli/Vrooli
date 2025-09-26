@@ -95,11 +95,14 @@
       ],
       "purpose": "anomaly investigation and analysis"
     },
-    "claude-code": {
-      "type": "claude-code",
+    "opencode": {
+      "type": "opencode",
       "enabled": true,
       "required": false,
-      "purpose": "deep system investigation"
+      "purpose": "deep system investigation using OpenRouter models",
+      "models": [
+        "openrouter/openai/gpt-5-codex"
+      ]
     },
     "grafana": {
       "type": "grafana",

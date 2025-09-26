@@ -222,11 +222,25 @@ export interface StorageIOInfo {
 export interface Investigation {
   id: string;
   status: string;
-  timestamp: string;
-  trigger_reason: string;
-  findings: string;
-  confidence_score: number;
+  anomaly_id?: string;
+  timestamp?: string;
+  trigger_reason?: string;
+  findings?: string;
+  confidence_score?: number;
   agent_id?: string;
+  start_time?: string;
+  end_time?: string;
+  progress?: number;
+  details?: Record<string, any>;
+  steps?: InvestigationStep[];
+}
+
+export interface InvestigationStep {
+  name: string;
+  status: string;
+  start_time: string;
+  end_time?: string;
+  findings?: string;
 }
 
 export interface InvestigationScript {

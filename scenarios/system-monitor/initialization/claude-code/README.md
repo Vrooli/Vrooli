@@ -1,7 +1,7 @@
-# Claude Code Anomaly Check Prompt
+# OpenCode Anomaly Check Prompt
 
 ## Overview
-This directory contains the prompt template used by the System Monitor's "Run Anomaly Check" feature to interact with Claude Code.
+This directory contains the prompt template used by the System Monitor's "Run Anomaly Check" feature to drive the OpenCode investigation agent.
 
 ## Hot-Reloading Feature
 The prompt file (`anomaly-check.md`) is **hot-reloadable**, meaning you can edit it while the System Monitor app is running and changes will take effect immediately on the next anomaly check - no restart required!
@@ -39,7 +39,7 @@ The following placeholders are automatically replaced with real-time data:
 The prompt is organized into sections:
 1. **System Metrics** - Current system state
 2. **Investigation Objectives** - What to analyze
-3. **Response Format** - How Claude should structure the response
+3. **Response Format** - How the agent should structure the response
 4. **Guidelines** - Best practices for the investigation
 
 ## Tips for Customization

@@ -1,6 +1,6 @@
 tasks:
-  - title: "Implement Claude Code Global Session Manager with Request Queuing"
-    description: "Create a centralized session manager for Claude Code API calls to prevent rate limiting. Implement request queuing, retry logic with exponential backoff, and distribute requests across multiple API keys. This will prevent the 30-45 minute automation halt issue that occurs when multiple scenarios run concurrently."
+  - title: "Implement OpenCode Session Manager with Request Queuing"
+    description: "Create a centralized session manager for OpenCode agent runs to prevent rate limiting. Implement request queuing, retry logic with exponential backoff, and distribute requests across multiple provider API keys. This will prevent the 30-45 minute automation halt issue that occurs when multiple scenarios run concurrently."
     type: performance
     priority_estimates:
       impact: critical

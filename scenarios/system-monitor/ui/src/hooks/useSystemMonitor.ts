@@ -206,9 +206,20 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   }, [handleApiCall]);
 
   const fetchInvestigations = useCallback(async () => {
-    const data = await handleApiCall<Investigation>('/api/investigations/latest');
-    if (data) {
-      setInvestigations([data]); // For now, just latest investigation
+    const data = await handleApiCall<Investigation[]>('/api/investigations?limit=10');
+    if (Array.isArray(data)) {
+      const sorted = [...data].sort((a, b) => {
+        const aTime = Date.parse(a.start_time ?? a.timestamp ?? '');
+        const bTime = Date.parse(b.start_time ?? b.timestamp ?? '');
+        return isNaN(bTime) && isNaN(aTime)
+          ? 0
+          : isNaN(bTime)
+          ? -1
+          : isNaN(aTime)
+          ? 1
+          : bTime - aTime;
+      });
+      setInvestigations(sorted);
     }
   }, [handleApiCall]);
 

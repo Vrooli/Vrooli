@@ -1,13 +1,16 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,6 +19,13 @@ import (
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/models"
 	"system-monitor-api/internal/repository"
+)
+
+const (
+	investigationServiceAgentModel       = "openrouter/openai/gpt-5-codex"
+	investigationServiceAllowedTools     = "read,write,edit,bash,ls,glob,grep"
+	investigationServiceMaxTurns         = 75
+	investigationServiceAgentTimeoutSecs = 600
 )
 
 // InvestigationService handles anomaly investigations
@@ -39,13 +49,13 @@ func NewInvestigationService(cfg *config.Config, repo repository.InvestigationRe
 		lastTrigger:    time.Time{},     // Start with zero time - no cooldown initially
 		triggers:       make(map[string]*models.TriggerConfig),
 	}
-	
+
 	// Load triggers from configuration file, fallback to defaults if not found
 	if err := s.loadTriggersFromConfig(); err != nil {
 		// Initialize default triggers if config not found
 		s.initializeDefaultTriggers()
 	}
-	
+
 	return s
 }
 
@@ -53,21 +63,21 @@ func NewInvestigationService(cfg *config.Config, repo repository.InvestigationRe
 func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix bool, note string) (*models.Investigation, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	// Check cooldown
 	if s.lastTrigger.IsZero() == false {
 		elapsed := time.Since(s.lastTrigger)
 		if elapsed < s.cooldownPeriod {
-			return nil, fmt.Errorf("investigation is in cooldown period. Please wait %d seconds", int((s.cooldownPeriod-elapsed).Seconds()))
+			return nil, fmt.Errorf("investigation is in cooldown period. Please wait %d seconds", int((s.cooldownPeriod - elapsed).Seconds()))
 		}
 	}
-	
+
 	// Update last trigger time
 	s.lastTrigger = time.Now()
-	
+
 	// Generate investigation ID
 	investigationID := fmt.Sprintf("inv_%d", time.Now().Unix())
-	
+
 	// Create investigation
 	investigation := &models.Investigation{
 		ID:        investigationID,
@@ -79,7 +89,7 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 		Details:   make(map[string]interface{}),
 		Steps:     []models.InvestigationStep{},
 	}
-	
+
 	// Add auto_fix and note to details
 	if autoFix {
 		investigation.Details["auto_fix"] = true
@@ -87,15 +97,15 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 	if note != "" {
 		investigation.Details["note"] = note
 	}
-	
+
 	// Save to repository
 	if err := s.repo.CreateInvestigation(ctx, investigation); err != nil {
 		return nil, fmt.Errorf("failed to create investigation: %w", err)
 	}
-	
+
 	// Start investigation in background
 	go s.runInvestigation(investigationID, autoFix, note)
-	
+
 	return investigation, nil
 }
 
@@ -120,19 +130,41 @@ func (s *InvestigationService) GetLatestInvestigation(ctx context.Context) (*mod
 	return investigation, nil
 }
 
+// ListInvestigations returns recent investigations sorted by start time
+func (s *InvestigationService) ListInvestigations(ctx context.Context, limit int) ([]*models.Investigation, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
+	investigations, err := s.repo.ListInvestigations(ctx, repository.InvestigationFilter{})
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(investigations, func(i, j int) bool {
+		return investigations[i].StartTime.After(investigations[j].StartTime)
+	})
+
+	if len(investigations) > limit {
+		investigations = investigations[:limit]
+	}
+
+	return investigations, nil
+}
+
 // UpdateInvestigationStatus updates the status of an investigation
 func (s *InvestigationService) UpdateInvestigationStatus(ctx context.Context, id string, status string) error {
 	investigation, err := s.repo.GetInvestigation(ctx, id)
 	if err != nil {
 		return err
 	}
-	
+
 	investigation.Status = status
 	if status == "completed" || status == "failed" {
 		now := time.Now()
 		investigation.EndTime = &now
 	}
-	
+
 	return s.repo.UpdateInvestigation(ctx, investigation)
 }
 
@@ -142,14 +174,14 @@ func (s *InvestigationService) UpdateInvestigationFindings(ctx context.Context, 
 	if err != nil {
 		return err
 	}
-	
+
 	investigation.Findings = findings
 	if details != nil {
 		for k, v := range details {
 			investigation.Details[k] = v
 		}
 	}
-	
+
 	return s.repo.UpdateInvestigation(ctx, investigation)
 }
 
@@ -159,7 +191,7 @@ func (s *InvestigationService) UpdateInvestigationProgress(ctx context.Context, 
 	if err != nil {
 		return err
 	}
-	
+
 	investigation.Progress = progress
 	return s.repo.UpdateInvestigation(ctx, investigation)
 }
@@ -173,20 +205,20 @@ func (s *InvestigationService) AddInvestigationStep(ctx context.Context, id stri
 // runInvestigation performs the actual investigation
 func (s *InvestigationService) runInvestigation(investigationID string, autoFix bool, note string) {
 	ctx := context.Background()
-	
+
 	// Update status to in_progress
 	s.UpdateInvestigationStatus(ctx, investigationID, "in_progress")
 	s.UpdateInvestigationProgress(ctx, investigationID, 10)
-	
+
 	// Collect current metrics for context
 	cpuUsage := s.getCPUUsage()
 	memoryUsage := s.getMemoryUsage()
 	tcpConnections := s.getTCPConnections()
 	timestamp := time.Now().Format(time.RFC3339)
-	
-	// Try Claude Code first, then fallback to basic analysis
-	findings, details := s.performInvestigation(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp)
-	
+
+	// Try OpenCode agent first, then fallback to basic analysis
+	findings, details := s.performInvestigation(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, autoFix, note)
+
 	// Update investigation with findings
 	s.UpdateInvestigationFindings(ctx, investigationID, findings, details)
 	s.UpdateInvestigationProgress(ctx, investigationID, 100)
@@ -194,23 +226,82 @@ func (s *InvestigationService) runInvestigation(investigationID string, autoFix 
 }
 
 // performInvestigation executes the investigation logic
-func (s *InvestigationService) performInvestigation(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp string) (string, map[string]interface{}) {
-	// Try Claude Code integration
-	prompt := s.buildInvestigationPrompt(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp)
-	
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(`cd ${VROOLI_ROOT:-${HOME}/Vrooli} && echo %q | timeout 10 vrooli resource claude-code run 2>&1 || true`, prompt))
-	output, err := cmd.Output()
-	
-	// Check if Claude Code worked
-	if err == nil && !strings.Contains(string(output), "USAGE:") && !strings.Contains(string(output), "Failed to load library") {
-		return string(output), map[string]interface{}{
-			"source":     "claude_code",
-			"risk_level": "low",
-		}
+func (s *InvestigationService) performInvestigation(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, autoFix bool, note string) (string, map[string]interface{}) {
+	operationMode := "report-only"
+	if autoFix {
+		operationMode = "auto-fix"
 	}
-	
-	// Fallback to basic analysis
-	return s.performBasicAnalysis(cpuUsage, memoryUsage, tcpConnections, timestamp, investigationID)
+
+	prompt := s.buildInvestigationPrompt(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, autoFix, note)
+
+	baseDetails := map[string]interface{}{
+		"agent_resource": "resource-opencode",
+		"agent_model":    investigationServiceAgentModel,
+		"auto_fix":       autoFix,
+		"operation_mode": operationMode,
+	}
+
+	workingDir := resolveInvestigationWorkingDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	args := []string{
+		"agents", "run",
+		"--model", investigationServiceAgentModel,
+		"--prompt", prompt,
+		"--allowed-tools", investigationServiceAllowedTools,
+		"--max-turns", strconv.Itoa(investigationServiceMaxTurns),
+		"--task-timeout", strconv.Itoa(investigationServiceAgentTimeoutSecs),
+		"--skip-permissions",
+	}
+
+	startTime := time.Now()
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	cmd := exec.CommandContext(ctx, "resource-opencode", args...)
+	cmd.Dir = workingDir
+	cmd.Env = os.Environ()
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	runErr := cmd.Run()
+	agentOutput := strings.TrimSpace(stdout.String())
+	agentWorked := runErr == nil && agentOutput != "" && !strings.Contains(strings.ToLower(agentOutput), "usage:")
+
+	if runErr != nil {
+		log.Printf("OpenCode agent execution failed: %v; stderr: %.400s", runErr, truncateAgentLog(stderr.String(), 400))
+	} else if !agentWorked && stderr.Len() > 0 {
+		log.Printf("OpenCode agent returned no actionable output; stderr: %.400s", truncateAgentLog(stderr.String(), 400))
+	}
+
+	if agentWorked {
+		details := map[string]interface{}{
+			"source":           "resource-opencode",
+			"risk_level":       "low",
+			"duration_seconds": int(time.Since(startTime).Seconds()),
+		}
+		for k, v := range baseDetails {
+			details[k] = v
+		}
+		if stderr.Len() > 0 {
+			details["agent_warnings"] = truncateAgentLog(stderr.String(), 400)
+		}
+		return agentOutput, details
+	}
+
+	fallbackFindings, fallbackDetails := s.performBasicAnalysis(cpuUsage, memoryUsage, tcpConnections, timestamp, investigationID)
+	for k, v := range baseDetails {
+		fallbackDetails[k] = v
+	}
+	if runErr != nil {
+		fallbackDetails["agent_error"] = truncateAgentLog(runErr.Error(), 400)
+	}
+	if stderr.Len() > 0 {
+		fallbackDetails["agent_stderr"] = truncateAgentLog(stderr.String(), 400)
+	}
+
+	return fallbackFindings, fallbackDetails
 }
 
 // performBasicAnalysis performs a basic system analysis
@@ -218,7 +309,7 @@ func (s *InvestigationService) performBasicAnalysis(cpuUsage, memoryUsage float6
 	riskLevel := "low"
 	anomalies := []string{}
 	recommendations := []string{}
-	
+
 	// Analyze CPU usage
 	if cpuUsage > 80 {
 		riskLevel = "high"
@@ -228,7 +319,7 @@ func (s *InvestigationService) performBasicAnalysis(cpuUsage, memoryUsage float6
 		riskLevel = "medium"
 		anomalies = append(anomalies, fmt.Sprintf("Elevated CPU usage: %.2f%%", cpuUsage))
 	}
-	
+
 	// Analyze memory usage
 	if memoryUsage > 90 {
 		if riskLevel == "low" {
@@ -242,7 +333,7 @@ func (s *InvestigationService) performBasicAnalysis(cpuUsage, memoryUsage float6
 		}
 		anomalies = append(anomalies, fmt.Sprintf("High memory usage: %.2f%%", memoryUsage))
 	}
-	
+
 	// Analyze network connections
 	if tcpConnections > 500 {
 		if riskLevel == "low" {
@@ -251,11 +342,12 @@ func (s *InvestigationService) performBasicAnalysis(cpuUsage, memoryUsage float6
 		anomalies = append(anomalies, fmt.Sprintf("High number of TCP connections: %d", tcpConnections))
 		recommendations = append(recommendations, "Review network connections")
 	}
-	
+
 	// Build findings report
 	findings := fmt.Sprintf(`### Investigation Summary
 
 **Status**: %s
+**Agent**: Fallback heuristics (OpenCode agent unavailable)
 **Investigation ID**: %s
 **Timestamp**: %s
 
@@ -305,37 +397,44 @@ func (s *InvestigationService) performBasicAnalysis(cpuUsage, memoryUsage float6
 			return result
 		}(),
 	)
-	
+
 	details := map[string]interface{}{
-		"source":            "fallback_analysis",
-		"risk_level":        riskLevel,
-		"anomalies_found":   len(anomalies),
+		"source":                "fallback_analysis",
+		"risk_level":            riskLevel,
+		"anomalies_found":       len(anomalies),
 		"recommendations_count": len(recommendations),
-		"critical_issues":   riskLevel == "high",
+		"critical_issues":       riskLevel == "high",
 	}
-	
+
 	return findings, details
 }
 
-// buildInvestigationPrompt builds the prompt for Claude Code
-func (s *InvestigationService) buildInvestigationPrompt(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp string) string {
-	// Try to load prompt template
-	prompt, err := s.loadPromptTemplate(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp)
+// buildInvestigationPrompt builds the prompt for the OpenCode investigation agent
+func (s *InvestigationService) buildInvestigationPrompt(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, autoFix bool, note string) string {
+	operationMode := "report-only"
+	if autoFix {
+		operationMode = "auto-fix"
+	}
+
+	prompt, err := s.loadPromptTemplate(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, operationMode, note, autoFix)
 	if err != nil {
-		// Use default prompt
+		noteLine := ""
+		if trimmed := strings.TrimSpace(note); trimmed != "" {
+			noteLine = fmt.Sprintf("\nUser Note: %s", trimmed)
+		}
 		return fmt.Sprintf(`System Anomaly Investigation
 Investigation ID: %s
 API Base URL: http://localhost:8080
-CPU: %.2f%%, Memory: %.2f%%, TCP Connections: %d
+Operation Mode: %s
+CPU: %.2f%%, Memory: %.2f%%, TCP Connections: %d%s
 Analyze system for anomalies and provide findings.`,
-			investigationID, cpuUsage, memoryUsage, tcpConnections)
+			investigationID, operationMode, cpuUsage, memoryUsage, tcpConnections, noteLine)
 	}
 	return prompt
 }
 
 // loadPromptTemplate loads and processes the prompt template
-func (s *InvestigationService) loadPromptTemplate(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp string) (string, error) {
-	// Get VROOLI_ROOT
+func (s *InvestigationService) loadPromptTemplate(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp, operationMode, note string, autoFix bool) (string, error) {
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
 		homeDir := os.Getenv("HOME")
@@ -344,28 +443,26 @@ func (s *InvestigationService) loadPromptTemplate(investigationID string, cpuUsa
 		}
 		vrooliRoot = filepath.Join(homeDir, "Vrooli")
 	}
-	
-	// Try to load prompt file
+
 	promptPaths := []string{
 		filepath.Join(vrooliRoot, "scenarios", "system-monitor", "initialization", "claude-code", "anomaly-check.md"),
 		filepath.Join("initialization", "claude-code", "anomaly-check.md"),
 	}
-	
+
 	var promptContent []byte
 	var err error
-	
+
 	for _, path := range promptPaths {
 		promptContent, err = os.ReadFile(path)
 		if err == nil {
 			break
 		}
 	}
-	
+
 	if err != nil {
 		return "", fmt.Errorf("could not read prompt file: %v", err)
 	}
-	
-	// Replace placeholders
+
 	prompt := string(promptContent)
 	prompt = strings.ReplaceAll(prompt, "{{CPU_USAGE}}", fmt.Sprintf("%.2f", cpuUsage))
 	prompt = strings.ReplaceAll(prompt, "{{MEMORY_USAGE}}", fmt.Sprintf("%.2f", memoryUsage))
@@ -373,8 +470,88 @@ func (s *InvestigationService) loadPromptTemplate(investigationID string, cpuUsa
 	prompt = strings.ReplaceAll(prompt, "{{TIMESTAMP}}", timestamp)
 	prompt = strings.ReplaceAll(prompt, "{{INVESTIGATION_ID}}", investigationID)
 	prompt = strings.ReplaceAll(prompt, "{{API_BASE_URL}}", "http://localhost:8080")
-	
+	prompt = strings.ReplaceAll(prompt, "{{OPERATION_MODE}}", operationMode)
+
+	trimmedNote := strings.TrimSpace(note)
+	if trimmedNote == "" {
+		prompt = strings.ReplaceAll(prompt, "{{USER_NOTE}}", "No specific instructions provided.")
+	} else {
+		prompt = strings.ReplaceAll(prompt, "{{USER_NOTE}}", trimmedNote)
+	}
+
+	prompt = applyConditionalSections(prompt, autoFix)
+
 	return prompt, nil
+}
+
+func resolveInvestigationWorkingDir() string {
+	if custom := strings.TrimSpace(os.Getenv("SYSTEM_MONITOR_INVESTIGATION_ROOT")); custom != "" {
+		if info, err := os.Stat(custom); err == nil && info.IsDir() {
+			return custom
+		}
+	}
+
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			vrooliRoot = filepath.Join(homeDir, "Vrooli")
+		}
+	}
+
+	if vrooliRoot == "" {
+		if cwd, err := os.Getwd(); err == nil {
+			vrooliRoot = cwd
+		} else {
+			return "."
+		}
+	}
+
+	scenarioPath := filepath.Join(vrooliRoot, "scenarios", "system-monitor")
+	if info, err := os.Stat(scenarioPath); err == nil && info.IsDir() {
+		return scenarioPath
+	}
+
+	return vrooliRoot
+}
+
+func truncateAgentLog(raw string, limit int) string {
+	trimmed := strings.TrimSpace(raw)
+	if limit <= 0 || len(trimmed) <= limit {
+		return trimmed
+	}
+	if limit < 4 {
+		return trimmed[:limit]
+	}
+	return trimmed[:limit-3] + "..."
+}
+
+func applyConditionalSections(prompt string, autoFix bool) string {
+	if autoFix {
+		prompt = removeConditionalSection(prompt, "{{#IF_REPORT_ONLY}}", "{{/IF_REPORT_ONLY}}")
+		prompt = strings.ReplaceAll(prompt, "{{#IF_AUTO_FIX}}", "")
+		prompt = strings.ReplaceAll(prompt, "{{/IF_AUTO_FIX}}", "")
+	} else {
+		prompt = removeConditionalSection(prompt, "{{#IF_AUTO_FIX}}", "{{/IF_AUTO_FIX}}")
+		prompt = strings.ReplaceAll(prompt, "{{#IF_REPORT_ONLY}}", "")
+		prompt = strings.ReplaceAll(prompt, "{{/IF_REPORT_ONLY}}", "")
+	}
+	return prompt
+}
+
+func removeConditionalSection(input, startToken, endToken string) string {
+	for {
+		start := strings.Index(input, startToken)
+		if start == -1 {
+			break
+		}
+		end := strings.Index(input[start+len(startToken):], endToken)
+		if end == -1 {
+			break
+		}
+		end += start + len(startToken)
+		input = input[:start] + input[end+len(endToken):]
+	}
+	return input
 }
 
 // Helper methods to get system metrics
@@ -384,7 +561,7 @@ func (s *InvestigationService) getCPUUsage() float64 {
 	if err != nil {
 		return 15.0 // Default value
 	}
-	
+
 	usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
 	if err != nil {
 		return 15.0
@@ -398,7 +575,7 @@ func (s *InvestigationService) getMemoryUsage() float64 {
 	if err != nil {
 		return 45.0 // Default value
 	}
-	
+
 	usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
 	if err != nil {
 		return 45.0
@@ -412,7 +589,7 @@ func (s *InvestigationService) getTCPConnections() int {
 	if err != nil {
 		return 50 // Default value
 	}
-	
+
 	count, err := strconv.Atoi(strings.TrimSpace(string(output)))
 	if err != nil {
 		return 50
@@ -433,7 +610,7 @@ func (s *InvestigationService) initializeDefaultTriggers() {
 		Unit:        "%",
 		Condition:   "above",
 	}
-	
+
 	s.triggers["memory_pressure"] = &models.TriggerConfig{
 		ID:          "memory_pressure",
 		Name:        "Memory Pressure",
@@ -445,7 +622,7 @@ func (s *InvestigationService) initializeDefaultTriggers() {
 		Unit:        "%",
 		Condition:   "below",
 	}
-	
+
 	s.triggers["disk_space"] = &models.TriggerConfig{
 		ID:          "disk_space",
 		Name:        "Low Disk Space",
@@ -457,7 +634,7 @@ func (s *InvestigationService) initializeDefaultTriggers() {
 		Unit:        "%",
 		Condition:   "above",
 	}
-	
+
 	s.triggers["network_connections"] = &models.TriggerConfig{
 		ID:          "network_connections",
 		Name:        "Excessive Network Connections",
@@ -469,7 +646,7 @@ func (s *InvestigationService) initializeDefaultTriggers() {
 		Unit:        " connections",
 		Condition:   "above",
 	}
-	
+
 	s.triggers["process_anomaly"] = &models.TriggerConfig{
 		ID:          "process_anomaly",
 		Name:        "Process Anomaly",
@@ -487,10 +664,10 @@ func (s *InvestigationService) initializeDefaultTriggers() {
 func (s *InvestigationService) GetCooldownStatus(ctx context.Context) (*models.CooldownStatus, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	remainingSeconds := 0
 	isReady := true
-	
+
 	if !s.lastTrigger.IsZero() {
 		elapsed := time.Since(s.lastTrigger)
 		if elapsed < s.cooldownPeriod {
@@ -498,7 +675,7 @@ func (s *InvestigationService) GetCooldownStatus(ctx context.Context) (*models.C
 			isReady = false
 		}
 	}
-	
+
 	return &models.CooldownStatus{
 		CooldownPeriodSeconds: int(s.cooldownPeriod.Seconds()),
 		RemainingSeconds:      remainingSeconds,
@@ -511,7 +688,7 @@ func (s *InvestigationService) GetCooldownStatus(ctx context.Context) (*models.C
 func (s *InvestigationService) ResetCooldown(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.lastTrigger = time.Time{} // Reset to zero time
 	return nil
 }
@@ -520,7 +697,7 @@ func (s *InvestigationService) ResetCooldown(ctx context.Context) error {
 func (s *InvestigationService) GetTriggers(ctx context.Context) (map[string]*models.TriggerConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	// Return a copy to prevent concurrent modification
 	triggers := make(map[string]*models.TriggerConfig)
 	for k, v := range s.triggers {
@@ -536,7 +713,7 @@ func (s *InvestigationService) GetTriggers(ctx context.Context) (map[string]*mod
 			Condition:   v.Condition,
 		}
 	}
-	
+
 	return triggers, nil
 }
 
@@ -544,12 +721,12 @@ func (s *InvestigationService) GetTriggers(ctx context.Context) (map[string]*mod
 func (s *InvestigationService) UpdateTrigger(ctx context.Context, id string, enabled *bool, autoFix *bool, threshold *float64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	trigger, exists := s.triggers[id]
 	if !exists {
 		return fmt.Errorf("trigger not found: %s", id)
 	}
-	
+
 	if enabled != nil {
 		trigger.Enabled = *enabled
 	}
@@ -559,7 +736,7 @@ func (s *InvestigationService) UpdateTrigger(ctx context.Context, id string, ena
 	if threshold != nil {
 		trigger.Threshold = *threshold
 	}
-	
+
 	// Save to configuration file
 	return s.saveTriggersToConfig()
 }
@@ -568,9 +745,9 @@ func (s *InvestigationService) UpdateTrigger(ctx context.Context, id string, ena
 func (s *InvestigationService) UpdateCooldownPeriod(ctx context.Context, periodSeconds int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.cooldownPeriod = time.Duration(periodSeconds) * time.Second
-	
+
 	// Save to configuration file
 	return s.saveTriggersToConfig()
 }
@@ -581,12 +758,12 @@ func (s *InvestigationService) loadTriggersFromConfig() error {
 	if configPath == "scenarios/system-monitor/initialization/configuration/investigation-triggers.json" {
 		configPath = filepath.Join(os.Getenv("HOME"), "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
 	}
-	
+
 	data, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		return err
 	}
-	
+
 	var config struct {
 		Cooldown struct {
 			PeriodSeconds int `json:"period_seconds"`
@@ -603,14 +780,14 @@ func (s *InvestigationService) loadTriggersFromConfig() error {
 			Condition   string  `json:"condition"`
 		} `json:"triggers"`
 	}
-	
+
 	if err := json.Unmarshal(data, &config); err != nil {
 		return err
 	}
-	
+
 	// Update cooldown period
 	s.cooldownPeriod = time.Duration(config.Cooldown.PeriodSeconds) * time.Second
-	
+
 	// Load triggers
 	for _, t := range config.Triggers {
 		s.triggers[t.ID] = &models.TriggerConfig{
@@ -625,7 +802,7 @@ func (s *InvestigationService) loadTriggersFromConfig() error {
 			Condition:   t.Condition,
 		}
 	}
-	
+
 	return nil
 }
 
@@ -635,7 +812,7 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 	if configPath == "scenarios/system-monitor/initialization/configuration/investigation-triggers.json" {
 		configPath = filepath.Join(os.Getenv("HOME"), "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
 	}
-	
+
 	// Read existing configuration to preserve extra fields
 	existingData, err := ioutil.ReadFile(configPath)
 	var existingConfig map[string]interface{}
@@ -644,7 +821,7 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 	} else {
 		existingConfig = make(map[string]interface{})
 	}
-	
+
 	// Get existing triggers as a map for easier lookup
 	existingTriggers := make(map[string]map[string]interface{})
 	if triggers, ok := existingConfig["triggers"].([]interface{}); ok {
@@ -656,19 +833,19 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 			}
 		}
 	}
-	
+
 	// Update triggers with current values while preserving extra fields
 	var triggers []map[string]interface{}
 	for _, t := range s.triggers {
 		trigger := make(map[string]interface{})
-		
+
 		// Start with existing trigger data if it exists
 		if existing, ok := existingTriggers[t.ID]; ok {
 			for k, v := range existing {
 				trigger[k] = v
 			}
 		}
-		
+
 		// Update with current values
 		trigger["id"] = t.ID
 		trigger["name"] = t.Name
@@ -679,10 +856,10 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 		trigger["threshold"] = t.Threshold
 		trigger["unit"] = t.Unit
 		trigger["condition"] = t.Condition
-		
+
 		triggers = append(triggers, trigger)
 	}
-	
+
 	// Build final config preserving other top-level fields
 	config := existingConfig
 	config["version"] = "1.0.0"
@@ -691,21 +868,21 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 		"description":    "Minimum time between automatic investigations to prevent spam",
 	}
 	config["triggers"] = triggers
-	
+
 	// Update metadata
 	if metadata, ok := config["metadata"].(map[string]interface{}); ok {
 		metadata["last_modified"] = time.Now().Format(time.RFC3339)
 	} else {
 		config["metadata"] = map[string]interface{}{
-			"last_modified": time.Now().Format(time.RFC3339),
+			"last_modified":  time.Now().Format(time.RFC3339),
 			"config_version": "1.0.0",
 		}
 	}
-	
+
 	data, err := json.MarshalIndent(config, "", "    ")
 	if err != nil {
 		return err
 	}
-	
+
 	return ioutil.WriteFile(configPath, data, 0644)
 }

@@ -1,39 +1,48 @@
 #!/bin/bash
 
-# Test script to verify the Claude Code invocation fix
+# Test script to verify the OpenCode agent invocation
 set -euo pipefail
 
-echo "🧪 Testing corrected Claude Code invocation..."
+echo "🧪 Testing OpenCode investigation agent invocation..."
 
-# Check if resource-claude-code is available
-if ! command -v resource-claude-code &> /dev/null; then
-    echo "❌ resource-claude-code command not found"
-    echo "   This is expected if Claude Code resource is not installed"
-    echo "   The fix addresses the invocation method, not availability"
+# Check if resource-opencode is available
+if ! command -v resource-opencode &> /dev/null; then
+    echo "❌ resource-opencode command not found"
+    echo "   This is expected if the OpenCode resource is not installed"
+    echo "   The scenario now targets resource-opencode with OpenRouter support"
     exit 0
 fi
 
-echo "✅ resource-claude-code command found"
+echo "✅ resource-opencode command found"
 
-# Test the correct invocation pattern
-echo "🔍 Testing correct invocation pattern..."
+# Test the recommended invocation pattern
+echo "🔍 Testing recommended invocation pattern..."
 
 # Create a simple test prompt
-TEST_PROMPT="Please respond with exactly: 'Claude Code test successful'"
+TEST_PROMPT="Please respond with exactly: 'OpenCode test successful'"
 
-# Test the corrected command pattern (same as ecosystem-manager)
-timeout 10 bash -c "echo '$TEST_PROMPT' | resource-claude-code run - 2>&1" && echo "✅ Command execution completed" || echo "⚠️  Command failed (expected if not configured)"
+# Execute a lightweight OpenCode agent run. This may fail when credentials are
+# not configured, which is acceptable for environments without OpenRouter keys.
+timeout 15 resource-opencode agents run \
+  --model openrouter/openai/gpt-5-codex \
+  --prompt "$TEST_PROMPT" \
+  --allowed-tools "read" \
+  --max-turns 2 \
+  --task-timeout 45 \
+  --skip-permissions \
+  && echo "✅ Command execution completed" \
+  || echo "⚠️  Command failed (expected if credentials are not configured)"
 
 echo ""
 echo "🎯 Summary of fixes applied:"
 echo "1. ❌ OLD: vrooli resource claude-code run"
-echo "   ✅ NEW: resource-claude-code run -"
+echo "   ✅ NEW: resource-opencode agents run --model openrouter/openai/gpt-5-codex"
 echo ""
-echo "2. ❌ OLD: Shell escaping with echo and quotes" 
-echo "   ✅ NEW: Proper stdin pipe"
+echo "2. ❌ OLD: Shell piping into resource binary" 
+echo "   ✅ NEW: Structured CLI arguments with prompt flag"
 echo ""
-echo "3. ❌ OLD: No environment variables"
-echo "   ✅ NEW: MAX_TURNS, ALLOWED_TOOLS, TIMEOUT, SKIP_PERMISSIONS"
+echo "3. ❌ OLD: MAX_TURNS via env variables"
+echo "   ✅ NEW: Explicit CLI flags for tools, turns, timeout, permissions"
 echo ""
 echo "4. ❌ OLD: No context cancellation"
 echo "   ✅ NEW: Context with proper timeout"
@@ -41,5 +50,5 @@ echo ""
 echo "5. ❌ OLD: Shell expansion for working directory"
 echo "   ✅ NEW: Go filepath handling"
 echo ""
-echo "🚀 The system-monitor now uses the same correct Claude Code"
-echo "   invocation pattern as ecosystem-manager!"
+echo "🚀 The system-monitor now uses resource-opencode with the"
+echo "   OpenRouter openai/gpt-5-codex model for investigations!"
