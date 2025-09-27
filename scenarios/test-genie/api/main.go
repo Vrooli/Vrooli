@@ -3004,33 +3004,37 @@ func getTestSuiteHandler(c *gin.Context) {
 		return
 	}
 
-	// Mock response for now - would query database in real implementation
-	testSuite := TestSuite{
-		ID:           suiteID,
-		ScenarioName: "example-scenario",
-		SuiteType:    "unit,integration",
-		GeneratedAt:  time.Now(),
-		Status:       "active",
-		TestCases: []TestCase{
-			{
-				ID:          uuid.New(),
-				SuiteID:     suiteID,
-				Name:        "health_check_test",
-				Description: "Test API health endpoint",
-				TestType:    "unit",
-				Priority:    "critical",
-				CreatedAt:   time.Now(),
-				UpdatedAt:   time.Now(),
-			},
-		},
-		CoverageMetrics: CoverageMetrics{
-			CodeCoverage:     95.0,
-			BranchCoverage:   85.0,
-			FunctionCoverage: 92.0,
-		},
+	// First try to load a persisted suite from storage.
+	if suite, err := fetchStoredTestSuiteByID(c.Request.Context(), suiteID); err != nil {
+		log.Printf("⚠️  Failed to fetch stored test suite %s: %v", suiteID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load test suite"})
+		return
+	} else if suite != nil {
+		c.JSON(http.StatusOK, suite)
+		return
 	}
 
-	c.JSON(http.StatusOK, testSuite)
+	// Fall back to discovered suites on disk so legacy scenarios still surface tests.
+	repoRoot, err := findRepositoryRoot()
+	if err != nil {
+		log.Printf("⚠️  Failed to locate repository root while discovering suite %s: %v", suiteID, err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Test suite not found"})
+		return
+	}
+
+	suite, err := findDiscoveredSuiteByID(repoRoot, suiteID)
+	if err != nil {
+		log.Printf("⚠️  Failed to discover suite %s: %v", suiteID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load test suite"})
+		return
+	}
+
+	if suite == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Test suite not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, suite)
 }
 
 func fetchStoredTestSuites(ctx context.Context, scenarioFilter, statusFilter string) ([]TestSuite, error) {
@@ -3100,6 +3104,52 @@ func fetchStoredTestSuites(ctx context.Context, scenarioFilter, statusFilter str
 	}
 
 	return suites, nil
+}
+
+func fetchStoredTestSuiteByID(ctx context.Context, suiteID uuid.UUID) (*TestSuite, error) {
+	if db == nil {
+		return nil, errors.New("database connection not initialized")
+	}
+
+	query := `SELECT id, scenario_name, suite_type, coverage_metrics, generated_at, last_executed, status FROM test_suites WHERE id = $1`
+	var suite TestSuite
+	var coverageBytes []byte
+	var lastExecuted sql.NullTime
+
+	err := db.QueryRowContext(ctx, query, suiteID).Scan(
+		&suite.ID,
+		&suite.ScenarioName,
+		&suite.SuiteType,
+		&coverageBytes,
+		&suite.GeneratedAt,
+		&lastExecuted,
+		&suite.Status,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if len(coverageBytes) > 0 {
+		if err := json.Unmarshal(coverageBytes, &suite.CoverageMetrics); err != nil {
+			log.Printf("⚠️  Failed to unmarshal coverage metrics for suite %s: %v", suite.ID, err)
+		}
+	}
+
+	if lastExecuted.Valid {
+		suite.LastExecuted = &lastExecuted.Time
+	}
+
+	cases, err := fetchTestCasesForSuite(ctx, suite.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	suite.TestCases = cases
+	return &suite, nil
 }
 
 func fetchTestCasesForSuite(ctx context.Context, suiteID uuid.UUID) ([]TestCase, error) {
@@ -3318,6 +3368,21 @@ func discoverScenarioTestSuites(repoRoot, scenarioFilter string) ([]TestSuite, e
 	}
 
 	return suites, nil
+}
+
+func findDiscoveredSuiteByID(repoRoot string, suiteID uuid.UUID) (*TestSuite, error) {
+	suites, err := discoverScenarioTestSuites(repoRoot, "")
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range suites {
+		if suites[i].ID == suiteID {
+			return &suites[i], nil
+		}
+	}
+
+	return nil, nil
 }
 
 func shouldSkipScenarioDir(name string) bool {

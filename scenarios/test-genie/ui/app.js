@@ -11,6 +11,7 @@ class TestGenieApp {
             executions: [],
             metrics: {}
         };
+        this.suiteDetailsCache = new Map();
         this.refreshInterval = null;
         this.wsConnection = null;
         this.availableModels = [];
@@ -18,13 +19,28 @@ class TestGenieApp {
         this.selectedModel = null;
         this.agentInterval = null;
         this.agentMenuOpen = false;
-        
+        this.mobileBreakpoint = 768;
+        this.sidebarToggleButton = null;
+        this.sidebarOverlay = null;
+        this.sidebarCloseButton = null;
+        this.sidebarElement = null;
+        this.suiteDetailOverlay = null;
+        this.suiteDetailContent = null;
+        this.suiteDetailCloseButton = null;
+        this.suiteDetailExecuteButton = null;
+        this.suiteDetailTitle = null;
+        this.suiteDetailId = null;
+        this.suiteDetailSubtitle = null;
+        this.activeSuiteDetailId = null;
+        this.lastSuiteDetailTrigger = null;
+
         this.init();
     }
 
     async init() {
         this.setupEventListeners();
         this.setupNavigation();
+        this.setupSuiteDetailPanel();
         await this.loadModels();
         await this.loadInitialData();
         this.startPeriodicUpdates();
@@ -39,6 +55,9 @@ class TestGenieApp {
                 const page = navItem.getAttribute('data-page');
                 if (page) {
                     this.navigateTo(page);
+                    if (window.innerWidth <= this.mobileBreakpoint) {
+                        this.closeMobileSidebar();
+                    }
                 }
                 this.hideAgentDropdown();
                 return;
@@ -48,6 +67,31 @@ class TestGenieApp {
                 this.hideAgentDropdown();
             }
         });
+
+        this.sidebarToggleButton = document.getElementById('sidebar-toggle');
+        this.sidebarOverlay = document.getElementById('sidebar-overlay');
+        this.sidebarCloseButton = document.getElementById('sidebar-close');
+        this.sidebarElement = document.getElementById('sidebar');
+
+        if (this.sidebarToggleButton) {
+            this.sidebarToggleButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleSidebar();
+            });
+        }
+
+        if (this.sidebarOverlay) {
+            this.sidebarOverlay.addEventListener('click', () => {
+                this.closeMobileSidebar();
+            });
+        }
+
+        if (this.sidebarCloseButton) {
+            this.sidebarCloseButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.closeMobileSidebar();
+            });
+        }
 
         const agentToggle = document.getElementById('agent-toggle');
         if (agentToggle) {
@@ -96,8 +140,20 @@ class TestGenieApp {
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (this.isSuiteDetailOpen()) {
+                    e.preventDefault();
+                    this.closeSuiteDetail();
+                    return;
+                }
+
+                if (window.innerWidth <= this.mobileBreakpoint) {
+                    this.closeMobileSidebar();
+                }
+            }
+
             if (e.ctrlKey || e.metaKey) {
-                switch(e.key) {
+                switch (e.key) {
                     case '1':
                         e.preventDefault();
                         this.navigateTo('dashboard');
@@ -117,6 +173,10 @@ class TestGenieApp {
                 }
             }
         });
+
+        window.addEventListener('resize', () => this.handleResize());
+
+        this.handleResize();
     }
 
     setupNavigation() {
@@ -129,6 +189,104 @@ class TestGenieApp {
         // Set initial state
         const initialPage = window.location.hash.replace('#', '') || 'dashboard';
         this.navigateTo(initialPage, false);
+    }
+
+    setupSuiteDetailPanel() {
+        this.suiteDetailOverlay = document.getElementById('suite-detail-overlay');
+        if (!this.suiteDetailOverlay) {
+            return;
+        }
+
+        this.suiteDetailContent = document.getElementById('suite-detail-content');
+        this.suiteDetailCloseButton = document.getElementById('suite-detail-close');
+        this.suiteDetailExecuteButton = document.getElementById('suite-detail-execute');
+        this.suiteDetailTitle = document.getElementById('suite-detail-title');
+        this.suiteDetailId = document.getElementById('suite-detail-id');
+        this.suiteDetailSubtitle = document.getElementById('suite-detail-subtitle');
+
+        this.suiteDetailOverlay.addEventListener('click', (event) => {
+            if (event.target === this.suiteDetailOverlay) {
+                this.closeSuiteDetail();
+            }
+        });
+
+        if (this.suiteDetailCloseButton) {
+            this.suiteDetailCloseButton.addEventListener('click', () => this.closeSuiteDetail());
+        }
+
+        if (this.suiteDetailExecuteButton) {
+            this.suiteDetailExecuteButton.addEventListener('click', () => {
+                if (this.activeSuiteDetailId) {
+                    this.executeSuite(this.activeSuiteDetailId);
+                }
+            });
+        }
+    }
+
+    toggleSidebar() {
+        const isMobile = window.innerWidth <= this.mobileBreakpoint;
+
+        if (isMobile) {
+            if (document.body.classList.contains('sidebar-open')) {
+                this.closeMobileSidebar();
+            } else {
+                document.body.classList.add('sidebar-open');
+                document.body.classList.remove('sidebar-collapsed');
+                this.updateSidebarAccessibility(true);
+                this.focusElement(this.sidebarCloseButton);
+            }
+            return;
+        }
+
+        const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
+        this.updateSidebarAccessibility(!isCollapsed);
+    }
+
+    closeMobileSidebar() {
+        if (!document.body.classList.contains('sidebar-open')) {
+            return;
+        }
+
+        document.body.classList.remove('sidebar-open');
+        this.updateSidebarAccessibility(false);
+        this.focusElement(this.sidebarToggleButton);
+    }
+
+    handleResize() {
+        const isMobile = window.innerWidth <= this.mobileBreakpoint;
+
+        if (isMobile) {
+            document.body.classList.remove('sidebar-collapsed');
+            const isExpanded = document.body.classList.contains('sidebar-open');
+            this.updateSidebarAccessibility(isExpanded);
+        } else {
+            document.body.classList.remove('sidebar-open');
+            const isExpanded = !document.body.classList.contains('sidebar-collapsed');
+            this.updateSidebarAccessibility(isExpanded);
+        }
+    }
+
+    updateSidebarAccessibility(isExpanded) {
+        if (this.sidebarToggleButton) {
+            this.sidebarToggleButton.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+            this.sidebarToggleButton.setAttribute('aria-label', isExpanded ? 'Hide navigation' : 'Show navigation');
+        }
+
+        if (this.sidebarElement) {
+            this.sidebarElement.setAttribute('aria-hidden', isExpanded ? 'false' : 'true');
+        }
+    }
+
+    focusElement(element) {
+        if (!element || typeof element.focus !== 'function') {
+            return;
+        }
+
+        try {
+            element.focus({ preventScroll: true });
+        } catch (error) {
+            element.focus();
+        }
     }
 
     navigateTo(page, pushState = true) {
@@ -150,6 +308,10 @@ class TestGenieApp {
         }
 
         this.activePage = page;
+
+        if (page !== 'suites') {
+            this.closeSuiteDetail();
+        }
 
         // Load page-specific data
         this.loadPageData(page);
@@ -344,12 +506,21 @@ class TestGenieApp {
     }
 
     getStatusClass(status) {
-        switch (status) {
-            case 'completed': return 'success';
-            case 'running': return 'info';
-            case 'failed': return 'error';
-            default: return 'warning';
+        const normalized = (status || '').toString().toLowerCase();
+
+        if (['completed', 'active', 'success', 'ready', 'passed'].includes(normalized)) {
+            return 'success';
         }
+
+        if (['running', 'in_progress', 'queued', 'pending', 'scheduled'].includes(normalized)) {
+            return 'info';
+        }
+
+        if (['failed', 'error', 'blocked', 'cancelled', 'aborted'].includes(normalized)) {
+            return 'error';
+        }
+
+        return 'warning';
     }
 
     formatTimestamp(timestamp) {
@@ -747,8 +918,300 @@ To execute the vault:
         }
     }
 
-    viewSuite(suiteId) {
-        this.showInfo(`Viewing test suite ${suiteId}. Detailed suite view coming soon!`);
+    viewSuite(suiteId, triggerElement = null) {
+        this.openSuiteDetail(suiteId, triggerElement);
+    }
+
+    async openSuiteDetail(suiteId, triggerElement = null) {
+        if (!this.suiteDetailOverlay) {
+            this.showInfo(`Test suite ${suiteId}`);
+            return;
+        }
+
+        this.activeSuiteDetailId = suiteId;
+        this.lastSuiteDetailTrigger = triggerElement;
+
+        document.body.classList.add('suite-detail-open');
+        this.suiteDetailOverlay.classList.add('active');
+        this.suiteDetailOverlay.setAttribute('aria-hidden', 'false');
+
+        if (this.suiteDetailContent) {
+            this.suiteDetailContent.scrollTop = 0;
+        }
+
+        if (this.suiteDetailExecuteButton) {
+            this.suiteDetailExecuteButton.disabled = true;
+            this.suiteDetailExecuteButton.dataset.suiteId = suiteId;
+        }
+
+        this.focusElement(this.suiteDetailCloseButton);
+
+        let suite = this.suiteDetailsCache.get(suiteId);
+        if (!suite && this.suiteDetailContent) {
+            this.suiteDetailContent.innerHTML = '<div class="loading"><div class="spinner"></div>Loading suite details...</div>';
+        }
+
+        if (!suite) {
+            suite = await this.fetchWithErrorHandling(`/test-suite/${suiteId}`);
+            if (suite) {
+                this.suiteDetailsCache.set(suiteId, suite);
+            }
+        }
+
+        if (suite) {
+            this.renderSuiteDetail(suite);
+            if (this.suiteDetailExecuteButton) {
+                this.suiteDetailExecuteButton.disabled = false;
+            }
+            this.refreshIcons();
+        } else if (this.suiteDetailContent) {
+            this.suiteDetailContent.innerHTML = '<div class="suite-detail-empty" role="alert">Failed to load suite details. Please try again.</div>';
+        }
+    }
+
+    closeSuiteDetail() {
+        if (!this.suiteDetailOverlay) {
+            return;
+        }
+
+        this.suiteDetailOverlay.classList.remove('active');
+        this.suiteDetailOverlay.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('suite-detail-open');
+        this.activeSuiteDetailId = null;
+
+        if (this.suiteDetailExecuteButton) {
+            this.suiteDetailExecuteButton.disabled = false;
+            delete this.suiteDetailExecuteButton.dataset.suiteId;
+        }
+
+        if (this.lastSuiteDetailTrigger) {
+            this.focusElement(this.lastSuiteDetailTrigger);
+            this.lastSuiteDetailTrigger = null;
+        }
+    }
+
+    isSuiteDetailOpen() {
+        return this.suiteDetailOverlay ? this.suiteDetailOverlay.classList.contains('active') : false;
+    }
+
+    renderSuiteDetail(suite) {
+        if (!this.suiteDetailContent) {
+            return;
+        }
+
+        const testCases = Array.isArray(suite.test_cases) ? suite.test_cases : [];
+        const suiteName = suite.scenario_name || suite.name || 'Test Suite';
+        const rawSuiteId = suite.id || this.activeSuiteDetailId || '';
+        const suiteId = rawSuiteId ? String(rawSuiteId) : '';
+        const createdAt = suite.generated_at || suite.created_at;
+        const lastExecutedAt = suite.last_executed || suite.lastExecuted;
+
+        if (this.suiteDetailTitle) {
+            this.suiteDetailTitle.textContent = suiteName;
+        }
+
+        if (this.suiteDetailId) {
+            this.suiteDetailId.textContent = suiteId ? `Suite ID: ${suiteId}` : '';
+        }
+
+        if (this.suiteDetailSubtitle) {
+            const createdText = createdAt ? `Generated ${this.formatDetailedTimestamp(createdAt)}` : 'Generated date unavailable';
+            const executedText = lastExecutedAt ? `Last executed ${this.formatDetailedTimestamp(lastExecutedAt)}` : 'Not executed yet';
+            this.suiteDetailSubtitle.textContent = `${createdText} • ${executedText}`;
+        }
+
+        if (this.suiteDetailExecuteButton) {
+            this.suiteDetailExecuteButton.disabled = false;
+            this.suiteDetailExecuteButton.dataset.suiteId = suiteId;
+        }
+
+        const sections = [
+            this.buildSuiteSummary(suite, testCases),
+            this.buildCoverageSection(suite),
+            this.buildTestCasesSection(testCases)
+        ];
+
+        this.suiteDetailContent.innerHTML = sections.join('');
+    }
+
+    buildSuiteSummary(suite, testCases) {
+        const totalTests = testCases.length;
+        const statusLabel = this.formatLabel(suite.status || 'unknown');
+        const statusClass = this.getStatusClass(suite.status);
+        const lastExecutedAt = suite.last_executed || suite.lastExecuted;
+        const lastExecutedSummary = lastExecutedAt ? `Ran ${this.formatRelativeTime(lastExecutedAt)}` : 'No executions yet';
+
+        const suiteTypes = this.extractSuiteTypes(suite, testCases);
+        const suiteTypeSummary = suiteTypes.length ? suiteTypes.map(type => this.formatLabel(type)).join(', ') : 'No types recorded';
+
+        const priorityCounts = this.countBy(testCases.map(testCase => (testCase.priority || 'unspecified')));
+        const prioritySummary = this.summarizeCounts(priorityCounts, 'priority');
+
+        const timeouts = testCases
+            .map(testCase => Number(testCase.execution_timeout))
+            .filter(Number.isFinite);
+        const averageTimeout = timeouts.length ? Math.round(timeouts.reduce((sum, value) => sum + value, 0) / timeouts.length) : null;
+
+        const uniqueTags = new Set();
+        const uniqueDependencies = new Set();
+        testCases.forEach(testCase => {
+            if (Array.isArray(testCase.tags)) {
+                testCase.tags.filter(Boolean).forEach(tag => uniqueTags.add(tag));
+            }
+            if (Array.isArray(testCase.dependencies)) {
+                testCase.dependencies.filter(Boolean).forEach(dep => uniqueDependencies.add(dep));
+            }
+        });
+
+        const metadataPieces = [
+            `Tags: ${uniqueTags.size}`,
+            averageTimeout !== null ? `Avg timeout: ${averageTimeout}s` : null,
+            `Dependencies: ${uniqueDependencies.size}`
+        ].filter(Boolean);
+
+        return `
+            <div class="suite-detail-section">
+                <h3>Suite Summary</h3>
+                <div class="suite-detail-grid">
+                    <div class="suite-detail-card">
+                        <span class="label">Status</span>
+                        <span class="value"><span class="status ${statusClass}">${this.escapeHtml(statusLabel)}</span></span>
+                        <span class="value-small">${this.escapeHtml(lastExecutedSummary)}</span>
+                    </div>
+                    <div class="suite-detail-card">
+                        <span class="label">Test Cases</span>
+                        <span class="value">${totalTests}</span>
+                        <span class="value-small">${this.escapeHtml(prioritySummary)}</span>
+                    </div>
+                    <div class="suite-detail-card">
+                        <span class="label">Suite Types</span>
+                        <span class="value-small">${this.escapeHtml(suiteTypeSummary)}</span>
+                    </div>
+                    <div class="suite-detail-card">
+                        <span class="label">Metadata</span>
+                        <span class="value-small">${this.escapeHtml(metadataPieces.length ? metadataPieces.join(' • ') : 'No metadata captured')}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    buildCoverageSection(suite) {
+        const metrics = suite.coverage_metrics || {};
+        const entries = [
+            { label: 'Code Coverage', value: metrics.code_coverage ?? suite.coverage },
+            { label: 'Branch Coverage', value: metrics.branch_coverage },
+            { label: 'Function Coverage', value: metrics.function_coverage }
+        ].filter(entry => Number.isFinite(Number(entry.value)));
+
+        if (entries.length === 0) {
+            return `
+                <div class="suite-detail-section">
+                    <h3>Coverage Metrics</h3>
+                    <div class="suite-detail-empty">No coverage metrics available for this suite.</div>
+                </div>
+            `;
+        }
+
+        const bars = entries.map(entry => {
+            const percent = this.clampPercentage(Number(entry.value));
+            return `
+                <div class="coverage-item">
+                    <div class="coverage-item-header">
+                        <span>${this.escapeHtml(entry.label)}</span>
+                        <span>${percent}%</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" style="width: ${percent}%"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="suite-detail-section">
+                <h3>Coverage Metrics</h3>
+                <div class="coverage-bars">
+                    ${bars}
+                </div>
+            </div>
+        `;
+    }
+
+    buildTestCasesSection(testCases) {
+        if (!testCases.length) {
+            return `
+                <div class="suite-detail-section">
+                    <h3>Test Cases</h3>
+                    <div class="suite-detail-empty">No test cases have been generated for this suite yet.</div>
+                </div>
+            `;
+        }
+
+        const rows = testCases.map((testCase, index) => {
+            const name = this.escapeHtml(testCase.name || `Test ${index + 1}`);
+            const description = testCase.description ? this.escapeHtml(testCase.description) : '';
+            const testType = this.escapeHtml(this.formatLabel(testCase.test_type || 'unspecified'));
+            const priority = this.escapeHtml(this.formatLabel(testCase.priority || 'unspecified'));
+            const timeout = Number(testCase.execution_timeout);
+            const timeoutText = Number.isFinite(timeout) ? `${timeout}s` : '—';
+            const expected = this.escapeHtml(testCase.expected_result || '—');
+
+            const tags = Array.isArray(testCase.tags) && testCase.tags.length > 0
+                ? testCase.tags.filter(Boolean).map(tag => `<span class="suite-detail-tag">${this.escapeHtml(tag)}</span>`).join('')
+                : '<span class="suite-detail-subtitle">None</span>';
+
+            const dependencies = Array.isArray(testCase.dependencies) && testCase.dependencies.length > 0
+                ? testCase.dependencies.filter(Boolean).map(dep => `<span class="suite-detail-tag">${this.escapeHtml(dep)}</span>`).join('')
+                : '<span class="suite-detail-subtitle">None</span>';
+
+            const codeBlock = testCase.test_code
+                ? `<details><summary>View Generated Test</summary><pre class="suite-detail-code">${this.escapeHtml(testCase.test_code)}</pre></details>`
+                : '';
+
+            return `
+                <tr>
+                    <td>
+                        <div><strong>${name}</strong></div>
+                        ${description ? `<div class="suite-detail-subtitle">${description}</div>` : ''}
+                        ${codeBlock}
+                    </td>
+                    <td>
+                        <div class="suite-detail-tags"><span class="suite-detail-tag">${testType}</span></div>
+                        <div class="suite-detail-subtitle">Priority: ${priority}</div>
+                        <div class="suite-detail-subtitle">Timeout: ${timeoutText}</div>
+                    </td>
+                    <td>
+                        <div class="suite-detail-subtitle">Tags</div>
+                        <div class="suite-detail-tags">${tags}</div>
+                        <div class="suite-detail-subtitle" style="margin-top: 0.5rem;">Dependencies</div>
+                        <div class="suite-detail-tags">${dependencies}</div>
+                    </td>
+                    <td>${expected}</td>
+                </tr>
+            `;
+        }).join('');
+
+        return `
+            <div class="suite-detail-section">
+                <h3>Test Cases</h3>
+                <div class="suite-detail-tests">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 30%;">Test Case</th>
+                                <th style="width: 20%;">Type & Priority</th>
+                                <th style="width: 25%;">Tags & Dependencies</th>
+                                <th style="width: 25%;">Expected Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
     }
 
     viewExecution(executionId) {
@@ -774,7 +1237,7 @@ To execute the vault:
             }
 
             if (action === 'view' && suiteId) {
-                this.viewSuite(suiteId);
+                this.viewSuite(suiteId, button);
             }
         });
 
@@ -1211,6 +1674,143 @@ To execute the vault:
             return data.data;
         }
         return [];
+    }
+
+    escapeHtml(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    formatLabel(text) {
+        if (!text) {
+            return 'Unknown';
+        }
+
+        return String(text)
+            .replace(/[_-]+/g, ' ')
+            .split(' ')
+            .filter(Boolean)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    }
+
+    formatRelativeTime(timestamp) {
+        if (!timestamp) {
+            return '';
+        }
+
+        const reference = timestamp instanceof Date ? timestamp : new Date(timestamp);
+        if (Number.isNaN(reference.getTime())) {
+            return '';
+        }
+
+        const now = Date.now();
+        const diffMs = reference.getTime() - now;
+        const absDiff = Math.abs(diffMs);
+        const minute = 60 * 1000;
+        const hour = 60 * minute;
+        const day = 24 * hour;
+        const isFuture = diffMs > 0;
+
+        if (absDiff < minute) {
+            return isFuture ? 'in <1m' : 'just now';
+        }
+        if (absDiff < hour) {
+            const mins = Math.round(absDiff / minute);
+            return `${mins}m ${isFuture ? 'from now' : 'ago'}`;
+        }
+        if (absDiff < day) {
+            const hours = Math.round(absDiff / hour);
+            return `${hours}h ${isFuture ? 'from now' : 'ago'}`;
+        }
+        if (absDiff < day * 7) {
+            const days = Math.round(absDiff / day);
+            return `${days}d ${isFuture ? 'from now' : 'ago'}`;
+        }
+
+        return reference.toLocaleDateString();
+    }
+
+    formatDetailedTimestamp(timestamp) {
+        if (!timestamp) {
+            return 'unknown time';
+        }
+
+        const reference = timestamp instanceof Date ? timestamp : new Date(timestamp);
+        if (Number.isNaN(reference.getTime())) {
+            return 'unknown time';
+        }
+
+        const absolute = reference.toLocaleString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        const relative = this.formatRelativeTime(reference);
+        return relative ? `${absolute} (${relative})` : absolute;
+    }
+
+    clampPercentage(value) {
+        if (!Number.isFinite(value)) {
+            return 0;
+        }
+        const bounded = Math.max(0, Math.min(100, value));
+        return Math.round(bounded);
+    }
+
+    extractSuiteTypes(suite, testCases) {
+        const types = new Set();
+
+        if (Array.isArray(suite.test_types)) {
+            suite.test_types.filter(Boolean).forEach(type => types.add(type));
+        }
+
+        const rawSuiteType = suite.suite_type || suite.suiteType;
+        if (typeof rawSuiteType === 'string') {
+            rawSuiteType.split(',').map(token => token.trim()).filter(Boolean).forEach(type => types.add(type));
+        }
+
+        testCases.forEach(testCase => {
+            if (testCase && testCase.test_type) {
+                types.add(testCase.test_type);
+            }
+        });
+
+        return Array.from(types);
+    }
+
+    countBy(items) {
+        const result = {};
+        items.forEach(item => {
+            const key = (item || 'unspecified').toString().toLowerCase();
+            if (!result[key]) {
+                result[key] = 0;
+            }
+            result[key] += 1;
+        });
+        return result;
+    }
+
+    summarizeCounts(counts, context = 'items') {
+        const entries = Object.entries(counts || {}).filter(([, value]) => value > 0);
+
+        if (entries.length === 0) {
+            return `No ${context} data`;
+        }
+
+        entries.sort((a, b) => b[1] - a[1]);
+        return entries.map(([key, value]) => `${this.formatLabel(key)} (${value})`).join(' • ');
     }
 
     lookupSuiteName(suiteId) {

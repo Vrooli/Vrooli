@@ -75,6 +75,14 @@
             background-size: 20px 20px;
         }
 
+        body.sidebar-open {
+            overflow: hidden;
+        }
+
+        body.suite-detail-open {
+            overflow: hidden;
+        }
+
         /* Header */
         .header {
             position: fixed;
@@ -96,6 +104,38 @@
             display: flex;
             align-items: center;
             gap: var(--spacing-md);
+        }
+
+        .sidebar-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-toggle:hover,
+        .sidebar-toggle:focus-visible {
+            border-color: var(--accent-primary);
+            color: var(--text-primary);
+        }
+
+        .sidebar-toggle i {
+            width: 20px;
+            height: 20px;
+        }
+
+        body.sidebar-collapsed .sidebar-toggle,
+        body.sidebar-open .sidebar-toggle {
+            border-color: var(--accent-secondary);
+            color: var(--accent-secondary);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.25);
         }
 
         .logo {
@@ -305,6 +345,60 @@
             top: var(--header-height);
             height: calc(100vh - var(--header-height));
             overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-mobile-header {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .sidebar-mobile-title {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+        }
+
+        .sidebar-close {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-close:hover,
+        .sidebar-close:focus-visible {
+            border-color: var(--accent-primary);
+            color: var(--text-primary);
+        }
+
+        .sidebar-close i {
+            width: 18px;
+            height: 18px;
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: var(--header-height);
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1005;
+            display: none;
         }
 
         .nav-section {
@@ -697,13 +791,22 @@
             flex-wrap: wrap;
         }
 
-        .suites-table {
-            border-collapse: collapse;
+        #suites-table {
+            padding: 0;
         }
 
-        .suites-table th,
-        .suites-table td {
+        .suites-table {
+            border-collapse: collapse;
+            margin: 0;
             padding: 0;
+        }
+
+        .suites-table thead th {
+            padding: 0.75rem 1rem;
+        }
+
+        .suites-table tbody td {
+            padding: 0.75rem 1rem;
         }
 
         .suites-table .cell-types {
@@ -787,6 +890,259 @@
             box-shadow: 0 0 10px var(--glow-primary);
         }
 
+        /* Suite Detail Panel */
+        .suite-detail-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.75);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-lg);
+            z-index: 2000;
+        }
+
+        .suite-detail-overlay.active {
+            display: flex;
+        }
+
+        .suite-detail-panel {
+            width: min(960px, 100%);
+            max-height: 90vh;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .suite-detail-header {
+            padding: var(--spacing-md) var(--spacing-lg) var(--spacing-sm);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-md);
+            justify-content: space-between;
+        }
+
+        .suite-detail-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .suite-detail-meta .suite-id {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .suite-detail-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .suite-detail-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .suite-detail-close:hover,
+        .suite-detail-close:focus-visible {
+            border-color: var(--accent-secondary);
+            color: var(--text-primary);
+        }
+
+        .suite-detail-content {
+            padding: var(--spacing-lg);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .suite-detail-section {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .suite-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: var(--spacing-sm);
+        }
+
+        .suite-detail-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: var(--spacing-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .suite-detail-card .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .suite-detail-card .value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .suite-detail-card .value-small {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .coverage-bars {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .coverage-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .coverage-item-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .suite-detail-tests {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .suite-detail-tests table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .suite-detail-tests thead {
+            background: var(--bg-panel);
+        }
+
+        .suite-detail-tests th,
+        .suite-detail-tests td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        .suite-detail-tests td {
+            word-break: break-word;
+        }
+
+        .suite-detail-tests tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .suite-detail-tests details {
+            margin-top: 0.75rem;
+        }
+
+        .suite-detail-tests details summary {
+            cursor: pointer;
+            color: var(--accent-secondary);
+            font-size: 0.85rem;
+        }
+
+        .suite-detail-tests details[open] summary {
+            color: var(--accent-primary);
+        }
+
+        .suite-detail-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+
+        .suite-detail-tag {
+            padding: 0.2rem 0.5rem;
+            border-radius: 999px;
+            background: rgba(0, 212, 255, 0.12);
+            color: var(--accent-secondary);
+            font-size: 0.7rem;
+            letter-spacing: 0.04em;
+        }
+
+        .suite-detail-code {
+            margin-top: 0.5rem;
+            background: #050505;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            padding: 0.75rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .suite-detail-empty {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 2rem;
+        }
+
+        .suite-detail-subtitle {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 768px) {
+            .suite-detail-panel {
+                width: 100%;
+                max-height: 100vh;
+                border-radius: 0;
+            }
+
+            .suite-detail-overlay {
+                padding: 0;
+            }
+
+            .suite-detail-content {
+                padding: var(--spacing-md);
+            }
+
+            .suite-detail-header {
+                padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
+            }
+
+            .suite-detail-close {
+                top: 12px;
+                right: 12px;
+            }
+        }
+
         /* Loading */
         .loading {
             display: flex;
@@ -826,6 +1182,16 @@
         }
 
         /* Responsive Design */
+        @media (min-width: 769px) {
+            body.sidebar-collapsed .sidebar {
+                display: none;
+            }
+
+            body.sidebar-collapsed .content {
+                padding: var(--spacing-lg);
+            }
+        }
+
         @media (max-width: 1024px) {
             :root {
                 --sidebar-width: 240px;
@@ -838,34 +1204,71 @@
 
         @media (max-width: 768px) {
             :root {
-                --sidebar-width: 200px;
+                --sidebar-width: 100%;
             }
-            
+
             .header {
                 padding: 0 var(--spacing-md);
             }
-            
+
             .header-stats {
                 display: none;
             }
-            
+
             .main-container {
                 flex-direction: column;
             }
-            
+
             .sidebar {
+                position: fixed;
+                top: var(--header-height);
+                left: 0;
+                right: 0;
                 width: 100%;
-                height: auto;
-                position: static;
                 flex: none;
+                height: auto;
+                max-height: calc(100vh - var(--header-height));
+                overflow-y: auto;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                transform: translateY(-110%);
+                opacity: 0;
+                pointer-events: none;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+                padding: var(--spacing-lg);
+                z-index: 1100;
+                background: var(--bg-secondary);
             }
-            
+
+            .sidebar-mobile-header {
+                display: flex;
+            }
+
+            .sidebar-overlay {
+                display: block;
+            }
+
+            body.sidebar-open .sidebar {
+                transform: translateY(0);
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            body.sidebar-open .sidebar-overlay {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
             .content {
                 padding: var(--spacing-md);
             }
-            
+
             .form-row {
                 grid-template-columns: 1fr;
+            }
+
+            body.sidebar-collapsed .sidebar {
+                display: block;
             }
         }
 
@@ -893,6 +1296,9 @@
     <!-- Header -->
     <header class="header">
         <div class="header-left">
+            <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation" aria-expanded="true">
+                <i data-lucide="menu"></i>
+            </button>
             <div class="logo">
                 <i data-lucide="flask-conical"></i>
                 <span>TEST GENIE</span>
@@ -936,7 +1342,13 @@
     <!-- Main Container -->
     <div class="main-container">
         <!-- Sidebar -->
-        <nav class="sidebar">
+        <nav class="sidebar" id="sidebar" aria-label="Primary navigation">
+            <div class="sidebar-mobile-header">
+                <span class="sidebar-mobile-title">Navigation</span>
+                <button class="sidebar-close" id="sidebar-close" aria-label="Close navigation">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
             <div class="nav-section">
                 <h3 class="nav-title">Main</h3>
                 <div class="nav-item active" data-page="dashboard">
@@ -985,6 +1397,8 @@
                 </div>
             </div>
         </nav>
+
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
         <!-- Content Area -->
         <main class="content">
@@ -1417,6 +1831,30 @@ test-genie help
                 </div>
             </div>
         </main>
+    </div>
+
+    <div id="suite-detail-overlay" class="suite-detail-overlay" aria-hidden="true">
+        <div class="suite-detail-panel" role="dialog" aria-modal="true" aria-labelledby="suite-detail-title">
+            <button class="suite-detail-close" type="button" id="suite-detail-close" aria-label="Close test suite details">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="suite-detail-header">
+                <div class="suite-detail-meta">
+                    <h2 id="suite-detail-title">Test Suite</h2>
+                    <div class="suite-id" id="suite-detail-id"></div>
+                    <div class="suite-detail-subtitle" id="suite-detail-subtitle"></div>
+                </div>
+                <div class="suite-detail-actions">
+                    <button class="btn" type="button" id="suite-detail-execute">
+                        <i data-lucide="play"></i>
+                        Run Suite
+                    </button>
+                </div>
+            </div>
+            <div class="suite-detail-content" id="suite-detail-content">
+                <div class="suite-detail-empty">Select a test suite to view details.</div>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>
