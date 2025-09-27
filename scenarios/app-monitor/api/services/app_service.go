@@ -79,6 +79,17 @@ func NewAppService(repo repository.AppRepository) *AppService {
 	}
 }
 
+func (s *AppService) invalidateCache() {
+	if s == nil || s.cache == nil {
+		return
+	}
+
+	s.cache.mu.Lock()
+	s.cache.timestamp = time.Time{}
+	s.cache.isPartial = true
+	s.cache.mu.Unlock()
+}
+
 // OrchestratorResponse represents the response from vrooli scenario status --json
 type OrchestratorResponse struct {
 	Success bool `json:"success"`
@@ -856,15 +867,6 @@ func (s *AppService) GetApps(ctx context.Context) ([]repository.App, error) {
 func (s *AppService) GetApp(ctx context.Context, id string) (*repository.App, error) {
 	var lastErr error
 
-	if s.repo != nil {
-		app, err := s.repo.GetApp(ctx, id)
-		if err == nil {
-			return app, nil
-		}
-
-		lastErr = err
-	}
-
 	apps, err := s.GetAppsFromOrchestrator(ctx)
 	if err == nil {
 		for i := range apps {
@@ -874,8 +876,19 @@ func (s *AppService) GetApp(ctx context.Context, id string) (*repository.App, er
 				return &result, nil
 			}
 		}
-	} else if lastErr == nil {
+	} else {
 		lastErr = err
+	}
+
+	if s.repo != nil {
+		app, repoErr := s.repo.GetApp(ctx, id)
+		if repoErr == nil {
+			return app, nil
+		}
+
+		if lastErr == nil {
+			lastErr = repoErr
+		}
 	}
 
 	if summaries, summaryErr := s.fetchScenarioSummaries(ctx); summaryErr == nil {
@@ -922,6 +935,8 @@ func (s *AppService) StartApp(ctx context.Context, appName string) error {
 		s.repo.UpdateAppStatus(ctx, appName, "running")
 	}
 
+	s.invalidateCache()
+
 	return nil
 }
 
@@ -942,6 +957,8 @@ func (s *AppService) StopApp(ctx context.Context, appName string) error {
 		s.repo.UpdateAppStatus(ctx, appName, "stopped")
 	}
 
+	s.invalidateCache()
+
 	return nil
 }
 
@@ -960,6 +977,8 @@ func (s *AppService) RestartApp(ctx context.Context, appName string) error {
 	if s.repo != nil {
 		s.repo.UpdateAppStatus(ctx, appName, "running")
 	}
+
+	s.invalidateCache()
 
 	return nil
 }

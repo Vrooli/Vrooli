@@ -415,6 +415,9 @@ const AppPreviewView = () => {
             if (isRunningStatus(fetched.status) && !isStoppedStatus(fetched.status)) {
               const candidateUrl = buildPreviewUrl(fetched);
               if (candidateUrl) {
+                if (!hasCustomPreviewUrl) {
+                  applyDefaultPreviewUrl(candidateUrl);
+                }
                 setStatusMessage('Application restarted. Refreshing preview...');
                 setPreviewOverlay(null);
                 setLoading(false);
@@ -444,7 +447,7 @@ const AppPreviewView = () => {
     };
 
     void poll();
-  }, [commitAppUpdate, reloadPreview, setLoading, setPreviewOverlay, setStatusMessage, stopRestartMonitor]);
+  }, [applyDefaultPreviewUrl, commitAppUpdate, hasCustomPreviewUrl, reloadPreview, setLoading, setPreviewOverlay, setStatusMessage, stopRestartMonitor]);
 
   const activePreviewUrl = useMemo(() => bridgeState.href || previewUrl || '', [bridgeState.href, previewUrl]);
   const canCaptureScreenshot = useMemo(() => Boolean(activePreviewUrl), [activePreviewUrl]);
