@@ -262,6 +262,32 @@ vrooli resource sqlite replicate monitor --interval 60
 # Monitor will sync all configured replicas every 60 seconds
 ```
 
+### Web UI for Batch Operations
+
+The SQLite resource includes a web interface for batch operations, CSV import/export, and database statistics:
+
+```bash
+# Start the web UI server
+vrooli resource sqlite webui start
+# Access at: http://127.0.0.1:8297/
+
+# Check web UI status
+vrooli resource sqlite webui status
+
+# Stop the web UI
+vrooli resource sqlite webui stop
+
+# Restart the web UI
+vrooli resource sqlite webui restart
+```
+
+The web UI provides:
+- **Database Explorer**: Browse and select databases
+- **Batch SQL Executor**: Run multiple SQL commands with transaction support
+- **CSV Import/Export**: Upload CSV files or export tables to CSV
+- **Statistics Viewer**: Analyze database performance and optimization recommendations
+- **Table Browser**: View table schemas and row counts
+
 ## Usage Examples
 
 ### Basic CRUD Operations
@@ -376,7 +402,7 @@ psql -d myapp -f myapp.sql
 - **SQL Injection Protection**: Query builders automatically escape values
 - **Name Restrictions**: Only alphanumeric characters, underscores, dots, and hyphens allowed in names
 - **Path Traversal Prevention**: Names containing `..` or `/` are rejected
-- **Consider encryption for sensitive data** (not yet implemented)
+- **Encryption Available**: Use AES-256 encryption for sensitive databases
 
 ## Support
 

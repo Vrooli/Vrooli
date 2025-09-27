@@ -7,7 +7,7 @@ echo "=== Business Logic Tests ==="
 # e.g., verify algorithm implementations, API responses
 
 if [ -d api ]; then
-  cd api &amp;&amp; go test -v ./... -run TestBusiness || echo "No business tests, skipping"
+  cd api && go test -v ./... -run TestBusiness || echo "No business tests, skipping"
 fi
 
 echo "✅ Business tests passed (add specific tests as needed)"

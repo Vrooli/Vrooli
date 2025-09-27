@@ -6,8 +6,23 @@
 set -e
 
 # Configuration
-# Get API port from environment or use default range
-API_PORT="${API_PORT:-15100}"
+# Get API port from environment or try to detect from running process
+if [ -z "$API_PORT" ]; then
+    # Try to detect the port from vrooli scenario port command
+    DETECTED_PORT=$(vrooli scenario port api-library api 2>/dev/null || echo "")
+    if [ -n "$DETECTED_PORT" ]; then
+        API_PORT="$DETECTED_PORT"
+    else
+        # Fallback to lsof detection
+        DETECTED_PORT=$(lsof -i -P -n 2>/dev/null | grep -E "api-library.*LISTEN" | awk '{print $9}' | cut -d: -f2 | head -1)
+        if [ -n "$DETECTED_PORT" ]; then
+            API_PORT="$DETECTED_PORT"
+        else
+            # Use default if not detected
+            API_PORT="15100"
+        fi
+    fi
+fi
 API_BASE_URL="${VROOLI_API_LIBRARY_URL:-http://localhost:${API_PORT}}"
 CONFIG_FILE="$HOME/.vrooli/api-library/config.yaml"
 
@@ -78,36 +93,176 @@ api_request() {
 # Command functions
 
 cmd_search() {
-    local query="$1"
-    local limit="${2:-10}"
     local json_output="${JSON_OUTPUT:-false}"
-    
+    local query=""
+    local limit=""
+    local configured_filter=""
+    local max_price=""
+    local categories=""
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --limit)
+                if [ -n "$2" ]; then
+                    limit="$2"
+                    shift 2
+                else
+                    print_error "--limit requires a value"
+                    return 1
+                fi
+                ;;
+            --configured-only)
+                configured_filter="true"
+                shift
+                ;;
+            --configured)
+                if [ -n "$2" ]; then
+                    configured_filter=$(echo "$2" | tr '[:upper:]' '[:lower:]')
+                    shift 2
+                else
+                    print_error "--configured requires true or false"
+                    return 1
+                fi
+                ;;
+            --max-price)
+                if [ -n "$2" ]; then
+                    max_price="$2"
+                    shift 2
+                else
+                    print_error "--max-price requires a numeric value"
+                    return 1
+                fi
+                ;;
+            --category|--categories)
+                if [ -n "$2" ]; then
+                    if [ -n "$categories" ]; then
+                        categories+=",$2"
+                    else
+                        categories="$2"
+                    fi
+                    shift 2
+                else
+                    print_error "--category requires a value"
+                    return 1
+                fi
+                ;;
+            --json)
+                json_output="true"
+                shift
+                ;;
+            --help|-h)
+                cat <<'EOF'
+Usage: api-library search <query> [options]
+
+Options:
+  --limit <n>            Limit number of results (default 10)
+  --configured-only      Show only APIs marked as configured
+  --configured <bool>    Filter by configured status (true/false)
+  --max-price <value>    Maximum price filter (per request)
+  --category <name>      Filter by category (can be repeated)
+  --json                 Output raw JSON
+EOF
+                return 0
+                ;;
+            --)
+                shift
+                break
+                ;;
+            -* )
+                print_warning "Ignoring unknown option: $1"
+                shift
+                ;;
+            *)
+                if [ -n "$1" ]; then
+                    if [ -z "$query" ]; then
+                        query="$1"
+                    elif [ -z "$limit" ] && [[ "$1" =~ ^[0-9]+$ ]]; then
+                        limit="$1"
+                    else
+                        print_warning "Ignoring unexpected argument: $1"
+                    fi
+                fi
+                shift
+                ;;
+        esac
+    done
+
     if [ -z "$query" ]; then
         print_error "Search query is required"
-        echo "Usage: api-library search <query> [limit]"
-        exit 1
+        echo "Usage: api-library search <query> [options]"
+        return 1
     fi
-    
-    local data=$(jq -n --arg q "$query" --arg l "$limit" '{query: $q, limit: ($l | tonumber)}')
-    local response=$(api_request "POST" "/search" "$data" true)
-    
+
+    limit="${limit:-10}"
+    limit=$(echo "$limit" | xargs)
+    if [ -n "$configured_filter" ]; then
+        configured_filter=$(echo "$configured_filter" | xargs)
+    fi
+    if [ -n "$max_price" ]; then
+        max_price=$(echo "$max_price" | xargs)
+    fi
+
+    if ! [[ "$limit" =~ ^[0-9]+$ ]]; then
+        print_error "Limit must be a positive integer"
+        return 1
+    fi
+
+    if [ -n "$configured_filter" ] && [ "$configured_filter" != "true" ] && [ "$configured_filter" != "false" ]; then
+        print_error "--configured must be true or false"
+        return 1
+    fi
+
+    if [ -n "$max_price" ] && ! [[ "$max_price" =~ ^([0-9]+(\.[0-9]+)?|\.[0-9]+)$ ]]; then
+        print_error "--max-price must be a numeric value"
+        return 1
+    fi
+
+    local payload
+    payload=$(jq -n \
+        --arg q "$query" \
+        --arg limit "$limit" \
+        --arg configured "$configured_filter" \
+        --arg max_price "$max_price" \
+        --arg categories "$categories" '
+        {query: $q, limit: ($limit | tonumber)} as $base |
+        $base +
+        (if ($configured != "" or $max_price != "" or $categories != "") then
+            {filters:
+                ({} 
+                    + (if $configured != "" then {configured: ($configured == "true")} else {} end)
+                    + (if $max_price != "" then {max_price: ($max_price | tonumber)} else {} end)
+                    + (if $categories != "" then {categories: ($categories | split(",") | map(gsub("^ +| +$"; "") | select(length>0)))} else {} end)
+                )
+            }
+         else {} end)
+    ')
+
+    local response=$(api_request "POST" "/search" "$payload" true)
+
     if [ "$json_output" = "true" ]; then
         echo "$response"
     else
+        local method=$(echo "$response" | jq -r '.method // "keyword"')
+        local count=$(echo "$response" | jq '.count // 0')
+        local method_label="Keyword"
+        if [ "$method" = "semantic" ]; then
+            method_label="Semantic"
+        fi
+
         print_info "Search results for: $query"
+        echo "Method: $method_label"
         echo ""
-        
+
         echo "$response" | jq -r '.results[] | 
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
             "Name: \(.name)\n" +
             "Provider: \(.provider)\n" +
             "Category: \(.category // "N/A")\n" +
             "Configured: \(if .configured then "✓" else "✗" end)\n" +
-            "Relevance: \(.relevance_score | tostring[0:4])\n" +
-            "Description: \(.description // "No description")\n" +
-            "Pricing: \(.pricing_summary // "N/A")"'
-        
-        local count=$(echo "$response" | jq '.count')
+            "Relevance: \(.relevance_score | tostring[0:6])\n" +
+            "Pricing: \(.pricing_summary // "N/A")\n" +
+            "Description: \(.description // "No description")"'
+
         echo ""
         print_success "Found $count results"
     fi
@@ -222,8 +377,9 @@ cmd_request_research() {
 }
 
 cmd_status() {
-    local response=$(api_request "GET" "/../health" "" true)
-    local status=$(echo "$response" | jq -r '.status // "unknown"')
+    # Check health endpoint directly (not under /api/v1)
+    local health_response=$(curl -s "${API_BASE_URL}/health")
+    local status=$(echo "$health_response" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
     
     if [ "$status" = "healthy" ]; then
         print_success "API Library service is healthy"

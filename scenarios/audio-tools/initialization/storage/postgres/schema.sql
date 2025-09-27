@@ -26,6 +26,23 @@ CREATE TABLE IF NOT EXISTS audio_assets (
     tags TEXT[]
 );
 
+-- Audio Processing Jobs table: Tracks audio processing operations
+CREATE TABLE IF NOT EXISTS audio_processing_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    audio_asset_id UUID REFERENCES audio_assets(id) ON DELETE CASCADE,
+    operation_type VARCHAR(50) NOT NULL,
+    parameters JSONB DEFAULT '{}',
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
+    progress_percentage INTEGER DEFAULT 0,
+    start_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMP WITH TIME ZONE,
+    output_files JSONB,
+    error_message TEXT,
+    processing_node VARCHAR(255),
+    resource_usage JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Workflows table: Workflow definitions
 CREATE TABLE IF NOT EXISTS workflows (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -172,6 +189,11 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX idx_audio_assets_format ON audio_assets(format);
 CREATE INDEX idx_audio_assets_created ON audio_assets(created_at DESC);
 CREATE INDEX idx_audio_assets_tags ON audio_assets USING GIN(tags);
+
+CREATE INDEX idx_audio_processing_jobs_asset ON audio_processing_jobs(audio_asset_id);
+CREATE INDEX idx_audio_processing_jobs_status ON audio_processing_jobs(status);
+CREATE INDEX idx_audio_processing_jobs_operation ON audio_processing_jobs(operation_type);
+CREATE INDEX idx_audio_processing_jobs_created ON audio_processing_jobs(created_at DESC);
 
 CREATE INDEX idx_workflows_platform ON workflows(platform) WHERE is_active = true;
 CREATE INDEX idx_workflows_tags ON workflows USING GIN(tags);

@@ -246,6 +246,11 @@
   border-bottom: 2px solid #00ff00;
   padding-bottom: 1rem;
   margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .detail-header h2 {
@@ -260,6 +265,26 @@
   gap: 2rem;
   font-size: 0.9rem;
   color: #00cc00;
+}
+
+.visualize-btn {
+  background: linear-gradient(135deg, #00ff00, #00aa00);
+  border: 1px solid #00ff00;
+  color: #0a0a0a;
+  padding: 0.5rem 1rem;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+  margin-left: auto;
+}
+
+.visualize-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(0, 255, 0, 0.5);
+  background: linear-gradient(135deg, #00ff00, #00dd00);
 }
 
 .description {

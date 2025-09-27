@@ -56,7 +56,7 @@ btcpay::test::performance() {
     # Test API response time
     log::info "Testing API response time..."
     local start_time=$(date +%s%N)
-    curl -sf "${BTCPAY_BASE_URL}/api/v1/health" &>/dev/null
+    timeout 5 curl -sf "${BTCPAY_BASE_URL}/api/v1/health" &>/dev/null
     local end_time=$(date +%s%N)
     local response_time=$(( (end_time - start_time) / 1000000 ))
     

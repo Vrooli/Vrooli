@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, KeyboardEvent, MouseEvent, PointerEvent } from 'react';
+import type { BridgeLogEvent, BridgeNetworkEvent } from '@vrooli/iframe-bridge';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { ArrowLeft, ArrowRight, Bug, ExternalLink, Info, Loader2, Power, RefreshCw, RotateCcw, ScrollText, X } from 'lucide-react';
 import { appService } from '@/services/api';
-import type { ReportIssuePayload } from '@/services/api';
+import type { ReportIssueConsoleLogEntry, ReportIssueNetworkEntry, ReportIssuePayload } from '@/services/api';
 
 type Html2CanvasFn = (element: HTMLElement, options?: Record<string, unknown>) => Promise<HTMLCanvasElement>;
 
@@ -69,6 +70,16 @@ interface AppPreviewViewProps {
   setApps: React.Dispatch<React.SetStateAction<App[]>>;
 }
 
+interface ReportConsoleEntry {
+  display: string;
+  payload: ReportIssueConsoleLogEntry;
+}
+
+interface ReportNetworkEntry {
+  display: string;
+  payload: ReportIssueNetworkEntry;
+}
+
 const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const navigate = useNavigate();
   const { appId } = useParams<{ appId: string }>();
@@ -98,12 +109,24 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const [reportSelectionRect, setReportSelectionRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [reportScreenshotClip, setReportScreenshotClip] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [reportScreenshotInfo, setReportScreenshotInfo] = useState<string | null>(null);
-  const [reportLogs, setReportLogs] = useState<string[]>([]);
-  const [reportLogsTotal, setReportLogsTotal] = useState<number | null>(null);
-  const [reportLogsLoading, setReportLogsLoading] = useState(false);
-  const [reportLogsError, setReportLogsError] = useState<string | null>(null);
-  const [reportLogsExpanded, setReportLogsExpanded] = useState(false);
-  const [reportLogsFetchedAt, setReportLogsFetchedAt] = useState<number | null>(null);
+  const [reportAppLogs, setReportAppLogs] = useState<string[]>([]);
+  const [reportAppLogsTotal, setReportAppLogsTotal] = useState<number | null>(null);
+  const [reportAppLogsLoading, setReportAppLogsLoading] = useState(false);
+  const [reportAppLogsError, setReportAppLogsError] = useState<string | null>(null);
+  const [reportAppLogsExpanded, setReportAppLogsExpanded] = useState(false);
+  const [reportAppLogsFetchedAt, setReportAppLogsFetchedAt] = useState<number | null>(null);
+  const [reportConsoleLogs, setReportConsoleLogs] = useState<ReportConsoleEntry[]>([]);
+  const [reportConsoleLogsTotal, setReportConsoleLogsTotal] = useState<number | null>(null);
+  const [reportConsoleLogsLoading, setReportConsoleLogsLoading] = useState(false);
+  const [reportConsoleLogsError, setReportConsoleLogsError] = useState<string | null>(null);
+  const [reportConsoleLogsExpanded, setReportConsoleLogsExpanded] = useState(false);
+  const [reportConsoleLogsFetchedAt, setReportConsoleLogsFetchedAt] = useState<number | null>(null);
+  const [reportNetworkEvents, setReportNetworkEvents] = useState<ReportNetworkEntry[]>([]);
+  const [reportNetworkTotal, setReportNetworkTotal] = useState<number | null>(null);
+  const [reportNetworkLoading, setReportNetworkLoading] = useState(false);
+  const [reportNetworkError, setReportNetworkError] = useState<string | null>(null);
+  const [reportNetworkExpanded, setReportNetworkExpanded] = useState(false);
+  const [reportNetworkFetchedAt, setReportNetworkFetchedAt] = useState<number | null>(null);
   const [previewReloadToken, setPreviewReloadToken] = useState(0);
   const [previewOverlay, setPreviewOverlay] = useState<null | { type: 'restart' | 'waiting' | 'error'; message: string }>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -117,22 +140,72 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const restartMonitorRef = useRef<{ cancel: () => void } | null>(null);
   const lastRefreshRequestRef = useRef(0);
   const lastRecordedViewRef = useRef<{ id: string | null; timestamp: number }>({ id: null, timestamp: 0 });
-  const reportLogsFetchedForRef = useRef<string | null>(null);
-  const reportLogsPanelId = 'app-report-dialog-logs';
-  const REPORT_LOGS_MAX_LINES = 200;
+  const reportAppLogsFetchedForRef = useRef<string | null>(null);
+  const reportAppLogsPanelId = 'app-report-dialog-logs';
+  const REPORT_APP_LOGS_MAX_LINES = 200;
+  const reportConsoleLogsFetchedForRef = useRef<string | null>(null);
+  const reportNetworkFetchedForRef = useRef<string | null>(null);
+  const reportConsoleLogsPanelId = 'app-report-dialog-console';
+  const reportNetworkPanelId = 'app-report-dialog-network';
+  const REPORT_CONSOLE_LOGS_MAX_LINES = 150;
+  const REPORT_NETWORK_MAX_EVENTS = 150;
+  const MAX_CONSOLE_TEXT_LENGTH = 2000;
+  const MAX_NETWORK_URL_LENGTH = 2048;
+  const MAX_NETWORK_ERROR_LENGTH = 1500;
+  const MAX_NETWORK_REQUEST_ID_LENGTH = 128;
   const logsTruncated = useMemo(() => (
-    typeof reportLogsTotal === 'number' && reportLogsTotal > reportLogs.length
-  ), [reportLogs.length, reportLogsTotal]);
+    typeof reportAppLogsTotal === 'number' && reportAppLogsTotal > reportAppLogs.length
+  ), [reportAppLogs.length, reportAppLogsTotal]);
   const formattedReportLogsTime = useMemo(() => {
-    if (!reportLogsFetchedAt) {
+    if (!reportAppLogsFetchedAt) {
       return null;
     }
     try {
-      return new Date(reportLogsFetchedAt).toLocaleTimeString();
+      return new Date(reportAppLogsFetchedAt).toLocaleTimeString();
     } catch {
       return null;
     }
-  }, [reportLogsFetchedAt]);
+  }, [reportAppLogsFetchedAt]);
+
+  const consoleLogsTruncated = useMemo(() => (
+    typeof reportConsoleLogsTotal === 'number' && reportConsoleLogsTotal > reportConsoleLogs.length
+  ), [reportConsoleLogs.length, reportConsoleLogsTotal]);
+
+  const formattedConsoleLogsTime = useMemo(() => {
+    if (!reportConsoleLogsFetchedAt) {
+      return null;
+    }
+    try {
+      return new Date(reportConsoleLogsFetchedAt).toLocaleTimeString();
+    } catch {
+      return null;
+    }
+  }, [reportConsoleLogsFetchedAt]);
+
+  const networkEventsTruncated = useMemo(() => (
+    typeof reportNetworkTotal === 'number' && reportNetworkTotal > reportNetworkEvents.length
+  ), [reportNetworkEvents.length, reportNetworkTotal]);
+
+  const formattedNetworkCapturedAt = useMemo(() => {
+    if (!reportNetworkFetchedAt) {
+      return null;
+    }
+    try {
+      return new Date(reportNetworkFetchedAt).toLocaleTimeString();
+    } catch {
+      return null;
+    }
+  }, [reportNetworkFetchedAt]);
+
+  const trimForPayload = (value: string, max: number): string => {
+    if (typeof value !== 'string' || value.length === 0) {
+      return value;
+    }
+    if (!Number.isFinite(max) || max <= 0 || value.length <= max) {
+      return value;
+    }
+    return `${value.slice(0, max)}...`;
+  };
 
   const matchesAppIdentifier = useCallback((app: App, identifier?: string | null) => {
     if (!identifier) {
@@ -179,6 +252,14 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     runComplianceCheck,
     resetState,
     requestScreenshot,
+    logState,
+    requestLogBatch,
+    getRecentLogs,
+    configureLogs,
+    networkState,
+    requestNetworkBatch,
+    getRecentNetworkEvents,
+    configureNetwork,
   } = useIframeBridge({
     iframeRef,
     previewUrl,
@@ -1048,59 +1129,350 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     return candidates[0];
   }, [appId, currentApp]);
 
-  const fetchReportLogs = useCallback(async (options?: { force?: boolean }) => {
+  const describeLogValue = useCallback((value: unknown): string => {
+    if (value === null) {
+      return 'null';
+    }
+    if (value === undefined) {
+      return 'undefined';
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }, []);
+
+  const buildConsoleEventBody = useCallback((event: BridgeLogEvent): string => {
+    const segments: string[] = [];
+    if (event.message) {
+      segments.push(event.message);
+    }
+    if (Array.isArray(event.args) && event.args.length > 0) {
+      segments.push(event.args.map(describeLogValue).join(' '));
+    }
+    if (event.context && Object.keys(event.context).length > 0) {
+      segments.push(describeLogValue(event.context));
+    }
+    const body = segments.filter(Boolean).join(' ');
+    return body || '(no console output)';
+  }, [describeLogValue]);
+
+  const formatBridgeLogEvent = useCallback((event: BridgeLogEvent): string => {
+    const timestamp = (() => {
+      try {
+        return new Date(event.ts).toLocaleTimeString();
+      } catch {
+        return String(event.ts);
+      }
+    })();
+    const level = event.level.toUpperCase();
+    const source = event.source;
+    const body = buildConsoleEventBody(event);
+    return `${timestamp} [${source}/${level}] ${body}`.trim();
+  }, [buildConsoleEventBody]);
+
+  const toConsoleEntry = (event: BridgeLogEvent): ReportConsoleEntry => ({
+    display: formatBridgeLogEvent(event),
+    payload: {
+      ts: event.ts,
+      level: event.level,
+      source: event.source,
+      text: trimForPayload(buildConsoleEventBody(event), MAX_CONSOLE_TEXT_LENGTH),
+    },
+  });
+
+  const formatBridgeNetworkEvent = (event: BridgeNetworkEvent): string => {
+    const timestamp = (() => {
+      try {
+        return new Date(event.ts).toLocaleTimeString();
+      } catch {
+        return String(event.ts);
+      }
+    })();
+    const method = event.method ? event.method.toUpperCase() : 'GET';
+    const url = (event.url && event.url.trim()) || '(unknown URL)';
+    let status = 'pending';
+    if (typeof event.status === 'number') {
+      status = String(event.status);
+    } else if (typeof event.ok === 'boolean') {
+      status = event.ok ? 'ok' : 'error';
+    }
+    const extras: string[] = [];
+    if (typeof event.durationMs === 'number' && Number.isFinite(event.durationMs)) {
+      extras.push(`${Math.max(0, Math.round(event.durationMs))}ms`);
+    }
+    if (event.error) {
+      extras.push(`error: ${event.error}`);
+    }
+    if (event.requestId) {
+      extras.push(`id=${event.requestId}`);
+    }
+    const tail = extras.length > 0 ? ` (${extras.join(', ')})` : '';
+    return `${timestamp} ${method} ${url} -> ${status}${tail}`;
+  };
+
+  const toNetworkEntry = (event: BridgeNetworkEvent): ReportNetworkEntry => {
+    const sanitizedURL = trimForPayload((event.url || '').trim() || '(unknown URL)', MAX_NETWORK_URL_LENGTH);
+    const sanitizedError = trimForPayload(event.error ?? '', MAX_NETWORK_ERROR_LENGTH).trim();
+    const sanitizedRequestId = trimForPayload(event.requestId ?? '', MAX_NETWORK_REQUEST_ID_LENGTH).trim();
+    const duration = typeof event.durationMs === 'number' && Number.isFinite(event.durationMs)
+      ? Math.max(0, Math.round(event.durationMs))
+      : undefined;
+
+    return {
+      display: formatBridgeNetworkEvent({ ...event, url: sanitizedURL, error: sanitizedError, requestId: sanitizedRequestId }),
+      payload: {
+        ts: event.ts,
+        kind: event.kind,
+        method: event.method ? event.method.toUpperCase() : 'GET',
+        url: sanitizedURL,
+        status: typeof event.status === 'number' ? event.status : undefined,
+        ok: typeof event.ok === 'boolean' ? event.ok : undefined,
+        durationMs: duration,
+        error: sanitizedError || undefined,
+        requestId: sanitizedRequestId || undefined,
+      },
+    };
+  };
+
+  const fetchReportAppLogs = useCallback(async (options?: { force?: boolean }) => {
     const identifier = resolveReportLogIdentifier();
     if (!identifier) {
-      setReportLogs([]);
-      setReportLogsTotal(null);
-      setReportLogsError('Unable to determine which logs to include.');
-      setReportLogsFetchedAt(null);
-      reportLogsFetchedForRef.current = null;
+      setReportAppLogs([]);
+      setReportAppLogsTotal(null);
+      setReportAppLogsError('Unable to determine which logs to include.');
+      setReportAppLogsFetchedAt(null);
+      reportAppLogsFetchedForRef.current = null;
       return;
     }
 
     const normalizedIdentifier = identifier.toLowerCase();
-    if (!options?.force && reportLogsFetchedForRef.current === normalizedIdentifier) {
+    if (!options?.force && reportAppLogsFetchedForRef.current === normalizedIdentifier) {
       return;
     }
 
-    setReportLogsLoading(true);
-    setReportLogsError(null);
+    setReportAppLogsLoading(true);
+    setReportAppLogsError(null);
 
     try {
       const result = await appService.getAppLogs(identifier, 'both');
       const rawLogs = Array.isArray(result.logs) ? result.logs : [];
-      const trimmedLogs = rawLogs.slice(-REPORT_LOGS_MAX_LINES);
+      const trimmedLogs = rawLogs.slice(-REPORT_APP_LOGS_MAX_LINES);
 
-      setReportLogs(trimmedLogs);
-      setReportLogsTotal(rawLogs.length);
-      setReportLogsFetchedAt(Date.now());
-      reportLogsFetchedForRef.current = normalizedIdentifier;
+      setReportAppLogs(trimmedLogs);
+      setReportAppLogsTotal(rawLogs.length);
+      setReportAppLogsFetchedAt(Date.now());
+      reportAppLogsFetchedForRef.current = normalizedIdentifier;
     } catch (error) {
       logger.error('Failed to load logs for issue report', error);
-      setReportLogs([]);
-      setReportLogsTotal(null);
-      setReportLogsError('Unable to load logs. Try again.');
-      setReportLogsFetchedAt(null);
-      reportLogsFetchedForRef.current = null;
+      setReportAppLogs([]);
+      setReportAppLogsTotal(null);
+      setReportAppLogsError('Unable to load logs. Try again.');
+      setReportAppLogsFetchedAt(null);
+      reportAppLogsFetchedForRef.current = null;
     } finally {
-      setReportLogsLoading(false);
+      setReportAppLogsLoading(false);
     }
-  }, [REPORT_LOGS_MAX_LINES, resolveReportLogIdentifier]);
+  }, [REPORT_APP_LOGS_MAX_LINES, logger, resolveReportLogIdentifier]);
 
-  const handleToggleReportLogs = useCallback(() => {
-    setReportLogsExpanded(prev => {
+  const fetchReportConsoleLogs = useCallback(async (options?: { force?: boolean }) => {
+    const identifier = resolveReportLogIdentifier();
+    if (!identifier) {
+      setReportConsoleLogs([]);
+      setReportConsoleLogsTotal(null);
+      setReportConsoleLogsError('Unable to determine which console logs to include.');
+      setReportConsoleLogsFetchedAt(null);
+      reportConsoleLogsFetchedForRef.current = null;
+      return;
+    }
+
+    if (!bridgeState.isSupported || !bridgeState.caps.includes('logs')) {
+      setReportConsoleLogs([]);
+      setReportConsoleLogsTotal(null);
+      setReportConsoleLogsError('Console log capture is not available for this preview.');
+      setReportConsoleLogsFetchedAt(null);
+      reportConsoleLogsFetchedForRef.current = null;
+      return;
+    }
+
+    const normalizedIdentifier = identifier.toLowerCase();
+    if (!options?.force && reportConsoleLogsFetchedForRef.current === normalizedIdentifier) {
+      return;
+    }
+
+    setReportConsoleLogsLoading(true);
+    setReportConsoleLogsError(null);
+
+    try {
+      if (logState && configureLogs && logState.enabled === false) {
+        configureLogs({ enable: true });
+      }
+
+      let events: BridgeLogEvent[] = [];
+      try {
+        events = await requestLogBatch({ limit: REPORT_CONSOLE_LOGS_MAX_LINES });
+      } catch (error) {
+        logger.warn('Console log snapshot failed; using buffered events', error);
+        events = getRecentLogs();
+      }
+
+      if (!Array.isArray(events)) {
+        events = [];
+      }
+
+      const limited = events.slice(-REPORT_CONSOLE_LOGS_MAX_LINES);
+      const entries = limited.map(toConsoleEntry);
+
+      setReportConsoleLogs(entries);
+      setReportConsoleLogsTotal(events.length);
+      setReportConsoleLogsFetchedAt(Date.now());
+      reportConsoleLogsFetchedForRef.current = normalizedIdentifier;
+    } catch (error) {
+      logger.warn('Failed to load console logs for issue report', error);
+      setReportConsoleLogs([]);
+      setReportConsoleLogsTotal(null);
+      setReportConsoleLogsError('Unable to load console logs from the preview iframe.');
+      setReportConsoleLogsFetchedAt(null);
+      reportConsoleLogsFetchedForRef.current = null;
+    } finally {
+      setReportConsoleLogsLoading(false);
+    }
+  }, [
+    REPORT_CONSOLE_LOGS_MAX_LINES,
+    bridgeState.caps,
+    bridgeState.isSupported,
+    configureLogs,
+    getRecentLogs,
+    logger,
+    logState,
+    requestLogBatch,
+    resolveReportLogIdentifier,
+    toConsoleEntry,
+  ]);
+
+  const fetchReportNetworkEvents = useCallback(async (options?: { force?: boolean }) => {
+    const identifier = resolveReportLogIdentifier();
+    if (!identifier) {
+      setReportNetworkEvents([]);
+      setReportNetworkTotal(null);
+      setReportNetworkError('Unable to determine which network events to include.');
+      setReportNetworkFetchedAt(null);
+      reportNetworkFetchedForRef.current = null;
+      return;
+    }
+
+    if (!bridgeState.isSupported || !bridgeState.caps.includes('network')) {
+      setReportNetworkEvents([]);
+      setReportNetworkTotal(null);
+      setReportNetworkError('Network capture is not available for this preview.');
+      setReportNetworkFetchedAt(null);
+      reportNetworkFetchedForRef.current = null;
+      return;
+    }
+
+    const normalizedIdentifier = identifier.toLowerCase();
+    if (!options?.force && reportNetworkFetchedForRef.current === normalizedIdentifier) {
+      return;
+    }
+
+    setReportNetworkLoading(true);
+    setReportNetworkError(null);
+
+    try {
+      if (networkState && configureNetwork && networkState.enabled === false) {
+        configureNetwork({ enable: true });
+      }
+
+      let events: BridgeNetworkEvent[] = [];
+      try {
+        events = await requestNetworkBatch({ limit: REPORT_NETWORK_MAX_EVENTS });
+      } catch (error) {
+        logger.warn('Network snapshot failed; using buffered events', error);
+        events = getRecentNetworkEvents();
+      }
+
+      if (!Array.isArray(events)) {
+        events = [];
+      }
+
+      const limited = events.slice(-REPORT_NETWORK_MAX_EVENTS);
+      const entries = limited.map(toNetworkEntry);
+
+      setReportNetworkEvents(entries);
+      setReportNetworkTotal(events.length);
+      setReportNetworkFetchedAt(Date.now());
+      reportNetworkFetchedForRef.current = normalizedIdentifier;
+    } catch (error) {
+      logger.warn('Failed to load network events for issue report', error);
+      setReportNetworkEvents([]);
+      setReportNetworkTotal(null);
+      setReportNetworkError('Unable to load network requests from the preview iframe.');
+      setReportNetworkFetchedAt(null);
+      reportNetworkFetchedForRef.current = null;
+    } finally {
+      setReportNetworkLoading(false);
+    }
+  }, [
+    REPORT_NETWORK_MAX_EVENTS,
+    bridgeState.caps,
+    bridgeState.isSupported,
+    configureNetwork,
+    getRecentNetworkEvents,
+    logger,
+    networkState,
+    requestNetworkBatch,
+    resolveReportLogIdentifier,
+    toNetworkEntry,
+  ]);
+
+  const handleToggleReportAppLogs = useCallback(() => {
+    setReportAppLogsExpanded(prev => {
       const next = !prev;
-      if (next && !reportLogsLoading && reportLogs.length === 0 && !reportLogsError) {
-        void fetchReportLogs({ force: true });
+      if (next && !reportAppLogsLoading && reportAppLogs.length === 0 && !reportAppLogsError) {
+        void fetchReportAppLogs({ force: true });
       }
       return next;
     });
-  }, [fetchReportLogs, reportLogs.length, reportLogsError, reportLogsLoading]);
+  }, [fetchReportAppLogs, reportAppLogs.length, reportAppLogsError, reportAppLogsLoading]);
 
-  const handleRefreshReportLogs = useCallback(() => {
-    void fetchReportLogs({ force: true });
-  }, [fetchReportLogs]);
+  const handleRefreshReportAppLogs = useCallback(() => {
+    void fetchReportAppLogs({ force: true });
+  }, [fetchReportAppLogs]);
+
+  const handleToggleReportConsoleLogs = useCallback(() => {
+    setReportConsoleLogsExpanded(prev => {
+      const next = !prev;
+      if (next && !reportConsoleLogsLoading && reportConsoleLogs.length === 0 && !reportConsoleLogsError) {
+        void fetchReportConsoleLogs({ force: true });
+      }
+      return next;
+    });
+  }, [fetchReportConsoleLogs, reportConsoleLogs.length, reportConsoleLogsError, reportConsoleLogsLoading]);
+
+  const handleRefreshReportConsoleLogs = useCallback(() => {
+    void fetchReportConsoleLogs({ force: true });
+  }, [fetchReportConsoleLogs]);
+
+  const handleToggleReportNetworkEvents = useCallback(() => {
+    setReportNetworkExpanded(prev => {
+      const next = !prev;
+      if (next && !reportNetworkLoading && reportNetworkEvents.length === 0 && !reportNetworkError) {
+        void fetchReportNetworkEvents({ force: true });
+      }
+      return next;
+    });
+  }, [fetchReportNetworkEvents, reportNetworkError, reportNetworkEvents.length, reportNetworkLoading]);
+
+  const handleRefreshReportNetworkEvents = useCallback(() => {
+    void fetchReportNetworkEvents({ force: true });
+  }, [fetchReportNetworkEvents]);
 
   const handleOpenReportDialog = useCallback(() => {
     setReportDialogOpen(true);
@@ -1116,18 +1488,38 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     setReportSelectionRect(null);
     setReportScreenshotClip(null);
     reportScreenshotContainerSizeRef.current = null;
-    setReportLogs([]);
-    setReportLogsTotal(null);
-    setReportLogsError(null);
-    setReportLogsExpanded(false);
-    setReportLogsFetchedAt(null);
-    reportLogsFetchedForRef.current = null;
+    setReportAppLogs([]);
+    setReportAppLogsTotal(null);
+    setReportAppLogsError(null);
+    setReportAppLogsExpanded(false);
+    setReportAppLogsFetchedAt(null);
+    reportAppLogsFetchedForRef.current = null;
+    setReportConsoleLogs([]);
+    setReportConsoleLogsTotal(null);
+    setReportConsoleLogsError(null);
+    setReportConsoleLogsExpanded(false);
+    setReportConsoleLogsFetchedAt(null);
+    reportConsoleLogsFetchedForRef.current = null;
+    setReportNetworkEvents([]);
+    setReportNetworkTotal(null);
+    setReportNetworkError(null);
+    setReportNetworkExpanded(false);
+    setReportNetworkFetchedAt(null);
+    reportNetworkFetchedForRef.current = null;
     setReportIncludeScreenshot(canCaptureScreenshot);
     if (canCaptureScreenshot) {
       void captureIframeScreenshot();
     }
-    void fetchReportLogs({ force: true });
-  }, [canCaptureScreenshot, captureIframeScreenshot, fetchReportLogs]);
+    void fetchReportAppLogs({ force: true });
+    void fetchReportConsoleLogs({ force: true });
+    void fetchReportNetworkEvents({ force: true });
+  }, [
+    canCaptureScreenshot,
+    captureIframeScreenshot,
+    fetchReportAppLogs,
+    fetchReportConsoleLogs,
+    fetchReportNetworkEvents,
+  ]);
 
   const handleCloseReportDialog = useCallback(() => {
     setReportDialogOpen(false);
@@ -1145,13 +1537,27 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     setReportSelectionRect(null);
     setReportScreenshotClip(null);
     reportScreenshotContainerSizeRef.current = null;
-    setReportLogs([]);
-    setReportLogsTotal(null);
-    setReportLogsError(null);
-    setReportLogsExpanded(false);
-    setReportLogsFetchedAt(null);
-    setReportLogsLoading(false);
-    reportLogsFetchedForRef.current = null;
+    setReportAppLogs([]);
+    setReportAppLogsTotal(null);
+    setReportAppLogsError(null);
+    setReportAppLogsExpanded(false);
+    setReportAppLogsFetchedAt(null);
+    setReportAppLogsLoading(false);
+    reportAppLogsFetchedForRef.current = null;
+    setReportConsoleLogs([]);
+    setReportConsoleLogsTotal(null);
+    setReportConsoleLogsError(null);
+    setReportConsoleLogsExpanded(false);
+    setReportConsoleLogsFetchedAt(null);
+    setReportConsoleLogsLoading(false);
+    reportConsoleLogsFetchedForRef.current = null;
+    setReportNetworkEvents([]);
+    setReportNetworkTotal(null);
+    setReportNetworkError(null);
+    setReportNetworkExpanded(false);
+    setReportNetworkFetchedAt(null);
+    setReportNetworkLoading(false);
+    reportNetworkFetchedForRef.current = null;
   }, [canCaptureScreenshot]);
 
   const handleReportMessageChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -1451,11 +1857,31 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
         screenshotData: includeScreenshot ? reportScreenshotData ?? null : null,
       };
 
-      if (reportLogs.length > 0) {
-        payload.logs = reportLogs;
-        payload.logsTotal = typeof reportLogsTotal === 'number' ? reportLogsTotal : reportLogs.length;
-        if (reportLogsFetchedAt) {
-          payload.logsCapturedAt = new Date(reportLogsFetchedAt).toISOString();
+      if (reportAppLogs.length > 0) {
+        payload.logs = reportAppLogs;
+        payload.logsTotal = typeof reportAppLogsTotal === 'number' ? reportAppLogsTotal : reportAppLogs.length;
+      if (reportAppLogsFetchedAt) {
+        payload.logsCapturedAt = new Date(reportAppLogsFetchedAt).toISOString();
+      }
+    }
+
+      if (reportConsoleLogs.length > 0) {
+        payload.consoleLogs = reportConsoleLogs.map(entry => entry.payload);
+        payload.consoleLogsTotal = typeof reportConsoleLogsTotal === 'number'
+          ? reportConsoleLogsTotal
+          : reportConsoleLogs.length;
+        if (reportConsoleLogsFetchedAt) {
+          payload.consoleLogsCapturedAt = new Date(reportConsoleLogsFetchedAt).toISOString();
+        }
+      }
+
+      if (reportNetworkEvents.length > 0) {
+        payload.networkRequests = reportNetworkEvents.map(entry => entry.payload);
+        payload.networkRequestsTotal = typeof reportNetworkTotal === 'number'
+          ? reportNetworkTotal
+          : reportNetworkEvents.length;
+        if (reportNetworkFetchedAt) {
+          payload.networkCapturedAt = new Date(reportNetworkFetchedAt).toISOString();
         }
       }
 
@@ -1479,9 +1905,15 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     canCaptureScreenshot,
     currentApp,
     reportIncludeScreenshot,
-    reportLogs,
-    reportLogsFetchedAt,
-    reportLogsTotal,
+    reportAppLogs,
+    reportAppLogsFetchedAt,
+    reportAppLogsTotal,
+    reportConsoleLogs,
+    reportConsoleLogsFetchedAt,
+    reportConsoleLogsTotal,
+    reportNetworkEvents,
+    reportNetworkFetchedAt,
+    reportNetworkTotal,
     reportMessage,
     reportScreenshotData,
   ]);
@@ -1894,78 +2326,238 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
                       required
                     />
                     <div className="report-dialog__logs">
-                      <div className="report-dialog__logs-header">
-                        <span className="report-dialog__logs-title">Recent logs</span>
-                        <button
-                          type="button"
-                          className="report-dialog__logs-toggle"
-                          onClick={handleToggleReportLogs}
-                          aria-expanded={reportLogsExpanded}
-                          aria-controls={reportLogsPanelId}
-                        >
-                          {reportLogsExpanded ? 'Hide' : 'Show'}
-                        </button>
-                      </div>
-                      <p className="report-dialog__logs-note">
-                        {reportLogsError
-                          ? 'Logs failed to load. Expand to retry.'
-                          : reportLogsLoading
-                            ? 'Fetching recent logs…'
-                            : 'Attached to the report to accelerate troubleshooting.'}
-                      </p>
-                      <div
-                        id={reportLogsPanelId}
-                        className="report-dialog__logs-panel"
-                        style={reportLogsExpanded ? undefined : { display: 'none' }}
-                        aria-hidden={!reportLogsExpanded}
-                      >
-                        <div className="report-dialog__logs-meta">
-                          <span>
-                            {reportLogsLoading
-                              ? 'Loading logs…'
-                              : reportLogs.length > 0
-                                ? `Showing last ${reportLogs.length}${logsTruncated ? ` of ${reportLogsTotal}` : ''} lines${formattedReportLogsTime ? ` (captured ${formattedReportLogsTime})` : ''}.`
-                                : reportLogsError
-                                  ? 'Logs unavailable.'
-                                  : 'No logs captured yet.'}
-                          </span>
+                      <section className="report-dialog__logs-section">
+                        <div className="report-dialog__logs-header">
+                          <span className="report-dialog__logs-title">App logs</span>
                           <button
                             type="button"
-                            className="report-dialog__logs-refresh"
-                            onClick={handleRefreshReportLogs}
-                            disabled={reportLogsLoading}
+                            className="report-dialog__logs-toggle"
+                            onClick={handleToggleReportAppLogs}
+                            aria-expanded={reportAppLogsExpanded}
+                            aria-controls={reportAppLogsPanelId}
                           >
-                            {reportLogsLoading ? (
-                              <Loader2 aria-hidden size={14} className="spinning" />
-                            ) : (
-                              <RefreshCw aria-hidden size={14} />
-                            )}
-                            <span>{reportLogsLoading ? 'Loading' : 'Refresh'}</span>
+                            {reportAppLogsExpanded ? 'Hide' : 'Show'}
                           </button>
                         </div>
-                        {reportLogsLoading ? (
-                          <div className="report-dialog__logs-loading">
-                            <Loader2 aria-hidden size={18} className="spinning" />
-                            <span>Fetching logs…</span>
-                          </div>
-                        ) : reportLogsError ? (
-                          <div className="report-dialog__logs-message">
-                            <p>{reportLogsError}</p>
+                        <p className="report-dialog__logs-note">
+                          {reportAppLogsError
+                            ? 'Logs failed to load. Expand to retry.'
+                            : reportAppLogsLoading
+                              ? 'Fetching recent logs…'
+                              : 'Lifecycle and background logs from the running scenario.'}
+                        </p>
+                        <div
+                          id={reportAppLogsPanelId}
+                          className="report-dialog__logs-panel"
+                          style={reportAppLogsExpanded ? undefined : { display: 'none' }}
+                          aria-hidden={!reportAppLogsExpanded}
+                        >
+                          <div className="report-dialog__logs-meta">
+                            <span>
+                              {reportAppLogsLoading
+                                ? 'Loading logs…'
+                                : reportAppLogs.length > 0
+                                  ? `Showing last ${reportAppLogs.length}${logsTruncated ? ` of ${reportAppLogsTotal}` : ''} lines${formattedReportLogsTime ? ` (captured ${formattedReportLogsTime})` : ''}.`
+                                  : reportAppLogsError
+                                    ? 'Logs unavailable.'
+                                    : 'No logs captured yet.'}
+                            </span>
                             <button
                               type="button"
-                              className="report-dialog__button report-dialog__button--ghost"
-                              onClick={handleRefreshReportLogs}
-                              disabled={reportLogsLoading}
+                              className="report-dialog__logs-refresh"
+                              onClick={handleRefreshReportAppLogs}
+                              disabled={reportAppLogsLoading}
                             >
-                              Retry
+                              {reportAppLogsLoading ? (
+                                <Loader2 aria-hidden size={14} className="spinning" />
+                              ) : (
+                                <RefreshCw aria-hidden size={14} />
+                              )}
+                              <span>{reportAppLogsLoading ? 'Loading' : 'Refresh'}</span>
                             </button>
                           </div>
-                        ) : reportLogs.length === 0 ? (
-                          <p className="report-dialog__logs-empty">No logs available for this scenario.</p>
-                        ) : (
-                          <pre className="report-dialog__logs-content">{reportLogs.join('\n')}</pre>
-                        )}
-                      </div>
+                          {reportAppLogsLoading ? (
+                            <div className="report-dialog__logs-loading">
+                              <Loader2 aria-hidden size={18} className="spinning" />
+                              <span>Fetching logs…</span>
+                            </div>
+                          ) : reportAppLogsError ? (
+                            <div className="report-dialog__logs-message">
+                              <p>{reportAppLogsError}</p>
+                              <button
+                                type="button"
+                                className="report-dialog__button report-dialog__button--ghost"
+                                onClick={handleRefreshReportAppLogs}
+                                disabled={reportAppLogsLoading}
+                              >
+                                Retry
+                              </button>
+                            </div>
+                          ) : reportAppLogs.length === 0 ? (
+                            <p className="report-dialog__logs-empty">No logs available for this scenario.</p>
+                          ) : (
+                            <pre className="report-dialog__logs-content">{reportAppLogs.join('\n')}</pre>
+                          )}
+                        </div>
+                      </section>
+
+                      <section className="report-dialog__logs-section">
+                        <div className="report-dialog__logs-header">
+                          <span className="report-dialog__logs-title">Console logs</span>
+                          <button
+                            type="button"
+                            className="report-dialog__logs-toggle"
+                            onClick={handleToggleReportConsoleLogs}
+                            aria-expanded={reportConsoleLogsExpanded}
+                            aria-controls={reportConsoleLogsPanelId}
+                          >
+                            {reportConsoleLogsExpanded ? 'Hide' : 'Show'}
+                          </button>
+                        </div>
+                        <p className="report-dialog__logs-note">
+                          {bridgeState.caps.includes('logs')
+                            ? reportConsoleLogsError
+                              ? 'Console events failed to load. Expand to retry.'
+                              : reportConsoleLogsLoading
+                                ? 'Fetching console logs…'
+                                : 'Captured directly from the iframe console (log, warn, error).'
+                            : 'Console capture is unavailable for this preview.'}
+                        </p>
+                        <div
+                          id={reportConsoleLogsPanelId}
+                          className="report-dialog__logs-panel"
+                          style={reportConsoleLogsExpanded ? undefined : { display: 'none' }}
+                          aria-hidden={!reportConsoleLogsExpanded}
+                        >
+                          <div className="report-dialog__logs-meta">
+                            <span>
+                              {reportConsoleLogsLoading
+                                ? 'Loading console logs…'
+                                : reportConsoleLogs.length > 0
+                                  ? `Showing last ${reportConsoleLogs.length}${consoleLogsTruncated ? ` of ${reportConsoleLogsTotal}` : ''} events${formattedConsoleLogsTime ? ` (captured ${formattedConsoleLogsTime})` : ''}.`
+                                  : reportConsoleLogsError
+                                    ? 'Console logs unavailable.'
+                                    : 'No console events captured yet.'}
+                            </span>
+                            <button
+                              type="button"
+                              className="report-dialog__logs-refresh"
+                              onClick={handleRefreshReportConsoleLogs}
+                              disabled={reportConsoleLogsLoading}
+                            >
+                              {reportConsoleLogsLoading ? (
+                                <Loader2 aria-hidden size={14} className="spinning" />
+                              ) : (
+                                <RefreshCw aria-hidden size={14} />
+                              )}
+                              <span>{reportConsoleLogsLoading ? 'Loading' : 'Refresh'}</span>
+                            </button>
+                          </div>
+                          {reportConsoleLogsLoading ? (
+                            <div className="report-dialog__logs-loading">
+                              <Loader2 aria-hidden size={18} className="spinning" />
+                              <span>Fetching console logs…</span>
+                            </div>
+                          ) : reportConsoleLogsError ? (
+                            <div className="report-dialog__logs-message">
+                              <p>{reportConsoleLogsError}</p>
+                              <button
+                                type="button"
+                                className="report-dialog__button report-dialog__button--ghost"
+                                onClick={handleRefreshReportConsoleLogs}
+                                disabled={reportConsoleLogsLoading}
+                              >
+                                Retry
+                              </button>
+                            </div>
+                          ) : reportConsoleLogs.length === 0 ? (
+                            <p className="report-dialog__logs-empty">No console events captured.</p>
+                          ) : (
+                            <pre className="report-dialog__logs-content">
+                              {reportConsoleLogs.map(entry => entry.display).join('\n')}
+                            </pre>
+                          )}
+                        </div>
+                      </section>
+
+                      <section className="report-dialog__logs-section">
+                        <div className="report-dialog__logs-header">
+                          <span className="report-dialog__logs-title">Network requests</span>
+                          <button
+                            type="button"
+                            className="report-dialog__logs-toggle"
+                            onClick={handleToggleReportNetworkEvents}
+                            aria-expanded={reportNetworkExpanded}
+                            aria-controls={reportNetworkPanelId}
+                          >
+                            {reportNetworkExpanded ? 'Hide' : 'Show'}
+                          </button>
+                        </div>
+                        <p className="report-dialog__logs-note">
+                          {bridgeState.caps.includes('network')
+                            ? reportNetworkError
+                              ? 'Network capture failed. Expand to retry.'
+                              : reportNetworkLoading
+                                ? 'Fetching recent requests…'
+                                : 'Recent fetch/xhr activity observed inside the iframe.'
+                            : 'Network capture is unavailable for this preview.'}
+                        </p>
+                        <div
+                          id={reportNetworkPanelId}
+                          className="report-dialog__logs-panel"
+                          style={reportNetworkExpanded ? undefined : { display: 'none' }}
+                          aria-hidden={!reportNetworkExpanded}
+                        >
+                          <div className="report-dialog__logs-meta">
+                            <span>
+                              {reportNetworkLoading
+                                ? 'Loading network requests…'
+                                : reportNetworkEvents.length > 0
+                                  ? `Showing last ${reportNetworkEvents.length}${networkEventsTruncated ? ` of ${reportNetworkTotal}` : ''} requests${formattedNetworkCapturedAt ? ` (captured ${formattedNetworkCapturedAt})` : ''}.`
+                                  : reportNetworkError
+                                    ? 'Network requests unavailable.'
+                                    : 'No network activity captured.'}
+                            </span>
+                            <button
+                              type="button"
+                              className="report-dialog__logs-refresh"
+                              onClick={handleRefreshReportNetworkEvents}
+                              disabled={reportNetworkLoading}
+                            >
+                              {reportNetworkLoading ? (
+                                <Loader2 aria-hidden size={14} className="spinning" />
+                              ) : (
+                                <RefreshCw aria-hidden size={14} />
+                              )}
+                              <span>{reportNetworkLoading ? 'Loading' : 'Refresh'}</span>
+                            </button>
+                          </div>
+                          {reportNetworkLoading ? (
+                            <div className="report-dialog__logs-loading">
+                              <Loader2 aria-hidden size={18} className="spinning" />
+                              <span>Fetching requests…</span>
+                            </div>
+                          ) : reportNetworkError ? (
+                            <div className="report-dialog__logs-message">
+                              <p>{reportNetworkError}</p>
+                              <button
+                                type="button"
+                                className="report-dialog__button report-dialog__button--ghost"
+                                onClick={handleRefreshReportNetworkEvents}
+                                disabled={reportNetworkLoading}
+                              >
+                                Retry
+                              </button>
+                            </div>
+                          ) : reportNetworkEvents.length === 0 ? (
+                            <p className="report-dialog__logs-empty">No network requests captured.</p>
+                          ) : (
+                            <pre className="report-dialog__logs-content">
+                              {reportNetworkEvents.map(entry => entry.display).join('\n')}
+                            </pre>
+                          )}
+                        </div>
+                      </section>
                     </div>
                   </div>
                   <div className="report-dialog__lane report-dialog__lane--secondary">

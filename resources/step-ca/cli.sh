@@ -89,6 +89,12 @@ main() {
         template|templates)
             handle_template "$@"
             ;;
+        
+        # HSM/KMS Integration Commands
+        hsm|kms)
+            handle_hsm "$@"
+            ;;
+            
         migrate-to-postgres)
             migrate_to_postgres "$@"
             ;;
@@ -122,6 +128,7 @@ show_help() {
     acme                 🔒 ACME protocol operations
     content              📄 Certificate management
     database             🗄️  Database backend management
+    hsm                  🔐 HSM/KMS integration management
     manage               ⚙️  Resource lifecycle management
     template             📋 Certificate template management
     test                 🧪 Testing and validation

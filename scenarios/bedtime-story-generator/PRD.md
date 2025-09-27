@@ -43,9 +43,9 @@ This capability establishes patterns for:
   
 - **Nice to Have (P2)**
   - [x] Text-to-speech reading capability (2025-09-27)
-  - [ ] Illustration generation for stories
-  - [ ] Parent dashboard for content review
-  - [ ] Export stories as PDF books
+  - [x] Illustration generation for stories (2025-09-27 - emoji-based)
+  - [x] Parent dashboard for content review (2025-09-27)
+  - [x] Export stories as PDF books (2025-09-27)
 
 ### Performance Criteria
 | Metric | Target | Measurement Method |
@@ -62,6 +62,7 @@ This capability establishes patterns for:
 - [x] Time-based UI transitions work correctly
 - [x] Stories persist and retrieve correctly
 - [x] P1 requirements implemented and tested (2025-09-24)
+- [x] P2 requirements implemented and tested (2025-09-27)
 - [x] Performance optimizations applied (2025-09-27)
 
 ## 🏗️ Technical Architecture

@@ -3,6 +3,7 @@ import axios from 'axios';
 import Bookshelf from './components/Bookshelf';
 import BookReader from './components/BookReader';
 import StoryGenerator from './components/StoryGenerator';
+import ParentDashboard from './ParentDashboard';
 import { getTimeOfDay, getThemeForTime, getGreeting } from './utils/timeUtils';
 
 const API_URL = process.env.NODE_ENV === 'production' 
@@ -14,6 +15,7 @@ function App() {
   const [selectedStory, setSelectedStory] = useState(null);
   const [isReading, setIsReading] = useState(false);
   const [generatorOpen, setGeneratorOpen] = useState(false);
+  const [parentDashboardOpen, setParentDashboardOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [theme] = useState(getThemeForTime());
 
@@ -115,6 +117,21 @@ function App() {
           >
             ✨ Generate New Story
           </button>
+          <button
+            onClick={() => setParentDashboardOpen(true)}
+            style={{
+              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              color: 'white',
+              border: 'none',
+              padding: '12px 24px',
+              borderRadius: '999px',
+              fontSize: '1.1rem',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            👨‍👩‍👧‍👦 Parent Dashboard
+          </button>
         </div>
 
         {loading ? (
@@ -142,6 +159,12 @@ function App() {
           <BookReader
             story={selectedStory}
             onClose={handleCloseBook}
+          />
+        )}
+        
+        {parentDashboardOpen && (
+          <ParentDashboard
+            onClose={() => setParentDashboardOpen(false)}
           />
         )}
       </div>

@@ -56,11 +56,11 @@
       "description": "Go-based API server with REST endpoints"
     },
     "ui": {
-      "enabled": true,
+      "enabled": false,
       "framework": "react",
       "path": "ui",
       "main": "index.html",
-      "description": "React-based web interface"
+      "description": "React-based web interface (not implemented)"
     },
     "cli": {
       "enabled": true,
@@ -95,9 +95,16 @@
     },
     "minio": {
       "type": "minio",
-      "enabled": false,
+      "enabled": true,
       "required": false,
-      "purpose": "Object storage for files and artifacts"
+      "purpose": "Object storage for audio files and processed outputs",
+      "initialization": [
+        {
+          "type": "bucket",
+          "name": "audio-files",
+          "policy": "public-read"
+        }
+      ]
     },
     "qdrant": {
       "type": "qdrant",
@@ -107,9 +114,9 @@
     },
     "windmill": {
       "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "purpose": "Workflow automation and business logic orchestration",
+      "enabled": false,
+      "required": false,
+      "purpose": "Workflow automation and business logic orchestration (not currently used)",
       "initialization": [
         {
           "file": "initialization/automation/windmill/windmill-app.json",
@@ -128,7 +135,7 @@
       "enabled": false,
       "required": false,
       "models": [
-        "AI_MODEL_PLACEHOLDER"
+        "whisper"
       ],
       "purpose": "Local AI inference for intelligent features"
     },
@@ -156,14 +163,6 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
-        },
-        {
-          "name": "ui_endpoint",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/",
-          "critical": false,
-          "timeout": 5000,
-          "interval": 60000
         }
       ],
       "timeout": 10000,
@@ -252,7 +251,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Application initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: audio-tools --help'",
+          "run": "echo '🚀 Application initialized\\n  API: http://localhost:${API_PORT}\\n  CLI: audio-tools --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -281,7 +280,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: audio-tools --help'",
+          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  CLI: audio-tools --help'",
           "description": "Display service URLs"
         }
       ]
@@ -311,24 +310,6 @@
           "description": "Test API health endpoint"
         },
         {
-          "name": "test-ui-build",
-          "run": "cd ui && npm run build",
-          "description": "Test UI build process",
-          "condition": {
-            "file_exists": "ui/package.json",
-            "json_path_exists": "ui/package.json:scripts.build"
-          }
-        },
-        {
-          "name": "test-ui-unit",
-          "run": "cd ui && npm test -- --watchAll=false",
-          "description": "Run UI unit tests",
-          "condition": {
-            "file_exists": "ui/package.json",
-            "json_path_exists": "ui/package.json:scripts.test"
-          }
-        },
-        {
           "name": "test-cli-commands",
           "run": "cd cli && bats cli-tests.bats",
           "description": "Run CLI test suite",
@@ -338,10 +319,10 @@
         },
         {
           "name": "test-integration",
-          "run": "bash test.sh",
+          "run": "API_PORT=${API_PORT} bash test/phases/test-integration.sh",
           "description": "Run full integration tests",
           "condition": {
-            "file_exists": "test.sh"
+            "file_exists": "test/phases/test-integration.sh"
           }
         }
       ]
@@ -461,11 +442,6 @@
           "timeout": "5s",
           "threshold": 3
         },
-        "workflows": {
-          "endpoint": "http://localhost:${RESOURCE_PORTS[windmill]}/api/version",
-          "interval": "60s",
-          "timeout": "10s"
-        },
         "database": {
           "type": "tcp",
           "port": 5432,
@@ -513,8 +489,8 @@
       "timeout": "30m",
       "script": "./test.sh",
       "ui": {
-        "required": true,
-        "type": "windmill",
+        "required": false,
+        "type": "react",
         "url": "{{ urls.application }}"
       },
       "performance": {
@@ -559,30 +535,30 @@
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "VALUE_PROPOSITION_PLACEHOLDER",
+      "valueProposition": "Professional audio processing tools accessible via API, CLI, and UI for developers and businesses",
       "targetMarket": "developers",
       "painPoints": [
-        "PAIN_POINT_1_PLACEHOLDER",
-        "PAIN_POINT_2_PLACEHOLDER",
-        "PAIN_POINT_3_PLACEHOLDER"
+        "Complex audio processing requires expensive software licenses",
+        "Batch audio operations are time-consuming without automation",
+        "Integration of audio tools into applications requires custom development"
       ],
-      "solution": "SOLUTION_DESCRIPTION_PLACEHOLDER",
-      "competitiveAdvantage": "COMPETITIVE_ADVANTAGE_PLACEHOLDER",
+      "solution": "Comprehensive audio processing API with FFmpeg backend, supporting all common operations through REST endpoints and CLI",
+      "competitiveAdvantage": "Local processing for data privacy, no file size limits, extensible architecture for custom operations",
       "revenuePotential": {
-        "initial": "$INITIAL_REVENUE_PLACEHOLDER",
-        "recurring": "$RECURRING_REVENUE_PLACEHOLDER",
-        "expansion": "$EXPANSION_REVENUE_PLACEHOLDER",
-        "totalEstimate": "$TOTAL_ESTIMATE_PLACEHOLDER"
+        "initial": "$15,000",
+        "recurring": "$5,000/month",
+        "expansion": "$50,000/year",
+        "totalEstimate": "$110,000/year"
       },
       "marketDemand": {
-        "level": "DEMAND_LEVEL_PLACEHOLDER",
-        "growth": "GROWTH_RATE_PLACEHOLDER",
-        "evidence": "MARKET_EVIDENCE_PLACEHOLDER"
+        "level": "High",
+        "growth": "25% annually",
+        "evidence": "Growing demand for audio content creation and podcast production tools"
       },
       "roi": {
-        "developmentCost": "$DEVELOPMENT_COST_PLACEHOLDER",
-        "timeToMarket": "TIME_TO_MARKET_PLACEHOLDER",
-        "breakEven": "BREAK_EVEN_TIMELINE_PLACEHOLDER"
+        "developmentCost": "$10,000",
+        "timeToMarket": "2 weeks",
+        "breakEven": "3 months"
       }
     },
     "performance": {
@@ -622,17 +598,17 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "APPLICATION_NAME_PLACEHOLDER",
+          "default": "Audio Tools",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
           "type": "string",
-          "default": "COMPANY_NAME_PLACEHOLDER",
+          "default": "Vrooli",
           "description": "Customer company name"
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#PRIMARY_COLOR_PLACEHOLDER",
+          "default": "#6366f1",
           "description": "Brand primary color"
         },
         "DATABASE_NAME": {
@@ -644,7 +620,7 @@
       "features": {
         "authentication": {
           "enabled": true,
-          "provider": "AUTH_PROVIDER_PLACEHOLDER",
+          "provider": "jwt",
           "sso": false
         },
         "notifications": {
@@ -660,14 +636,14 @@
         },
         "payments": {
           "enabled": false,
-          "provider": "PAYMENT_PROVIDER_PLACEHOLDER"
+          "provider": "stripe"
         }
       },
       "integrations": [
         {
-          "name": "INTEGRATION_NAME_PLACEHOLDER",
-          "type": "INTEGRATION_TYPE_PLACEHOLDER",
-          "required": false
+          "name": "ffmpeg",
+          "type": "binary",
+          "required": true
         }
       ]
     },

@@ -5,9 +5,39 @@
 btcpay::pos::configure() {
     log::info "Configuring Point of Sale system..."
     
-    local store_name="${1:-Default Store}"
-    local currency="${2:-BTC}"
-    local items_file="${3:-}"
+    # Handle both positional and flag-based arguments
+    local store_name="Default Store"
+    local currency="BTC"
+    local items_file=""
+    
+    # Check if using flag-based arguments
+    if [[ "$1" == "--"* ]]; then
+        # Parse flag-based arguments
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --name|--store)
+                    store_name="$2"
+                    shift 2
+                    ;;
+                --currency)
+                    currency="$2"
+                    shift 2
+                    ;;
+                --items)
+                    items_file="$2"
+                    shift 2
+                    ;;
+                *)
+                    shift
+                    ;;
+            esac
+        done
+    else
+        # Handle positional arguments
+        store_name="${1:-Default Store}"
+        currency="${2:-BTC}"
+        items_file="${3:-}"
+    fi
     
     # Create POS configuration
     cat > "${BTCPAY_CONFIG_DIR}/pos-config.json" <<EOF

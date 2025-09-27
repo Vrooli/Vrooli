@@ -12,21 +12,25 @@ All shellcheck warnings have been addressed:
 
 The codebase now follows bash best practices and is shellcheck-clean.
 
-## Graph Algorithms Limitations
+## Graph Algorithms Limitations (PARTIALLY RESOLVED)
 
-### Issue
-Graph algorithms (PageRank, shortest path, etc.) require APOC plugin which is not installed by default.
+### Current State
+APOC Core is now installed and functional, providing:
+- Path-finding algorithms (Dijkstra, A*)
+- Atomic operations and collection utilities
+- Enhanced import/export capabilities
+
+### Remaining Limitations
+Advanced algorithms (PageRank, Louvain community detection, Graph Neural Networks) require:
+- Neo4j Enterprise Edition + Graph Data Science (GDS) Library
+- The resource provides Cypher-based fallback implementations
 
 ### Solution
-Install APOC plugin using the provided command:
+APOC Core is installed automatically:
 ```bash
 vrooli resource neo4j manage install-apoc
 vrooli resource neo4j manage restart
 ```
-
-### Alternative Workarounds
-- Use basic Cypher queries for graph traversal and analysis
-- Consider using application-level graph algorithm implementations
 
 ## Performance Monitoring Limitations
 
@@ -41,26 +45,22 @@ Some DBMS procedures like `dbms.listTransactions` are not available in Neo4j Com
 - Use alternative monitoring approaches through logs
 - Consider upgrading to Enterprise Edition for full monitoring capabilities
 
-## APOC Plugin
+## APOC Plugin (RESOLVED)
 
-### Issue
-APOC (Awesome Procedures on Cypher) plugin provides advanced functionality but is not installed by default.
+### Status
+APOC Core is now automatically installed and configured with proper file operation permissions.
 
-### Solution
-The resource now includes a command to install APOC:
-```bash
-# Install APOC plugin
-vrooli resource neo4j manage install-apoc
+### Configuration Applied
+- `NEO4J_apoc_export_file_enabled=true` - Enables file exports
+- `NEO4J_apoc_import_file_enabled=true` - Enables file imports
+- Plugin loads automatically on container start
 
-# Restart to activate
-vrooli resource neo4j manage restart
-```
-
-### Features Enabled by APOC
-- Advanced import/export (JSON, GraphML, CSV)
-- Full graph algorithm support (PageRank, community detection, etc.)
-- Data integration utilities
-- Temporal and spatial functions
+### Features Available with APOC Core
+- ✅ Enhanced import/export (JSON, CSV)
+- ✅ Path-finding algorithms (Dijkstra, A*, all simple paths)
+- ✅ Atomic operations for thread-safe updates
+- ✅ Collection and conversion utilities
+- ⚠️ Limited graph algorithms (Enterprise + GDS required for advanced features)
 
 ## Memory Usage
 
@@ -80,15 +80,39 @@ Adjust memory settings in container environment variables if needed:
 ## Authentication
 
 ### Current Implementation
-Uses environment variable NEO4J_AUTH for authentication configuration.
-- Defaults to "none" for development environments (no authentication)
-- Can be set to "neo4j/yourpassword" for production use
+Uses environment variable NEO4J_AUTH for authentication configuration:
+- **Development Default**: `NEO4J_AUTH="none"` (no authentication for ease of development)
+- **Production Requirement**: `NEO4J_AUTH="neo4j/YourStrongPassword"`
 
-### Security Note
-For production deployments:
-- Always set NEO4J_AUTH environment variable explicitly
-- Use strong passwords and rotate regularly
-- Consider using secrets management tools like Vault
+### Production Security Requirements
+⚠️ **CRITICAL**: Never run with `NEO4J_AUTH="none"` in production!
+
+**Required for Production:**
+1. **Set Strong Authentication**:
+   ```bash
+   export NEO4J_AUTH="neo4j/YourStrongPassword123!"
+   ```
+2. **Password Requirements**:
+   - Minimum 12 characters
+   - Mixed case letters
+   - Numbers and special characters
+   - No dictionary words or patterns
+
+3. **Security Best Practices**:
+   - Rotate passwords every 30-90 days
+   - Use different passwords per environment
+   - Store credentials in secrets management (Vault, AWS Secrets Manager, etc.)
+   - Restrict network access via firewall rules
+   - Enable audit logging for compliance
+
+### Development vs Production Configuration
+```bash
+# Development (local testing only)
+export NEO4J_AUTH="none"  # OK for local development
+
+# Staging/Production
+export NEO4J_AUTH="neo4j/$(openssl rand -base64 20)"  # Generate strong password
+```
 
 ## Backup/Restore Improvements (FIXED)
 

@@ -268,6 +268,58 @@ test_pandas_validation() {
     fi
 }
 
+# Test ML model suggestions endpoint
+test_ml_suggestions() {
+    log::info "Testing machine learning model suggestions..."
+    
+    local ml_data='{"data": [{"f1": 1.2, "f2": 3.4, "target": 1}, {"f1": 2.1, "f2": 4.3, "target": 0}], "target_column": "target", "task_type": "auto"}'
+    local response
+    response=$(timeout 5 curl -s -X POST "${PANDAS_AI_URL}/ml/suggest" \
+        -H "Content-Type: application/json" \
+        -d "${ml_data}" 2>/dev/null)
+    
+    if [[ $? -eq 0 ]]; then
+        if echo "${response}" | grep -q "task_type" && \
+           echo "${response}" | grep -q "suggested_models" && \
+           echo "${response}" | grep -q "preprocessing_steps"; then
+            log::success "ML model suggestions work"
+            return 0
+        else
+            log::error "ML suggestions response missing expected fields"
+            return 1
+        fi
+    else
+        log::error "ML suggestions endpoint failed"
+        return 1
+    fi
+}
+
+# Test streaming analysis endpoint
+test_streaming_analysis() {
+    log::info "Testing real-time streaming analysis..."
+    
+    local stream_data='{"query": "analyze stream", "batch_size": 50, "window_size": 100}'
+    local response
+    response=$(timeout 5 curl -s -X POST "${PANDAS_AI_URL}/streaming/analyze" \
+        -H "Content-Type: application/json" \
+        -d "${stream_data}" 2>/dev/null)
+    
+    if [[ $? -eq 0 ]]; then
+        if echo "${response}" | grep -q "success" && \
+           echo "${response}" | grep -q "analysis" && \
+           echo "${response}" | grep -q "window_data"; then
+            log::success "Real-time streaming analysis works"
+            return 0
+        else
+            log::error "Streaming analysis response missing expected fields"
+            return 1
+        fi
+    else
+        log::error "Streaming analysis endpoint failed"
+        return 1
+    fi
+}
+
 # Main integration test execution
 main() {
     log::header "Pandas-AI Integration Tests"
@@ -293,6 +345,11 @@ main() {
     log::info "Running new feature tests..."
     test_direct_pandas_execution || failed=1
     test_pandas_validation || failed=1
+    
+    # Run P2 feature tests
+    log::info "Running P2 feature tests..."
+    test_ml_suggestions || failed=1
+    test_streaming_analysis || failed=1
     
     if [[ ${failed} -eq 0 ]]; then
         log::success "All integration tests passed!"

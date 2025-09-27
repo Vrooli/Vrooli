@@ -9,8 +9,8 @@
 
 set -euo pipefail
 
-# Source the test framework
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+# Source the test framework  
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 SCRIPT_DIR="${SCRIPT_DIR:-${APP_ROOT}/scripts/scenarios}"
 source "$SCRIPT_DIR/framework/helpers/assertions.sh"
 source "$SCRIPT_DIR/framework/helpers/cleanup.sh"

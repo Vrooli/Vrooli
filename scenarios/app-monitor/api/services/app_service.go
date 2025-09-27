@@ -1034,17 +1034,42 @@ func (s *AppService) RecordAppView(ctx context.Context, identifier string) (*rep
 
 // IssueReportRequest captures a request to forward an issue to app-issue-tracker
 type IssueReportRequest struct {
-	AppID             string   `json:"-"`
-	Message           string   `json:"message"`
-	IncludeScreenshot bool     `json:"includeScreenshot"`
-	PreviewURL        string   `json:"previewUrl"`
-	AppName           string   `json:"appName"`
-	ScenarioName      string   `json:"scenarioName"`
-	Source            string   `json:"source"`
-	ScreenshotData    string   `json:"screenshotData"`
-	Logs              []string `json:"logs"`
-	LogsTotal         int      `json:"logsTotal"`
-	LogsCapturedAt    string   `json:"logsCapturedAt"`
+	AppID             string                 `json:"-"`
+	Message           string                 `json:"message"`
+	IncludeScreenshot bool                   `json:"includeScreenshot"`
+	PreviewURL        string                 `json:"previewUrl"`
+	AppName           string                 `json:"appName"`
+	ScenarioName      string                 `json:"scenarioName"`
+	Source            string                 `json:"source"`
+	ScreenshotData    string                 `json:"screenshotData"`
+	Logs              []string               `json:"logs"`
+	LogsTotal         int                    `json:"logsTotal"`
+	LogsCapturedAt    string                 `json:"logsCapturedAt"`
+	ConsoleLogs       []IssueConsoleLogEntry `json:"consoleLogs"`
+	ConsoleLogsTotal  int                    `json:"consoleLogsTotal"`
+	ConsoleCapturedAt string                 `json:"consoleLogsCapturedAt"`
+	NetworkRequests   []IssueNetworkEntry    `json:"networkRequests"`
+	NetworkTotal      int                    `json:"networkRequestsTotal"`
+	NetworkCapturedAt string                 `json:"networkCapturedAt"`
+}
+
+type IssueConsoleLogEntry struct {
+	Timestamp int64  `json:"ts"`
+	Level     string `json:"level"`
+	Source    string `json:"source"`
+	Text      string `json:"text"`
+}
+
+type IssueNetworkEntry struct {
+	Timestamp  int64  `json:"ts"`
+	Kind       string `json:"kind"`
+	Method     string `json:"method"`
+	URL        string `json:"url"`
+	Status     *int   `json:"status,omitempty"`
+	OK         *bool  `json:"ok,omitempty"`
+	DurationMs *int   `json:"durationMs,omitempty"`
+	Error      string `json:"error,omitempty"`
+	RequestID  string `json:"requestId,omitempty"`
 }
 
 // IssueReportResult represents the outcome of forwarding an issue report
@@ -1100,7 +1125,15 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		}
 	}
 
-	const maxReportLogs = 300
+	const (
+		maxReportLogs        = 300
+		maxConsoleLogs       = 200
+		maxNetworkEntries    = 150
+		maxConsoleTextLength = 2000
+		maxNetworkURLLength  = 2048
+		maxNetworkErrLength  = 1500
+		maxRequestIDLength   = 128
+	)
 	sanitizedLogs := make([]string, 0, len(req.Logs))
 	for _, line := range req.Logs {
 		trimmed := strings.TrimRight(line, "\r\n")
@@ -1116,6 +1149,20 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	}
 
 	logsCapturedAt := strings.TrimSpace(req.LogsCapturedAt)
+	consoleCapturedAt := strings.TrimSpace(req.ConsoleCapturedAt)
+	networkCapturedAt := strings.TrimSpace(req.NetworkCapturedAt)
+
+	consoleLogs := sanitizeConsoleLogs(req.ConsoleLogs, maxConsoleLogs, maxConsoleTextLength)
+	consoleTotal := req.ConsoleLogsTotal
+	if consoleTotal <= 0 {
+		consoleTotal = len(req.ConsoleLogs)
+	}
+
+	networkEntries := sanitizeNetworkRequests(req.NetworkRequests, maxNetworkEntries, maxNetworkURLLength, maxNetworkErrLength, maxRequestIDLength)
+	networkTotal := req.NetworkTotal
+	if networkTotal <= 0 {
+		networkTotal = len(req.NetworkRequests)
+	}
 
 	title := fmt.Sprintf("[app-monitor] %s", summarizeIssueTitle(message))
 	description := buildIssueDescription(
@@ -1129,9 +1176,17 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		sanitizedLogs,
 		logsTotal,
 		logsCapturedAt,
+		consoleLogs,
+		consoleTotal,
+		consoleCapturedAt,
+		networkEntries,
+		networkTotal,
+		networkCapturedAt,
 	)
 	hasScreenshot := screenshotData != ""
-	tags := buildIssueTags(hasScreenshot)
+	hasConsole := len(consoleLogs) > 0
+	hasNetwork := len(networkEntries) > 0
+	tags := buildIssueTags(hasScreenshot, hasConsole, hasNetwork)
 	environment := buildIssueEnvironment(appID, appName, previewURL, req.Source, reportedAt)
 
 	port, err := s.locateIssueTrackerAPIPort(ctx)
@@ -1285,7 +1340,19 @@ func summarizeIssueTitle(message string) string {
 	return firstLine
 }
 
-func buildIssueDescription(appName, scenarioName, previewURL, source, message, screenshotData string, reportedAt time.Time, logs []string, logsTotal int, logsCapturedAt string) string {
+func buildIssueDescription(
+	appName, scenarioName, previewURL, source, message, screenshotData string,
+	reportedAt time.Time,
+	logs []string,
+	logsTotal int,
+	logsCapturedAt string,
+	consoleLogs []IssueConsoleLogEntry,
+	consoleTotal int,
+	consoleCapturedAt string,
+	network []IssueNetworkEntry,
+	networkTotal int,
+	networkCapturedAt string,
+) string {
 	var builder strings.Builder
 	builder.WriteString("## App Monitor Issue Report\n\n")
 	builder.WriteString(fmt.Sprintf("- App Name: %s\n", appName))
@@ -1328,6 +1395,48 @@ func buildIssueDescription(appName, scenarioName, previewURL, source, message, s
 		}
 	}
 
+	if len(consoleLogs) > 0 || consoleTotal > 0 {
+		builder.WriteString("\n### Console Logs\n\n")
+		if consoleCapturedAt != "" {
+			builder.WriteString(fmt.Sprintf("_Captured at: %s_\n\n", parseOrEchoTimestamp(consoleCapturedAt)))
+		}
+
+		if len(consoleLogs) > 0 {
+			builder.WriteString("```text\n")
+			for _, entry := range consoleLogs {
+				builder.WriteString(formatConsoleLogEntry(entry))
+				builder.WriteByte('\n')
+			}
+			builder.WriteString("```\n")
+			if consoleTotal > len(consoleLogs) && consoleTotal > 0 {
+				builder.WriteString(fmt.Sprintf("\n_Note: showing last %d of %d console events._\n", len(consoleLogs), consoleTotal))
+			}
+		} else {
+			builder.WriteString("_No console events were captured for this report._\n")
+		}
+	}
+
+	if len(network) > 0 || networkTotal > 0 {
+		builder.WriteString("\n### Network Requests\n\n")
+		if networkCapturedAt != "" {
+			builder.WriteString(fmt.Sprintf("_Captured at: %s_\n\n", parseOrEchoTimestamp(networkCapturedAt)))
+		}
+
+		if len(network) > 0 {
+			builder.WriteString("```text\n")
+			for _, entry := range network {
+				builder.WriteString(formatNetworkEntry(entry))
+				builder.WriteByte('\n')
+			}
+			builder.WriteString("```\n")
+			if networkTotal > len(network) && networkTotal > 0 {
+				builder.WriteString(fmt.Sprintf("\n_Note: showing last %d of %d requests._\n", len(network), networkTotal))
+			}
+		} else {
+			builder.WriteString("_No network activity was captured for this report._\n")
+		}
+	}
+
 	if screenshotData != "" {
 		builder.WriteString("\n### Screenshot\n\n")
 		builder.WriteString("![Preview Screenshot](data:image/png;base64,")
@@ -1338,12 +1447,210 @@ func buildIssueDescription(appName, scenarioName, previewURL, source, message, s
 	return builder.String()
 }
 
-func buildIssueTags(hasScreenshot bool) []string {
+func buildIssueTags(hasScreenshot, hasConsole, hasNetwork bool) []string {
 	tags := []string{"app-monitor", "preview"}
 	if hasScreenshot {
 		tags = append(tags, "screenshot")
 	}
+	if hasConsole {
+		tags = append(tags, "console-capture")
+	}
+	if hasNetwork {
+		tags = append(tags, "network-capture")
+	}
 	return tags
+}
+
+func sanitizeConsoleLogs(entries []IssueConsoleLogEntry, maxEntries, maxText int) []IssueConsoleLogEntry {
+	if len(entries) == 0 {
+		return nil
+	}
+	sanitized := make([]IssueConsoleLogEntry, 0, len(entries))
+	for _, entry := range entries {
+		level := strings.ToLower(strings.TrimSpace(entry.Level))
+		switch level {
+		case "log", "info", "warn", "error", "debug":
+			// keep as-is
+		default:
+			level = "log"
+		}
+
+		source := strings.ToLower(strings.TrimSpace(entry.Source))
+		if source != "console" && source != "runtime" {
+			source = "console"
+		}
+
+		text := strings.TrimSpace(entry.Text)
+		if text == "" {
+			text = "(no message supplied)"
+		}
+
+		sanitized = append(sanitized, IssueConsoleLogEntry{
+			Timestamp: entry.Timestamp,
+			Level:     level,
+			Source:    source,
+			Text:      truncateString(text, maxText),
+		})
+	}
+
+	if len(sanitized) > maxEntries {
+		sanitized = sanitized[len(sanitized)-maxEntries:]
+	}
+
+	return sanitized
+}
+
+func sanitizeNetworkRequests(entries []IssueNetworkEntry, maxEntries, maxURLLength, maxErrLength, maxIDLength int) []IssueNetworkEntry {
+	if len(entries) == 0 {
+		return nil
+	}
+
+	sanitized := make([]IssueNetworkEntry, 0, len(entries))
+	for _, entry := range entries {
+		kind := strings.ToLower(strings.TrimSpace(entry.Kind))
+		if kind != "fetch" && kind != "xhr" {
+			kind = "fetch"
+		}
+
+		method := strings.ToUpper(strings.TrimSpace(entry.Method))
+		if method == "" {
+			method = "GET"
+		}
+
+		urlValue := strings.TrimSpace(entry.URL)
+		if urlValue == "" {
+			urlValue = "(unknown URL)"
+		}
+		urlValue = truncateString(urlValue, maxURLLength)
+
+		errorText := truncateString(strings.TrimSpace(entry.Error), maxErrLength)
+
+		var statusPtr *int
+		if entry.Status != nil {
+			val := *entry.Status
+			if val >= 0 {
+				statusPtr = intPtr(val)
+			}
+		}
+
+		var okPtr *bool
+		if entry.OK != nil {
+			okPtr = boolPtr(*entry.OK)
+		}
+
+		var durationPtr *int
+		if entry.DurationMs != nil {
+			val := *entry.DurationMs
+			if val < 0 {
+				val = 0
+			}
+			durationPtr = intPtr(val)
+		}
+
+		requestID := truncateString(strings.TrimSpace(entry.RequestID), maxIDLength)
+
+		sanitized = append(sanitized, IssueNetworkEntry{
+			Timestamp:  entry.Timestamp,
+			Kind:       kind,
+			Method:     method,
+			URL:        urlValue,
+			Status:     statusPtr,
+			OK:         okPtr,
+			DurationMs: durationPtr,
+			Error:      errorText,
+			RequestID:  requestID,
+		})
+	}
+
+	if len(sanitized) > maxEntries {
+		sanitized = sanitized[len(sanitized)-maxEntries:]
+	}
+
+	return sanitized
+}
+
+func parseOrEchoTimestamp(value string) string {
+	if value == "" {
+		return value
+	}
+	if parsed, err := time.Parse(time.RFC3339, value); err == nil {
+		return parsed.Format(time.RFC3339)
+	}
+	return value
+}
+
+func formatConsoleLogEntry(entry IssueConsoleLogEntry) string {
+	ts := formatMillisTimestamp(entry.Timestamp)
+	level := strings.ToUpper(entry.Level)
+	source := entry.Source
+	text := entry.Text
+	return fmt.Sprintf("%s [%s/%s] %s", ts, source, level, text)
+}
+
+func formatNetworkEntry(entry IssueNetworkEntry) string {
+	ts := formatMillisTimestamp(entry.Timestamp)
+	status := "pending"
+	if entry.Status != nil {
+		status = fmt.Sprintf("%d", *entry.Status)
+	} else if entry.OK != nil {
+		if *entry.OK {
+			status = "ok"
+		} else {
+			status = "error"
+		}
+	}
+
+	extras := make([]string, 0, 3)
+	if entry.DurationMs != nil {
+		extras = append(extras, fmt.Sprintf("%dms", *entry.DurationMs))
+	}
+	if entry.Error != "" {
+		extras = append(extras, fmt.Sprintf("error: %s", entry.Error))
+	}
+	if entry.RequestID != "" {
+		extras = append(extras, fmt.Sprintf("id=%s", entry.RequestID))
+	}
+
+	tail := ""
+	if len(extras) > 0 {
+		tail = " (" + strings.Join(extras, ", ") + ")"
+	}
+
+	return fmt.Sprintf("%s %s %s -> %s%s", ts, entry.Method, entry.URL, status, tail)
+}
+
+func formatMillisTimestamp(value int64) string {
+	if value <= 0 {
+		return "unknown"
+	}
+	var t time.Time
+	if value > 9e11 {
+		t = time.Unix(0, value*int64(time.Millisecond)).UTC()
+	} else {
+		t = time.Unix(value, 0).UTC()
+	}
+	return t.Format(time.RFC3339)
+}
+
+func truncateString(value string, limit int) string {
+	if limit <= 0 || value == "" {
+		return value
+	}
+	runes := []rune(value)
+	if len(runes) <= limit {
+		return value
+	}
+	return string(runes[:limit]) + "..."
+}
+
+func intPtr(v int) *int {
+	value := v
+	return &value
+}
+
+func boolPtr(v bool) *bool {
+	value := v
+	return &value
 }
 
 func buildIssueEnvironment(appID, appName, previewURL, source string, reportedAt time.Time) map[string]string {

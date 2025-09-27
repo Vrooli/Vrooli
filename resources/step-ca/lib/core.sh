@@ -1838,3 +1838,218 @@ handle_template() {
             ;;
     esac
 }
+
+# HSM/KMS Integration Functions
+# Note: Full implementation requires external HSM/KMS hardware or cloud service
+
+handle_hsm() {
+    local subcommand="${1:-status}"
+    shift || true
+    
+    case "$subcommand" in
+        status)
+            show_hsm_status "$@"
+            ;;
+        configure)
+            configure_hsm "$@"
+            ;;
+        test)
+            test_hsm_connection "$@"
+            ;;
+        --help|-h|help)
+            show_hsm_help
+            ;;
+        *)
+            echo "❌ Unknown HSM subcommand: $subcommand"
+            show_hsm_help
+            return 1
+            ;;
+    esac
+}
+
+show_hsm_status() {
+    echo "🔐 HSM/KMS Integration Status"
+    echo ""
+    
+    # Check for HSM configuration in Step-CA config
+    if docker exec vrooli-step-ca test -f /home/step/config/kms.json 2>/dev/null; then
+        echo "  Status: Configured ✅"
+        echo "  Type: $(docker exec vrooli-step-ca jq -r '.type // "unknown"' /home/step/config/kms.json 2>/dev/null || echo "Unknown")"
+    else
+        echo "  Status: Not configured ⚠️"
+        echo ""
+        echo "  💡 HSM/KMS integration requires:"
+        echo "     • External HSM hardware (YubiHSM, Thales, etc.) OR"
+        echo "     • Cloud KMS service (AWS KMS, Google Cloud KMS, Azure Key Vault)"
+        echo ""
+        echo "  To configure, run:"
+        echo "     resource-step-ca hsm configure --type <aws|gcp|azure|yubikey>"
+    fi
+}
+
+configure_hsm() {
+    local hsm_type=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --type)
+                hsm_type="$2"
+                shift 2
+                ;;
+            *)
+                echo "❌ Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+    
+    if [[ -z "$hsm_type" ]]; then
+        echo "❌ HSM type required. Use --type <aws|gcp|azure|yubikey>"
+        return 1
+    fi
+    
+    echo "🔐 Configuring HSM/KMS integration for: $hsm_type"
+    echo ""
+    
+    case "$hsm_type" in
+        aws)
+            echo "📋 AWS KMS Configuration Requirements:"
+            echo "   • AWS credentials configured"
+            echo "   • KMS key created in AWS"
+            echo "   • IAM permissions for key operations"
+            echo ""
+            echo "Example configuration (save as kms.json):"
+            cat <<EOF
+{
+  "type": "awskms",
+  "region": "us-west-2",
+  "kms-key-id": "arn:aws:kms:...",
+  "credentials": {
+    "access-key-id": "YOUR_ACCESS_KEY",
+    "secret-access-key": "YOUR_SECRET_KEY"
+  }
+}
+EOF
+            ;;
+        gcp)
+            echo "📋 Google Cloud KMS Configuration Requirements:"
+            echo "   • Service account with KMS permissions"
+            echo "   • KMS keyring and key created"
+            echo ""
+            echo "Example configuration (save as kms.json):"
+            cat <<EOF
+{
+  "type": "cloudkms",
+  "project": "your-project",
+  "location": "global",
+  "keyring": "step-ca-keyring",
+  "credentials-file": "/path/to/service-account.json"
+}
+EOF
+            ;;
+        azure)
+            echo "📋 Azure Key Vault Configuration Requirements:"
+            echo "   • Azure subscription and Key Vault"
+            echo "   • Service principal with vault permissions"
+            echo ""
+            echo "Example configuration (save as kms.json):"
+            cat <<EOF
+{
+  "type": "azurekms",
+  "vault-name": "your-vault",
+  "tenant-id": "your-tenant",
+  "client-id": "your-client",
+  "client-secret": "your-secret"
+}
+EOF
+            ;;
+        yubikey|yubihsm)
+            echo "📋 YubiHSM Configuration Requirements:"
+            echo "   • YubiHSM2 device connected"
+            echo "   • YubiHSM connector running"
+            echo ""
+            echo "Example configuration (save as kms.json):"
+            cat <<EOF
+{
+  "type": "yubihsm",
+  "connector": "http://127.0.0.1:12345",
+  "auth-key-id": 1,
+  "password": "password"
+}
+EOF
+            ;;
+        *)
+            echo "❌ Unsupported HSM type: $hsm_type"
+            echo "   Supported types: aws, gcp, azure, yubikey"
+            return 1
+            ;;
+    esac
+    
+    echo ""
+    echo "📝 To apply configuration:"
+    echo "   1. Save the configuration as kms.json"
+    echo "   2. Copy to Step-CA: docker cp kms.json vrooli-step-ca:/home/step/config/"
+    echo "   3. Update ca.json to reference the KMS configuration"
+    echo "   4. Restart Step-CA: resource-step-ca manage restart"
+}
+
+test_hsm_connection() {
+    echo "🔍 Testing HSM/KMS connection..."
+    
+    if ! docker exec vrooli-step-ca test -f /home/step/config/kms.json 2>/dev/null; then
+        echo "❌ No HSM/KMS configuration found"
+        echo "   Run 'resource-step-ca hsm configure' first"
+        return 1
+    fi
+    
+    # Attempt to read KMS configuration
+    local kms_type=$(docker exec vrooli-step-ca jq -r '.type // "unknown"' /home/step/config/kms.json 2>/dev/null || echo "Unknown")
+    
+    echo "  Configuration found: $kms_type"
+    echo ""
+    echo "⚠️  Note: Full HSM/KMS testing requires:"
+    echo "   • Actual HSM hardware or cloud KMS service"
+    echo "   • Valid credentials and permissions"
+    echo "   • Network connectivity to KMS endpoint"
+    echo ""
+    echo "For production deployments with HSM/KMS, please:"
+    echo "   1. Configure actual KMS service"
+    echo "   2. Test with real credentials"
+    echo "   3. Verify key operations work correctly"
+}
+
+show_hsm_help() {
+    cat <<EOF
+🔐 HSM/KMS Integration Commands
+
+USAGE:
+    resource-step-ca hsm <subcommand> [options]
+
+SUBCOMMANDS:
+    status      Show HSM/KMS configuration status
+    configure   Generate HSM/KMS configuration template
+    test        Test HSM/KMS connection
+
+SUPPORTED HSM/KMS TYPES:
+    aws         AWS Key Management Service
+    gcp         Google Cloud Key Management Service
+    azure       Azure Key Vault
+    yubikey     YubiHSM2 hardware device
+
+EXAMPLES:
+    # Check HSM status
+    resource-step-ca hsm status
+    
+    # Generate AWS KMS configuration
+    resource-step-ca hsm configure --type aws
+    
+    # Test HSM connection
+    resource-step-ca hsm test
+
+NOTE:
+    Full HSM/KMS integration requires external hardware or cloud
+    service access. The commands above provide configuration
+    templates and guidance for production deployments.
+EOF
+}

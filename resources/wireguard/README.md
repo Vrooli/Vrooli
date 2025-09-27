@@ -45,6 +45,9 @@ vrooli resource wireguard content add my-tunnel
 - Minimal attack surface
 - Automatic key generation for tunnels
 - **Key rotation system** for enhanced security
+- **Auto-discovery** via mDNS for automatic peer detection
+- **Multi-interface support** for managing multiple tunnels
+- **Web-based monitoring dashboard** for real-time statistics
 
 ### Key Rotation
 WireGuard supports comprehensive key rotation for enhanced security:
@@ -334,6 +337,75 @@ vrooli resource vault content add wireguard/keys/server-private
 # Export metrics for monitoring
 docker exec vrooli-wireguard wg show all dump
 ```
+
+## Advanced Features
+
+### Auto-Discovery (mDNS)
+Automatically discover and connect to WireGuard peers on your network:
+
+```bash
+# Enable auto-discovery for a tunnel
+vrooli resource wireguard discovery enable my-tunnel
+
+# Scan for available peers (5 second timeout)
+vrooli resource wireguard discovery scan 5
+
+# Advertise your tunnel to other peers
+vrooli resource wireguard discovery advertise my-tunnel
+
+# Check discovery status
+vrooli resource wireguard discovery status
+```
+
+### Multi-Interface Support
+Create and manage multiple WireGuard tunnel interfaces:
+
+```bash
+# Create a new interface with auto-assigned port
+vrooli resource wireguard interface create site-to-site
+
+# Create with specific port
+vrooli resource wireguard interface create backup-tunnel 51822
+
+# List all interfaces
+vrooli resource wireguard interface list
+
+# Add peer to interface
+vrooli resource wireguard interface config site-to-site add-peer <public-key> <endpoint>
+
+# Check interface status
+vrooli resource wireguard interface status site-to-site
+
+# Delete interface (with automatic backup)
+vrooli resource wireguard interface delete backup-tunnel
+```
+
+### Monitoring Dashboard
+Web-based dashboard for real-time WireGuard monitoring:
+
+```bash
+# Start dashboard on default port 8080
+vrooli resource wireguard monitor start
+
+# Start on custom port
+vrooli resource wireguard monitor start 9090
+
+# Access dashboard
+# Open browser to http://localhost:8080
+
+# Stop dashboard
+vrooli resource wireguard monitor stop
+
+# Check dashboard status
+vrooli resource wireguard monitor status
+```
+
+Dashboard features:
+- Real-time interface status
+- Traffic statistics and graphs
+- Peer connection monitoring
+- Activity logs
+- Auto-refresh every 5 seconds
 
 ## API Reference
 

@@ -41,6 +41,25 @@ Open http://localhost:3200 in your browser
 - **Metadata Tracking**: Source URLs, update timestamps
 - **Relationship Mapping**: Alternative APIs, deprecation tracking
 - **Configuration Status**: Know which APIs are ready to use
+- **Version Tracking**: Monitor API version changes and breaking changes
+- **Automatic Pricing Updates**: Refreshes pricing data every 24 hours
+
+### Cost Optimization
+- **Usage-Based Calculator**: Estimate costs based on your usage patterns
+- **Alternative Recommendations**: Find cheaper APIs with similar capabilities
+- **Savings Tips**: Get recommendations for reducing API costs
+
+### Code Generation Integration
+- **API Specifications**: Structured specs optimized for code generation
+- **Language Templates**: Pre-built client templates for Python, JavaScript, Go
+- **SDK Detection**: Identifies APIs with official SDKs available
+- **Auth Patterns**: Provides authentication templates for different auth types
+
+### Monitoring & Notifications
+- **Webhook Subscriptions**: Get notified when APIs are added, updated, or deprecated
+- **Health Monitoring**: Track API availability and response times
+- **Usage Analytics**: Monitor your API usage patterns and trends
+- **Tier Optimization**: Automatically recommend the best pricing tier
 
 ### Research Integration
 - Request automated research for new APIs
@@ -120,6 +139,74 @@ api-library request-research "video transcription services with good accuracy"
   }
 }
 ```
+
+### Calculate Cost
+`POST /api/v1/calculate-cost`
+```json
+{
+  "api_id": "api-uuid-here",
+  "requests_per_month": 10000,
+  "data_per_request_mb": 0.5
+}
+```
+
+Returns optimized tier recommendation and alternatives.
+
+### Track API Version
+`POST /api/v1/apis/:id/versions`
+```json
+{
+  "version": "2.0.0",
+  "change_summary": "Breaking changes in authentication",
+  "breaking_changes": true
+}
+```
+
+### Get Version History
+`GET /api/v1/apis/:id/versions`
+
+Returns all version changes with timestamps and breaking change flags.
+
+### Webhook Management
+`POST /api/v1/webhooks`
+```json
+{
+  "url": "https://your-endpoint.com/webhook",
+  "events": ["api.created", "api.updated", "api.deprecated"],
+  "description": "Notify on API changes"
+}
+```
+
+### Code Generation Support
+
+#### Get API Specification for Code Generation
+`GET /api/v1/codegen/apis/:id`
+
+Returns structured API specification with endpoints, snippets, and generation hints.
+
+#### Search APIs for Code Generation
+`POST /api/v1/codegen/search`
+```json
+{
+  "capability": "payment processing",
+  "languages": ["python", "javascript"],
+  "max_price": 0.10
+}
+```
+
+#### Get Language Templates
+`GET /api/v1/codegen/templates/:language`
+
+Available languages: `python`, `javascript`, `go`
+
+Returns client class templates and authentication patterns for the specified language.
+
+`GET /api/v1/webhooks` - List all webhook subscriptions
+`DELETE /api/v1/webhooks/:id` - Remove a webhook subscription
+
+### Health Monitoring
+`GET /api/v1/apis/:id/health` - Get latest health check results
+`POST /api/v1/apis/:id/health/check` - Trigger immediate health check
 
 ## 🏗️ Architecture
 

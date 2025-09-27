@@ -1,9 +1,59 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Database, Tag, DollarSign, AlertCircle, CheckCircle, XCircle, Plus, BookOpen, Settings, RefreshCw, Globe, Key, Calendar, FileText } from 'lucide-react';
+import { Search, Database, Tag, DollarSign, AlertCircle, CheckCircle, XCircle, Plus, BookOpen, Settings, Globe, Key, Calendar, FileText } from 'lucide-react';
 import axios from 'axios';
 import './App.css';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:9200/api/v1';
+const DEFAULT_API_BASE_URL = 'http://localhost:15100/api/v1';
+
+const resolveApiBaseUrl = () => {
+  const raw = process.env.REACT_APP_API_URL;
+  if (!raw || typeof raw !== 'string') {
+    return DEFAULT_API_BASE_URL;
+  }
+
+  const trimmed = raw.trim().replace(/\/+$/, '');
+  if (/\/api\/v\d+(?:\/|$)/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  return `${trimmed}/api/v1`;
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
+
+const buildApiUrl = (path) => {
+  const normalizedBase = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${normalizedBase}${normalizedPath}`;
+};
+
+const normalizeApiSummary = (api) => {
+  const score = typeof api?.relevance_score === 'number' ? api.relevance_score : 1;
+  const minPrice = typeof api?.min_price === 'number' ? api.min_price : null;
+  const summary = (() => {
+    if (typeof api?.pricing_summary === 'string' && api.pricing_summary.trim()) {
+      return api.pricing_summary.trim();
+    }
+    if (minPrice === null) {
+      return 'Pricing not available';
+    }
+    if (minPrice === 0) {
+      return 'Free tier available';
+    }
+    const formatted = Number(minPrice).toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: minPrice < 1 ? 4 : 2,
+    });
+    return `Starts at $${formatted}`;
+  })();
+  return {
+    ...api,
+    relevance_score: score,
+    configured: Boolean(api?.configured),
+    pricing_summary: summary,
+    min_price: minPrice,
+  };
+};
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -15,32 +65,87 @@ function App() {
   const [showAddNote, setShowAddNote] = useState(false);
   const [newNote, setNewNote] = useState({ content: '', type: 'tip' });
   const [researchCapability, setResearchCapability] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
+  const [lastSearchTerm, setLastSearchTerm] = useState('');
+  const [configuredOnly, setConfiguredOnly] = useState(false);
+  const [maxPrice, setMaxPrice] = useState('');
+  const [categoryInput, setCategoryInput] = useState('');
+  const [searchMethod, setSearchMethod] = useState('keyword');
 
   useEffect(() => {
     fetchConfiguredAPIs();
+    fetchInitialAPIs();
   }, []);
 
   const fetchConfiguredAPIs = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/configured`);
+      const response = await axios.get(buildApiUrl('/configured'));
       setConfiguredAPIs(response.data || []);
     } catch (error) {
       console.error('Failed to fetch configured APIs:', error);
     }
   };
 
+  const fetchInitialAPIs = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(buildApiUrl('/apis'));
+      const apis = Array.isArray(response.data) ? response.data : [];
+      setSearchResults(apis.map(normalizeApiSummary));
+      setSearchMethod('keyword');
+    } catch (error) {
+      console.error('Failed to load API catalog:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
+    const term = searchQuery.trim();
+    if (!term) return;
 
     setLoading(true);
+    setHasSearched(true);
+    setLastSearchTerm(term);
     try {
-      const response = await axios.post(`${API_BASE_URL}/search`, {
-        query: searchQuery,
-        limit: 20
-      });
-      setSearchResults(response.data.results || []);
+      const filters = {};
+      if (configuredOnly) {
+        filters.configured = true;
+      }
+
+      if (maxPrice.trim()) {
+        const parsedPrice = parseFloat(maxPrice.trim());
+        if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
+          alert('Please enter a valid max price (non-negative number).');
+          setLoading(false);
+          return;
+        }
+        filters.max_price = parsedPrice;
+      }
+
+      const categories = categoryInput
+        .split(',')
+        .map((c) => c.trim())
+        .filter((c) => c.length > 0);
+      if (categories.length > 0) {
+        filters.categories = categories;
+      }
+
+      const payload = {
+        query: term,
+        limit: 20,
+      };
+
+      if (Object.keys(filters).length > 0) {
+        payload.filters = filters;
+      }
+
+      const response = await axios.post(buildApiUrl('/search'), payload);
+      const results = Array.isArray(response.data?.results) ? response.data.results : [];
+      setSearchResults(results.map(normalizeApiSummary));
       setActiveTab('search');
+      setSearchMethod(response.data?.method === 'semantic' ? 'semantic' : 'keyword');
     } catch (error) {
       console.error('Search failed:', error);
       alert('Search failed. Please try again.');
@@ -52,7 +157,7 @@ function App() {
   const fetchAPIDetails = async (apiId) => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/apis/${apiId}`);
+      const response = await axios.get(buildApiUrl(`/apis/${apiId}`));
       setSelectedAPI(response.data);
     } catch (error) {
       console.error('Failed to fetch API details:', error);
@@ -66,7 +171,7 @@ function App() {
     if (!selectedAPI || !newNote.content.trim()) return;
 
     try {
-      await axios.post(`${API_BASE_URL}/apis/${selectedAPI.api.id}/notes`, {
+      await axios.post(buildApiUrl(`/apis/${selectedAPI.api.id}/notes`), {
         content: newNote.content,
         type: newNote.type
       });
@@ -88,7 +193,7 @@ function App() {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/request-research`, {
+      const response = await axios.post(buildApiUrl('/request-research'), {
         capability: researchCapability
       });
       alert(`Research requested! ID: ${response.data.research_id}\nEstimated time: ${response.data.estimated_time} seconds`);
@@ -182,13 +287,55 @@ function App() {
               </div>
             </form>
 
+            <div className="search-filters">
+              <label className="filter-checkbox">
+                <input
+                  type="checkbox"
+                  checked={configuredOnly}
+                  onChange={(e) => setConfiguredOnly(e.target.checked)}
+                />
+                Show configured APIs only
+              </label>
+
+              <div className="filter-field">
+                <label htmlFor="max-price-input">Max price per request</label>
+                <input
+                  id="max-price-input"
+                  type="number"
+                  min="0"
+                  step="0.0001"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  placeholder="e.g. 0.01"
+                />
+              </div>
+
+              <div className="filter-field">
+                <label htmlFor="category-input">Categories</label>
+                <input
+                  id="category-input"
+                  type="text"
+                  value={categoryInput}
+                  onChange={(e) => setCategoryInput(e.target.value)}
+                  placeholder="Comma separated (e.g. email, sms)"
+                />
+              </div>
+            </div>
+
             {searchResults.length > 0 && (
-              <div className="results-grid">
-                {searchResults.map((api) => (
-                  <div 
-                    key={api.id} 
-                    className="api-card"
-                    onClick={() => fetchAPIDetails(api.id)}
+              <>
+                <div className="results-meta">
+                  <span>{`${searchResults.length} ${searchResults.length === 1 ? 'result' : 'results'}`}</span>
+                  <span className={`method-badge ${searchMethod}`}>
+                    {searchMethod === 'semantic' ? 'Semantic match' : 'Keyword match'}
+                  </span>
+                </div>
+                <div className="results-grid">
+                  {searchResults.map((api) => (
+                    <div 
+                      key={api.id} 
+                      className="api-card"
+                      onClick={() => fetchAPIDetails(api.id)}
                   >
                     <div className="api-card-header">
                       <h3>{api.name}</h3>
@@ -196,6 +343,10 @@ function App() {
                     </div>
                     <p className="api-provider">{api.provider}</p>
                     <p className="api-description">{api.description}</p>
+                    <div className="api-pricing">
+                      <DollarSign size={12} />
+                      <span>{api.pricing_summary || 'Pricing not available'}</span>
+                    </div>
                     <div className="api-card-footer">
                       <span className="category-tag">
                         <Tag size={12} />
@@ -206,7 +357,15 @@ function App() {
                       </span>
                     </div>
                   </div>
-                ))}
+                  ))}
+                </div>
+              </>
+            )}
+            {hasSearched && !loading && searchResults.length === 0 && (
+              <div className="empty-state">
+                {lastSearchTerm
+                  ? `No APIs matched "${lastSearchTerm}". Try different keywords or broaden the capability.`
+                  : 'No APIs matched your search.'}
               </div>
             )}
           </div>

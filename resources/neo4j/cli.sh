@@ -93,6 +93,7 @@ cli::register_subcommand "content" "cluster-backup" "Cluster backup strategy" "n
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "neo4j_status"
 cli::register_command "logs" "Show Neo4j logs" "neo4j_logs"
+cli::register_command "credentials" "Show connection credentials" "neo4j_credentials"
 
 # APOC plugin management
 cli::register_subcommand "manage" "install-apoc" "Install APOC plugin for graph algorithms" "neo4j_install_apoc"

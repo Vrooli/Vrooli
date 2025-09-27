@@ -91,7 +91,7 @@ mailinabox_monitor_health() {
         # Check webmail if available
         if docker inspect mailinabox-webmail &>/dev/null && [[ "$(docker inspect -f '{{.State.Running}}' mailinabox-webmail 2>/dev/null)" == "true" ]]; then
             echo -e "${GREEN}✓${NC} Webmail container: Running"
-            if curl -sf "http://${MAILINABOX_BIND_ADDRESS}:8080" >/dev/null; then
+            if curl -sf "http://${MAILINABOX_BIND_ADDRESS}:8880" >/dev/null; then
                 echo -e "${GREEN}✓${NC} Webmail interface: Accessible"
             else
                 echo -e "${YELLOW}⚠${NC} Webmail interface: Not accessible"

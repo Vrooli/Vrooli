@@ -13,8 +13,10 @@ import (
 )
 
 type AlgorithmProcessor struct {
-	httpClient *http.Client
-	judge0URL  string
+	httpClient    *http.Client
+	judge0URL     string
+	localExecutor *LocalExecutor
+	useLocal      bool
 }
 
 // Algorithm Execution types
@@ -27,21 +29,21 @@ type AlgorithmExecutionRequest struct {
 }
 
 type AlgorithmExecutionResponse struct {
-	Success          bool                   `json:"success"`
-	Status           string                 `json:"status"`
-	StatusID         int                    `json:"status_id"`
-	ExecutionComplete bool                  `json:"execution_complete"`
-	Output           string                 `json:"output"`
-	ErrorOutput      string                 `json:"error_output"`
-	CompileOutput    string                 `json:"compile_output"`
-	Message          string                 `json:"message"`
-	ExecutionTime    string                 `json:"execution_time"`
-	MemoryUsed       string                 `json:"memory_used"`
-	TestResult       *TestComparison        `json:"test_result,omitempty"`
-	Language         string                 `json:"language"`
-	ExecutionID      string                 `json:"execution_id"`
-	SubmissionToken  string                 `json:"submission_token"`
-	ErrorDetails     *ExecutionErrorDetails `json:"error_details,omitempty"`
+	Success           bool                   `json:"success"`
+	Status            string                 `json:"status"`
+	StatusID          int                    `json:"status_id"`
+	ExecutionComplete bool                   `json:"execution_complete"`
+	Output            string                 `json:"output"`
+	ErrorOutput       string                 `json:"error_output"`
+	CompileOutput     string                 `json:"compile_output"`
+	Message           string                 `json:"message"`
+	ExecutionTime     string                 `json:"execution_time"`
+	MemoryUsed        string                 `json:"memory_used"`
+	TestResult        *TestComparison        `json:"test_result,omitempty"`
+	Language          string                 `json:"language"`
+	ExecutionID       string                 `json:"execution_id"`
+	SubmissionToken   string                 `json:"submission_token"`
+	ErrorDetails      *ExecutionErrorDetails `json:"error_details,omitempty"`
 }
 
 type TestComparison struct {
@@ -51,10 +53,10 @@ type TestComparison struct {
 }
 
 type ExecutionErrorDetails struct {
-	Status        string `json:"status"`
-	CompileError  string `json:"compile_error,omitempty"`
-	RuntimeError  string `json:"runtime_error,omitempty"`
-	Message       string `json:"message,omitempty"`
+	Status       string `json:"status"`
+	CompileError string `json:"compile_error,omitempty"`
+	RuntimeError string `json:"runtime_error,omitempty"`
+	Message      string `json:"message,omitempty"`
 }
 
 // Batch Validation types
@@ -71,23 +73,23 @@ type TestCase struct {
 }
 
 type BatchValidationResponse struct {
-	BatchID            string                  `json:"batch_id"`
-	AlgorithmID        string                  `json:"algorithm_id"`
-	Language           string                  `json:"language"`
-	ValidationSummary  ValidationSummary       `json:"validation_summary"`
-	PerformanceMetrics BatchPerformanceMetrics `json:"performance_metrics"`
-	StatusBreakdown    map[string]int          `json:"status_breakdown"`
-	TestResults        []BatchTestResult       `json:"test_results"`
-	ValidationTimestamp ValidationTimestamp    `json:"validation_timestamp"`
-	Recommendation     string                  `json:"recommendation"`
+	BatchID             string                  `json:"batch_id"`
+	AlgorithmID         string                  `json:"algorithm_id"`
+	Language            string                  `json:"language"`
+	ValidationSummary   ValidationSummary       `json:"validation_summary"`
+	PerformanceMetrics  BatchPerformanceMetrics `json:"performance_metrics"`
+	StatusBreakdown     map[string]int          `json:"status_breakdown"`
+	TestResults         []BatchTestResult       `json:"test_results"`
+	ValidationTimestamp ValidationTimestamp     `json:"validation_timestamp"`
+	Recommendation      string                  `json:"recommendation"`
 }
 
 type ValidationSummary struct {
-	TotalTests   int     `json:"total_tests"`
-	Passed       int     `json:"passed"`
-	Failed       int     `json:"failed"`
-	SuccessRate  float64 `json:"success_rate"`
-	AllPassed    bool    `json:"all_passed"`
+	TotalTests  int     `json:"total_tests"`
+	Passed      int     `json:"passed"`
+	Failed      int     `json:"failed"`
+	SuccessRate float64 `json:"success_rate"`
+	AllPassed   bool    `json:"all_passed"`
 }
 
 type BatchPerformanceMetrics struct {
@@ -113,23 +115,23 @@ type ValidationTimestamp struct {
 
 // Judge0 API types
 type Judge0Submission struct {
-	SourceCode       string `json:"source_code"`
-	LanguageID       int    `json:"language_id"`
-	Stdin            string `json:"stdin,omitempty"`
-	CPUTimeLimit     int    `json:"cpu_time_limit,omitempty"`
-	MemoryLimit      int    `json:"memory_limit,omitempty"`
-	ExpectedOutput   string `json:"expected_output,omitempty"`
+	SourceCode     string `json:"source_code"`
+	LanguageID     int    `json:"language_id"`
+	Stdin          string `json:"stdin,omitempty"`
+	CPUTimeLimit   int    `json:"cpu_time_limit,omitempty"`
+	MemoryLimit    int    `json:"memory_limit,omitempty"`
+	ExpectedOutput string `json:"expected_output,omitempty"`
 }
 
 type Judge0Response struct {
-	Token         string        `json:"token"`
-	Status        Judge0Status  `json:"status"`
-	Stdout        string        `json:"stdout,omitempty"`
-	Stderr        string        `json:"stderr,omitempty"`
-	CompileOutput string        `json:"compile_output,omitempty"`
-	Message       string        `json:"message,omitempty"`
-	Time          string        `json:"time,omitempty"`
-	Memory        int           `json:"memory,omitempty"`
+	Token         string       `json:"token"`
+	Status        Judge0Status `json:"status"`
+	Stdout        string       `json:"stdout,omitempty"`
+	Stderr        string       `json:"stderr,omitempty"`
+	CompileOutput string       `json:"compile_output,omitempty"`
+	Message       string       `json:"message,omitempty"`
+	Time          string       `json:"time,omitempty"`
+	Memory        int          `json:"memory,omitempty"`
 }
 
 type Judge0Status struct {
@@ -141,19 +143,35 @@ func NewAlgorithmProcessor(judge0URL string) *AlgorithmProcessor {
 	if judge0URL == "" {
 		judge0URL = "http://localhost:2358" // Default Judge0 port
 	}
-	
+
+	// Check if Judge0 is available and functional
+	useLocal := false
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get(judge0URL + "/about")
+	if err != nil || resp.StatusCode != 200 {
+		log.Printf("⚠️  Judge0 not available at %s, using local executor fallback", judge0URL)
+		useLocal = true
+	} else {
+		resp.Body.Close()
+		// Force local executor due to known cgroup issues with Judge0
+		log.Printf("⚠️  Judge0 available at %s but has known cgroup issues, using local executor", judge0URL)
+		useLocal = true
+	}
+
 	return &AlgorithmProcessor{
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		judge0URL: judge0URL,
+		judge0URL:     judge0URL,
+		localExecutor: NewLocalExecutor(5 * time.Second),
+		useLocal:      useLocal,
 	}
 }
 
 // ExecuteAlgorithm executes code using Judge0 (replaces algorithm-executor workflow)
 func (ap *AlgorithmProcessor) ExecuteAlgorithm(ctx context.Context, req AlgorithmExecutionRequest) (*AlgorithmExecutionResponse, error) {
 	executionID := fmt.Sprintf("algo_%d_%s", time.Now().Unix(), generateRandomString(6))
-	
+
 	// Validate required fields
 	if req.Code == "" || strings.TrimSpace(req.Code) == "" {
 		return &AlgorithmExecutionResponse{
@@ -181,6 +199,11 @@ func (ap *AlgorithmProcessor) ExecuteAlgorithm(ctx context.Context, req Algorith
 			},
 			ExecutionID: executionID,
 		}, nil
+	}
+
+	// Use local executor if Judge0 is unavailable or for testing
+	if ap.useLocal {
+		return ap.executeLocal(ctx, req, executionID)
 	}
 
 	// Get language ID for Judge0
@@ -314,7 +337,7 @@ func (ap *AlgorithmProcessor) ValidateBatch(ctx context.Context, req BatchValida
 		}
 
 		testResults = append(testResults, testResult)
-		
+
 		// Update status breakdown
 		statusBreakdown[execResult.Status]++
 
@@ -572,7 +595,7 @@ func (ap *AlgorithmProcessor) prepareTestCode(implementation, language string, t
 
 func (ap *AlgorithmProcessor) preparePythonTestCode(implementation string, testCase TestCase) string {
 	inputJSON, _ := json.Marshal(testCase.Input)
-	
+
 	testCode := fmt.Sprintf(`%s
 
 # Test execution
@@ -596,7 +619,7 @@ print(json.dumps(result))
 
 func (ap *AlgorithmProcessor) prepareJavaScriptTestCode(implementation string, testCase TestCase) string {
 	inputJSON, _ := json.Marshal(testCase.Input)
-	
+
 	testCode := fmt.Sprintf(`%s
 
 // Test execution
@@ -646,4 +669,87 @@ func parseExecutionTime(timeStr string) (float64, error) {
 		return time, err
 	}
 	return 0, fmt.Errorf("invalid time format: %s", timeStr)
+}
+
+// executeLocal uses the local executor when Judge0 is unavailable
+func (ap *AlgorithmProcessor) executeLocal(ctx context.Context, req AlgorithmExecutionRequest, executionID string) (*AlgorithmExecutionResponse, error) {
+	var result *LocalExecutionResult
+	var err error
+
+	// Execute based on language
+	switch strings.ToLower(req.Language) {
+	case "python", "python3", "py":
+		result, err = ap.localExecutor.ExecutePython(req.Code, req.Stdin)
+	case "javascript", "js", "node":
+		result, err = ap.localExecutor.ExecuteJavaScript(req.Code, req.Stdin)
+	case "go", "golang":
+		result, err = ap.localExecutor.ExecuteGo(req.Code, req.Stdin)
+	case "java":
+		result, err = ap.localExecutor.ExecuteJava(req.Code, req.Stdin)
+	case "cpp", "c++", "cplusplus":
+		result, err = ap.localExecutor.ExecuteCPP(req.Code, req.Stdin)
+	default:
+		return &AlgorithmExecutionResponse{
+			Success:           false,
+			Status:            "error",
+			StatusID:          -1,
+			ExecutionComplete: true,
+			ErrorDetails: &ExecutionErrorDetails{
+				Status:  "language_error",
+				Message: fmt.Sprintf("Language %s not supported in local executor", req.Language),
+			},
+			ExecutionID: executionID,
+		}, nil
+	}
+
+	if err != nil {
+		return &AlgorithmExecutionResponse{
+			Success:           false,
+			Status:            "execution_error",
+			StatusID:          -1,
+			ExecutionComplete: true,
+			ErrorDetails: &ExecutionErrorDetails{
+				Status:  "execution_error",
+				Message: fmt.Sprintf("Failed to execute: %v", err),
+			},
+			ExecutionID: executionID,
+		}, nil
+	}
+
+	// Compare with expected output if provided
+	var testResult *TestComparison
+	if req.ExpectedOutput != "" {
+		match := strings.TrimSpace(result.Output) == strings.TrimSpace(req.ExpectedOutput)
+		testResult = &TestComparison{
+			Expected: req.ExpectedOutput,
+			Actual:   result.Output,
+			Match:    match,
+		}
+	}
+
+	// Format response
+	status := "completed"
+	statusID := 3 // Success in Judge0 terms
+	if !result.Success {
+		status = "runtime_error"
+		statusID = 11
+	}
+
+	return &AlgorithmExecutionResponse{
+		Success:           result.Success,
+		Status:            status,
+		StatusID:          statusID,
+		ExecutionComplete: true,
+		Output:            result.Output,
+		ErrorOutput:       result.Error,
+		CompileOutput:     "",
+		Message:           "Executed using local fallback",
+		ExecutionTime:     fmt.Sprintf("%.3f", result.ExecutionTime),
+		MemoryUsed:        "N/A",
+		TestResult:        testResult,
+		Language:          req.Language,
+		ExecutionID:       executionID,
+		SubmissionToken:   "local_" + executionID,
+		ErrorDetails:      nil,
+	}, nil
 }

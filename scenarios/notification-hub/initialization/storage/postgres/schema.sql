@@ -127,8 +127,7 @@ CREATE TABLE contacts (
     
     -- Indexes for fast lookups
     UNIQUE(profile_id, identifier),
-    INDEX ON (profile_id, external_id),
-    INDEX ON (profile_id, status)
+    -- Indexes created below
 );
 
 -- Contact channels (email, phone, push tokens) for each contact
@@ -157,8 +156,7 @@ CREATE TABLE contact_channels (
     
     -- Indexes
     UNIQUE(contact_id, type, value),
-    INDEX ON (type, value),
-    INDEX ON (contact_id, status)
+    -- Indexes created below
 );
 
 -- Unsubscribe management
@@ -215,8 +213,7 @@ CREATE TABLE templates (
     
     -- Constraints
     UNIQUE(profile_id, slug),
-    INDEX ON (profile_id, status),
-    INDEX ON (profile_id, category)
+    -- Indexes created below
 );
 
 -- Template versions for A/B testing and rollbacks
@@ -244,7 +241,7 @@ CREATE TABLE template_versions (
     
     -- Constraints
     UNIQUE(template_id, version),
-    INDEX ON (template_id, active)
+    -- Indexes created below
 );
 
 -- =============================================================================
@@ -286,10 +283,7 @@ CREATE TABLE notifications (
     sent_at TIMESTAMPTZ,
     
     -- Indexes for fast queries
-    INDEX ON (profile_id, status),
-    INDEX ON (contact_id, created_at DESC),
-    INDEX ON (scheduled_at, status),
-    INDEX ON (profile_id, external_id)
+    -- Indexes created below
 );
 
 -- Delivery tracking per channel
@@ -325,9 +319,7 @@ CREATE TABLE notification_deliveries (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     
     -- Indexes
-    INDEX ON (notification_id, channel),
-    INDEX ON (provider, provider_message_id),
-    INDEX ON (status, delivered_at)
+    -- Indexes created below
 );
 
 -- Notification events (opens, clicks, unsubscribes)
@@ -351,9 +343,7 @@ CREATE TABLE notification_events (
     timestamp TIMESTAMPTZ DEFAULT NOW(),
     
     -- Indexes
-    INDEX ON (notification_id, event_type),
-    INDEX ON (event_type, timestamp),
-    INDEX ON (timestamp DESC)
+    -- Indexes created below
 );
 
 -- =============================================================================
@@ -401,7 +391,7 @@ CREATE TABLE profile_analytics_daily (
     
     -- Unique per profile per date
     UNIQUE(profile_id, date),
-    INDEX ON (profile_id, date DESC)
+    -- Indexes created below
 );
 
 -- =============================================================================
@@ -487,6 +477,24 @@ $$ LANGUAGE plpgsql;
 -- =============================================================================
 -- INDEXES FOR PERFORMANCE
 -- =============================================================================
+
+-- Indexes from table definitions
+CREATE INDEX idx_contacts_profile_external ON contacts(profile_id, external_id);
+CREATE INDEX idx_contacts_profile_status_inline ON contacts(profile_id, status);
+CREATE INDEX idx_contact_channels_contact_status ON contact_channels(contact_id, status);
+CREATE INDEX idx_templates_profile_status ON templates(profile_id, status);
+CREATE INDEX idx_templates_profile_category ON templates(profile_id, category);
+CREATE INDEX idx_template_versions_template_active ON template_versions(template_id, active);
+CREATE INDEX idx_notifications_contact_created ON notifications(contact_id, created_at DESC);
+CREATE INDEX idx_notifications_scheduled_status ON notifications(scheduled_at, status);
+CREATE INDEX idx_notifications_profile_external ON notifications(profile_id, external_id);
+CREATE INDEX idx_notification_deliveries_notification_channel ON notification_deliveries(notification_id, channel);
+CREATE INDEX idx_notification_deliveries_provider_message ON notification_deliveries(provider, provider_message_id);
+CREATE INDEX idx_notification_deliveries_status_delivered ON notification_deliveries(status, delivered_at);
+CREATE INDEX idx_notification_events_notification_type ON notification_events(notification_id, event_type);
+CREATE INDEX idx_notification_events_type_timestamp_inline ON notification_events(event_type, timestamp);
+CREATE INDEX idx_notification_events_timestamp ON notification_events(timestamp DESC);
+CREATE INDEX idx_notification_analytics_profile_date ON notification_analytics(profile_id, date DESC);
 
 -- Additional performance indexes
 CREATE INDEX idx_notifications_profile_created ON notifications(profile_id, created_at DESC);

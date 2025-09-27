@@ -26,6 +26,30 @@
 **Solution**: Either connect to external node or run Bitcoin Core container
 **Status**: Not implemented - would require significant resources
 
+### 5. Lightning Network Configuration
+**Problem**: LND container requires bitcoin.active or litecoin.active configuration
+**Impact**: Lightning container fails to start without proper chain configuration
+**Workaround**: Need to provide proper lnd.conf with chain settings
+**Status**: Partial implementation - container deploys but needs config file
+
+### 6. ~~Crowdfunding CLI Argument Parsing~~ (Resolved 2025-09-26)
+**Problem**: CLI framework passed flags as positional arguments to crowdfunding functions
+**Impact**: Creating campaigns with --flag syntax didn't parse correctly
+**Solution**: Updated btcpay::crowdfunding::create_campaign to handle both positional and flag-based arguments
+**Status**: Resolved - Now supports both formats for backward compatibility
+
+### 7. Missing Timeouts in Health Checks
+**Problem**: Some health check calls missing timeout wrapper
+**Impact**: Could hang indefinitely if service unresponsive
+**Solution**: Added `timeout 5` to all curl commands
+**Status**: Resolved (2025-09-26)
+
+### 8. ~~POS Configuration Argument Parsing~~ (Resolved 2025-09-26) 
+**Problem**: CLI framework could pass flags incorrectly to POS configure function
+**Impact**: Store name and currency could get swapped when using flags
+**Solution**: Updated btcpay::pos::configure to handle both positional and flag-based arguments
+**Status**: Resolved - Now supports both formats for consistency
+
 ## Resolved Issues
 
 ### 1. PostgreSQL Connection String

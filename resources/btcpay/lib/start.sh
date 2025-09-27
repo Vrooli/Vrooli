@@ -112,7 +112,7 @@ btcpay::start() {
     local attempt=0
     
     while [ $attempt -lt $max_attempts ]; do
-        if btcpay::is_running && curl -sf "${BTCPAY_BASE_URL}/api/v1/health" &>/dev/null; then
+        if btcpay::is_running && timeout 5 curl -sf "${BTCPAY_BASE_URL}/api/v1/health" &>/dev/null; then
             log::success "BTCPay Server started successfully"
             log::info "Access BTCPay at: ${BTCPAY_BASE_URL}"
             return 0

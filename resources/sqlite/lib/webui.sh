@@ -5,15 +5,25 @@
 
 # Source core functionality
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../../../scripts/common/source_all.sh"
-source "${SCRIPT_DIR}/core.sh"
 
-# Configuration
-readonly SQLITE_UI_PORT="${SQLITE_UI_PORT:-8197}"
+# Only source if not already in Vrooli context
+if [[ -z "${VROOLI_COMMON_SOURCED:-}" ]]; then
+    if [[ -f "${SCRIPT_DIR}/../../../scripts/common/source_all.sh" ]]; then
+        source "${SCRIPT_DIR}/../../../scripts/common/source_all.sh"
+    fi
+fi
+
+# Source core library if available
+if [[ -f "${SCRIPT_DIR}/core.sh" ]]; then
+    source "${SCRIPT_DIR}/core.sh"
+fi
+
+# Configuration  
+readonly SQLITE_UI_PORT="${SQLITE_UI_PORT:-8297}"
 readonly SQLITE_UI_HOST="${SQLITE_UI_HOST:-127.0.0.1}"
 readonly SQLITE_UI_DIR="${SCRIPT_DIR}/../ui"
-readonly SQLITE_UI_PID_FILE="${VROOLI_TMP}/sqlite-ui.pid"
-readonly SQLITE_UI_LOG="${VROOLI_LOGS}/sqlite-ui.log"
+readonly SQLITE_UI_PID_FILE="${VROOLI_TMP:-/tmp}/sqlite-ui.pid"
+readonly SQLITE_UI_LOG="${VROOLI_LOGS:-/tmp}/sqlite-ui.log"
 
 # Start web UI server
 sqlite::webui::start() {
@@ -36,7 +46,7 @@ sqlite::webui::start() {
     fi
     
     # Start Python HTTP server with custom handler
-    cat > "${VROOLI_TMP}/sqlite_webui_server.py" << 'EOF'
+    cat > "${VROOLI_TMP:-/tmp}/sqlite_webui_server.py" << 'EOF'
 #!/usr/bin/env python3
 import json
 import os
@@ -336,7 +346,7 @@ if __name__ == '__main__':
 EOF
     
     # Make server script executable
-    chmod +x "${VROOLI_TMP}/sqlite_webui_server.py"
+    chmod +x "${VROOLI_TMP:-/tmp}/sqlite_webui_server.py"
     
     # Set environment variables for the server
     export SQLITE_UI_PORT
@@ -346,7 +356,7 @@ EOF
     export SQLITE_DATABASE_PATH
     
     # Start the server in background
-    nohup python3 "${VROOLI_TMP}/sqlite_webui_server.py" >> "$SQLITE_UI_LOG" 2>&1 &
+    nohup python3 "${VROOLI_TMP:-/tmp}/sqlite_webui_server.py" >> "$SQLITE_UI_LOG" 2>&1 &
     local pid=$!
     
     # Save PID
@@ -403,7 +413,7 @@ sqlite::webui::stop() {
     fi
     
     rm -f "$SQLITE_UI_PID_FILE"
-    rm -f "${VROOLI_TMP}/sqlite_webui_server.py"
+    rm -f "${VROOLI_TMP:-/tmp}/sqlite_webui_server.py"
     return 0
 }
 
@@ -443,22 +453,25 @@ sqlite::webui::restart() {
     sqlite::webui::start
 }
 
-# Main handler
-case "${1:-}" in
-    start)
-        sqlite::webui::start
-        ;;
-    stop)
-        sqlite::webui::stop
-        ;;
-    restart)
-        sqlite::webui::restart
-        ;;
-    status)
-        sqlite::webui::status
-        ;;
-    *)
-        echo "Usage: $0 {start|stop|restart|status}"
-        exit 1
-        ;;
-esac
+# Only execute main handler if run directly, not sourced
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # Main handler
+    case "${1:-}" in
+        start)
+            sqlite::webui::start
+            ;;
+        stop)
+            sqlite::webui::stop
+            ;;
+        restart)
+            sqlite::webui::restart
+            ;;
+        status)
+            sqlite::webui::status
+            ;;
+        *)
+            echo "Usage: $0 {start|stop|restart|status}"
+            exit 1
+            ;;
+    esac
+fi

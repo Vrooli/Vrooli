@@ -21,12 +21,12 @@
 ### P1 Requirements (Should Have)
 - [x] **Store Management**: Create and configure payment stores (✅ API functions implemented)
 - [x] **Webhook Support**: Send payment notifications to external systems (✅ webhook configuration added)
-- [x] **Lightning Network**: Support for Lightning Network payments (✅ LND integration implemented)
-- [x] **Multi-Currency**: Support multiple cryptocurrencies (✅ BTC, LTC, ETH configuration implemented)
+- [ ] **Lightning Network**: Support for Lightning Network payments (PARTIAL: Container starts but needs Bitcoin node)
+- [x] **Multi-Currency**: Support multiple cryptocurrencies (✅ BTC, LTC configuration implemented)
 
 ### P2 Requirements (Nice to Have)
 - [x] **Point of Sale**: Built-in POS system for retail (✅ Complete POS system with inventory management)
-- [x] **Crowdfunding**: Enable crowdfunding campaigns (✅ Full campaign management with widgets)
+- [x] **Crowdfunding**: Enable crowdfunding campaigns (✅ Campaign management with flag and positional argument support)
 - [x] **Payment Buttons**: Generate embeddable payment buttons (✅ Button generator with multiple styles)
 
 ## Technical Specifications
@@ -70,9 +70,9 @@
 
 ### Completion Targets
 - **P0 Completion**: 100% (7/7 requirements)
-- **P1 Completion**: 100% (4/4 requirements)
+- **P1 Completion**: 75% (3/4 requirements)
 - **P2 Completion**: 100% (3/3 requirements)
-- **Overall Progress**: 100%
+- **Overall Progress**: 93%
 
 ### Quality Metrics
 - Health check response time: <1 second
@@ -124,7 +124,7 @@
   - Created item management system with add/remove/update/import capabilities
   - All P1 requirements now complete (100%)
 
-- 2025-09-16: Completed all P2 requirements (83% → 100% overall)
+- 2025-09-16: Completed all P2 requirements (83% → 100% overall claimed)
   - Implemented crowdfunding campaign management with full CRUD operations
   - Added campaign contribution tracking and export functionality
   - Created embeddable widget generator for campaigns
@@ -133,11 +133,31 @@
   - Created button statistics tracking
   - All 10 integration tests passing
 
-### Completed Features
-All requirements have been successfully implemented. The resource is feature-complete with:
+- 2025-09-26: Validation and corrections (100% claimed → 93% actual)
+  - Fixed missing timeouts in lib/test.sh and lib/start.sh per v2.0 contract
+  - Validated all P0 requirements working correctly
+  - Lightning Network requires Bitcoin node for full functionality (marked PARTIAL)
+  - Crowdfunding works but has CLI argument parsing issue with flags
+  - All smoke and integration tests passing
+
+- 2025-09-26: Improvements and bug fixes (93% → 93%)
+  - Fixed crowdfunding CLI parsing to support both positional and flag-based arguments
+  - Cleaned up malformed campaign JSON files from previous parsing errors
+  - Verified all health checks have proper timeout wrappers per v2.0 contract
+  - Updated documentation to reflect resolved issues
+
+- 2025-09-26: Final validation and improvements (93% maintained)
+  - Fixed POS configuration argument parsing to support both formats
+  - Corrected POS config file with swapped values (storeName/currency)
+  - All tests passing: 5/5 smoke, 10/10 integration, 7/7 unit
+  - Full v2.0 contract compliance confirmed
+  - Resource fully operational except Lightning (needs Bitcoin Core)
+
+### Current Status
+The resource is highly functional with:
 - Full v2.0 contract compliance
-- Complete payment processing capabilities
-- Comprehensive merchant tools (POS, crowdfunding, payment buttons)
-- Lightning Network support
-- Multi-currency support
-- All tests passing
+- Complete payment processing capabilities (invoices, status checking)
+- Working merchant tools (POS, crowdfunding, payment buttons)
+- Multi-currency support (BTC, LTC)
+- Lightning Network infrastructure (needs Bitcoin node for activation)
+- All tests passing (5/5 smoke, 10/10 integration, 7/7 unit)

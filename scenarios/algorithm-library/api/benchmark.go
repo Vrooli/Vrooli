@@ -16,11 +16,11 @@ type BenchmarkRequest struct {
 }
 
 type BenchmarkResult struct {
-	AlgorithmID   string                 `json:"algorithm_id"`
-	Language      string                 `json:"language"`
-	Results       []BenchmarkDataPoint   `json:"results"`
-	AverageTime   float64                `json:"average_time_ms"`
-	ComplexityFit string                 `json:"complexity_fit"`
+	AlgorithmID   string               `json:"algorithm_id"`
+	Language      string               `json:"language"`
+	Results       []BenchmarkDataPoint `json:"results"`
+	AverageTime   float64              `json:"average_time_ms"`
+	ComplexityFit string               `json:"complexity_fit"`
 }
 
 type BenchmarkDataPoint struct {
@@ -47,6 +47,11 @@ func benchmarkHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Use default input sizes if none provided
+	if len(req.InputSizes) == 0 {
+		req.InputSizes = []int{10, 50, 100, 500, 1000}
+	}
+
 	results := []BenchmarkDataPoint{}
 	totalTime := 0.0
 
@@ -54,7 +59,7 @@ func benchmarkHandler(w http.ResponseWriter, r *http.Request) {
 	for _, size := range req.InputSizes {
 		// Generate test input based on size
 		testInput := generateTestInput(req.AlgorithmID, size)
-		
+
 		// Create a Python script that includes timing
 		benchmarkCode := fmt.Sprintf(`
 import time
@@ -136,9 +141,9 @@ func generateTestInput(algorithmID string, size int) string {
 func getFunctionName(algorithmID string) string {
 	// Map algorithm IDs to function names
 	funcMap := map[string]string{
-		"quicksort": "quicksort",
-		"mergesort": "mergesort",
-		"bubblesort": "bubblesort",
+		"quicksort":     "quicksort",
+		"mergesort":     "mergesort",
+		"bubblesort":    "bubblesort",
 		"binary_search": "binary_search",
 		"linear_search": "linear_search",
 	}

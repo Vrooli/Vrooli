@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${SQLITE_CLI_DIR}/config/defaults.sh"
 
 # Source SQLite libraries
-for lib in core test replication; do
+for lib in core test replication webui; do
     lib_file="${SQLITE_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -105,6 +105,13 @@ cli::register_command_group "stats" "Performance monitoring and analysis"
 cli::register_subcommand "stats" "enable" "Enable query statistics" "sqlite::stats::enable"
 cli::register_subcommand "stats" "show" "Show query statistics" "sqlite::stats::show"
 cli::register_subcommand "stats" "analyze" "Analyze database for optimization" "sqlite::stats::analyze"
+
+# Register webui commands as a group
+cli::register_command_group "webui" "Web interface for batch operations"
+cli::register_subcommand "webui" "start" "Start web UI server" "sqlite::webui::start"
+cli::register_subcommand "webui" "stop" "Stop web UI server" "sqlite::webui::stop"
+cli::register_subcommand "webui" "restart" "Restart web UI server" "sqlite::webui::restart"
+cli::register_subcommand "webui" "status" "Show web UI status" "sqlite::webui::status"
 
 # Replication command handlers
 handle_replicate_add() {

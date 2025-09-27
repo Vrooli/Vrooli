@@ -45,6 +45,25 @@ api.interceptors.response.use(
   }
 );
 
+export interface ReportIssueConsoleLogEntry {
+  ts: number;
+  level: string;
+  source: 'console' | 'runtime';
+  text: string;
+}
+
+export interface ReportIssueNetworkEntry {
+  ts: number;
+  kind: 'fetch' | 'xhr';
+  method: string;
+  url: string;
+  status?: number;
+  ok?: boolean;
+  durationMs?: number;
+  error?: string;
+  requestId?: string;
+}
+
 export interface ReportIssuePayload {
   message: string;
   includeScreenshot?: boolean;
@@ -56,6 +75,12 @@ export interface ReportIssuePayload {
   logs?: string[];
   logsTotal?: number;
   logsCapturedAt?: string | null;
+  consoleLogs?: ReportIssueConsoleLogEntry[];
+  consoleLogsTotal?: number;
+  consoleLogsCapturedAt?: string | null;
+  networkRequests?: ReportIssueNetworkEntry[];
+  networkRequestsTotal?: number;
+  networkCapturedAt?: string | null;
 }
 
 // App Management

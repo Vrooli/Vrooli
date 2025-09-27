@@ -61,9 +61,42 @@ vrooli resource neo4j content restore <backup-file>
 
 - **Port**: 7474 (HTTP), 7687 (Bolt)
 - **Default Database**: neo4j
-- **Authentication**: neo4j/VrooliNeo4j2024!
+- **Authentication**: See [Authentication Setup](#authentication-setup) below
 - **Memory**: 512MB heap (adjustable)
 - **APOC Plugin**: Optional (install with `vrooli resource neo4j manage install-apoc`)
+
+## Authentication Setup
+
+### Development Mode (Default)
+By default, Neo4j runs with authentication disabled (`NEO4J_AUTH="none"`) for ease of development:
+```bash
+# Start with no authentication (default)
+vrooli resource neo4j manage start
+```
+
+### Production Mode
+For production environments, **always set authentication**:
+```bash
+# Set authentication before starting
+export NEO4J_AUTH="neo4j/YourStrongPassword123!"
+vrooli resource neo4j manage start
+
+# Or set in your environment file
+echo 'NEO4J_AUTH="neo4j/YourStrongPassword123!"' >> ~/.bashrc
+```
+
+### Security Best Practices
+- **Never use default passwords** in production
+- **Use strong passwords** with mixed case, numbers, and special characters
+- **Rotate passwords regularly** according to your security policy
+- **Consider secrets management** tools like HashiCorp Vault for production
+- **Restrict network access** using firewalls or Docker network isolation
+
+### Checking Current Authentication
+```bash
+# View current authentication configuration
+vrooli resource neo4j credentials
+```
 
 ## Graph Algorithms and APOC
 
@@ -109,3 +142,137 @@ The Community Edition includes APOC Core which provides essential procedures. Fo
 2. Our implementation provides fallback algorithms using native Cypher for basic functionality
 
 **Note**: Basic algorithm commands work without APOC but provide limited functionality. Install APOC for full feature access.
+
+## Production Deployment Examples
+
+### Docker Compose with SSL/TLS
+```yaml
+version: '3.8'
+services:
+  neo4j:
+    image: neo4j:5.15.0
+    container_name: neo4j-prod
+    environment:
+      NEO4J_AUTH: "${NEO4J_AUTH}"  # Set via .env file
+      NEO4J_dbms_memory_heap_initial__size: "2G"
+      NEO4J_dbms_memory_heap_max__size: "4G"
+      NEO4J_dbms_memory_pagecache_size: "2G"
+      NEO4J_dbms_connector_https_enabled: "true"
+      NEO4J_dbms_ssl_policy_https_enabled: "true"
+      NEO4J_dbms_ssl_policy_https_base__directory: "/ssl"
+      NEO4J_dbms_ssl_policy_https_private__key: "private.key"
+      NEO4J_dbms_ssl_policy_https_public__certificate: "public.crt"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - ./ssl:/ssl:ro
+    ports:
+      - "7473:7473"  # HTTPS
+      - "7687:7687"  # Bolt
+    networks:
+      - app_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f https://localhost:7473 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
+
+### Kubernetes Deployment with Secrets
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: neo4j-auth
+type: Opaque
+data:
+  username: bmVvNGo=  # base64 encoded "neo4j"
+  password: <your-base64-encoded-password>
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neo4j-config
+data:
+  NEO4J_dbms_memory_heap_initial__size: "2G"
+  NEO4J_dbms_memory_heap_max__size: "4G"
+  NEO4J_dbms_memory_pagecache_size: "2G"
+  NEO4J_dbms_default__listen__address: "0.0.0.0"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: neo4j
+spec:
+  serviceName: neo4j
+  replicas: 1
+  selector:
+    matchLabels:
+      app: neo4j
+  template:
+    metadata:
+      labels:
+        app: neo4j
+    spec:
+      containers:
+      - name: neo4j
+        image: neo4j:5.15.0
+        env:
+        - name: NEO4J_AUTH
+          value: "$(NEO4J_USERNAME)/$(NEO4J_PASSWORD)"
+        - name: NEO4J_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: neo4j-auth
+              key: username
+        - name: NEO4J_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: neo4j-auth
+              key: password
+        envFrom:
+        - configMapRef:
+            name: neo4j-config
+        ports:
+        - containerPort: 7474
+          name: http
+        - containerPort: 7687
+          name: bolt
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 7474
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 7474
+          initialDelaySeconds: 30
+          periodSeconds: 5
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+```
+
+### Production Environment Variables
+```bash
+# .env file for production
+NEO4J_AUTH="neo4j/$(openssl rand -base64 32)"
+NEO4J_dbms_memory_heap_initial__size="4G"
+NEO4J_dbms_memory_heap_max__size="8G"
+NEO4J_dbms_memory_pagecache_size="4G"
+NEO4J_dbms_logs_query_enabled="true"
+NEO4J_dbms_logs_query_threshold="500ms"
+NEO4J_dbms_logs_query_rotation_size="100M"
+NEO4J_dbms_logs_query_rotation_keep__number="10"
+```

@@ -180,12 +180,88 @@ body {
   cursor: not-allowed;
 }
 
+.search-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  align-items: flex-start;
+}
+
+.filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 200px;
+}
+
+.filter-field label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.filter-field input {
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.95rem;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.filter-field input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
 /* Results Grid */
 .results-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.5rem;
   animation: slideUp 0.3s ease;
+}
+
+.results-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.method-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.method-badge.semantic {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--success-color);
+}
+
+.method-badge.keyword {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--info-color);
 }
 
 .api-card {
@@ -237,6 +313,19 @@ body {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.api-pricing {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.api-pricing svg {
+  color: var(--warning-color);
 }
 
 .api-card-footer {

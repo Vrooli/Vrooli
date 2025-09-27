@@ -1,0 +1,896 @@
+openapi: 3.0.3
+info:
+  title: Audio Tools API
+  description: Comprehensive audio processing and analysis API with support for editing, conversion, enhancement, and voice processing
+  version: 1.0.0
+  contact:
+    name: Vrooli Team
+    email: support@vrooli.com
+    url: https://github.com/Vrooli/Vrooli
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:{port}
+    description: Local development server
+    variables:
+      port:
+        default: "8120"
+        description: Dynamic port assigned by Vrooli lifecycle
+
+tags:
+  - name: Health
+    description: Service health and status endpoints
+  - name: Edit
+    description: Audio editing operations
+  - name: Convert
+    description: Format conversion endpoints
+  - name: Enhance
+    description: Audio quality enhancement
+  - name: Analyze
+    description: Audio analysis and metadata
+  - name: Voice
+    description: Voice processing and VAD
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Check service health
+      description: Returns current health status of the audio tools service
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/edit:
+    post:
+      tags:
+        - Edit
+      summary: Apply editing operations
+      description: Apply one or more editing operations to an audio file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Audio file to edit
+                operations:
+                  type: string
+                  description: JSON string of operations array
+      responses:
+        '200':
+          description: Editing completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/convert:
+    post:
+      tags:
+        - Convert
+      summary: Convert audio format
+      description: Convert audio file to a different format
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConvertRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+                - format
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Audio file to convert
+                format:
+                  type: string
+                  enum: [mp3, wav, flac, aac, ogg]
+                  description: Target format
+                quality:
+                  type: string
+                  enum: [low, medium, high]
+                  default: high
+                bitrate:
+                  type: string
+                  example: "320k"
+      responses:
+        '200':
+          description: Conversion completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConvertResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/metadata:
+    get:
+      tags:
+        - Analyze
+      summary: Extract metadata from file
+      description: Extract metadata from audio file by path or ID
+      parameters:
+        - name: file
+          in: query
+          description: File path
+          schema:
+            type: string
+        - name: id
+          in: query
+          description: Asset ID in database
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Metadata extracted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags:
+        - Analyze
+      summary: Extract metadata from upload
+      description: Upload file and extract metadata
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Audio file to analyze
+      responses:
+        '200':
+          description: Metadata extracted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/normalize:
+    post:
+      tags:
+        - Enhance
+      summary: Normalize audio levels
+      description: Normalize audio for consistent volume
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NormalizeRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                target_level:
+                  type: number
+                  default: -16.0
+                prevent_clipping:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Normalization completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormalizeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/enhance:
+    post:
+      tags:
+        - Enhance
+      summary: Enhance audio quality
+      description: Apply enhancement filters to improve audio quality
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnhanceRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                noise_reduction:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                  default: 0.8
+                auto_level:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Enhancement completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnhanceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/vad:
+    post:
+      tags:
+        - Voice
+      summary: Voice Activity Detection
+      description: Detect speech segments in audio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VADRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Audio file to analyze
+                threshold:
+                  type: number
+                  default: -40.0
+                  description: Silence threshold in dB
+      responses:
+        '200':
+          description: VAD analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VADResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/remove-silence:
+    post:
+      tags:
+        - Voice
+      summary: Remove silence from audio
+      description: Remove silent portions from audio file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoveSilenceRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                threshold:
+                  type: number
+                  default: -40.0
+                min_silence_duration:
+                  type: number
+                  default: 0.5
+      responses:
+        '200':
+          description: Silence removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemoveSilenceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/analyze:
+    post:
+      tags:
+        - Analyze
+      summary: Comprehensive audio analysis
+      description: Perform detailed analysis of audio characteristics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                include_spectrum:
+                  type: boolean
+                  default: true
+                include_peaks:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/speed:
+    post:
+      tags:
+        - Edit
+      summary: Change playback speed
+      description: Modify audio playback speed without affecting pitch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpeedRequest'
+      responses:
+        '200':
+          description: Speed modification completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeedResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/pitch:
+    post:
+      tags:
+        - Edit
+      summary: Change audio pitch
+      description: Modify audio pitch without affecting tempo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PitchRequest'
+      responses:
+        '200':
+          description: Pitch modification completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PitchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/equalizer:
+    post:
+      tags:
+        - Enhance
+      summary: Apply equalizer
+      description: Apply frequency equalization to audio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EqualizerRequest'
+      responses:
+        '200':
+          description: Equalization applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EqualizerResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        version:
+          type: string
+          example: "1.0.0"
+        service:
+          type: string
+          example: "audio-tools"
+        database:
+          type: string
+          enum: [connected, disconnected]
+        storage:
+          type: string
+          enum: [filesystem, minio]
+        ffmpeg:
+          type: string
+          enum: [available, unavailable]
+        timestamp:
+          type: integer
+          format: int64
+
+    EditRequest:
+      type: object
+      required:
+        - audio_file
+        - operations
+      properties:
+        audio_file:
+          type: string
+          description: Path to audio file or asset ID
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/EditOperation'
+
+    EditOperation:
+      type: object
+      required:
+        - type
+        - parameters
+      properties:
+        type:
+          type: string
+          enum: [trim, volume, fade_in, fade_out, merge, split, normalize]
+        parameters:
+          type: object
+          additionalProperties: true
+
+    EditResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        output_file:
+          type: string
+        duration:
+          type: number
+        operations_applied:
+          type: integer
+
+    ConvertRequest:
+      type: object
+      required:
+        - audio_file
+        - output_format
+      properties:
+        audio_file:
+          type: string
+        output_format:
+          type: string
+          enum: [mp3, wav, flac, aac, ogg]
+        quality:
+          type: string
+          enum: [low, medium, high]
+          default: high
+        bitrate:
+          type: string
+          example: "320k"
+
+    ConvertResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        output_file:
+          type: string
+        format:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        duration:
+          type: number
+
+    MetadataResponse:
+      type: object
+      properties:
+        duration:
+          type: string
+          example: "3:45.123"
+        format:
+          type: string
+        codec:
+          type: string
+        sample_rate:
+          type: string
+        channels:
+          type: integer
+        bitrate:
+          type: string
+        size:
+          type: integer
+          format: int64
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+
+    NormalizeRequest:
+      type: object
+      required:
+        - audio_file
+      properties:
+        audio_file:
+          type: string
+        target_level:
+          type: number
+          default: -16.0
+        prevent_clipping:
+          type: boolean
+          default: true
+
+    NormalizeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        output_file:
+          type: string
+        peak_level:
+          type: number
+        average_level:
+          type: number
+
+    EnhanceRequest:
+      type: object
+      required:
+        - audio_file
+      properties:
+        audio_file:
+          type: string
+        noise_reduction:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.8
+        auto_level:
+          type: boolean
+          default: true
+        remove_clicks:
+          type: boolean
+          default: true
+
+    EnhanceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        output_file:
+          type: string
+        improvements:
+          type: array
+          items:
+            type: string
+
+    VADRequest:
+      type: object
+      required:
+        - audio_file
+      properties:
+        audio_file:
+          oneOf:
+            - type: string
+              description: File path
+            - type: object
+              properties:
+                asset_id:
+                  type: string
+              description: Asset ID reference
+        threshold:
+          type: number
+          default: -40.0
+          description: Silence threshold in dB
+
+    VADResponse:
+      type: object
+      properties:
+        speech_segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SpeechSegment'
+        total_duration_seconds:
+          type: number
+        speech_duration_seconds:
+          type: number
+        silence_duration_seconds:
+          type: number
+        speech_ratio:
+          type: number
+          minimum: 0
+          maximum: 1
+        processing_time_ms:
+          type: integer
+
+    SpeechSegment:
+      type: object
+      properties:
+        start_time:
+          type: number
+        end_time:
+          type: number
+        duration:
+          type: number
+
+    RemoveSilenceRequest:
+      type: object
+      required:
+        - audio_file
+      properties:
+        audio_file:
+          type: string
+        threshold:
+          type: number
+          default: -40.0
+        min_silence_duration:
+          type: number
+          default: 0.5
+
+    RemoveSilenceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        output_file:
+          type: string
+        original_duration:
+          type: number
+        new_duration:
+          type: number
+        silence_removed:
+          type: number
+
+    AnalyzeRequest:
+      type: object
+      required:
+        - audio_file
+      properties:
+        audio_file:
+          type: string
+        include_spectrum:
+          type: boolean
+          default: true
+        include_peaks:
+          type: boolean
+          default: true
+        include_loudness:
+          type: boolean
+          default: true
+
+    AnalyzeResponse:
+      type: object
+      properties:
+        duration:
+          type: number
+        format:
+          type: string
+        sample_rate:
+          type: integer
+        channels:
+          type: integer
+        peak_amplitude:
+          type: number
+        rms_level:
+          type: number
+        dynamic_range:
+          type: number
+        frequency_spectrum:
+          type: object
+          properties:
+            dominant_frequency:
+              type: number
+            bass_energy:
+              type: number
+            mid_energy:
+              type: number
+            treble_energy:
+              type: number
+
+    SpeedRequest:
+      type: object
+      required:
+        - audio_file
+        - speed_factor
+      properties:
+        audio_file:
+          type: string
+        speed_factor:
+          type: number
+          minimum: 0.5
+          maximum: 3.0
+        preserve_pitch:
+          type: boolean
+          default: true
+
+    SpeedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        output_file:
+          type: string
+        original_duration:
+          type: number
+        new_duration:
+          type: number
+        speed_factor:
+          type: number
+
+    PitchRequest:
+      type: object
+      required:
+        - audio_file
+        - pitch_shift
+      properties:
+        audio_file:
+          type: string
+        pitch_shift:
+          type: number
+          minimum: -12
+          maximum: 12
+        preserve_tempo:
+          type: boolean
+          default: true
+
+    PitchResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        output_file:
+          type: string
+        pitch_shift_semitones:
+          type: number
+
+    EqualizerRequest:
+      type: object
+      required:
+        - audio_file
+        - bands
+      properties:
+        audio_file:
+          type: string
+        bands:
+          type: object
+          additionalProperties:
+            type: number
+            minimum: -20
+            maximum: 20
+
+    EqualizerResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        output_file:
+          type: string
+        bands_applied:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: boolean
+          default: true
+        message:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnsupportedMediaType:
+      description: Unsupported audio format
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication (future feature)

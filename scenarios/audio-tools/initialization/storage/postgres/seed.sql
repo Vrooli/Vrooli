@@ -1,9 +1,9 @@
--- SCENARIO_NAME_PLACEHOLDER Seed Data
+-- audio-tools Seed Data
 -- Initial data for application startup
 
 -- Insert default configuration
 INSERT INTO configuration (key, value, category, description, is_active) VALUES
-    ('app.name', '"SCENARIO_NAME_PLACEHOLDER"', 'application', 'Application name', true),
+    ('app.name', '"audio-tools"', 'application', 'Application name', true),
     ('app.version', '"1.0.0"', 'application', 'Application version', true),
     ('app.environment', '"development"', 'application', 'Environment mode', true),
     ('api.rate_limit', '{"requests_per_minute": 60, "burst": 10}', 'api', 'API rate limiting configuration', true),
@@ -17,7 +17,7 @@ ON CONFLICT (key) DO NOTHING;
 
 -- Insert sample workflows (customize based on your scenario)
 INSERT INTO workflows (workflow_id, name, description, platform, definition, is_active) VALUES
-    ('main-workflow', 'Main Processing Workflow', 'Primary workflow for SCENARIO_NAME_PLACEHOLDER', 'n8n', 
+    ('main-workflow', 'Main Processing Workflow', 'Primary workflow for audio-tools', 'n8n', 
      '{"nodes": [], "connections": {}, "settings": {}}', true),
     ('data-pipeline', 'Data Processing Pipeline', 'Handles data transformation and storage', 'n8n',
      '{"nodes": [], "connections": {}, "settings": {}}', true),
@@ -27,7 +27,7 @@ ON CONFLICT (workflow_id) DO NOTHING;
 
 -- Insert sample resources (customize based on your scenario)
 INSERT INTO resources (name, description, type, status, config) VALUES
-    ('Default Workspace', 'Primary workspace for SCENARIO_NAME_PLACEHOLDER', 'workspace', 'active',
+    ('Default Workspace', 'Primary workspace for audio-tools', 'workspace', 'active',
      '{"settings": {"theme": "light", "language": "en"}}'),
     ('API Documentation', 'OpenAPI specification and documentation', 'documentation', 'active',
      '{"version": "3.0.0", "format": "openapi"}'),
@@ -38,7 +38,7 @@ ON CONFLICT ON CONSTRAINT unique_name_per_type DO NOTHING;
 -- Insert initial events for audit trail
 INSERT INTO events (event_type, event_name, payload, source, severity) VALUES
     ('system', 'application.initialized', 
-     '{"message": "SCENARIO_NAME_PLACEHOLDER initialized successfully", "version": "1.0.0"}',
+     '{"message": "audio-tools initialized successfully", "version": "1.0.0"}',
      'system', 'info'),
     ('configuration', 'config.loaded',
      '{"message": "Configuration loaded from database", "count": 10}',
@@ -63,7 +63,7 @@ ON CONFLICT (session_token) DO NOTHING;
 -- Summary message
 DO $$
 BEGIN
-    RAISE NOTICE 'Seed data inserted successfully for SCENARIO_NAME_PLACEHOLDER';
+    RAISE NOTICE 'Seed data inserted successfully for audio-tools';
     RAISE NOTICE 'Configuration entries: %', (SELECT COUNT(*) FROM configuration);
     RAISE NOTICE 'Workflows registered: %', (SELECT COUNT(*) FROM workflows);
     RAISE NOTICE 'Resources created: %', (SELECT COUNT(*) FROM resources);

@@ -45,15 +45,61 @@ EOF
 }
 
 btcpay::crowdfunding::create_campaign() {
-    local title="${1:-}"
-    local goal="${2:-}"
-    local currency="${3:-BTC}"
-    local description="${4:-}"
-    local end_date="${5:-}"
+    local title=""
+    local goal=""
+    local currency="BTC"
+    local description=""
+    local end_date=""
+    
+    # Parse arguments - handle both positional and flag-based
+    local args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --currency)
+                currency="$2"
+                shift 2
+                ;;
+            --description)
+                description="$2"
+                shift 2
+                ;;
+            --end-date)
+                end_date="$2"
+                shift 2
+                ;;
+            -*)
+                log::error "Unknown flag: $1"
+                echo "Usage: resource-btcpay crowdfunding create <title> <goal> [--currency BTC] [--description \"text\"] [--end-date \"YYYY-MM-DD\"]"
+                return 1
+                ;;
+            *)
+                args+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    # Handle positional arguments
+    if [[ ${#args[@]} -ge 1 ]]; then
+        title="${args[0]}"
+    fi
+    if [[ ${#args[@]} -ge 2 ]]; then
+        goal="${args[1]}"
+    fi
+    # Support old positional format for backwards compatibility
+    if [[ ${#args[@]} -ge 3 ]]; then
+        [[ -z "$currency" ]] && currency="${args[2]}"
+    fi
+    if [[ ${#args[@]} -ge 4 ]]; then
+        [[ -z "$description" ]] && description="${args[3]}"
+    fi
+    if [[ ${#args[@]} -ge 5 ]]; then
+        [[ -z "$end_date" ]] && end_date="${args[4]}"
+    fi
     
     if [[ -z "$title" ]] || [[ -z "$goal" ]]; then
         log::error "Title and goal amount are required"
-        echo "Usage: resource-btcpay crowdfunding create <title> <goal> [currency] [description] [end-date]"
+        echo "Usage: resource-btcpay crowdfunding create <title> <goal> [--currency BTC] [--description \"text\"] [--end-date \"YYYY-MM-DD\"]"
         return 1
     fi
     

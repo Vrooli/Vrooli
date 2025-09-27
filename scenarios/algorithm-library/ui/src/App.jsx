@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'
+import AlgorithmVisualizer from './AlgorithmVisualizer'
 import './App.css'
 
 const API_URL = '/api/v1'
@@ -16,6 +17,7 @@ const App = () => {
   const [loading, setLoading] = useState(false)
   const [stats, setStats] = useState(null)
   const [categories, setCategories] = useState([])
+  const [showVisualizer, setShowVisualizer] = useState(false)
 
   useEffect(() => {
     fetchStats()
@@ -160,6 +162,15 @@ const App = () => {
                   <span>Time: {selectedAlgorithm.complexity_time}</span>
                   <span>Space: {selectedAlgorithm.complexity_space}</span>
                 </div>
+                {(selectedAlgorithm.category === 'sorting' || 
+                  selectedAlgorithm.name?.includes('sort')) && (
+                  <button 
+                    className="visualize-btn"
+                    onClick={() => setShowVisualizer(true)}
+                  >
+                    ▶ VISUALIZE
+                  </button>
+                )}
               </div>
 
               <div className="description">
@@ -241,6 +252,13 @@ const App = () => {
           )}
         </main>
       </div>
+
+      {showVisualizer && selectedAlgorithm && (
+        <AlgorithmVisualizer
+          algorithm={selectedAlgorithm}
+          onClose={() => setShowVisualizer(false)}
+        />
+      )}
     </div>
   )
 }

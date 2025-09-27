@@ -2,6 +2,7 @@ package main
 
 import (
 	"audio-tools/internal/handlers"
+	"audio-tools/internal/storage"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -23,14 +24,84 @@ type Server struct {
 	router       *mux.Router
 	db           *sql.DB
 	audioHandler *handlers.AudioHandler
+	storage      *storage.MinIOStorage
 	config       *Config
 }
 
 type Config struct {
-	Port        string
-	DatabaseURL string
-	WorkDir     string
-	DataDir     string
+	Port         string
+	DatabaseURL  string
+	WorkDir      string
+	DataDir      string
+	MinIOEndpoint   string
+	MinIOAccessKey  string
+	MinIOSecretKey  string
+	MinIOBucketName string
+	MinIOUseSSL     bool
+}
+
+func initializeDatabase(db *sql.DB) error {
+	// Create the audio_processing_jobs table if it doesn't exist
+	createTableSQL := `
+	CREATE TABLE IF NOT EXISTS audio_processing_jobs (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		audio_asset_id UUID,
+		operation_type VARCHAR(50) NOT NULL,
+		parameters JSONB DEFAULT '{}',
+		status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
+		progress_percentage INTEGER DEFAULT 0,
+		start_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		end_time TIMESTAMP WITH TIME ZONE,
+		output_files JSONB,
+		error_message TEXT,
+		processing_node VARCHAR(255),
+		resource_usage JSONB DEFAULT '{}',
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);
+	
+	CREATE TABLE IF NOT EXISTS audio_assets (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		name VARCHAR(255) NOT NULL,
+		file_path TEXT NOT NULL,
+		format VARCHAR(20),
+		duration_seconds DECIMAL(10,3),
+		sample_rate INTEGER,
+		bit_depth INTEGER,
+		channels INTEGER,
+		bitrate INTEGER,
+		file_size_bytes BIGINT,
+		metadata JSONB DEFAULT '{}',
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		last_processed TIMESTAMP WITH TIME ZONE,
+		quality_score DECIMAL(3,2),
+		noise_level DECIMAL(5,2),
+		speech_detected BOOLEAN DEFAULT FALSE,
+		language VARCHAR(10),
+		tags TEXT[]
+	);
+	`
+	
+	_, err := db.Exec(createTableSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create tables: %w", err)
+	}
+	
+	// Create indexes
+	indexSQL := `
+	CREATE INDEX IF NOT EXISTS idx_audio_assets_format ON audio_assets(format);
+	CREATE INDEX IF NOT EXISTS idx_audio_assets_created ON audio_assets(created_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_audio_processing_jobs_asset ON audio_processing_jobs(audio_asset_id);
+	CREATE INDEX IF NOT EXISTS idx_audio_processing_jobs_status ON audio_processing_jobs(status);
+	CREATE INDEX IF NOT EXISTS idx_audio_processing_jobs_operation ON audio_processing_jobs(operation_type);
+	`
+	
+	_, err = db.Exec(indexSQL)
+	if err != nil {
+		// Indexes are optional, just log the error
+		log.Printf("Warning: Could not create indexes: %v", err)
+	}
+	
+	return nil
 }
 
 func NewServer() (*Server, error) {
@@ -39,6 +110,11 @@ func NewServer() (*Server, error) {
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/audio_tools"),
 		WorkDir:     getEnv("WORK_DIR", "/tmp/audio-tools"),
 		DataDir:     getEnv("DATA_DIR", "./data"),
+		MinIOEndpoint:   getEnv("MINIO_ENDPOINT", "localhost:9000"),
+		MinIOAccessKey:  getEnv("MINIO_ACCESS_KEY", "minioadmin"),
+		MinIOSecretKey:  getEnv("MINIO_SECRET_KEY", "minioadmin"),
+		MinIOBucketName: getEnv("MINIO_BUCKET_NAME", "audio-files"),
+		MinIOUseSSL:     getEnv("MINIO_USE_SSL", "false") == "true",
 	}
 
 	// Create work and data directories
@@ -75,7 +151,7 @@ func NewServer() (*Server, error) {
 		if pgPassword == "" {
 			pgPassword = "postgres"
 		}
-		pgDatabase := "vrooli" // Use vrooli database
+		pgDatabase := "audio_tools" // Use audio_tools database
 		
 		config.DatabaseURL = fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", 
 			pgUser, pgPassword, pgPort, pgDatabase)
@@ -107,9 +183,32 @@ func NewServer() (*Server, error) {
 					}
 				} else {
 					log.Printf("Successfully connected to database at %s", dbURL)
+					// Initialize database schema if needed
+					if err := initializeDatabase(db); err != nil {
+						log.Printf("Warning: Could not initialize database schema: %v", err)
+					}
 					break
 				}
 			}
+		}
+	}
+
+	// Initialize MinIO storage (optional)
+	var minioStorage *storage.MinIOStorage
+	if config.MinIOEndpoint != "" {
+		var err error
+		minioStorage, err = storage.NewMinIOStorage(
+			config.MinIOEndpoint,
+			config.MinIOAccessKey,
+			config.MinIOSecretKey,
+			config.MinIOBucketName,
+			config.MinIOUseSSL,
+		)
+		if err != nil {
+			log.Printf("Warning: Could not connect to MinIO: %v", err)
+			// Continue without MinIO - will use filesystem
+		} else {
+			log.Printf("Successfully connected to MinIO at %s", config.MinIOEndpoint)
 		}
 	}
 
@@ -117,6 +216,7 @@ func NewServer() (*Server, error) {
 		router:       mux.NewRouter(),
 		db:           db,
 		config:       config,
+		storage:      minioStorage,
 		audioHandler: handlers.NewAudioHandler(db, config.WorkDir, config.DataDir),
 	}
 
@@ -143,6 +243,8 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/audio/metadata", s.audioHandler.HandleMetadata).Methods("POST", "OPTIONS")
 	api.HandleFunc("/audio/enhance", s.audioHandler.HandleEnhance).Methods("POST", "OPTIONS")
 	api.HandleFunc("/audio/analyze", s.audioHandler.HandleAnalyze).Methods("POST", "OPTIONS")
+	api.HandleFunc("/audio/vad", s.audioHandler.HandleVAD).Methods("POST", "OPTIONS")
+	api.HandleFunc("/audio/remove-silence", s.audioHandler.HandleRemoveSilence).Methods("POST", "OPTIONS")
 
 	// Status endpoint
 	api.HandleFunc("/status", s.handleStatus).Methods("GET", "OPTIONS")
@@ -174,6 +276,13 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		health["ffmpeg"] = "available"
 	} else {
 		health["ffmpeg"] = "not found"
+	}
+
+	// Check MinIO status
+	if s.storage != nil {
+		health["storage"] = "minio"
+	} else {
+		health["storage"] = "filesystem"
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -242,6 +351,16 @@ func (s *Server) handleDocs(w http.ResponseWriter, r *http.Request) {
 				"method":      "POST",
 				"path":        "/api/v1/audio/analyze",
 				"description": "Analyze audio content",
+			},
+			{
+				"method":      "POST",
+				"path":        "/api/v1/audio/vad",
+				"description": "Voice activity detection - identify speech segments and silence",
+			},
+			{
+				"method":      "POST",
+				"path":        "/api/v1/audio/remove-silence",
+				"description": "Remove silence from audio, keeping only speech segments",
 			},
 		},
 		"supported_operations": []string{

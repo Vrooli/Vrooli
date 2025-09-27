@@ -71,6 +71,15 @@ clean: ## Clean build artifacts
 	@if [ -d ui/build ]; then rm -rf ui/build; fi
 	@echo "$(GREEN)✓ Cleaned$(RESET)"
 
+migrate: ## Apply database migrations
+	@echo "$(BLUE)📋 Applying database migrations...$(RESET)"
+	@if [ -f scripts/apply-migrations-docker.sh ]; then \
+		bash scripts/apply-migrations-docker.sh; \
+	else \
+		echo "$(RED)❌ Migration script not found$(RESET)"; \
+		exit 1; \
+	fi
+
 build: ## Build the scenario (if applicable)
 	@echo "$(BLUE)🏗️  Building $(SCENARIO_NAME)...$(RESET)"
 	@if [ -f api/go.mod ]; then \

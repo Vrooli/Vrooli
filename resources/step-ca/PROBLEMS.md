@@ -55,6 +55,18 @@
   - OCSP responder setup (Step-CA supports but needs configuration)
 - **Workaround**: Use short-lived certificates (24-48h) to minimize risk
 
+### HSM/KMS Integration (CONFIGURATION TEMPLATES PROVIDED ✅)
+- **Current State**: Configuration templates and guidance implemented
+- **Implemented Features**:
+  - `hsm` command group for status, configure, and test operations
+  - Configuration templates for AWS KMS, Google Cloud KMS, Azure Key Vault, and YubiHSM
+  - Step-by-step guidance for production HSM/KMS deployment
+- **Note**: Full integration requires actual HSM hardware or cloud KMS service
+- **Production Path**: 
+  - Use `resource-step-ca hsm configure --type <provider>` to generate configuration
+  - Apply configuration to Step-CA instance
+  - Test with actual credentials and HSM/KMS access
+
 ### Custom Certificate Templates (IMPLEMENTED ✅)
 - **Current State**: Template management system fully operational
 - **Implemented Features**:
@@ -101,4 +113,28 @@ All P0 requirements are fully functional:
 - ✅ v2.0 CLI contract compliant
 - ✅ Docker containerization stable
 
-Last verified: 2025-09-14
+## 2025-09-26 Validation Update
+
+### PostgreSQL Backend Status
+- **Configuration**: PostgreSQL backend is configured but requires PostgreSQL resource to be running
+- **Current State**: Falls back to file-based storage when PostgreSQL unavailable
+- **Impact**: No impact on core functionality, but limits scalability features
+- **Solution**: Install and start PostgreSQL resource (`vrooli resource postgres manage install`)
+
+### Certificate Issuance via CLI
+- **Issue**: Direct certificate issuance via `content add` requires interactive password input
+- **Impact**: Automated certificate generation limited to ACME protocol
+- **Solution**: Use ACME clients (certbot, acme.sh) for automated certificate issuance
+- **Alternative**: Generate certificates with pre-shared tokens or OIDC authentication
+
+### Verification Results
+- ✅ All test suites passing (unit, smoke, integration, validation)
+- ✅ ACME protocol fully operational at https://localhost:9010/acme/acme/directory
+- ✅ 3 provisioners configured (admin, ACME, keycloak-test)
+- ✅ Certificate templates functional (2 templates active)
+- ✅ HSM/KMS configuration templates working
+- ✅ Health monitoring and status reporting operational
+- ⚠️ PostgreSQL backend configured but not connected (postgres resource not running)
+- ⚠️ Interactive certificate issuance requires terminal input
+
+Last verified: 2025-09-26

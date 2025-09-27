@@ -90,11 +90,8 @@ func (p *AudioProcessor) ExtractMetadataWithContext(ctx context.Context, filePat
 
 	output, err := cmd.Output()
 	if err != nil {
-		// Fallback to basic metadata if ffprobe is not available
-		return &AudioMetadata{
-			Size:   fileInfo.Size(),
-			Format: filepath.Ext(filePath)[1:], // Remove the dot
-		}, nil
+		// Return error for invalid audio files
+		return nil, fmt.Errorf("failed to extract metadata: %w", err)
 	}
 
 	var ffprobeOutput map[string]interface{}
@@ -504,6 +501,155 @@ func (p *AudioProcessor) ApplyNoiseReduction(inputPath string, intensity float64
 	return outputPath, nil
 }
 
+// VoiceActivityDetection represents VAD results
+type VoiceActivityDetection struct {
+	SpeechSegments []SpeechSegment `json:"speech_segments"`
+	TotalDuration  float64         `json:"total_duration_seconds"`
+	SpeechDuration float64         `json:"speech_duration_seconds"`
+	SilenceDuration float64        `json:"silence_duration_seconds"`
+	SpeechRatio    float64         `json:"speech_ratio"`
+}
+
+// SpeechSegment represents a segment of detected speech
+type SpeechSegment struct {
+	StartTime float64 `json:"start_time_seconds"`
+	EndTime   float64 `json:"end_time_seconds"`
+	Duration  float64 `json:"duration_seconds"`
+}
+
+// DetectVoiceActivity performs voice activity detection on audio
+func (p *AudioProcessor) DetectVoiceActivity(inputPath string, threshold float64) (*VoiceActivityDetection, error) {
+	// Use silencedetect filter to find speech segments
+	if threshold <= 0 {
+		threshold = -40 // Default threshold in dB
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// First get total duration
+	metadata, err := p.ExtractMetadata(inputPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract metadata: %v", err)
+	}
+
+	// Parse duration string to float64
+	totalDuration, err := strconv.ParseFloat(metadata.Duration, 64)
+	if err != nil {
+		// Try to parse duration in format "HH:MM:SS.ms"
+		parts := strings.Split(metadata.Duration, ":")
+		if len(parts) == 3 {
+			hours, _ := strconv.ParseFloat(parts[0], 64)
+			minutes, _ := strconv.ParseFloat(parts[1], 64)
+			seconds, _ := strconv.ParseFloat(parts[2], 64)
+			totalDuration = hours*3600 + minutes*60 + seconds
+		} else {
+			return nil, fmt.Errorf("failed to parse duration: %v", err)
+		}
+	}
+
+	// Detect silence (which gives us speech segments by inversion)
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-i", inputPath,
+		"-af", fmt.Sprintf("silencedetect=noise=%.0fdB:d=0.3", threshold),
+		"-f", "null",
+		"-")
+
+	output, _ := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	vad := &VoiceActivityDetection{
+		TotalDuration:  totalDuration,
+		SpeechSegments: []SpeechSegment{},
+	}
+
+	// Parse silence detection output to find speech segments
+	lines := strings.Split(outputStr, "\n")
+	var silenceStart float64 = 0
+	var lastSilenceEnd float64 = 0
+
+	for _, line := range lines {
+		if strings.Contains(line, "silence_start:") {
+			// Extract silence start time
+			parts := strings.Fields(line)
+			for i, part := range parts {
+				if part == "silence_start:" && i+1 < len(parts) {
+					if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+						silenceStart = val
+						// Add speech segment from last silence end to this silence start
+						if silenceStart > lastSilenceEnd {
+							segment := SpeechSegment{
+								StartTime: lastSilenceEnd,
+								EndTime:   silenceStart,
+								Duration:  silenceStart - lastSilenceEnd,
+							}
+							vad.SpeechSegments = append(vad.SpeechSegments, segment)
+							vad.SpeechDuration += segment.Duration
+						}
+					}
+				}
+			}
+		} else if strings.Contains(line, "silence_end:") {
+			// Extract silence end time
+			parts := strings.Fields(line)
+			for i, part := range parts {
+				if part == "silence_end:" && i+1 < len(parts) {
+					if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+						lastSilenceEnd = val
+					}
+				}
+			}
+		}
+	}
+
+	// Add final speech segment if audio doesn't end with silence
+	if lastSilenceEnd < totalDuration {
+		segment := SpeechSegment{
+			StartTime: lastSilenceEnd,
+			EndTime:   totalDuration,
+			Duration:  totalDuration - lastSilenceEnd,
+		}
+		vad.SpeechSegments = append(vad.SpeechSegments, segment)
+		vad.SpeechDuration += segment.Duration
+	}
+
+	vad.SilenceDuration = totalDuration - vad.SpeechDuration
+	if totalDuration > 0 {
+		vad.SpeechRatio = vad.SpeechDuration / totalDuration
+	}
+
+	return vad, nil
+}
+
+// RemoveSilence removes silence from audio, keeping only speech segments
+func (p *AudioProcessor) RemoveSilence(inputPath string, threshold float64) (string, error) {
+	outputID := uuid.New().String()
+	outputPath := filepath.Join(p.WorkDir, fmt.Sprintf("%s_speech_only%s", outputID, filepath.Ext(inputPath)))
+
+	if threshold <= 0 {
+		threshold = -40 // Default threshold in dB
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	// Use silenceremove filter to remove silence
+	filterStr := fmt.Sprintf("silenceremove=start_periods=1:start_duration=0.1:start_threshold=%.0fdB:detection=peak,areverse,silenceremove=start_periods=1:start_duration=0.1:start_threshold=%.0fdB:detection=peak,areverse", threshold, threshold)
+
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-y",
+		"-loglevel", "error",
+		"-i", inputPath,
+		"-af", filterStr,
+		outputPath)
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("silence removal failed: %v", err)
+	}
+
+	return outputPath, nil
+}
+
 // ChangeSpeed changes the speed/tempo of audio
 func (p *AudioProcessor) ChangeSpeed(inputPath string, speedFactor float64) (string, error) {
 	outputID := uuid.New().String()
@@ -640,4 +786,232 @@ func (p *AudioProcessor) Split(inputPath string, splitPoints []float64) ([]strin
 	}
 
 	return outputPaths, nil
+}
+
+// AnalyzeQuality analyzes audio quality metrics
+func (p *AudioProcessor) AnalyzeQuality(inputPath string) (*QualityMetrics, error) {
+	// Get basic metadata first
+	metadata, err := p.ExtractMetadata(inputPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract metadata: %v", err)
+	}
+
+	metrics := &QualityMetrics{
+		Format:     metadata.Format,
+		Codec:      metadata.Codec,
+		SampleRate: metadata.SampleRate,
+		Channels:   metadata.Channels,
+		Bitrate:    metadata.Bitrate,
+	}
+
+	// Analyze audio levels using ffmpeg's astats filter
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-i", inputPath,
+		"-af", "astats=metadata=1:reset=1",
+		"-f", "null",
+		"-")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Try simpler analysis without astats
+		return p.analyzeBasicQuality(inputPath, metrics)
+	}
+
+	// Parse the output for quality metrics
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, "RMS level dB") {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 2 {
+				if val, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64); err == nil {
+					metrics.RMSLevel = val
+				}
+			}
+		} else if strings.Contains(line, "Peak level dB") {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 2 {
+				if val, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64); err == nil {
+					metrics.PeakLevel = val
+				}
+			}
+		} else if strings.Contains(line, "Dynamic range") {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 2 {
+				if val, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64); err == nil {
+					metrics.DynamicRange = val
+				}
+			}
+		}
+	}
+
+	// Calculate quality score based on metrics
+	metrics.QualityScore = p.calculateQualityScore(metrics)
+
+	// Detect issues
+	metrics.Issues = p.detectQualityIssues(metrics)
+
+	return metrics, nil
+}
+
+// analyzeBasicQuality provides basic quality analysis when astats is not available
+func (p *AudioProcessor) analyzeBasicQuality(inputPath string, metrics *QualityMetrics) (*QualityMetrics, error) {
+	// Use volumedetect filter as a fallback
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-i", inputPath,
+		"-af", "volumedetect",
+		"-f", "null",
+		"-")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Return basic metrics without audio analysis
+		metrics.QualityScore = p.calculateBasicQualityScore(metrics)
+		return metrics, nil
+	}
+
+	// Parse volumedetect output
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "mean_volume:") {
+			parts := strings.Fields(line)
+			for i, part := range parts {
+				if part == "mean_volume:" && i+1 < len(parts) {
+					if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+						metrics.RMSLevel = val
+					}
+				}
+			}
+		} else if strings.Contains(line, "max_volume:") {
+			parts := strings.Fields(line)
+			for i, part := range parts {
+				if part == "max_volume:" && i+1 < len(parts) {
+					if val, err := strconv.ParseFloat(parts[i+1], 64); err == nil {
+						metrics.PeakLevel = val
+					}
+				}
+			}
+		}
+	}
+
+	metrics.QualityScore = p.calculateQualityScore(metrics)
+	metrics.Issues = p.detectQualityIssues(metrics)
+
+	return metrics, nil
+}
+
+// calculateQualityScore calculates an overall quality score (0-100)
+func (p *AudioProcessor) calculateQualityScore(metrics *QualityMetrics) float64 {
+	score := 100.0
+
+	// Bitrate scoring (for compressed formats)
+	if metrics.Format != "wav" && metrics.Format != "flac" {
+		bitrate, _ := strconv.Atoi(metrics.Bitrate)
+		if bitrate < 128000 {
+			score -= 20
+		} else if bitrate < 192000 {
+			score -= 10
+		}
+	}
+
+	// Sample rate scoring
+	sampleRate, _ := strconv.Atoi(metrics.SampleRate)
+	if sampleRate < 44100 {
+		score -= 15
+	} else if sampleRate < 48000 {
+		score -= 5
+	}
+
+	// Audio level scoring
+	if metrics.PeakLevel > -1.0 {
+		score -= 15 // Likely clipping
+	} else if metrics.PeakLevel < -20.0 {
+		score -= 10 // Too quiet
+	}
+
+	if metrics.RMSLevel < -30.0 {
+		score -= 10 // Very low average level
+	}
+
+	// Dynamic range scoring
+	if metrics.DynamicRange > 0 && metrics.DynamicRange < 6.0 {
+		score -= 10 // Over-compressed
+	}
+
+	return math.Max(0, math.Min(100, score))
+}
+
+// calculateBasicQualityScore for when we only have format metrics
+func (p *AudioProcessor) calculateBasicQualityScore(metrics *QualityMetrics) float64 {
+	score := 100.0
+
+	// Basic scoring based on format/codec quality
+	if metrics.Format != "wav" && metrics.Format != "flac" {
+		bitrate, _ := strconv.Atoi(metrics.Bitrate)
+		if bitrate < 128000 {
+			score -= 30
+		} else if bitrate < 192000 {
+			score -= 15
+		}
+	}
+
+	sampleRate, _ := strconv.Atoi(metrics.SampleRate)
+	if sampleRate < 44100 {
+		score -= 20
+	}
+
+	return math.Max(0, math.Min(100, score))
+}
+
+// detectQualityIssues identifies common audio quality issues
+func (p *AudioProcessor) detectQualityIssues(metrics *QualityMetrics) []string {
+	var issues []string
+
+	if metrics.PeakLevel > -1.0 {
+		issues = append(issues, "Possible clipping detected")
+	}
+
+	if metrics.PeakLevel < -20.0 {
+		issues = append(issues, "Audio level too low")
+	}
+
+	if metrics.RMSLevel < -30.0 {
+		issues = append(issues, "Very low average level")
+	}
+
+	if metrics.DynamicRange > 0 && metrics.DynamicRange < 6.0 {
+		issues = append(issues, "Over-compressed (low dynamic range)")
+	}
+
+	bitrate, _ := strconv.Atoi(metrics.Bitrate)
+	if metrics.Format != "wav" && metrics.Format != "flac" && bitrate < 128000 {
+		issues = append(issues, "Low bitrate may affect quality")
+	}
+
+	sampleRate, _ := strconv.Atoi(metrics.SampleRate)
+	if sampleRate < 44100 {
+		issues = append(issues, "Low sample rate")
+	}
+
+	return issues
+}
+
+// QualityMetrics holds audio quality analysis results
+type QualityMetrics struct {
+	Format       string   `json:"format"`
+	Codec        string   `json:"codec"`
+	SampleRate   string   `json:"sample_rate"`
+	Channels     int      `json:"channels"`
+	Bitrate      string   `json:"bitrate"`
+	RMSLevel     float64  `json:"rms_level_db"`
+	PeakLevel    float64  `json:"peak_level_db"`
+	DynamicRange float64  `json:"dynamic_range_db"`
+	QualityScore float64  `json:"quality_score"`
+	Issues       []string `json:"issues,omitempty"`
 }

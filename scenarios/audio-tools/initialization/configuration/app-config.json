@@ -9,8 +9,8 @@
   },
   
   "runtime": {
-    "environment": "development",
-    "debug": true,
+    "environment": "production",
+    "debug": false,
     "log_level": "info",
     "session_timeout_minutes": 30,
     "max_concurrent_users": {{ performance.throughput.concurrent_users | default(10) }},
@@ -132,7 +132,7 @@
     "hot_reload": true,
     "mock_external_services": false,
     "verbose_logging": true,
-    "enable_debug_endpoints": true,
+    "enable_debug_endpoints": false,
     "simulate_latency": false
   }
 }

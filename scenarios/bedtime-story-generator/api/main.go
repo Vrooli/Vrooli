@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"html"
 	"log"
 	"math"
 	"net/http"
@@ -124,6 +125,7 @@ func main() {
 	router.HandleFunc("/api/v1/stories/{id}", getStoryHandler).Methods("GET")
 	router.HandleFunc("/api/v1/stories/{id}/favorite", toggleFavoriteHandler).Methods("POST")
 	router.HandleFunc("/api/v1/stories/{id}/read", startReadingHandler).Methods("POST")
+	router.HandleFunc("/api/v1/stories/{id}/export", exportStoryHandler).Methods("GET")
 	router.HandleFunc("/api/v1/stories/{id}", deleteStoryHandler).Methods("DELETE")
 
 	// Theme endpoints
@@ -727,6 +729,123 @@ func deleteStoryHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Removed story from cache: %s", id)
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func exportStoryHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	// Try to get from cache first
+	if cachedStory, found := storyCache.Get(id); found {
+		sendPDFExport(w, cachedStory)
+		return
+	}
+	
+	// Fetch from database if not in cache
+	var story Story
+	var charactersJSON, illustrationsJSON sql.NullString
+	err := db.QueryRow(`
+		SELECT id, title, content, age_group, theme, story_length, 
+		       reading_time_minutes, character_names, page_count, 
+		       created_at, times_read, last_read, is_favorite, illustrations
+		FROM stories 
+		WHERE id = $1`, id).Scan(
+		&story.ID, &story.Title, &story.Content, &story.AgeGroup, 
+		&story.Theme, &story.StoryLength, &story.ReadingTime, 
+		&charactersJSON, &story.PageCount, &story.CreatedAt, 
+		&story.TimesRead, &story.LastRead, &story.IsFavorite, &illustrationsJSON)
+		
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Story not found", http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	
+	// Parse JSON fields
+	if charactersJSON.Valid {
+		json.Unmarshal([]byte(charactersJSON.String), &story.CharacterNames)
+	}
+	if illustrationsJSON.Valid {
+		json.Unmarshal([]byte(illustrationsJSON.String), &story.Illustrations)
+	}
+	
+	sendPDFExport(w, &story)
+}
+
+func sendPDFExport(w http.ResponseWriter, story *Story) {
+	// Create a simple HTML-like format that can be easily converted to PDF
+	// For now, we'll send it as a formatted text file that can be printed as PDF
+	
+	exportContent := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>%s</title>
+    <style>
+        body {
+            font-family: 'Georgia', serif;
+            margin: 40px;
+            line-height: 1.8;
+            color: #333;
+        }
+        h1 {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        .metadata {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .metadata p {
+            margin: 5px 0;
+        }
+        .content {
+            white-space: pre-wrap;
+            font-size: 16px;
+        }
+        .page-break {
+            page-break-after: always;
+        }
+        @media print {
+            body {
+                margin: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>%s</h1>
+    <div class="metadata">
+        <p><strong>Age Group:</strong> %s</p>
+        <p><strong>Theme:</strong> %s</p>
+        <p><strong>Reading Time:</strong> %d minutes</p>
+        <p><strong>Created:</strong> %s</p>
+    </div>
+    <div class="content">%s</div>
+</body>
+</html>`,
+		html.EscapeString(story.Title),
+		html.EscapeString(story.Title),
+		story.AgeGroup,
+		story.Theme,
+		story.ReadingTime,
+		story.CreatedAt.Format("January 2, 2006"),
+		html.EscapeString(story.Content))
+	
+	// Set headers for HTML download (can be printed as PDF)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.html\"", 
+		strings.ReplaceAll(story.Title, " ", "_")))
+	
+	w.Write([]byte(exportContent))
+	log.Printf("Exported story as HTML: %s", story.ID)
 }
 
 func getThemesHandler(w http.ResponseWriter, r *http.Request) {

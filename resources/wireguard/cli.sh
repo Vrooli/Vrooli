@@ -62,6 +62,42 @@ COMMANDS:
       disable <name>    Disable NAT traversal for tunnel
       status            Show NAT traversal status
       test <name>       Test NAT connectivity
+    discovery           Auto-discovery management (mDNS)
+      enable <name>     Enable mDNS discovery for tunnel
+      disable <name>    Disable mDNS discovery
+      scan [timeout]    Scan for WireGuard peers
+      advertise <name>  Advertise tunnel via mDNS
+      status            Show discovery status
+    interface           Multi-interface management
+      create <name>     Create new WireGuard interface
+      delete <name>     Delete WireGuard interface
+      list              List all interfaces
+      config <name>     Configure interface peers
+      status <name>     Show interface status
+    monitor             Monitoring dashboard
+      start [port]      Start web dashboard (default: 8080)
+      stop              Stop web dashboard
+      status            Show dashboard status
+    mesh                Full mesh topology management
+      create <name>     Create mesh network configuration
+      join <name> <peer> Join existing mesh network
+      leave <name>      Leave mesh network
+      status <name>     Show mesh topology status
+      sync <name>       Sync peer configurations
+    balance             Load balancing management
+      enable <iface>    Enable load balancing for interface
+      disable <iface>   Disable load balancing
+      add-path <iface>  Add alternative path for balancing
+      remove-path       Remove path from load balancing
+      status            Show load balancing status
+      policy <iface>    Set balancing policy (round-robin/weighted/failover)
+    qos                 Quality of Service management
+      enable <iface>    Enable QoS for interface
+      disable <iface>   Disable QoS
+      set-limit <iface> Set bandwidth limits (e.g., 100mbit)
+      priority <iface>  Set traffic priority rules
+      class <iface>     Define traffic classes
+      status            Show QoS configuration and statistics
 
 EXAMPLES:
     # Install and start WireGuard
@@ -157,6 +193,24 @@ main() {
             ;;
         nat)
             handle_nat_command "$@"
+            ;;
+        discovery)
+            handle_discovery_command "$@"
+            ;;
+        interface)
+            handle_interface_command "$@"
+            ;;
+        monitor)
+            handle_monitor_command "$@"
+            ;;
+        mesh)
+            handle_mesh_command "$@"
+            ;;
+        balance)
+            handle_balance_command "$@"
+            ;;
+        qos)
+            handle_qos_command "$@"
             ;;
         *)
             echo "Error: Unknown command: $command" >&2

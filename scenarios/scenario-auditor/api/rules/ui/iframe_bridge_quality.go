@@ -70,6 +70,32 @@ if (typeof window !== 'undefined' && window.parent !== window) {
   <expected-message>Missing bridge invocation</expected-message>
 </test-case>
 
+<test-case id="entry-log-disabled" should-fail="true" path="testdata/entry-log-disabled/ui/src/main.tsx">
+  <description>Entry disables iframe log capture</description>
+  <input language="typescript"><![CDATA[
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+  initIframeBridgeChild({ appId: 'demo', captureLogs: false })
+}
+]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>log capture</expected-message>
+</test-case>
+
+<test-case id="entry-network-disabled" should-fail="true" path="testdata/entry-network-disabled/ui/src/main.tsx">
+  <description>Entry disables iframe network capture</description>
+  <input language="typescript"><![CDATA[
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+  initIframeBridgeChild({ appId: 'demo', captureNetwork: { enabled: false } })
+}
+]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>network capture</expected-message>
+</test-case>
+
 <test-case id="package-shared-valid" should-fail="false" path="testdata/package-shared-valid/ui/package.json">
   <description>UI package declares the shared iframe bridge dependency</description>
   <input language="json">
@@ -102,6 +128,8 @@ var (
 	bridgeGuardPattern      = regexp.MustCompile(`window\.parent\s*(?:!==|!=|===|==)\s*window`)
 	appIDPattern            = regexp.MustCompile(`appId\s*:\s*['"]`)
 	bridgeImportPattern     = regexp.MustCompile(`(?m)(import\s+[^;]*@vrooli/iframe-bridge[^\n]*|require\([^\n]*@vrooli/iframe-bridge[^\n]*\))`)
+	captureLogsDisabledPattern    = regexp.MustCompile(`(?s)captureLogs\s*:\s*(?:false|\{[^}]*enabled\s*:\s*false)`)
+	captureNetworkDisabledPattern = regexp.MustCompile(`(?s)captureNetwork\s*:\s*(?:false|\{[^}]*enabled\s*:\s*false)`)
 )
 
 const sharedBridgePackageName = "@vrooli/iframe-bridge"
@@ -189,6 +217,13 @@ func validateEntry(content []byte, path string) []rules.Violation {
 
 	if called && !appIDPattern.MatchString(source) {
 		violations = append(violations, newBridgeViolation(path, "UI entry file must pass appId in bridge options"))
+	}
+
+	if captureLogsDisabledPattern.MatchString(source) {
+		violations = append(violations, newBridgeViolation(path, "UI entry must not disable iframe log capture (captureLogs.enabled=false)"))
+	}
+	if captureNetworkDisabledPattern.MatchString(source) {
+		violations = append(violations, newBridgeViolation(path, "UI entry must not disable iframe network capture (captureNetwork.enabled=false)"))
 	}
 
 	return dedupeViolations(violations)

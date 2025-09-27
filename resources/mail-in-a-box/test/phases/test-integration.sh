@@ -73,7 +73,7 @@ test_create_account() {
     echo "Testing: Account creation..."
     
     # Skip if service not running
-    if ! docker ps | grep -q mailinabox; then
+    if ! docker ps --format "{{.Names}}" | grep -q "^mailinabox$"; then
         test_pass "Account creation skipped (service not running)"
         return 0
     fi
@@ -91,7 +91,7 @@ test_create_alias() {
     echo "Testing: Alias creation..."
     
     # Skip if service not running
-    if ! docker ps | grep -q mailinabox; then
+    if ! docker ps --format "{{.Names}}" | grep -q "^mailinabox$"; then
         test_pass "Alias creation skipped (service not running)"
         return 0
     fi
@@ -149,9 +149,9 @@ test_webmail() {
     echo "Testing: Webmail interface..."
     
     # Check if Roundcube container is running
-    if docker ps | grep -q mailinabox-webmail; then
+    if docker ps --format "{{.Names}}" | grep -q "^mailinabox-webmail$"; then
         local response_code
-        response_code=$(timeout 5 curl -sk -o /dev/null -w "%{http_code}" "http://localhost:8080" 2>/dev/null || echo "000")
+        response_code=$(timeout 5 curl -sk -o /dev/null -w "%{http_code}" "http://localhost:8880" 2>/dev/null || echo "000")
         
         if [[ "$response_code" == "200" ]] || [[ "$response_code" == "302" ]]; then
             test_pass "Roundcube webmail accessible (HTTP $response_code)"
@@ -198,7 +198,7 @@ main() {
     echo "==================================="
     
     # Check if service is running first
-    if ! docker ps | grep -q mailinabox; then
+    if ! docker ps --format "{{.Names}}" | grep -q "^mailinabox$"; then
         echo -e "${YELLOW}Warning: Mail-in-a-Box container not running${NC}"
         echo "Some tests will be skipped. Start the service with:"
         echo "  vrooli resource mail-in-a-box develop"

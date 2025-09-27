@@ -88,7 +88,7 @@ mailinabox_api_list_accounts() {
         return 1
     fi
     
-    local accounts=$(mailinabox_list_content | grep -E "^[^@]+@[^@]+$" | jq -R . | jq -s .)
+    local accounts=$(mailinabox_list_accounts | grep -E "^[^@]+@[^@]+$" | jq -R . | jq -s .)
     echo "{\"accounts\": ${accounts:-[]}}"
 }
 
