@@ -1,15 +1,18 @@
-import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { getReadingTimeMessage } from '../utils/timeUtils';
+import React, { useMemo } from "react";
+import { motion } from "framer-motion";
+import { getReadingTimeMessage } from "../utils/timeUtils";
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.4 }
+  transition: { duration: 0.4 },
 };
 
-const getStoryPreview = (content = '') => {
-  const clean = content.replace(/[#*_`>-]/g, ' ').replace(/\s+/g, ' ').trim();
+const getStoryPreview = (content = "") => {
+  const clean = content
+    .replace(/[#*_`>-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return clean.length > 160 ? `${clean.slice(0, 160)}…` : clean;
 };
 
@@ -20,7 +23,7 @@ const Bookshelf = ({
   onToggleFavorite,
   onDeleteStory,
   onCloseLibrary,
-  loading
+  loading,
 }) => {
   const orderedStories = useMemo(() => {
     if (!stories?.length) return [];
@@ -85,22 +88,28 @@ const Bookshelf = ({
             return (
               <motion.article
                 key={story.id}
-                className={`story-card ${story.is_favorite ? 'favorite' : ''}`}
+                className={`story-card ${story.is_favorite ? "favorite" : ""}`}
                 initial={{ opacity: 0, y: 30, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ delay: index * 0.04 }}
               >
                 <div className="story-card-top">
-                  <span className="story-theme">{story.theme || 'Original'}</span>
+                  <span className="story-theme">
+                    {story.theme || "Original"}
+                  </span>
                   <button
                     className="icon-button"
-                    aria-label={story.is_favorite ? 'Remove from favourites' : 'Mark as favourite'}
+                    aria-label={
+                      story.is_favorite
+                        ? "Remove from favourites"
+                        : "Mark as favourite"
+                    }
                     onClick={(e) => {
                       e.stopPropagation();
                       onToggleFavorite(story.id);
                     }}
                   >
-                    {story.is_favorite ? '💜' : '🤍'}
+                    {story.is_favorite ? "💜" : "🤍"}
                   </button>
                 </div>
 
@@ -114,11 +123,15 @@ const Bookshelf = ({
                 <p className="story-preview">{preview}</p>
 
                 <div className="story-meta">
-                  <span>{story.age_group || 'Ages 3-10'}</span>
+                  <span>{story.age_group || "Ages 3-10"}</span>
                   <span>{story.reading_time_minutes || 5} min</span>
                   {lastRead && (
                     <span>
-                      Read {lastRead.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      Read{" "}
+                      {lastRead.toLocaleDateString([], {
+                        month: "short",
+                        day: "numeric",
+                      })}
                     </span>
                   )}
                 </div>

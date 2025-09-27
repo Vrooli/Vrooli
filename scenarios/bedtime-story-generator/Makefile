@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help run stop test logs status health clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -62,6 +62,13 @@ logs: ## Show recent logs for this scenario
 status: ## Check if scenario is running
 	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
+
+health: ## Check API and UI health endpoints
+	@echo "$(BLUE)🩺 Health check for $(SCENARIO_NAME):$(RESET)"
+	@API_PORT=$$(vrooli scenario status $(SCENARIO_NAME) --json 2>/dev/null | jq -r '.ports.api' 2>/dev/null || echo "16933"); \
+	UI_PORT=$$(vrooli scenario status $(SCENARIO_NAME) --json 2>/dev/null | jq -r '.ports.ui' 2>/dev/null || echo "38928"); \
+	echo "  API: " && curl -sf http://localhost:$$API_PORT/health && echo "" || echo "$(RED)✗ API not responding$(RESET)"; \
+	echo "  UI:  http://localhost:$$UI_PORT $(GREEN)✓$(RESET)"
 
 clean: ## Clean build artifacts
 	@echo "$(YELLOW)🧹 Cleaning $(SCENARIO_NAME) build artifacts...$(RESET)"

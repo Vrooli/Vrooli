@@ -1,23 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import ReactMarkdown from 'react-markdown';
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from "react-markdown";
 
 const overlayVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1 },
-  exit: { opacity: 0 }
+  exit: { opacity: 0 },
 };
 
 const panelVariants = {
   hidden: { opacity: 0, y: 20, scale: 0.98 },
   visible: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: 20, scale: 0.96 }
+  exit: { opacity: 0, y: 20, scale: 0.96 },
 };
 
 const pageVariants = {
   enter: (direction) => ({ x: direction > 0 ? 120 : -120, opacity: 0 }),
   center: { x: 0, opacity: 1 },
-  exit: (direction) => ({ x: direction < 0 ? 120 : -120, opacity: 0 })
+  exit: (direction) => ({ x: direction < 0 ? 120 : -120, opacity: 0 }),
 };
 
 const BookReader = ({ story, onClose }) => {
@@ -29,10 +29,14 @@ const BookReader = ({ story, onClose }) => {
   const [availableVoices, setAvailableVoices] = useState([]);
 
   useEffect(() => {
-    const splitPages = story.content.split('## Page');
+    const splitPages = story.content.split("## Page");
     const formattedPages = splitPages
       .filter((page) => page.trim())
-      .map((page) => (page.trim().match(/^\d/) ? page.replace(/^\d+/, '').trim() : page.trim()));
+      .map((page) =>
+        page.trim().match(/^\d/)
+          ? page.replace(/^\d+/, "").trim()
+          : page.trim(),
+      );
     setPages(formattedPages);
     setCurrentPage(0);
   }, [story]);
@@ -43,12 +47,14 @@ const BookReader = ({ story, onClose }) => {
       const voices = window.speechSynthesis.getVoices();
       setAvailableVoices(voices);
       // Try to find a child-friendly or female voice
-      const preferredVoice = voices.find(voice => 
-        voice.name.toLowerCase().includes('female') || 
-        voice.name.toLowerCase().includes('child') ||
-        voice.name.toLowerCase().includes('samantha') ||
-        voice.name.toLowerCase().includes('victoria')
-      ) || voices[0];
+      const preferredVoice =
+        voices.find(
+          (voice) =>
+            voice.name.toLowerCase().includes("female") ||
+            voice.name.toLowerCase().includes("child") ||
+            voice.name.toLowerCase().includes("samantha") ||
+            voice.name.toLowerCase().includes("victoria"),
+        ) || voices[0];
       setSpeechVoice(preferredVoice);
     };
 
@@ -62,28 +68,28 @@ const BookReader = ({ story, onClose }) => {
   }, []);
 
   const speakText = (text) => {
-    if ('speechSynthesis' in window) {
+    if ("speechSynthesis" in window) {
       // Cancel any ongoing speech
       window.speechSynthesis.cancel();
-      
+
       // Remove markdown formatting for cleaner speech
       const cleanText = text
-        .replace(/\*\*/g, '') // Remove bold markers
-        .replace(/##/g, '')   // Remove headers
-        .replace(/\n\n/g, '. ') // Replace double newlines with periods
-        .replace(/\n/g, ' ');  // Replace single newlines with spaces
-      
+        .replace(/\*\*/g, "") // Remove bold markers
+        .replace(/##/g, "") // Remove headers
+        .replace(/\n\n/g, ". ") // Replace double newlines with periods
+        .replace(/\n/g, " "); // Replace single newlines with spaces
+
       const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.rate = speechRate;
       utterance.pitch = 1.1; // Slightly higher pitch for friendlier sound
       if (speechVoice) {
         utterance.voice = speechVoice;
       }
-      
+
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => setIsSpeaking(false);
       utterance.onerror = () => setIsSpeaking(false);
-      
+
       window.speechSynthesis.speak(utterance);
     }
   };
@@ -123,8 +129,17 @@ const BookReader = ({ story, onClose }) => {
       exit="exit"
       variants={overlayVariants}
     >
-      <motion.div className="reader-panel" role="dialog" aria-modal="true" variants={panelVariants}>
-        <button className="icon-button close" onClick={onClose} aria-label="Close story">
+      <motion.div
+        className="reader-panel"
+        role="dialog"
+        aria-modal="true"
+        variants={panelVariants}
+      >
+        <button
+          className="icon-button close"
+          onClick={onClose}
+          aria-label="Close story"
+        >
           ✕
         </button>
 
@@ -138,9 +153,14 @@ const BookReader = ({ story, onClose }) => {
             </div>
           </div>
           <div className="reader-progress">
-            <span>Page {pages.length ? currentPage + 1 : 0} of {pages.length || 0}</span>
+            <span>
+              Page {pages.length ? currentPage + 1 : 0} of {pages.length || 0}
+            </span>
             <div className="progress-track">
-              <div className="progress-thumb" style={{ width: `${progress}%` }} />
+              <div
+                className="progress-thumb"
+                style={{ width: `${progress}%` }}
+              />
             </div>
           </div>
         </header>
@@ -158,7 +178,7 @@ const BookReader = ({ story, onClose }) => {
                 transition={{ duration: 0.4 }}
                 className="reader-page"
               >
-                <ReactMarkdown>{pages[currentPage] || ''}</ReactMarkdown>
+                <ReactMarkdown>{pages[currentPage] || ""}</ReactMarkdown>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -167,18 +187,23 @@ const BookReader = ({ story, onClose }) => {
             <div className="aside-card">
               <h3>Bedtime tip</h3>
               <p>
-                Read slowly and pause after each page to ask your listener what they imagine. It keeps
-                bedtime calm and collaborative.
+                Read slowly and pause after each page to ask your listener what
+                they imagine. It keeps bedtime calm and collaborative.
               </p>
             </div>
             <div className="aside-card">
               <h3>Story stats</h3>
               <ul>
-                <li><strong>Reads:</strong> {story.times_read || 0}</li>
+                <li>
+                  <strong>Reads:</strong> {story.times_read || 0}
+                </li>
                 {story.last_read && (
                   <li>
-                    <strong>Last shared:</strong>{' '}
-                    {new Date(story.last_read).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                    <strong>Last shared:</strong>{" "}
+                    {new Date(story.last_read).toLocaleDateString([], {
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </li>
                 )}
               </ul>
@@ -187,19 +212,25 @@ const BookReader = ({ story, onClose }) => {
         </section>
 
         <footer className="reader-controls">
-          <button className="ghost-action" onClick={prevPage} disabled={currentPage === 0}>
+          <button
+            className="ghost-action"
+            onClick={prevPage}
+            disabled={currentPage === 0}
+          >
             ← Previous
           </button>
-          
-          <button 
-            className={`speech-button ${isSpeaking ? 'speaking' : ''}`}
+
+          <button
+            className={`speech-button ${isSpeaking ? "speaking" : ""}`}
             onClick={toggleSpeech}
-            title={isSpeaking ? 'Stop reading' : 'Read aloud'}
-            aria-label={isSpeaking ? 'Stop reading aloud' : 'Start reading aloud'}
+            title={isSpeaking ? "Stop reading" : "Read aloud"}
+            aria-label={
+              isSpeaking ? "Stop reading aloud" : "Start reading aloud"
+            }
           >
-            {isSpeaking ? '🔊 Stop' : '🔈 Read Aloud'}
+            {isSpeaking ? "🔊 Stop" : "🔈 Read Aloud"}
           </button>
-          
+
           {currentPage === pages.length - 1 ? (
             <button className="primary-action" onClick={onClose}>
               Back to library

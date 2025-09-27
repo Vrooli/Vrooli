@@ -1,210 +1,118 @@
-# 📚 Bedtime Story Generator
+# 🌙 Bedtime Story Generator – Immersive Edition
 
-An interactive bedtime story generator with a time-aware children's room UI that creates age-appropriate, calming stories perfect for bedtime routines.
+Bedtime Story Generator is evolving from a “storybook app” into a Bruno-level, cinematic bedtime suite. We now pair age-aware storytelling with a hand-crafted 3D bedroom that breathes, glows, and reacts to every tale you spin. Think curated glTF assets, baked lighting blends, diegetic HUDs, and developer tooling that lives inside the scene—without sacrificing the production-grade API, CLI, and database backbone we already shipped.
 
-## 🌟 Features
+## ✨ What’s New & Why It Matters
+- **Cinematic 3D Children’s Room** – Custom Experience engine (Three.js + React) renders a light-baked bedroom with day/evening/night palettes, dynamic particles, and camera choreography inspired by Bruno Simon’s “My Room in 3D.”
+- **Diegetic Story Surfaces** – The bookshelf hotspot summons a holographic HUD; a projector streams story previews; the reader unfolds as an open book on the bed while DOM fallbacks keep everything accessible.
+- **Living Developer Console** – Developer mode becomes a floating Tweakpane-style console inside the room, synchronized with a DOM mirror for quick tweaks, preset management, and performance metrics.
+- **State-Driven Atmosphere** – Story metadata drives shader accents, ambient audio, sparkles, and screen content so the room reflects the tale being told.
+- **Reusable Engine Blueprint** – The new `/ui/src/three` Experience layer documents an asset + renderer workflow that future scenarios can clone to reach this level of polish fast.
 
-### Time-Aware Room Experience
-- **Daytime (6am-6pm)**: Bright, sunny room with natural lighting
-- **Evening (6pm-9pm)**: Warm lamp glow with sunset colors
-- **Nighttime (9pm-6am)**: Gentle nightlight with starry sky
+## 🌟 Core Feature Set (vNext)
+- Cinematic room with baked lightmaps and HDR blends (day/evening/night).
+- Hotspot navigation + camera rail that focuses on bookshelf, bed stage, window, and ceiling mobile.
+- Story generator & reader embedded inside the environment, mirrored in React HUD and CLI.
+- Developer/debug holographic console with preset saving, stats, and asset toggles.
+- Asset loader & manifest supporting GLB, KTX2 textures, HDR skies, video loops.
+- Accessibility coverage: keyboard navigation, SR-friendly DOM, reduced-motion mode, low-spec fallback.
 
-### Story Generation
-- Age-appropriate content for 3-5, 6-8, and 9-12 year olds
-- Multiple themes: Adventure, Animals, Fantasy, Space, Ocean, and more
-- Customizable story length (3-15 minutes)
-- Optional character name personalization
-- Direct Ollama integration for fast story generation (no n8n workflows!)
+## 🧠 Purpose & Value
+This scenario still anchors Vrooli’s bedtime storytelling capability, but now it also teaches agents how to:
+- Build unforgettable 3D experiences tied to business value.
+- Operate a modern 3D asset pipeline (Blender ➜ glTF ➜ engine).
+- Present operational tooling (developer modes, analytics) in-world without losing clarity or accessibility.
+- Manage performance budgets while layering AI-generated content into a real-time environment.
 
-### Interactive Reading Experience
-- Beautiful book-like interface with page turning
-- Reading progress tracking
-- Favorite stories feature
-- Reading time estimates
-- Kid-friendly typography and colors
-
-## 🎯 Purpose & Value
-
-This scenario adds permanent storytelling capability to Vrooli, enabling:
-- Healthy bedtime routines for families
-- Safe, AI-generated children's content
-- Foundation for educational content generation
-- Reading habit development
-
-## 🚀 Quick Start
-
-### Setup
+## 🚀 Getting Started
 ```bash
-# From the scenario directory
+# 1. Start the scenario (manages API, UI, resources)
 vrooli scenario run bedtime-story-generator
-```
 
-### Generate a Story
-```bash
-# Using CLI
+# 2. Visit the immersive room (port shown in logs)
+# Check status to see assigned ports:
+vrooli scenario status bedtime-story-generator
+
+# 3. Generate a story via CLI (still works!)
 bedtime-story generate --age-group "6-8" --theme "Adventure"
-
-# Or visit the UI
-http://localhost:40000
 ```
 
-### Access from Kids Dashboard
-The scenario is automatically discoverable by the kids-dashboard thanks to the `kid-friendly` tag.
+> ⚠️ The immersive UI refactor is in-flight. You can run the current app today; as we land each phase, the Experience engine will progressively replace the existing React room.
+
+Inside the UI you can launch the **Immersive Prototype** panel to preview the new Experience engine and watch the room react to live story data while we build out the full environment.
+
+### Local Asset Pipeline (coming online during Phase 1)
+```bash
+# Export Blender scene ➜ glTF with baked textures
+npm run assets:export
+
+# Compress textures to KTX2 / Basis
+npm run assets:textures
+
+# Validate manifests & hot reload into the Experience engine
+npm run assets:validate
+```
+
+Current manifest lives at `ui/src/assets/manifest.js`. The prototype points to `/prototype/...` files—swap these with real exports as soon as the blockout lands.
 
 ## 🛠️ Technical Stack
+- **API**: Go (REST) with PostgreSQL persistence, Ollama-powered story generation.
+- **UI Shell**: React + Zustand shared store bridging DOM panels and Experience engine.
+- **Experience Engine**: Three.js, EffectComposer, custom renderer/navigator modeled after Bruno’s architecture.
+- **Asset Pipeline**: Blender templates, gltfpack/meshoptimizer, basisu (KTX2 textures), HDR environment maps.
+- **Testing**: Go integration suite, Jest/Vitest for HUD + utilities, Playwright visual snapshots, Cypress hotspot smoke tests.
 
-### Resources
-- **PostgreSQL**: Stores stories and reading history
-- **Ollama**: Generates stories using llama3.2:3b model
-- **Redis** (optional): Caches frequently read stories
-
-### Architecture
-- **API**: Go-based REST API (port 20000)
-- **UI**: React with time-aware theming (port 40000)
-- **CLI**: Bash wrapper for API functionality
-- **Database**: PostgreSQL with story and session tracking
-
-## 📖 API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/api/v1/stories` | GET | List all stories |
-| `/api/v1/stories/generate` | POST | Generate new story |
-| `/api/v1/stories/:id` | GET | Get specific story |
-| `/api/v1/stories/:id/favorite` | POST | Toggle favorite |
-| `/api/v1/stories/:id/read` | POST | Track reading session |
-| `/api/v1/themes` | GET | List available themes |
-
-## 🎨 UI/UX Design
-
-### Visual Style
-- **Theme**: Cozy children's bedroom
-- **Typography**: Nunito and Grandstander fonts
-- **Colors**: Time-adaptive color schemes
-- **Animations**: Gentle page turns and transitions
-
-### Accessibility
-- Large, readable fonts
-- High contrast options
-- Simple navigation
-- Parent-friendly controls
-
-## 🔧 CLI Commands
-
-```bash
-# Check service status
-bedtime-story status
-
-# Generate a story
-bedtime-story generate --age-group "6-8" --theme "Space" --length "medium"
-
-# List all stories  
-bedtime-story list --favorites
-
-# Read a specific story
-bedtime-story read <story-id>
-
-# Mark as favorite
-bedtime-story favorite <story-id>
-
-# Show available themes
-bedtime-story themes
+## 🔄 Architecture at a Glance
+```
+React Shell ──┐
+             ├─ Zustand Store ── Story Data, Developer State, Time-of-Day
+Experience    │       ▲
+ Engine <─────┘       │
+  ├─ Renderer (Three.js + PostFX)
+  ├─ CameraRig (spherical nav, cinematic rails)
+  ├─ Resources (assets manifest, GLB/texture loaders)
+  ├─ World Modules (Bookshelf, Bed Stage, Projector, Developer Console)
+  └─ Hotspot Controller (hover, activate, analytics)
 ```
 
-## 📊 Database Schema
+## ✅ Current Capabilities (still live)
+- API endpoints for story CRUD/generation (`/api/v1/stories`, `/generate`, `/favorite`, `/read`).
+- CLI wrapper (`bedtime-story`) for generation, listing, reading, favorites.
+- PostgreSQL schema for stories, reading sessions, user preferences.
+- Kids-dashboard integration via `kid-friendly` tag.
+- Basic React UI (will be replaced, but remains functional during the transition).
 
-### Tables
-- **stories**: Generated stories with metadata
-- **reading_sessions**: Track reading progress
-- **story_themes**: Available story themes
-- **user_preferences**: Personalization settings
+## 📅 Roadmap Snapshot
+| Phase | Focus | Highlights |
+|-------|-------|------------|
+| **1 – Foundations** | Asset prep & engine scaffolding | `/ui/src/three` Experience skeleton, manifests, loader progress HUD |
+| **2 – World Build** | Import GLBs, lighting blends, hotspots | Cinematic camera rails, bookshelf HUD, diegetic reader/generator |
+| **3 – Developer Mode** | Holographic console, perf dashboards | Preset save/load, particle/audio binding to story metadata |
+| **4 – Polish & Launch** | Accessibility, QA, documentation | Visual regression suite, marketing captures, asset pipeline docs |
 
-### Key Features
-- Automatic read count tracking
-- Session duration calculation
-- Popular stories view
-- Recent activity tracking
+Track progress and open issues in `PROBLEMS.md` and the scenario Kanban (link forthcoming).
 
-## 🔒 Safety & Security
+## 🧪 Testing & Quality
+- `make test` – Runs Go API tests and CLI BATS suite.
+- `npm test` (UI) – Jest/Vitest suite for HUD/Experience utilities.
+- `npm run test:e2e` – Cypress hotspot interaction smoke (Phase 2 target).
+- `npm run test:visual` – Playwright visual snapshots (Phase 3 target).
 
-- **Content Filtering**: Strict age-appropriate prompts
-- **No External Content**: All stories generated locally
-- **No Data Collection**: Stories stored locally only
-- **Parent Controls**: Available through preferences
+## 🤝 Integrations
+- **Provides**: Kids dashboard story shelf, Education tracker reading metrics, Text-to-speech scenario content feed.
+- **Consumes**: Ollama LLMs, Postgres storage, optional Redis cache for story metadata + asset hints.
 
-## 🚦 Performance Targets
+## 🛡️ Safety & Accessibility
+- Prompt guardrails ensure stories stay age-appropriate.
+- No external data collection—everything persists locally.
+- Keyboard + SR-friendly fallback mirrored for every diegetic control.
+- Low-spec toggle disables heavy post-processing and particle FX.
 
-| Metric | Target | Actual |
-|--------|--------|--------|
-| Story Generation | < 5s | ~3-4s |
-| UI Load Time | < 2s | ~1.5s |
-| Story Retrieval | < 200ms | ~100ms |
-| Memory Usage | < 200MB | ~150MB |
-
-## 🔄 Integration with Other Scenarios
-
-### Provides To
-- **kids-dashboard**: Interactive story reading experience
-- **education-tracker**: Reading progress data
-- **text-to-speech**: Story content for audio
-
-### Consumes From
-- **kids-dashboard**: User session and preferences
-- **ollama**: Story generation capability
-
-## 🐛 Troubleshooting
-
-### Story Generation Fails
-1. Check Ollama is running: `resource-ollama status`
-2. Ensure model is available: `ollama list`
-3. Check API logs: `docker logs bedtime-story-api`
-
-### UI Not Loading
-1. Check if built: `ls ui/dist`
-2. Build if needed: `cd ui && npm install && npm run build`
-3. Check port availability: `lsof -i :40000`
-
-### Database Issues
-1. Check PostgreSQL: `resource-postgres status`
-2. Verify schema: `resource-postgres exec '\dt'`
-3. Check connection env vars
-
-## 📈 Future Enhancements
-
-- [ ] Text-to-speech reading
-- [ ] AI-generated illustrations
-- [ ] Multi-language support
-- [ ] Parent dashboard
-- [ ] Story sharing features
-- [ ] Educational metrics
-- [ ] Offline story caching
-- [ ] Voice-activated story requests
-
-## 👪 Target Audience
-
-**Primary Users**: Children ages 3-12 and their parents
-**Use Cases**: 
-- Bedtime routines
-- Quiet time activities
-- Early reading development
-- Creative entertainment
-
-## 💡 Tips for Parents
-
-1. **Set a routine**: Use the same time each night for consistency
-2. **Personalize**: Add your child's name to make stories special
-3. **Discuss**: Talk about the story's lessons afterward
-4. **Track progress**: Use favorites to revisit loved stories
-5. **Adjust length**: Start with short stories for younger children
-
-## 🎉 Fun Facts
-
-- The room lighting actually follows your local sunrise/sunset!
-- Each book on the shelf has a unique color combination
-- The nightlight has a gentle pulsing animation
-- Stories always end with calming imagery for better sleep
+## 🔮 Future Enhancements
+- Parent narration mode (radio/lamp audio playback with generated speech).
+- Procedural star map reflecting nightly reading streaks.
+- Photo-mode + shareable story posters captured from the cinematic camera rig.
+- Asset kit export so other scenarios can bootstrap immersive rooms quickly.
 
 ---
-
-**Part of the Vrooli Ecosystem** - Building permanent intelligence, one bedtime story at a time! 🌙✨
+**Part of the Vrooli Ecosystem** – Building permanent intelligence, one breathtaking bedtime experience at a time. 🌌📖

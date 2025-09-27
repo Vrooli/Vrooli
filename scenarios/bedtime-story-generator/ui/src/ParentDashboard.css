@@ -83,7 +83,8 @@
   border-radius: 15px;
 }
 
-.filter-select, .sort-select {
+.filter-select,
+.sort-select {
   padding: 10px 15px;
   border-radius: 8px;
   border: 2px solid rgba(255, 255, 255, 0.3);
@@ -94,7 +95,8 @@
   transition: all 0.3s ease;
 }
 
-.filter-select:hover, .sort-select:hover {
+.filter-select:hover,
+.sort-select:hover {
   border-color: #667eea;
 }
 
@@ -162,8 +164,13 @@
 }
 
 @keyframes sparkle {
-  0%, 100% { transform: scale(1) rotate(0deg); }
-  50% { transform: scale(1.2) rotate(180deg); }
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(180deg);
+  }
 }
 
 .story-card-meta {
@@ -172,7 +179,8 @@
   margin-bottom: 15px;
 }
 
-.age-badge, .theme-badge {
+.age-badge,
+.theme-badge {
   padding: 3px 8px;
   border-radius: 12px;
   font-size: 0.8rem;
@@ -200,7 +208,8 @@
   gap: 10px;
 }
 
-.export-btn, .delete-btn {
+.export-btn,
+.delete-btn {
   padding: 6px 12px;
   border-radius: 6px;
   border: none;
@@ -274,14 +283,15 @@
 .story-content pre {
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: 'Georgia', serif;
+  font-family: "Georgia", serif;
   line-height: 1.6;
   color: #333;
   max-height: 400px;
   overflow-y: auto;
 }
 
-.loading, .no-stories {
+.loading,
+.no-stories {
   text-align: center;
   padding: 40px;
   color: #666;
@@ -294,7 +304,7 @@
     grid-template-columns: 1fr;
     height: auto;
   }
-  
+
   .story-preview {
     margin-top: 20px;
   }
@@ -304,12 +314,13 @@
   .dashboard-stats {
     grid-template-columns: 1fr 1fr;
   }
-  
+
   .dashboard-controls {
     flex-direction: column;
   }
-  
-  .filter-select, .sort-select {
+
+  .filter-select,
+  .sort-select {
     width: 100%;
   }
 }

@@ -7,7 +7,8 @@
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "assets:blockout": "node ./scripts/generate-blockout.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -19,7 +20,10 @@
     "three": "^0.161.0",
     "@react-three/fiber": "^8.15.13",
     "@react-three/drei": "^9.105.0",
-    "@react-three/postprocessing": "^2.16.0"
+    "@react-three/postprocessing": "^2.16.0",
+    "zustand": "^4.5.4",
+    "gsap": "^3.12.5",
+    "normalize-wheel": "^1.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.45",

@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import Bookshelf from './components/Bookshelf';
-import BookReader from './components/BookReader';
-import StoryGenerator from './components/StoryGenerator';
-import { getTimeOfDay, getThemeForTime, getGreeting } from './utils/timeUtils';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import Bookshelf from "./components/Bookshelf";
+import BookReader from "./components/BookReader";
+import StoryGenerator from "./components/StoryGenerator";
+import { getTimeOfDay, getThemeForTime, getGreeting } from "./utils/timeUtils";
 
-const API_URL = process.env.NODE_ENV === 'production' 
-  ? '/api' 
-  : `http://localhost:16902/api`;
+const API_URL =
+  process.env.NODE_ENV === "production" ? "/api" : `http://localhost:16902/api`;
 
 function App() {
   const [stories, setStories] = useState([]);
@@ -26,7 +25,7 @@ function App() {
       const response = await axios.get(`${API_URL}/v1/stories`);
       setStories(response.data || []);
     } catch (error) {
-      console.error('Failed to fetch stories:', error);
+      console.error("Failed to fetch stories:", error);
       setStories([]);
     } finally {
       setLoading(false);
@@ -39,7 +38,7 @@ function App() {
     try {
       await axios.post(`${API_URL}/v1/stories/${story.id}/read`);
     } catch (error) {
-      console.error('Failed to track reading:', error);
+      console.error("Failed to track reading:", error);
     }
   };
 
@@ -50,7 +49,10 @@ function App() {
 
   const handleGenerateStory = async (params) => {
     try {
-      const response = await axios.post(`${API_URL}/v1/stories/generate`, params);
+      const response = await axios.post(
+        `${API_URL}/v1/stories/generate`,
+        params,
+      );
       const newStory = response.data;
       setStories([newStory, ...stories]);
       setSelectedStory(newStory);
@@ -58,7 +60,7 @@ function App() {
       setGeneratorOpen(false);
       return newStory;
     } catch (error) {
-      console.error('Failed to generate story:', error);
+      console.error("Failed to generate story:", error);
       throw error;
     }
   };
@@ -66,41 +68,51 @@ function App() {
   const handleToggleFavorite = async (storyId) => {
     try {
       await axios.post(`${API_URL}/v1/stories/${storyId}/favorite`);
-      setStories(stories.map(s => 
-        s.id === storyId ? { ...s, is_favorite: !s.is_favorite } : s
-      ));
+      setStories(
+        stories.map((s) =>
+          s.id === storyId ? { ...s, is_favorite: !s.is_favorite } : s,
+        ),
+      );
     } catch (error) {
-      console.error('Failed to toggle favorite:', error);
+      console.error("Failed to toggle favorite:", error);
     }
   };
 
   return (
-    <div className={`app ${theme}`} style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(180deg, #bce3ff 0%, #f5fbff 40%, #fef9f2 100%)',
-      padding: '2rem'
-    }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem', color: '#1c3550' }}>
+    <div
+      className={`app ${theme}`}
+      style={{
+        minHeight: "100vh",
+        background:
+          "linear-gradient(180deg, #bce3ff 0%, #f5fbff 40%, #fef9f2 100%)",
+        padding: "2rem",
+      }}
+    >
+      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        <h1
+          style={{ fontSize: "2.5rem", marginBottom: "1rem", color: "#1c3550" }}
+        >
           {getGreeting()} 📚
         </h1>
-        <p style={{ fontSize: '1.2rem', marginBottom: '2rem', color: '#4a5568' }}>
+        <p
+          style={{ fontSize: "1.2rem", marginBottom: "2rem", color: "#4a5568" }}
+        >
           Welcome to the Bedtime Story Generator
         </p>
 
-        <div style={{ marginBottom: '2rem' }}>
+        <div style={{ marginBottom: "2rem" }}>
           <button
             onClick={() => setGeneratorOpen(true)}
             style={{
-              background: 'linear-gradient(135deg, #4f6dff, #a36bff)',
-              color: 'white',
-              border: 'none',
-              padding: '12px 24px',
-              borderRadius: '999px',
-              fontSize: '1.1rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              marginRight: '1rem'
+              background: "linear-gradient(135deg, #4f6dff, #a36bff)",
+              color: "white",
+              border: "none",
+              padding: "12px 24px",
+              borderRadius: "999px",
+              fontSize: "1.1rem",
+              fontWeight: "600",
+              cursor: "pointer",
+              marginRight: "1rem",
             }}
           >
             ✨ Generate New Story
@@ -108,9 +120,9 @@ function App() {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '4rem' }}>
+          <div style={{ textAlign: "center", padding: "4rem" }}>
             <div className="spinner large"></div>
-            <p style={{ marginTop: '1rem' }}>Loading stories...</p>
+            <p style={{ marginTop: "1rem" }}>Loading stories...</p>
           </div>
         ) : (
           <Bookshelf
@@ -129,10 +141,7 @@ function App() {
         )}
 
         {isReading && selectedStory && (
-          <BookReader
-            story={selectedStory}
-            onClose={handleCloseBook}
-          />
+          <BookReader story={selectedStory} onClose={handleCloseBook} />
         )}
       </div>
     </div>

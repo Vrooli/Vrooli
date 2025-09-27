@@ -1,44 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import axios from 'axios';
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import axios from "axios";
 
-const API_URL = process.env.NODE_ENV === 'production'
-  ? '/api'
-  : `http://localhost:${import.meta.env.VITE_API_PORT || '20000'}/api`;
+const DEFAULT_API_PORT = import.meta.env.VITE_API_PORT || "16902";
+const API_URL =
+  process.env.NODE_ENV === "production"
+    ? "/api"
+    : `http://localhost:${DEFAULT_API_PORT}/api`;
 
 const overlayVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1 },
-  exit: { opacity: 0 }
+  exit: { opacity: 0 },
 };
 
 const panelVariants = {
   hidden: { opacity: 0, y: 40, scale: 0.96 },
   visible: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: 20, scale: 0.98 }
+  exit: { opacity: 0, y: 20, scale: 0.98 },
 };
 
 const AGE_OPTIONS = [
-  { value: '3-5', label: '3-5 years', helper: 'Simple & sweet', icon: '🧸' },
-  { value: '6-8', label: '6-8 years', helper: 'Fun adventures', icon: '🧭' },
-  { value: '9-12', label: '9-12 years', helper: 'Epic tales', icon: '🐉' }
+  { value: "3-5", label: "3-5 years", helper: "Simple & sweet", icon: "🧸" },
+  { value: "6-8", label: "6-8 years", helper: "Fun adventures", icon: "🧭" },
+  { value: "9-12", label: "9-12 years", helper: "Epic tales", icon: "🐉" },
 ];
 
 const LENGTH_OPTIONS = [
-  { value: 'short', label: 'Short', helper: '3-5 minutes', icon: '⏱️' },
-  { value: 'medium', label: 'Medium', helper: '8-10 minutes', icon: '🕯️' },
-  { value: 'long', label: 'Long', helper: '12-15 minutes', icon: '🌌' }
+  { value: "short", label: "Short", helper: "3-5 minutes", icon: "⏱️" },
+  { value: "medium", label: "Medium", helper: "8-10 minutes", icon: "🕯️" },
+  { value: "long", label: "Long", helper: "12-15 minutes", icon: "🌌" },
 ];
 
 const StoryGenerator = ({ onGenerate, onCancel }) => {
   const [formData, setFormData] = useState({
-    age_group: '6-8',
-    theme: 'Adventure',
-    length: 'medium',
-    character_names: []
+    age_group: "6-8",
+    theme: "Adventure",
+    length: "medium",
+    character_names: [],
   });
   const [themes, setThemes] = useState([]);
-  const [characterInput, setCharacterInput] = useState('');
+  const [characterInput, setCharacterInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
 
@@ -52,12 +54,12 @@ const StoryGenerator = ({ onGenerate, onCancel }) => {
       setThemes(response.data || []);
     } catch (fetchError) {
       setThemes([
-        { name: 'Adventure', emoji: '🗺️' },
-        { name: 'Animals', emoji: '🦁' },
-        { name: 'Fantasy', emoji: '🦄' },
-        { name: 'Space', emoji: '🚀' },
-        { name: 'Friendship', emoji: '🤝' },
-        { name: 'Ocean', emoji: '🐠' }
+        { name: "Adventure", emoji: "🗺️" },
+        { name: "Animals", emoji: "🦁" },
+        { name: "Fantasy", emoji: "🦄" },
+        { name: "Space", emoji: "🚀" },
+        { name: "Friendship", emoji: "🤝" },
+        { name: "Ocean", emoji: "🐠" },
       ]);
     }
   };
@@ -69,16 +71,16 @@ const StoryGenerator = ({ onGenerate, onCancel }) => {
 
     try {
       const characters = characterInput
-        .split(',')
+        .split(",")
         .map((name) => name.trim())
         .filter(Boolean);
 
       await onGenerate({
         ...formData,
-        character_names: characters
+        character_names: characters,
       });
     } catch (submitError) {
-      setError('The storyteller stumbled. Please try again.');
+      setError("The storyteller stumbled. Please try again.");
       setIsGenerating(false);
     }
   };
@@ -109,7 +111,11 @@ const StoryGenerator = ({ onGenerate, onCancel }) => {
         aria-modal="true"
         variants={panelVariants}
       >
-        <button className="icon-button close" onClick={onCancel} aria-label="Close story generator">
+        <button
+          className="icon-button close"
+          onClick={onCancel}
+          aria-label="Close story generator"
+        >
           ✕
         </button>
 
@@ -135,7 +141,7 @@ const StoryGenerator = ({ onGenerate, onCancel }) => {
                   <button
                     key={option.value}
                     type="button"
-                    className={`chip ${formData.age_group === option.value ? 'active' : ''}`}
+                    className={`chip ${formData.age_group === option.value ? "active" : ""}`}
                     onClick={() => selectAge(option.value)}
                   >
                     <span className="chip-icon">{option.icon}</span>
@@ -155,7 +161,7 @@ const StoryGenerator = ({ onGenerate, onCancel }) => {
                   <button
                     key={option.name}
                     type="button"
-                    className={`pill ${formData.theme === option.name ? 'active' : ''}`}
+                    className={`pill ${formData.theme === option.name ? "active" : ""}`}
                     onClick={() => selectTheme(option.name)}
                   >
                     {option.emoji} {option.name}
@@ -171,7 +177,7 @@ const StoryGenerator = ({ onGenerate, onCancel }) => {
                   <button
                     key={option.value}
                     type="button"
-                    className={`chip ${formData.length === option.value ? 'active' : ''}`}
+                    className={`chip ${formData.length === option.value ? "active" : ""}`}
                     onClick={() => selectLength(option.value)}
                   >
                     <span className="chip-icon">{option.icon}</span>
@@ -185,7 +191,9 @@ const StoryGenerator = ({ onGenerate, onCancel }) => {
             </div>
 
             <div className="control-group">
-              <label className="control-label" htmlFor="characters">Character names</label>
+              <label className="control-label" htmlFor="characters">
+                Character names
+              </label>
               <input
                 id="characters"
                 type="text"
@@ -193,7 +201,10 @@ const StoryGenerator = ({ onGenerate, onCancel }) => {
                 value={characterInput}
                 onChange={(event) => setCharacterInput(event.target.value)}
               />
-              <small>Add children, pets, or favourite characters to personalise the tale.</small>
+              <small>
+                Add children, pets, or favourite characters to personalise the
+                tale.
+              </small>
             </div>
           </fieldset>
 
@@ -201,8 +212,12 @@ const StoryGenerator = ({ onGenerate, onCancel }) => {
             <button type="button" className="ghost-action" onClick={onCancel}>
               Cancel
             </button>
-            <button type="submit" className="primary-action" disabled={isGenerating}>
-              {isGenerating ? 'Crafting…' : 'Generate story'}
+            <button
+              type="submit"
+              className="primary-action"
+              disabled={isGenerating}
+            >
+              {isGenerating ? "Crafting…" : "Generate story"}
             </button>
           </div>
         </form>

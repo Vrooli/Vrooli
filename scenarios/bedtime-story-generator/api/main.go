@@ -1,10 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"html"
 	"log"
 	"math"
 	"net/http"
@@ -16,25 +16,26 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	"github.com/jung-kurt/gofpdf"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 )
 
 type Story struct {
-	ID             string                 `json:"id"`
-	Title          string                 `json:"title"`
-	Content        string                 `json:"content"`
-	AgeGroup       string                 `json:"age_group"`
-	Theme          string                 `json:"theme"`
-	StoryLength    string                 `json:"story_length"`
-	ReadingTime    int                    `json:"reading_time_minutes"`
-	CharacterNames []string               `json:"character_names"`
-	PageCount      int                    `json:"page_count"`
-	CreatedAt      time.Time              `json:"created_at"`
-	TimesRead      int                    `json:"times_read"`
-	LastRead       *time.Time             `json:"last_read"`
-	IsFavorite     bool                   `json:"is_favorite"`
-	Illustrations  map[string]string      `json:"illustrations,omitempty"` // Page number to illustration mapping
+	ID             string            `json:"id"`
+	Title          string            `json:"title"`
+	Content        string            `json:"content"`
+	AgeGroup       string            `json:"age_group"`
+	Theme          string            `json:"theme"`
+	StoryLength    string            `json:"story_length"`
+	ReadingTime    int               `json:"reading_time_minutes"`
+	CharacterNames []string          `json:"character_names"`
+	PageCount      int               `json:"page_count"`
+	CreatedAt      time.Time         `json:"created_at"`
+	TimesRead      int               `json:"times_read"`
+	LastRead       *time.Time        `json:"last_read"`
+	IsFavorite     bool              `json:"is_favorite"`
+	Illustrations  map[string]string `json:"illustrations,omitempty"` // Page number to illustration mapping
 }
 
 type GenerateStoryRequest struct {
@@ -75,7 +76,7 @@ func (c *StoryCache) Get(id string) (*Story, bool) {
 func (c *StoryCache) Set(id string, story *Story) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	
+
 	// Simple eviction: if cache is full, remove oldest entry
 	if len(c.stories) >= c.maxSize {
 		// Remove a random entry (simple strategy)
@@ -226,7 +227,7 @@ func initDB() {
 	}
 
 	log.Println("🎉 Database connection pool established successfully!")
-	
+
 	// Run database migration to ensure illustrations column exists
 	runDatabaseMigration()
 }
@@ -241,19 +242,19 @@ func runDatabaseMigration() {
 			AND column_name = 'illustrations'
 		)
 	`).Scan(&columnExists)
-	
+
 	if err != nil {
 		log.Printf("⚠️  Failed to check illustrations column: %v", err)
 		return
 	}
-	
+
 	if !columnExists {
 		log.Println("📦 Adding illustrations column to stories table...")
 		_, err := db.Exec(`
 			ALTER TABLE stories 
 			ADD COLUMN illustrations JSONB DEFAULT '{}'::jsonb
 		`)
-		
+
 		if err != nil {
 			log.Printf("⚠️  Failed to add illustrations column: %v", err)
 		} else {
@@ -289,6 +290,34 @@ func generateStoryHandler(w http.ResponseWriter, r *http.Request) {
 		req.Length = "medium"
 	}
 
+	// Validate age group
+	validAgeGroups := map[string]bool{"3-5": true, "6-8": true, "9-12": true}
+	if !validAgeGroups[req.AgeGroup] {
+		log.Printf("ERROR: Invalid age group: %s", req.AgeGroup)
+		http.Error(w, fmt.Sprintf("Invalid age group '%s'. Valid options: 3-5, 6-8, 9-12", req.AgeGroup), http.StatusBadRequest)
+		return
+	}
+
+	// Validate theme
+	validThemes := map[string]bool{
+		"Adventure": true, "Animals": true, "Bedtime": true, "Dinosaurs": true,
+		"Fairy Tales": true, "Fantasy": true, "Forest": true, "Friendship": true,
+		"Magic": true, "Ocean": true, "Space": true,
+	}
+	if !validThemes[req.Theme] {
+		log.Printf("ERROR: Invalid theme: %s", req.Theme)
+		http.Error(w, fmt.Sprintf("Invalid theme '%s'. Valid options: Adventure, Animals, Bedtime, Dinosaurs, Fairy Tales, Fantasy, Forest, Friendship, Magic, Ocean, Space", req.Theme), http.StatusBadRequest)
+		return
+	}
+
+	// Validate length
+	validLengths := map[string]bool{"short": true, "medium": true, "long": true}
+	if !validLengths[req.Length] {
+		log.Printf("ERROR: Invalid length: %s", req.Length)
+		http.Error(w, fmt.Sprintf("Invalid length '%s'. Valid options: short, medium, long", req.Length), http.StatusBadRequest)
+		return
+	}
+
 	// Generate story using Ollama
 	log.Printf("Generating story: age_group=%s, theme=%s, length=%s", req.AgeGroup, req.Theme, req.Length)
 	story, err := generateStoryWithOllama(req)
@@ -298,7 +327,7 @@ func generateStoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("Story generated successfully: %s", story.Title)
-	
+
 	// Generate illustrations for the story
 	illustrations := generateIllustrations(story.Content, req.Theme)
 	story.Illustrations = illustrations
@@ -368,7 +397,7 @@ Format: TITLE: [title]\nSTORY:\n## Page 1\n[story with ## Page N markers, calm a
 	if model == "" {
 		model = "llama3.2:1b" // Much smaller and faster 1B model
 	}
-	
+
 	// Adjust token limit based on story length - reduced for speed
 	tokenLimit := 300 // short - reduced from 500
 	if req.Length == "medium" {
@@ -376,18 +405,18 @@ Format: TITLE: [title]\nSTORY:\n## Page 1\n[story with ## Page N markers, calm a
 	} else if req.Length == "long" {
 		tokenLimit = 800 // reduced from 1200
 	}
-	
+
 	requestBody := map[string]interface{}{
 		"model":  model,
 		"prompt": prompt,
 		"stream": false,
 		"options": map[string]interface{}{
-			"temperature":    0.6,  // Lower for more focused output
+			"temperature":    0.6, // Lower for more focused output
 			"num_predict":    tokenLimit,
 			"top_k":          20,   // Reduced from 40 for speed
 			"top_p":          0.85, // Slightly lower for speed
 			"repeat_penalty": 1.1,
-			"seed":           42,   // Consistent seed for caching benefit
+			"seed":           42, // Consistent seed for caching benefit
 		},
 	}
 
@@ -398,7 +427,7 @@ Format: TITLE: [title]\nSTORY:\n## Page 1\n[story with ## Page N markers, calm a
 
 	// Log the request for debugging
 	log.Printf("Calling Ollama API at %s/api/generate with model %s", ollamaHost, model)
-	
+
 	resp, err := http.Post(ollamaHost+"/api/generate", "application/json", strings.NewReader(string(jsonData)))
 	if err != nil {
 		log.Printf("ERROR: Failed to call Ollama API at %s: %v", ollamaHost, err)
@@ -470,22 +499,22 @@ func parseStoryResponse(response string) (title, content string) {
 // generateIllustrations creates simple emoji-based illustrations for story pages
 func generateIllustrations(content string, theme string) map[string]string {
 	illustrations := make(map[string]string)
-	
+
 	// Theme-based emoji sets
 	themeEmojis := map[string][]string{
 		"adventure": {"🏔️", "🗺️", "🎒", "⛺", "🌟", "🔦", "🧭", "🏕️"},
-		"animals": {"🐻", "🦊", "🐰", "🦉", "🦌", "🐿️", "🦋", "🐝"},
-		"fantasy": {"🏰", "🧙", "🦄", "🐉", "✨", "🔮", "🧚", "👑"},
-		"space": {"🚀", "🌟", "🌙", "🪐", "⭐", "🛸", "👽", "🌌"},
-		"ocean": {"🐠", "🐙", "🐢", "🦈", "🌊", "🐚", "🦀", "🏝️"},
-		"forest": {"🌲", "🦫", "🦌", "🍄", "🦉", "🐻", "🌳", "🌿"},
-		"magic": {"✨", "🎩", "🔮", "🪄", "💫", "🌟", "🦄", "🧚"},
-		"dinosaur": {"🦕", "🦖", "🦴", "🌋", "🌿", "🥚", "👣", "🏔️"},
+		"animals":   {"🐻", "🦊", "🐰", "🦉", "🦌", "🐿️", "🦋", "🐝"},
+		"fantasy":   {"🏰", "🧙", "🦄", "🐉", "✨", "🔮", "🧚", "👑"},
+		"space":     {"🚀", "🌟", "🌙", "🪐", "⭐", "🛸", "👽", "🌌"},
+		"ocean":     {"🐠", "🐙", "🐢", "🦈", "🌊", "🐚", "🦀", "🏝️"},
+		"forest":    {"🌲", "🦫", "🦌", "🍄", "🦉", "🐻", "🌳", "🌿"},
+		"magic":     {"✨", "🎩", "🔮", "🪄", "💫", "🌟", "🦄", "🧚"},
+		"dinosaur":  {"🦕", "🦖", "🦴", "🌋", "🌿", "🥚", "👣", "🏔️"},
 	}
-	
+
 	// Default emoji set if theme not found
 	defaultEmojis := []string{"🌟", "🌙", "✨", "💫", "🌈", "☁️", "🎈", "🎀"}
-	
+
 	// Select emoji set based on theme
 	themeKey := strings.ToLower(theme)
 	emojis, exists := themeEmojis[themeKey]
@@ -501,23 +530,23 @@ func generateIllustrations(content string, theme string) map[string]string {
 			emojis = defaultEmojis
 		}
 	}
-	
+
 	// Generate a simple illustration for each page
 	pages := strings.Split(content, "## Page")
 	pageNum := 0
-	
+
 	for i, page := range pages {
 		if strings.TrimSpace(page) == "" {
 			continue
 		}
-		
+
 		// Create a simple emoji pattern
 		var illustration strings.Builder
-		
+
 		// Add decorative border
 		illustration.WriteString("╔════════════════╗\n")
 		illustration.WriteString("║                ║\n")
-		
+
 		// Add 2-3 rows of themed emojis
 		for row := 0; row < 2; row++ {
 			illustration.WriteString("║  ")
@@ -528,10 +557,10 @@ func generateIllustrations(content string, theme string) map[string]string {
 			}
 			illustration.WriteString(" ║\n")
 		}
-		
+
 		illustration.WriteString("║                ║\n")
 		illustration.WriteString("╚════════════════╝")
-		
+
 		// Store illustration for this page
 		if i == 0 {
 			illustrations["cover"] = illustration.String()
@@ -540,7 +569,7 @@ func generateIllustrations(content string, theme string) map[string]string {
 		}
 		pageNum++
 	}
-	
+
 	return illustrations
 }
 
@@ -669,11 +698,11 @@ func getStoryHandler(w http.ResponseWriter, r *http.Request) {
 
 	json.Unmarshal([]byte(charactersJSON), &s.CharacterNames)
 	json.Unmarshal([]byte(illustrationsJSON), &s.Illustrations)
-	
+
 	// Add to cache for future requests
 	storyCache.Set(id, &s)
 	log.Printf("Cached story: %s", id)
-	
+
 	json.NewEncoder(w).Encode(s)
 }
 
@@ -681,17 +710,27 @@ func toggleFavoriteHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	_, err := db.Exec(`
+	var isFavorite bool
+	err := db.QueryRow(`
 		UPDATE stories 
 		SET is_favorite = NOT is_favorite, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1`, id)
+		WHERE id = $1
+		RETURNING is_favorite`, id).Scan(&isFavorite)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Story not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":     true,
+		"is_favorite": isFavorite,
+	})
 }
 
 func startReadingHandler(w http.ResponseWriter, r *http.Request) {
@@ -734,13 +773,13 @@ func deleteStoryHandler(w http.ResponseWriter, r *http.Request) {
 func exportStoryHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	
+
 	// Try to get from cache first
 	if cachedStory, found := storyCache.Get(id); found {
 		sendPDFExport(w, cachedStory)
 		return
 	}
-	
+
 	// Fetch from database if not in cache
 	var story Story
 	var charactersJSON, illustrationsJSON sql.NullString
@@ -750,11 +789,11 @@ func exportStoryHandler(w http.ResponseWriter, r *http.Request) {
 		       created_at, times_read, last_read, is_favorite, illustrations
 		FROM stories 
 		WHERE id = $1`, id).Scan(
-		&story.ID, &story.Title, &story.Content, &story.AgeGroup, 
-		&story.Theme, &story.StoryLength, &story.ReadingTime, 
-		&charactersJSON, &story.PageCount, &story.CreatedAt, 
+		&story.ID, &story.Title, &story.Content, &story.AgeGroup,
+		&story.Theme, &story.StoryLength, &story.ReadingTime,
+		&charactersJSON, &story.PageCount, &story.CreatedAt,
 		&story.TimesRead, &story.LastRead, &story.IsFavorite, &illustrationsJSON)
-		
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Story not found", http.StatusNotFound)
@@ -763,7 +802,7 @@ func exportStoryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	
+
 	// Parse JSON fields
 	if charactersJSON.Valid {
 		json.Unmarshal([]byte(charactersJSON.String), &story.CharacterNames)
@@ -771,81 +810,98 @@ func exportStoryHandler(w http.ResponseWriter, r *http.Request) {
 	if illustrationsJSON.Valid {
 		json.Unmarshal([]byte(illustrationsJSON.String), &story.Illustrations)
 	}
-	
+
 	sendPDFExport(w, &story)
 }
 
 func sendPDFExport(w http.ResponseWriter, story *Story) {
-	// Create a simple HTML-like format that can be easily converted to PDF
-	// For now, we'll send it as a formatted text file that can be printed as PDF
-	
-	exportContent := fmt.Sprintf(`<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>%s</title>
-    <style>
-        body {
-            font-family: 'Georgia', serif;
-            margin: 40px;
-            line-height: 1.8;
-            color: #333;
-        }
-        h1 {
-            color: #667eea;
-            border-bottom: 3px solid #667eea;
-            padding-bottom: 10px;
-            margin-bottom: 30px;
-        }
-        .metadata {
-            background: #f5f5f5;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-        }
-        .metadata p {
-            margin: 5px 0;
-        }
-        .content {
-            white-space: pre-wrap;
-            font-size: 16px;
-        }
-        .page-break {
-            page-break-after: always;
-        }
-        @media print {
-            body {
-                margin: 20px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <h1>%s</h1>
-    <div class="metadata">
-        <p><strong>Age Group:</strong> %s</p>
-        <p><strong>Theme:</strong> %s</p>
-        <p><strong>Reading Time:</strong> %d minutes</p>
-        <p><strong>Created:</strong> %s</p>
-    </div>
-    <div class="content">%s</div>
-</body>
-</html>`,
-		html.EscapeString(story.Title),
-		html.EscapeString(story.Title),
-		story.AgeGroup,
-		story.Theme,
-		story.ReadingTime,
-		story.CreatedAt.Format("January 2, 2006"),
-		html.EscapeString(story.Content))
-	
-	// Set headers for HTML download (can be printed as PDF)
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.html\"", 
+	// Create a proper PDF document using gofpdf
+	pdf := gofpdf.New("P", "mm", "A4", "")
+
+	// Add fonts and set defaults
+	pdf.AddPage()
+	pdf.SetFont("Arial", "B", 24)
+
+	// Title
+	pdf.SetTextColor(107, 70, 193) // Purple color
+	pdf.CellFormat(190, 15, story.Title, "0", 1, "C", false, 0, "")
+	pdf.Ln(5)
+
+	// Metadata box
+	pdf.SetFont("Arial", "", 12)
+	pdf.SetTextColor(75, 85, 99)    // Gray color
+	pdf.SetFillColor(243, 244, 246) // Light gray background
+
+	// Draw metadata box
+	y := pdf.GetY()
+	pdf.Rect(10, y, 190, 30, "F")
+	pdf.SetXY(15, y+5)
+	pdf.Cell(0, 6, fmt.Sprintf("Age Group: %s", story.AgeGroup))
+	pdf.Ln(6)
+	pdf.SetX(15)
+	pdf.Cell(0, 6, fmt.Sprintf("Theme: %s", story.Theme))
+	pdf.Ln(6)
+	pdf.SetX(15)
+	pdf.Cell(0, 6, fmt.Sprintf("Reading Time: %d minutes | Pages: %d", story.ReadingTime, story.PageCount))
+	pdf.Ln(15)
+
+	// Story content
+	pdf.SetFont("Arial", "", 11)
+	pdf.SetTextColor(0, 0, 0) // Black text
+
+	// Split content into paragraphs
+	paragraphs := strings.Split(story.Content, "\n\n")
+	for _, paragraph := range paragraphs {
+		// Handle page headers (## Page X)
+		if strings.HasPrefix(paragraph, "##") {
+			pdf.AddPage()
+			pdf.SetFont("Arial", "B", 14)
+			pdf.Cell(0, 10, strings.TrimPrefix(paragraph, "## "))
+			pdf.Ln(10)
+			pdf.SetFont("Arial", "", 11)
+			continue
+		}
+
+		// Remove markdown bold syntax
+		cleanParagraph := strings.ReplaceAll(paragraph, "**", "")
+		cleanParagraph = strings.TrimSpace(cleanParagraph)
+
+		if cleanParagraph != "" {
+			// Calculate line height based on content length
+			lines := pdf.SplitLines([]byte(cleanParagraph), 180)
+			for _, line := range lines {
+				pdf.Cell(0, 6, string(line))
+				pdf.Ln(6)
+			}
+			pdf.Ln(4) // Extra space between paragraphs
+		}
+	}
+
+	// Footer
+	pdf.Ln(10)
+	pdf.SetFont("Arial", "I", 9)
+	pdf.SetTextColor(156, 163, 175) // Light gray
+	pdf.Cell(0, 6, fmt.Sprintf("Generated on %s by Bedtime Story Generator", story.CreatedAt.Format("January 2, 2006")))
+	pdf.Ln(5)
+	pdf.Cell(0, 6, "© Vrooli - Creating magical moments for children")
+
+	// Generate PDF to buffer
+	var buf bytes.Buffer
+	err := pdf.Output(&buf)
+	if err != nil {
+		log.Printf("Error generating PDF: %v", err)
+		http.Error(w, "Error generating PDF", http.StatusInternalServerError)
+		return
+	}
+
+	// Set headers for PDF download
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.pdf\"",
 		strings.ReplaceAll(story.Title, " ", "_")))
-	
-	w.Write([]byte(exportContent))
-	log.Printf("Exported story as HTML: %s", story.ID)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", buf.Len()))
+
+	w.Write(buf.Bytes())
+	log.Printf("Exported story as PDF: %s", story.ID)
 }
 
 func getThemesHandler(w http.ResponseWriter, r *http.Request) {
