@@ -3,8 +3,10 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,6 +28,43 @@ type resourceCache struct {
 type SystemHandler struct {
 	metricsService *services.MetricsService
 	resourceCache  *resourceCache
+}
+
+func parseBool(value interface{}) (bool, bool) {
+	switch v := value.(type) {
+	case bool:
+		return v, true
+	case string:
+		normalized := strings.TrimSpace(strings.ToLower(v))
+		switch normalized {
+		case "true", "yes", "y", "1", "online", "running", "enabled":
+			return true, true
+		case "false", "no", "n", "0", "offline", "disabled", "stopped":
+			return false, true
+		case "", "n/a", "na", "unknown":
+			return false, false
+		default:
+			return false, false
+		}
+	case float64:
+		return v != 0, true
+	default:
+		return false, false
+	}
+}
+
+func stringValue(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+	switch v := value.(type) {
+	case string:
+		return strings.TrimSpace(v)
+	case []byte:
+		return strings.TrimSpace(string(v))
+	default:
+		return strings.TrimSpace(fmt.Sprint(v))
+	}
 }
 
 // NewSystemHandler creates a new system handler
@@ -117,24 +156,39 @@ func (h *SystemHandler) GetResources(c *gin.Context) {
 	// Transform resource data for frontend
 	transformedResources := make([]map[string]interface{}, 0, len(resources))
 	for _, resource := range resources {
-		name := resource["Name"].(string)
-		enabled := resource["Enabled"].(bool)
-		running := resource["Running"].(bool)
+		name := stringValue(resource["Name"])
+		if name == "" {
+			continue
+		}
+
+		enabled, enabledKnown := parseBool(resource["Enabled"])
+		running, _ := parseBool(resource["Running"])
+		statusDetail := stringValue(resource["Status"])
+		normalizedStatus := strings.ToLower(statusDetail)
 
 		status := "offline"
-		if running {
+		switch {
+		case strings.Contains(normalizedStatus, "unregistered"):
+			status = "unregistered"
+		case strings.Contains(normalizedStatus, "error") || strings.Contains(normalizedStatus, "failed"):
+			status = "error"
+		case running:
 			status = "online"
-		} else if enabled {
+		case enabled && enabledKnown:
 			status = "stopped"
+		case !enabledKnown && !running:
+			status = "unknown"
 		}
 
 		transformedResources = append(transformedResources, map[string]interface{}{
-			"id":      name,
-			"name":    name,
-			"type":    name,
-			"status":  status,
-			"enabled": enabled,
-			"running": running,
+			"id":            name,
+			"name":          name,
+			"type":          name,
+			"status":        status,
+			"enabled":       enabled,
+			"enabled_known": enabledKnown,
+			"running":       running,
+			"status_detail": statusDetail,
 		})
 	}
 

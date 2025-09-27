@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, KeyboardEvent, MouseEvent, PointerEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { ArrowLeft, ArrowRight, Bug, ExternalLink, Info, Loader2, Power, RefreshCw, RotateCcw, ScrollText, X } from 'lucide-react';
 import { appService } from '@/services/api';
@@ -71,6 +71,7 @@ interface AppPreviewViewProps {
 const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const navigate = useNavigate();
   const { appId } = useParams<{ appId: string }>();
+  const location = useLocation();
   const [currentApp, setCurrentApp] = useState<App | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewUrlInput, setPreviewUrlInput] = useState('');
@@ -108,6 +109,24 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const reportDragStateRef = useRef<{ pointerId: number; startX: number; startY: number; containerWidth: number; containerHeight: number } | null>(null);
   const restartMonitorRef = useRef<{ cancel: () => void } | null>(null);
   const lastRefreshRequestRef = useRef(0);
+  const lastRecordedViewRef = useRef<{ id: string | null; timestamp: number }>({ id: null, timestamp: 0 });
+
+  const matchesAppIdentifier = useCallback((app: App, identifier?: string | null) => {
+    if (!identifier) {
+      return false;
+    }
+
+    const normalized = identifier.trim().toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+
+    const candidates = [app.id, app.scenario_name]
+      .map(value => (typeof value === 'string' ? value.trim().toLowerCase() : ''))
+      .filter(value => value.length > 0);
+
+    return candidates.includes(normalized);
+  }, []);
 
   const handleBridgeLocation = useCallback((message: { href: string; title?: string | null }) => {
     if (message.href) {
@@ -533,9 +552,12 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
   useEffect(() => {
     if (!appId) {
-      navigate('/apps', { replace: true });
+      navigate({
+        pathname: '/apps',
+        search: location.search || undefined,
+      }, { replace: true });
     }
-  }, [appId, navigate]);
+  }, [appId, location.search, navigate]);
 
   useEffect(() => {
     setFetchAttempted(false);
@@ -609,21 +631,38 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
   useEffect(() => {
     if (!currentApp) {
-      resetPreviewState();
+      resetPreviewState({ force: true });
+      setStatusMessage('Loading application preview...');
+      setLoading(true);
       return;
     }
 
-    const isRunning = isRunningStatus(currentApp.status) && !isStoppedStatus(currentApp.status);
-    const candidateUrl = isRunning ? buildPreviewUrl(currentApp) : null;
+    const nextUrl = buildPreviewUrl(currentApp);
+    const hasPreviewCandidate = Boolean(nextUrl);
+    const isExplicitlyStopped = isStoppedStatus(currentApp.status);
 
-    if (!isRunning) {
+    if (hasPreviewCandidate) {
+      const resolvedUrl = nextUrl as string;
+      if (!hasCustomPreviewUrl) {
+        applyDefaultPreviewUrl(resolvedUrl);
+      } else if (previewUrl === null) {
+        initialPreviewUrlRef.current = resolvedUrl;
+        setPreviewUrl(resolvedUrl);
+      }
+    } else if (!hasCustomPreviewUrl) {
       resetPreviewState();
-      setStatusMessage('Application is not running. Start it from the Applications view to access the UI preview.');
+    }
+
+    if (isExplicitlyStopped) {
+      if (!hasCustomPreviewUrl) {
+        resetPreviewState();
+      }
       setLoading(false);
+      setStatusMessage('Application is not running. Start it from the Applications view to access the UI preview.');
       return;
     }
 
-    if (!candidateUrl) {
+    if (!hasPreviewCandidate) {
       if (currentApp.is_partial) {
         setStatusMessage('Loading application details...');
         setLoading(true);
@@ -631,20 +670,23 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
         setStatusMessage('This application does not expose a UI endpoint to preview.');
         setLoading(false);
       }
-      resetPreviewState();
       return;
     }
 
     setLoading(false);
-    setStatusMessage(null);
 
-    if (!hasCustomPreviewUrl) {
-      applyDefaultPreviewUrl(candidateUrl);
-    } else if (previewUrl === null) {
-      initialPreviewUrlRef.current = candidateUrl;
-      setPreviewUrl(candidateUrl);
+    if (currentApp.is_partial && !currentApp.status) {
+      setStatusMessage('Loading application details...');
+    } else {
+      setStatusMessage(null);
     }
-  }, [applyDefaultPreviewUrl, currentApp, hasCustomPreviewUrl, previewUrl, resetPreviewState]);
+  }, [
+    applyDefaultPreviewUrl,
+    currentApp,
+    hasCustomPreviewUrl,
+    previewUrl,
+    resetPreviewState,
+  ]);
 
   useEffect(() => {
     if (!appId) {
@@ -656,6 +698,60 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       setCurrentApp(match);
     }
   }, [apps, appId]);
+
+  useEffect(() => {
+    if (!appId) {
+      lastRecordedViewRef.current = { id: null, timestamp: 0 };
+      return;
+    }
+
+    const now = Date.now();
+    const { id: lastId, timestamp } = lastRecordedViewRef.current;
+    if (lastId === appId && now - timestamp < 1000) {
+      return;
+    }
+
+    lastRecordedViewRef.current = { id: appId, timestamp: now };
+
+    void (async () => {
+      const stats = await appService.recordAppView(appId);
+      if (!stats) {
+        return;
+      }
+
+      const targets = [appId, stats.scenario_name];
+
+      setApps(prev => prev.map(app => {
+        if (!targets.some(target => matchesAppIdentifier(app, target))) {
+          return app;
+        }
+
+        return {
+          ...app,
+          view_count: stats.view_count,
+          last_viewed_at: stats.last_viewed_at ?? app.last_viewed_at ?? null,
+          first_viewed_at: stats.first_viewed_at ?? app.first_viewed_at ?? null,
+        };
+      }));
+
+      setCurrentApp(prev => {
+        if (!prev) {
+          return prev;
+        }
+
+        if (!targets.some(target => matchesAppIdentifier(prev, target))) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          view_count: stats.view_count,
+          last_viewed_at: stats.last_viewed_at ?? prev.last_viewed_at ?? null,
+          first_viewed_at: stats.first_viewed_at ?? prev.first_viewed_at ?? null,
+        };
+      });
+    })();
+  }, [appId, matchesAppIdentifier, setApps, setCurrentApp]);
 
   useEffect(() => {
     if (!bridgeState.isSupported || !bridgeState.isReady || !bridgeState.href) {
@@ -1345,6 +1441,59 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     const detail = bridgeCompliance.failures.join(', ');
     return `Preview bridge diagnostics failed (${detail}). History syncing may be unreliable.`;
   }, [bridgeCompliance, bridgeState.isSupported]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    let animationFrame: number | null = null;
+
+    const updatePreviewHeight = () => {
+      const container = previewContainerRef.current;
+      if (!container) {
+        return;
+      }
+
+      const isCompactLayout = window.innerWidth <= 900;
+      if (!isCompactLayout) {
+        container.style.removeProperty('min-height');
+        return;
+      }
+
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const rect = container.getBoundingClientRect();
+      const clearance = 16; // breathing room below the iframe
+      const available = Math.max(viewportHeight - rect.top - clearance, 320);
+      container.style.minHeight = `${available}px`;
+    };
+
+    const scheduleUpdate = () => {
+      if (animationFrame !== null) {
+        cancelAnimationFrame(animationFrame);
+      }
+      animationFrame = window.requestAnimationFrame(updatePreviewHeight);
+    };
+
+    scheduleUpdate();
+
+    const handleResize = () => {
+      scheduleUpdate();
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    window.visualViewport?.addEventListener('resize', handleResize);
+
+    return () => {
+      if (animationFrame !== null) {
+        cancelAnimationFrame(animationFrame);
+      }
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+      window.visualViewport?.removeEventListener('resize', handleResize);
+    };
+  }, [previewUrl, loading, previewOverlay, reportDialogOpen, bridgeIssueMessage, statusMessage, currentApp]);
 
   const canGoBack = bridgeState.isSupported ? bridgeState.canGoBack : historyIndex > 0;
   const canGoForward = bridgeState.isSupported ? bridgeState.canGoForward : (historyIndex >= 0 && historyIndex < history.length - 1);

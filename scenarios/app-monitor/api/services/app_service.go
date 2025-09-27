@@ -29,17 +29,28 @@ type orchestratorCache struct {
 	loading   bool
 }
 
+type viewStatsEntry struct {
+	Count       int64
+	FirstViewed time.Time
+	HasFirst    bool
+	LastViewed  time.Time
+	HasLast     bool
+}
+
 // AppService handles business logic for application management
 type AppService struct {
-	repo  repository.AppRepository
-	cache *orchestratorCache
+	repo        repository.AppRepository
+	cache       *orchestratorCache
+	viewStatsMu sync.RWMutex
+	viewStats   map[string]*viewStatsEntry
 }
 
 // NewAppService creates a new app service
 func NewAppService(repo repository.AppRepository) *AppService {
 	return &AppService{
-		repo:  repo,
-		cache: &orchestratorCache{},
+		repo:      repo,
+		cache:     &orchestratorCache{},
+		viewStats: make(map[string]*viewStatsEntry),
 	}
 }
 
@@ -243,6 +254,8 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 		apps = append(apps, app)
 	}
 
+	s.mergeViewStats(ctx, apps)
+
 	s.cache.data = apps
 	s.cache.timestamp = time.Now()
 	s.cache.isPartial = false
@@ -329,6 +342,8 @@ func (s *AppService) fetchScenarioSummaries(ctx context.Context) ([]repository.A
 
 		apps = append(apps, app)
 	}
+
+	s.mergeViewStats(ctx, apps)
 
 	return apps, nil
 }
@@ -480,6 +495,280 @@ func applyPortConfig(app *repository.App, ports map[string]interface{}) {
 
 	if apiPort, ok := app.PortMappings["API_PORT"]; ok {
 		app.Config["api_port"] = apiPort
+	}
+}
+
+func normalizeIdentifier(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func (s *AppService) storeViewStats(stats *repository.AppViewStats, aliases ...string) {
+	if stats == nil {
+		return
+	}
+
+	keys := []string{}
+	if primary := normalizeIdentifier(stats.ScenarioName); primary != "" {
+		keys = append(keys, primary)
+	}
+	for _, alias := range aliases {
+		if normalized := normalizeIdentifier(alias); normalized != "" && !containsString(keys, normalized) {
+			keys = append(keys, normalized)
+		}
+	}
+
+	if len(keys) == 0 {
+		return
+	}
+
+	s.viewStatsMu.Lock()
+	defer s.viewStatsMu.Unlock()
+
+	var entry *viewStatsEntry
+	for _, key := range keys {
+		if existing, ok := s.viewStats[key]; ok && existing != nil {
+			entry = existing
+			break
+		}
+	}
+	if entry == nil {
+		entry = &viewStatsEntry{}
+	}
+
+	entry.Count = stats.ViewCount
+	if stats.FirstViewed != nil {
+		entry.FirstViewed = stats.FirstViewed.UTC()
+		entry.HasFirst = true
+	}
+	if stats.LastViewed != nil {
+		entry.LastViewed = stats.LastViewed.UTC()
+		entry.HasLast = true
+	}
+
+	for _, key := range keys {
+		s.viewStats[key] = entry
+	}
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *AppService) mergeInMemoryViewStats(apps []repository.App) {
+	s.viewStatsMu.RLock()
+	defer s.viewStatsMu.RUnlock()
+
+	if len(s.viewStats) == 0 {
+		return
+	}
+
+	for i := range apps {
+		candidates := []string{
+			normalizeIdentifier(apps[i].ScenarioName),
+			normalizeIdentifier(apps[i].ID),
+		}
+
+		var entry *viewStatsEntry
+		for _, key := range candidates {
+			if key == "" {
+				continue
+			}
+			if candidate, ok := s.viewStats[key]; ok && candidate != nil {
+				entry = candidate
+				break
+			}
+		}
+
+		if entry == nil {
+			continue
+		}
+
+		apps[i].ViewCount = entry.Count
+		if entry.HasFirst {
+			first := entry.FirstViewed
+			apps[i].FirstViewed = &first
+		}
+		if entry.HasLast {
+			last := entry.LastViewed
+			apps[i].LastViewed = &last
+		}
+	}
+}
+
+func (s *AppService) cacheRepoViewStats(stats map[string]repository.AppViewStats) {
+	if len(stats) == 0 {
+		return
+	}
+
+	for _, record := range stats {
+		rec := record
+		s.storeViewStats(&rec)
+	}
+}
+
+func (s *AppService) recordAppViewInMemory(identifier, scenarioName string) *repository.AppViewStats {
+	keys := []string{}
+	if normalizedScenario := normalizeIdentifier(scenarioName); normalizedScenario != "" {
+		keys = append(keys, normalizedScenario)
+	}
+	if alias := normalizeIdentifier(identifier); alias != "" && !containsString(keys, alias) {
+		keys = append(keys, alias)
+	}
+
+	if len(keys) == 0 {
+		return nil
+	}
+
+	now := time.Now().UTC()
+
+	s.viewStatsMu.Lock()
+	var entry *viewStatsEntry
+	for _, key := range keys {
+		if existing, ok := s.viewStats[key]; ok && existing != nil {
+			entry = existing
+			break
+		}
+	}
+	if entry == nil {
+		entry = &viewStatsEntry{}
+	}
+
+	entry.Count++
+	if !entry.HasFirst {
+		entry.FirstViewed = now
+		entry.HasFirst = true
+	}
+	entry.LastViewed = now
+	entry.HasLast = true
+
+	for _, key := range keys {
+		s.viewStats[key] = entry
+	}
+
+	count := entry.Count
+	firstTime := entry.FirstViewed
+	hasFirst := entry.HasFirst
+	lastTime := entry.LastViewed
+	hasLast := entry.HasLast
+	s.viewStatsMu.Unlock()
+
+	var firstPtr *time.Time
+	if hasFirst {
+		copyTime := firstTime
+		firstPtr = &copyTime
+	}
+
+	var lastPtr *time.Time
+	if hasLast {
+		copyTime := lastTime
+		lastPtr = &copyTime
+	}
+
+	return &repository.AppViewStats{
+		ScenarioName: scenarioName,
+		ViewCount:    count,
+		FirstViewed:  firstPtr,
+		LastViewed:   lastPtr,
+	}
+}
+
+func (s *AppService) mergeViewStats(ctx context.Context, apps []repository.App) {
+	if len(apps) == 0 {
+		s.mergeInMemoryViewStats(apps)
+		return
+	}
+
+	if s.repo != nil {
+		stats, err := s.repo.GetAppViewStats(ctx)
+		if err != nil {
+			fmt.Printf("Warning: failed to fetch app view stats: %v\n", err)
+		} else if len(stats) > 0 {
+			s.cacheRepoViewStats(stats)
+
+			for i := range apps {
+				candidates := []string{
+					strings.TrimSpace(apps[i].ScenarioName),
+					strings.ToLower(strings.TrimSpace(apps[i].ScenarioName)),
+					strings.TrimSpace(apps[i].ID),
+					strings.ToLower(strings.TrimSpace(apps[i].ID)),
+				}
+
+				var (
+					candidate repository.AppViewStats
+					found     bool
+				)
+
+				for _, key := range candidates {
+					if key == "" {
+						continue
+					}
+					if value, ok := stats[key]; ok {
+						candidate = value
+						found = true
+						break
+					}
+				}
+
+				if !found || candidate.ScenarioName == "" {
+					continue
+				}
+
+				apps[i].ViewCount = candidate.ViewCount
+				apps[i].FirstViewed = candidate.FirstViewed
+				apps[i].LastViewed = candidate.LastViewed
+			}
+		}
+	}
+
+	s.mergeInMemoryViewStats(apps)
+}
+
+func (s *AppService) updateCacheWithViewStats(stats *repository.AppViewStats, aliases ...string) {
+	if stats == nil {
+		return
+	}
+
+	s.storeViewStats(stats, aliases...)
+
+	normalizedKeys := make(map[string]struct{})
+	if primary := normalizeIdentifier(stats.ScenarioName); primary != "" {
+		normalizedKeys[primary] = struct{}{}
+	}
+	for _, alias := range aliases {
+		if normalized := normalizeIdentifier(alias); normalized != "" {
+			normalizedKeys[normalized] = struct{}{}
+		}
+	}
+
+	s.cache.mu.Lock()
+	defer s.cache.mu.Unlock()
+
+	if len(s.cache.data) == 0 {
+		return
+	}
+
+	for i := range s.cache.data {
+		candidate := &s.cache.data[i]
+		keys := []string{
+			strings.ToLower(strings.TrimSpace(candidate.ScenarioName)),
+			strings.ToLower(strings.TrimSpace(candidate.ID)),
+		}
+		for _, key := range keys {
+			if key == "" {
+				continue
+			}
+			if _, ok := normalizedKeys[key]; ok {
+				candidate.ViewCount = stats.ViewCount
+				candidate.FirstViewed = stats.FirstViewed
+				candidate.LastViewed = stats.LastViewed
+				break
+			}
+		}
 	}
 }
 
@@ -694,6 +983,53 @@ func (s *AppService) GetAppStatusHistory(ctx context.Context, appID string, hour
 		return nil, fmt.Errorf("database not available")
 	}
 	return s.repo.GetAppStatusHistory(ctx, appID, hours)
+}
+
+// RecordAppView tracks preview activity for an app and refreshes cached stats
+func (s *AppService) RecordAppView(ctx context.Context, identifier string) (*repository.AppViewStats, error) {
+	normalized := strings.TrimSpace(identifier)
+	if normalized == "" {
+		return nil, errors.New("app identifier is required")
+	}
+
+	scenarioName := normalized
+
+	if app, err := s.GetApp(ctx, normalized); err == nil && app != nil {
+		if candidate := strings.TrimSpace(app.ScenarioName); candidate != "" {
+			scenarioName = candidate
+		} else if candidate := strings.TrimSpace(app.ID); candidate != "" {
+			scenarioName = candidate
+		}
+	}
+
+	var stats *repository.AppViewStats
+
+	if s.repo != nil {
+		persisted, err := s.repo.RecordAppView(ctx, scenarioName)
+		if err != nil {
+			fmt.Printf("Warning: failed to persist view stats for %s: %v\n", scenarioName, err)
+			persisted = nil
+		}
+		stats = persisted
+	}
+
+	if stats == nil {
+		stats = s.recordAppViewInMemory(identifier, scenarioName)
+		if stats == nil {
+			now := time.Now().UTC()
+			stats = &repository.AppViewStats{
+				ScenarioName: scenarioName,
+				ViewCount:    1,
+				FirstViewed:  &now,
+				LastViewed:   &now,
+			}
+			s.storeViewStats(stats, identifier)
+		}
+	}
+
+	s.updateCacheWithViewStats(stats, identifier)
+
+	return stats, nil
 }
 
 // IssueReportRequest captures a request to forward an issue to app-issue-tracker

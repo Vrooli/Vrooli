@@ -1,0 +1,255 @@
+# App Issue Tracker
+
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.21%2B-blue.svg)](https://golang.org)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org)
+
+A lightweight, file-based issue tracking system with AI-powered investigation capabilities. No database required – uses YAML files for storage.
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Go 1.21+ (for API)
+- Node.js 18+ (for UI)
+- Git (for version control)
+
+### Installation
+1. Clone the repository:
+   ```bash
+   git clone <repo-url>
+   cd scenarios/app-issue-tracker
+   ```
+
+2. Start the scenario:
+   ```bash
+   make start
+   ```
+
+3. The service will be available at:
+   - **Web UI**: http://localhost:35000 (or assigned port)
+   - **API**: http://localhost:15000/health
+   - **CLI**: `app-issue-tracker --help`
+
+### Create Your First Issue
+```bash
+# Using CLI
+app-issue-tracker create --title "Login button not working" --description "The login fails with error 500" --priority high --type bug
+
+# View issues
+app-issue-tracker list
+
+# Investigate with AI
+app-issue-tracker investigate "Login button not working"
+```
+
+## 🛠️ Features
+
+### Core Functionality
+- **File-Based Storage**: Issues stored as YAML files in `issues/` directory
+- **CLI Interface**: Full command-line issue management
+- **REST API**: Programmatic access to all features
+- **Web UI**: Visual interface for browsing and editing issues
+
+### AI Integration
+- **Automatic Investigation**: AI analyzes issues and suggests fixes
+- **Semantic Search**: Find similar issues using vector embeddings
+- **Claude Code Integration**: Leverages advanced AI for code-related issues
+- **Workflow Automation**: Trigger investigations on issue creation/update
+
+### Advanced Capabilities
+- **Templates**: Pre-defined YAML templates for bugs, features, etc.
+- **Status Management**: Track issues through open → investigating → fixed → closed
+- **Bulk Operations**: Search, filter, and act on multiple issues
+- **Export/Import**: Generate reports in CSV, Markdown, or JSON
+
+## 📁 Project Structure
+
+```
+app-issue-tracker/
+├── api/                 # Go-based REST API server
+│   ├── main.go         # API entrypoint
+│   └── vector_search.go # Semantic search implementation
+├── ui/                 # Web interface
+│   ├── index.html      # Main UI page
+│   ├── app.js          # Frontend logic
+│   └── server.js       # Node.js dev server
+├── cli/                # Command-line tools
+│   └── app-issue-tracker # Main CLI executable
+├── issues/             # YAML issue storage
+│   ├── open/           # Active issues
+│   ├── fixed/          # Resolved issues
+│   └── templates/      # Issue templates
+├── scripts/            # Utility scripts
+│   ├── claude-investigator.sh
+│   └── setup-vector-search.sh
+├── test/               # Test suites
+│   └── phases/         # Standardized test phases
+└── docs/               # Documentation
+    └── INVESTIGATION_WORKFLOW.md
+```
+
+## ⚙️ Configuration
+
+### Environment Variables
+- `API_PORT`: API server port (default: 15000)
+- `UI_PORT`: Web UI port (default: 35000)
+- `QDRANT_URL`: Vector database endpoint (optional)
+- `CLAUDE_API_KEY`: For AI investigations (optional)
+
+### Resources (Optional)
+- **Qdrant**: For semantic search (enabled by default)
+- **Redis**: For caching (enabled by default)
+
+Disable in `.vrooli/service.json` if not needed.
+
+## 🔧 Development
+
+### Code Quality
+```bash
+# Format code
+make fmt
+
+# Lint code
+make lint
+
+# Run tests
+make test
+
+# Full check
+make check
+```
+
+### Building
+```bash
+# Build API binary
+make build
+
+# Clean artifacts
+make clean
+```
+
+### Testing
+Tests are organized into phases:
+- `test-unit.sh`: Unit tests for API and UI
+- `test-integration.sh`: End-to-end integration
+- `test-structure.sh`: File and directory validation
+- `test-dependencies.sh`: Dependency checks
+- `test-business.sh`: Business logic validation
+- `test-performance.sh`: Performance benchmarks
+
+Run all: `./test/run-tests.sh`
+
+### Lifecycle Management
+Always use the Makefile targets or Vrooli CLI:
+```bash
+make start    # Start services
+make stop     # Stop services
+make logs     # View logs
+make status   # Check status
+vrooli scenario run app-issue-tracker  # Alternative
+```
+
+**Never** run binaries directly (e.g., `./api/app-issue-tracker-api`) – this bypasses health checks and lifecycle management.
+
+## 🔌 API Endpoints
+
+Base URL: `http://localhost:${API_PORT}`
+
+### Issues
+- `GET /issues` – List all issues
+- `POST /issues` – Create new issue
+- `GET /issues/{id}` – Get issue details
+- `PUT /issues/{id}` – Update issue
+- `DELETE /issues/{id}` – Delete issue
+
+### Search
+- `GET /search?q=query` – Keyword search
+- `GET /search/semantic?query=description` – Vector search
+
+### Health
+- `GET /health` – Service status
+
+See `api/main.go` for full documentation.
+
+## 🎯 Usage Examples
+
+### CLI Commands
+```bash
+# Create bug issue
+app-issue-tracker create --template bug --title "UI crash on mobile" --priority critical
+
+# Search issues
+app-issue-tracker search "authentication error"
+
+# Move issue to investigating
+app-issue-tracker update 001-auth --status investigating --assignee @john
+
+# Generate AI investigation
+app-issue-tracker investigate 001-auth --auto
+
+# Export report
+app-issue-tracker export --format md --status open > weekly-report.md
+```
+
+### File Operations (Advanced)
+Issues are stored as YAML files:
+```bash
+# View raw issue
+cat issues/open/001-authentication-timeout-critical.yaml
+
+# Edit directly
+vim issues/open/001-authentication-timeout-critical.yaml
+
+# Move status manually
+mv issues/open/001.yaml issues/fixed/
+```
+
+### AI Workflow
+1. Create issue: `app-issue-tracker create ...`
+2. Trigger investigation: `app-issue-tracker investigate <id>`
+3. Review AI suggestions in `issues/investigating/<id>-investigation.md`
+4. Apply fixes and close: `app-issue-tracker close <id> --resolution "Fixed per AI suggestion"`
+
+## 🐛 Troubleshooting
+
+### Common Issues
+- **Port conflicts**: Check `make status` and adjust ports in `.vrooli/service.json`
+- **AI not working**: Ensure `CLAUDE_API_KEY` is set or use mock mode
+- **Search slow**: Install Qdrant or disable semantic search
+- **YAML validation errors**: Check schema in `initialization/configuration/app-registry.json`
+
+### Logs
+View detailed logs:
+```bash
+make logs    # Last 50 lines
+vrooli scenario logs app-issue-tracker --follow  # Live tail
+```
+
+### Debugging
+- Run in dev mode: `make dev`
+- Enable debug logging: Set `LOG_LEVEL=debug`
+- Test phases individually: `bash test/phases/test-unit.sh`
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Run tests: `make check`
+5. Push and create PR
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with [Vrooli](https://vrooli.com) scenario framework
+- AI integration powered by [Claude Code](https://claude.ai/code)
+- Thanks to the open-source community for tools like Go, Node.js, and Qdrant
+
+---
+
+*For support, file an issue using this very tracker: `app-issue-tracker create --template bug`*

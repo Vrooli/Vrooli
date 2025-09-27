@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -23,10 +24,23 @@ func NewPostgresRepository(db *sql.DB) *PostgresRepository {
 // GetApps retrieves all applications from the database
 func (r *PostgresRepository) GetApps(ctx context.Context) ([]App, error) {
 	query := `
-		SELECT id, name, scenario_name, path, created_at, updated_at, status,
-		       COALESCE(port_mappings, '{}'), COALESCE(environment, '{}'), COALESCE(config, '{}')
-		FROM apps
-		ORDER BY name
+		SELECT
+			a.id,
+			a.name,
+			a.scenario_name,
+			a.path,
+			a.created_at,
+			a.updated_at,
+			a.status,
+			COALESCE(a.port_mappings, '{}'),
+			COALESCE(a.environment, '{}'),
+			COALESCE(a.config, '{}'),
+			COALESCE(v.view_count, 0) AS view_count,
+			v.first_viewed_at,
+			v.last_viewed_at
+		FROM apps a
+		LEFT JOIN app_view_stats v ON v.scenario_name = a.scenario_name
+		ORDER BY a.name
 	`
 
 	rows, err := r.db.QueryContext(ctx, query)
@@ -39,11 +53,14 @@ func (r *PostgresRepository) GetApps(ctx context.Context) ([]App, error) {
 	for rows.Next() {
 		var app App
 		var portMappingsJSON, environmentJSON, configJSON string
+		var viewCount int64
+		var firstViewed, lastViewed sql.NullTime
 
 		err := rows.Scan(
 			&app.ID, &app.Name, &app.ScenarioName, &app.Path,
 			&app.CreatedAt, &app.UpdatedAt, &app.Status,
 			&portMappingsJSON, &environmentJSON, &configJSON,
+			&viewCount, &firstViewed, &lastViewed,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan app row: %w", err)
@@ -60,6 +77,16 @@ func (r *PostgresRepository) GetApps(ctx context.Context) ([]App, error) {
 			app.Config = make(map[string]interface{})
 		}
 
+		app.ViewCount = viewCount
+		if firstViewed.Valid {
+			value := firstViewed.Time
+			app.FirstViewed = &value
+		}
+		if lastViewed.Valid {
+			value := lastViewed.Time
+			app.LastViewed = &value
+		}
+
 		apps = append(apps, app)
 	}
 
@@ -69,19 +96,36 @@ func (r *PostgresRepository) GetApps(ctx context.Context) ([]App, error) {
 // GetApp retrieves a single application by ID
 func (r *PostgresRepository) GetApp(ctx context.Context, id string) (*App, error) {
 	query := `
-		SELECT id, name, scenario_name, path, created_at, updated_at, status,
-		       COALESCE(port_mappings, '{}'), COALESCE(environment, '{}'), COALESCE(config, '{}')
-		FROM apps
-		WHERE id = $1
+		SELECT
+			a.id,
+			a.name,
+			a.scenario_name,
+			a.path,
+			a.created_at,
+			a.updated_at,
+			a.status,
+			COALESCE(a.port_mappings, '{}'),
+			COALESCE(a.environment, '{}'),
+			COALESCE(a.config, '{}'),
+			COALESCE(v.view_count, 0) AS view_count,
+			v.first_viewed_at,
+			v.last_viewed_at
+		FROM apps a
+		LEFT JOIN app_view_stats v ON v.scenario_name = a.scenario_name
+		WHERE a.id = $1 OR a.scenario_name = $1
+		LIMIT 1
 	`
 
 	var app App
 	var portMappingsJSON, environmentJSON, configJSON string
+	var viewCount int64
+	var firstViewed, lastViewed sql.NullTime
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&app.ID, &app.Name, &app.ScenarioName, &app.Path,
 		&app.CreatedAt, &app.UpdatedAt, &app.Status,
 		&portMappingsJSON, &environmentJSON, &configJSON,
+		&viewCount, &firstViewed, &lastViewed,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -94,6 +138,16 @@ func (r *PostgresRepository) GetApp(ctx context.Context, id string) (*App, error
 	json.Unmarshal([]byte(portMappingsJSON), &app.PortMappings)
 	json.Unmarshal([]byte(environmentJSON), &app.Environment)
 	json.Unmarshal([]byte(configJSON), &app.Config)
+
+	app.ViewCount = viewCount
+	if firstViewed.Valid {
+		value := firstViewed.Time
+		app.FirstViewed = &value
+	}
+	if lastViewed.Valid {
+		value := lastViewed.Time
+		app.LastViewed = &value
+	}
 
 	return &app, nil
 }
@@ -184,7 +238,7 @@ func (r *PostgresRepository) UpdateAppStatus(ctx context.Context, id string, sta
 // DeleteApp removes an application from the database
 func (r *PostgresRepository) DeleteApp(ctx context.Context, id string) error {
 	query := `DELETE FROM apps WHERE id = $1`
-	
+
 	result, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete app: %w", err)
@@ -364,10 +418,112 @@ func (r *PostgresRepository) GetAppLogsByLevel(ctx context.Context, appID string
 	return logs, rows.Err()
 }
 
+// RecordAppView increments the view counters for a scenario and returns updated stats
+func (r *PostgresRepository) RecordAppView(ctx context.Context, scenarioName string) (*AppViewStats, error) {
+	normalized := strings.TrimSpace(scenarioName)
+	if normalized == "" {
+		return nil, fmt.Errorf("scenario name is required")
+	}
+
+	query := `
+		INSERT INTO app_view_stats (scenario_name, view_count, first_viewed_at, last_viewed_at, updated_at)
+		VALUES ($1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		ON CONFLICT (scenario_name)
+		DO UPDATE SET
+			view_count = app_view_stats.view_count + 1,
+			last_viewed_at = CURRENT_TIMESTAMP,
+			updated_at = CURRENT_TIMESTAMP
+		RETURNING scenario_name, view_count, first_viewed_at, last_viewed_at, updated_at
+	`
+
+	var stats AppViewStats
+	var firstViewed, lastViewed, updatedAt sql.NullTime
+
+	err := r.db.QueryRowContext(ctx, query, normalized).Scan(
+		&stats.ScenarioName,
+		&stats.ViewCount,
+		&firstViewed,
+		&lastViewed,
+		&updatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to record app view: %w", err)
+	}
+
+	if firstViewed.Valid {
+		value := firstViewed.Time
+		stats.FirstViewed = &value
+	}
+	if lastViewed.Valid {
+		value := lastViewed.Time
+		stats.LastViewed = &value
+	}
+	if updatedAt.Valid {
+		value := updatedAt.Time
+		stats.UpdatedAt = &value
+	}
+
+	return &stats, nil
+}
+
+// GetAppViewStats fetches aggregated view metrics for all scenarios
+func (r *PostgresRepository) GetAppViewStats(ctx context.Context) (map[string]AppViewStats, error) {
+	query := `
+		SELECT scenario_name, view_count, first_viewed_at, last_viewed_at, updated_at
+		FROM app_view_stats
+	`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query app view stats: %w", err)
+	}
+	defer rows.Close()
+
+	stats := make(map[string]AppViewStats)
+
+	for rows.Next() {
+		var entry AppViewStats
+		var firstViewed, lastViewed, updatedAt sql.NullTime
+
+		err := rows.Scan(
+			&entry.ScenarioName,
+			&entry.ViewCount,
+			&firstViewed,
+			&lastViewed,
+			&updatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan view stats row: %w", err)
+		}
+
+		if firstViewed.Valid {
+			value := firstViewed.Time
+			entry.FirstViewed = &value
+		}
+		if lastViewed.Valid {
+			value := lastViewed.Time
+			entry.LastViewed = &value
+		}
+		if updatedAt.Valid {
+			value := updatedAt.Time
+			entry.UpdatedAt = &value
+		}
+
+		stats[entry.ScenarioName] = entry
+		stats[strings.ToLower(entry.ScenarioName)] = entry
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate view stats rows: %w", err)
+	}
+
+	return stats, nil
+}
+
 // RecordMetric records a metric value for an application
 func (r *PostgresRepository) RecordMetric(ctx context.Context, appID string, metricType string, value float64, metadata map[string]interface{}) error {
 	metadataJSON, _ := json.Marshal(metadata)
-	
+
 	query := `
 		INSERT INTO app_metrics (app_id, metric_type, value, metadata)
 		VALUES ($1, $2, $3, $4)
@@ -433,7 +589,7 @@ func (r *PostgresRepository) GetAggregatedMetrics(ctx context.Context, appID str
 		"7d":  "7 days",
 		"30d": "30 days",
 	}
-	
+
 	intervalSQL, ok := validIntervals[interval]
 	if !ok {
 		intervalSQL = "24 hours"

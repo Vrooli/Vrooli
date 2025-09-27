@@ -23,7 +23,19 @@ type App struct {
 	Uptime       string                 `json:"uptime,omitempty"`
 	Type         string                 `json:"type,omitempty"`
 	HealthStatus string                 `json:"health_status,omitempty"`
+	ViewCount    int64                  `json:"view_count" db:"view_count"`
+	FirstViewed  *time.Time             `json:"first_viewed_at,omitempty" db:"first_viewed_at"`
+	LastViewed   *time.Time             `json:"last_viewed_at,omitempty" db:"last_viewed_at"`
 	IsPartial    bool                   `json:"is_partial,omitempty" db:"-"`
+}
+
+// AppViewStats captures aggregated viewing activity for an application
+type AppViewStats struct {
+	ScenarioName string     `json:"scenario_name" db:"scenario_name"`
+	ViewCount    int64      `json:"view_count" db:"view_count"`
+	FirstViewed  *time.Time `json:"first_viewed_at,omitempty" db:"first_viewed_at"`
+	LastViewed   *time.Time `json:"last_viewed_at,omitempty" db:"last_viewed_at"`
+	UpdatedAt    *time.Time `json:"updated_at,omitempty" db:"updated_at"`
 }
 
 // AppStatus represents the current status of an application
@@ -68,6 +80,8 @@ type AppRepository interface {
 	CreateAppLog(ctx context.Context, log *AppLog) error
 	GetAppLogs(ctx context.Context, appID string, limit, offset int) ([]AppLog, error)
 	GetAppLogsByLevel(ctx context.Context, appID string, level string, limit int) ([]AppLog, error)
+	RecordAppView(ctx context.Context, scenarioName string) (*AppViewStats, error)
+	GetAppViewStats(ctx context.Context) (map[string]AppViewStats, error)
 }
 
 // MetricsRepository defines the interface for metrics-related database operations

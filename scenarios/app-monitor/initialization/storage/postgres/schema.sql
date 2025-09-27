@@ -14,6 +14,14 @@ CREATE TABLE IF NOT EXISTS apps (
     consecutive_failures INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS app_view_stats (
+    scenario_name VARCHAR(255) PRIMARY KEY,
+    view_count BIGINT DEFAULT 0,
+    first_viewed_at TIMESTAMP,
+    last_viewed_at TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS app_status (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     app_id UUID REFERENCES apps(id) ON DELETE CASCADE,
@@ -118,3 +126,5 @@ CREATE INDEX idx_app_health_alerts_app_id ON app_health_alerts(app_id);
 CREATE INDEX idx_app_health_alerts_severity ON app_health_alerts(severity);
 CREATE INDEX idx_app_performance_app_id ON app_performance_analysis(app_id);
 CREATE INDEX idx_app_performance_timestamp ON app_performance_analysis(analyzed_at);
+CREATE INDEX idx_app_view_stats_last_viewed ON app_view_stats(last_viewed_at DESC);
+CREATE INDEX idx_app_view_stats_view_count ON app_view_stats(view_count DESC);

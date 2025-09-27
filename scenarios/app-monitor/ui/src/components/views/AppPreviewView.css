@@ -637,7 +637,7 @@
 }
 
 .preview-iframe-container {
-  flex: 1;
+  flex: 1 1 auto;
   margin: 0;
   border: 1px solid rgba(0, 255, 65, 0.25);
   background: #060a06;
@@ -646,12 +646,12 @@
   overflow: hidden;
   display: flex;
   position: relative;
+  min-height: 0;
 }
 
 .preview-iframe {
-  flex: 1;
+  flex: 1 1 auto;
   width: 100%;
-  height: 100%;
   border: none;
   background: #060a06;
 }
@@ -691,7 +691,7 @@
 }
 
 .preview-placeholder {
-  flex: 1;
+  flex: 1 1 auto;
   margin: 0;
   border: 1px dashed rgba(0, 255, 255, 0.3);
   color: var(--matrix-cyan);
@@ -700,6 +700,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 0;
 }
 
 @media (max-width: 900px) {

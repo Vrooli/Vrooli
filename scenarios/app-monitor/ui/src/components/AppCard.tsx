@@ -1,7 +1,7 @@
 import React, { memo, useCallback, useMemo } from 'react';
 import clsx from 'clsx';
 import type { LucideIcon } from 'lucide-react';
-import { ActivitySquare, Cable, Clock3, Cpu, Info, Play, Square } from 'lucide-react';
+import { ActivitySquare, Cable, Clock3, Cpu, Eye, Info, Play, Square } from 'lucide-react';
 import type { App } from '@/types';
 import { orderedPortMetrics } from '@/utils/appPreview';
 import './AppCard.css';
@@ -175,6 +175,11 @@ const AppCard = memo<AppCardProps>(({
 
     if (!isPartial && app.runtime && app.runtime.trim()) {
       items.push({ label: 'RUNTIME', value: app.runtime, Icon: ActivitySquare });
+    }
+
+    const viewCount = typeof app.view_count === 'number' ? app.view_count : Number(app.view_count ?? NaN);
+    if (Number.isFinite(viewCount) && viewCount >= 0) {
+      items.push({ label: 'VIEWS', value: viewCount, Icon: Eye });
     }
 
     return items.slice(0, 4);

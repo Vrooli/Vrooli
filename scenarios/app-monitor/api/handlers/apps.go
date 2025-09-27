@@ -114,6 +114,35 @@ func (h *AppHandler) RestartApp(c *gin.Context) {
 	})
 }
 
+// RecordAppView increments view counters for an application preview
+func (h *AppHandler) RecordAppView(c *gin.Context) {
+	id := c.Param("id")
+
+	stats, err := h.appService.RecordAppView(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to record app view",
+		})
+		return
+	}
+
+	response := gin.H{
+		"success": true,
+	}
+
+	if stats != nil {
+		response["data"] = gin.H{
+			"scenario_name":   stats.ScenarioName,
+			"view_count":      stats.ViewCount,
+			"first_viewed_at": stats.FirstViewed,
+			"last_viewed_at":  stats.LastViewed,
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // GetAppLogs returns logs for an application
 func (h *AppHandler) GetAppLogs(c *gin.Context) {
 	appName := c.Param("appName")

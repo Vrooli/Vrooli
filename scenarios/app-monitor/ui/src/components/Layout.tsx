@@ -50,10 +50,11 @@ export default function Layout({ children, isConnected, apps }: LayoutProps) {
   const location = useLocation();
   const [appCount, setAppCount] = useState(0);
   const [resourceCount, setResourceCount] = useState(0);
-  const [uptime, setUptime] = useState('--:--:--');
+  const [uptimeSeconds, setUptimeSeconds] = useState<number | null>(null);
   const [healthStatus, setHealthStatus] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [appsSearch, setAppsSearch] = useState('');
   const mobileViewportRef = useRef(false);
   const desktopCollapsedRef = useRef(false);
   const pollingRef = useRef(false);
@@ -101,29 +102,28 @@ export default function Layout({ children, isConnected, apps }: LayoutProps) {
             : null;
           setHealthStatus(normalizedStatus);
 
-          if (normalizedStatus === 'unhealthy') {
-            setUptime('--:--:--');
-          }
-
           const healthUptimeSeconds = typeof healthResult.value.metrics?.uptime_seconds === 'number'
             ? healthResult.value.metrics.uptime_seconds
             : null;
 
+          if (normalizedStatus === 'unhealthy') {
+            setUptimeSeconds(null);
+          }
+
           if (healthUptimeSeconds !== null && normalizedStatus !== 'unhealthy') {
-            const formatted = formatSecondsToDuration(healthUptimeSeconds);
-            setUptime(prev => (prev === formatted ? prev : formatted));
+            setUptimeSeconds(healthUptimeSeconds);
           }
         } else if (healthResult.status === 'rejected') {
           console.error('Health check failed:', healthResult.reason);
           setHealthStatus('unhealthy');
-          setUptime('--:--:--');
+          setUptimeSeconds(null);
         }
 
       } catch (error) {
         if (isMounted) {
           console.error('Failed to fetch layout data:', error);
           setHealthStatus('unhealthy');
-          setUptime('--:--:--');
+          setUptimeSeconds(null);
         }
       } finally {
         pollingRef.current = false;
@@ -205,6 +205,12 @@ export default function Layout({ children, isConnected, apps }: LayoutProps) {
     }
   };
 
+  useEffect(() => {
+    if (location.pathname === '/apps' || location.pathname.startsWith('/apps/')) {
+      setAppsSearch(location.search || '');
+    }
+  }, [location.pathname, location.search]);
+
   // Handle quick actions
   const handleRestartAll = async () => {
     if (confirm('Restart all applications?')) {
@@ -232,8 +238,11 @@ export default function Layout({ children, isConnected, apps }: LayoutProps) {
     }
 
     const matched = locateAppByIdentifier(apps, previewAppIdentifier);
-    if (matched?.name) {
-      return matched.name;
+    if (matched?.scenario_name) {
+      return matched.scenario_name;
+    }
+    if (matched?.id) {
+      return matched.id;
     }
 
     return previewAppIdentifier;
@@ -276,7 +285,28 @@ export default function Layout({ children, isConnected, apps }: LayoutProps) {
   const isSystemOnline = healthStatus
     ? !OFFLINE_STATES.has(healthStatus)
     : isConnected;
-  const statusText = isSystemOnline ? uptime : 'Offline';
+  const uptimeDisplay = useMemo(() => (
+    uptimeSeconds !== null
+      ? formatSecondsToDuration(uptimeSeconds)
+      : '--:--:--'
+  ), [uptimeSeconds]);
+
+  const statusText = isSystemOnline ? uptimeDisplay : 'Offline';
+  const shouldTick = isSystemOnline && uptimeSeconds !== null;
+
+  useEffect(() => {
+    if (!shouldTick) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setUptimeSeconds(prev => (prev !== null ? prev + 1 : prev));
+    }, 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [shouldTick]);
 
   return (
     <>
@@ -347,7 +377,9 @@ export default function Layout({ children, isConnected, apps }: LayoutProps) {
               {menuItems.map(item => (
                 <li key={item.path}>
                   <NavLink
-                    to={item.path}
+                    to={item.path === '/apps' && appsSearch
+                      ? { pathname: item.path, search: appsSearch }
+                      : item.path}
                     className={({ isActive }) => clsx('menu-item', { active: isActive })}
                     title={item.label}
                     onClick={handleNavClick}

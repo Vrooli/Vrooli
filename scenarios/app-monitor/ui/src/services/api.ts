@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { App, Resource, LogEntry, ApiResponse, AppLogsResponse } from '@/types';
+import type { App, Resource, LogEntry, ApiResponse, AppLogsResponse, AppViewStats } from '@/types';
 import { logger } from '@/services/logger';
 
 // Create axios instance with default config
@@ -121,6 +121,16 @@ export const appService = {
     } catch (error) {
       logger.error(`Failed to ${action} all apps`, error);
       return false;
+    }
+  },
+
+  async recordAppView(id: string): Promise<AppViewStats | null> {
+    try {
+      const { data } = await api.post<ApiResponse<AppViewStats>>(`/apps/${encodeURIComponent(id)}/view`);
+      return data?.data ?? null;
+    } catch (error) {
+      logger.warn(`Failed to record view for app ${id}`, error);
+      return null;
     }
   },
 

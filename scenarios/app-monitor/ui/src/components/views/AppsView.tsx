@@ -59,10 +59,25 @@ const SearchInput = memo(({
 ));
 SearchInput.displayName = 'SearchInput';
 
-type SortOption = 'status' | 'name-asc' | 'name-desc';
+type SortOption =
+  | 'status'
+  | 'name-asc'
+  | 'name-desc'
+  | 'recently-viewed'
+  | 'least-recently-viewed'
+  | 'recently-updated'
+  | 'recently-added'
+  | 'most-viewed'
+  | 'least-viewed';
 
 const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
   { value: 'status', label: 'Status · active first' },
+  { value: 'recently-viewed', label: 'History · recently viewed' },
+  { value: 'least-recently-viewed', label: 'History · least recently viewed' },
+  { value: 'recently-updated', label: 'History · recently updated' },
+  { value: 'recently-added', label: 'History · recently added' },
+  { value: 'most-viewed', label: 'Engagement · most viewed' },
+  { value: 'least-viewed', label: 'Engagement · least viewed' },
   { value: 'name-asc', label: 'Name · A → Z' },
   { value: 'name-desc', label: 'Name · Z → A' },
 ];
@@ -241,6 +256,67 @@ const AppListRow = memo(({ app, onPreview, onDetails, onAppAction }: {
   const ports = useMemo(() => orderedPortMetrics(app).slice(0, 3), [app]);
   const isRunning = runningStates.has(normalizedStatus);
 
+  const viewCount = useMemo(() => {
+    if (typeof app.view_count === 'number') {
+      return app.view_count;
+    }
+    if (typeof app.view_count === 'string') {
+      const parsed = Number(app.view_count);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }, [app.view_count]);
+
+  const lastViewedLabel = useMemo(() => {
+    const { last_viewed_at: lastViewedAt } = app;
+    if (!lastViewedAt) {
+      return null;
+    }
+
+    const timestamp = new Date(lastViewedAt);
+    const time = timestamp.getTime();
+    if (Number.isNaN(time)) {
+      return null;
+    }
+
+    const diffMs = Date.now() - time;
+    if (diffMs < 0) {
+      return 'just now';
+    }
+
+    const seconds = Math.floor(diffMs / 1000);
+    if (seconds < 60) {
+      return 'just now';
+    }
+    if (seconds < 3600) {
+      return `${Math.floor(seconds / 60)}m ago`;
+    }
+    if (seconds < 86400) {
+      return `${Math.floor(seconds / 3600)}h ago`;
+    }
+    if (seconds < 604800) {
+      return `${Math.floor(seconds / 86400)}d ago`;
+    }
+
+    return timestamp.toLocaleDateString();
+  }, [app]);
+
+  const viewMeta = useMemo(() => {
+    const parts: string[] = [];
+    if (viewCount !== null) {
+      parts.push(`Views: ${viewCount.toLocaleString()}`);
+    }
+    if (lastViewedLabel) {
+      parts.push(`Last viewed ${lastViewedLabel}`);
+    }
+
+    if (parts.length === 0) {
+      return null;
+    }
+
+    return parts.join(' · ');
+  }, [lastViewedLabel, viewCount]);
+
   const handleRowClick = useCallback(() => {
     onPreview(app);
   }, [app, onPreview]);
@@ -281,6 +357,9 @@ const AppListRow = memo(({ app, onPreview, onDetails, onAppAction }: {
           <span className="app-name-text">{app.name}</span>
           {app.scenario_name && (
             <span className="app-name-subtext">{app.scenario_name}</span>
+          )}
+          {viewMeta && (
+            <span className="app-name-subtext">{viewMeta}</span>
           )}
           {app.description && (
             <span className="app-name-description">{app.description}</span>
@@ -448,8 +527,58 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
     try {
       const summaries = await appService.getAppSummaries();
       logger.info(`Fetched ${summaries.length} app summaries`);
-      if (isMountedRef.current) {
-        setApps((prev) => (summaries.length > 0 ? summaries : prev));
+      if (isMountedRef.current && summaries.length > 0) {
+        setApps((prev) => {
+          if (summaries.length === 0) {
+            return prev;
+          }
+
+          const previousById = new Map(prev.map((app) => [app.id, app]));
+
+          const seen = new Set<string>();
+          const mergedList = summaries.map((summary) => {
+            const existing = previousById.get(summary.id);
+            seen.add(summary.id);
+            if (!existing) {
+              return {
+                ...summary,
+                is_partial: Boolean(summary.is_partial),
+              };
+            }
+
+            const mergedConfig = {
+              ...(existing.config || {}),
+              ...(summary.config || {}),
+            };
+
+            const mergedPorts = Object.keys(summary.port_mappings || {}).length > 0
+              ? summary.port_mappings
+              : existing.port_mappings;
+
+            const nextStatus = typeof summary.status === 'string' && summary.status.trim()
+              ? summary.status
+              : existing.status;
+
+            const nextPartial = existing
+              ? Boolean(existing.is_partial)
+              : Boolean(summary.is_partial);
+
+            return {
+              ...existing,
+              ...summary,
+              status: nextStatus,
+              description: summary.description || existing.description,
+              tags: summary.tags && summary.tags.length > 0 ? summary.tags : existing.tags,
+              uptime: summary.uptime || existing.uptime,
+              config: mergedConfig,
+              port_mappings: mergedPorts,
+              is_partial: nextPartial,
+            };
+          });
+
+          const untouched = prev.filter((app) => !seen.has(app.id));
+          return [...mergedList, ...untouched];
+        });
       }
     } catch (error) {
       logger.error('Failed to fetch app summaries', error);
@@ -538,6 +667,111 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
     const compareByNameAsc = (a: App, b: App) => a.name.localeCompare(b.name);
     const compareByNameDesc = (a: App, b: App) => b.name.localeCompare(a.name);
 
+    const parseTimestamp = (value?: string | null) => {
+      if (!value) {
+        return null;
+      }
+      const parsed = Date.parse(value);
+      if (Number.isNaN(parsed)) {
+        return null;
+      }
+      return parsed;
+    };
+
+    const compareByLastViewedDesc = (a: App, b: App) => {
+      const timeA = parseTimestamp(a.last_viewed_at);
+      const timeB = parseTimestamp(b.last_viewed_at);
+
+      if (timeA === timeB) {
+        return compareByInitialPosition(a, b);
+      }
+
+      if (timeA === null) {
+        return 1;
+      }
+      if (timeB === null) {
+        return -1;
+      }
+
+      return timeB - timeA;
+    };
+
+    const compareByLastViewedAsc = (a: App, b: App) => {
+      const timeA = parseTimestamp(a.last_viewed_at);
+      const timeB = parseTimestamp(b.last_viewed_at);
+
+      if (timeA === timeB) {
+        return compareByInitialPosition(a, b);
+      }
+
+      if (timeA === null) {
+        return 1;
+      }
+      if (timeB === null) {
+        return -1;
+      }
+
+      return timeA - timeB;
+    };
+
+    const compareByUpdatedDesc = (a: App, b: App) => {
+      const timeA = parseTimestamp(a.updated_at);
+      const timeB = parseTimestamp(b.updated_at);
+
+      if (timeA === timeB) {
+        return compareByInitialPosition(a, b);
+      }
+
+      if (timeA === null) {
+        return 1;
+      }
+      if (timeB === null) {
+        return -1;
+      }
+
+      return timeB - timeA;
+    };
+
+    const compareByCreatedDesc = (a: App, b: App) => {
+      const timeA = parseTimestamp(a.created_at);
+      const timeB = parseTimestamp(b.created_at);
+
+      if (timeA === timeB) {
+        return compareByInitialPosition(a, b);
+      }
+
+      if (timeA === null) {
+        return 1;
+      }
+      if (timeB === null) {
+        return -1;
+      }
+
+      return timeB - timeA;
+    };
+
+    const compareByViewCountDesc = (a: App, b: App) => {
+      const countA = typeof a.view_count === 'number' ? a.view_count : Number(a.view_count ?? 0);
+      const countB = typeof b.view_count === 'number' ? b.view_count : Number(b.view_count ?? 0);
+
+      if (countA === countB) {
+        return compareByLastViewedDesc(a, b);
+      }
+
+      return countB - countA;
+    };
+
+    const compareByViewCountAsc = (a: App, b: App) => {
+      const countA = typeof a.view_count === 'number' ? a.view_count : Number(a.view_count ?? 0);
+      const countB = typeof b.view_count === 'number' ? b.view_count : Number(b.view_count ?? 0);
+
+      if (countA === countB) {
+        return compareByLastViewedAsc(a, b);
+      }
+
+      return countA - countB;
+    };
+
     const compareByStatus = (a: App, b: App) => {
       const statusA = (a.status ?? '').toLowerCase();
       const statusB = (b.status ?? '').toLowerCase();
@@ -560,6 +794,18 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
           const result = compareByNameDesc(a, b);
           return result === 0 ? compareByInitialPosition(a, b) : result;
         });
+      case 'recently-viewed':
+        return baseList.slice().sort(compareByLastViewedDesc);
+      case 'least-recently-viewed':
+        return baseList.slice().sort(compareByLastViewedAsc);
+      case 'recently-updated':
+        return baseList.slice().sort(compareByUpdatedDesc);
+      case 'recently-added':
+        return baseList.slice().sort(compareByCreatedDesc);
+      case 'most-viewed':
+        return baseList.slice().sort(compareByViewCountDesc);
+      case 'least-viewed':
+        return baseList.slice().sort(compareByViewCountAsc);
       case 'status':
       default:
         return baseList.slice().sort(compareByStatus);
@@ -595,8 +841,12 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
   }, []);
 
   const handleAppPreview = useCallback((app: App) => {
-    navigate(`/apps/${encodeURIComponent(app.id)}/preview`);
-  }, [navigate]);
+    const currentSearch = searchParams.toString();
+    navigate({
+      pathname: `/apps/${encodeURIComponent(app.id)}/preview`,
+      search: currentSearch ? `?${currentSearch}` : undefined,
+    });
+  }, [navigate, searchParams]);
 
   const handleViewLogs = useCallback((appId: string) => {
     setModalOpen(false);
@@ -635,7 +885,7 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
   return (
     <div className="apps-view">
       <div className="panel-header">
-        <h2>ACTIVE APPLICATIONS</h2>
+        <h2>APPS</h2>
         <div className="panel-controls">
           <SearchInput
             value={search}
@@ -650,14 +900,6 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
               SYNCING…
             </span>
           )}
-          <button
-            className="control-btn refresh"
-            onClick={fetchApps}
-            disabled={loading}
-            title="Refresh"
-          >
-            {loading ? '⟳' : hydrating ? '⧗' : '⟲'}
-          </button>
         </div>
       </div>
 

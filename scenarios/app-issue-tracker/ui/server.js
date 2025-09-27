@@ -1,87 +1,70 @@
-const express = require('express');
-const path = require('path');
-const http = require('http');
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import http from 'http';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT;
-const API_PORT = process.env.API_PORT;
+const PORT = process.env.UI_PORT || process.env.PORT || 4173;
+const API_PORT = process.env.API_PORT || 8090;
 
-// Health check endpoint for orchestrator
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy',
-        scenario: 'app-issue-tracker',
-        port: PORT,
-        timestamp: new Date().toISOString()
-    });
-});
+function proxyToApi(req, res, upstreamPath) {
+  const options = {
+    hostname: 'localhost',
+    port: Number(API_PORT),
+    path: upstreamPath || req.url,
+    method: req.method,
+    headers: {
+      ...req.headers,
+      host: `localhost:${API_PORT}`,
+    },
+  };
 
-// Manual proxy function for API calls
-function proxyToApi(req, res, apiPath) {
-    const options = {
-        hostname: 'localhost',
-        port: API_PORT,
-        path: apiPath || req.url,
-        method: req.method,
-        headers: {
-            ...req.headers,
-            host: `localhost:${API_PORT}`
-        }
-    };
-    
-    console.log(`[PROXY] ${req.method} ${req.url} -> http://localhost:${API_PORT}${options.path}`);
-    
-    const proxyReq = http.request(options, (proxyRes) => {
-        res.status(proxyRes.statusCode);
-        Object.keys(proxyRes.headers).forEach(key => {
-            res.setHeader(key, proxyRes.headers[key]);
-        });
-        proxyRes.pipe(res);
+  const proxyReq = http.request(options, (proxyRes) => {
+    res.status(proxyRes.statusCode || 500);
+    Object.entries(proxyRes.headers).forEach(([key, value]) => {
+      if (value !== undefined) {
+        res.setHeader(key, value);
+      }
     });
-    
-    proxyReq.on('error', (err) => {
-        console.error('Proxy error:', err.message);
-        res.status(502).json({ 
-            error: 'API server unavailable', 
-            details: err.message,
-            target: `http://localhost:${API_PORT}${options.path}`
-        });
+    proxyRes.pipe(res);
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error('API proxy error:', err.message);
+    res.status(502).json({
+      error: 'API server unavailable',
+      details: err.message,
+      target: `http://localhost:${API_PORT}${upstreamPath}`,
     });
-    
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-        req.pipe(proxyReq);
-    } else {
-        proxyReq.end();
-    }
+  });
+
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    req.pipe(proxyReq);
+  } else {
+    proxyReq.end();
+  }
 }
 
-// Health endpoint proxy
-app.use('/health', (req, res) => {
-    proxyToApi(req, res, '/health');
+app.get('/health', (req, res) => {
+  proxyToApi(req, res, '/health');
 });
 
-// API endpoints proxy
 app.use('/api', (req, res) => {
-    const fullApiPath = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
-    proxyToApi(req, res, fullApiPath);
+  const fullApiPath = req.url.startsWith('/api') ? req.url : `/api${req.url}`;
+  proxyToApi(req, res, fullApiPath);
 });
 
-// Serve static files
-app.use(express.static(__dirname, { 
-    index: false,
-    setHeaders: (res, path) => {
-        if (path.endsWith('.js')) {
-            res.setHeader('Cache-Control', 'no-cache');
-        }
-    }
-}));
+const distDir = path.join(__dirname, 'dist');
+app.use(express.static(distDir));
 
-// Serve the main page
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(distDir, 'index.html'));
 });
 
 app.listen(PORT, () => {
-    console.log(`App Issue Tracker UI running on http://localhost:${PORT}`);
-    console.log(`API proxy configured for http://localhost:${API_PORT}`);
+  console.log(`App Issue Tracker UI available at http://localhost:${PORT}`);
+  console.log(`Proxying API requests to http://localhost:${API_PORT}`);
 });

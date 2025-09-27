@@ -19,6 +19,16 @@ export interface App {
   tags?: string[];
   health_status?: string;
   is_partial?: boolean;
+  view_count?: number;
+  first_viewed_at?: string | null;
+  last_viewed_at?: string | null;
+}
+
+export interface AppViewStats {
+  scenario_name: string;
+  view_count: number;
+  first_viewed_at?: string | null;
+  last_viewed_at?: string | null;
 }
 
 // Resource Types
@@ -26,9 +36,13 @@ export interface Resource {
   id: string;
   name: string;
   type: string;
-  status: 'online' | 'offline' | 'error';
+  status: 'online' | 'offline' | 'error' | 'stopped' | 'unknown' | 'unregistered';
   description?: string;
   icon?: string;
+  enabled?: boolean;
+  running?: boolean;
+  enabled_known?: boolean;
+  status_detail?: string;
 }
 
 // System Metrics

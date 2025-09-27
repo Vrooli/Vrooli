@@ -68,29 +68,29 @@
     },
     "setup": {
       "description": "Initialize file-based App Issue Tracker",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "app-issue-tracker-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": [
-                "app-issue-tracker"
-              ]
-            },
-           {
-             "type": "directories",
-             "targets": [
-               "issues/open",
-               "issues/templates"
-             ]
-           }
-         ]
-       },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "app-issue-tracker-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "app-issue-tracker"
+            ]
+          },
+          {
+            "type": "directories",
+            "targets": [
+              "issues/open",
+              "issues/templates"
+            ]
+          }
+        ]
+      },
       "steps": [
         {
           "name": "create-issues-structure",
@@ -135,29 +135,30 @@
     "develop": {
       "description": "Start file-based issue tracker with Go API server",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./app-issue-tracker-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/app-issue-tracker-api"
-           }
-         },
         {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start web UI server",
+          "name": "start-api",
+          "run": "cd api && ./app-issue-tracker-api",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
-            "file_exists": "ui/server.js"
+            "file_exists": "api/app-issue-tracker-api"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '📁 File-Based Issue Tracker running:\\n  🌐 Web UI: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT\\n  🎯 CLI: app-issue-tracker-v2 --help\\n  📊 Management: ./app-issue-tracker-api/manage.sh status\\n\\n📝 Create issues:\\n  app-issue-tracker-v2 create --title \"Bug title\" --priority high\\n  ./app-issue-tracker-api/manage.sh add\\n\\n📂 File Operations:\\n  ls issues/open/*.yaml\\n  mv issues/open/001-bug.yaml issues/investigating/\\n  ./app-issue-tracker-api/manage.sh search \"keyword\"'",
-           "description": "Display service URLs"
-         }
+        {
+          "name": "start-ui",
+          "run": "cd ui && VROOLI_LIFECYCLE_MANAGED=true npm run dev",
+          "description": "Start Vite development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json",
+            "json_path_exists": "ui/package.json:scripts.dev"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '📁 File-Based Issue Tracker running:\\n  🌐 Web UI (dev): http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT\\n  🎯 CLI: app-issue-tracker-v2 --help\\n  📊 Management: ./issues/manage.sh status\\n\\n📝 Create issues:\\n  app-issue-tracker-v2 create --title \"Bug title\" --priority high\\n  ./issues/manage.sh add\\n\\n📂 File Operations:\\n  ls issues/open/*.yaml\\n  mv issues/open/001-bug.yaml issues/investigating/\\n  ./issues/manage.sh search \"keyword\"'",
+          "description": "Display service URLs"
+        }
       ]
     },
     "test": {
@@ -210,8 +211,8 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/app-issue-tracker.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/app-issue-tracker.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
+          "run": "pkill -f \"scenarios/app-issue-tracker.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/app-issue-tracker.*vite\" 2>/dev/null || true",
+          "description": "Stop Vite dev server"
         }
       ]
     },
