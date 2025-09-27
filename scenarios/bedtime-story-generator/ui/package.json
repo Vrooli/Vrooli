@@ -15,7 +15,11 @@
     "axios": "^1.6.2",
     "framer-motion": "^10.16.16",
     "react-markdown": "^9.0.1",
-    "date-fns": "^3.0.6"
+    "date-fns": "^3.0.6",
+    "three": "^0.161.0",
+    "@react-three/fiber": "^8.15.13",
+    "@react-three/drei": "^9.105.0",
+    "@react-three/postprocessing": "^2.16.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.45",

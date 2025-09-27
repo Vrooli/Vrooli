@@ -29,7 +29,8 @@
       "@services/*": ["services/*"],
       "@types/*": ["types/*"],
       "@utils/*": ["utils/*"]
-    }
+    },
+    "typeRoots": ["./node_modules/@types"]
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

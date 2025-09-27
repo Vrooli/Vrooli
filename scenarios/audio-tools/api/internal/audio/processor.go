@@ -1,6 +1,7 @@
 package audio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -56,6 +57,11 @@ type AudioMetadata struct {
 
 // ExtractMetadata uses ffprobe to extract audio file metadata
 func (p *AudioProcessor) ExtractMetadata(filePath string) (*AudioMetadata, error) {
+	return p.ExtractMetadataWithContext(context.Background(), filePath)
+}
+
+// ExtractMetadataWithContext uses ffprobe to extract audio file metadata with timeout support
+func (p *AudioProcessor) ExtractMetadataWithContext(ctx context.Context, filePath string) (*AudioMetadata, error) {
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("file not found: %s", filePath)
@@ -67,8 +73,15 @@ func (p *AudioProcessor) ExtractMetadata(filePath string) (*AudioMetadata, error
 		return nil, err
 	}
 
+	// Create context with timeout if not already set
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+	}
+
 	// Use ffprobe to get metadata
-	cmd := exec.Command("ffprobe",
+	cmd := exec.CommandContext(ctx, "ffprobe",
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_format",
@@ -134,6 +147,11 @@ func (p *AudioProcessor) ExtractMetadata(filePath string) (*AudioMetadata, error
 
 // ConvertFormat converts audio file to a different format
 func (p *AudioProcessor) ConvertFormat(inputPath, outputFormat string, quality map[string]interface{}) (string, error) {
+	return p.ConvertFormatWithContext(context.Background(), inputPath, outputFormat, quality)
+}
+
+// ConvertFormatWithContext converts audio file to a different format with timeout support
+func (p *AudioProcessor) ConvertFormatWithContext(ctx context.Context, inputPath, outputFormat string, quality map[string]interface{}) (string, error) {
 	// Generate output filename
 	outputID := uuid.New().String()
 	outputPath := filepath.Join(p.WorkDir, fmt.Sprintf("%s.%s", outputID, outputFormat))
@@ -170,10 +188,37 @@ func (p *AudioProcessor) ConvertFormat(inputPath, outputFormat string, quality m
 	args = append([]string{"-y", "-loglevel", "error"}, args...)
 	args = append(args, outputPath)
 
-	cmd := exec.Command("ffmpeg", args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("conversion failed: %v - ffmpeg output: %s", err, string(output))
+	// Create context with timeout if not already set
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
+
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("failed to start ffmpeg: %v", err)
+	}
+
+	// Wait for it to complete with timeout
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case <-ctx.Done():
+		// Timeout reached, kill the process
+		if err := cmd.Process.Kill(); err != nil {
+			// Process might have already exited
+		}
+		return "", fmt.Errorf("conversion operation timed out")
+	case err := <-done:
+		if err != nil {
+			return "", fmt.Errorf("conversion failed: %v", err)
+		}
 	}
 
 	return outputPath, nil
@@ -181,6 +226,11 @@ func (p *AudioProcessor) ConvertFormat(inputPath, outputFormat string, quality m
 
 // Trim audio file
 func (p *AudioProcessor) Trim(inputPath string, startTime, endTime float64) (string, error) {
+	return p.TrimWithContext(context.Background(), inputPath, startTime, endTime)
+}
+
+// TrimWithContext trims audio file with timeout support
+func (p *AudioProcessor) TrimWithContext(ctx context.Context, inputPath string, startTime, endTime float64) (string, error) {
 	// Check if input file exists
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
 		return "", fmt.Errorf("input file not found: %s", inputPath)
@@ -194,7 +244,14 @@ func (p *AudioProcessor) Trim(inputPath string, startTime, endTime float64) (str
 		return "", fmt.Errorf("invalid time range: start=%.2f, end=%.2f", startTime, endTime)
 	}
 
-	cmd := exec.Command("ffmpeg",
+	// Create context with timeout if not already set
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
+
+	cmd := exec.CommandContext(ctx, "ffmpeg",
 		"-y", // Overwrite output files without asking
 		"-i", inputPath,
 		"-ss", fmt.Sprintf("%.2f", startTime),
@@ -203,9 +260,28 @@ func (p *AudioProcessor) Trim(inputPath string, startTime, endTime float64) (str
 		"-loglevel", "error", // Only show errors
 		outputPath)
 
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("trim failed: %v - ffmpeg output: %s", err, string(output))
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("failed to start ffmpeg: %v", err)
+	}
+
+	// Wait for it to complete with timeout
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case <-ctx.Done():
+		// Timeout reached, kill the process
+		if err := cmd.Process.Kill(); err != nil {
+			// Process might have already exited
+		}
+		return "", fmt.Errorf("trim operation timed out after 30 seconds")
+	case err := <-done:
+		if err != nil {
+			return "", fmt.Errorf("trim failed: %v", err)
+		}
 	}
 
 	// Verify output file was created
@@ -218,6 +294,11 @@ func (p *AudioProcessor) Trim(inputPath string, startTime, endTime float64) (str
 
 // Merge multiple audio files
 func (p *AudioProcessor) Merge(inputPaths []string, outputFormat string) (string, error) {
+	return p.MergeWithContext(context.Background(), inputPaths, outputFormat)
+}
+
+// MergeWithContext merges multiple audio files with timeout support
+func (p *AudioProcessor) MergeWithContext(ctx context.Context, inputPaths []string, outputFormat string) (string, error) {
 	if len(inputPaths) < 2 {
 		return "", fmt.Errorf("at least 2 files required for merge")
 	}
@@ -238,7 +319,14 @@ func (p *AudioProcessor) Merge(inputPaths []string, outputFormat string) (string
 	}
 	f.Close()
 
-	cmd := exec.Command("ffmpeg",
+	// Create context with timeout if not already set
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 60*time.Second)
+		defer cancel()
+	}
+
+	cmd := exec.CommandContext(ctx, "ffmpeg",
 		"-y",
 		"-f", "concat",
 		"-safe", "0",
@@ -247,9 +335,28 @@ func (p *AudioProcessor) Merge(inputPaths []string, outputFormat string) (string
 		"-loglevel", "error",
 		outputPath)
 
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("merge failed: %v - ffmpeg output: %s", err, string(output))
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("failed to start ffmpeg: %v", err)
+	}
+
+	// Wait for it to complete with timeout
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case <-ctx.Done():
+		// Timeout reached, kill the process
+		if err := cmd.Process.Kill(); err != nil {
+			// Process might have already exited
+		}
+		return "", fmt.Errorf("merge operation timed out")
+	case err := <-done:
+		if err != nil {
+			return "", fmt.Errorf("merge failed: %v", err)
+		}
 	}
 
 	return outputPath, nil
@@ -260,7 +367,11 @@ func (p *AudioProcessor) AdjustVolume(inputPath string, volumeFactor float64) (s
 	outputID := uuid.New().String()
 	outputPath := filepath.Join(p.WorkDir, fmt.Sprintf("%s_volume%s", outputID, filepath.Ext(inputPath)))
 
-	cmd := exec.Command("ffmpeg",
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "ffmpeg",
 		"-y",
 		"-i", inputPath,
 		"-filter:a", fmt.Sprintf("volume=%.2f", volumeFactor),
@@ -280,7 +391,11 @@ func (p *AudioProcessor) FadeIn(inputPath string, duration float64) (string, err
 	outputID := uuid.New().String()
 	outputPath := filepath.Join(p.WorkDir, fmt.Sprintf("%s_fadein%s", outputID, filepath.Ext(inputPath)))
 
-	cmd := exec.Command("ffmpeg",
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "ffmpeg",
 		"-y",
 		"-i", inputPath,
 		"-af", fmt.Sprintf("afade=t=in:st=0:d=%.2f", duration),
@@ -312,7 +427,12 @@ func (p *AudioProcessor) FadeOut(inputPath string, duration float64) (string, er
 	outputPath := filepath.Join(p.WorkDir, fmt.Sprintf("%s_fadeout%s", outputID, filepath.Ext(inputPath)))
 
 	startTime := totalDuration - duration
-	cmd := exec.Command("ffmpeg",
+	
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctx, "ffmpeg",
 		"-y",
 		"-i", inputPath,
 		"-af", fmt.Sprintf("afade=t=out:st=%.2f:d=%.2f", startTime, duration),
@@ -332,8 +452,14 @@ func (p *AudioProcessor) Normalize(inputPath string, targetLevel float64) (strin
 	outputID := uuid.New().String()
 	outputPath := filepath.Join(p.WorkDir, fmt.Sprintf("%s_normalized%s", outputID, filepath.Ext(inputPath)))
 
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
 	// Use loudnorm filter for EBU R128 normalization
-	cmd := exec.Command("ffmpeg",
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-y",
+		"-loglevel", "error",
 		"-i", inputPath,
 		"-af", fmt.Sprintf("loudnorm=I=%.1f:TP=-1.5:LRA=11", targetLevel),
 		outputPath)
@@ -350,15 +476,23 @@ func (p *AudioProcessor) ApplyNoiseReduction(inputPath string, intensity float64
 	outputID := uuid.New().String()
 	outputPath := filepath.Join(p.WorkDir, fmt.Sprintf("%s_denoised%s", outputID, filepath.Ext(inputPath)))
 
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
 	// Use highpass and lowpass filters for basic noise reduction
-	cmd := exec.Command("ffmpeg",
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-y",
+		"-loglevel", "error",
 		"-i", inputPath,
 		"-af", fmt.Sprintf("highpass=f=200,lowpass=f=3000,afftdn=nf=%.2f", intensity),
 		outputPath)
 
 	if err := cmd.Run(); err != nil {
 		// Fallback to simpler noise reduction if afftdn is not available
-		cmd = exec.Command("ffmpeg",
+		cmd = exec.CommandContext(ctx, "ffmpeg",
+			"-y",
+			"-loglevel", "error",
 			"-i", inputPath,
 			"-af", "highpass=f=200,lowpass=f=3000",
 			outputPath)
@@ -375,7 +509,13 @@ func (p *AudioProcessor) ChangeSpeed(inputPath string, speedFactor float64) (str
 	outputID := uuid.New().String()
 	outputPath := filepath.Join(p.WorkDir, fmt.Sprintf("%s_speed%s", outputID, filepath.Ext(inputPath)))
 
-	cmd := exec.Command("ffmpeg",
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-y",
+		"-loglevel", "error",
 		"-i", inputPath,
 		"-filter:a", fmt.Sprintf("atempo=%.2f", speedFactor),
 		outputPath)
@@ -395,7 +535,13 @@ func (p *AudioProcessor) ChangePitch(inputPath string, pitchSemitones int) (stri
 	// Calculate frequency ratio from semitones
 	ratio := math.Pow(2, float64(pitchSemitones)/12.0)
 	
-	cmd := exec.Command("ffmpeg",
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-y",
+		"-loglevel", "error",
 		"-i", inputPath,
 		"-af", fmt.Sprintf("asetrate=%d*%.4f,aresample=%d", 44100, ratio, 44100),
 		outputPath)
@@ -418,7 +564,13 @@ func (p *AudioProcessor) ApplyEqualizer(inputPath string, eqSettings map[string]
 		eqFilters = append(eqFilters, fmt.Sprintf("equalizer=f=%s:g=%.1f", freq, gain))
 	}
 
-	cmd := exec.Command("ffmpeg",
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-y",
+		"-loglevel", "error",
 		"-i", inputPath,
 		"-af", strings.Join(eqFilters, ","),
 		outputPath)
@@ -463,7 +615,13 @@ func (p *AudioProcessor) Split(inputPath string, splitPoints []float64) ([]strin
 		startTime := splitPoints[i]
 		duration := splitPoints[i+1] - startTime
 		
-		cmd := exec.Command("ffmpeg",
+		// Create context with timeout for each split operation
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		
+		cmd := exec.CommandContext(ctx, "ffmpeg",
+			"-y",
+			"-loglevel", "error",
 			"-i", inputPath,
 			"-ss", fmt.Sprintf("%.2f", startTime),
 			"-t", fmt.Sprintf("%.2f", duration),

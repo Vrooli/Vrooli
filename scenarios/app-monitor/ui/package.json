@@ -23,7 +23,8 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.0",
     "react-use-websocket": "^4.5.0",
-    "ws": "^8.14.2"
+    "ws": "^8.14.2",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

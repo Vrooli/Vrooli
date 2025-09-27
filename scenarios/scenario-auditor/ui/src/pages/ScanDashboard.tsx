@@ -9,13 +9,40 @@ import {
   TrendingUp,
   Zap
 } from 'lucide-react'
-import { useState } from 'react'
 import { apiService } from '../services/api'
 
-export default function ScanDashboard() {
-  const [selectedTimeRange, setSelectedTimeRange] = useState('7d')
+interface DashboardOverview {
+  total_scenarios: number
+  scenarios_scanned: number
+  total_violations: number
+  critical_violations: number
+  auto_fixable: number
+  average_score: number
+  rules_enabled: number
+  rules_total: number
+}
 
-  const { data: dashboardData, isLoading, error } = useQuery({
+interface DashboardScanSummary {
+  total_violations: number
+  score: number
+}
+
+interface DashboardScan {
+  id: string
+  scenario_name: string
+  summary: DashboardScanSummary
+  status: string
+  end_time: string
+}
+
+interface DashboardResponse {
+  overview?: DashboardOverview
+  recent_scans?: DashboardScan[]
+  recommendations?: string[]
+}
+
+export default function ScanDashboard() {
+  const { data: dashboardData, isLoading, error } = useQuery<DashboardResponse>({
     queryKey: ['dashboard'],
     queryFn: () => apiService.getDashboard(),
     refetchInterval: 30000, // Refresh every 30 seconds
@@ -59,7 +86,7 @@ export default function ScanDashboard() {
     )
   }
 
-  const overview = dashboardData?.overview || {
+  const overview: DashboardOverview = dashboardData?.overview || {
     total_scenarios: 0,
     scenarios_scanned: 0,
     total_violations: 0,
@@ -70,8 +97,11 @@ export default function ScanDashboard() {
     rules_total: 0,
   }
 
-  const recentScans = dashboardData?.recent_scans || []
-  const recommendations = dashboardData?.recommendations || []
+  const recentScans: DashboardScan[] = dashboardData?.recent_scans ?? []
+  const recommendations: string[] = dashboardData?.recommendations ?? []
+  const scannedPercent = overview.total_scenarios > 0
+    ? Math.round((overview.scenarios_scanned / overview.total_scenarios) * 100)
+    : 0
 
   return (
     <div className="px-6">
@@ -131,7 +161,7 @@ export default function ScanDashboard() {
           </div>
           <div className="mt-4">
             <div className="text-sm text-gray-500">
-              {Math.round((overview.scenarios_scanned / overview.total_scenarios) * 100)}% scanned
+              {scannedPercent}% scanned
             </div>
           </div>
         </div>
@@ -218,7 +248,7 @@ export default function ScanDashboard() {
           <div className="card-body">
             {recentScans.length > 0 ? (
               <div className="space-y-4">
-                {recentScans.slice(0, 5).map((scan) => (
+                {recentScans.slice(0, 5).map((scan: DashboardScan) => (
                   <div key={scan.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div>
                       <div className="font-medium text-gray-900">{scan.scenario_name}</div>
@@ -256,7 +286,7 @@ export default function ScanDashboard() {
           <div className="card-body">
             {recommendations.length > 0 ? (
               <div className="space-y-3">
-                {recommendations.map((recommendation, index) => (
+                {recommendations.map((recommendation: string, index: number) => (
                   <div key={index} className="flex items-start">
                     <TrendingUp className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
                     <p className="text-sm text-gray-700">{recommendation}</p>

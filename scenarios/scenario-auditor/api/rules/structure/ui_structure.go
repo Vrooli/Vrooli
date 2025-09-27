@@ -22,8 +22,8 @@ type uiStructurePayload struct {
 
 /*
 Rule: Scenario UI Structure
-Description: Validates that scenarios supplying a UI ship a usable shell with the iframe bridge contract implemented
-Reason: Monitoring and orchestration flows depend on a consistent UI entry point and iframe bridge when present
+Description: Validates that scenarios supplying a UI ship a usable shell with required entry points
+Reason: Monitoring and orchestration flows depend on a consistent UI entry point when present
 Category: structure
 Severity: high
 Targets: structure
@@ -51,41 +51,12 @@ Targets: structure
   ]
 }
   </input>
-  <expected-violations>2</expected-violations>
+  <expected-violations>1</expected-violations>
   <expected-message>Missing required UI entry file</expected-message>
 </test-case>
 
-<test-case id="missing-bridge" should-fail="true" path="testdata/missing-bridge">
-  <description>Missing iframe bridge file should be flagged</description>
-  <input language="json">
-{
-  "scenario": "demo",
-  "files": [
-    "ui/index.html",
-    "ui/src/main.tsx"
-  ]
-}
-  </input>
-  <expected-violations>1</expected-violations>
-  <expected-message>Missing iframe bridge implementation</expected-message>
-</test-case>
-
-<test-case id="missing-bridge-reference" should-fail="false" path="testdata/missing-reference">
-  <description>Bridge exists but nothing imports it (structure-only check should pass)</description>
-  <input language="json">
-{
-  "scenario": "demo",
-  "files": [
-    "ui/index.html",
-    "ui/src/iframeBridgeChild.ts",
-    "ui/src/main.tsx"
-  ]
-}
-  </input>
-</test-case>
-
 <test-case id="react-success" should-fail="false" path="testdata/react-success">
-  <description>React/Vite style UI with bridge wired up</description>
+  <description>React/Vite style UI with entrypoints wired up</description>
   <input language="json">
 {
   "scenario": "demo",
@@ -93,7 +64,6 @@ Targets: structure
     "ui/index.html",
     "ui/package.json",
     "ui/src/App.tsx",
-    "ui/src/iframeBridgeChild.ts",
     "ui/src/main.tsx",
     "ui/vite.config.ts",
     "ui/tsconfig.json"
@@ -103,22 +73,21 @@ Targets: structure
 </test-case>
 
 <test-case id="static-success" should-fail="false" path="testdata/static-success">
-  <description>Static HTML UI that includes the bridge script</description>
+  <description>Static HTML UI with application assets</description>
   <input language="json">
 {
   "scenario": "demo",
   "files": [
     "ui/index.html",
     "ui/app.js",
-    "ui/iframeBridgeChild.js",
     "ui/styles.css"
   ]
 }
   </input>
 </test-case>
 
-<test-case id="app-monitor-exception" should-fail="false" scenario="app-monitor" path="testdata/app-monitor-no-bridge">
-  <description>App monitor scenario is exempt from iframe bridge requirement</description>
+<test-case id="app-monitor-example" should-fail="false" scenario="app-monitor" path="testdata/app-monitor-example">
+  <description>App monitor scenario illustrates optional UI handling</description>
   <input language="json">
 {
   "scenario": "app-monitor",
@@ -136,7 +105,7 @@ func CheckUIStructure(content []byte, scenarioPath string, scenario string) ([]r
 	return CheckUICore(content, scenarioPath, scenario)
 }
 
-// CheckUICore validates the UI shell for required bridge and entry assets.
+// CheckUICore validates the UI shell for required entry assets.
 func CheckUICore(content []byte, scenarioPath string, scenario string) ([]rules.Violation, error) {
 	var payload uiStructurePayload
 	if err := json.Unmarshal(content, &payload); err != nil {
@@ -176,13 +145,6 @@ func CheckUICore(content []byte, scenarioPath string, scenario string) ([]rules.
 		violations = append(violations, newUIViolation("ui", "Missing required UI entry script", "high"))
 	}
 
-	requireBridge := !strings.EqualFold(scenarioName, "app-monitor")
-	if requireBridge {
-		if _, ok := findBridgeFile(scenarioPath, filesSet); !ok {
-			violations = append(violations, newUIViolation("ui/iframeBridgeChild", "Missing iframe bridge implementation", "medium"))
-		}
-	}
-
 	return violations, nil
 }
 
@@ -217,30 +179,6 @@ func hasUIEntrypoint(root string, files map[string]struct{}) bool {
 		}
 	}
 	return false
-}
-
-func findBridgeFile(root string, files map[string]struct{}) (string, bool) {
-	candidates := []string{
-		"ui/src/iframeBridgeChild.ts",
-		"ui/src/iframeBridgeChild.tsx",
-		"ui/src/iframeBridgeChild.js",
-		"ui/src/iframeBridgeChild.jsx",
-		"ui/iframeBridgeChild.ts",
-		"ui/iframeBridgeChild.tsx",
-		"ui/iframeBridgeChild.js",
-		"ui/iframeBridgeChild.jsx",
-		"ui/public/iframeBridgeChild.js",
-		"ui/public/iframeBridgeChild.ts",
-		"ui/public/iframeBridgeChild.tsx",
-		"ui/public/iframeBridgeChild.jsx",
-	}
-
-	for _, candidate := range candidates {
-		if uiFileExists(root, candidate, files) {
-			return filepath.ToSlash(candidate), true
-		}
-	}
-	return "", false
 }
 
 func newUIViolation(path, message string, severity string) rules.Violation {

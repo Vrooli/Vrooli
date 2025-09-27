@@ -6,7 +6,7 @@ target: scenario-authenticator
 targets:
     - scenario-authenticator
 category: ""
-priority: medium
+priority: critical
 effort_estimate: ""
 urgency: ""
 dependencies: []
@@ -22,14 +22,10 @@ last_completed_at: ""
 validation_criteria: []
 created_by: ""
 created_at: "2025-09-24T00:18:59-04:00"
-updated_at: "2025-09-24T18:33:29-04:00"
+updated_at: "2025-09-26T17:06:09-04:00"
 tags: []
 notes: Not sure current status
-results:
-    rate_limit_info:
-        hit_at: "2025-09-24T18:33:29-04:00"
-        message: Rate limited at 2025-09-24T18:33:29-04:00. Will retry after 3600 seconds.
-        retry_after: 3600
+results: {}
 consecutive_completion_claims: 0
 consecutive_failures: 0
-processor_auto_requeue: true
+processor_auto_requeue: false

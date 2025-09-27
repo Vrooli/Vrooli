@@ -95,7 +95,7 @@ export default function StandardsCompliance() {
   const [bulkFixPreviewError, setBulkFixPreviewError] = useState<string | null>(null)
   const [bulkFixPreviewLoading, setBulkFixPreviewLoading] = useState(false)
   const [bulkFixPreviewMeta, setBulkFixPreviewMeta] = useState<
-    { message?: string; model?: string; agentCount?: number | null; issueCount?: number | null }
+    { message?: string; model?: string; agentCount?: number | null; issueCount?: number | null } | null
   >(null)
   const resetBulkFixPreview = useCallback(() => {
     setBulkFixPreview(null)

@@ -126,6 +126,10 @@ class ApiService {
     return response.scans || []
   }
 
+  async getDashboard(): Promise<any> {
+    return this.fetch('/dashboard')
+  }
+
   // Performance
   async createPerformanceBaseline(scenario: string, config: any): Promise<any> {
     return this.fetch(`/performance/baseline/${scenario}`, {

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
-export type BridgeCapability = 'history' | 'hash' | 'title' | 'deeplink' | 'resize' | 'screenshot';
+import type { BridgeCapability } from '@vrooli/iframe-bridge';
 
 type BridgeHelloMessage = {
   v: 1;

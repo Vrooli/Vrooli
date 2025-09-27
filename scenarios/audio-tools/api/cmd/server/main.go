@@ -5,11 +5,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -46,6 +48,40 @@ func NewServer() (*Server, error) {
 	// Connect to database (optional - will work without it)
 	var db *sql.DB
 	dbURL := config.DatabaseURL
+	
+	// Use resource postgres port if available - check multiple env vars
+	pgPort := ""
+	if port := os.Getenv("RESOURCE_PORTS_POSTGRES"); port != "" {
+		pgPort = port
+	} else if port := os.Getenv("POSTGRES_PORT"); port != "" {
+		pgPort = port
+	} else {
+		// Try to get from POSTGRES_URL if available
+		if pgURL := os.Getenv("POSTGRES_URL"); pgURL != "" {
+			// Extract port from URL (format: postgres://user:pass@host:port/db)
+			if strings.Contains(pgURL, ":5433/") {
+				pgPort = "5433"
+			}
+		}
+	}
+	
+	if pgPort != "" {
+		// Use vrooli user and database from environment if available
+		pgUser := os.Getenv("POSTGRES_USER")
+		if pgUser == "" {
+			pgUser = "vrooli"
+		}
+		pgPassword := os.Getenv("POSTGRES_PASSWORD")
+		if pgPassword == "" {
+			pgPassword = "postgres"
+		}
+		pgDatabase := "vrooli" // Use vrooli database
+		
+		config.DatabaseURL = fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", 
+			pgUser, pgPassword, pgPort, pgDatabase)
+		dbURL = config.DatabaseURL
+	}
+	
 	if dbURL != "" {
 		var err error
 		db, err = sql.Open("postgres", dbURL)
@@ -53,9 +89,26 @@ func NewServer() (*Server, error) {
 			log.Printf("Warning: Could not connect to database: %v", err)
 			// Continue without database
 		} else {
-			if err := db.Ping(); err != nil {
-				log.Printf("Warning: Database ping failed: %v", err)
-				db = nil
+			// Set connection pool settings
+			db.SetMaxOpenConns(25)
+			db.SetMaxIdleConns(5)
+			db.SetConnMaxLifetime(5 * time.Minute)
+			
+			// Try to ping with retry
+			retries := 3
+			for i := 0; i < retries; i++ {
+				if err := db.Ping(); err != nil {
+					log.Printf("Warning: Database ping failed (attempt %d/%d): %v", i+1, retries, err)
+					if i == retries-1 {
+						db = nil
+						log.Printf("Database connection disabled after %d retries", retries)
+					} else {
+						time.Sleep(2 * time.Second)
+					}
+				} else {
+					log.Printf("Successfully connected to database at %s", dbURL)
+					break
+				}
 			}
 		}
 	}
@@ -87,6 +140,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/audio/edit", s.audioHandler.HandleEdit).Methods("POST", "OPTIONS")
 	api.HandleFunc("/audio/convert", s.audioHandler.HandleConvert).Methods("POST", "OPTIONS")
 	api.HandleFunc("/audio/metadata/{id}", s.audioHandler.HandleMetadata).Methods("GET", "OPTIONS")
+	api.HandleFunc("/audio/metadata", s.audioHandler.HandleMetadata).Methods("POST", "OPTIONS")
 	api.HandleFunc("/audio/enhance", s.audioHandler.HandleEnhance).Methods("POST", "OPTIONS")
 	api.HandleFunc("/audio/analyze", s.audioHandler.HandleAnalyze).Methods("POST", "OPTIONS")
 

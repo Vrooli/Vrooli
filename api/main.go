@@ -33,7 +33,6 @@ var (
 	vrooliRoot = getVrooliRoot()
 )
 
-
 // === Native Scenario Management (Replaces Python Orchestrator) ===
 
 type RunningScenario struct {
@@ -52,7 +51,7 @@ func isValidScenario(name string) bool {
 	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
 		return false
 	}
-	
+
 	// Check for valid scenario name pattern
 	matched, _ := regexp.MatchString(`^[a-zA-Z0-9_-]+$`, name)
 	return matched
@@ -65,7 +64,7 @@ func checkForkBomb() error {
 	if err != nil {
 		return err
 	}
-	
+
 	lines := strings.Count(string(output), "\n")
 	if lines > 2000 { // Same limit as Python version
 		return fmt.Errorf("system overload: %d processes (limit: 2000)", lines)
@@ -81,12 +80,12 @@ func countZombieProcesses() (int, error) {
 		// If command fails, return 0 as we can't determine zombie count
 		return 0, fmt.Errorf("failed to count zombies: %v", err)
 	}
-	
+
 	count := 0
 	if _, err := fmt.Sscanf(strings.TrimSpace(string(output)), "%d", &count); err != nil {
 		return 0, fmt.Errorf("failed to parse zombie count: %v", err)
 	}
-	
+
 	return count, nil
 }
 
@@ -96,46 +95,46 @@ func countOrphanProcesses() (int, error) {
 	// First, build a set of all tracked PIDs
 	trackedPIDs := make(map[string]bool)
 	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios")
-	
+
 	if _, err := os.Stat(processesDir); !os.IsNotExist(err) {
 		err := filepath.Walk(processesDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil // Skip errors, continue walking
 			}
-			
+
 			if !strings.HasSuffix(path, ".json") {
 				return nil
 			}
-			
+
 			data, err := os.ReadFile(path)
 			if err != nil {
 				return nil
 			}
-			
+
 			var processInfo map[string]interface{}
 			if err := json.Unmarshal(data, &processInfo); err != nil {
 				return nil
 			}
-			
+
 			// Get both PID and PGID if available
 			if pidFloat, ok := processInfo["pid"].(float64); ok {
 				pid := fmt.Sprintf("%.0f", pidFloat)
 				trackedPIDs[pid] = true
 			}
-			
+
 			if pgidFloat, ok := processInfo["pgid"].(float64); ok {
 				pgid := fmt.Sprintf("%.0f", pgidFloat)
 				trackedPIDs[pgid] = true
 			}
-			
+
 			return nil
 		})
-		
+
 		if err != nil {
 			log.Printf("Error walking process directory: %v", err)
 		}
 	}
-	
+
 	// Get all Vrooli-related running processes
 	cmd := exec.Command("bash", "-c", `ps aux | grep -E "(vrooli|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel)" | grep -v grep | grep -v 'bash -c'`)
 	output, err := cmd.CombinedOutput()
@@ -143,44 +142,44 @@ func countOrphanProcesses() (int, error) {
 		// If command fails, assume no orphans
 		return 0, nil
 	}
-	
+
 	processLines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	if len(processLines) == 1 && processLines[0] == "" {
 		return 0, nil // No processes found
 	}
-	
+
 	orphanCount := 0
-	
+
 	for _, line := range processLines {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		
+
 		// Extract PID (second field)
 		fields := strings.Fields(line)
 		if len(fields) < 2 {
 			continue
 		}
-		
+
 		pid := fields[1]
 		if !regexp.MustCompile(`^\d+$`).MatchString(pid) {
 			continue
 		}
-		
+
 		// Skip our own API process
 		if strings.Contains(line, "./vrooli-api") || strings.Contains(line, "vrooli-api-new") {
 			continue
 		}
-		
+
 		// Check if this process or any of its ancestors are tracked
 		if isProcessOrAncestorTracked(pid, trackedPIDs) {
 			continue // This process is tracked or is a child of a tracked process
 		}
-		
+
 		// If not tracked and no tracked ancestors, it's an orphan
 		orphanCount++
 	}
-	
+
 	return orphanCount, nil
 }
 
@@ -190,19 +189,19 @@ func isProcessOrAncestorTracked(pid string, trackedPIDs map[string]bool) bool {
 	if trackedPIDs[pid] {
 		return true
 	}
-	
+
 	// Get the parent PID
 	ppidCmd := exec.Command("ps", "-o", "ppid=", "-p", pid)
 	ppidOutput, err := ppidCmd.Output()
 	if err != nil {
 		return false // Can't determine parent, assume not tracked
 	}
-	
+
 	ppid := strings.TrimSpace(string(ppidOutput))
 	if ppid == "" || ppid == "0" || ppid == "1" {
 		return false // Reached init or no parent
 	}
-	
+
 	// Recursively check parent
 	return isProcessOrAncestorTracked(ppid, trackedPIDs)
 }
@@ -210,7 +209,7 @@ func isProcessOrAncestorTracked(pid string, trackedPIDs map[string]bool) bool {
 // Get zombie status with thresholds for display
 func getZombieStatus() (count int, status string, emoji string) {
 	count, _ = countZombieProcesses() // Ignore error, default to 0
-	
+
 	switch {
 	case count == 0:
 		return count, "healthy", "✅"
@@ -226,7 +225,7 @@ func getZombieStatus() (count int, status string, emoji string) {
 // Get orphan status with thresholds for display
 func getOrphanStatus() (count int, status string, emoji string) {
 	count, _ = countOrphanProcesses() // Ignore error, default to 0
-	
+
 	switch {
 	case count == 0:
 		return count, "healthy", "✅"
@@ -243,74 +242,74 @@ func getOrphanStatus() (count int, status string, emoji string) {
 // Get enhanced process metrics for detailed monitoring
 func getEnhancedProcessMetrics() map[string]interface{} {
 	metrics := make(map[string]interface{})
-	
+
 	// Count tracked processes
 	trackedCount := 0
 	runningTrackedCount := 0
 	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios")
-	
+
 	if _, err := os.Stat(processesDir); !os.IsNotExist(err) {
 		filepath.Walk(processesDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil || !strings.HasSuffix(path, ".json") {
 				return nil
 			}
-			
+
 			data, err := os.ReadFile(path)
 			if err != nil {
 				return nil
 			}
-			
+
 			var processInfo map[string]interface{}
 			if err := json.Unmarshal(data, &processInfo); err != nil {
 				return nil
 			}
-			
+
 			if pidFloat, ok := processInfo["pid"].(float64); ok {
 				trackedCount++
 				pid := fmt.Sprintf("%.0f", pidFloat)
-				
+
 				// Check if process is running
 				checkCmd := exec.Command("kill", "-0", pid)
 				if err := checkCmd.Run(); err == nil {
 					runningTrackedCount++
 				}
 			}
-			
+
 			return nil
 		})
 	}
-	
+
 	// Count all Vrooli-related processes
 	totalProcesses := 0
 	cmd := exec.Command("bash", "-c", `ps aux | grep -E "(vrooli|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel)" | grep -v grep | grep -v 'bash -c' | wc -l`)
 	if output, err := cmd.Output(); err == nil {
 		fmt.Sscanf(strings.TrimSpace(string(output)), "%d", &totalProcesses)
 	}
-	
+
 	// Calculate child processes (total - tracked - API)
 	childProcesses := totalProcesses - runningTrackedCount - 1 // -1 for API itself
 	if childProcesses < 0 {
 		childProcesses = 0
 	}
-	
+
 	// Get zombie and orphan counts
 	zombieCount, _ := countZombieProcesses()
 	orphanCount, _ := countOrphanProcesses()
-	
+
 	metrics["tracked_processes"] = trackedCount
 	metrics["running_tracked"] = runningTrackedCount
 	metrics["child_processes"] = childProcesses
 	metrics["total_processes"] = totalProcesses
 	metrics["zombie_processes"] = zombieCount
 	metrics["orphan_processes"] = orphanCount
-	
+
 	return metrics
 }
 
 func getProcessHealthStatus() (zombieCount, orphanCount int, overallStatus string) {
 	zombieCount, zombieStatus, _ := getZombieStatus()
 	orphanCount, orphanStatus, _ := getOrphanStatus()
-	
+
 	// Overall status is worst of the two
 	if zombieStatus == "critical" || orphanStatus == "critical" {
 		return zombieCount, orphanCount, "critical"
@@ -327,7 +326,7 @@ func getProcessHealthStatus() (zombieCount, orphanCount int, overallStatus strin
 // Discover ports for a specific scenario by reading process environment variables
 func discoverScenarioPorts(scenarioName string) map[string]int {
 	ports := make(map[string]int)
-	
+
 	// First, load the service.json to see what ports are actually defined
 	serviceFile := filepath.Join(vrooliRoot, "scenarios", scenarioName, ".vrooli", "service.json")
 	serviceData, err := os.ReadFile(serviceFile)
@@ -335,7 +334,7 @@ func discoverScenarioPorts(scenarioName string) map[string]int {
 		// If we can't read service.json, return empty
 		return ports
 	}
-	
+
 	// Parse service.json to get defined ports
 	var serviceConfig struct {
 		Ports map[string]struct {
@@ -343,11 +342,11 @@ func discoverScenarioPorts(scenarioName string) map[string]int {
 			Range  string `json:"range"`
 		} `json:"ports"`
 	}
-	
+
 	if err := json.Unmarshal(serviceData, &serviceConfig); err != nil {
 		return ports
 	}
-	
+
 	// Build a set of valid port environment variables
 	validPortVars := make(map[string]bool)
 	for _, portConfig := range serviceConfig.Ports {
@@ -355,19 +354,19 @@ func discoverScenarioPorts(scenarioName string) map[string]int {
 			validPortVars[portConfig.EnvVar] = true
 		}
 	}
-	
+
 	// If no ports defined, return empty
 	if len(validPortVars) == 0 {
 		return ports
 	}
-	
+
 	// Get PIDs from the scenario's process directory
 	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios", scenarioName)
-	
+
 	if _, err := os.Stat(processesDir); os.IsNotExist(err) {
 		return ports
 	}
-	
+
 	// Read all .json files to get PIDs
 	processFiles, _ := filepath.Glob(filepath.Join(processesDir, "*.json"))
 	for _, file := range processFiles {
@@ -375,24 +374,24 @@ func discoverScenarioPorts(scenarioName string) map[string]int {
 		if err != nil {
 			continue
 		}
-		
+
 		var processInfo ProcessInfo
 		if err := json.Unmarshal(data, &processInfo); err != nil {
 			continue
 		}
-		
+
 		// Check if process is actually running
 		if !isPidRunning(processInfo.PID) {
 			continue
 		}
-		
+
 		// Read environment variables from /proc/PID/environ
 		envFile := fmt.Sprintf("/proc/%d/environ", processInfo.PID)
 		envData, err := os.ReadFile(envFile)
 		if err != nil {
 			continue
 		}
-		
+
 		// Parse environment variables (they're null-separated)
 		envVars := strings.Split(string(envData), "\x00")
 		for _, envVar := range envVars {
@@ -401,7 +400,7 @@ func discoverScenarioPorts(scenarioName string) map[string]int {
 				if len(parts) == 2 {
 					varName := parts[0]
 					varValue := parts[1]
-					
+
 					// Only capture ports that are defined in service.json
 					if validPortVars[varName] {
 						if port, err := strconv.Atoi(varValue); err == nil {
@@ -412,22 +411,22 @@ func discoverScenarioPorts(scenarioName string) map[string]int {
 			}
 		}
 	}
-	
+
 	return ports
 }
 
 // ProcessInfo represents a single tracked process
 type ProcessInfo struct {
-	PID       int       `json:"pid"`
-	ProcessID string    `json:"process_id"`
-	Phase     string    `json:"phase"`
-	Scenario  string    `json:"scenario"`
-	Step      string    `json:"step"`
-	Command   string    `json:"command"`
-	WorkingDir string   `json:"working_dir"`
-	LogFile   string    `json:"log_file"`
-	StartedAt time.Time `json:"started_at"`
-	Status    string    `json:"status"`
+	PID        int       `json:"pid"`
+	ProcessID  string    `json:"process_id"`
+	Phase      string    `json:"phase"`
+	Scenario   string    `json:"scenario"`
+	Step       string    `json:"step"`
+	Command    string    `json:"command"`
+	WorkingDir string    `json:"working_dir"`
+	LogFile    string    `json:"log_file"`
+	StartedAt  time.Time `json:"started_at"`
+	Status     string    `json:"status"`
 }
 
 // Helper function to check if a PID is running
@@ -436,7 +435,7 @@ func isPidRunning(pid int) bool {
 	if err != nil {
 		return false
 	}
-	
+
 	// Send signal 0 to check if process exists
 	err = process.Signal(syscall.Signal(0))
 	return err == nil
@@ -444,10 +443,10 @@ func isPidRunning(pid int) bool {
 
 // Discover all running scenarios using PID-based tracking
 func discoverRunningScenarios() ([]RunningScenario, error) {
-	
+
 	scenarios := make(map[string]*RunningScenario)
 	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios")
-	
+
 	// Check PID files for running processes
 	if _, err := os.Stat(processesDir); !os.IsNotExist(err) {
 		processDirs, err := os.ReadDir(processesDir)
@@ -456,40 +455,40 @@ func discoverRunningScenarios() ([]RunningScenario, error) {
 				if !processDir.IsDir() {
 					continue
 				}
-				
+
 				scenarioName := processDir.Name()
-				
+
 				// Verify scenario exists and has service.json
 				if !isValidScenario(scenarioName) {
 					continue
 				}
-				
+
 				scenarioProcessDir := filepath.Join(processesDir, scenarioName)
 				runningProcesses := 0
 				var earliestStart *time.Time
-				
+
 				// Check each process file for this scenario
 				processFiles, err := filepath.Glob(filepath.Join(scenarioProcessDir, "*.json"))
 				if err != nil {
 					continue
 				}
-				
+
 				for _, processFile := range processFiles {
 					// Read process metadata
 					data, err := os.ReadFile(processFile)
 					if err != nil {
 						continue
 					}
-					
+
 					var processInfo ProcessInfo
 					if err := json.Unmarshal(data, &processInfo); err != nil {
 						continue
 					}
-					
+
 					// Check if process is actually running
 					if isPidRunning(processInfo.PID) {
 						runningProcesses++
-						
+
 						// Track earliest start time
 						if earliestStart == nil || processInfo.StartedAt.Before(*earliestStart) {
 							earliestStart = &processInfo.StartedAt
@@ -501,7 +500,7 @@ func discoverRunningScenarios() ([]RunningScenario, error) {
 						os.Remove(pidFile)
 					}
 				}
-				
+
 				// Add scenario to results if it has running processes
 				if runningProcesses > 0 {
 					runtime := "unknown"
@@ -515,7 +514,7 @@ func discoverRunningScenarios() ([]RunningScenario, error) {
 							runtime = fmt.Sprintf("%.1fd", duration.Hours()/24)
 						}
 					}
-					
+
 					scenarios[scenarioName] = &RunningScenario{
 						Name:      scenarioName,
 						Status:    "running",
@@ -528,14 +527,14 @@ func discoverRunningScenarios() ([]RunningScenario, error) {
 			}
 		}
 	}
-	
+
 	// Convert map to slice and discover ports for each scenario
 	var result []RunningScenario
 	for _, scenario := range scenarios {
 		scenario.Ports = discoverScenarioPorts(scenario.Name)
 		result = append(result, *scenario)
 	}
-	
+
 	return result, nil
 }
 
@@ -546,36 +545,36 @@ func startAllScenariosNative() (map[string]interface{}, error) {
 	if err := checkForkBomb(); err != nil {
 		return nil, err
 	}
-	
+
 	// Find all scenarios
 	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
 	entries, err := os.ReadDir(scenariosDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read scenarios directory: %v", err)
 	}
-	
+
 	type startResult struct {
 		Name    string
 		Success bool
 		Error   string
 	}
-	
+
 	// Collect valid scenarios first
 	var validScenarios []string
 	for _, entry := range entries {
 		if !entry.IsDir() || entry.Name() == "templates" || strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
-		
+
 		// Check if service.json exists
 		serviceFile := filepath.Join(scenariosDir, entry.Name(), ".vrooli", "service.json")
 		if _, err := os.Stat(serviceFile); os.IsNotExist(err) {
 			continue
 		}
-		
+
 		validScenarios = append(validScenarios, entry.Name())
 	}
-	
+
 	if len(validScenarios) == 0 {
 		return map[string]interface{}{
 			"started": []map[string]string{},
@@ -583,31 +582,31 @@ func startAllScenariosNative() (map[string]interface{}, error) {
 			"message": "No valid scenarios found",
 		}, nil
 	}
-	
+
 	// Use rolling/streaming concurrency instead of batched
 	resultChan := make(chan startResult, len(validScenarios))
 	concurrentLimit := 20 // Higher limit, smooth processing
 	sem := make(chan struct{}, concurrentLimit)
 	var wg sync.WaitGroup
-	
+
 	// Start worker pool that processes scenarios as they become available
 	scenarioQueue := make(chan string, len(validScenarios))
-	
+
 	// Fill the queue
 	for _, scenarioName := range validScenarios {
 		scenarioQueue <- scenarioName
 	}
 	close(scenarioQueue)
-	
+
 	// Launch workers that pull from queue (rolling concurrency)
 	for i := 0; i < concurrentLimit && i < len(validScenarios); i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			
+
 			for scenarioName := range scenarioQueue {
 				sem <- struct{}{} // Acquire semaphore
-				
+
 				err := startScenarioNative(scenarioName)
 				if err != nil {
 					resultChan <- startResult{
@@ -622,22 +621,22 @@ func startAllScenariosNative() (map[string]interface{}, error) {
 						Error:   "",
 					}
 				}
-				
+
 				<-sem // Release semaphore immediately so next scenario can start
 			}
 		}()
 	}
-	
+
 	// Wait for all workers to finish
 	go func() {
 		wg.Wait()
 		close(resultChan)
 	}()
-	
+
 	// Collect results
 	var started []map[string]string
 	var failed []map[string]string
-	
+
 	for result := range resultChan {
 		if result.Success {
 			started = append(started, map[string]string{
@@ -651,7 +650,7 @@ func startAllScenariosNative() (map[string]interface{}, error) {
 			})
 		}
 	}
-	
+
 	return map[string]interface{}{
 		"started": started,
 		"failed":  failed,
@@ -671,12 +670,12 @@ type HealthCheckConfig struct {
 
 // ScenarioHealthConfig represents the health section from service.json
 type ScenarioHealthConfig struct {
-	Description        string               `json:"description"`
-	Endpoints          map[string]string    `json:"endpoints"`
-	Checks             []HealthCheckConfig  `json:"checks"`
-	Timeout            int                  `json:"timeout"`
-	Interval           int                  `json:"interval"`
-	StartupGracePeriod int                  `json:"startup_grace_period"`
+	Description        string              `json:"description"`
+	Endpoints          map[string]string   `json:"endpoints"`
+	Checks             []HealthCheckConfig `json:"checks"`
+	Timeout            int                 `json:"timeout"`
+	Interval           int                 `json:"interval"`
+	StartupGracePeriod int                 `json:"startup_grace_period"`
 }
 
 // Load health config from scenario service.json (supports both v1 and v2 formats)
@@ -686,41 +685,41 @@ func loadHealthConfig(scenarioName string) (*ScenarioHealthConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Try v2.0 format first (health under lifecycle)
 	var v2Config struct {
 		Lifecycle struct {
 			Health *ScenarioHealthConfig `json:"health"`
 		} `json:"lifecycle"`
 	}
-	
+
 	if err := json.Unmarshal(data, &v2Config); err == nil && v2Config.Lifecycle.Health != nil {
 		return v2Config.Lifecycle.Health, nil
 	}
-	
+
 	// Fall back to v1 format (health at root level)
 	var v1Config struct {
 		Health *ScenarioHealthConfig `json:"health"`
 	}
-	
+
 	if err := json.Unmarshal(data, &v1Config); err != nil {
 		return nil, err
 	}
-	
+
 	return v1Config.Health, nil
 }
 
 // Expand environment variables in target URL using discovered ports
 func expandEnvVars(target string, scenarioName string, ports map[string]int) string {
 	expanded := target
-	
+
 	// Replace known port variables with discovered ports
 	for varName, port := range ports {
 		// Handle both ${VAR} and $VAR syntax
 		expanded = strings.ReplaceAll(expanded, "${"+varName+"}", strconv.Itoa(port))
 		expanded = strings.ReplaceAll(expanded, "$"+varName, strconv.Itoa(port))
 	}
-	
+
 	// Fallback to environment variables if not in discovered ports
 	if strings.Contains(expanded, "${API_PORT}") && os.Getenv("API_PORT") != "" {
 		expanded = strings.ReplaceAll(expanded, "${API_PORT}", os.Getenv("API_PORT"))
@@ -728,7 +727,7 @@ func expandEnvVars(target string, scenarioName string, ports map[string]int) str
 	if strings.Contains(expanded, "${UI_PORT}") && os.Getenv("UI_PORT") != "" {
 		expanded = strings.ReplaceAll(expanded, "${UI_PORT}", os.Getenv("UI_PORT"))
 	}
-	
+
 	return expanded
 }
 
@@ -737,34 +736,34 @@ func performHealthCheck(check HealthCheckConfig, scenarioName string, ports map[
 	switch check.Type {
 	case "http":
 		target := expandEnvVars(check.Target, scenarioName, ports)
-		
+
 		// Parse URL to validate
 		_, err := url.Parse(target)
 		if err != nil {
 			return fmt.Errorf("invalid URL: %s", target)
 		}
-		
+
 		// Create HTTP client with timeout
 		timeout := time.Duration(check.Timeout) * time.Millisecond
 		if timeout == 0 {
 			timeout = 5 * time.Second
 		}
-		
+
 		client := &http.Client{
 			Timeout: timeout,
 		}
-		
+
 		resp, err := client.Get(target)
 		if err != nil {
 			return err
 		}
 		defer resp.Body.Close()
-		
+
 		// Accept 2xx status codes
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			return fmt.Errorf("HTTP %d", resp.StatusCode)
 		}
-		
+
 		return nil
 	default:
 		return fmt.Errorf("unsupported health check type: %s", check.Type)
@@ -777,24 +776,24 @@ func waitForScenarioHealth(scenarioName string, healthConfig *ScenarioHealthConf
 		// No health checks defined, assume started immediately
 		return nil
 	}
-	
+
 	// Use startup grace period (default 15 seconds)
 	gracePeriod := time.Duration(healthConfig.StartupGracePeriod) * time.Millisecond
 	if gracePeriod == 0 {
 		gracePeriod = 15 * time.Second
 	}
-	
+
 	// Poll interval (default 1 second)
 	pollInterval := 1 * time.Second
-	
+
 	deadline := time.Now().Add(gracePeriod)
-	
+
 	for time.Now().Before(deadline) {
 		// Discover ports for this scenario (they may not be available immediately)
 		ports := discoverScenarioPorts(scenarioName)
-		
+
 		allPassed := true
-		
+
 		for _, check := range healthConfig.Checks {
 			if err := performHealthCheck(check, scenarioName, ports); err != nil {
 				allPassed = false
@@ -805,15 +804,15 @@ func waitForScenarioHealth(scenarioName string, healthConfig *ScenarioHealthConf
 				}
 			}
 		}
-		
+
 		if allPassed {
 			return nil // All health checks passed!
 		}
-		
+
 		// Wait before next check
 		time.Sleep(pollInterval)
 	}
-	
+
 	// Grace period expired, do final check with latest port discovery
 	ports := discoverScenarioPorts(scenarioName)
 	for _, check := range healthConfig.Checks {
@@ -823,7 +822,7 @@ func waitForScenarioHealth(scenarioName string, healthConfig *ScenarioHealthConf
 			}
 		}
 	}
-	
+
 	return nil // Non-critical failures are acceptable
 }
 
@@ -832,10 +831,10 @@ func checkScenarioHealth(scenarioName string, healthConfig *ScenarioHealthConfig
 	if healthConfig == nil || len(healthConfig.Checks) == 0 {
 		return "running" // No health checks configured
 	}
-	
+
 	criticalFailed := false
 	nonCriticalFailed := false
-	
+
 	for _, check := range healthConfig.Checks {
 		if err := performHealthCheck(check, scenarioName, ports); err != nil {
 			if check.Critical {
@@ -845,12 +844,12 @@ func checkScenarioHealth(scenarioName string, healthConfig *ScenarioHealthConfig
 			}
 		}
 	}
-	
+
 	// Determine overall health status
 	if criticalFailed {
 		return "unhealthy"
 	} else if nonCriticalFailed {
-		return "degraded" 
+		return "degraded"
 	} else {
 		return "healthy"
 	}
@@ -868,43 +867,43 @@ func startScenarioNative(name string) error {
 			if err != nil {
 				continue
 			}
-			
+
 			var processInfo ProcessInfo
 			if err := json.Unmarshal(data, &processInfo); err != nil {
 				continue
 			}
-			
+
 			if isPidRunning(processInfo.PID) {
 				return fmt.Errorf("scenario %s is already running (PID: %d)", name, processInfo.PID)
 			}
 		}
 	}
-	
+
 	// Check fork bomb
 	if err := checkForkBomb(); err != nil {
 		return err
 	}
-	
+
 	// Load health configuration
 	healthConfig, err := loadHealthConfig(name)
 	if err != nil {
 		// Health config is optional, continue without it
 		healthConfig = nil
 	}
-	
+
 	// Execute scenario lifecycle
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", name)
-	cmd := exec.Command("bash", 
+	cmd := exec.Command("bash",
 		filepath.Join(vrooliRoot, "scripts/lib/utils/lifecycle.sh"),
 		name, "develop")
 	cmd.Dir = scenarioDir
 	cmd.Env = os.Environ()
-	
+
 	// Start the process
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	
+
 	// CRITICAL: Wait for process in background to prevent zombies
 	// The lifecycle.sh script starts background processes and exits,
 	// we must reap it when it finishes to prevent it becoming a zombie
@@ -916,14 +915,14 @@ func startScenarioNative(name string) error {
 			log.Printf("Scenario %s lifecycle process completed successfully", name)
 		}
 	}()
-	
+
 	// Wait for health checks to pass (if configured)
 	if err := waitForScenarioHealth(name, healthConfig); err != nil {
 		// Health checks failed, but process might still be running
 		// This is a soft failure - we report it but don't kill the process
 		return fmt.Errorf("scenario started but health checks failed: %v", err)
 	}
-	
+
 	return nil
 }
 
@@ -931,12 +930,12 @@ func startScenarioNative(name string) error {
 func stopScenarioNative(name string) error {
 	// Use lifecycle stop command
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", name)
-	cmd := exec.Command("bash", 
+	cmd := exec.Command("bash",
 		filepath.Join(vrooliRoot, "scripts/lib/utils/lifecycle.sh"),
 		name, "stop")
 	cmd.Dir = scenarioDir
 	cmd.Env = os.Environ()
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to stop scenario %s: %v - %s", name, err, string(output))
@@ -951,7 +950,7 @@ func stopAllScenariosNative() (map[string]interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover running scenarios: %v", err)
 	}
-	
+
 	if len(runningScenarios) == 0 {
 		return map[string]interface{}{
 			"stopped": []map[string]string{},
@@ -959,30 +958,30 @@ func stopAllScenariosNative() (map[string]interface{}, error) {
 			"message": "No running scenarios to stop",
 		}, nil
 	}
-	
+
 	type stopResult struct {
 		Name    string
 		Success bool
 		Error   string
 	}
-	
+
 	// Use channels for concurrent stops
 	resultChan := make(chan stopResult, len(runningScenarios))
 	var wg sync.WaitGroup
 	concurrentLimit := 10 // Can stop more concurrently than start
 	sem := make(chan struct{}, concurrentLimit)
-	
+
 	for _, scenario := range runningScenarios {
 		if scenario.Status != "running" {
 			continue
 		}
-		
+
 		wg.Add(1)
 		go func(scenarioName string) {
 			defer wg.Done()
 			sem <- struct{}{}        // Acquire semaphore
 			defer func() { <-sem }() // Release semaphore
-			
+
 			err := stopScenarioNative(scenarioName)
 			if err != nil {
 				resultChan <- stopResult{
@@ -999,17 +998,17 @@ func stopAllScenariosNative() (map[string]interface{}, error) {
 			}
 		}(scenario.Name)
 	}
-	
+
 	// Wait for all goroutines to finish
 	go func() {
 		wg.Wait()
 		close(resultChan)
 	}()
-	
+
 	// Collect results
 	var stopped []map[string]string
 	var failed []map[string]string
-	
+
 	for result := range resultChan {
 		if result.Success {
 			stopped = append(stopped, map[string]string{
@@ -1023,7 +1022,7 @@ func stopAllScenariosNative() (map[string]interface{}, error) {
 			})
 		}
 	}
-	
+
 	return map[string]interface{}{
 		"stopped": stopped,
 		"failed":  failed,
@@ -1042,7 +1041,6 @@ func getVrooliRoot() string {
 	ex, _ := os.Executable()
 	return filepath.Dir(filepath.Dir(ex))
 }
-
 
 // === App Management ===
 type App struct {
@@ -1416,7 +1414,7 @@ func listScenariosNative(w http.ResponseWriter, r *http.Request) {
 	for i, scenario := range runningScenarios {
 		runningMap[scenario.Name] = &runningScenarios[i]
 	}
-	
+
 	// Get process health information for system warnings
 	zombieCount, orphanCount, processStatus := getProcessHealthStatus()
 	zombieCount, zombieStatus, zombieEmoji := getZombieStatus()
@@ -1457,14 +1455,14 @@ func listScenariosNative(w http.ResponseWriter, r *http.Request) {
 
 		// Create scenario info
 		scenario := map[string]interface{}{
-			"name":        entry.Name(),
+			"name":         entry.Name(),
 			"display_name": serviceConfig.Service.DisplayName,
-			"description": serviceConfig.Service.Description,
-			"tags":        serviceConfig.Service.Tags,
-			"status":      "stopped",
-			"processes":   0,
-			"ports":       map[string]int{},
-			"runtime":     "N/A",
+			"description":  serviceConfig.Service.Description,
+			"tags":         serviceConfig.Service.Tags,
+			"status":       "stopped",
+			"processes":    0,
+			"ports":        map[string]int{},
+			"runtime":      "N/A",
 		}
 
 		// Update with running info if available
@@ -1476,7 +1474,7 @@ func listScenariosNative(w http.ResponseWriter, r *http.Request) {
 			if running.StartedAt != nil {
 				scenario["started_at"] = running.StartedAt.Format(time.RFC3339)
 			}
-			
+
 			// Perform health checks for running scenarios using discovered ports
 			healthStatus := "running" // Default if no health checks configured
 			if healthConfig, err := loadHealthConfig(entry.Name()); err == nil && healthConfig != nil && len(healthConfig.Checks) > 0 {
@@ -1497,10 +1495,10 @@ func listScenariosNative(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"data":    scenarios,
 	}
-	
+
 	// Add system warnings if necessary
 	var warnings []map[string]interface{}
-	
+
 	if zombieStatus != "healthy" && zombieStatus != "normal" {
 		warnings = append(warnings, map[string]interface{}{
 			"type":    "zombies",
@@ -1510,7 +1508,7 @@ func listScenariosNative(w http.ResponseWriter, r *http.Request) {
 			"message": fmt.Sprintf("System has %d zombie processes %s", zombieCount, zombieEmoji),
 		})
 	}
-	
+
 	if orphanStatus != "healthy" && orphanStatus != "normal" {
 		warnings = append(warnings, map[string]interface{}{
 			"type":    "orphans",
@@ -1520,19 +1518,19 @@ func listScenariosNative(w http.ResponseWriter, r *http.Request) {
 			"message": fmt.Sprintf("System has %d orphaned processes %s", orphanCount, orphanEmoji),
 		})
 	}
-	
+
 	if len(warnings) > 0 {
 		response["system_warnings"] = warnings
 		response["system_health"] = processStatus
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }
 
 // Get detailed scenario status with ports (replaces Python /scenarios/{name})
 func getScenarioStatusNative(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	
+
 	// Check if scenario exists first
 	scenarioPath := filepath.Join(vrooliRoot, "scenarios", name)
 	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
@@ -1542,7 +1540,7 @@ func getScenarioStatusNative(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	// Get running status and ports
 	scenarios, err := discoverRunningScenarios()
 	if err != nil {
@@ -1552,7 +1550,7 @@ func getScenarioStatusNative(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	// Find specific scenario in running scenarios
 	for _, scenario := range scenarios {
 		if scenario.Name == name {
@@ -1566,33 +1564,33 @@ func getScenarioStatusNative(w http.ResponseWriter, r *http.Request) {
 					"ports":     scenario.Ports,
 				})
 			}
-			
+
 			json.NewEncoder(w).Encode(Response{
 				Success: true,
 				Data: map[string]interface{}{
-					"name":      scenario.Name,
-					"status":    scenario.Status,
-					"phase":     "develop",
-					"processes": processes,
-					"started_at": scenario.StartedAt,
-					"runtime":   scenario.Runtime,
+					"name":            scenario.Name,
+					"status":          scenario.Status,
+					"phase":           "develop",
+					"processes":       processes,
+					"started_at":      scenario.StartedAt,
+					"runtime":         scenario.Runtime,
 					"allocated_ports": scenario.Ports,
 				},
 			})
 			return
 		}
 	}
-	
+
 	// Scenario exists but not running - return stopped status like Python orchestrator
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data: map[string]interface{}{
-			"name":      name,
-			"status":    "stopped", 
-			"phase":     "develop",
-			"processes": []map[string]interface{}{},
-			"started_at": nil,
-			"runtime":   "N/A",
+			"name":            name,
+			"status":          "stopped",
+			"phase":           "develop",
+			"processes":       []map[string]interface{}{},
+			"started_at":      nil,
+			"runtime":         "N/A",
 			"allocated_ports": map[string]int{},
 		},
 	})
@@ -1608,7 +1606,7 @@ func startAllScenariosEndpoint(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data:    result,
@@ -1642,7 +1640,7 @@ func handleLifecycle(w http.ResponseWriter, r *http.Request) {
 // === Process Metrics ===
 func processMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	metrics := getEnhancedProcessMetrics()
-	
+
 	// Add status interpretations
 	metrics["status"] = "healthy"
 	if zombies, ok := metrics["zombie_processes"].(int); ok && zombies > 5 {
@@ -1651,7 +1649,7 @@ func processMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	if orphans, ok := metrics["orphan_processes"].(int); ok && orphans > 3 {
 		metrics["status"] = "warning"
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
@@ -1665,7 +1663,7 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	zombieCount, orphanCount, processStatus := getProcessHealthStatus()
 	zombieCount, zombieStatus, _ := getZombieStatus()
 	orphanCount, orphanStatus, _ := getOrphanStatus()
-	
+
 	// Determine overall health based on process status
 	overallStatus := "healthy"
 	if processStatus == "critical" {
@@ -1673,12 +1671,12 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	} else if processStatus == "warning" {
 		overallStatus = "degraded"
 	}
-	
+
 	// Set appropriate HTTP status code
 	if overallStatus != "healthy" {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
-	
+
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":      overallStatus,
 		"version":     "1.0.0",
@@ -1709,7 +1707,7 @@ func getRunningApps(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(Response{Error: "Failed to get running scenarios"})
 		return
 	}
-	
+
 	json.NewEncoder(w).Encode(Response{Success: true, Data: scenarios})
 }
 
@@ -1720,7 +1718,7 @@ func startAllApps(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(Response{Error: fmt.Sprintf("Failed to start scenarios: %v", err)})
 		return
 	}
-	
+
 	json.NewEncoder(w).Encode(Response{Success: true, Data: result})
 }
 
@@ -1731,7 +1729,7 @@ func stopAllApps(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(Response{Error: fmt.Sprintf("Failed to stop scenarios: %v", err)})
 		return
 	}
-	
+
 	json.NewEncoder(w).Encode(Response{Success: true, Data: result})
 }
 
@@ -1745,7 +1743,7 @@ func stopAllScenariosEndpoint(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data:    result,
@@ -1755,7 +1753,7 @@ func stopAllScenariosEndpoint(w http.ResponseWriter, r *http.Request) {
 // Stop a specific scenario endpoint
 func stopScenarioEndpoint(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	
+
 	err := stopScenarioNative(name)
 	if err != nil {
 		json.NewEncoder(w).Encode(Response{
@@ -1764,7 +1762,7 @@ func stopScenarioEndpoint(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data: map[string]string{
@@ -1773,7 +1771,7 @@ func stopScenarioEndpoint(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Get detailed app status using native scenario discovery  
+// Get detailed app status using native scenario discovery
 func getDetailedAppStatus(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 
@@ -1782,7 +1780,7 @@ func getDetailedAppStatus(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(Response{Error: "Failed to get scenario status"})
 		return
 	}
-	
+
 	// Find the specific scenario
 	for _, scenario := range scenarios {
 		if scenario.Name == name {
@@ -1790,19 +1788,18 @@ func getDetailedAppStatus(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	
+
 	// Scenario not running
 	json.NewEncoder(w).Encode(Response{
-		Success: true, 
+		Success: true,
 		Data: map[string]interface{}{
-			"name": name, 
-			"status": "stopped",
+			"name":      name,
+			"status":    "stopped",
 			"processes": 0,
-			"ports": map[string]int{},
+			"ports":     map[string]int{},
 		},
 	})
 }
-
 
 func main() {
 	port := os.Getenv("VROOLI_API_PORT")
@@ -1842,11 +1839,10 @@ func main() {
 	r.HandleFunc("/apps/{name}/logs", getAppLogs).Methods("GET")
 	r.HandleFunc("/apps/{name}/status", getDetailedAppStatus).Methods("GET")
 
-
 	// Scenarios API - Native Go Implementation (replaces Python orchestrator)
 	r.HandleFunc("/scenarios", listScenariosNative).Methods("GET")
 	r.HandleFunc("/scenarios/{name}/status", getScenarioStatusNative).Methods("GET")
-	r.HandleFunc("/scenarios/{name}/start", startApp).Methods("POST")  // Reuse startApp function
+	r.HandleFunc("/scenarios/{name}/start", startApp).Methods("POST") // Reuse startApp function
 	r.HandleFunc("/scenarios/{name}/stop", stopScenarioEndpoint).Methods("POST")
 	r.HandleFunc("/scenarios/start-all", startAllScenariosEndpoint).Methods("POST")
 	r.HandleFunc("/scenarios/stop-all", stopAllScenariosEndpoint).Methods("POST")

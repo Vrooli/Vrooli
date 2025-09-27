@@ -23,7 +23,7 @@ declare -g -A RESOURCE_PORTS=(
     ["gazebo"]="11456"         # Gazebo robotics simulation platform (3D physics, sensors, robot modeling)
     ["godot"]="11457"          # Godot Engine game development platform (GDScript, 2D/3D engine)
     ["mathlib"]="11458"        # Mathlib4 formal mathematical theorem proving with Lean 4
-    ["papermc"]="11459"        # PaperMC Minecraft server health endpoint
+    ["papermc"]="11461"        # PaperMC Minecraft server health endpoint
     ["pybullet"]="11460"       # PyBullet physics simulation engine for robotics and ML
     ["ros2"]="11501"           # ROS2 Robot Operating System middleware for distributed robotics
     
@@ -119,6 +119,12 @@ declare -g -A RESOURCE_PORTS=(
     # Data Integration Services (80xx range)
     ["airbyte"]="8002"         # Airbyte ELT platform webapp (moved from 8000)
     ["airbyte-server"]="8003"  # Airbyte API server (moved from 8001)
+    
+    # Messaging & Streaming Services (290xx range)
+    ["kafka"]="29092"          # Apache Kafka broker port
+    ["kafka-controller"]="29093" # Kafka KRaft controller port
+    ["kafka-external"]="29094" # Kafka external access port
+    ["kafka-jmx"]="29099"      # Kafka JMX monitoring port
     
     # Agricultural Management Services (80xx range)
     ["farmos"]="8004"          # farmOS agricultural management platform
@@ -569,7 +575,10 @@ ports::show_help() {
 }
 
 # If script is run directly, handle CLI arguments
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+# Only execute when directly run as a script (not when sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]] && [[ -z "${SOURCED_PORT_REGISTRY:-}" ]]; then
+    # Set flag to prevent re-execution when this script sources itself indirectly
+    export SOURCED_PORT_REGISTRY=1
     case "${1:-}" in
         --export-json)
             ports::export_json

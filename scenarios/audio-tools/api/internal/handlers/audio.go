@@ -334,20 +334,58 @@ func (h *AudioHandler) HandleConvert(w http.ResponseWriter, r *http.Request) {
 
 // HandleMetadata extracts and returns audio metadata
 func (h *AudioHandler) HandleMetadata(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	fileID := vars["id"]
-
-	// Try to get file path from database
 	var filePath string
-	if h.db != nil {
-		err := h.db.QueryRow("SELECT file_path FROM audio_assets WHERE id = $1", fileID).Scan(&filePath)
+	
+	// Check if this is a file upload or an ID reference
+	if r.Method == http.MethodPost {
+		// Handle file upload
+		err := r.ParseMultipartForm(100 << 20) // 100 MB max
 		if err != nil {
-			// If not in DB, assume it's a direct file path
+			sendError(w, http.StatusBadRequest, "failed to parse form")
+			return
+		}
+
+		file, header, err := r.FormFile("audio")
+		if err != nil {
+			sendError(w, http.StatusBadRequest, "audio file required")
+			return
+		}
+		defer file.Close()
+
+		// Save uploaded file temporarily
+		tempID := uuid.New().String()
+		tempPath := filepath.Join(h.workDir, fmt.Sprintf("%s%s", tempID, filepath.Ext(header.Filename)))
+		
+		dst, err := os.Create(tempPath)
+		if err != nil {
+			sendError(w, http.StatusInternalServerError, "failed to save file")
+			return
+		}
+		defer dst.Close()
+		defer os.Remove(tempPath) // Clean up temp file
+
+		if _, err := io.Copy(dst, file); err != nil {
+			sendError(w, http.StatusInternalServerError, "failed to save file")
+			return
+		}
+		
+		filePath = tempPath
+	} else {
+		// Handle ID-based lookup
+		vars := mux.Vars(r)
+		fileID := vars["id"]
+
+		// Try to get file path from database
+		if h.db != nil {
+			err := h.db.QueryRow("SELECT file_path FROM audio_assets WHERE id = $1", fileID).Scan(&filePath)
+			if err != nil {
+				// If not in DB, assume it's a direct file path
+				filePath = fileID
+			}
+		} else {
+			// No database, assume it's a direct file path
 			filePath = fileID
 		}
-	} else {
-		// No database, assume it's a direct file path
-		filePath = fileID
 	}
 
 	metadata, err := h.processor.ExtractMetadata(filePath)

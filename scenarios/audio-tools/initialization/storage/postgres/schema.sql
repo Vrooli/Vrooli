@@ -1,6 +1,9 @@
 -- Audio Tools Database Schema
 -- Database structure for audio processing and analysis platform
 
+-- Create database if it doesn't exist (run as superuser)
+-- CREATE DATABASE audio_tools;
+
 -- Audio Assets table: Stores metadata about audio files
 CREATE TABLE IF NOT EXISTS audio_assets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -90,7 +93,7 @@ CREATE TABLE IF NOT EXISTS events (
     target VARCHAR(100),
     
     -- Context
-    resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
+    asset_id UUID REFERENCES audio_assets(id) ON DELETE CASCADE,
     execution_id UUID REFERENCES executions(id) ON DELETE CASCADE,
     user_id VARCHAR(255),
     session_id VARCHAR(255),
@@ -166,10 +169,9 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 -- Create indexes for performance
-CREATE INDEX idx_resources_type ON resources(type) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_status ON resources(status) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_owner ON resources(owner_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_created ON resources(created_at DESC);
+CREATE INDEX idx_audio_assets_format ON audio_assets(format);
+CREATE INDEX idx_audio_assets_created ON audio_assets(created_at DESC);
+CREATE INDEX idx_audio_assets_tags ON audio_assets USING GIN(tags);
 
 CREATE INDEX idx_workflows_platform ON workflows(platform) WHERE is_active = true;
 CREATE INDEX idx_workflows_tags ON workflows USING GIN(tags);
@@ -206,8 +208,6 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_resources_updated_at BEFORE UPDATE ON resources
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON workflows
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -272,14 +272,13 @@ JOIN workflows w ON e.workflow_id = w.id
 ORDER BY e.started_at DESC
 LIMIT 100;
 
-CREATE OR REPLACE VIEW resource_summary AS
+CREATE OR REPLACE VIEW audio_summary AS
 SELECT 
-    type,
-    status,
+    format,
     COUNT(*) as count,
-    MAX(created_at) as latest_created,
-    MAX(updated_at) as latest_updated
-FROM resources
-WHERE deleted_at IS NULL
-GROUP BY type, status
-ORDER BY type, status;
+    AVG(duration_seconds) as avg_duration,
+    SUM(file_size_bytes) as total_size,
+    MAX(created_at) as latest_created
+FROM audio_assets
+GROUP BY format
+ORDER BY count DESC;

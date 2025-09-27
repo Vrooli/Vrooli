@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
-import { initIframeBridgeChild } from './iframeBridgeChild'
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 
 declare global {
   interface Window {
