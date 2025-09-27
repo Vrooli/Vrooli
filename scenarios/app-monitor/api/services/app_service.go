@@ -1233,21 +1233,21 @@ func (s *AppService) RecordAppView(ctx context.Context, identifier string) (*rep
 type IssueReportRequest struct {
 	AppID             string                 `json:"-"`
 	Message           string                 `json:"message"`
-	IncludeScreenshot bool                   `json:"includeScreenshot"`
-	PreviewURL        string                 `json:"previewUrl"`
-	AppName           string                 `json:"appName"`
-	ScenarioName      string                 `json:"scenarioName"`
-	Source            string                 `json:"source"`
-	ScreenshotData    string                 `json:"screenshotData"`
+	IncludeScreenshot *bool                  `json:"includeScreenshot"`
+	PreviewURL        *string                `json:"previewUrl"`
+	AppName           *string                `json:"appName"`
+	ScenarioName      *string                `json:"scenarioName"`
+	Source            *string                `json:"source"`
+	ScreenshotData    *string                `json:"screenshotData"`
 	Logs              []string               `json:"logs"`
-	LogsTotal         int                    `json:"logsTotal"`
-	LogsCapturedAt    string                 `json:"logsCapturedAt"`
+	LogsTotal         *int                   `json:"logsTotal"`
+	LogsCapturedAt    *string                `json:"logsCapturedAt"`
 	ConsoleLogs       []IssueConsoleLogEntry `json:"consoleLogs"`
-	ConsoleLogsTotal  int                    `json:"consoleLogsTotal"`
-	ConsoleCapturedAt string                 `json:"consoleLogsCapturedAt"`
+	ConsoleLogsTotal  *int                   `json:"consoleLogsTotal"`
+	ConsoleCapturedAt *string                `json:"consoleLogsCapturedAt"`
 	NetworkRequests   []IssueNetworkEntry    `json:"networkRequests"`
-	NetworkTotal      int                    `json:"networkRequestsTotal"`
-	NetworkCapturedAt string                 `json:"networkCapturedAt"`
+	NetworkTotal      *int                   `json:"networkRequestsTotal"`
+	NetworkCapturedAt *string                `json:"networkCapturedAt"`
 }
 
 type IssueConsoleLogEntry struct {
@@ -1267,6 +1267,20 @@ type IssueNetworkEntry struct {
 	DurationMs *int   `json:"durationMs,omitempty"`
 	Error      string `json:"error,omitempty"`
 	RequestID  string `json:"requestId,omitempty"`
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func valueOrDefault(value *int, fallback int) int {
+	if value != nil {
+		return *value
+	}
+	return fallback
 }
 
 // IssueReportResult represents the outcome of forwarding an issue report
@@ -1293,8 +1307,8 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 
 	reportedAt := time.Now().UTC()
 
-	appName := strings.TrimSpace(req.AppName)
-	scenarioName := strings.TrimSpace(req.ScenarioName)
+	appName := strings.TrimSpace(stringValue(req.AppName))
+	scenarioName := strings.TrimSpace(stringValue(req.ScenarioName))
 
 	if app, err := s.GetApp(ctx, appID); err == nil && app != nil {
 		if appName == "" {
@@ -1312,9 +1326,12 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		scenarioName = appID
 	}
 
-	previewURL := normalizePreviewURL(req.PreviewURL)
+	previewURL := ""
+	if req.PreviewURL != nil {
+		previewURL = normalizePreviewURL(*req.PreviewURL)
+	}
 
-	screenshotData := strings.TrimSpace(req.ScreenshotData)
+	screenshotData := strings.TrimSpace(stringValue(req.ScreenshotData))
 	if screenshotData != "" {
 		if _, err := base64.StdEncoding.DecodeString(screenshotData); err != nil {
 			fmt.Printf("Warning: invalid screenshot data provided, ignoring: %v\n", err)
@@ -1340,33 +1357,34 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		sanitizedLogs = sanitizedLogs[len(sanitizedLogs)-maxReportLogs:]
 	}
 
-	logsTotal := req.LogsTotal
+	logsTotal := valueOrDefault(req.LogsTotal, len(req.Logs))
 	if logsTotal <= 0 {
 		logsTotal = len(req.Logs)
 	}
 
-	logsCapturedAt := strings.TrimSpace(req.LogsCapturedAt)
-	consoleCapturedAt := strings.TrimSpace(req.ConsoleCapturedAt)
-	networkCapturedAt := strings.TrimSpace(req.NetworkCapturedAt)
+	logsCapturedAt := strings.TrimSpace(stringValue(req.LogsCapturedAt))
+	consoleCapturedAt := strings.TrimSpace(stringValue(req.ConsoleCapturedAt))
+	networkCapturedAt := strings.TrimSpace(stringValue(req.NetworkCapturedAt))
 
 	consoleLogs := sanitizeConsoleLogs(req.ConsoleLogs, maxConsoleLogs, maxConsoleTextLength)
-	consoleTotal := req.ConsoleLogsTotal
+	consoleTotal := valueOrDefault(req.ConsoleLogsTotal, len(req.ConsoleLogs))
 	if consoleTotal <= 0 {
 		consoleTotal = len(req.ConsoleLogs)
 	}
 
 	networkEntries := sanitizeNetworkRequests(req.NetworkRequests, maxNetworkEntries, maxNetworkURLLength, maxNetworkErrLength, maxRequestIDLength)
-	networkTotal := req.NetworkTotal
+	networkTotal := valueOrDefault(req.NetworkTotal, len(req.NetworkRequests))
 	if networkTotal <= 0 {
 		networkTotal = len(req.NetworkRequests)
 	}
 
 	title := fmt.Sprintf("[app-monitor] %s", summarizeIssueTitle(message))
+	reportSource := strings.TrimSpace(stringValue(req.Source))
 	description := buildIssueDescription(
 		appName,
 		scenarioName,
 		previewURL,
-		req.Source,
+		reportSource,
 		message,
 		screenshotData,
 		reportedAt,
@@ -1384,21 +1402,109 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	hasConsole := len(consoleLogs) > 0
 	hasNetwork := len(networkEntries) > 0
 	tags := buildIssueTags(hasScreenshot, hasConsole, hasNetwork)
-	environment := buildIssueEnvironment(appID, appName, previewURL, req.Source, reportedAt)
+	environment := buildIssueEnvironment(appID, appName, previewURL, reportSource, reportedAt)
 
 	port, err := s.locateIssueTrackerAPIPort(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	metadataExtra := map[string]string{}
+	if reportSource != "" {
+		metadataExtra["report_source"] = reportSource
+	}
+	if previewURL != "" {
+		metadataExtra["preview_url"] = previewURL
+	}
+	if logsTotal > 0 {
+		metadataExtra["logs_total"] = strconv.Itoa(logsTotal)
+	}
+	if logsCapturedAt != "" {
+		metadataExtra["logs_captured_at"] = logsCapturedAt
+	}
+	if consoleTotal > 0 {
+		metadataExtra["console_total"] = strconv.Itoa(consoleTotal)
+	}
+	if consoleCapturedAt != "" {
+		metadataExtra["console_captured_at"] = consoleCapturedAt
+	}
+	if networkTotal > 0 {
+		metadataExtra["network_total"] = strconv.Itoa(networkTotal)
+	}
+	if networkCapturedAt != "" {
+		metadataExtra["network_captured_at"] = networkCapturedAt
+	}
+	if screenshotData != "" {
+		metadataExtra["screenshot_included"] = "true"
+	}
+
+	artifacts := make([]map[string]interface{}, 0, 4)
+	if len(sanitizedLogs) > 0 {
+		artifactContent := strings.Join(sanitizedLogs, "\n")
+		artifacts = append(artifacts, map[string]interface{}{
+			"name":         "app-monitor-lifecycle.txt",
+			"category":     "logs",
+			"content":      artifactContent,
+			"encoding":     "plain",
+			"content_type": "text/plain",
+		})
+	}
+	if len(consoleLogs) > 0 {
+		consolePayload, err := json.MarshalIndent(consoleLogs, "", "  ")
+		consoleContent := ""
+		if err == nil {
+			consoleContent = string(consolePayload)
+		} else {
+			consoleContent = "[]"
+		}
+		artifacts = append(artifacts, map[string]interface{}{
+			"name":         "app-monitor-console.json",
+			"category":     "console",
+			"content":      consoleContent,
+			"encoding":     "plain",
+			"content_type": "application/json",
+		})
+	}
+	if len(networkEntries) > 0 {
+		networkPayload, err := json.MarshalIndent(networkEntries, "", "  ")
+		networkContent := ""
+		if err == nil {
+			networkContent = string(networkPayload)
+		} else {
+			networkContent = "[]"
+		}
+		artifacts = append(artifacts, map[string]interface{}{
+			"name":         "app-monitor-network.json",
+			"category":     "network",
+			"content":      networkContent,
+			"encoding":     "plain",
+			"content_type": "application/json",
+		})
+	}
+	if screenshotData != "" {
+		artifacts = append(artifacts, map[string]interface{}{
+			"name":         "app-monitor-screenshot.png",
+			"category":     "screenshot",
+			"content":      screenshotData,
+			"encoding":     "base64",
+			"content_type": "image/png",
+		})
+	}
+
+	if len(metadataExtra) == 0 {
+		metadataExtra = nil
+	}
+
 	payload := map[string]interface{}{
-		"title":       title,
-		"description": description,
-		"type":        "bug",
-		"priority":    "medium",
-		"app_id":      scenarioName,
-		"tags":        tags,
-		"environment": environment,
+		"title":          title,
+		"description":    description,
+		"type":           "bug",
+		"priority":       "medium",
+		"app_id":         scenarioName,
+		"tags":           tags,
+		"environment":    environment,
+		"metadata_extra": metadataExtra,
+		"artifacts":      artifacts,
 	}
 
 	result, err := submitIssueToTracker(ctx, port, payload)
