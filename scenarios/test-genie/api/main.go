@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"math"
 	"net/http"
@@ -311,6 +312,77 @@ type AIGeneratedTest struct {
 var db *sql.DB
 var serviceManager *ServiceManager
 var openCodeAgentManager *AgentManager
+
+type testTypeHint struct {
+	keyword  string
+	testType string
+}
+
+var (
+	scenarioWalkSkipDirs = map[string]struct{}{
+		"node_modules":     {},
+		"dist":             {},
+		"build":            {},
+		"tmp":              {},
+		".tmp":             {},
+		"coverage":         {},
+		".coverage":        {},
+		"__pycache__":      {},
+		".git":             {},
+		"vendor":           {},
+		"logs":             {},
+		"public":           {},
+		"assets":           {},
+		"output":           {},
+		"storybook-static": {},
+		".dist":            {},
+		".cache":           {},
+		"cache":            {},
+	}
+
+	scenarioTestFileExtensions = map[string]struct{}{
+		".sh":   {},
+		".bats": {},
+		".go":   {},
+		".py":   {},
+		".js":   {},
+		".ts":   {},
+		".tsx":  {},
+		".jsx":  {},
+		".rb":   {},
+		".rs":   {},
+		".java": {},
+		".kt":   {},
+		".kts":  {},
+		".ps1":  {},
+		".yaml": {},
+		".yml":  {},
+	}
+
+	scenarioTestTypeHints = []testTypeHint{
+		{"unit", "unit"},
+		{"integration", "integration"},
+		{"e2e", "end_to_end"},
+		{"end-to-end", "end_to_end"},
+		{"performance", "performance"},
+		{"load", "performance"},
+		{"stress", "performance"},
+		{"smoke", "smoke"},
+		{"regression", "regression"},
+		{"business", "business"},
+		{"structure", "structure"},
+		{"api", "api"},
+		{"ui", "ui"},
+		{"db", "database"},
+		{"database", "database"},
+		{"cli", "cli"},
+		{"vault", "vault"},
+		{"phase", "phased"},
+	}
+
+	// Cap repository traversal so we do not scan endlessly upward if repo markers are missing.
+	maxRepoSearchDepth = 15
+)
 
 // Initialize database connection
 func initDB() {
@@ -2961,46 +3033,409 @@ func getTestSuiteHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, testSuite)
 }
 
+func fetchStoredTestSuites(ctx context.Context, scenarioFilter, statusFilter string) ([]TestSuite, error) {
+	if db == nil {
+		return nil, errors.New("database connection not initialized")
+	}
+
+	query := `SELECT id, scenario_name, suite_type, coverage_metrics, generated_at, last_executed, status FROM test_suites`
+	clauses := []string{}
+	args := []interface{}{}
+	argPos := 1
+
+	if scenarioFilter != "" {
+		clauses = append(clauses, fmt.Sprintf("scenario_name = $%d", argPos))
+		args = append(args, scenarioFilter)
+		argPos++
+	}
+	if statusFilter != "" {
+		clauses = append(clauses, fmt.Sprintf("status = $%d", argPos))
+		args = append(args, statusFilter)
+		argPos++
+	}
+
+	if len(clauses) > 0 {
+		query += " WHERE " + strings.Join(clauses, " AND ")
+	}
+	query += " ORDER BY generated_at DESC"
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var suites []TestSuite
+	for rows.Next() {
+		var suite TestSuite
+		var coverageBytes []byte
+		var lastExecuted sql.NullTime
+
+		if err := rows.Scan(&suite.ID, &suite.ScenarioName, &suite.SuiteType, &coverageBytes, &suite.GeneratedAt, &lastExecuted, &suite.Status); err != nil {
+			return nil, err
+		}
+
+		if len(coverageBytes) > 0 {
+			if err := json.Unmarshal(coverageBytes, &suite.CoverageMetrics); err != nil {
+				log.Printf("⚠️  Failed to unmarshal coverage metrics for suite %s: %v", suite.ID, err)
+			}
+		}
+
+		if lastExecuted.Valid {
+			suite.LastExecuted = &lastExecuted.Time
+		}
+
+		cases, err := fetchTestCasesForSuite(ctx, suite.ID)
+		if err != nil {
+			log.Printf("⚠️  Failed to load test cases for suite %s: %v", suite.ID, err)
+		} else {
+			suite.TestCases = cases
+		}
+
+		suites = append(suites, suite)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return suites, nil
+}
+
+func fetchTestCasesForSuite(ctx context.Context, suiteID uuid.UUID) ([]TestCase, error) {
+	query := `SELECT id, name, description, test_type, test_code, expected_result, execution_timeout, dependencies, tags, priority, created_at, updated_at FROM test_cases WHERE suite_id = $1 ORDER BY created_at ASC`
+	rows, err := db.QueryContext(ctx, query, suiteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var cases []TestCase
+	for rows.Next() {
+		var tc TestCase
+		var description sql.NullString
+		var expected sql.NullString
+		var priority sql.NullString
+		var timeout sql.NullInt64
+		var dependenciesJSON []byte
+		var tagsJSON []byte
+		var createdAt time.Time
+		var updatedAt time.Time
+
+		if err := rows.Scan(&tc.ID, &tc.Name, &description, &tc.TestType, &tc.TestCode, &expected, &timeout, &dependenciesJSON, &tagsJSON, &priority, &createdAt, &updatedAt); err != nil {
+			return nil, err
+		}
+
+		tc.SuiteID = suiteID
+		if description.Valid {
+			tc.Description = description.String
+		}
+		if expected.Valid {
+			tc.ExpectedResult = expected.String
+		}
+		if priority.Valid && priority.String != "" {
+			tc.Priority = priority.String
+		}
+		if timeout.Valid {
+			tc.Timeout = int(timeout.Int64)
+		}
+		if len(dependenciesJSON) > 0 {
+			if err := json.Unmarshal(dependenciesJSON, &tc.Dependencies); err != nil {
+				log.Printf("⚠️  Failed to unmarshal dependencies for test case %s: %v", tc.ID, err)
+			}
+		}
+		if len(tagsJSON) > 0 {
+			if err := json.Unmarshal(tagsJSON, &tc.Tags); err != nil {
+				log.Printf("⚠️  Failed to unmarshal tags for test case %s: %v", tc.ID, err)
+			}
+		}
+		tc.CreatedAt = createdAt
+		tc.UpdatedAt = updatedAt
+
+		cases = append(cases, tc)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return cases, nil
+}
+
+func findRepositoryRoot() (string, error) {
+	startDir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	dir := startDir
+	for i := 0; i < maxRepoSearchDepth; i++ {
+		scenariosDir := filepath.Join(dir, "scenarios")
+		if info, err := os.Stat(scenariosDir); err == nil && info.IsDir() {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+
+	return "", fmt.Errorf("unable to locate repository root starting from %s", startDir)
+}
+
+func discoverScenarioTestSuites(repoRoot, scenarioFilter string) ([]TestSuite, error) {
+	scenariosDir := filepath.Join(repoRoot, "scenarios")
+	entries, err := os.ReadDir(scenariosDir)
+	if err != nil {
+		return nil, err
+	}
+
+	scenarioFilterLower := strings.ToLower(strings.TrimSpace(scenarioFilter))
+	var suites []TestSuite
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		scenarioName := entry.Name()
+		if strings.HasPrefix(scenarioName, ".") {
+			continue
+		}
+		if scenarioName == "test-genie" {
+			// Skip self to keep the list focused on other scenarios.
+			continue
+		}
+		if scenarioFilterLower != "" && strings.ToLower(scenarioName) != scenarioFilterLower {
+			continue
+		}
+
+		testDir := filepath.Join(scenariosDir, scenarioName, "test")
+		if info, err := os.Stat(testDir); err != nil || !info.IsDir() {
+			continue
+		}
+
+		suiteID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("scenario-suite:"+scenarioName))
+		var testCases []TestCase
+		typeSet := make(map[string]struct{})
+		latestMod := time.Time{}
+
+		walkErr := filepath.WalkDir(testDir, func(path string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+
+			if d.IsDir() {
+				if shouldSkipScenarioDir(d.Name()) {
+					return fs.SkipDir
+				}
+				return nil
+			}
+
+			if !isRecognizedTestFile(path) {
+				return nil
+			}
+
+			rel, err := filepath.Rel(filepath.Join(scenariosDir, scenarioName), path)
+			if err != nil {
+				rel = d.Name()
+			}
+
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			modTime := info.ModTime()
+			if modTime.After(latestMod) {
+				latestMod = modTime
+			}
+
+			testType := deriveTestTypeFromPath(path)
+			if testType == "" {
+				testType = "unspecified"
+			}
+			typeSet[testType] = struct{}{}
+
+			caseID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("scenario-suite:"+scenarioName+":"+rel))
+			caseName := sanitizeTestCaseName(rel)
+
+			testCases = append(testCases, TestCase{
+				ID:             caseID,
+				SuiteID:        suiteID,
+				Name:           caseName,
+				Description:    fmt.Sprintf("Discovered test script: %s", rel),
+				TestType:       testType,
+				ExpectedResult: "Exit code 0",
+				Timeout:        300,
+				Tags:           []string{"discovered", testType},
+				Priority:       "medium",
+				CreatedAt:      modTime,
+				UpdatedAt:      modTime,
+			})
+
+			return nil
+		})
+
+		if walkErr != nil {
+			log.Printf("⚠️  Failed to traverse tests for %s: %v", scenarioName, walkErr)
+			continue
+		}
+
+		if len(testCases) == 0 {
+			continue
+		}
+
+		sort.Slice(testCases, func(i, j int) bool {
+			return testCases[i].Name < testCases[j].Name
+		})
+
+		suiteTypes := make([]string, 0, len(typeSet))
+		for t := range typeSet {
+			suiteTypes = append(suiteTypes, t)
+		}
+		sort.Strings(suiteTypes)
+
+		suite := TestSuite{
+			ID:           suiteID,
+			ScenarioName: scenarioName,
+			SuiteType:    strings.Join(suiteTypes, ","),
+			TestCases:    testCases,
+			CoverageMetrics: CoverageMetrics{
+				CodeCoverage:     0,
+				BranchCoverage:   0,
+				FunctionCoverage: 0,
+			},
+			GeneratedAt: latestMod,
+			Status:      "active",
+		}
+
+		if suite.GeneratedAt.IsZero() {
+			suite.GeneratedAt = time.Now()
+		}
+
+		suites = append(suites, suite)
+	}
+
+	return suites, nil
+}
+
+func shouldSkipScenarioDir(name string) bool {
+	if name == "" {
+		return false
+	}
+	if strings.HasPrefix(name, ".") {
+		return true
+	}
+	_, skip := scenarioWalkSkipDirs[name]
+	return skip
+}
+
+func isRecognizedTestFile(path string) bool {
+	name := filepath.Base(path)
+	lowerName := strings.ToLower(name)
+	ext := strings.ToLower(filepath.Ext(name))
+
+	if _, ok := scenarioTestFileExtensions[ext]; !ok {
+		return false
+	}
+
+	switch ext {
+	case ".go":
+		return strings.HasSuffix(lowerName, "_test.go")
+	case ".py":
+		return strings.HasPrefix(lowerName, "test_") || strings.HasSuffix(lowerName, "_test.py") || strings.Contains(lowerName, "_spec.py")
+	case ".js", ".jsx", ".ts", ".tsx":
+		return strings.Contains(lowerName, "test") || strings.Contains(lowerName, "spec")
+	case ".yaml", ".yml":
+		return strings.Contains(lowerName, "test") || strings.Contains(lowerName, "suite")
+	default:
+		return true
+	}
+}
+
+func deriveTestTypeFromPath(path string) string {
+	base := strings.ToLower(filepath.Base(path))
+	for _, hint := range scenarioTestTypeHints {
+		if strings.Contains(base, hint.keyword) {
+			return hint.testType
+		}
+	}
+
+	parent := strings.ToLower(filepath.Base(filepath.Dir(path)))
+	for _, hint := range scenarioTestTypeHints {
+		if strings.Contains(parent, hint.keyword) {
+			return hint.testType
+		}
+	}
+
+	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), ".")
+	if ext != "" {
+		return ext
+	}
+
+	return "unspecified"
+}
+
+func sanitizeTestCaseName(rel string) string {
+	name := strings.TrimSuffix(rel, filepath.Ext(rel))
+	name = strings.ReplaceAll(name, "\\", "/")
+	name = strings.ReplaceAll(name, "/", "_")
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = strings.ReplaceAll(rel, "\\", "_")
+		name = strings.ReplaceAll(name, "/", "_")
+	}
+	if name == "" {
+		name = "test_case"
+	}
+	return name
+}
+
 func listTestSuitesHandler(c *gin.Context) {
-	scenario := c.Query("scenario")
-	status := c.Query("status")
+	scenarioFilter := strings.TrimSpace(c.Query("scenario"))
+	statusFilter := strings.TrimSpace(c.Query("status"))
 
-	// Mock response for now - would query database with filters
-	testSuites := []TestSuite{
-		{
-			ID:           uuid.New(),
-			ScenarioName: "test-genie",
-			SuiteType:    "unit,integration",
-			GeneratedAt:  time.Now().Add(-24 * time.Hour),
-			Status:       "active",
-		},
-		{
-			ID:           uuid.New(),
-			ScenarioName: "visited-tracker",
-			SuiteType:    "unit,performance",
-			GeneratedAt:  time.Now().Add(-12 * time.Hour),
-			Status:       "active",
-		},
+	var suites []TestSuite
+
+	storedSuites, err := fetchStoredTestSuites(c.Request.Context(), scenarioFilter, statusFilter)
+	if err != nil {
+		log.Printf("⚠️  Failed to load stored test suites: %v", err)
+	} else {
+		suites = append(suites, storedSuites...)
 	}
 
-	// Apply filters
-	filteredSuites := []TestSuite{}
-	for _, suite := range testSuites {
-		if scenario != "" && suite.ScenarioName != scenario {
-			continue
+	repoRoot, repoErr := findRepositoryRoot()
+	if repoErr != nil {
+		log.Printf("⚠️  Failed to locate repository root for test discovery: %v", repoErr)
+	} else {
+		discoveredSuites, discoverErr := discoverScenarioTestSuites(repoRoot, scenarioFilter)
+		if discoverErr != nil {
+			log.Printf("⚠️  Failed to discover scenario test suites: %v", discoverErr)
+		} else {
+			for _, suite := range discoveredSuites {
+				if statusFilter != "" && !strings.EqualFold(suite.Status, statusFilter) {
+					continue
+				}
+				suites = append(suites, suite)
+			}
 		}
-		if status != "" && suite.Status != status {
-			continue
-		}
-		filteredSuites = append(filteredSuites, suite)
 	}
+
+	sort.Slice(suites, func(i, j int) bool {
+		ii, jj := suites[i], suites[j]
+		if ii.ScenarioName == jj.ScenarioName {
+			return ii.GeneratedAt.After(jj.GeneratedAt)
+		}
+		return strings.Compare(ii.ScenarioName, jj.ScenarioName) < 0
+	})
 
 	c.JSON(http.StatusOK, gin.H{
-		"test_suites": filteredSuites,
-		"total":       len(filteredSuites),
+		"test_suites": suites,
+		"total":       len(suites),
 		"filters": gin.H{
-			"scenario": scenario,
-			"status":   status,
+			"scenario": scenarioFilter,
+			"status":   statusFilter,
 		},
 	})
 }

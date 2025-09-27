@@ -293,6 +293,8 @@ class TestGenieApp {
                 }));
                 
                 container.innerHTML = this.renderExecutionsTable(formattedExecutions);
+                this.bindExecutionsTableActions(container);
+                this.refreshIcons();
             } else {
                 container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No recent executions found</p>';
             }
@@ -308,7 +310,7 @@ class TestGenieApp {
         }
 
         return `
-            <table class="table">
+            <table class="table executions-table">
                 <thead>
                     <tr>
                         <th>Suite Name</th>
@@ -323,15 +325,15 @@ class TestGenieApp {
                 <tbody>
                     ${executions.map(exec => `
                         <tr>
-                            <td><strong>${exec.suiteName}</strong></td>
-                            <td><span class="status ${this.getStatusClass(exec.status)}">${exec.status}</span></td>
+                            <td class="cell-scenario"><strong>${exec.suiteName}</strong></td>
+                            <td class="cell-status"><span class="status ${this.getStatusClass(exec.status)}">${exec.status}</span></td>
                             <td>${exec.duration}s</td>
-                            <td style="color: var(--accent-success);">${exec.passed}</td>
-                            <td style="color: ${exec.failed > 0 ? 'var(--accent-error)' : 'var(--text-muted)'};">${exec.failed}</td>
-                            <td>${this.formatTimestamp(exec.timestamp)}</td>
-                            <td>
-                                <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="app.viewExecution('${exec.id}')">
-                                    📊 View
+                            <td class="text-success">${exec.passed}</td>
+                            <td class="${exec.failed > 0 ? 'text-error' : 'text-muted'}">${exec.failed}</td>
+                            <td class="cell-created">${this.formatTimestamp(exec.timestamp)}</td>
+                            <td class="cell-actions">
+                                <button class="btn icon-btn" type="button" data-action="view-execution" data-execution-id="${exec.id}" aria-label="View execution details">
+                                    <i data-lucide="bar-chart-3"></i>
                                 </button>
                             </td>
                         </tr>
@@ -402,6 +404,8 @@ class TestGenieApp {
                 }));
                 
                 container.innerHTML = this.renderSuitesTable(formattedSuites);
+                this.bindSuitesTableActions(container);
+                this.refreshIcons();
             } else {
                 container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No test suites found</p>';
             }
@@ -417,7 +421,7 @@ class TestGenieApp {
         }
 
         return `
-            <table class="table">
+            <table class="table suites-table">
                 <thead>
                     <tr>
                         <th>Scenario</th>
@@ -430,29 +434,35 @@ class TestGenieApp {
                     </tr>
                 </thead>
                 <tbody>
-                    ${suites.map(suite => `
+                    ${suites.map(suite => {
+                        const rawCoverage = Number(suite.coverage);
+                        const coverageValue = Math.max(0, Math.min(100, Number.isFinite(rawCoverage) ? Math.round(rawCoverage) : 0));
+                        return `
                         <tr>
-                            <td><strong>${suite.scenarioName}</strong></td>
-                            <td>${suite.suiteType}</td>
-                            <td>${suite.testsCount}</td>
-                            <td>
-                                <div class="progress" style="width: 80px; margin-right: 0.5rem; display: inline-block;">
-                                    <div class="progress-bar" style="width: ${suite.coverage}%"></div>
+                            <td class="cell-scenario"><strong>${suite.scenarioName}</strong></td>
+                            <td class="cell-types">${suite.suiteType || '—'}</td>
+                            <td class="cell-count">${suite.testsCount}</td>
+                            <td class="cell-coverage">
+                                <div class="coverage-meter">
+                                    <div class="progress">
+                                        <div class="progress-bar" style="width: ${coverageValue}%"></div>
+                                    </div>
+                                    <span>${coverageValue}%</span>
                                 </div>
-                                ${suite.coverage}%
                             </td>
-                            <td><span class="status ${this.getStatusClass(suite.status)}">${suite.status}</span></td>
-                            <td>${this.formatTimestamp(suite.createdAt)}</td>
-                            <td>
-                                <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; margin-right: 0.5rem;" onclick="app.executeSuite('${suite.id}')">
-                                    🚀 Execute
+                            <td class="cell-status"><span class="status ${this.getStatusClass(suite.status)}">${suite.status}</span></td>
+                            <td class="cell-created">${this.formatTimestamp(suite.createdAt)}</td>
+                            <td class="cell-actions">
+                                <button class="btn icon-btn" type="button" data-action="execute" data-suite-id="${suite.id}" aria-label="Execute test suite">
+                                    <i data-lucide="play"></i>
                                 </button>
-                                <button class="btn secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="app.viewSuite('${suite.id}')">
-                                    👁️ View
+                                <button class="btn icon-btn secondary" type="button" data-action="view" data-suite-id="${suite.id}" aria-label="View test suite">
+                                    <i data-lucide="eye"></i>
                                 </button>
                             </td>
                         </tr>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </tbody>
             </table>
         `;
@@ -480,6 +490,8 @@ class TestGenieApp {
                 }));
                 
                 container.innerHTML = this.renderExecutionsTable(formattedExecutions);
+                this.bindExecutionsTableActions(container);
+                this.refreshIcons();
             } else {
                 container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No test executions found</p>';
             }
@@ -741,6 +753,58 @@ To execute the vault:
 
     viewExecution(executionId) {
         this.showInfo(`Viewing execution ${executionId}. Detailed execution view coming soon!`);
+    }
+
+    bindSuitesTableActions(container) {
+        const table = container.querySelector('.suites-table');
+        if (!table || table.dataset.bound === 'true') {
+            return;
+        }
+
+        table.addEventListener('click', event => {
+            const button = event.target.closest('[data-action]');
+            if (!button) {
+                return;
+            }
+
+            const { action, suiteId } = button.dataset;
+
+            if (action === 'execute' && suiteId) {
+                this.executeSuite(suiteId);
+            }
+
+            if (action === 'view' && suiteId) {
+                this.viewSuite(suiteId);
+            }
+        });
+
+        table.dataset.bound = 'true';
+    }
+
+    bindExecutionsTableActions(container) {
+        const table = container.querySelector('.executions-table');
+        if (!table || table.dataset.bound === 'true') {
+            return;
+        }
+
+        table.addEventListener('click', event => {
+            const button = event.target.closest('[data-action]');
+            if (!button) {
+                return;
+            }
+
+            if (button.dataset.action === 'view-execution' && button.dataset.executionId) {
+                this.viewExecution(button.dataset.executionId);
+            }
+        });
+
+        table.dataset.bound = 'true';
+    }
+
+    refreshIcons() {
+        if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+            lucide.createIcons();
+        }
     }
 
     // Utility methods

@@ -31,7 +31,8 @@ echo "Running UI unit tests..."
 cd ui
 if [ -f "package.json" ] && [ -d "node_modules" ]; then
     if npm list --depth=0 | grep -q "jest\|vitest\|@testing-library"; then
-        npm test -- --run --reporter=verbose
+        # Use CI=true to run tests without watch mode
+        CI=true npm test
         echo "✅ UI unit tests passed"
     else
         echo "⚠️  No testing framework found, skipping UI tests"

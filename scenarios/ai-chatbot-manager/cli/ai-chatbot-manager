@@ -68,7 +68,8 @@ api_get() {
     local endpoint="$1"
     curl -s "${API_BASE_URL}${endpoint}" \
         -H "Accept: application/json" \
-        -H "Content-Type: application/json"
+        -H "Content-Type: application/json" \
+        -H "X-API-Key: dev-api-key-change-in-production"
 }
 
 api_post() {
@@ -77,6 +78,7 @@ api_post() {
     curl -s "${API_BASE_URL}${endpoint}" \
         -H "Accept: application/json" \
         -H "Content-Type: application/json" \
+        -H "X-API-Key: dev-api-key-change-in-production" \
         -X POST \
         -d "$data"
 }
@@ -92,16 +94,55 @@ format_json() {
 
 # Format table output
 format_table() {
-    local json="$1"
-    local format="$2"
+    local format="$1"
+    local json
+    json=$(cat)  # Read from stdin
     
     if command -v jq >/dev/null 2>&1; then
         case "$format" in
             "chatbots")
-                echo "$json" | jq -r '["ID", "NAME", "ACTIVE", "CREATED"] as $header | [$header] + [.[] | [.id[0:8] + "...", .name, (.is_active | tostring), (.created_at | split("T")[0])]] | .[] | @tsv' | column -t
+                echo "ID          NAME                              ACTIVE    CREATED"
+                echo "--------    --------------------------------  --------  ----------"
+                echo "$json" | jq -r '.[] | "\(.id[0:8])... \(.name | .[0:32]) \(.is_active) \(.created_at | split("T")[0])"'
                 ;;
             "analytics")
-                echo "$json" | jq -r '["METRIC", "VALUE"] as $header | [$header, ["Conversations", (.total_conversations | tostring)], ["Messages", (.total_messages | tostring)], ["Leads", (.leads_captured | tostring)], ["Conversion Rate", ((.conversion_rate | tostring) + "%")], ["Engagement", (.engagement_score | tostring)]] | .[] | @tsv' | column -t
+                echo "=== CORE METRICS ==="
+                echo "METRIC              VALUE"
+                echo "----------------    -----------"
+                echo "$json" | jq -r '"Conversations       \(.total_conversations // 0)
+Messages            \(.total_messages // 0)
+Leads Captured      \(.leads_captured // 0)
+Conversion Rate     \((.conversion_rate // 0) | tostring | .[0:5])%
+Engagement Score    \(.engagement_score // 0 | tostring | .[0:5])"'
+                
+                # Display conversion funnel if present
+                if echo "$json" | jq -e '.conversion_funnel' >/dev/null 2>&1; then
+                    echo ""
+                    echo "=== CONVERSION FUNNEL ==="
+                    echo "STAGE               COUNT     RATE"
+                    echo "----------------    -------   ------"
+                    echo "$json" | jq -r '.conversion_funnel | "Total Visitors      \(.total_visitors // 0)        100%
+Engaged Visitors    \(.engaged_visitors // 0)        \((.engagement_rate // 0) | tostring | .[0:5])%
+Qualified Leads     \(.qualified_leads // 0)        \((.qualification_rate // 0) | tostring | .[0:5])%
+Captured Leads      \(.captured_leads // 0)        \((.capture_rate // 0) | tostring | .[0:5])%"'
+                fi
+                
+                # Display user journey if present
+                if echo "$json" | jq -e '.user_journey' >/dev/null 2>&1; then
+                    echo ""
+                    echo "=== USER JOURNEY ==="
+                    echo "$json" | jq -r '.user_journey | "Avg Time to Engagement: \(.avg_time_to_engagement_seconds // 0 | tostring | .[0:6])s
+Avg Time to Lead:       \(.avg_time_to_lead_seconds // 0 | tostring | .[0:6])s"'
+                fi
+                
+                # Display hourly distribution if present
+                if echo "$json" | jq -e '.hourly_distribution[0]' >/dev/null 2>&1; then
+                    echo ""
+                    echo "=== PEAK HOURS ==="
+                    echo "HOUR    CONVERSATIONS"
+                    echo "----    -------------"
+                    echo "$json" | jq -r '.hourly_distribution | sort_by(-.conversations) | .[0:3][] | "\(.hour)h      \(.conversations)"'
+                fi
                 ;;
             *)
                 echo "$json" | format_json
@@ -135,7 +176,9 @@ cmd_status() {
         esac
     done
     
-    log_info "Checking AI Chatbot Manager status..."
+    if [[ $json_output == false ]]; then
+        log_info "Checking AI Chatbot Manager status..."
+    fi
     
     local health_response
     health_response=$(api_get "/health")
@@ -383,6 +426,13 @@ cmd_analytics() {
     local days="7"
     local json_output=false
     
+    # Check for chatbot_id first
+    if [[ -z "$chatbot_id" ]]; then
+        log_error "Chatbot ID is required"
+        echo "Usage: $SCRIPT_NAME analytics <chatbot_id> [--days <number>] [--json]"
+        exit 1
+    fi
+    
     shift # Remove chatbot_id from args
     
     # Parse flags
@@ -402,12 +452,6 @@ cmd_analytics() {
                 ;;
         esac
     done
-    
-    if [[ -z "$chatbot_id" ]]; then
-        log_error "Chatbot ID is required"
-        echo "Usage: $SCRIPT_NAME analytics <chatbot_id> [--days <number>] [--json]"
-        exit 1
-    fi
     
     local response
     response=$(api_get "/api/v1/analytics/$chatbot_id?days=$days")

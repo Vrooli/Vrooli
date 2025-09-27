@@ -149,7 +149,16 @@ func (wsh *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Requ
 
 // readPump handles incoming messages from WebSocket
 func (wsc *WebSocketConnection) readPump(server *Server, chatbot *Chatbot) {
+	conversationStartTime := time.Now()
+	var conversationID string
+	messageCount := 0
+	
 	defer func() {
+		// Publish conversation ended event if we had an active conversation
+		if conversationID != "" {
+			duration := int(time.Since(conversationStartTime).Seconds())
+			server.eventPublisher.ConversationEndedEvent(wsc.chatbotID, conversationID, duration, messageCount)
+		}
 		wsc.manager.unregister <- wsc
 		wsc.conn.Close()
 	}()
@@ -194,6 +203,12 @@ func (wsc *WebSocketConnection) readPump(server *Server, chatbot *Chatbot) {
 			}
 			continue
 		}
+
+		// Track conversation ID and message count
+		if conversationID == "" {
+			conversationID = response.ConversationID
+		}
+		messageCount++
 
 		// Send response
 		responseMsg := WebSocketMessage{

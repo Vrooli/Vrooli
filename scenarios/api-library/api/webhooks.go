@@ -17,13 +17,13 @@ import (
 
 // WebhookSubscription represents a webhook subscription
 type WebhookSubscription struct {
-	ID          string    `json:"id"`
-	URL         string    `json:"url"`
-	Events      []string  `json:"events"` // e.g., ["api.created", "api.updated", "api.deprecated"]
-	Active      bool      `json:"active"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID            string     `json:"id"`
+	URL           string     `json:"url"`
+	Events        []string   `json:"events"` // e.g., ["api.created", "api.updated", "api.deprecated"]
+	Active        bool       `json:"active"`
+	CreatedAt     time.Time  `json:"created_at"`
 	LastTriggered *time.Time `json:"last_triggered,omitempty"`
-	FailureCount int       `json:"failure_count"`
+	FailureCount  int        `json:"failure_count"`
 }
 
 // WebhookEvent represents an event to be sent to webhooks
@@ -36,12 +36,12 @@ type WebhookEvent struct {
 
 // WebhookDelivery represents a webhook delivery attempt with retry information
 type WebhookDelivery struct {
-	WebhookID    string
-	WebhookURL   string
-	Event        WebhookEvent
-	RetryCount   int
-	NextRetryAt  time.Time
-	MaxRetries   int
+	WebhookID   string
+	WebhookURL  string
+	Event       WebhookEvent
+	RetryCount  int
+	NextRetryAt time.Time
+	MaxRetries  int
 }
 
 // WebhookManager manages webhook subscriptions and delivery
@@ -61,13 +61,13 @@ func NewWebhookManager(db *sql.DB) *WebhookManager {
 		retryCh:    make(chan WebhookDelivery, 100),
 		retryQueue: make([]WebhookDelivery, 0),
 	}
-	
+
 	// Start the delivery worker
 	go wm.deliveryWorker()
-	
+
 	// Start the retry worker
 	go wm.retryWorker()
-	
+
 	return wm
 }
 
@@ -82,7 +82,7 @@ func (wm *WebhookManager) deliveryWorker() {
 func (wm *WebhookManager) retryWorker() {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case delivery := <-wm.retryCh:
@@ -90,7 +90,7 @@ func (wm *WebhookManager) retryWorker() {
 			wm.mu.Lock()
 			wm.retryQueue = append(wm.retryQueue, delivery)
 			wm.mu.Unlock()
-			
+
 		case <-ticker.C:
 			// Check retry queue for deliveries that are ready
 			wm.processRetryQueue()
@@ -102,11 +102,11 @@ func (wm *WebhookManager) retryWorker() {
 func (wm *WebhookManager) processRetryQueue() {
 	wm.mu.Lock()
 	defer wm.mu.Unlock()
-	
+
 	now := time.Now()
 	readyDeliveries := make([]WebhookDelivery, 0)
 	remainingQueue := make([]WebhookDelivery, 0)
-	
+
 	for _, delivery := range wm.retryQueue {
 		if now.After(delivery.NextRetryAt) {
 			readyDeliveries = append(readyDeliveries, delivery)
@@ -114,9 +114,9 @@ func (wm *WebhookManager) processRetryQueue() {
 			remainingQueue = append(remainingQueue, delivery)
 		}
 	}
-	
+
 	wm.retryQueue = remainingQueue
-	
+
 	// Process ready deliveries
 	for _, delivery := range readyDeliveries {
 		go wm.attemptDelivery(delivery)
@@ -130,7 +130,7 @@ func calculateBackoff(retryCount int) time.Duration {
 	if baseDelay > 64*time.Second {
 		baseDelay = 64 * time.Second
 	}
-	
+
 	// Add jitter (0-20% of base delay)
 	jitter := time.Duration(float64(baseDelay) * 0.2 * (0.5 + 0.5*float64(time.Now().UnixNano()%1000)/1000))
 	return baseDelay + jitter
@@ -149,14 +149,14 @@ func (wm *WebhookManager) deliverEvent(event WebhookEvent) {
 		return
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var id, url string
 		var failureCount int
 		if err := rows.Scan(&id, &url, &failureCount); err != nil {
 			continue
 		}
-		
+
 		// Create initial delivery attempt
 		delivery := WebhookDelivery{
 			WebhookID:   id,
@@ -166,7 +166,7 @@ func (wm *WebhookManager) deliverEvent(event WebhookEvent) {
 			NextRetryAt: time.Now(),
 			MaxRetries:  5, // Maximum of 5 retries
 		}
-		
+
 		// Attempt immediate delivery
 		go wm.attemptDelivery(delivery)
 	}
@@ -180,7 +180,7 @@ func (wm *WebhookManager) attemptDelivery(delivery WebhookDelivery) {
 		log.Printf("Error marshaling webhook payload: %v", err)
 		return
 	}
-	
+
 	// Send the webhook with timeout
 	client := &http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequest("POST", delivery.WebhookURL, bytes.NewReader(payload))
@@ -188,20 +188,20 @@ func (wm *WebhookManager) attemptDelivery(delivery WebhookDelivery) {
 		log.Printf("Error creating webhook request: %v", err)
 		return
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Webhook-Event", delivery.Event.Event)
 	req.Header.Set("X-Webhook-ID", delivery.Event.ID)
 	req.Header.Set("X-Webhook-Retry", fmt.Sprintf("%d", delivery.RetryCount))
-	
+
 	resp, err := client.Do(req)
-	
+
 	success := err == nil && resp != nil && resp.StatusCode < 400
-	
+
 	if resp != nil {
 		resp.Body.Close()
 	}
-	
+
 	if success {
 		// Reset failure count on success
 		wm.db.Exec(`
@@ -209,7 +209,7 @@ func (wm *WebhookManager) attemptDelivery(delivery WebhookDelivery) {
 			SET failure_count = 0, last_triggered = $1
 			WHERE id = $2
 		`, time.Now(), delivery.WebhookID)
-		
+
 		// Log successful delivery with retry info
 		if delivery.RetryCount > 0 {
 			log.Printf("Webhook delivered successfully to %s after %d retries", delivery.WebhookURL, delivery.RetryCount)
@@ -220,11 +220,11 @@ func (wm *WebhookManager) attemptDelivery(delivery WebhookDelivery) {
 			// Schedule retry
 			delivery.RetryCount++
 			delivery.NextRetryAt = time.Now().Add(calculateBackoff(delivery.RetryCount))
-			
+
 			// Add to retry queue
 			select {
 			case wm.retryCh <- delivery:
-				log.Printf("Webhook delivery to %s failed (attempt %d/%d), scheduled retry at %s", 
+				log.Printf("Webhook delivery to %s failed (attempt %d/%d), scheduled retry at %s",
 					delivery.WebhookURL, delivery.RetryCount, delivery.MaxRetries+1, delivery.NextRetryAt.Format(time.RFC3339))
 			default:
 				log.Printf("Retry queue full, dropping webhook retry for %s", delivery.WebhookURL)
@@ -250,7 +250,7 @@ func (wm *WebhookManager) TriggerEvent(eventType string, data map[string]interfa
 		Timestamp: time.Now(),
 		Data:      data,
 	}
-	
+
 	select {
 	case wm.deliveryCh <- event:
 		// Event queued successfully
@@ -267,18 +267,18 @@ func createWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		URL    string   `json:"url"`
 		Events []string `json:"events"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&subscription); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validate URL
 	if subscription.URL == "" {
 		http.Error(w, "URL is required", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validate events
 	validEvents := map[string]bool{
 		"api.created":    true,
@@ -290,36 +290,36 @@ func createWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		"version.added":  true,
 		"price.updated":  true,
 	}
-	
+
 	for _, event := range subscription.Events {
 		if !validEvents[event] {
 			http.Error(w, fmt.Sprintf("Invalid event type: %s", event), http.StatusBadRequest)
 			return
 		}
 	}
-	
+
 	// Create the subscription
 	id := uuid.New().String()
 	_, err := db.Exec(`
 		INSERT INTO webhook_subscriptions (id, url, events, active, created_at, failure_count)
 		VALUES ($1, $2, $3, true, $4, 0)
 	`, id, subscription.URL, pq.Array(subscription.Events), time.Now())
-	
+
 	if err != nil {
 		log.Printf("Error creating webhook: %v", err)
 		http.Error(w, "Failed to create webhook", http.StatusInternalServerError)
 		return
 	}
-	
+
 	response := WebhookSubscription{
-		ID:        id,
-		URL:       subscription.URL,
-		Events:    subscription.Events,
-		Active:    true,
-		CreatedAt: time.Now(),
+		ID:           id,
+		URL:          subscription.URL,
+		Events:       subscription.Events,
+		Active:       true,
+		CreatedAt:    time.Now(),
 		FailureCount: 0,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -336,13 +336,13 @@ func listWebhooksHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var webhooks []WebhookSubscription
 	for rows.Next() {
 		var webhook WebhookSubscription
 		var lastTriggered sql.NullTime
 		var events pq.StringArray
-		
+
 		err := rows.Scan(
 			&webhook.ID,
 			&webhook.URL,
@@ -355,15 +355,15 @@ func listWebhooksHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			continue
 		}
-		
+
 		webhook.Events = []string(events)
 		if lastTriggered.Valid {
 			webhook.LastTriggered = &lastTriggered.Time
 		}
-		
+
 		webhooks = append(webhooks, webhook)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(webhooks)
 }
@@ -372,19 +372,19 @@ func listWebhooksHandler(w http.ResponseWriter, r *http.Request) {
 func deleteWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	
+
 	result, err := db.Exec("DELETE FROM webhook_subscriptions WHERE id = $1", id)
 	if err != nil {
 		http.Error(w, "Failed to delete webhook", http.StatusInternalServerError)
 		return
 	}
-	
+
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		http.Error(w, "Webhook not found", http.StatusNotFound)
 		return
 	}
-	
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -392,14 +392,14 @@ func deleteWebhookHandler(w http.ResponseWriter, r *http.Request) {
 func testWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	
+
 	var url string
 	err := db.QueryRow("SELECT url FROM webhook_subscriptions WHERE id = $1", id).Scan(&url)
 	if err != nil {
 		http.Error(w, "Webhook not found", http.StatusNotFound)
 		return
 	}
-	
+
 	// Send test event
 	testEvent := WebhookEvent{
 		ID:        uuid.New().String(),
@@ -409,26 +409,26 @@ func testWebhookHandler(w http.ResponseWriter, r *http.Request) {
 			"message": "This is a test webhook event",
 		},
 	}
-	
+
 	payload, _ := json.Marshal(testEvent)
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Post(url, "application/json", bytes.NewReader(payload))
-	
+
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Test failed: %v", err), http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode >= 400 {
 		http.Error(w, fmt.Sprintf("Webhook returned status %d", resp.StatusCode), http.StatusBadGateway)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Test webhook delivered successfully",
+		"success":     true,
+		"message":     "Test webhook delivered successfully",
 		"status_code": resp.StatusCode,
 	})
 }

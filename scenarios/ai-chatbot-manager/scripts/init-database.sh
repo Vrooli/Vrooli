@@ -34,6 +34,8 @@ if [ -f "$SCENARIO_ROOT/initialization/storage/postgres/schema.sql" ]; then
     # Use a temporary file to combine commands
     TEMP_SQL=$(mktemp)
     echo "\\c $DB_NAME" > "$TEMP_SQL"
+    # Drop existing tables to ensure fresh schema
+    echo "DROP TABLE IF EXISTS escalations, messages, conversations, intent_patterns, daily_analytics, chatbots CASCADE;" >> "$TEMP_SQL"
     cat "$SCENARIO_ROOT/initialization/storage/postgres/schema.sql" >> "$TEMP_SQL"
     
     resource-postgres content execute --instance main --file "$TEMP_SQL"

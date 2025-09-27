@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -15,6 +17,12 @@ type Server struct {
 	connectionManager *ConnectionManager
 	wsHandler         *WebSocketHandler
 	router            *mux.Router
+	eventPublisher    *EventPublisher
+	baseURL           string
+	// Health check cache
+	healthCache       map[string]interface{}
+	healthCacheTime   time.Time
+	healthCacheMutex  sync.RWMutex
 }
 
 // NewServer creates a new server instance
@@ -23,11 +31,17 @@ func NewServer(config *Config, db *Database, logger *Logger) *Server {
 	connectionManager := NewConnectionManager(logger)
 	go connectionManager.Start()
 
+	// Create event publisher
+	eventPublisher := NewEventPublisher(logger)
+	
 	server := &Server{
 		config:            config,
 		db:                db,
 		logger:            logger,
 		connectionManager: connectionManager,
+		eventPublisher:    eventPublisher,
+		baseURL:           fmt.Sprintf("http://localhost:%s", config.APIPort),
+		healthCache:       make(map[string]interface{}),
 	}
 
 	// Create WebSocket handler
@@ -51,6 +65,10 @@ func (s *Server) setupRoutes() {
 		return LoggingMiddleware(s.logger, next)
 	})
 	s.router.Use(CORSMiddleware)
+	
+	// Apply authentication middleware globally
+	authMiddleware := NewAuthenticationMiddleware(s.logger)
+	s.router.Use(authMiddleware.Middleware)
 
 	// Health check
 	s.router.HandleFunc("/health", s.HealthHandler).Methods("GET", "OPTIONS")
@@ -76,16 +94,39 @@ func (s *Server) setupRoutes() {
 
 	// Analytics
 	api.HandleFunc("/analytics/{id}", s.AnalyticsHandler).Methods("GET")
+	
+	// Escalations
+	api.HandleFunc("/chatbots/{id}/escalations", s.GetEscalationsHandler).Methods("GET")
+	api.HandleFunc("/escalations/{id}", s.UpdateEscalationHandler).Methods("PATCH")
 
 	// Widget endpoints
 	api.HandleFunc("/chatbots/{id}/widget", s.WidgetHandler).Methods("GET")
 	api.HandleFunc("/widget.js", s.ServeWidgetJS).Methods("GET") // Serve widget JavaScript file
+
+	// Multi-tenant endpoints
+	api.HandleFunc("/tenants", s.CreateTenantHandler).Methods("POST")
+	api.HandleFunc("/tenants/{id}", s.GetTenantHandler).Methods("GET")
+	
+	// A/B Testing endpoints
+	api.HandleFunc("/chatbots/{chatbot_id}/ab-tests", s.CreateABTestHandler).Methods("POST")
+	api.HandleFunc("/ab-tests/{test_id}/start", s.StartABTestHandler).Methods("POST")
+	api.HandleFunc("/ab-tests/{test_id}/results", s.GetABTestResultsHandler).Methods("GET")
+	
+	// CRM Integration endpoints
+	api.HandleFunc("/crm-integrations", s.CreateCRMIntegrationHandler).Methods("POST")
+	api.HandleFunc("/conversations/{conversation_id}/sync-crm", s.SyncCRMLeadHandler).Methods("POST")
 }
 
 // WidgetHandler returns the widget embed code for a chatbot
 func (s *Server) WidgetHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	chatbotID := vars["id"]
+
+	// Validate UUID format first
+	if !isValidUUID(chatbotID) {
+		http.Error(w, "Invalid chatbot ID format", http.StatusBadRequest)
+		return
+	}
 
 	chatbot, err := s.db.GetChatbot(chatbotID)
 	if err != nil {

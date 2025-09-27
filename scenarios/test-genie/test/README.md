@@ -8,18 +8,29 @@ Comprehensive testing infrastructure for the Test Genie scenario, covering core 
 # Run all tests (recommended)
 ./run-all-tests.sh
 
-# Run all tests in parallel (faster)
-PARALLEL=true ./run-all-tests.sh
-
 # Run individual test suites
-./test-basic-functionality.sh
-./test-database-integration.sh
-./test-ai-integration.sh
+./phases/test-structure.sh
+./phases/test-integration.sh
+./phases/test-dependencies.sh
+./phases/test-business.sh
 ```
+
+> ℹ️ `run-all-tests.sh` automatically discovers scripts in `test/phases` and executes them sequentially. Parallel execution is intentionally disabled to preserve consistent logging and ordering.
 
 ## 📋 Test Suites
 
-### 1. Basic Functionality (`test-basic-functionality.sh`)
+### 1. Structure Validation (`test/phases/test-structure.sh`)
+**Purpose**: Confirms the scenario layout, lifecycle assets, and key entrypoints exist
+
+**Checks**:
+- ✅ Required directories (`api`, `cli`, `ui`, `prompts`, `initialization`, `test/phases`)
+- ✅ Lifecycle contract files (`Makefile`, `.vrooli/service.json`, `scenario-test.yaml`)
+- ✅ Primary entrypoints (`api/main.go`, `cli/test-genie`, `ui/server.js`)
+
+**Prerequisites**:
+- None — runs entirely offline
+
+### 2. Integration (`test/phases/test-integration.sh`)
 **Purpose**: Tests core API functionality and CLI integration
 
 **Test Cases**:
@@ -36,7 +47,7 @@ PARALLEL=true ./run-all-tests.sh
 - Test Genie scenario running (`vrooli scenario run test-genie`)
 - Basic system dependencies (curl, jq)
 
-### 2. Database Integration (`test-database-integration.sh`)
+### 3. Dependencies (`test/phases/test-dependencies.sh`)
 **Purpose**: Tests database connectivity, persistence, and performance
 
 **Test Cases**:
@@ -53,7 +64,7 @@ PARALLEL=true ./run-all-tests.sh
 - PostgreSQL resource available and configured
 - Test Genie API running with database connectivity
 
-### 3. AI Integration (`test-ai-integration.sh`) 
+### 4. Business Logic & AI (`test/phases/test-business.sh`)
 **Purpose**: Tests OpenCode integration, AI generation, and fallback mechanisms
 
 **Test Cases**:
@@ -69,15 +80,15 @@ PARALLEL=true ./run-all-tests.sh
 - OpenCode resource running with models available
 - AI service integration configured
 
-### 4. Master Test Runner (`run-all-tests.sh`)
-**Purpose**: Orchestrates all test suites with comprehensive reporting
+### Master Test Runner (`run-all-tests.sh`)
+**Purpose**: Auto-discovers `test/phases` scripts and orchestrates them sequentially with reporting
 
 **Features**:
-- 🔄 Sequential or parallel test execution
-- 📊 Comprehensive test reporting and statistics
 - 📁 Individual test logging with log retention
-- ⚡ Performance timing for each test suite
+- 📊 Comprehensive test reporting and statistics
+- ⚡ Performance timing for each phase
 - 🎯 Success rate calculation and recommendations
+- 🧭 Clear pointers to failing phase logs
 - 🔧 Debugging information and useful commands
 
 ## 📊 Understanding Test Results
@@ -91,9 +102,10 @@ PARALLEL=true ./run-all-tests.sh
 
 ### Log Analysis
 Test logs are stored in `/tmp/test-genie-logs-<pid>/`:
-- `basic-test.log` - Core functionality test output
-- `database-test.log` - Database integration test output  
-- `ai-test.log` - AI integration test output
+- `structure-test.log` - Structural validation output
+- `integration-test.log` - Core functionality test output
+- `dependencies-test.log` - Database integration test output  
+- `business-test.log` - AI and advanced flow output
 
 ### Performance Benchmarks
 - **API Response Time**: < 1000ms for health checks
@@ -105,14 +117,11 @@ Test logs are stored in `/tmp/test-genie-logs-<pid>/`:
 
 ### Environment Variables
 ```bash
-# Parallel execution mode
-PARALLEL=true ./run-all-tests.sh
-
 # Custom API port (auto-detected by default)
-API_PORT=8200 ./test-basic-functionality.sh
+API_PORT=8200 ./phases/test-integration.sh
 
 # Custom OpenCode configuration
-./test-ai-integration.sh
+./phases/test-business.sh
 ```
 
 ### Test Customization

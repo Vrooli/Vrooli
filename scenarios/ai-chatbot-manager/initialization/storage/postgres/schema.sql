@@ -13,6 +13,7 @@ CREATE TABLE chatbots (
     knowledge_base TEXT,
     model_config JSONB DEFAULT '{"model": "llama3.2", "temperature": 0.7, "max_tokens": 1000}',
     widget_config JSONB DEFAULT '{"theme": "light", "position": "bottom-right", "primaryColor": "#007bff"}',
+    escalation_config JSONB DEFAULT '{"enabled": false, "threshold": 0.5, "webhook_url": null, "email": null}',
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -78,6 +79,22 @@ CREATE TABLE intent_patterns (
     occurrence_count INTEGER DEFAULT 1,
     last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Escalations table - tracks when human intervention was requested
+CREATE TABLE escalations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    chatbot_id UUID NOT NULL REFERENCES chatbots(id) ON DELETE CASCADE,
+    reason TEXT NOT NULL,
+    confidence_score FLOAT,
+    escalation_type VARCHAR(50) DEFAULT 'low_confidence',
+    status VARCHAR(50) DEFAULT 'pending',
+    escalated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    resolved_at TIMESTAMP WITH TIME ZONE,
+    resolution_notes TEXT,
+    webhook_response JSONB,
+    email_sent BOOLEAN DEFAULT false
 );
 
 -- Indexes for performance optimization

@@ -21,6 +21,7 @@ get_api_url() {
 API_BASE_URL="${API_BASE_URL:-$(get_api_url)}"
 TEST_SESSION_ID="test-session-$(date +%s)"
 CREATED_CHATBOT_ID=""
+API_KEY="dev-api-key-change-in-production"  # Test API key
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -60,7 +61,7 @@ test_list_chatbots() {
     log_info "Testing list chatbots endpoint..."
     
     local status_code
-    status_code=$(curl -s -o /dev/null -w "%{http_code}" "$API_BASE_URL/api/v1/chatbots")
+    status_code=$(curl -s -H "X-API-Key: $API_KEY" -o /dev/null -w "%{http_code}" "$API_BASE_URL/api/v1/chatbots")
     
     if [[ "$status_code" == "200" ]]; then
         log_success "List chatbots endpoint returned 200"
@@ -75,7 +76,7 @@ test_create_chatbot() {
     log_info "Testing create chatbot endpoint..."
     
     local response
-    response=$(curl -s -X POST "$API_BASE_URL/api/v1/chatbots" \
+    response=$(curl -s -H "X-API-Key: $API_KEY" -X POST "$API_BASE_URL/api/v1/chatbots" \
         -H "Content-Type: application/json" \
         -d '{
             "name": "Test Chatbot",
@@ -105,7 +106,7 @@ test_get_chatbot() {
     log_info "Testing get chatbot endpoint..."
     
     local response
-    response=$(curl -s "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID")
+    response=$(curl -s -H "X-API-Key: $API_KEY" "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID")
     
     local chatbot_name
     chatbot_name=$(echo "$response" | jq -r '.name // empty' 2>/dev/null)
@@ -128,7 +129,7 @@ test_chat_endpoint() {
     log_info "Testing chat endpoint..."
     
     local response
-    response=$(curl -s -X POST "$API_BASE_URL/api/v1/chat/$CREATED_CHATBOT_ID" \
+    response=$(curl -s -H "X-API-Key: $API_KEY" -X POST "$API_BASE_URL/api/v1/chat/$CREATED_CHATBOT_ID" \
         -H "Content-Type: application/json" \
         -d '{
             "message": "Hello, can you help me?",
@@ -156,7 +157,7 @@ test_analytics_endpoint() {
     log_info "Testing analytics endpoint..."
     
     local status_code
-    status_code=$(curl -s -o /dev/null -w "%{http_code}" "$API_BASE_URL/api/v1/analytics/$CREATED_CHATBOT_ID")
+    status_code=$(curl -s -H "X-API-Key: $API_KEY" -o /dev/null -w "%{http_code}" "$API_BASE_URL/api/v1/analytics/$CREATED_CHATBOT_ID")
     
     if [[ "$status_code" == "200" ]]; then
         log_success "Analytics endpoint returned 200"
@@ -176,7 +177,7 @@ test_update_chatbot() {
     log_info "Testing update chatbot endpoint..."
     
     local response
-    response=$(curl -s -X PATCH "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID" \
+    response=$(curl -s -H "X-API-Key: $API_KEY" -X PATCH "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID" \
         -H "Content-Type: application/json" \
         -d '{
             "name": "Updated Test Chatbot",
@@ -185,7 +186,7 @@ test_update_chatbot() {
     
     # Verify the update worked
     local updated_name
-    updated_name=$(curl -s "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID" | jq -r '.name // empty')
+    updated_name=$(curl -s -H "X-API-Key: $API_KEY" "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID" | jq -r '.name // empty')
     
     if [[ "$updated_name" == "Updated Test Chatbot" ]]; then
         log_success "Successfully updated chatbot"
@@ -205,7 +206,7 @@ test_widget_endpoint() {
     log_info "Testing widget endpoint..."
     
     local response
-    response=$(curl -s "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID/widget")
+    response=$(curl -s -H "X-API-Key: $API_KEY" "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID/widget")
     
     # Check if response contains expected widget code
     if echo "$response" | grep -q "chatbot-widget" && echo "$response" | grep -q "$CREATED_CHATBOT_ID"; then
@@ -221,7 +222,7 @@ test_error_handling() {
     log_info "Testing error handling with invalid chatbot ID..."
     
     local status_code
-    status_code=$(curl -s -o /dev/null -w "%{http_code}" "$API_BASE_URL/api/v1/chatbots/invalid-id-12345")
+    status_code=$(curl -s -H "X-API-Key: $API_KEY" -o /dev/null -w "%{http_code}" "$API_BASE_URL/api/v1/chatbots/invalid-id-12345")
     
     if [[ "$status_code" == "404" ]]; then
         log_success "Properly returns 404 for invalid chatbot ID"
@@ -232,7 +233,7 @@ test_error_handling() {
     
     log_info "Testing error handling with malformed JSON..."
     
-    status_code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API_BASE_URL/api/v1/chatbots" \
+    status_code=$(curl -s -H "X-API-Key: $API_KEY" -o /dev/null -w "%{http_code}" -X POST "$API_BASE_URL/api/v1/chatbots" \
         -H "Content-Type: application/json" \
         -d '{"invalid": json}')
     
@@ -255,7 +256,7 @@ test_conversation_persistence() {
     
     # Send first message
     local response1
-    response1=$(curl -s -X POST "$API_BASE_URL/api/v1/chat/$CREATED_CHATBOT_ID" \
+    response1=$(curl -s -H "X-API-Key: $API_KEY" -X POST "$API_BASE_URL/api/v1/chat/$CREATED_CHATBOT_ID" \
         -H "Content-Type: application/json" \
         -d '{
             "message": "My name is TestUser",
@@ -264,7 +265,7 @@ test_conversation_persistence() {
     
     # Send second message in same session
     local response2
-    response2=$(curl -s -X POST "$API_BASE_URL/api/v1/chat/$CREATED_CHATBOT_ID" \
+    response2=$(curl -s -H "X-API-Key: $API_KEY" -X POST "$API_BASE_URL/api/v1/chat/$CREATED_CHATBOT_ID" \
         -H "Content-Type: application/json" \
         -d '{
             "message": "What is my name?",
@@ -289,14 +290,14 @@ test_delete_chatbot() {
     log_info "Testing delete chatbot endpoint..."
     
     local status_code
-    status_code=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID")
+    status_code=$(curl -s -H "X-API-Key: $API_KEY" -o /dev/null -w "%{http_code}" -X DELETE "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID")
     
     if [[ "$status_code" == "200" || "$status_code" == "204" ]]; then
         log_success "Successfully deleted chatbot"
         
         # Verify deletion (should now return 404 or show as inactive)
         local get_status
-        get_status=$(curl -s "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID" | jq -r '.is_active // empty')
+        get_status=$(curl -s -H "X-API-Key: $API_KEY" "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID" | jq -r '.is_active // empty')
         
         if [[ "$get_status" == "false" || -z "$get_status" ]]; then
             log_success "Chatbot properly marked as deleted/inactive"

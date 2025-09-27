@@ -3,4 +3,3 @@ link-workspace-packages: false
 shared-workspace-lockfile: false
 packages:
   - packages/*
-  - scenarios/*/ui

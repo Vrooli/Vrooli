@@ -15,10 +15,29 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// isValidUUID checks if a string is a valid UUID
+func isValidUUID(u string) bool {
+	_, err := uuid.Parse(u)
+	return err == nil
+}
+
 // HealthHandler handles health check requests
 func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	overallStatus := "healthy"
 	startTime := time.Now()
+	
+	// Check if we have a cached health check result (cache for 30 seconds)
+	cacheDuration := 30 * time.Second
+	s.healthCacheMutex.RLock()
+	if time.Since(s.healthCacheTime) < cacheDuration && len(s.healthCache) > 0 {
+		cachedResponse := s.healthCache
+		s.healthCacheMutex.RUnlock()
+		// Return cached response
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cachedResponse)
+		return
+	}
+	s.healthCacheMutex.RUnlock()
 	
 	// Schema-compliant health response
 	healthResponse := map[string]interface{}{
@@ -59,7 +78,8 @@ func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// 4. Test basic AI inference capability (if Ollama is available)
-	if ollamaHealth["connected"] == true {
+	// Skip inference check for basic health checks to improve response time
+	if r.URL.Query().Get("detailed") == "true" && ollamaHealth["connected"] == true {
 		inferenceHealth := s.checkAIInference()
 		dependencies["ai_inference"] = inferenceHealth
 		if inferenceHealth["connected"] == false {
@@ -71,6 +91,12 @@ func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// Update overall status
 	healthResponse["status"] = overallStatus
+	
+	// Cache the health check result
+	s.healthCacheMutex.Lock()
+	s.healthCache = healthResponse
+	s.healthCacheTime = time.Now()
+	s.healthCacheMutex.Unlock()
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(healthResponse)
@@ -366,18 +392,29 @@ func (s *Server) CreateChatbotHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Set default escalation config if not provided
+	if req.EscalationConfig == nil {
+		req.EscalationConfig = map[string]interface{}{
+			"enabled":     false,
+			"threshold":   0.5,
+			"webhook_url": nil,
+			"email":       nil,
+		}
+	}
+
 	// Create chatbot
 	chatbot := &Chatbot{
-		ID:            uuid.New().String(),
-		Name:          req.Name,
-		Description:   req.Description,
-		Personality:   req.Personality,
-		KnowledgeBase: req.KnowledgeBase,
-		ModelConfig:   req.ModelConfig,
-		WidgetConfig:  req.WidgetConfig,
-		IsActive:      true,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		ID:               uuid.New().String(),
+		Name:             req.Name,
+		Description:      req.Description,
+		Personality:      req.Personality,
+		KnowledgeBase:    req.KnowledgeBase,
+		ModelConfig:      req.ModelConfig,
+		WidgetConfig:     req.WidgetConfig,
+		EscalationConfig: req.EscalationConfig,
+		IsActive:         true,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
 	}
 
 	// Save to database
@@ -422,6 +459,12 @@ func (s *Server) GetChatbotHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	chatbotID := vars["id"]
 
+	// Validate UUID format first
+	if !isValidUUID(chatbotID) {
+		http.Error(w, "Invalid chatbot ID format", http.StatusBadRequest)
+		return
+	}
+
 	chatbot, err := s.db.GetChatbot(chatbotID)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
@@ -441,6 +484,12 @@ func (s *Server) GetChatbotHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) UpdateChatbotHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	chatbotID := vars["id"]
+
+	// Validate UUID format first
+	if !isValidUUID(chatbotID) {
+		http.Error(w, "Invalid chatbot ID format", http.StatusBadRequest)
+		return
+	}
 
 	var req UpdateChatbotRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -483,6 +532,12 @@ func (s *Server) DeleteChatbotHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	chatbotID := vars["id"]
 
+	// Validate UUID format first
+	if !isValidUUID(chatbotID) {
+		http.Error(w, "Invalid chatbot ID format", http.StatusBadRequest)
+		return
+	}
+
 	if err := s.db.DeleteChatbot(chatbotID); err != nil {
 		s.logger.Printf("Failed to delete chatbot: %v", err)
 		http.Error(w, "Failed to delete chatbot", http.StatusInternalServerError)
@@ -500,6 +555,12 @@ func (s *Server) DeleteChatbotHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) ChatHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	chatbotID := vars["id"]
+
+	// Validate UUID format first
+	if !isValidUUID(chatbotID) {
+		http.Error(w, "Invalid chatbot ID format", http.StatusBadRequest)
+		return
+	}
 
 	var req ChatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -523,6 +584,12 @@ func (s *Server) ChatHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	chatbotID := vars["id"]
+
+	// Validate UUID format first
+	if !isValidUUID(chatbotID) {
+		http.Error(w, "Invalid chatbot ID format", http.StatusBadRequest)
+		return
+	}
 
 	// Parse query parameters
 	days := 7
@@ -562,10 +629,20 @@ func (s *Server) ProcessChatMessage(chatbotID string, req ChatRequest) (*ChatRes
 	}
 
 	// Get or create conversation
-	conversationID, err := s.db.GetOrCreateConversation(chatbotID, req.SessionID, req.UserIP)
+	conversationID, isNew, err := s.db.GetOrCreateConversation(chatbotID, req.SessionID, req.UserIP)
 	if err != nil {
 		s.logger.Printf("Failed to get/create conversation: %v", err)
 		return nil, fmt.Errorf("failed to manage conversation")
+	}
+	
+	// Publish event if this is a new conversation
+	if isNew {
+		userContext := map[string]interface{}{
+			"session_id": req.SessionID,
+			"user_ip":    req.UserIP,
+			"context":    req.Context,
+		}
+		s.eventPublisher.ConversationStartedEvent(chatbotID, conversationID, userContext)
 	}
 
 	// Save user message
@@ -613,11 +690,82 @@ func (s *Server) ProcessChatMessage(chatbotID string, req ChatRequest) (*ChatRes
 
 	// Check for lead qualification
 	leadQualification := s.AnalyzeForLeadQualification(req.Message, response)
+	
+	// Publish lead event if qualified
+	if len(leadQualification) > 0 && (leadQualification["email_mentioned"] == true || 
+		leadQualification["purchase_intent"] == true || 
+		leadQualification["demo_interest"] == true) {
+		leadData := map[string]interface{}{
+			"qualification": leadQualification,
+			"message":       req.Message,
+			"session_id":    req.SessionID,
+		}
+		s.eventPublisher.LeadCapturedEvent(chatbotID, conversationID, leadData)
+	}
+
+	// Check if escalation is needed
+	shouldEscalate := false
+	escalationReason := ""
+	
+	if escalationConfig, ok := chatbot.EscalationConfig["enabled"].(bool); ok && escalationConfig {
+		threshold := 0.5
+		if thresh, ok := chatbot.EscalationConfig["threshold"].(float64); ok {
+			threshold = thresh
+		}
+		
+		// Check confidence threshold
+		if confidence < threshold {
+			shouldEscalate = true
+			escalationReason = fmt.Sprintf("Low confidence: %.2f < %.2f threshold", confidence, threshold)
+		}
+		
+		// Check for explicit escalation keywords
+		escalationKeywords := []string{"speak to human", "talk to agent", "human help", "real person", "escalate", "manager"}
+		lowerMessage := strings.ToLower(req.Message)
+		for _, keyword := range escalationKeywords {
+			if strings.Contains(lowerMessage, keyword) {
+				shouldEscalate = true
+				escalationReason = "User requested human assistance"
+				break
+			}
+		}
+	}
+	
+	// Handle escalation if needed
+	if shouldEscalate {
+		escalation := &Escalation{
+			ID:              uuid.New().String(),
+			ConversationID:  conversationID,
+			ChatbotID:       chatbotID,
+			Reason:          escalationReason,
+			ConfidenceScore: confidence,
+			EscalationType:  "low_confidence",
+			Status:          "pending",
+			EscalatedAt:     time.Now(),
+			EmailSent:       false,
+		}
+		
+		// Save escalation to database
+		if err := s.db.CreateEscalation(escalation); err != nil {
+			s.logger.Printf("Failed to save escalation: %v", err)
+		}
+		
+		// Trigger webhook if configured
+		if webhookURL, ok := chatbot.EscalationConfig["webhook_url"].(string); ok && webhookURL != "" {
+			go s.TriggerEscalationWebhook(webhookURL, escalation)
+		}
+		
+		// Send email notification if configured
+		if email, ok := chatbot.EscalationConfig["email"].(string); ok && email != "" {
+			go s.SendEscalationEmail(email, escalation)
+		}
+	}
 
 	return &ChatResponse{
 		Response:          response,
 		Confidence:        confidence,
-		ShouldEscalate:    confidence < 0.5,
+		ShouldEscalate:    shouldEscalate,
+		EscalationReason:  escalationReason,
 		LeadQualification: leadQualification,
 		ConversationID:    conversationID,
 	}, nil
@@ -721,4 +869,154 @@ func (s *Server) AnalyzeForLeadQualification(userMessage, aiResponse string) map
 	}
 
 	return qualification
+}
+
+// TriggerEscalationWebhook sends escalation notification to webhook
+func (s *Server) TriggerEscalationWebhook(webhookURL string, escalation *Escalation) {
+	payload := map[string]interface{}{
+		"escalation_id":    escalation.ID,
+		"conversation_id":  escalation.ConversationID,
+		"chatbot_id":       escalation.ChatbotID,
+		"reason":           escalation.Reason,
+		"confidence_score": escalation.ConfidenceScore,
+		"escalation_type":  escalation.EscalationType,
+		"escalated_at":     escalation.EscalatedAt,
+		"conversation_url": fmt.Sprintf("%s/conversations/%s", s.baseURL, escalation.ConversationID),
+	}
+	
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		s.logger.Printf("Failed to marshal webhook payload: %v", err)
+		return
+	}
+	
+	req, err := http.NewRequest("POST", webhookURL, bytes.NewReader(jsonPayload))
+	if err != nil {
+		s.logger.Printf("Failed to create webhook request: %v", err)
+		return
+	}
+	
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "AI-Chatbot-Manager/1.0")
+	
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		s.logger.Printf("Webhook request failed: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+	
+	s.logger.Printf("Escalation webhook triggered for conversation %s (status: %d)", escalation.ConversationID, resp.StatusCode)
+}
+
+// SendEscalationEmail sends escalation notification via email
+func (s *Server) SendEscalationEmail(email string, escalation *Escalation) {
+	// This is a placeholder implementation
+	// In production, you would integrate with an email service like SendGrid, AWS SES, etc.
+	
+	subject := fmt.Sprintf("Escalation Alert: Conversation %s requires attention", escalation.ConversationID[:8])
+	body := fmt.Sprintf(`
+An escalation has been triggered in the AI Chatbot Manager system.
+
+Details:
+- Conversation ID: %s
+- Chatbot ID: %s
+- Reason: %s
+- Confidence Score: %.2f
+- Type: %s
+- Time: %s
+
+Please review this conversation and take appropriate action.
+
+View conversation: %s/conversations/%s
+`,
+		escalation.ConversationID,
+		escalation.ChatbotID,
+		escalation.Reason,
+		escalation.ConfidenceScore,
+		escalation.EscalationType,
+		escalation.EscalatedAt.Format(time.RFC3339),
+		s.baseURL,
+		escalation.ConversationID,
+	)
+	
+	// Log the email details (in production, send actual email)
+	s.logger.Printf("Email notification prepared for %s:\nSubject: %s\nBody: %s", email, subject, body)
+	
+	// TODO: Integrate with email service provider
+	// Example: sendgrid.Send(email, subject, body)
+}
+
+// GetEscalationsHandler returns pending escalations for a chatbot
+func (s *Server) GetEscalationsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	chatbotID := vars["id"]
+	
+	// Validate UUID format
+	if !isValidUUID(chatbotID) {
+		http.Error(w, "Invalid chatbot ID format", http.StatusBadRequest)
+		return
+	}
+	
+	escalations, err := s.db.GetPendingEscalations(chatbotID)
+	if err != nil {
+		s.logger.Printf("Failed to get escalations: %v", err)
+		http.Error(w, "Failed to retrieve escalations", http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(escalations)
+}
+
+// UpdateEscalationHandler updates the status of an escalation
+func (s *Server) UpdateEscalationHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	escalationID := vars["id"]
+	
+	// Validate UUID format
+	if !isValidUUID(escalationID) {
+		http.Error(w, "Invalid escalation ID format", http.StatusBadRequest)
+		return
+	}
+	
+	// Parse request body
+	var update struct {
+		Status string `json:"status"`
+		Notes  string `json:"notes"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	// Validate status
+	validStatuses := []string{"pending", "in_progress", "resolved", "dismissed"}
+	isValid := false
+	for _, status := range validStatuses {
+		if update.Status == status {
+			isValid = true
+			break
+		}
+	}
+	
+	if !isValid {
+		http.Error(w, "Invalid status. Must be one of: pending, in_progress, resolved, dismissed", http.StatusBadRequest)
+		return
+	}
+	
+	// Update escalation
+	if err := s.db.UpdateEscalationStatus(escalationID, update.Status, update.Notes); err != nil {
+		s.logger.Printf("Failed to update escalation: %v", err)
+		http.Error(w, "Failed to update escalation", http.StatusInternalServerError)
+		return
+	}
+	
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "success",
+		"message": "Escalation updated successfully",
+	})
 }

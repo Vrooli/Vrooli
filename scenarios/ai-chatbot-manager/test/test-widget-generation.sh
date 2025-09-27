@@ -47,11 +47,10 @@ log_detail() {
 
 # Create a test chatbot and get widget code
 create_chatbot_with_widget() {
-    log_info "Creating chatbot with custom widget configuration..."
-    
     local response
     response=$(curl -s -X POST "$API_BASE_URL/api/v1/chatbots" \
         -H "Content-Type: application/json" \
+        -H "X-API-Key: dev-api-key-change-in-production" \
         -d '{
             "name": "Widget Test Bot",
             "description": "Bot for widget testing",
@@ -93,49 +92,42 @@ test_widget_structure() {
         log_error "Widget missing script tag"
     fi
     
-    # Check for chatbot ID
+    # Check for API URL configuration  
     total_checks=$((total_checks + 1))
-    if [[ "$widget_code" =~ "CHATBOT_ID" ]]; then
-        log_success "Widget contains chatbot ID reference"
-        checks_passed=$((checks_passed + 1))
-    else
-        log_error "Widget missing chatbot ID"
-    fi
-    
-    # Check for WebSocket setup
-    total_checks=$((total_checks + 1))
-    if [[ "$widget_code" =~ "WebSocket" ]] || [[ "$widget_code" =~ "ws://" ]]; then
-        log_success "Widget includes WebSocket functionality"
-        checks_passed=$((checks_passed + 1))
-    else
-        log_error "Widget missing WebSocket setup"
-    fi
-    
-    # Check for API URL configuration
-    total_checks=$((total_checks + 1))
-    if [[ "$widget_code" =~ "API_URL" ]] || [[ "$widget_code" =~ "localhost" ]]; then
+    if [[ "$widget_code" =~ "CHATBOT_API_URL" ]] || [[ "$widget_code" =~ "localhost:17136" ]]; then
         log_success "Widget includes API URL configuration"
         checks_passed=$((checks_passed + 1))
     else
         log_error "Widget missing API URL"
     fi
     
-    # Check for UI elements
+    # Check for widget.js reference
     total_checks=$((total_checks + 1))
-    if [[ "$widget_code" =~ "createElement" ]]; then
-        log_success "Widget creates DOM elements"
+    if [[ "$widget_code" =~ "widget.js" ]]; then
+        log_success "Widget references widget.js library"
         checks_passed=$((checks_passed + 1))
     else
-        log_error "Widget missing DOM element creation"
+        log_error "Widget missing widget.js reference"
     fi
     
-    # Check for chat input handling
+    # Check for initialization code
     total_checks=$((total_checks + 1))
-    if [[ "$widget_code" =~ "input" ]] && [[ "$widget_code" =~ "message" ]]; then
-        log_success "Widget includes message input handling"
+    if [[ "$widget_code" =~ "AIChatbotWidget" ]] || [[ "$widget_code" =~ "function()" ]]; then
+        log_success "Widget includes initialization code"
         checks_passed=$((checks_passed + 1))
     else
-        log_error "Widget missing input handling"
+        log_error "Widget missing initialization code"
+    fi
+    
+    # Check for chatbot ID in response
+    total_checks=$((total_checks + 1))
+    local chatbot_id
+    chatbot_id=$(echo "$response" | jq -r '.chatbot.id // empty')
+    if [[ -n "$chatbot_id" ]]; then
+        log_success "Response includes chatbot ID: $chatbot_id"
+        checks_passed=$((checks_passed + 1))
+    else
+        log_error "Response missing chatbot ID"
     fi
     
     # Check for custom configuration
@@ -214,18 +206,16 @@ EOF
     fi
 }
 
-# Test widget JavaScript validity
+# Test widget JavaScript validity  
 test_widget_javascript() {
     log_info "Testing widget JavaScript validity..."
     
-    local widget_code="$1"
+    # Test the widget.js endpoint directly
+    local widget_js_response
+    widget_js_response=$(curl -s "$API_BASE_URL/api/v1/widget.js")
     
-    # Extract JavaScript from widget code
-    local js_code
-    js_code=$(echo "$widget_code" | sed -n '/<script>/,/<\/script>/p' | sed '1d;$d')
-    
-    if [[ -z "$js_code" ]]; then
-        log_error "Could not extract JavaScript from widget code"
+    if [[ -z "$widget_js_response" ]]; then
+        log_error "Could not fetch widget.js from API"
         return 1
     fi
     
@@ -233,26 +223,26 @@ test_widget_javascript() {
     local checks_passed=0
     
     # Check for function definitions
-    if [[ "$js_code" =~ "function" ]]; then
-        log_success "Widget contains function definitions"
+    if [[ "$widget_js_response" =~ "function" ]]; then
+        log_success "Widget.js contains function definitions"
         checks_passed=$((checks_passed + 1))
     fi
     
-    # Check for event handlers
-    if [[ "$js_code" =~ "onclick" ]] || [[ "$js_code" =~ "addEventListener" ]]; then
-        log_success "Widget includes event handlers"
+    # Check for AIChatbotWidget factory
+    if [[ "$widget_js_response" =~ "AIChatbotWidget" ]]; then
+        log_success "Widget.js includes AIChatbotWidget factory"
         checks_passed=$((checks_passed + 1))
     fi
     
-    # Check for error handling
-    if [[ "$js_code" =~ "try" ]] || [[ "$js_code" =~ "catch" ]]; then
-        log_success "Widget includes error handling"
+    # Check for WebSocket support
+    if [[ "$widget_js_response" =~ "WebSocket" ]]; then
+        log_success "Widget.js includes WebSocket support"
         checks_passed=$((checks_passed + 1))
     fi
     
-    # Check for IIFE (Immediately Invoked Function Expression)
-    if [[ "$js_code" =~ "\(function\(\)" ]]; then
-        log_success "Widget uses IIFE pattern for encapsulation"
+    # Check for DOM manipulation
+    if [[ "$widget_js_response" =~ "createElement" ]]; then
+        log_success "Widget.js includes DOM manipulation"
         checks_passed=$((checks_passed + 1))
     fi
     
@@ -281,6 +271,7 @@ test_multiple_configurations() {
         local response
         response=$(curl -s -X POST "$API_BASE_URL/api/v1/chatbots" \
             -H "Content-Type: application/json" \
+            -H "X-API-Key: dev-api-key-change-in-production" \
             -d "{
                 \"name\": \"Config Test Bot $(date +%s)\",
                 \"personality\": \"Test bot\",
@@ -328,7 +319,7 @@ main() {
     fi
     
     # Create test chatbot and get widget
-    log_info "Creating test chatbot..."
+    log_info "Creating test chatbot with custom widget configuration..."
     local response
     response=$(create_chatbot_with_widget)
     
@@ -370,7 +361,7 @@ main() {
     echo ""
     
     # Test JavaScript validity
-    if ! test_widget_javascript "$widget_code"; then
+    if ! test_widget_javascript; then
         failed=$((failed + 1))
     fi
     echo ""

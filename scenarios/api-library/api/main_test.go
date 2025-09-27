@@ -20,10 +20,10 @@ func TestMain(m *testing.M) {
 	os.Setenv("POSTGRES_PASSWORD", "test")
 	os.Setenv("QDRANT_HOST", "localhost")
 	os.Setenv("QDRANT_PORT", "6333")
-	
+
 	// Run tests
 	code := m.Run()
-	
+
 	// Cleanup
 	os.Exit(code)
 }
@@ -114,7 +114,7 @@ func TestSearchAPIsHandler(t *testing.T) {
 			}
 
 			rr := httptest.NewRecorder()
-			
+
 			// Note: In a real test, we'd need to set up the router and database connection
 			// For now, this is a structure test
 			_ = rr
@@ -148,7 +148,7 @@ func TestCreateAPIHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
-	
+
 	// Note: In a real test, we'd need to set up the router and database connection
 	_ = rr
 }
@@ -172,7 +172,7 @@ func TestAddNoteHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
-	
+
 	// Note: In a real test, we'd need to set up the router and database connection
 	_ = rr
 }
@@ -194,7 +194,7 @@ func TestMarkConfiguredHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
-	
+
 	// Note: In a real test, we'd need to set up the router and database connection
 	_ = rr
 }
@@ -221,7 +221,7 @@ func TestRequestResearchHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
-	
+
 	// Note: In a real test, we'd need to set up the router and database connection
 	_ = rr
 }
@@ -239,7 +239,7 @@ func BenchmarkSearchAPIs(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		req, _ := http.NewRequest("POST", "/api/v1/search", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		rr := httptest.NewRecorder()
 		// In a real benchmark, we'd call the actual handler
 		_ = rr
@@ -288,7 +288,7 @@ func TestConcurrentSearchRequests(t *testing.T) {
 			rr := httptest.NewRecorder()
 			// In a real test, we'd call the actual handler
 			_ = rr
-			
+
 			done <- true
 		}(i)
 	}

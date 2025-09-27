@@ -16,6 +16,7 @@ NC='\033[0m'
 
 # Test configuration
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PHASE_DIR="${TEST_DIR}/phases"
 LOG_DIR="/tmp/test-genie-logs-$$"
 PARALLEL=${PARALLEL:-false}
 
@@ -29,6 +30,11 @@ echo -e "${BLUE}Log Directory: $LOG_DIR${NC}"
 echo -e "${BLUE}Parallel Mode: $PARALLEL${NC}"
 echo ""
 
+if [[ "$PARALLEL" == "true" ]]; then
+    echo -e "${YELLOW}⚠️  Parallel execution is not yet supported; running sequentially.${NC}"
+    PARALLEL=false
+fi
+
 # Check if test-genie is running
 API_PORT=$(vrooli scenario port test-genie API_PORT 2>/dev/null)
 if [[ -z "$API_PORT" ]]; then
@@ -41,18 +47,40 @@ fi
 echo -e "${GREEN}✅ Test Genie detected running on port $API_PORT${NC}"
 echo ""
 
-# Test suite definitions
-declare -A TEST_SUITES=(
-    ["basic"]="test-basic-functionality.sh"
-    ["database"]="test-database-integration.sh"
-    ["ai"]="test-ai-integration.sh"
-)
+# Discover available test phases
+if [[ ! -d "${PHASE_DIR}" ]]; then
+    echo -e "${RED}❌ test/phases directory not found${NC}"
+    echo -e "${YELLOW}   Expected to find phase scripts in: ${PHASE_DIR}${NC}"
+    exit 1
+fi
 
-declare -A TEST_DESCRIPTIONS=(
-    ["basic"]="Core API functionality and CLI integration"
-    ["database"]="Database connectivity, persistence, and performance"
-    ["ai"]="AI generation, OpenCode integration, and fallback mechanisms"
-)
+mapfile -t DISCOVERED_PHASES < <(find "${PHASE_DIR}" -maxdepth 1 -type f -name "test-*.sh" | sort)
+
+if [[ ${#DISCOVERED_PHASES[@]} -eq 0 ]]; then
+    echo -e "${RED}❌ No test phase scripts discovered in ${PHASE_DIR}${NC}"
+    exit 1
+fi
+
+declare -A TEST_SCRIPTS=()
+declare -A TEST_DESCRIPTIONS=()
+TEST_KEYS=()
+
+for script_path in "${DISCOVERED_PHASES[@]}"; do
+    script_name=$(basename "${script_path}")
+    phase_key="${script_name#test-}"
+    phase_key="${phase_key%.sh}"
+
+    TEST_KEYS+=("${phase_key}")
+    TEST_SCRIPTS["${phase_key}"]="${script_path}"
+
+    phase_description=$(awk 'NR>1 && /^#/ {sub(/^#\s*/, ""); print; exit}' "${script_path}")
+    if [[ -z "${phase_description}" ]]; then
+        phase_description=$(echo "${phase_key}" | tr '-' ' ' | awk '{for (i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1')
+    fi
+    phase_description=${phase_description#Phase: }
+    phase_description=${phase_description#phase: }
+    TEST_DESCRIPTIONS["${phase_key}"]="${phase_description}"
+done
 
 # Track results
 declare -A TEST_RESULTS=()
@@ -64,7 +92,7 @@ FAILED_TESTS=0
 # Function to run individual test suite
 run_test_suite() {
     local test_key=$1
-    local test_script=${TEST_SUITES[$test_key]}
+    local test_script=${TEST_SCRIPTS[$test_key]}
     local test_description=${TEST_DESCRIPTIONS[$test_key]}
     local log_file="$LOG_DIR/${test_key}-test.log"
     
@@ -74,7 +102,7 @@ run_test_suite() {
     
     local start_time=$(date +%s)
     
-    if bash "$TEST_DIR/$test_script" > "$log_file" 2>&1; then
+    if bash "$test_script" > "$log_file" 2>&1; then
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
         
@@ -130,28 +158,13 @@ echo ""
 echo -e "${BOLD}${CYAN}🚀 Executing Test Suites${NC}"
 echo -e "${CYAN}========================${NC}"
 
-if [[ "$PARALLEL" == "true" ]]; then
-    echo -e "${YELLOW}Running tests in parallel mode...${NC}"
-    echo ""
-    
-    # Run all tests in parallel
-    pids=()
-    for test_key in "${!TEST_SUITES[@]}"; do
-        run_test_suite "$test_key" &
-        pids+=($!)
-    done
-    
-    # Wait for all tests to complete
-    wait "${pids[@]}"
-else
-    echo -e "${YELLOW}Running tests in sequential mode...${NC}"
-    echo ""
-    
-    # Run tests sequentially with specific order
-    for test_key in "basic" "database" "ai"; do
-        run_test_suite "$test_key"
-    done
-fi
+echo -e "${YELLOW}Running tests in sequential mode...${NC}"
+echo ""
+
+# Run tests sequentially with specific order
+for test_key in "${TEST_KEYS[@]}"; do
+    run_test_suite "$test_key"
+done
 
 # Generate comprehensive report
 echo -e "${BOLD}${CYAN}📊 Test Results Summary${NC}"
@@ -159,10 +172,10 @@ echo -e "${CYAN}======================${NC}"
 echo ""
 
 # Individual test results
-for test_key in "basic" "database" "ai"; do
-    local result=${TEST_RESULTS[$test_key]}
-    local duration=${TEST_DURATIONS[$test_key]}
-    local description=${TEST_DESCRIPTIONS[$test_key]}
+for test_key in "${TEST_KEYS[@]}"; do
+    result=${TEST_RESULTS[$test_key]}
+    duration=${TEST_DURATIONS[$test_key]}
+    description=${TEST_DESCRIPTIONS[$test_key]}
     
     if [[ "$result" == "PASSED" ]]; then
         echo -e "${GREEN}✅ $test_key${NC} - $description (${duration})"

@@ -5,7 +5,7 @@
 # This script tests the complete functionality of the Test Genie scenario
 ################################################################################
 
-set -e
+set -euo pipefail
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -15,8 +15,18 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Test configuration
-API_PORT=${API_PORT:-8250}
-UI_PORT=${UI_PORT:-3050}
+API_PORT=${API_PORT:-$(vrooli scenario port test-genie API_PORT 2>/dev/null || true)}
+UI_PORT=${UI_PORT:-$(vrooli scenario port test-genie UI_PORT 2>/dev/null || true)}
+
+if [[ -z "${API_PORT}" ]]; then
+    echo -e "${RED}✗ Unable to resolve API_PORT for test-genie. Start the scenario first.${NC}"
+    exit 1
+fi
+
+if [[ -z "${UI_PORT}" ]]; then
+    echo -e "${YELLOW}⚠️  Unable to resolve UI_PORT; UI checks will be skipped.${NC}"
+fi
+
 BASE_URL="http://localhost:${API_PORT}"
 
 # Test counters
@@ -95,7 +105,7 @@ run_test "System Status" \
     "object"
 
 # 8. Test UI Server
-if command -v curl >/dev/null; then
+if command -v curl >/dev/null && [[ -n "${UI_PORT}" ]]; then
     run_test "UI Server Running" \
         "curl -s -o /dev/null -w '%{http_code}' http://localhost:${UI_PORT}" \
         "200\|302"

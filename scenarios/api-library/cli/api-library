@@ -9,18 +9,25 @@ set -e
 # Get API port from environment or try to detect from running process
 if [ -z "$API_PORT" ]; then
     # Try to detect the port from vrooli scenario port command
-    DETECTED_PORT=$(vrooli scenario port api-library api 2>/dev/null || echo "")
-    if [ -n "$DETECTED_PORT" ]; then
-        API_PORT="$DETECTED_PORT"
-    else
-        # Fallback to lsof detection
-        DETECTED_PORT=$(lsof -i -P -n 2>/dev/null | grep -E "api-library.*LISTEN" | awk '{print $9}' | cut -d: -f2 | head -1)
-        if [ -n "$DETECTED_PORT" ]; then
+    PORT_OUTPUT=$(vrooli scenario port api-library 2>/dev/null || echo "")
+    if [ -n "$PORT_OUTPUT" ]; then
+        DETECTED_PORT=$(echo "$PORT_OUTPUT" | grep "^API_PORT=" | cut -d= -f2)
+        if [ -n "$DETECTED_PORT" ] && [ "$DETECTED_PORT" != "0" ]; then
             API_PORT="$DETECTED_PORT"
         else
-            # Use default if not detected
-            API_PORT="15100"
+            # Try alternative detection via status command
+            STATUS_OUTPUT=$(vrooli scenario status api-library --json 2>/dev/null || echo "{}")
+            DETECTED_PORT=$(echo "$STATUS_OUTPUT" | jq -r '.api.port // ""')
+            if [ -n "$DETECTED_PORT" ] && [ "$DETECTED_PORT" != "null" ] && [ "$DETECTED_PORT" != "" ]; then
+                API_PORT="$DETECTED_PORT"
+            else
+                # Use default if not detected
+                API_PORT="15100"
+            fi
         fi
+    else
+        # Use default if command fails
+        API_PORT="15100"
     fi
 fi
 API_BASE_URL="${VROOLI_API_LIBRARY_URL:-http://localhost:${API_PORT}}"

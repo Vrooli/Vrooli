@@ -296,6 +296,8 @@
 
         .sidebar {
             width: var(--sidebar-width);
+            flex: 0 0 var(--sidebar-width);
+            flex-shrink: 0;
             background: var(--bg-secondary);
             border-right: 1px solid var(--border);
             padding: var(--spacing-lg);
@@ -354,6 +356,7 @@
         /* Content Area */
         .content {
             flex: 1;
+            min-width: 0;
             padding: var(--spacing-lg);
         }
 
@@ -496,6 +499,11 @@
 
         .panel-body {
             padding: var(--spacing-lg);
+            overflow-x: auto;
+        }
+
+        #suites .panel-body {
+            padding: 0;
         }
 
         /* Forms */
@@ -603,24 +611,45 @@
             height: 16px;
         }
 
+        .btn-compact {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.75rem;
+            line-height: 1.2;
+        }
+
+        .btn.icon-btn {
+            padding: 0.35rem;
+            width: 2.25rem;
+            height: 2.25rem;
+            justify-content: center;
+        }
+
+        .btn.icon-btn i {
+            width: 18px;
+            height: 18px;
+        }
+
         /* Tables */
         .table {
             width: 100%;
             border-collapse: collapse;
+            font-size: 0.875rem;
+            line-height: 1.4;
         }
 
         .table th,
         .table td {
-            padding: var(--spacing-sm);
+            padding: 0.5rem 0.75rem;
             text-align: left;
             border-bottom: 1px solid var(--border);
+            vertical-align: middle;
         }
 
         .table th {
             background: var(--bg-secondary);
             font-weight: 600;
             color: var(--text-primary);
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
@@ -629,9 +658,74 @@
             color: var(--text-secondary);
         }
 
-        .table tr:hover td {
+        .table tbody tr {
+            background: rgba(255, 255, 255, 0.01);
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .table tbody tr:nth-child(even) {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .table tbody tr:hover {
             background: var(--bg-secondary);
+        }
+
+        .table tbody tr:hover td {
             color: var(--text-primary);
+        }
+
+        .table .cell-scenario strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .table .cell-types {
+            color: var(--text-secondary);
+            overflow-wrap: anywhere;
+        }
+
+        .table .cell-coverage {
+            white-space: nowrap;
+        }
+
+        .table .cell-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .suites-table {
+            border-collapse: collapse;
+        }
+
+        .suites-table th,
+        .suites-table td {
+            padding: 0;
+        }
+
+        .suites-table .cell-types {
+            max-width: 22rem;
+        }
+
+        .suites-table .cell-count,
+        .suites-table .cell-status,
+        .suites-table .cell-created {
+            white-space: nowrap;
+        }
+
+        .text-success {
+            color: var(--accent-success);
+        }
+
+        .text-error {
+            color: var(--accent-error);
+        }
+
+        .text-muted {
+            color: var(--text-muted);
         }
 
         /* Status Indicators */
@@ -672,6 +766,17 @@
             background: var(--bg-secondary);
             border-radius: 4px;
             overflow: hidden;
+        }
+
+        .coverage-meter {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 140px;
+        }
+
+        .coverage-meter .progress {
+            width: 80px;
         }
 
         .progress-bar {
@@ -722,10 +827,10 @@
 
         /* Responsive Design */
         @media (max-width: 1024px) {
-            .sidebar {
-                width: 240px;
+            :root {
+                --sidebar-width: 240px;
             }
-            
+
             .dashboard-grid {
                 grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             }
@@ -752,6 +857,7 @@
                 width: 100%;
                 height: auto;
                 position: static;
+                flex: none;
             }
             
             .content {

@@ -45,6 +45,12 @@ log_error() {
 check_dependencies() {
     local missing_deps=()
     
+    # Check if Go test is available as fallback
+    if [[ -f "test/test-websocket.go" ]]; then
+        log_info "Found Go-based WebSocket test as fallback"
+        return 0
+    fi
+    
     if ! command -v websocat >/dev/null 2>&1 && ! command -v wscat >/dev/null 2>&1; then
         missing_deps+=("websocat or wscat")
     fi
@@ -59,6 +65,12 @@ check_dependencies() {
         echo "  - websocat: cargo install websocat"
         echo "  - wscat: npm install -g wscat"
         echo "  - jq: apt-get install jq (or brew install jq)"
+        
+        # Try Go-based test as fallback
+        if [[ -f "test/test-websocket.go" ]]; then
+            log_info "Using Go-based WebSocket test instead..."
+            return 0
+        fi
         exit 1
     fi
 }
@@ -70,6 +82,7 @@ create_test_chatbot() {
     local response
     response=$(curl -s -X POST "$API_BASE_URL/api/v1/chatbots" \
         -H "Content-Type: application/json" \
+        -H "X-API-Key: dev-api-key-change-in-production" \
         -d '{
             "name": "WebSocket Test Bot",
             "description": "Bot for WebSocket testing",
@@ -209,6 +222,20 @@ test_websocket_error_handling() {
     fi
 }
 
+# Run Go-based WebSocket test
+run_go_websocket_test() {
+    log_info "Running Go-based WebSocket test..."
+    
+    # Compile and run the Go test
+    if cd test && API_URL="$API_BASE_URL" go run test-websocket.go; then
+        log_success "Go WebSocket test passed!"
+        return 0
+    else
+        log_error "Go WebSocket test failed"
+        return 1
+    fi
+}
+
 # Main test execution
 main() {
     echo "========================================="
@@ -217,6 +244,12 @@ main() {
     echo "API URL: $API_BASE_URL"
     echo "WebSocket URL: $WS_URL"
     echo ""
+    
+    # Check for Go test first
+    if [[ -f "test/test-websocket.go" ]] && ! command -v websocat >/dev/null 2>&1 && ! command -v wscat >/dev/null 2>&1; then
+        run_go_websocket_test
+        exit $?
+    fi
     
     # Check dependencies
     check_dependencies
