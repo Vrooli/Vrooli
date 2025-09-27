@@ -70,8 +70,11 @@ interface AppPreviewViewProps {
   setApps: React.Dispatch<React.SetStateAction<App[]>>;
 }
 
+type ConsoleSeverity = 'error' | 'warn' | 'info' | 'log' | 'debug' | 'trace';
+
 interface ReportConsoleEntry {
   display: string;
+  severity: ConsoleSeverity;
   payload: ReportIssueConsoleLogEntry;
 }
 
@@ -79,6 +82,29 @@ interface ReportNetworkEntry {
   display: string;
   payload: ReportIssueNetworkEntry;
 }
+
+const normalizeConsoleLevel = (level: string | null | undefined): ConsoleSeverity => {
+  const normalized = (level ?? '').toString().toLowerCase();
+  if (['error', 'err', 'fatal', 'severe'].includes(normalized)) {
+    return 'error';
+  }
+  if (['warn', 'warning'].includes(normalized)) {
+    return 'warn';
+  }
+  if (['info', 'information', 'notice'].includes(normalized)) {
+    return 'info';
+  }
+  if (['debug', 'verbose'].includes(normalized)) {
+    return 'debug';
+  }
+  if (normalized === 'trace') {
+    return 'trace';
+  }
+  if (['log', 'default'].includes(normalized)) {
+    return 'log';
+  }
+  return 'log';
+};
 
 const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const navigate = useNavigate();
@@ -115,18 +141,21 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const [reportAppLogsError, setReportAppLogsError] = useState<string | null>(null);
   const [reportAppLogsExpanded, setReportAppLogsExpanded] = useState(false);
   const [reportAppLogsFetchedAt, setReportAppLogsFetchedAt] = useState<number | null>(null);
+  const [reportIncludeAppLogs, setReportIncludeAppLogs] = useState(true);
   const [reportConsoleLogs, setReportConsoleLogs] = useState<ReportConsoleEntry[]>([]);
   const [reportConsoleLogsTotal, setReportConsoleLogsTotal] = useState<number | null>(null);
   const [reportConsoleLogsLoading, setReportConsoleLogsLoading] = useState(false);
   const [reportConsoleLogsError, setReportConsoleLogsError] = useState<string | null>(null);
   const [reportConsoleLogsExpanded, setReportConsoleLogsExpanded] = useState(false);
   const [reportConsoleLogsFetchedAt, setReportConsoleLogsFetchedAt] = useState<number | null>(null);
+  const [reportIncludeConsoleLogs, setReportIncludeConsoleLogs] = useState(true);
   const [reportNetworkEvents, setReportNetworkEvents] = useState<ReportNetworkEntry[]>([]);
   const [reportNetworkTotal, setReportNetworkTotal] = useState<number | null>(null);
   const [reportNetworkLoading, setReportNetworkLoading] = useState(false);
   const [reportNetworkError, setReportNetworkError] = useState<string | null>(null);
   const [reportNetworkExpanded, setReportNetworkExpanded] = useState(false);
   const [reportNetworkFetchedAt, setReportNetworkFetchedAt] = useState<number | null>(null);
+  const [reportIncludeNetworkRequests, setReportIncludeNetworkRequests] = useState(true);
   const [previewReloadToken, setPreviewReloadToken] = useState(0);
   const [previewOverlay, setPreviewOverlay] = useState<null | { type: 'restart' | 'waiting' | 'error'; message: string }>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -1180,6 +1209,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
   const toConsoleEntry = (event: BridgeLogEvent): ReportConsoleEntry => ({
     display: formatBridgeLogEvent(event),
+    severity: normalizeConsoleLevel(event.level),
     payload: {
       ts: event.ts,
       level: event.level,
@@ -1506,6 +1536,9 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     setReportNetworkExpanded(false);
     setReportNetworkFetchedAt(null);
     reportNetworkFetchedForRef.current = null;
+    setReportIncludeAppLogs(true);
+    setReportIncludeConsoleLogs(true);
+    setReportIncludeNetworkRequests(true);
     setReportIncludeScreenshot(canCaptureScreenshot);
     if (canCaptureScreenshot) {
       void captureIframeScreenshot();
@@ -1857,15 +1890,15 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
         screenshotData: includeScreenshot ? reportScreenshotData ?? null : null,
       };
 
-      if (reportAppLogs.length > 0) {
+      if (reportIncludeAppLogs && reportAppLogs.length > 0) {
         payload.logs = reportAppLogs;
         payload.logsTotal = typeof reportAppLogsTotal === 'number' ? reportAppLogsTotal : reportAppLogs.length;
-      if (reportAppLogsFetchedAt) {
-        payload.logsCapturedAt = new Date(reportAppLogsFetchedAt).toISOString();
+        if (reportAppLogsFetchedAt) {
+          payload.logsCapturedAt = new Date(reportAppLogsFetchedAt).toISOString();
+        }
       }
-    }
 
-      if (reportConsoleLogs.length > 0) {
+      if (reportIncludeConsoleLogs && reportConsoleLogs.length > 0) {
         payload.consoleLogs = reportConsoleLogs.map(entry => entry.payload);
         payload.consoleLogsTotal = typeof reportConsoleLogsTotal === 'number'
           ? reportConsoleLogsTotal
@@ -1875,7 +1908,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
         }
       }
 
-      if (reportNetworkEvents.length > 0) {
+      if (reportIncludeNetworkRequests && reportNetworkEvents.length > 0) {
         payload.networkRequests = reportNetworkEvents.map(entry => entry.payload);
         payload.networkRequestsTotal = typeof reportNetworkTotal === 'number'
           ? reportNetworkTotal
@@ -1914,6 +1947,9 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     reportNetworkEvents,
     reportNetworkFetchedAt,
     reportNetworkTotal,
+    reportIncludeAppLogs,
+    reportIncludeConsoleLogs,
+    reportIncludeNetworkRequests,
     reportMessage,
     reportScreenshotData,
   ]);
@@ -2328,7 +2364,20 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
                     <div className="report-dialog__logs">
                       <section className="report-dialog__logs-section">
                         <div className="report-dialog__logs-header">
-                          <span className="report-dialog__logs-title">App logs</span>
+                          <label
+                            className={clsx(
+                              'report-dialog__logs-include',
+                              !reportIncludeAppLogs && 'report-dialog__logs-include--off',
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={reportIncludeAppLogs}
+                              onChange={(event) => setReportIncludeAppLogs(event.target.checked)}
+                              aria-label="Include app logs in report"
+                            />
+                            <span className="report-dialog__logs-title">App logs</span>
+                          </label>
                           <button
                             type="button"
                             className="report-dialog__logs-toggle"
@@ -2345,6 +2394,9 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
                             : reportAppLogsLoading
                               ? 'Fetching recent logs…'
                               : 'Lifecycle and background logs from the running scenario.'}
+                          {!reportIncludeAppLogs && (
+                            <span className="report-dialog__logs-note-status">Excluded from report</span>
+                          )}
                         </p>
                         <div
                           id={reportAppLogsPanelId}
@@ -2403,7 +2455,22 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
                       <section className="report-dialog__logs-section">
                         <div className="report-dialog__logs-header">
-                          <span className="report-dialog__logs-title">Console logs</span>
+                          <label
+                            className={clsx(
+                              'report-dialog__logs-include',
+                              !reportIncludeConsoleLogs && 'report-dialog__logs-include--off',
+                              !bridgeState.caps.includes('logs') && 'report-dialog__logs-include--disabled',
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={reportIncludeConsoleLogs}
+                              onChange={(event) => setReportIncludeConsoleLogs(event.target.checked)}
+                              aria-label="Include console logs in report"
+                              disabled={!bridgeState.caps.includes('logs')}
+                            />
+                            <span className="report-dialog__logs-title">Console logs</span>
+                          </label>
                           <button
                             type="button"
                             className="report-dialog__logs-toggle"
@@ -2422,6 +2489,11 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
                                 ? 'Fetching console logs…'
                                 : 'Captured directly from the iframe console (log, warn, error).'
                             : 'Console capture is unavailable for this preview.'}
+                          {(!reportIncludeConsoleLogs || !bridgeState.caps.includes('logs')) && (
+                            <span className="report-dialog__logs-note-status">
+                              {bridgeState.caps.includes('logs') ? 'Excluded from report' : 'Unavailable'}
+                            </span>
+                          )}
                         </p>
                         <div
                           id={reportConsoleLogsPanelId}
@@ -2473,8 +2545,18 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
                           ) : reportConsoleLogs.length === 0 ? (
                             <p className="report-dialog__logs-empty">No console events captured.</p>
                           ) : (
-                            <pre className="report-dialog__logs-content">
-                              {reportConsoleLogs.map(entry => entry.display).join('\n')}
+                            <pre className={clsx('report-dialog__logs-content', 'report-dialog__logs-content--console')}>
+                              {reportConsoleLogs.map((entry, index) => (
+                                <span
+                                  key={`${entry.payload.ts}-${index}`}
+                                  className={clsx(
+                                    'report-dialog__console-line',
+                                    `report-dialog__console-line--${entry.severity}`,
+                                  )}
+                                >
+                                  {entry.display}
+                                </span>
+                              ))}
                             </pre>
                           )}
                         </div>
@@ -2482,7 +2564,22 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
                       <section className="report-dialog__logs-section">
                         <div className="report-dialog__logs-header">
-                          <span className="report-dialog__logs-title">Network requests</span>
+                          <label
+                            className={clsx(
+                              'report-dialog__logs-include',
+                              !reportIncludeNetworkRequests && 'report-dialog__logs-include--off',
+                              !bridgeState.caps.includes('network') && 'report-dialog__logs-include--disabled',
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={reportIncludeNetworkRequests}
+                              onChange={(event) => setReportIncludeNetworkRequests(event.target.checked)}
+                              aria-label="Include network requests in report"
+                              disabled={!bridgeState.caps.includes('network')}
+                            />
+                            <span className="report-dialog__logs-title">Network requests</span>
+                          </label>
                           <button
                             type="button"
                             className="report-dialog__logs-toggle"
@@ -2501,6 +2598,11 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
                                 ? 'Fetching recent requests…'
                                 : 'Recent fetch/xhr activity observed inside the iframe.'
                             : 'Network capture is unavailable for this preview.'}
+                          {(!reportIncludeNetworkRequests || !bridgeState.caps.includes('network')) && (
+                            <span className="report-dialog__logs-note-status">
+                              {bridgeState.caps.includes('network') ? 'Excluded from report' : 'Unavailable'}
+                            </span>
+                          )}
                         </p>
                         <div
                           id={reportNetworkPanelId}

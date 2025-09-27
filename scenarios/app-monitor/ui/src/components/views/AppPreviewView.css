@@ -302,6 +302,8 @@
   justify-content: center;
   padding: 2rem;
   z-index: 1100;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .report-dialog {
@@ -314,6 +316,9 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
 }
 
 .report-dialog__header {
@@ -543,6 +548,36 @@
   color: var(--matrix-cyan);
 }
 
+.report-dialog__logs-include {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  color: var(--matrix-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.report-dialog__logs-include input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--matrix-cyan);
+  cursor: pointer;
+}
+
+.report-dialog__logs-include--off {
+  opacity: 0.72;
+}
+
+.report-dialog__logs-include--disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.report-dialog__logs-include--disabled input {
+  cursor: not-allowed;
+}
+
 .report-dialog__logs-toggle {
   display: inline-flex;
   align-items: center;
@@ -574,6 +609,21 @@
   font-size: 0.75rem;
   letter-spacing: 0.05em;
   color: rgba(224, 255, 249, 0.65);
+}
+
+.report-dialog__logs-note-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  background: rgba(0, 32, 32, 0.45);
+  color: rgba(0, 255, 255, 0.75);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .report-dialog__logs-panel {
@@ -659,6 +709,49 @@
   line-height: 1.45;
   color: rgba(224, 255, 249, 0.9);
   white-space: pre-wrap;
+}
+
+.report-dialog__logs-content--console {
+  padding: 0.65rem;
+}
+
+.report-dialog__console-line {
+  display: block;
+  padding: 0.25rem 0.35rem 0.25rem 0.6rem;
+  border-left: 3px solid transparent;
+  border-radius: 6px;
+  margin: 0;
+  word-break: break-word;
+}
+
+.report-dialog__console-line + .report-dialog__console-line {
+  margin-top: 0.2rem;
+}
+
+.report-dialog__console-line--error {
+  color: rgba(255, 156, 176, 0.95);
+  border-left-color: rgba(255, 0, 64, 0.6);
+  background: rgba(255, 0, 64, 0.12);
+}
+
+.report-dialog__console-line--warn {
+  color: rgba(255, 208, 80, 0.95);
+  border-left-color: rgba(255, 176, 0, 0.6);
+  background: rgba(255, 176, 0, 0.12);
+}
+
+.report-dialog__console-line--info,
+.report-dialog__console-line--log {
+  color: rgba(0, 255, 255, 0.85);
+  border-left-color: rgba(0, 255, 255, 0.45);
+  background: rgba(0, 64, 80, 0.12);
+}
+
+.report-dialog__console-line--debug,
+.report-dialog__console-line--trace {
+  color: rgba(0, 255, 65, 0.85);
+  border-left-color: rgba(0, 255, 65, 0.45);
+  background: rgba(0, 64, 32, 0.12);
 }
 
 .report-dialog__preview {
