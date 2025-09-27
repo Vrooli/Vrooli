@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import AppsView from '@/components/views/AppsView';
@@ -7,27 +7,19 @@ import LogsView from '@/components/views/LogsView';
 import ResourcesView from '@/components/views/ResourcesView';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useAppWebSocket } from '@/hooks/useWebSocket';
-import { appService } from '@/services/api';
-import type { App } from '@/types';
 import './App.css';
+import { useAppsStore } from '@/state/appsStore';
 
 function App() {
-  const [apps, setApps] = useState<App[]>([]);
+  const loadApps = useAppsStore(state => state.loadApps);
+  const updateAppInStore = useAppsStore(state => state.updateApp);
   const [isConnected, setIsConnected] = useState(false);
 
   // WebSocket connection for real-time updates
   const { connectionState } = useAppWebSocket({
     onAppUpdate: (update) => {
       console.log('App update received:', update);
-      setApps(prev => {
-        const index = prev.findIndex(app => app.id === update.id);
-        if (index !== -1) {
-          const updated = [...prev];
-          updated[index] = { ...updated[index], ...update };
-          return updated;
-        }
-        return prev;
-      });
+      updateAppInStore(update);
     },
     onMetricUpdate: () => {
       // Metrics are now handled by system-monitor iframe
@@ -51,32 +43,19 @@ function App() {
 
   // Fetch initial data on component mount
   useEffect(() => {
-    const fetchInitialData = async () => {
-      console.log('[App] Fetching initial data...');
-      
-      try {
-        // Fetch initial apps
-        const initialApps = await appService.getApps();
-        console.log('[App] Initial apps loaded:', initialApps.length);
-        setApps(initialApps);
-      } catch (error) {
-        console.error('[App] Failed to fetch initial data:', error);
-      }
-    };
-
-    fetchInitialData();
-  }, []);
+    void loadApps();
+  }, [loadApps]);
 
   return (
     <ErrorBoundary>
       <Router>
         <div className="app">
           <div className="matrix-rain"></div>
-          <Layout isConnected={isConnected} apps={apps}>
+          <Layout isConnected={isConnected}>
             <Routes>
               <Route path="/" element={<Navigate to="/apps" replace />} />
-              <Route path="/apps" element={<AppsView apps={apps} setApps={setApps} />} />
-              <Route path="/apps/:appId/preview" element={<AppPreviewView apps={apps} setApps={setApps} />} />
+              <Route path="/apps" element={<AppsView />} />
+              <Route path="/apps/:appId/preview" element={<AppPreviewView />} />
               <Route path="/logs" element={<LogsView />} />
               <Route path="/logs/:appId" element={<LogsView />} />
               <Route path="/resources" element={<ResourcesView />} />

@@ -1,27 +1,27 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { ChangeEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { appService } from '@/services/api';
-import type { App } from '@/types';
+import type { AppLogStream } from '@/types';
 import './LogsView.css';
+import { useAppsStore } from '@/state/appsStore';
 
 export default function LogsView() {
   const { appId } = useParams();
-  const [logs, setLogs] = useState<string[]>([]);
-  const [apps, setApps] = useState<App[]>([]);
+  const apps = useAppsStore(state => state.apps);
+  const loadApps = useAppsStore(state => state.loadApps);
+  const loadingInitial = useAppsStore(state => state.loadingInitial);
+  const hasInitialized = useAppsStore(state => state.hasInitialized);
+  const [allLogs, setAllLogs] = useState<string[]>([]);
+  const [logStreams, setLogStreams] = useState<AppLogStream[]>([]);
   const [selectedApp, setSelectedApp] = useState(appId || '');
-  const [logType, setLogType] = useState<'both' | 'lifecycle' | 'background'>('both');
+  const [selectedStreamKey, setSelectedStreamKey] = useState<string>('all');
   const [logLevel, setLogLevel] = useState('all');
   const [loading, setLoading] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
-  const fetchApps = useCallback(async () => {
-    const fetchedApps = await appService.getApps();
-    setApps(fetchedApps);
   }, []);
 
   const fetchLogs = useCallback(async () => {
@@ -36,22 +36,37 @@ export default function LogsView() {
         .map(value => (typeof value === 'string' ? value.trim() : ''))
         .find(value => value.length > 0) || selectedApp;
 
-      const result = await appService.getAppLogs(logIdentifier, logType);
-      setLogs(result.logs || []);
+      const result = await appService.getAppLogs(logIdentifier, 'both');
+      const combinedLogs = Array.isArray(result.logs) ? result.logs : [];
+      const streams = Array.isArray(result.streams) ? result.streams : [];
+
+      setAllLogs(combinedLogs);
+      setLogStreams(streams);
+      setSelectedStreamKey(previous => {
+        if (previous === 'all') {
+          return previous;
+        }
+        return streams.some(stream => stream.key === previous) ? previous : 'all';
+      });
+
       window.setTimeout(() => {
         scrollToBottom();
       }, 100);
     } catch (error) {
       console.error('Failed to fetch logs:', error);
-      setLogs([]);
+      setAllLogs([]);
+      setLogStreams([]);
+      setSelectedStreamKey('all');
     } finally {
       setLoading(false);
     }
-  }, [apps, logType, scrollToBottom, selectedApp]);
+  }, [apps, scrollToBottom, selectedApp]);
 
   useEffect(() => {
-    void fetchApps();
-  }, [fetchApps]);
+    if (!hasInitialized && !loadingInitial) {
+      void loadApps();
+    }
+  }, [hasInitialized, loadApps, loadingInitial]);
 
   useEffect(() => {
     if (appId) {
@@ -61,17 +76,22 @@ export default function LogsView() {
 
   useEffect(() => {
     if (selectedApp) {
+      setSelectedStreamKey('all');
       void fetchLogs();
+    } else {
+      setAllLogs([]);
+      setLogStreams([]);
     }
   }, [fetchLogs, selectedApp]);
 
   const clearLogs = () => {
-    setLogs([]);
+    setAllLogs([]);
+    setLogStreams([]);
+    setSelectedStreamKey('all');
   };
 
-  const handleLogTypeChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextType = event.target.value as 'both' | 'lifecycle' | 'background';
-    setLogType(nextType);
+  const handleStreamChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    setSelectedStreamKey(event.target.value);
   };
 
   const getLogClass = (line: string): string => {
@@ -98,6 +118,43 @@ export default function LogsView() {
     );
   };
 
+  const streamOptions = useMemo(() => {
+    const options: Array<{ key: string; label: string }> = [{ key: 'all', label: 'ALL LOGS' }];
+    logStreams.forEach((stream) => {
+      if (stream.type === 'lifecycle') {
+        options.push({ key: stream.key, label: 'LIFECYCLE' });
+      } else {
+        const label = stream.label || stream.step || stream.key;
+        options.push({ key: stream.key, label: `BACKGROUND · ${label}` });
+      }
+    });
+    return options;
+  }, [logStreams]);
+
+  const selectedStream = selectedStreamKey === 'all'
+    ? null
+    : logStreams.find(stream => stream.key === selectedStreamKey) ?? null;
+
+  const currentLines = useMemo(() => {
+    if (selectedStreamKey === 'all') {
+      return allLogs;
+    }
+    return selectedStream?.lines ?? [];
+  }, [allLogs, selectedStream, selectedStreamKey]);
+
+  const displayedLogs = useMemo(() => {
+    if (logLevel === 'all') {
+      return currentLines;
+    }
+    const filter = logLevel.toLowerCase();
+    return currentLines.filter(line => line.toLowerCase().includes(filter));
+  }, [currentLines, logLevel]);
+
+  const hasLogsForSelection = currentLines.length > 0;
+  const hasAnyLogs = allLogs.length > 0 || logStreams.some(stream => stream.lines.length > 0);
+  const isInitialAppLoading = (loadingInitial || !hasInitialized) && apps.length === 0;
+  const showSkeleton = (loading && !!selectedApp) || isInitialAppLoading;
+
   return (
     <div className="logs-view">
       <div className="panel-header">
@@ -107,8 +164,11 @@ export default function LogsView() {
             className="log-filter"
             value={selectedApp}
             onChange={(e) => setSelectedApp(e.target.value)}
+            disabled={isInitialAppLoading}
           >
-            <option value="">SELECT SCENARIO...</option>
+            <option value="">
+              {isInitialAppLoading ? 'LOADING SCENARIOS…' : 'SELECT SCENARIO...'}
+            </option>
             {apps.map(app => (
               <option key={app.id} value={app.id} title={app.name}>
                 {app.scenario_name || app.id}
@@ -117,12 +177,15 @@ export default function LogsView() {
           </select>
           <select
             className="log-filter"
-            value={logType}
-            onChange={handleLogTypeChange}
+            value={selectedStreamKey}
+            onChange={handleStreamChange}
+            disabled={isInitialAppLoading || (!selectedApp && logStreams.length === 0)}
           >
-            <option value="both">ALL LOGS</option>
-            <option value="lifecycle">LIFECYCLE</option>
-            <option value="background">BACKGROUND</option>
+            {streamOptions.map(option => (
+              <option key={option.key} value={option.key}>
+                {option.label}
+              </option>
+            ))}
           </select>
           <select
             className="log-filter"
@@ -138,14 +201,14 @@ export default function LogsView() {
           <button 
             className="control-btn" 
             onClick={fetchLogs} 
-            disabled={!selectedApp || loading}
+            disabled={!selectedApp || loading || isInitialAppLoading}
           >
             ⟳ REFRESH
           </button>
           <button 
             className="control-btn" 
             onClick={clearLogs}
-            disabled={logs.length === 0}
+            disabled={!hasAnyLogs}
           >
             CLEAR
           </button>
@@ -153,20 +216,28 @@ export default function LogsView() {
       </div>
       
       <div className="logs-container">
-        {loading ? (
-          <div className="loading-message">Loading logs...</div>
+        {showSkeleton ? (
+          <div className="logs-skeleton" role="status" aria-live="polite">
+            <div className="logs-skeleton__line logs-skeleton__line--wide" />
+            <div className="logs-skeleton__line" />
+            <div className="logs-skeleton__line logs-skeleton__line--wide" />
+            <div className="logs-skeleton__line" />
+            <div className="logs-skeleton__line logs-skeleton__line--faint" />
+            <div className="logs-skeleton__line" />
+            <div className="logs-skeleton__line logs-skeleton__line--wide" />
+            <div className="logs-skeleton__line logs-skeleton__line--faint" />
+          </div>
         ) : !selectedApp ? (
           <div className="empty-message">Please select an application to view logs</div>
-        ) : logs.length === 0 ? (
-          <div className="empty-message">No logs available for the selected application</div>
+        ) : !hasLogsForSelection ? (
+          <div className="empty-message">
+            {selectedStream && selectedStream.label
+              ? `No logs available for ${selectedStream.label}`
+              : 'No logs available for the selected application'}
+          </div>
         ) : (
           <>
-            {logs
-              .filter(log => {
-                if (logLevel === 'all') return true;
-                return log.toLowerCase().includes(logLevel);
-              })
-              .map((log, index) => formatLogLine(log, index))}
+            {displayedLogs.map((log, index) => formatLogLine(log, index))}
             <div ref={logsEndRef} />
           </>
         )}

@@ -134,10 +134,15 @@ export const appService = {
     try {
       const params = new URLSearchParams({ type: logType });
       const { data } = await api.get<AppLogsResponse>(`/logs/${appName}?${params}`);
-      return data;
+      return {
+        logs: Array.isArray(data?.logs) ? data.logs : [],
+        streams: Array.isArray(data?.streams) ? data.streams : [],
+        hasMore: data?.hasMore,
+        error: data?.error,
+      };
     } catch (error) {
       logger.error(`Failed to fetch logs for ${appName}`, error);
-      return { logs: [], error: 'Failed to fetch logs' };
+      return { logs: [], streams: [], error: 'Failed to fetch logs' };
     }
   },
 

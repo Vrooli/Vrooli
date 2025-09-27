@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import { ArrowLeft, ArrowRight, Bug, ExternalLink, Info, Loader2, Power, RefreshCw, RotateCcw, ScrollText, X } from 'lucide-react';
 import { appService } from '@/services/api';
 import type { ReportIssueConsoleLogEntry, ReportIssueNetworkEntry, ReportIssuePayload } from '@/services/api';
+import { useAppsStore } from '@/state/appsStore';
 
 type Html2CanvasFn = (element: HTMLElement, options?: Record<string, unknown>) => Promise<HTMLCanvasElement>;
 
@@ -65,11 +66,6 @@ import { useIframeBridge } from '@/hooks/useIframeBridge';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import './AppPreviewView.css';
 
-interface AppPreviewViewProps {
-  apps: App[];
-  setApps: React.Dispatch<React.SetStateAction<App[]>>;
-}
-
 type ConsoleSeverity = 'error' | 'warn' | 'info' | 'log' | 'debug' | 'trace';
 
 interface ReportConsoleEntry {
@@ -81,6 +77,15 @@ interface ReportConsoleEntry {
 interface ReportNetworkEntry {
   display: string;
   payload: ReportIssueNetworkEntry;
+}
+
+interface ReportAppLogStream {
+  key: string;
+  label: string;
+  type: 'lifecycle' | 'background';
+  lines: string[];
+  total: number;
+  command?: string;
 }
 
 const normalizeConsoleLevel = (level: string | null | undefined): ConsoleSeverity => {
@@ -106,7 +111,12 @@ const normalizeConsoleLevel = (level: string | null | undefined): ConsoleSeverit
   return 'log';
 };
 
-const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
+const AppPreviewView = () => {
+  const apps = useAppsStore(state => state.apps);
+  const setAppsState = useAppsStore(state => state.setAppsState);
+  const loadApps = useAppsStore(state => state.loadApps);
+  const loadingInitial = useAppsStore(state => state.loadingInitial);
+  const hasInitialized = useAppsStore(state => state.hasInitialized);
   const navigate = useNavigate();
   const { appId } = useParams<{ appId: string }>();
   const location = useLocation();
@@ -141,6 +151,8 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const [reportAppLogsError, setReportAppLogsError] = useState<string | null>(null);
   const [reportAppLogsExpanded, setReportAppLogsExpanded] = useState(false);
   const [reportAppLogsFetchedAt, setReportAppLogsFetchedAt] = useState<number | null>(null);
+  const [reportAppLogStreams, setReportAppLogStreams] = useState<ReportAppLogStream[]>([]);
+  const [reportAppLogSelections, setReportAppLogSelections] = useState<Record<string, boolean>>({});
   const [reportIncludeAppLogs, setReportIncludeAppLogs] = useState(true);
   const [reportConsoleLogs, setReportConsoleLogs] = useState<ReportConsoleEntry[]>([]);
   const [reportConsoleLogsTotal, setReportConsoleLogsTotal] = useState<number | null>(null);
@@ -182,6 +194,12 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const MAX_NETWORK_URL_LENGTH = 2048;
   const MAX_NETWORK_ERROR_LENGTH = 1500;
   const MAX_NETWORK_REQUEST_ID_LENGTH = 128;
+
+  useEffect(() => {
+    if (!hasInitialized && !loadingInitial) {
+      void loadApps();
+    }
+  }, [hasInitialized, loadApps, loadingInitial]);
   const logsTruncated = useMemo(() => (
     typeof reportAppLogsTotal === 'number' && reportAppLogsTotal > reportAppLogs.length
   ), [reportAppLogs.length, reportAppLogsTotal]);
@@ -214,6 +232,13 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const networkEventsTruncated = useMemo(() => (
     typeof reportNetworkTotal === 'number' && reportNetworkTotal > reportNetworkEvents.length
   ), [reportNetworkEvents.length, reportNetworkTotal]);
+
+  const selectedReportLogStreams = useMemo(() => (
+    reportAppLogStreams.filter(stream => reportAppLogSelections[stream.key] !== false)
+  ), [reportAppLogSelections, reportAppLogStreams]);
+
+  const selectedReportLogCount = selectedReportLogStreams.length;
+  const totalReportLogStreamCount = reportAppLogStreams.length;
 
   const formattedNetworkCapturedAt = useMemo(() => {
     if (!reportNetworkFetchedAt) {
@@ -329,7 +354,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   }, [setHistoryIndex]);
 
   const commitAppUpdate = useCallback((nextApp: App) => {
-    setApps(prev => {
+    setAppsState(prev => {
       const index = prev.findIndex(app => app.id === nextApp.id);
       if (index === -1) {
         return [...prev, nextApp];
@@ -347,7 +372,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
       return prev.id === nextApp.id ? nextApp : prev;
     });
-  }, [appId, setApps]);
+  }, [appId, setAppsState]);
 
   const stopRestartMonitor = useCallback(() => {
     if (restartMonitorRef.current) {
@@ -854,7 +879,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
       const targets = [appId, stats.scenario_name];
 
-      setApps(prev => prev.map(app => {
+      setAppsState(prev => prev.map(app => {
         if (!targets.some(target => matchesAppIdentifier(app, target))) {
           return app;
         }
@@ -884,7 +909,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
         };
       });
     })();
-  }, [appId, matchesAppIdentifier, setApps, setCurrentApp]);
+  }, [appId, matchesAppIdentifier, setAppsState, setCurrentApp]);
 
   useEffect(() => {
     if (!bridgeState.isSupported || !bridgeState.isReady || !bridgeState.href) {
@@ -933,7 +958,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       const timestamp = new Date().toISOString();
       if (action === 'start' || action === 'stop') {
         const nextStatus: App['status'] = action === 'stop' ? 'stopped' : 'running';
-        setApps(prev => prev.map(app => (app.id === appToControl ? { ...app, status: nextStatus, updated_at: timestamp } : app)));
+        setAppsState(prev => prev.map(app => (app.id === appToControl ? { ...app, status: nextStatus, updated_at: timestamp } : app)));
         setCurrentApp(prev => (prev && prev.id === appToControl ? { ...prev, status: nextStatus, updated_at: timestamp } : prev));
         setStatusMessage(action === 'stop'
           ? 'Application stopped. Start it again to relaunch the UI preview.'
@@ -950,7 +975,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     } finally {
       setPendingAction(null);
     }
-  }, [setApps]);
+  }, [setAppsState]);
 
   const handleAppAction = useCallback(async (appToControl: string, action: 'start' | 'stop' | 'restart') => {
     await executeAppAction(appToControl, action);
@@ -1298,12 +1323,41 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
       setReportAppLogs(trimmedLogs);
       setReportAppLogsTotal(rawLogs.length);
+      const streams = Array.isArray(result.streams) ? result.streams : [];
+      const normalizedStreams: ReportAppLogStream[] = streams.map((stream) => {
+        const safeLines = Array.isArray(stream.lines) ? stream.lines : [];
+        const trimmedLines = safeLines.slice(-REPORT_APP_LOGS_MAX_LINES);
+        let label = stream.label || stream.key;
+        if (!label) {
+          label = stream.type === 'lifecycle' ? 'Lifecycle' : stream.step || 'Background';
+        }
+        if (stream.type === 'lifecycle') {
+          label = 'Lifecycle';
+        }
+        return {
+          key: stream.key,
+          label,
+          type: stream.type,
+          lines: trimmedLines,
+          total: safeLines.length,
+          command: stream.command,
+        };
+      });
+
+      setReportAppLogStreams(normalizedStreams);
+      setReportAppLogSelections(previous => normalizedStreams.reduce<Record<string, boolean>>((acc, stream) => {
+        const prior = previous?.[stream.key];
+        acc[stream.key] = prior !== undefined ? prior : true;
+        return acc;
+      }, {}));
       setReportAppLogsFetchedAt(Date.now());
       reportAppLogsFetchedForRef.current = normalizedIdentifier;
     } catch (error) {
       logger.error('Failed to load logs for issue report', error);
       setReportAppLogs([]);
       setReportAppLogsTotal(null);
+      setReportAppLogStreams([]);
+      setReportAppLogSelections({});
       setReportAppLogsError('Unable to load logs. Try again.');
       setReportAppLogsFetchedAt(null);
       reportAppLogsFetchedForRef.current = null;
@@ -1472,6 +1526,13 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     });
   }, [fetchReportAppLogs, reportAppLogs.length, reportAppLogsError, reportAppLogsLoading]);
 
+  const handleReportLogStreamToggle = useCallback((key: string, checked: boolean) => {
+    setReportAppLogSelections(prev => ({
+      ...prev,
+      [key]: checked,
+    }));
+  }, []);
+
   const handleRefreshReportAppLogs = useCallback(() => {
     void fetchReportAppLogs({ force: true });
   }, [fetchReportAppLogs]);
@@ -1576,6 +1637,8 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     setReportAppLogsExpanded(false);
     setReportAppLogsFetchedAt(null);
     setReportAppLogsLoading(false);
+    setReportAppLogStreams([]);
+    setReportAppLogSelections({});
     reportAppLogsFetchedForRef.current = null;
     setReportConsoleLogs([]);
     setReportConsoleLogsTotal(null);
@@ -1708,7 +1771,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   }, []);
 
   const handleScreenshotPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    if (!reportScreenshotData || reportScreenshotLoading || reportScreenshotClip || !reportScreenshotOriginalDimensions) {
+    if (!reportScreenshotData || reportScreenshotLoading || !reportScreenshotOriginalDimensions) {
       return;
     }
 
@@ -1743,7 +1806,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     } catch {
       // ignore pointer capture errors
     }
-  }, [clampValue, reportScreenshotClip, reportScreenshotData, reportScreenshotOriginalDimensions, reportScreenshotLoading]);
+  }, [clampValue, reportScreenshotData, reportScreenshotOriginalDimensions, reportScreenshotLoading]);
 
   const handleScreenshotPointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const dragState = reportDragStateRef.current;
@@ -1800,12 +1863,19 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
       return;
     }
 
-    const scaleX = reportScreenshotOriginalDimensions.width / dragState.containerWidth;
-    const scaleY = reportScreenshotOriginalDimensions.height / dragState.containerHeight;
+    const activeClip = reportScreenshotClip ?? {
+      x: 0,
+      y: 0,
+      width: reportScreenshotOriginalDimensions.width,
+      height: reportScreenshotOriginalDimensions.height,
+    };
+
+    const scaleX = activeClip.width / dragState.containerWidth;
+    const scaleY = activeClip.height / dragState.containerHeight;
 
     const rawClip = {
-      x: Math.max(0, Math.round(selection.x * scaleX)),
-      y: Math.max(0, Math.round(selection.y * scaleY)),
+      x: Math.max(0, Math.round(activeClip.x + (selection.x * scaleX))),
+      y: Math.max(0, Math.round(activeClip.y + (selection.y * scaleY))),
       width: Math.max(1, Math.round(selection.width * scaleX)),
       height: Math.max(1, Math.round(selection.height * scaleY)),
     };
@@ -1841,7 +1911,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
         setReportScreenshotLoading(false);
       }
     })();
-  }, [cropScreenshot, reportScreenshotOriginalDimensions, reportSelectionRect]);
+  }, [cropScreenshot, reportScreenshotClip, reportScreenshotOriginalDimensions, reportSelectionRect]);
 
   const handleScreenshotPointerUp = useCallback((event: PointerEvent<HTMLDivElement>) => {
     finalizeScreenshotSelection(event, false);
@@ -1890,11 +1960,42 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
         screenshotData: includeScreenshot ? reportScreenshotData ?? null : null,
       };
 
-      if (reportIncludeAppLogs && reportAppLogs.length > 0) {
-        payload.logs = reportAppLogs;
-        payload.logsTotal = typeof reportAppLogsTotal === 'number' ? reportAppLogsTotal : reportAppLogs.length;
-        if (reportAppLogsFetchedAt) {
-          payload.logsCapturedAt = new Date(reportAppLogsFetchedAt).toISOString();
+      if (reportIncludeAppLogs) {
+        if (selectedReportLogStreams.length > 0) {
+          const combinedLogs: string[] = [];
+
+          selectedReportLogStreams.forEach((stream) => {
+            if (combinedLogs.length >= REPORT_APP_LOGS_MAX_LINES) {
+              return;
+            }
+
+            const contextLabel = stream.type === 'background'
+              ? `Background: ${stream.label}`
+              : 'Lifecycle';
+            combinedLogs.push(`--- ${contextLabel} ---`);
+
+            if (stream.type === 'background' && stream.command && combinedLogs.length < REPORT_APP_LOGS_MAX_LINES) {
+              combinedLogs.push(`# ${stream.command}`);
+            }
+
+            const remaining = REPORT_APP_LOGS_MAX_LINES - combinedLogs.length;
+            if (remaining > 0) {
+              const tail = stream.lines.slice(-remaining);
+              combinedLogs.push(...tail);
+            }
+          });
+
+          payload.logs = combinedLogs;
+          payload.logsTotal = selectedReportLogStreams.reduce((total, stream) => total + stream.total, 0);
+          if (reportAppLogsFetchedAt) {
+            payload.logsCapturedAt = new Date(reportAppLogsFetchedAt).toISOString();
+          }
+        } else if (reportAppLogs.length > 0) {
+          payload.logs = reportAppLogs;
+          payload.logsTotal = typeof reportAppLogsTotal === 'number' ? reportAppLogsTotal : reportAppLogs.length;
+          if (reportAppLogsFetchedAt) {
+            payload.logsCapturedAt = new Date(reportAppLogsFetchedAt).toISOString();
+          }
         }
       }
 
@@ -1941,6 +2042,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     reportAppLogs,
     reportAppLogsFetchedAt,
     reportAppLogsTotal,
+    selectedReportLogStreams,
     reportConsoleLogs,
     reportConsoleLogsFetchedAt,
     reportConsoleLogsTotal,
@@ -2312,7 +2414,10 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="report-dialog__header">
-              <h2 id="app-report-dialog-title">Report an Issue</h2>
+              <h2 id="app-report-dialog-title" className="report-dialog__title">
+                <Bug aria-hidden size={20} />
+                <span>Report an Issue</span>
+              </h2>
               <button
                 type="button"
                 className="report-dialog__close"
@@ -2398,6 +2503,50 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
                             <span className="report-dialog__logs-note-status">Excluded from report</span>
                           )}
                         </p>
+                        {reportAppLogStreams.length > 0 && (
+                          <div className="report-dialog__logs-streams">
+                            <div className="report-dialog__logs-streams-list">
+                              {reportAppLogStreams.map(stream => {
+                                const checked = reportAppLogSelections[stream.key] !== false;
+                                const labelText = stream.type === 'background'
+                                  ? `Background · ${stream.label}`
+                                  : 'Lifecycle';
+                                const linesLabel = stream.total === 1 ? '1 line' : `${stream.total} lines`;
+                                return (
+                                  <label
+                                    key={stream.key}
+                                    className={clsx(
+                                      'report-dialog__logs-stream',
+                                      !reportIncludeAppLogs && 'report-dialog__logs-stream--disabled',
+                                    )}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={(event) => handleReportLogStreamToggle(stream.key, event.target.checked)}
+                                      disabled={!reportIncludeAppLogs}
+                                      aria-label={`Include ${labelText.toLowerCase()} log stream`}
+                                    />
+                                    <span className="report-dialog__logs-stream-details">
+                                      <span className="report-dialog__logs-stream-label">{labelText}</span>
+                                      <span className="report-dialog__logs-stream-meta">{linesLabel}</span>
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                            <div className="report-dialog__logs-streams-meta">
+                              {reportIncludeAppLogs ? (
+                                <span>{`${selectedReportLogCount} of ${totalReportLogStreamCount} log streams selected`}</span>
+                              ) : (
+                                <span>Enable app logs to include these streams.</span>
+                              )}
+                              {reportIncludeAppLogs && selectedReportLogCount === 0 && (
+                                <span className="report-dialog__logs-streams-warning">No log streams selected</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         <div
                           id={reportAppLogsPanelId}
                           className="report-dialog__logs-panel"
@@ -2707,7 +2856,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
                             <div
                               className={clsx(
                                 'report-dialog__preview-image',
-                                reportScreenshotClip === null && 'report-dialog__preview-image--selectable',
+                                'report-dialog__preview-image--selectable',
                               )}
                               ref={reportScreenshotContainerRef}
                               onPointerDown={handleScreenshotPointerDown}
@@ -2740,7 +2889,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
                               )}
                               {reportScreenshotClip && (
                                 <div className="report-dialog__selection-indicator">
-                                  Selection locked. Reset to choose another area.
+                                  Selection saved. Drag again to refine or reset for a clean slate.
                                 </div>
                               )}
                             </div>
@@ -2779,7 +2928,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
                               <p className="report-dialog__preview-hint">
                                 {reportScreenshotClip === null
                                   ? 'Drag on the screenshot to focus on the area that needs attention.'
-                                  : 'Crop saved. Reset the area if you need a different view.'}
+                                  : 'Crop saved. Drag again to fine-tune or reset to capture a different view.'}
                               </p>
                             </div>
                           </>

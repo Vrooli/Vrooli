@@ -13,8 +13,8 @@ import {
   Server,
 } from 'lucide-react';
 import { appService, resourceService, healthService } from '@/services/api';
-import type { App } from '@/types';
 import { locateAppByIdentifier } from '@/utils/appPreview';
+import { useAppsStore } from '@/state/appsStore';
 import './Layout.css';
 
 const OFFLINE_STATES = new Set(['unhealthy', 'offline', 'critical']);
@@ -42,11 +42,11 @@ const formatSecondsToDuration = (seconds: number): string => {
 interface LayoutProps {
   children: ReactNode;
   isConnected: boolean;
-  apps: App[];
 }
 
 
-export default function Layout({ children, isConnected, apps }: LayoutProps) {
+export default function Layout({ children, isConnected }: LayoutProps) {
+  const apps = useAppsStore(state => state.apps);
   const location = useLocation();
   const [appCount, setAppCount] = useState(0);
   const [resourceCount, setResourceCount] = useState(0);

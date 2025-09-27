@@ -307,7 +307,7 @@
 }
 
 .report-dialog {
-  width: min(95vw, 960px);
+  width: min(96vw, 1200px);
   background: rgba(6, 18, 12, 0.98);
   border: 1px solid rgba(0, 255, 255, 0.25);
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45), 0 0 36px rgba(0, 255, 255, 0.15);
@@ -328,12 +328,19 @@
   gap: 1rem;
 }
 
-.report-dialog__header h2 {
+.report-dialog__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
   font-size: 1.25rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--matrix-cyan);
   margin: 0;
+}
+
+.report-dialog__title svg {
+  flex-shrink: 0;
 }
 
 .report-dialog__close {
@@ -534,6 +541,19 @@
   gap: 0.75rem;
 }
 
+.report-dialog__logs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-bottom: 0.4rem;
+}
+
+.report-dialog__logs-section + .report-dialog__logs-section {
+  border-top: 1px solid rgba(0, 255, 255, 0.18);
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+}
+
 .report-dialog__logs-header {
   display: flex;
   align-items: center;
@@ -624,6 +644,74 @@
   font-size: 0.65rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.report-dialog__logs-streams {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.15rem 0.35rem 0;
+}
+
+.report-dialog__logs-streams-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.report-dialog__logs-stream {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.75rem;
+  color: rgba(224, 255, 249, 0.85);
+}
+
+.report-dialog__logs-stream input {
+  width: 0.95rem;
+  height: 0.95rem;
+  accent-color: var(--matrix-cyan);
+}
+
+.report-dialog__logs-stream-details {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.report-dialog__logs-stream-label {
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.report-dialog__logs-stream-meta {
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: rgba(224, 255, 249, 0.55);
+}
+
+.report-dialog__logs-stream--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.report-dialog__logs-stream--disabled input {
+  cursor: not-allowed;
+}
+
+.report-dialog__logs-streams-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: rgba(224, 255, 249, 0.55);
+}
+
+.report-dialog__logs-streams-warning {
+  color: #ffb347;
+  font-weight: 600;
+  letter-spacing: 0.06em;
 }
 
 .report-dialog__logs-panel {

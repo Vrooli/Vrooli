@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"app-monitor-api/services"
 
@@ -148,7 +150,7 @@ func (h *AppHandler) GetAppLogs(c *gin.Context) {
 	appName := c.Param("appName")
 	logType := c.DefaultQuery("type", "both")
 
-	logs, err := h.appService.GetAppLogs(c.Request.Context(), appName, logType)
+	logsResult, err := h.appService.GetAppLogs(c.Request.Context(), appName, logType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"logs":  []string{},
@@ -157,8 +159,68 @@ func (h *AppHandler) GetAppLogs(c *gin.Context) {
 		return
 	}
 
+	type logStreamResponse struct {
+		Key     string   `json:"key"`
+		Label   string   `json:"label"`
+		Type    string   `json:"type"`
+		Phase   string   `json:"phase,omitempty"`
+		Step    string   `json:"step,omitempty"`
+		Command string   `json:"command,omitempty"`
+		Lines   []string `json:"lines"`
+	}
+
+	streams := make([]logStreamResponse, 0)
+	aggregated := make([]string, 0)
+
+	if logsResult != nil {
+		if len(logsResult.Lifecycle) > 0 {
+			streams = append(streams, logStreamResponse{
+				Key:     "lifecycle",
+				Label:   "Lifecycle",
+				Type:    "lifecycle",
+				Command: fmt.Sprintf("vrooli scenario logs %s --type lifecycle", appName),
+				Lines:   logsResult.Lifecycle,
+			})
+			aggregated = append(aggregated, logsResult.Lifecycle...)
+		}
+
+		for _, bg := range logsResult.Background {
+			label := bg.Label
+			if strings.TrimSpace(label) == "" {
+				label = bg.Step
+				if bg.Phase != "" {
+					label = fmt.Sprintf("%s (%s)", label, bg.Phase)
+				}
+			}
+
+			key := fmt.Sprintf("background:%s", bg.Step)
+			if bg.Phase != "" {
+				key = fmt.Sprintf("%s:%s", key, bg.Phase)
+			}
+
+			streams = append(streams, logStreamResponse{
+				Key:     key,
+				Label:   label,
+				Type:    "background",
+				Phase:   bg.Phase,
+				Step:    bg.Step,
+				Command: bg.Command,
+				Lines:   bg.Lines,
+			})
+
+			if len(bg.Lines) > 0 {
+				if len(aggregated) > 0 {
+					aggregated = append(aggregated, "")
+				}
+				aggregated = append(aggregated, fmt.Sprintf("--- Background: %s ---", label))
+				aggregated = append(aggregated, bg.Lines...)
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"logs": logs,
+		"logs":    aggregated,
+		"streams": streams,
 	})
 }
 
@@ -183,18 +245,18 @@ func (h *AppHandler) GetAppMetrics(c *gin.Context) {
 func (h *AppHandler) GetAppLifecycleLogs(c *gin.Context) {
 	appName := c.Param("id")
 
-	logs, err := h.appService.GetAppLogs(c.Request.Context(), appName, "lifecycle")
+	logsResult, err := h.appService.GetAppLogs(c.Request.Context(), appName, "lifecycle")
 	if err != nil {
 		c.String(http.StatusOK, "No lifecycle logs available")
 		return
 	}
 
-	if len(logs) == 0 {
+	if logsResult == nil || len(logsResult.Lifecycle) == 0 {
 		c.String(http.StatusOK, "No lifecycle logs available")
 	} else {
 		// Join logs with newlines for text response
 		response := ""
-		for _, log := range logs {
+		for _, log := range logsResult.Lifecycle {
 			response += log + "\n"
 		}
 		c.String(http.StatusOK, response)
@@ -205,7 +267,7 @@ func (h *AppHandler) GetAppLifecycleLogs(c *gin.Context) {
 func (h *AppHandler) GetAppBackgroundLogs(c *gin.Context) {
 	appName := c.Param("id")
 
-	logs, err := h.appService.GetAppLogs(c.Request.Context(), appName, "background")
+	logsResult, err := h.appService.GetAppLogs(c.Request.Context(), appName, "background")
 	if err != nil {
 		c.JSON(http.StatusOK, []map[string]interface{}{
 			{
@@ -218,13 +280,19 @@ func (h *AppHandler) GetAppBackgroundLogs(c *gin.Context) {
 	}
 
 	// Convert string logs to structured format
-	structuredLogs := make([]map[string]interface{}, 0, len(logs))
-	for _, log := range logs {
-		structuredLogs = append(structuredLogs, map[string]interface{}{
-			"level":   "log",
-			"message": log,
-			"source":  "background",
-		})
+	structuredLogs := make([]map[string]interface{}, 0)
+	if logsResult != nil {
+		for _, bg := range logsResult.Background {
+			for _, line := range bg.Lines {
+				structuredLogs = append(structuredLogs, map[string]interface{}{
+					"level":   "log",
+					"message": line,
+					"source":  "background",
+					"step":    bg.Step,
+					"phase":   bg.Phase,
+				})
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, structuredLogs)

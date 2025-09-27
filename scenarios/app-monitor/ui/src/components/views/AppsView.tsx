@@ -9,12 +9,8 @@ import AppCard, { HealthIndicator } from '../AppCard';
 import { orderedPortMetrics } from '@/utils/appPreview';
 import AppModal from '../AppModal';
 import { AppsGridSkeleton } from '../LoadingSkeleton';
+import { useAppsStore } from '@/state/appsStore';
 import './AppsView.css';
-
-interface AppsViewProps {
-  apps: App[];
-  setApps: React.Dispatch<React.SetStateAction<App[]>>;
-}
 
 // Memoized search input component with iconography and clear affordance
 const SearchInput = memo(({ 
@@ -400,11 +396,15 @@ const AppListRow = memo(({ app, onPreview, onDetails, onAppAction }: {
 AppListRow.displayName = 'AppListRow';
 
 // Main AppsView component with optimizations
-const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
+const AppsView = memo(() => {
+  const apps = useAppsStore(state => state.apps);
+  const setAppsState = useAppsStore(state => state.setAppsState);
+  const loadApps = useAppsStore(state => state.loadApps);
+  const loadingInitial = useAppsStore(state => state.loadingInitial);
+  const loadingDetailed = useAppsStore(state => state.loadingDetailed);
+  const hasInitialized = useAppsStore(state => state.hasInitialized);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [loading, setLoading] = useState(false);
-  const [hydrating, setHydrating] = useState(false);
   const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
   const initialSortParam = searchParams.get('sort');
   const [sortOption, setSortOption] = useState<SortOption>(
@@ -415,15 +415,11 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
   const [viewMode, setViewMode] = useState<AppViewMode>('grid');
   const [selectedApp, setSelectedApp] = useState<App | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const isMountedRef = useRef(true);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const initialPositionsRef = useRef<Map<string, number>>(new Map());
 
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
+  const loading = loadingInitial && apps.length === 0;
+  const hydrating = loadingDetailed;
 
   useEffect(() => {
     const nextSearch = searchParams.get('q') ?? '';
@@ -439,53 +435,6 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
       }
     });
   }, [apps]);
-
-  const mergeAppData = useCallback((existing: App[], updates: App[]) => {
-    if (updates.length === 0) {
-      return existing;
-    }
-
-    const updateMap = new Map<string, App>();
-    updates.forEach((app) => updateMap.set(app.id, app));
-
-    const merged = existing.map((app) => {
-      const update = updateMap.get(app.id);
-      if (!update) {
-        return app;
-      }
-
-      updateMap.delete(app.id);
-
-      const mergedConfig = {
-        ...(app.config || {}),
-        ...(update.config || {}),
-      };
-
-      const mergedPorts = Object.keys(update.port_mappings || {}).length > 0
-        ? update.port_mappings
-        : app.port_mappings;
-
-      return {
-        ...app,
-        ...update,
-        description: update.description || app.description,
-        tags: update.tags && update.tags.length > 0 ? update.tags : app.tags,
-        uptime: update.uptime || app.uptime,
-        config: mergedConfig,
-        port_mappings: mergedPorts,
-        is_partial: Boolean(update.is_partial),
-      };
-    });
-
-    updateMap.forEach((app) => {
-      merged.push({
-        ...app,
-        is_partial: Boolean(app.is_partial),
-      });
-    });
-
-    return merged;
-  }, []);
 
   const updateSearchParam = useCallback((key: 'q' | 'sort', value: string | null) => {
     const next = new URLSearchParams(searchParams);
@@ -520,97 +469,11 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
     }
   }, [searchParams, sortOption, updateSearchParam]);
 
-  const fetchApps = useCallback(async () => {
-    setLoading(true);
-    logger.time('fetchApps.summary');
-
-    try {
-      const summaries = await appService.getAppSummaries();
-      logger.info(`Fetched ${summaries.length} app summaries`);
-      if (isMountedRef.current && summaries.length > 0) {
-        setApps((prev) => {
-          if (summaries.length === 0) {
-            return prev;
-          }
-
-          const previousById = new Map(prev.map((app) => [app.id, app]));
-
-          const seen = new Set<string>();
-          const mergedList = summaries.map((summary) => {
-            const existing = previousById.get(summary.id);
-            seen.add(summary.id);
-            if (!existing) {
-              return {
-                ...summary,
-                is_partial: Boolean(summary.is_partial),
-              };
-            }
-
-            const mergedConfig = {
-              ...(existing.config || {}),
-              ...(summary.config || {}),
-            };
-
-            const mergedPorts = Object.keys(summary.port_mappings || {}).length > 0
-              ? summary.port_mappings
-              : existing.port_mappings;
-
-            const nextStatus = typeof summary.status === 'string' && summary.status.trim()
-              ? summary.status
-              : existing.status;
-
-            const nextPartial = existing
-              ? Boolean(existing.is_partial)
-              : Boolean(summary.is_partial);
-
-            return {
-              ...existing,
-              ...summary,
-              status: nextStatus,
-              description: summary.description || existing.description,
-              tags: summary.tags && summary.tags.length > 0 ? summary.tags : existing.tags,
-              uptime: summary.uptime || existing.uptime,
-              config: mergedConfig,
-              port_mappings: mergedPorts,
-              is_partial: nextPartial,
-            };
-          });
-
-          const untouched = prev.filter((app) => !seen.has(app.id));
-          return [...mergedList, ...untouched];
-        });
-      }
-    } catch (error) {
-      logger.error('Failed to fetch app summaries', error);
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
-      logger.timeEnd('fetchApps.summary');
-    }
-
-    setHydrating(true);
-    logger.time('fetchApps.detail');
-
-    try {
-      const detailedApps = await appService.getApps();
-      logger.info(`Hydrated ${detailedApps.length} apps with orchestrator data`);
-      if (isMountedRef.current && detailedApps.length > 0) {
-        setApps((prev) => mergeAppData(prev, detailedApps));
-      }
-    } catch (error) {
-      logger.error('Failed to hydrate apps with orchestrator data', error);
-    } finally {
-      if (isMountedRef.current) {
-        setHydrating(false);
-      }
-      logger.timeEnd('fetchApps.detail');
-    }
-  }, [mergeAppData, setApps]);
-
   useEffect(() => {
-    fetchApps();
-  }, [fetchApps]);
+    if (!hasInitialized && !loadingInitial) {
+      void loadApps();
+    }
+  }, [hasInitialized, loadApps, loadingInitial]);
 
   const filteredApps = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -818,7 +681,7 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
     try {
       const success = await appService.controlApp(appId, action);
       if (success) {
-        setApps(prev => prev.map(app => {
+        setAppsState(prev => prev.map(app => {
           if (app.id === appId) {
             return {
               ...app,
@@ -833,7 +696,7 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
     } catch (error) {
       logger.error(`Failed to ${action} app ${appId}`, error);
     }
-  }, [setApps]);
+  }, [setAppsState]);
 
   const handleAppDetails = useCallback((app: App) => {
     setSelectedApp(app);

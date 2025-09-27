@@ -77,9 +77,20 @@ export interface ApiResponse<T = unknown> {
   message?: string;
 }
 
+export interface AppLogStream {
+  key: string;
+  label: string;
+  type: 'lifecycle' | 'background';
+  phase?: string;
+  step?: string;
+  command?: string;
+  lines: string[];
+}
+
 // App Logs Response
 export interface AppLogsResponse {
   logs: string[];
+  streams?: AppLogStream[];
   hasMore?: boolean;
   error?: string;
 }
