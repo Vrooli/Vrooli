@@ -67,9 +67,9 @@ The App Issue Tracker is a lightweight, file-based issue tracking system designe
 - **UI**: Simple web interface for browsing and editing issues
 
 ### Storage
-- YAML files in `issues/{status}/*.yaml`
-- Standardized schema with validation
-- Template files for common issue types
+- Folder bundles in `data/issues/<status>/<issue-id>/metadata.yaml`
+- `artifacts/` subdirectories for logs, screenshots, HAR files, etc.
+- Template metadata files for manual creation
 - Backup and migration scripts
 
 ## 6. Non-Functional Requirements

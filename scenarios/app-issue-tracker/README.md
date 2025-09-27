@@ -45,7 +45,7 @@ app-issue-tracker investigate "Login button not working"
 ## 🛠️ Features
 
 ### Core Functionality
-- **File-Based Storage**: Issues stored as YAML files in `issues/` directory
+- **Evidence Bundles**: Each issue lives in `data/issues/<status>/<issue-id>/metadata.yaml` with logs/screenshots under `artifacts/`
 - **CLI Interface**: Full command-line issue management
 - **REST API**: Programmatic access to all features
 - **Web UI**: Visual interface for browsing and editing issues
@@ -75,10 +75,12 @@ app-issue-tracker/
 │   └── server.js       # Node.js dev server
 ├── cli/                # Command-line tools
 │   └── app-issue-tracker # Main CLI executable
-├── issues/             # YAML issue storage
-│   ├── open/           # Active issues
-│   ├── fixed/          # Resolved issues
-│   └── templates/      # Issue templates
+├── data/
+│   └── issues/         # Folder-based issue storage
+│       ├── open/               # Active issue bundles (`metadata.yaml` + artifacts)
+│       ├── investigating/
+│       ├── fixed/
+│       └── templates/          # YAML metadata templates
 ├── scripts/            # Utility scripts
 │   ├── claude-investigator.sh
 │   └── setup-vector-search.sh
@@ -162,6 +164,34 @@ Base URL: `http://localhost:${API_PORT}`
 - `PUT /issues/{id}` – Update issue
 - `DELETE /issues/{id}` – Delete issue
 
+### Issue Creation Payload
+
+```json
+{
+  "title": "Login button hangs",
+  "description": "Users cannot sign in from mobile web",
+  "priority": "high",
+  "type": "bug",
+  "reporter_name": "Casey QA",
+  "reporter_email": "casey@example.com",
+  "app_logs": "...text log...",
+  "console_logs": "...console captures...",
+  "network_logs": "{\"requests\":[...]}",
+  "screenshot_data": "data:image/png;base64,...",
+  "screenshot_content_type": "image/png",
+  "attachments": [
+    {
+      "name": "har-export",
+      "content": "<base64>",
+      "encoding": "base64",
+      "content_type": "application/json"
+    }
+  ]
+}
+```
+
+Logs and media are persisted in `artifacts/` alongside `metadata.yaml`, and attachment metadata is echoed back in API responses.
+
 ### Search
 - `GET /search?q=query` – Keyword search
 - `GET /search/semantic?query=description` – Vector search
@@ -192,22 +222,22 @@ app-issue-tracker export --format md --status open > weekly-report.md
 ```
 
 ### File Operations (Advanced)
-Issues are stored as YAML files:
+Issues are stored as folder bundles:
 ```bash
-# View raw issue
-cat issues/open/001-authentication-timeout-critical.yaml
+# View raw issue metadata
+cat data/issues/open/<issue-id>/metadata.yaml
 
-# Edit directly
-vim issues/open/001-authentication-timeout-critical.yaml
+# Inspect captured evidence
+ls data/issues/open/<issue-id>/artifacts/
 
-# Move status manually
-mv issues/open/001.yaml issues/fixed/
+# Move status manually (preserves attachments)
+mv data/issues/open/<issue-id> data/issues/fixed/
 ```
 
 ### AI Workflow
 1. Create issue: `app-issue-tracker create ...`
 2. Trigger investigation: `app-issue-tracker investigate <id>`
-3. Review AI suggestions in `issues/investigating/<id>-investigation.md`
+3. Review AI suggestions in `data/issues/investigating/<issue-id>/metadata.yaml`
 4. Apply fixes and close: `app-issue-tracker close <id> --resolution "Fixed per AI suggestion"`
 
 ## 🐛 Troubleshooting

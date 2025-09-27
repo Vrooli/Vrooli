@@ -6,7 +6,7 @@ echo "=== Running test-business.sh ==="
 # Business logic tests would go here
 # For now, verify basic business flow
 
-if [ -f issues/templates/bug-template.yaml ]; then
+if [ -f data/issues/templates/bug-template.yaml ]; then
   echo "✓ Business templates exist"
 else
   echo "✗ Business templates missing"

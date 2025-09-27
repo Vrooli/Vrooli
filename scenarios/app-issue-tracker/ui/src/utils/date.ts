@@ -1,6 +1,9 @@
 export function formatDistanceToNow(isoDate: string): string {
   const now = new Date();
   const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) {
+    return 'unknown';
+  }
   const diffMs = now.getTime() - date.getTime();
   const diffMinutes = Math.floor(diffMs / 60000);
 

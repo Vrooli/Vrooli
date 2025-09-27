@@ -6,7 +6,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ISSUES_DIR="${SCRIPT_DIR}/../issues"
+ISSUES_DIR="${SCRIPT_DIR}/../data/issues"
+
+echo "[WARN] The file-based investigator script requires updates for the new folder-per-issue storage." >&2
+echo "       Please trigger investigations through the API/CLI for now." >&2
+exit 1
 
 # Colors for output
 RED='\033[0;31m'

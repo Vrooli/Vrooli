@@ -16,7 +16,11 @@ error() { echo -e "${RED}❌ $1${NC}"; }
 warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ISSUES_DIR="${SCRIPT_DIR}/../issues"
+ISSUES_DIR="${SCRIPT_DIR}/../data/issues"
+
+echo "[WARN] Legacy Claude integration test expects flat YAML files." >&2
+echo "       Folder-based issue bundles are now default—use \"make test\" instead." >&2
+exit 1
 
 info "Testing Claude Code Integration for App Issue Tracker"
 echo

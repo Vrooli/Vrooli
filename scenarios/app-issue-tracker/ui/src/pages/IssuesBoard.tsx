@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AlertTriangle, CheckCircle2, CircleSlash, Construction } from 'lucide-react';
+import { AlertTriangle, Archive, CheckCircle2, CircleSlash, Construction, Search } from 'lucide-react';
 import { Issue, IssueStatus } from '../data/sampleData';
 import { IssueCard } from '../components/IssueCard';
 
@@ -8,21 +8,36 @@ interface IssuesBoardProps {
 }
 
 const columnMeta: Record<IssueStatus, { title: string; icon: React.ComponentType<{ size?: number }> }> = {
-  pending: { title: 'Pending', icon: AlertTriangle },
-  active: { title: 'Active', icon: Construction },
-  complete: { title: 'Complete', icon: CheckCircle2 },
+  open: { title: 'Open', icon: AlertTriangle },
+  investigating: { title: 'Investigating', icon: Search },
+  'in-progress': { title: 'In Progress', icon: Construction },
+  fixed: { title: 'Fixed', icon: CheckCircle2 },
+  closed: { title: 'Closed', icon: Archive },
   failed: { title: 'Failed', icon: CircleSlash },
 };
 
 export function IssuesBoard({ issues }: IssuesBoardProps) {
   const grouped = useMemo(() => {
-    return issues.reduce<Record<IssueStatus, Issue[]>>(
-      (acc, issue) => {
-        acc[issue.status] = [...acc[issue.status], issue];
-        return acc;
-      },
-      { pending: [], active: [], complete: [], failed: [] },
-    );
+    const base: Record<IssueStatus, Issue[]> = {
+      open: [],
+      investigating: [],
+      'in-progress': [],
+      fixed: [],
+      closed: [],
+      failed: [],
+    };
+
+    issues.forEach((issue) => {
+      base[issue.status] = [...base[issue.status], issue];
+    });
+
+    (Object.keys(base) as IssueStatus[]).forEach((status) => {
+      base[status].sort(
+        (first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime(),
+      );
+    });
+
+    return base;
   }, [issues]);
 
   return (

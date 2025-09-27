@@ -706,3 +706,46 @@ textarea {
     margin-left: var(--sidebar-width);
   }
 }
+
+.data-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.data-banner.loading {
+  background: #eef2ff;
+  color: #3730a3;
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.data-banner.error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.data-banner button {
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: rgba(55, 48, 163, 0.1);
+  color: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.data-banner.error button {
+  background: rgba(185, 28, 28, 0.12);
+}
+
+.data-banner button:hover {
+  opacity: 0.85;
+}

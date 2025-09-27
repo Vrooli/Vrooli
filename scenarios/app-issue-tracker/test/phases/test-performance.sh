@@ -13,6 +13,6 @@ else
 fi
 
 # Basic file operations timing
-time ls issues/open/*.yaml >/dev/null 2>&1 && echo "✓ File listing fast"
+time find data/issues/open -mindepth 1 -maxdepth 1 -type d >/dev/null 2>&1 && echo "✓ Issue directory enumeration fast"
 
 echo "✅ test-performance.sh completed successfully"

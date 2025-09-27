@@ -7,7 +7,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${SCRIPT_DIR}/.."
-ISSUES_DIR="${PROJECT_DIR}/issues"
+ISSUES_DIR="${PROJECT_DIR}/data/issues"
+
+echo "[WARN] migrate-to-files.sh targeted the legacy flat YAML layout." >&2
+echo "       Folder-based bundles are now the default storage; database migration scripts will be refreshed in a future update." >&2
+exit 1
 BACKUP_DIR="${PROJECT_DIR}/backup/migration-$(date +%Y%m%d-%H%M%S)"
 
 # Database configuration

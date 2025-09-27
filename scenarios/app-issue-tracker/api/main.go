@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -27,6 +29,61 @@ type Config struct {
 
 type Server struct {
 	config *Config
+}
+
+const (
+	metadataFilename = "metadata.yaml"
+	artifactsDirName = "artifacts"
+)
+
+var validIssueStatuses = map[string]struct{}{
+	"open":          {},
+	"investigating": {},
+	"in-progress":   {},
+	"fixed":         {},
+	"closed":        {},
+	"failed":        {},
+}
+
+func cloneStringSlice(values []string) []string {
+	if values == nil {
+		return nil
+	}
+	out := make([]string, len(values))
+	copy(out, values)
+	return out
+}
+
+func normalizeStringSlice(values []string) []string {
+	if values == nil {
+		return nil
+	}
+	var result []string
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		result = append(result, trimmed)
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+func cloneStringMap(values map[string]string) map[string]string {
+	if values == nil {
+		return nil
+	}
+	clone := make(map[string]string, len(values))
+	for k, v := range values {
+		clone[strings.TrimSpace(k)] = strings.TrimSpace(v)
+	}
+	if len(clone) == 0 {
+		return nil
+	}
+	return clone
 }
 
 type Issue struct {
@@ -79,6 +136,8 @@ type Issue struct {
 		FixDurationMinutes *int   `yaml:"fix_duration_minutes,omitempty" json:"fix_duration_minutes,omitempty"`
 	} `yaml:"fix,omitempty" json:"fix,omitempty"`
 
+	Attachments []Attachment `yaml:"attachments,omitempty" json:"attachments,omitempty"`
+
 	Metadata struct {
 		CreatedAt  string            `yaml:"created_at" json:"created_at"`
 		UpdatedAt  string            `yaml:"updated_at" json:"updated_at"`
@@ -89,6 +148,68 @@ type Issue struct {
 	} `yaml:"metadata" json:"metadata"`
 
 	Notes string `yaml:"notes,omitempty" json:"notes,omitempty"`
+}
+
+type Attachment struct {
+	Name string `yaml:"name" json:"name"`
+	Type string `yaml:"type,omitempty" json:"type,omitempty"`
+	Path string `yaml:"path" json:"path"`
+	Size int64  `yaml:"size,omitempty" json:"size,omitempty"`
+}
+
+type UpdateIssueRequest struct {
+	Title       *string            `json:"title"`
+	Description *string            `json:"description"`
+	Type        *string            `json:"type"`
+	Priority    *string            `json:"priority"`
+	AppID       *string            `json:"app_id"`
+	Status      *string            `json:"status"`
+	Tags        *[]string          `json:"tags"`
+	Labels      *map[string]string `json:"labels"`
+	Watchers    *[]string          `json:"watchers"`
+	Notes       *string            `json:"notes"`
+	ResolvedAt  *string            `json:"resolved_at"`
+
+	Reporter *struct {
+		Name      *string `json:"name"`
+		Email     *string `json:"email"`
+		UserID    *string `json:"user_id"`
+		Timestamp *string `json:"timestamp"`
+	} `json:"reporter"`
+
+	ErrorContext *struct {
+		ErrorMessage       *string            `json:"error_message"`
+		ErrorLogs          *string            `json:"error_logs"`
+		StackTrace         *string            `json:"stack_trace"`
+		AffectedFiles      *[]string          `json:"affected_files"`
+		AffectedComponents *[]string          `json:"affected_components"`
+		EnvironmentInfo    *map[string]string `json:"environment_info"`
+	} `json:"error_context"`
+
+	Investigation *struct {
+		AgentID                      *string  `json:"agent_id"`
+		StartedAt                    *string  `json:"started_at"`
+		CompletedAt                  *string  `json:"completed_at"`
+		Report                       *string  `json:"report"`
+		RootCause                    *string  `json:"root_cause"`
+		SuggestedFix                 *string  `json:"suggested_fix"`
+		ConfidenceScore              *int     `json:"confidence_score"`
+		InvestigationDurationMinutes *int     `json:"investigation_duration_minutes"`
+		TokensUsed                   *int     `json:"tokens_used"`
+		CostEstimate                 *float64 `json:"cost_estimate"`
+	} `json:"investigation"`
+
+	Fix *struct {
+		SuggestedFix       *string `json:"suggested_fix"`
+		ImplementationPlan *string `json:"implementation_plan"`
+		Applied            *bool   `json:"applied"`
+		AppliedAt          *string `json:"applied_at"`
+		CommitHash         *string `json:"commit_hash"`
+		PrURL              *string `json:"pr_url"`
+		VerificationStatus *string `json:"verification_status"`
+		RollbackPlan       *string `json:"rollback_plan"`
+		FixDurationMinutes *int    `json:"fix_duration_minutes"`
+	} `json:"fix"`
 }
 
 type Agent struct {
@@ -121,10 +242,10 @@ type ApiResponse struct {
 
 func loadConfig() *Config {
 	// Default to the actual scenario issues directory if not specified
-	defaultIssuesDir := filepath.Join(getVrooliRoot(), "scenarios/app-issue-tracker/issues")
-	if _, err := os.Stat("./issues"); err == nil {
+	defaultIssuesDir := filepath.Join(getVrooliRoot(), "scenarios/app-issue-tracker/data/issues")
+	if _, err := os.Stat("./data/issues"); err == nil {
 		// If local issues directory exists, use it
-		defaultIssuesDir = "./issues"
+		defaultIssuesDir = "./data/issues"
 	}
 
 	return &Config{
@@ -142,124 +263,88 @@ func getEnv(key, defaultValue string) string {
 }
 
 // File operations for issues
-func (s *Server) loadIssueFromFile(filePath string) (*Issue, error) {
-	data, err := ioutil.ReadFile(filePath)
+func (s *Server) issueDir(folder, issueID string) string {
+	return filepath.Join(s.config.IssuesDir, folder, issueID)
+}
+
+func (s *Server) metadataPath(issueDir string) string {
+	return filepath.Join(issueDir, metadataFilename)
+}
+
+func (s *Server) loadIssueFromDir(issueDir string) (*Issue, error) {
+	metadata := s.metadataPath(issueDir)
+	data, err := ioutil.ReadFile(metadata)
 	if err != nil {
 		return nil, err
 	}
 
 	var issue Issue
-	err = yaml.Unmarshal(data, &issue)
-	if err != nil {
+	if err := yaml.Unmarshal(data, &issue); err != nil {
 		return nil, fmt.Errorf("error parsing YAML: %v", err)
+	}
+
+	if issue.ID == "" {
+		issue.ID = filepath.Base(issueDir)
 	}
 
 	return &issue, nil
 }
 
-func (s *Server) saveIssueToFile(issue *Issue, folder string) error {
-	// Generate filename based on priority and title
-	priorityNum := s.getPriorityNumber(issue.Priority)
-	safeTitle := strings.ToLower(issue.Title)
-	safeTitle = strings.ReplaceAll(safeTitle, " ", "-")
-	safeTitle = strings.ReplaceAll(safeTitle, "_", "-")
-	// Remove non-alphanumeric characters except hyphens
-	var result strings.Builder
-	for _, r := range safeTitle {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
-			result.WriteRune(r)
-		}
-	}
-	safeTitle = result.String()
-	// Remove consecutive hyphens and trim
-	safeTitle = strings.Trim(strings.ReplaceAll(safeTitle, "--", "-"), "-")
-
-	filename := fmt.Sprintf("%03d-%s.yaml", priorityNum, safeTitle)
-	filePath := filepath.Join(s.config.IssuesDir, folder, filename)
-
-	// Ensure timestamps are set
+func (s *Server) writeIssueMetadata(issueDir string, issue *Issue) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	if issue.Metadata.CreatedAt == "" {
 		issue.Metadata.CreatedAt = now
 	}
 	issue.Metadata.UpdatedAt = now
-	issue.Status = folder
 
 	data, err := yaml.Marshal(issue)
 	if err != nil {
 		return fmt.Errorf("error marshaling YAML: %v", err)
 	}
 
-	return ioutil.WriteFile(filePath, data, 0644)
+	return os.WriteFile(s.metadataPath(issueDir), data, 0644)
 }
 
-func (s *Server) getPriorityNumber(priority string) int {
-	switch strings.ToLower(priority) {
-	case "critical":
-		return s.getNextAvailableNumber(1, 99)
-	case "high":
-		return s.getNextAvailableNumber(100, 199)
-	case "medium":
-		return s.getNextAvailableNumber(200, 499)
-	case "low":
-		return s.getNextAvailableNumber(500, 999)
-	default:
-		return 200 // Default to medium
-	}
-}
-
-func (s *Server) getNextAvailableNumber(start, end int) int {
-	used := make(map[int]bool)
-
-	// Check all folders for used numbers
-	folders := []string{"open", "investigating", "in-progress", "fixed", "closed", "failed"}
-	for _, folder := range folders {
-		folderPath := filepath.Join(s.config.IssuesDir, folder)
-		files, _ := filepath.Glob(filepath.Join(folderPath, "*.yaml"))
-
-		for _, file := range files {
-			filename := filepath.Base(file)
-			if len(filename) >= 3 && filename[3] == '-' {
-				if num, err := strconv.Atoi(filename[:3]); err == nil {
-					used[num] = true
-				}
-			}
-		}
+func (s *Server) saveIssue(issue *Issue, folder string) (string, error) {
+	issue.Status = folder
+	issueDir := s.issueDir(folder, issue.ID)
+	if err := os.MkdirAll(issueDir, 0755); err != nil {
+		return "", err
 	}
 
-	// Find next available number in range
-	for i := start; i <= end; i++ {
-		if !used[i] {
-			return i
-		}
+	if err := s.writeIssueMetadata(issueDir, issue); err != nil {
+		return "", err
 	}
 
-	// If range is full, use the end number
-	return end
+	return issueDir, nil
 }
 
 func (s *Server) loadIssuesFromFolder(folder string) ([]Issue, error) {
 	folderPath := filepath.Join(s.config.IssuesDir, folder)
-	if _, err := os.Stat(folderPath); os.IsNotExist(err) {
-		return []Issue{}, nil
-	}
-
-	files, err := filepath.Glob(filepath.Join(folderPath, "*.yaml"))
+	entries, err := os.ReadDir(folderPath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []Issue{}, nil
+		}
 		return nil, err
 	}
 
 	var issues []Issue
-	for _, file := range files {
-		issue, err := s.loadIssueFromFile(file)
-		if err != nil {
-			log.Printf("Warning: Could not load issue from %s: %v", file, err)
+	for _, entry := range entries {
+		if !entry.IsDir() {
 			continue
 		}
+
+		issueDir := filepath.Join(folderPath, entry.Name())
+		issue, err := s.loadIssueFromDir(issueDir)
+		if err != nil {
+			log.Printf("Warning: could not load issue from %s: %v", issueDir, err)
+			continue
+		}
+		issue.Status = folder
 		issues = append(issues, *issue)
 	}
 
-	// Sort by filename (priority)
 	sort.Slice(issues, func(i, j int) bool {
 		return issues[i].Metadata.CreatedAt > issues[j].Metadata.CreatedAt
 	})
@@ -267,20 +352,38 @@ func (s *Server) loadIssuesFromFolder(folder string) ([]Issue, error) {
 	return issues, nil
 }
 
-func (s *Server) findIssueFile(issueID string) (string, string, error) {
+func (s *Server) findIssueDirectory(issueID string) (string, string, error) {
 	folders := []string{"open", "investigating", "in-progress", "fixed", "closed", "failed"}
 
 	for _, folder := range folders {
-		folderPath := filepath.Join(s.config.IssuesDir, folder)
-		files, _ := filepath.Glob(filepath.Join(folderPath, "*.yaml"))
+		directDir := s.issueDir(folder, issueID)
+		if _, err := os.Stat(s.metadataPath(directDir)); err == nil {
+			return directDir, folder, nil
+		}
+	}
 
-		for _, file := range files {
-			issue, err := s.loadIssueFromFile(file)
+	for _, folder := range folders {
+		folderPath := filepath.Join(s.config.IssuesDir, folder)
+		entries, err := os.ReadDir(folderPath)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return "", "", err
+		}
+
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+
+			issueDir := filepath.Join(folderPath, entry.Name())
+			issue, err := s.loadIssueFromDir(issueDir)
 			if err != nil {
 				continue
 			}
 			if issue.ID == issueID {
-				return file, folder, nil
+				return issueDir, folder, nil
 			}
 		}
 	}
@@ -289,27 +392,24 @@ func (s *Server) findIssueFile(issueID string) (string, string, error) {
 }
 
 func (s *Server) moveIssue(issueID, toFolder string) error {
-	filePath, currentFolder, err := s.findIssueFile(issueID)
+	issueDir, currentFolder, err := s.findIssueDirectory(issueID)
 	if err != nil {
 		return err
 	}
 
 	if currentFolder == toFolder {
-		return nil // Already in target folder
+		return nil
 	}
 
-	// Load issue
-	issue, err := s.loadIssueFromFile(filePath)
+	issue, err := s.loadIssueFromDir(issueDir)
 	if err != nil {
 		return err
 	}
 
-	// Update status and timestamps
-	issue.Status = toFolder
 	now := time.Now().UTC().Format(time.RFC3339)
+	issue.Status = toFolder
 	issue.Metadata.UpdatedAt = now
 
-	// Add state-specific timestamps
 	switch toFolder {
 	case "investigating":
 		if issue.Investigation.StartedAt == "" {
@@ -321,14 +421,56 @@ func (s *Server) moveIssue(issueID, toFolder string) error {
 		}
 	}
 
-	// Save to new location
-	err = s.saveIssueToFile(issue, toFolder)
-	if err != nil {
+	targetDir := s.issueDir(toFolder, issue.ID)
+	if err := os.MkdirAll(filepath.Dir(targetDir), 0755); err != nil {
 		return err
 	}
 
-	// Remove from old location
-	return os.Remove(filePath)
+	if err := os.Rename(issueDir, targetDir); err != nil {
+		return err
+	}
+
+	return s.writeIssueMetadata(targetDir, issue)
+}
+
+func decodeBase64Payload(data string) ([]byte, error) {
+	trimmed := strings.TrimSpace(data)
+	if trimmed == "" {
+		return nil, fmt.Errorf("empty payload")
+	}
+	if idx := strings.Index(trimmed, ","); idx != -1 && strings.Contains(trimmed[:idx], "base64") {
+		trimmed = trimmed[idx+1:]
+	}
+	trimmed = strings.ReplaceAll(trimmed, "\n", "")
+	trimmed = strings.ReplaceAll(trimmed, " ", "")
+	return base64.StdEncoding.DecodeString(trimmed)
+}
+
+func extensionFromContentType(contentType string) string {
+	switch strings.ToLower(strings.TrimSpace(contentType)) {
+	case "image/png":
+		return "png"
+	case "image/jpeg", "image/jpg":
+		return "jpg"
+	case "image/webp":
+		return "webp"
+	case "application/json":
+		return "json"
+	case "text/plain":
+		return "txt"
+	default:
+		return ""
+	}
+}
+
+func looksLikeJSON(payload string) bool {
+	trimmed := strings.TrimSpace(payload)
+	if trimmed == "" {
+		return false
+	}
+	first := trimmed[0]
+	last := trimmed[len(trimmed)-1]
+	return (first == '{' && last == '}') || (first == '[' && last == ']')
 }
 
 func (s *Server) getAllIssues(statusFilter, priorityFilter, typeFilter string, limit int) ([]Issue, error) {
@@ -425,17 +567,29 @@ func (s *Server) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title         string            `json:"title"`
-		Description   string            `json:"description"`
-		Type          string            `json:"type"`
-		Priority      string            `json:"priority"`
-		AppID         string            `json:"app_id"`
-		ErrorMessage  string            `json:"error_message"`
-		StackTrace    string            `json:"stack_trace"`
-		Tags          []string          `json:"tags"`
-		ReporterName  string            `json:"reporter_name"`
-		ReporterEmail string            `json:"reporter_email"`
-		Environment   map[string]string `json:"environment"`
+		Title                 string            `json:"title"`
+		Description           string            `json:"description"`
+		Type                  string            `json:"type"`
+		Priority              string            `json:"priority"`
+		AppID                 string            `json:"app_id"`
+		ErrorMessage          string            `json:"error_message"`
+		StackTrace            string            `json:"stack_trace"`
+		Tags                  []string          `json:"tags"`
+		ReporterName          string            `json:"reporter_name"`
+		ReporterEmail         string            `json:"reporter_email"`
+		Environment           map[string]string `json:"environment"`
+		AppLogs               string            `json:"app_logs"`
+		ConsoleLogs           string            `json:"console_logs"`
+		NetworkLogs           string            `json:"network_logs"`
+		ScreenshotData        string            `json:"screenshot_data"`
+		ScreenshotContentType string            `json:"screenshot_content_type"`
+		ScreenshotFilename    string            `json:"screenshot_filename"`
+		Attachments           []struct {
+			Name        string `json:"name"`
+			Content     string `json:"content"`
+			Encoding    string `json:"encoding"`
+			ContentType string `json:"content_type"`
+		} `json:"attachments"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -443,13 +597,11 @@ func (s *Server) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate required fields
 	if req.Title == "" {
 		http.Error(w, "Title is required", http.StatusBadRequest)
 		return
 	}
 
-	// Default values
 	if req.Type == "" {
 		req.Type = "bug"
 	}
@@ -463,7 +615,6 @@ func (s *Server) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 		req.Description = req.Title
 	}
 
-	// Create issue
 	issue := Issue{
 		ID:          fmt.Sprintf("issue-%s", uuid.New().String()[:8]),
 		Title:       req.Title,
@@ -474,25 +625,170 @@ func (s *Server) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 		Status:      "open",
 	}
 
-	// Set reporter info
 	issue.Reporter.Name = req.ReporterName
 	issue.Reporter.Email = req.ReporterEmail
 	issue.Reporter.Timestamp = time.Now().UTC().Format(time.RFC3339)
 
-	// Set error context
 	issue.ErrorContext.ErrorMessage = req.ErrorMessage
 	issue.ErrorContext.StackTrace = req.StackTrace
 	issue.ErrorContext.EnvironmentInfo = req.Environment
 
-	// Set metadata
-	now := time.Now().UTC().Format(time.RFC3339)
-	issue.Metadata.CreatedAt = now
-	issue.Metadata.UpdatedAt = now
 	issue.Metadata.Tags = req.Tags
 
-	// Save to file
-	err := s.saveIssueToFile(&issue, "open")
-	if err != nil {
+	issueDir := s.issueDir("open", issue.ID)
+	if err := os.MkdirAll(issueDir, 0755); err != nil {
+		log.Printf("Error preparing issue directory: %v", err)
+		http.Error(w, "Failed to prepare storage", http.StatusInternalServerError)
+		return
+	}
+
+	var attachments []Attachment
+	var artifactsDir string
+	ensureArtifactsDir := func() (string, error) {
+		if artifactsDir != "" {
+			return artifactsDir, nil
+		}
+		dir := filepath.Join(issueDir, artifactsDirName)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return "", err
+		}
+		artifactsDir = dir
+		return dir, nil
+	}
+
+	addTextArtifact := func(label, fileName, content, contentType string) error {
+		if strings.TrimSpace(content) == "" {
+			return nil
+		}
+		dir, err := ensureArtifactsDir()
+		if err != nil {
+			return err
+		}
+		data := []byte(content)
+		relPath := filepath.Join(artifactsDirName, fileName)
+		if err := os.WriteFile(filepath.Join(dir, fileName), data, 0644); err != nil {
+			return err
+		}
+		attachments = append(attachments, Attachment{
+			Name: label,
+			Type: contentType,
+			Path: relPath,
+			Size: int64(len(data)),
+		})
+		return nil
+	}
+
+	if err := addTextArtifact("Application Logs", "app-logs.txt", req.AppLogs, "text/plain"); err != nil {
+		log.Printf("Error saving app logs: %v", err)
+		http.Error(w, "Failed to store app logs", http.StatusInternalServerError)
+		return
+	}
+	if err := addTextArtifact("Console Logs", "console-logs.txt", req.ConsoleLogs, "text/plain"); err != nil {
+		log.Printf("Error saving console logs: %v", err)
+		http.Error(w, "Failed to store console logs", http.StatusInternalServerError)
+		return
+	}
+	networkContentType := "application/json"
+	networkFileName := "network-requests.json"
+	if !looksLikeJSON(req.NetworkLogs) {
+		networkContentType = "text/plain"
+		networkFileName = "network-requests.txt"
+	}
+	if err := addTextArtifact("Network Requests", networkFileName, req.NetworkLogs, networkContentType); err != nil {
+		log.Printf("Error saving network requests: %v", err)
+		http.Error(w, "Failed to store network requests", http.StatusInternalServerError)
+		return
+	}
+
+	if strings.TrimSpace(req.ScreenshotData) != "" {
+		data, err := decodeBase64Payload(req.ScreenshotData)
+		if err != nil {
+			log.Printf("Error decoding screenshot: %v", err)
+			http.Error(w, "Invalid screenshot data", http.StatusBadRequest)
+			return
+		}
+		dir, err := ensureArtifactsDir()
+		if err != nil {
+			log.Printf("Error preparing artifacts directory: %v", err)
+			http.Error(w, "Failed to store screenshot", http.StatusInternalServerError)
+			return
+		}
+		filename := strings.TrimSpace(req.ScreenshotFilename)
+		if filename == "" {
+			ext := extensionFromContentType(req.ScreenshotContentType)
+			if ext == "" {
+				ext = "png"
+			}
+			filename = fmt.Sprintf("screenshot.%s", ext)
+		}
+		filename = filepath.Base(filename)
+		relPath := filepath.Join(artifactsDirName, filename)
+		if err := os.WriteFile(filepath.Join(dir, filename), data, 0644); err != nil {
+			log.Printf("Error writing screenshot: %v", err)
+			http.Error(w, "Failed to store screenshot", http.StatusInternalServerError)
+			return
+		}
+		attachments = append(attachments, Attachment{
+			Name: "Screenshot",
+			Type: req.ScreenshotContentType,
+			Path: relPath,
+			Size: int64(len(data)),
+		})
+	}
+
+	for _, payload := range req.Attachments {
+		content := strings.TrimSpace(payload.Content)
+		name := strings.TrimSpace(payload.Name)
+		if content == "" || name == "" {
+			continue
+		}
+		var data []byte
+		var err error
+		switch strings.ToLower(payload.Encoding) {
+		case "", "plain", "text":
+			data = []byte(content)
+		case "base64":
+			data, err = decodeBase64Payload(content)
+		default:
+			err = fmt.Errorf("unsupported encoding: %s", payload.Encoding)
+		}
+		if err != nil {
+			log.Printf("Error decoding attachment %s: %v", payload.Name, err)
+			http.Error(w, "Failed to decode attachment", http.StatusBadRequest)
+			return
+		}
+		dir, err := ensureArtifactsDir()
+		if err != nil {
+			log.Printf("Error preparing artifacts directory: %v", err)
+			http.Error(w, "Failed to store attachment", http.StatusInternalServerError)
+			return
+		}
+		filename := filepath.Base(name)
+		if filepath.Ext(filename) == "" {
+			ext := extensionFromContentType(payload.ContentType)
+			if ext != "" {
+				filename = fmt.Sprintf("%s.%s", filename, ext)
+			}
+		}
+		relPath := filepath.Join(artifactsDirName, filename)
+		if err := os.WriteFile(filepath.Join(dir, filename), data, 0644); err != nil {
+			log.Printf("Error writing attachment %s: %v", filename, err)
+			http.Error(w, "Failed to store attachment", http.StatusInternalServerError)
+			return
+		}
+		attachments = append(attachments, Attachment{
+			Name: filename,
+			Type: payload.ContentType,
+			Path: relPath,
+			Size: int64(len(data)),
+		})
+	}
+
+	if len(attachments) > 0 {
+		issue.Attachments = attachments
+	}
+
+	if _, err := s.saveIssue(&issue, "open"); err != nil {
 		log.Printf("Error saving issue: %v", err)
 		http.Error(w, "Failed to create issue", http.StatusInternalServerError)
 		return
@@ -502,9 +798,345 @@ func (s *Server) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "Issue created successfully",
 		Data: map[string]interface{}{
-			"issue_id": issue.ID,
-			"filename": fmt.Sprintf("%03d-%s.yaml", s.getPriorityNumber(issue.Priority),
-				strings.ReplaceAll(strings.ToLower(issue.Title), " ", "-")),
+			"issue_id":     issue.ID,
+			"storage_path": filepath.Join("open", issue.ID),
+			"attachments":  issue.Attachments,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) getIssueHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	issueID := strings.TrimSpace(vars["id"])
+	if issueID == "" {
+		http.Error(w, "Issue ID is required", http.StatusBadRequest)
+		return
+	}
+
+	issueDir, statusFolder, err := s.findIssueDirectory(issueID)
+	if err != nil {
+		http.Error(w, "Issue not found", http.StatusNotFound)
+		return
+	}
+
+	issue, err := s.loadIssueFromDir(issueDir)
+	if err != nil {
+		log.Printf("Error loading issue %s: %v", issueID, err)
+		http.Error(w, "Failed to load issue", http.StatusInternalServerError)
+		return
+	}
+
+	issue.Status = statusFolder
+
+	response := ApiResponse{
+		Success: true,
+		Data: map[string]interface{}{
+			"issue": issue,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	issueID := strings.TrimSpace(vars["id"])
+	if issueID == "" {
+		http.Error(w, "Issue ID is required", http.StatusBadRequest)
+		return
+	}
+
+	issueDir, currentFolder, err := s.findIssueDirectory(issueID)
+	if err != nil {
+		http.Error(w, "Issue not found", http.StatusNotFound)
+		return
+	}
+
+	issue, err := s.loadIssueFromDir(issueDir)
+	if err != nil {
+		log.Printf("Error loading issue %s: %v", issueID, err)
+		http.Error(w, "Failed to load issue", http.StatusInternalServerError)
+		return
+	}
+
+	issue.Status = currentFolder
+
+	var req UpdateIssueRequest
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		log.Printf("Invalid update payload for issue %s: %v", issueID, err)
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	targetStatus := currentFolder
+	if req.Status != nil {
+		normalized := strings.ToLower(strings.TrimSpace(*req.Status))
+		if normalized == "" {
+			http.Error(w, "Status cannot be empty", http.StatusBadRequest)
+			return
+		}
+		if _, ok := validIssueStatuses[normalized]; !ok {
+			http.Error(w, fmt.Sprintf("Invalid status: %s", normalized), http.StatusBadRequest)
+			return
+		}
+		targetStatus = normalized
+	}
+
+	if req.Title != nil {
+		title := strings.TrimSpace(*req.Title)
+		if title == "" {
+			http.Error(w, "Title cannot be empty", http.StatusBadRequest)
+			return
+		}
+		issue.Title = title
+	}
+	if req.Description != nil {
+		issue.Description = strings.TrimSpace(*req.Description)
+	}
+	if req.Type != nil {
+		issue.Type = strings.TrimSpace(*req.Type)
+	}
+	if req.Priority != nil {
+		priority := strings.TrimSpace(*req.Priority)
+		if priority != "" {
+			issue.Priority = priority
+		}
+	}
+	if req.AppID != nil {
+		appID := strings.TrimSpace(*req.AppID)
+		if appID != "" {
+			issue.AppID = appID
+		}
+	}
+	if req.Tags != nil {
+		if *req.Tags == nil {
+			issue.Metadata.Tags = nil
+		} else {
+			issue.Metadata.Tags = normalizeStringSlice(*req.Tags)
+		}
+	}
+	if req.Labels != nil {
+		if *req.Labels == nil {
+			issue.Metadata.Labels = nil
+		} else {
+			issue.Metadata.Labels = cloneStringMap(*req.Labels)
+		}
+	}
+	if req.Watchers != nil {
+		if *req.Watchers == nil {
+			issue.Metadata.Watchers = nil
+		} else {
+			issue.Metadata.Watchers = normalizeStringSlice(*req.Watchers)
+		}
+	}
+	if req.Notes != nil {
+		issue.Notes = strings.TrimSpace(*req.Notes)
+	}
+	if req.ResolvedAt != nil {
+		issue.Metadata.ResolvedAt = strings.TrimSpace(*req.ResolvedAt)
+	}
+
+	if req.Reporter != nil {
+		if req.Reporter.Name != nil {
+			issue.Reporter.Name = strings.TrimSpace(*req.Reporter.Name)
+		}
+		if req.Reporter.Email != nil {
+			issue.Reporter.Email = strings.TrimSpace(*req.Reporter.Email)
+		}
+		if req.Reporter.UserID != nil {
+			issue.Reporter.UserID = strings.TrimSpace(*req.Reporter.UserID)
+		}
+		if req.Reporter.Timestamp != nil {
+			issue.Reporter.Timestamp = strings.TrimSpace(*req.Reporter.Timestamp)
+		}
+	}
+
+	if req.ErrorContext != nil {
+		if req.ErrorContext.ErrorMessage != nil {
+			issue.ErrorContext.ErrorMessage = strings.TrimSpace(*req.ErrorContext.ErrorMessage)
+		}
+		if req.ErrorContext.ErrorLogs != nil {
+			issue.ErrorContext.ErrorLogs = *req.ErrorContext.ErrorLogs
+		}
+		if req.ErrorContext.StackTrace != nil {
+			issue.ErrorContext.StackTrace = *req.ErrorContext.StackTrace
+		}
+		if req.ErrorContext.AffectedFiles != nil {
+			if *req.ErrorContext.AffectedFiles == nil {
+				issue.ErrorContext.AffectedFiles = nil
+			} else {
+				issue.ErrorContext.AffectedFiles = normalizeStringSlice(*req.ErrorContext.AffectedFiles)
+			}
+		}
+		if req.ErrorContext.AffectedComponents != nil {
+			if *req.ErrorContext.AffectedComponents == nil {
+				issue.ErrorContext.AffectedComponents = nil
+			} else {
+				issue.ErrorContext.AffectedComponents = normalizeStringSlice(*req.ErrorContext.AffectedComponents)
+			}
+		}
+		if req.ErrorContext.EnvironmentInfo != nil {
+			if *req.ErrorContext.EnvironmentInfo == nil {
+				issue.ErrorContext.EnvironmentInfo = nil
+			} else {
+				envCopy := make(map[string]string, len(*req.ErrorContext.EnvironmentInfo))
+				for k, v := range *req.ErrorContext.EnvironmentInfo {
+					envCopy[strings.TrimSpace(k)] = strings.TrimSpace(v)
+				}
+				if len(envCopy) == 0 {
+					issue.ErrorContext.EnvironmentInfo = nil
+				} else {
+					issue.ErrorContext.EnvironmentInfo = envCopy
+				}
+			}
+		}
+	}
+
+	if req.Investigation != nil {
+		if req.Investigation.AgentID != nil {
+			issue.Investigation.AgentID = strings.TrimSpace(*req.Investigation.AgentID)
+		}
+		if req.Investigation.StartedAt != nil {
+			issue.Investigation.StartedAt = strings.TrimSpace(*req.Investigation.StartedAt)
+		}
+		if req.Investigation.CompletedAt != nil {
+			issue.Investigation.CompletedAt = strings.TrimSpace(*req.Investigation.CompletedAt)
+		}
+		if req.Investigation.Report != nil {
+			issue.Investigation.Report = strings.TrimSpace(*req.Investigation.Report)
+		}
+		if req.Investigation.RootCause != nil {
+			issue.Investigation.RootCause = strings.TrimSpace(*req.Investigation.RootCause)
+		}
+		if req.Investigation.SuggestedFix != nil {
+			issue.Investigation.SuggestedFix = strings.TrimSpace(*req.Investigation.SuggestedFix)
+		}
+		if req.Investigation.ConfidenceScore != nil {
+			issue.Investigation.ConfidenceScore = req.Investigation.ConfidenceScore
+		}
+		if req.Investigation.InvestigationDurationMinutes != nil {
+			issue.Investigation.InvestigationDurationMinutes = req.Investigation.InvestigationDurationMinutes
+		}
+		if req.Investigation.TokensUsed != nil {
+			issue.Investigation.TokensUsed = req.Investigation.TokensUsed
+		}
+		if req.Investigation.CostEstimate != nil {
+			issue.Investigation.CostEstimate = req.Investigation.CostEstimate
+		}
+	}
+
+	if req.Fix != nil {
+		if req.Fix.SuggestedFix != nil {
+			issue.Fix.SuggestedFix = strings.TrimSpace(*req.Fix.SuggestedFix)
+		}
+		if req.Fix.ImplementationPlan != nil {
+			issue.Fix.ImplementationPlan = strings.TrimSpace(*req.Fix.ImplementationPlan)
+		}
+		if req.Fix.Applied != nil {
+			issue.Fix.Applied = *req.Fix.Applied
+		}
+		if req.Fix.AppliedAt != nil {
+			issue.Fix.AppliedAt = strings.TrimSpace(*req.Fix.AppliedAt)
+		}
+		if req.Fix.CommitHash != nil {
+			issue.Fix.CommitHash = strings.TrimSpace(*req.Fix.CommitHash)
+		}
+		if req.Fix.PrURL != nil {
+			issue.Fix.PrURL = strings.TrimSpace(*req.Fix.PrURL)
+		}
+		if req.Fix.VerificationStatus != nil {
+			issue.Fix.VerificationStatus = strings.TrimSpace(*req.Fix.VerificationStatus)
+		}
+		if req.Fix.RollbackPlan != nil {
+			issue.Fix.RollbackPlan = strings.TrimSpace(*req.Fix.RollbackPlan)
+		}
+		if req.Fix.FixDurationMinutes != nil {
+			issue.Fix.FixDurationMinutes = req.Fix.FixDurationMinutes
+		}
+	}
+
+	if targetStatus != currentFolder {
+		now := time.Now().UTC().Format(time.RFC3339)
+		if targetStatus == "investigating" && strings.TrimSpace(issue.Investigation.StartedAt) == "" {
+			issue.Investigation.StartedAt = now
+		}
+		if targetStatus == "fixed" && strings.TrimSpace(issue.Metadata.ResolvedAt) == "" {
+			issue.Metadata.ResolvedAt = now
+		}
+
+		targetDir := s.issueDir(targetStatus, issue.ID)
+		if _, statErr := os.Stat(targetDir); statErr == nil {
+			http.Error(w, "Issue already exists in target status", http.StatusConflict)
+			return
+		} else if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
+			log.Printf("Failed to stat target directory for issue %s: %v", issueID, statErr)
+			http.Error(w, "Failed to move issue", http.StatusInternalServerError)
+			return
+		}
+		if err := os.MkdirAll(filepath.Dir(targetDir), 0755); err != nil {
+			log.Printf("Failed to prepare target directory for issue %s: %v", issueID, err)
+			http.Error(w, "Failed to move issue", http.StatusInternalServerError)
+			return
+		}
+		if err := os.Rename(issueDir, targetDir); err != nil {
+			log.Printf("Failed to move issue %s from %s to %s: %v", issueID, issueDir, targetDir, err)
+			http.Error(w, "Failed to move issue", http.StatusInternalServerError)
+			return
+		}
+		issueDir = targetDir
+		currentFolder = targetStatus
+	}
+
+	issue.Status = currentFolder
+
+	if err := s.writeIssueMetadata(issueDir, issue); err != nil {
+		log.Printf("Failed to persist updated issue %s: %v", issueID, err)
+		http.Error(w, "Failed to save issue", http.StatusInternalServerError)
+		return
+	}
+
+	response := ApiResponse{
+		Success: true,
+		Message: "Issue updated successfully",
+		Data: map[string]interface{}{
+			"issue": issue,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) deleteIssueHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	issueID := strings.TrimSpace(vars["id"])
+	if issueID == "" {
+		http.Error(w, "Issue ID is required", http.StatusBadRequest)
+		return
+	}
+
+	issueDir, _, err := s.findIssueDirectory(issueID)
+	if err != nil {
+		http.Error(w, "Issue not found", http.StatusNotFound)
+		return
+	}
+
+	if err := os.RemoveAll(issueDir); err != nil {
+		log.Printf("Failed to delete issue %s: %v", issueID, err)
+		http.Error(w, "Failed to delete issue", http.StatusInternalServerError)
+		return
+	}
+
+	response := ApiResponse{
+		Success: true,
+		Message: "Issue deleted successfully",
+		Data: map[string]interface{}{
+			"issue_id": issueID,
 		},
 	}
 
@@ -599,19 +1231,21 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Find issue file
-	filePath, currentFolder, err := s.findIssueFile(req.IssueID)
+	// Locate issue directory
+	issueDir, currentFolder, err := s.findIssueDirectory(req.IssueID)
 	if err != nil {
 		http.Error(w, "Issue not found", http.StatusNotFound)
 		return
 	}
 
-	// Load issue
-	issue, err := s.loadIssueFromFile(filePath)
+	// Load issue metadata
+	issue, err := s.loadIssueFromDir(issueDir)
 	if err != nil {
 		http.Error(w, "Failed to load issue", http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("Fix generation requested for issue %s (status: %s)", req.IssueID, currentFolder)
 
 	// Update investigation details
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -628,9 +1262,7 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 			return
 		}
 	} else {
-		// Just update in place
-		err = s.saveIssueToFile(issue, "investigating")
-		if err != nil {
+		if err := s.writeIssueMetadata(issueDir, issue); err != nil {
 			http.Error(w, "Failed to update issue", http.StatusInternalServerError)
 			return
 		}
@@ -688,13 +1320,13 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 		}
 
 		// Update the issue with investigation results
-		filePath, _, err := s.findIssueFile(req.IssueID)
+		updatedDir, _, err := s.findIssueDirectory(req.IssueID)
 		if err != nil {
 			log.Printf("Failed to find issue file: %v", err)
 			return
 		}
 
-		issue, err := s.loadIssueFromFile(filePath)
+		issue, err := s.loadIssueFromDir(updatedDir)
 		if err != nil {
 			log.Printf("Failed to load issue: %v", err)
 			return
@@ -723,7 +1355,7 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 		}
 
 		// Save the updated issue
-		if err := s.saveIssueToFile(issue, "investigating"); err != nil {
+		if err := s.writeIssueMetadata(updatedDir, issue); err != nil {
 			log.Printf("Failed to save investigation results: %v", err)
 		} else {
 			log.Printf("Investigation results saved for issue %s", req.IssueID)
@@ -880,19 +1512,19 @@ func (s *Server) triggerFixGenerationHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Find issue file
-	filePath, currentFolder, err := s.findIssueFile(req.IssueID)
+	issueDir, currentFolder, err := s.findIssueDirectory(req.IssueID)
 	if err != nil {
 		http.Error(w, "Issue not found", http.StatusNotFound)
 		return
 	}
 
-	// Load issue to check if investigation is complete
-	issue, err := s.loadIssueFromFile(filePath)
+	issue, err := s.loadIssueFromDir(issueDir)
 	if err != nil {
 		http.Error(w, "Failed to load issue", http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("Fix generation requested for issue %s (status: %s)", req.IssueID, currentFolder)
 
 	// Check if investigation exists
 	if issue.Investigation.Report == "" {
@@ -952,8 +1584,13 @@ func (s *Server) triggerFixGenerationHandler(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		// Update issue with fix information
-		issue, err := s.loadIssueFromFile(filePath)
+		issueDir, currentFolder, err := s.findIssueDirectory(req.IssueID)
+		if err != nil {
+			log.Printf("Failed to locate issue directory: %v", err)
+			return
+		}
+
+		issue, err := s.loadIssueFromDir(issueDir)
 		if err != nil {
 			log.Printf("Failed to reload issue: %v", err)
 			return
@@ -967,11 +1604,22 @@ func (s *Server) triggerFixGenerationHandler(w http.ResponseWriter, r *http.Requ
 			issue.Fix.AppliedAt = time.Now().UTC().Format(time.RFC3339)
 		}
 
-		// Move to in-progress if not already there
+		// Ensure issue sits in in-progress unless already fixed
 		if currentFolder != "in-progress" && currentFolder != "fixed" {
-			s.moveIssue(req.IssueID, "in-progress")
-		} else {
-			s.saveIssueToFile(issue, currentFolder)
+			if err := s.moveIssue(req.IssueID, "in-progress"); err != nil {
+				log.Printf("Failed to move issue %s to in-progress: %v", req.IssueID, err)
+				return
+			}
+			issueDir, currentFolder, err = s.findIssueDirectory(req.IssueID)
+			if err != nil {
+				log.Printf("Failed to refresh issue directory after move: %v", err)
+				return
+			}
+		}
+
+		if err := s.writeIssueMetadata(issueDir, issue); err != nil {
+			log.Printf("Failed to persist fix details: %v", err)
+			return
 		}
 
 		log.Printf("Fix information saved for issue %s", req.IssueID)
@@ -1102,6 +1750,9 @@ func main() {
 	api := r.PathPrefix("/api").Subrouter()
 	api.HandleFunc("/issues", server.getIssuesHandler).Methods("GET")
 	api.HandleFunc("/issues", server.createIssueHandler).Methods("POST")
+	api.HandleFunc("/issues/{id}", server.getIssueHandler).Methods("GET")
+	api.HandleFunc("/issues/{id}", server.updateIssueHandler).Methods("PUT", "PATCH")
+	api.HandleFunc("/issues/{id}", server.deleteIssueHandler).Methods("DELETE")
 	api.HandleFunc("/issues/search", server.searchIssuesHandler).Methods("GET")
 	// api.HandleFunc("/issues/search/similar", server.vectorSearchHandler).Methods("POST") // TODO: Implement vector search
 	api.HandleFunc("/agents", server.getAgentsHandler).Methods("GET")

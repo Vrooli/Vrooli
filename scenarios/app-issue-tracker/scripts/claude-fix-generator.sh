@@ -4,6 +4,7 @@
 # Generates, tests, and applies automated fixes for investigated issues
 
 set -euo pipefail
+shopt -s nullglob
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${SCRIPT_DIR}/.."
@@ -28,7 +29,10 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-ISSUES_DIR="${ISSUES_DIR:-$VROOLI_ROOT/scenarios/app-issue-tracker/issues}"
+ISSUES_DIR="${ISSUES_DIR:-$VROOLI_ROOT/scenarios/app-issue-tracker/data/issues}"
+printf "[WARN] claude-fix-generator.sh is incompatible with folder-per-issue storage.\n" >&2
+printf "       Trigger fixes via the API instead.\n" >&2
+exit 1
 API_BASE_URL="http://localhost:8090/api"
 
 # PostgreSQL configuration
@@ -83,7 +87,7 @@ generate_fix() {
     
     # Search for issue file across all folders
     for folder in open investigating in-progress fixed closed failed; do
-        for file in "$ISSUES_DIR/$folder"/*.yaml; do
+        for file in "$ISSUES_DIR/$folder"/*/metadata.yaml; do
             if [[ -f "$file" ]] && grep -q "id: $issue_id" "$file" 2>/dev/null; then
                 issue_file="$file"
                 break 2
@@ -92,12 +96,12 @@ generate_fix() {
     done
     
     if [[ -z "$issue_file" || ! -f "$issue_file" ]]; then
-        error "Issue file not found for ID: $issue_id"
+        error "Issue metadata not found for ID: $issue_id"
         error "Searched in: $ISSUES_DIR"
         return 1
     fi
-    
-    log "Found issue file: $issue_file"
+
+    log "Found issue metadata: $issue_file"
     
     # Extract data from YAML using grep and sed (portable approach)
     issue_title=$(grep "^title:" "$issue_file" | sed 's/title: *"\?\(.*\)"\?/\1/' | sed 's/"$//')

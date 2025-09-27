@@ -5,8 +5,8 @@ echo "=== Running test-structure.sh ==="
 
 # Structure checks
 
-required_dirs=("issues/open" "issues/templates" "api" "ui" "cli" "test")
-required_files=("api/main.go" "ui/index.html" "cli/app-issue-tracker.sh" "issues/README.md")
+required_dirs=("data/issues/open" "data/issues/templates" "api" "ui" "cli" "test")
+required_files=("api/main.go" "ui/index.html" "cli/app-issue-tracker.sh" "data/issues/README.md")
 
 for dir in "${required_dirs[@]}"; do
   if [ -d "$dir" ]; then
