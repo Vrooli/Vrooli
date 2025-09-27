@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { ArrowLeft, ArrowRight, Bug, ExternalLink, Info, Loader2, Power, RefreshCw, RotateCcw, ScrollText, X } from 'lucide-react';
 import { appService } from '@/services/api';
+import type { ReportIssuePayload } from '@/services/api';
 
 type Html2CanvasFn = (element: HTMLElement, options?: Record<string, unknown>) => Promise<HTMLCanvasElement>;
 
@@ -97,6 +98,12 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const [reportSelectionRect, setReportSelectionRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [reportScreenshotClip, setReportScreenshotClip] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [reportScreenshotInfo, setReportScreenshotInfo] = useState<string | null>(null);
+  const [reportLogs, setReportLogs] = useState<string[]>([]);
+  const [reportLogsTotal, setReportLogsTotal] = useState<number | null>(null);
+  const [reportLogsLoading, setReportLogsLoading] = useState(false);
+  const [reportLogsError, setReportLogsError] = useState<string | null>(null);
+  const [reportLogsExpanded, setReportLogsExpanded] = useState(false);
+  const [reportLogsFetchedAt, setReportLogsFetchedAt] = useState<number | null>(null);
   const [previewReloadToken, setPreviewReloadToken] = useState(0);
   const [previewOverlay, setPreviewOverlay] = useState<null | { type: 'restart' | 'waiting' | 'error'; message: string }>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -110,6 +117,22 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
   const restartMonitorRef = useRef<{ cancel: () => void } | null>(null);
   const lastRefreshRequestRef = useRef(0);
   const lastRecordedViewRef = useRef<{ id: string | null; timestamp: number }>({ id: null, timestamp: 0 });
+  const reportLogsFetchedForRef = useRef<string | null>(null);
+  const reportLogsPanelId = 'app-report-dialog-logs';
+  const REPORT_LOGS_MAX_LINES = 200;
+  const logsTruncated = useMemo(() => (
+    typeof reportLogsTotal === 'number' && reportLogsTotal > reportLogs.length
+  ), [reportLogs.length, reportLogsTotal]);
+  const formattedReportLogsTime = useMemo(() => {
+    if (!reportLogsFetchedAt) {
+      return null;
+    }
+    try {
+      return new Date(reportLogsFetchedAt).toLocaleTimeString();
+    } catch {
+      return null;
+    }
+  }, [reportLogsFetchedAt]);
 
   const matchesAppIdentifier = useCallback((app: App, identifier?: string | null) => {
     if (!identifier) {
@@ -1013,6 +1036,72 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     }
   }, [currentApp, navigate]);
 
+  const resolveReportLogIdentifier = useCallback(() => {
+    const candidates = [currentApp?.scenario_name, currentApp?.id, appId]
+      .map(value => (typeof value === 'string' ? value.trim() : ''))
+      .filter(value => value.length > 0);
+
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    return candidates[0];
+  }, [appId, currentApp]);
+
+  const fetchReportLogs = useCallback(async (options?: { force?: boolean }) => {
+    const identifier = resolveReportLogIdentifier();
+    if (!identifier) {
+      setReportLogs([]);
+      setReportLogsTotal(null);
+      setReportLogsError('Unable to determine which logs to include.');
+      setReportLogsFetchedAt(null);
+      reportLogsFetchedForRef.current = null;
+      return;
+    }
+
+    const normalizedIdentifier = identifier.toLowerCase();
+    if (!options?.force && reportLogsFetchedForRef.current === normalizedIdentifier) {
+      return;
+    }
+
+    setReportLogsLoading(true);
+    setReportLogsError(null);
+
+    try {
+      const result = await appService.getAppLogs(identifier, 'both');
+      const rawLogs = Array.isArray(result.logs) ? result.logs : [];
+      const trimmedLogs = rawLogs.slice(-REPORT_LOGS_MAX_LINES);
+
+      setReportLogs(trimmedLogs);
+      setReportLogsTotal(rawLogs.length);
+      setReportLogsFetchedAt(Date.now());
+      reportLogsFetchedForRef.current = normalizedIdentifier;
+    } catch (error) {
+      logger.error('Failed to load logs for issue report', error);
+      setReportLogs([]);
+      setReportLogsTotal(null);
+      setReportLogsError('Unable to load logs. Try again.');
+      setReportLogsFetchedAt(null);
+      reportLogsFetchedForRef.current = null;
+    } finally {
+      setReportLogsLoading(false);
+    }
+  }, [REPORT_LOGS_MAX_LINES, resolveReportLogIdentifier]);
+
+  const handleToggleReportLogs = useCallback(() => {
+    setReportLogsExpanded(prev => {
+      const next = !prev;
+      if (next && !reportLogsLoading && reportLogs.length === 0 && !reportLogsError) {
+        void fetchReportLogs({ force: true });
+      }
+      return next;
+    });
+  }, [fetchReportLogs, reportLogs.length, reportLogsError, reportLogsLoading]);
+
+  const handleRefreshReportLogs = useCallback(() => {
+    void fetchReportLogs({ force: true });
+  }, [fetchReportLogs]);
+
   const handleOpenReportDialog = useCallback(() => {
     setReportDialogOpen(true);
     setReportMessage('');
@@ -1027,11 +1116,18 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     setReportSelectionRect(null);
     setReportScreenshotClip(null);
     reportScreenshotContainerSizeRef.current = null;
+    setReportLogs([]);
+    setReportLogsTotal(null);
+    setReportLogsError(null);
+    setReportLogsExpanded(false);
+    setReportLogsFetchedAt(null);
+    reportLogsFetchedForRef.current = null;
     setReportIncludeScreenshot(canCaptureScreenshot);
     if (canCaptureScreenshot) {
       void captureIframeScreenshot();
     }
-  }, [canCaptureScreenshot, captureIframeScreenshot]);
+    void fetchReportLogs({ force: true });
+  }, [canCaptureScreenshot, captureIframeScreenshot, fetchReportLogs]);
 
   const handleCloseReportDialog = useCallback(() => {
     setReportDialogOpen(false);
@@ -1049,6 +1145,13 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     setReportSelectionRect(null);
     setReportScreenshotClip(null);
     reportScreenshotContainerSizeRef.current = null;
+    setReportLogs([]);
+    setReportLogsTotal(null);
+    setReportLogsError(null);
+    setReportLogsExpanded(false);
+    setReportLogsFetchedAt(null);
+    setReportLogsLoading(false);
+    reportLogsFetchedForRef.current = null;
   }, [canCaptureScreenshot]);
 
   const handleReportMessageChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -1338,8 +1441,7 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
 
     try {
       const previewContextUrl = activePreviewUrl || null;
-
-      const response = await appService.reportAppIssue(targetAppId, {
+      const payload: ReportIssuePayload = {
         message: trimmed,
         includeScreenshot,
         previewUrl: previewContextUrl,
@@ -1347,7 +1449,17 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
         scenarioName: currentApp?.scenario_name ?? null,
         source: 'app-monitor',
         screenshotData: includeScreenshot ? reportScreenshotData ?? null : null,
-      });
+      };
+
+      if (reportLogs.length > 0) {
+        payload.logs = reportLogs;
+        payload.logsTotal = typeof reportLogsTotal === 'number' ? reportLogsTotal : reportLogs.length;
+        if (reportLogsFetchedAt) {
+          payload.logsCapturedAt = new Date(reportLogsFetchedAt).toISOString();
+        }
+      }
+
+      const response = await appService.reportAppIssue(targetAppId, payload);
 
       const issueId = response.data?.issue_id;
       setReportResult({
@@ -1361,7 +1473,18 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
     } finally {
       setReportSubmitting(false);
     }
-  }, [activePreviewUrl, appId, canCaptureScreenshot, currentApp, reportIncludeScreenshot, reportMessage, reportScreenshotData]);
+  }, [
+    activePreviewUrl,
+    appId,
+    canCaptureScreenshot,
+    currentApp,
+    reportIncludeScreenshot,
+    reportLogs,
+    reportLogsFetchedAt,
+    reportLogsTotal,
+    reportMessage,
+    reportScreenshotData,
+  ]);
 
   useEffect(() => {
     if (!reportDialogOpen) {
@@ -1755,147 +1878,226 @@ const AppPreviewView = ({ apps, setApps }: AppPreviewViewProps) => {
               </div>
             ) : (
               <form className="report-dialog__form" onSubmit={handleSubmitReport}>
-                <label htmlFor="app-report-message" className="report-dialog__label">
-                  Describe the issue
-                </label>
-                <textarea
-                  id="app-report-message"
-                  className="report-dialog__textarea"
-                  value={reportMessage}
-                  onChange={handleReportMessageChange}
-                  rows={6}
-                  placeholder="What are you seeing? Include steps to reproduce if possible."
-                  disabled={reportSubmitting}
-                  required
-                />
-
-                <label className="report-dialog__checkbox">
-                  <input
-                    type="checkbox"
-                    checked={reportIncludeScreenshot && canCaptureScreenshot}
-                    onChange={handleReportIncludeScreenshotChange}
-                    disabled={!canCaptureScreenshot || reportSubmitting}
-                  />
-                  <span>Include screenshot of the current preview</span>
-                </label>
-                {!canCaptureScreenshot && (
-                  <p className="report-dialog__hint">Load the preview to capture a screenshot.</p>
-                )}
-                {reportIncludeScreenshot && canCaptureScreenshot && (
-                  <div className="report-dialog__preview" aria-live="polite">
-                    {reportScreenshotLoading && (
-                      <div className="report-dialog__preview-loading">
-                        <Loader2 aria-hidden size={18} className="spinning" />
-                        <span>Capturing screenshot…</span>
-                      </div>
-                    )}
-
-                    {!reportScreenshotLoading && reportScreenshotError && (
-                      <div className="report-dialog__preview-error">
-                        <p>{reportScreenshotError}</p>
+                <div className="report-dialog__layout">
+                  <div className="report-dialog__lane report-dialog__lane--primary">
+                    <label htmlFor="app-report-message" className="report-dialog__label">
+                      Describe the issue
+                    </label>
+                    <textarea
+                      id="app-report-message"
+                      className="report-dialog__textarea"
+                      value={reportMessage}
+                      onChange={handleReportMessageChange}
+                      rows={6}
+                      placeholder="What are you seeing? Include steps to reproduce if possible."
+                      disabled={reportSubmitting}
+                      required
+                    />
+                    <div className="report-dialog__logs">
+                      <div className="report-dialog__logs-header">
+                        <span className="report-dialog__logs-title">Recent logs</span>
                         <button
                           type="button"
-                          className="report-dialog__button report-dialog__button--ghost"
-                          onClick={handleRetryScreenshotCapture}
-                          disabled={reportScreenshotLoading}
+                          className="report-dialog__logs-toggle"
+                          onClick={handleToggleReportLogs}
+                          aria-expanded={reportLogsExpanded}
+                          aria-controls={reportLogsPanelId}
                         >
-                          Retry capture
+                          {reportLogsExpanded ? 'Hide' : 'Show'}
                         </button>
                       </div>
-                    )}
-
-                    {!reportScreenshotLoading && !reportScreenshotError && reportScreenshotInfo && (
-                      <p className="report-dialog__preview-info">{reportScreenshotInfo}</p>
-                    )}
-
-                    {!reportScreenshotLoading && !reportScreenshotError && reportScreenshotData && (
-                      <>
-                        <div
-                          className={clsx(
-                            'report-dialog__preview-image',
-                            reportScreenshotClip === null && 'report-dialog__preview-image--selectable',
-                          )}
-                          ref={reportScreenshotContainerRef}
-                          onPointerDown={handleScreenshotPointerDown}
-                          onPointerMove={handleScreenshotPointerMove}
-                          onPointerUp={handleScreenshotPointerUp}
-                          onPointerLeave={handleScreenshotPointerLeave}
-                          onPointerCancel={handleScreenshotPointerLeave}
-                        >
-                          <img
-                            src={`data:image/png;base64,${reportScreenshotData}`}
-                            alt="Preview screenshot"
-                            loading="lazy"
-                            draggable={false}
-                            onLoad={handleScreenshotImageLoad}
-                          />
-                          {reportSelectionRect && (
-                            <div
-                              className="report-dialog__selection"
-                              style={{
-                                left: `${reportSelectionRect.x}px`,
-                                top: `${reportSelectionRect.y}px`,
-                                width: `${reportSelectionRect.width}px`,
-                                height: `${reportSelectionRect.height}px`,
-                              }}
-                            >
-                              {selectionDimensionLabel && (
-                                <span className="report-dialog__selection-label">{selectionDimensionLabel}</span>
-                              )}
-                            </div>
-                          )}
-                          {reportScreenshotClip && (
-                            <div className="report-dialog__selection-indicator">
-                              Selection locked. Reset to choose another area.
-                            </div>
-                          )}
+                      <p className="report-dialog__logs-note">
+                        {reportLogsError
+                          ? 'Logs failed to load. Expand to retry.'
+                          : reportLogsLoading
+                            ? 'Fetching recent logs…'
+                            : 'Attached to the report to accelerate troubleshooting.'}
+                      </p>
+                      <div
+                        id={reportLogsPanelId}
+                        className="report-dialog__logs-panel"
+                        style={reportLogsExpanded ? undefined : { display: 'none' }}
+                        aria-hidden={!reportLogsExpanded}
+                      >
+                        <div className="report-dialog__logs-meta">
+                          <span>
+                            {reportLogsLoading
+                              ? 'Loading logs…'
+                              : reportLogs.length > 0
+                                ? `Showing last ${reportLogs.length}${logsTruncated ? ` of ${reportLogsTotal}` : ''} lines${formattedReportLogsTime ? ` (captured ${formattedReportLogsTime})` : ''}.`
+                                : reportLogsError
+                                  ? 'Logs unavailable.'
+                                  : 'No logs captured yet.'}
+                          </span>
+                          <button
+                            type="button"
+                            className="report-dialog__logs-refresh"
+                            onClick={handleRefreshReportLogs}
+                            disabled={reportLogsLoading}
+                          >
+                            {reportLogsLoading ? (
+                              <Loader2 aria-hidden size={14} className="spinning" />
+                            ) : (
+                              <RefreshCw aria-hidden size={14} />
+                            )}
+                            <span>{reportLogsLoading ? 'Loading' : 'Refresh'}</span>
+                          </button>
                         </div>
-
-                        <div className="report-dialog__preview-actions">
-                          <div className="report-dialog__preview-meta">
-                            {reportScreenshotOriginalDimensions && (
-                              <span className="report-dialog__preview-meta-item">
-                                Base: {reportScreenshotOriginalDimensions.width} × {reportScreenshotOriginalDimensions.height}px
-                              </span>
-                            )}
-                            {reportScreenshotClip && (
-                              <span className="report-dialog__preview-meta-item">
-                                Crop: {reportScreenshotClip.width} × {reportScreenshotClip.height}px
-                              </span>
-                            )}
+                        {reportLogsLoading ? (
+                          <div className="report-dialog__logs-loading">
+                            <Loader2 aria-hidden size={18} className="spinning" />
+                            <span>Fetching logs…</span>
                           </div>
-                          <div className="report-dialog__preview-buttons">
+                        ) : reportLogsError ? (
+                          <div className="report-dialog__logs-message">
+                            <p>{reportLogsError}</p>
+                            <button
+                              type="button"
+                              className="report-dialog__button report-dialog__button--ghost"
+                              onClick={handleRefreshReportLogs}
+                              disabled={reportLogsLoading}
+                            >
+                              Retry
+                            </button>
+                          </div>
+                        ) : reportLogs.length === 0 ? (
+                          <p className="report-dialog__logs-empty">No logs available for this scenario.</p>
+                        ) : (
+                          <pre className="report-dialog__logs-content">{reportLogs.join('\n')}</pre>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="report-dialog__lane report-dialog__lane--secondary">
+                    <label className="report-dialog__checkbox">
+                      <input
+                        type="checkbox"
+                        checked={reportIncludeScreenshot && canCaptureScreenshot}
+                        onChange={handleReportIncludeScreenshotChange}
+                        disabled={!canCaptureScreenshot || reportSubmitting}
+                      />
+                      <span>Include screenshot of the current preview</span>
+                    </label>
+                    {!canCaptureScreenshot && (
+                      <p className="report-dialog__hint">Load the preview to capture a screenshot.</p>
+                    )}
+                    {reportIncludeScreenshot && canCaptureScreenshot && (
+                      <div className="report-dialog__preview" aria-live="polite">
+                        {reportScreenshotLoading && (
+                          <div className="report-dialog__preview-loading">
+                            <Loader2 aria-hidden size={18} className="spinning" />
+                            <span>Capturing screenshot…</span>
+                          </div>
+                        )}
+
+                        {!reportScreenshotLoading && reportScreenshotError && (
+                          <div className="report-dialog__preview-error">
+                            <p>{reportScreenshotError}</p>
                             <button
                               type="button"
                               className="report-dialog__button report-dialog__button--ghost"
                               onClick={handleRetryScreenshotCapture}
                               disabled={reportScreenshotLoading}
                             >
-                              Re-capture
-                            </button>
-                            <button
-                              type="button"
-                              className="report-dialog__button report-dialog__button--ghost"
-                              onClick={handleResetScreenshotSelection}
-                              disabled={reportScreenshotLoading || !reportScreenshotClip}
-                            >
-                              Reset area
+                              Retry capture
                             </button>
                           </div>
-                          <p className="report-dialog__preview-hint">
-                            {reportScreenshotClip === null
-                              ? 'Drag on the screenshot to focus on the area that needs attention.'
-                              : 'Crop saved. Reset the area if you need a different view.'}
-                          </p>
-                        </div>
-                      </>
-                    )}
+                        )}
 
-                    {!reportScreenshotLoading && !reportScreenshotError && !reportScreenshotData && (
-                      <p className="report-dialog__preview-hint">Ready to capture the current preview.</p>
+                        {!reportScreenshotLoading && !reportScreenshotError && reportScreenshotInfo && (
+                          <p className="report-dialog__preview-info">{reportScreenshotInfo}</p>
+                        )}
+
+                        {!reportScreenshotLoading && !reportScreenshotError && reportScreenshotData && (
+                          <>
+                            <div
+                              className={clsx(
+                                'report-dialog__preview-image',
+                                reportScreenshotClip === null && 'report-dialog__preview-image--selectable',
+                              )}
+                              ref={reportScreenshotContainerRef}
+                              onPointerDown={handleScreenshotPointerDown}
+                              onPointerMove={handleScreenshotPointerMove}
+                              onPointerUp={handleScreenshotPointerUp}
+                              onPointerLeave={handleScreenshotPointerLeave}
+                              onPointerCancel={handleScreenshotPointerLeave}
+                            >
+                              <img
+                                src={`data:image/png;base64,${reportScreenshotData}`}
+                                alt="Preview screenshot"
+                                loading="lazy"
+                                draggable={false}
+                                onLoad={handleScreenshotImageLoad}
+                              />
+                              {reportSelectionRect && (
+                                <div
+                                  className="report-dialog__selection"
+                                  style={{
+                                    left: `${reportSelectionRect.x}px`,
+                                    top: `${reportSelectionRect.y}px`,
+                                    width: `${reportSelectionRect.width}px`,
+                                    height: `${reportSelectionRect.height}px`,
+                                  }}
+                                >
+                                  {selectionDimensionLabel && (
+                                    <span className="report-dialog__selection-label">{selectionDimensionLabel}</span>
+                                  )}
+                                </div>
+                              )}
+                              {reportScreenshotClip && (
+                                <div className="report-dialog__selection-indicator">
+                                  Selection locked. Reset to choose another area.
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="report-dialog__preview-actions">
+                              <div className="report-dialog__preview-meta">
+                                {reportScreenshotOriginalDimensions && (
+                                  <span className="report-dialog__preview-meta-item">
+                                    Base: {reportScreenshotOriginalDimensions.width} × {reportScreenshotOriginalDimensions.height}px
+                                  </span>
+                                )}
+                                {reportScreenshotClip && (
+                                  <span className="report-dialog__preview-meta-item">
+                                    Crop: {reportScreenshotClip.width} × {reportScreenshotClip.height}px
+                                  </span>
+                                )}
+                              </div>
+                              <div className="report-dialog__preview-buttons">
+                                <button
+                                  type="button"
+                                  className="report-dialog__button report-dialog__button--ghost"
+                                  onClick={handleRetryScreenshotCapture}
+                                  disabled={reportScreenshotLoading}
+                                >
+                                  Re-capture
+                                </button>
+                                <button
+                                  type="button"
+                                  className="report-dialog__button report-dialog__button--ghost"
+                                  onClick={handleResetScreenshotSelection}
+                                  disabled={reportScreenshotLoading || !reportScreenshotClip}
+                                >
+                                  Reset area
+                                </button>
+                              </div>
+                              <p className="report-dialog__preview-hint">
+                                {reportScreenshotClip === null
+                                  ? 'Drag on the screenshot to focus on the area that needs attention.'
+                                  : 'Crop saved. Reset the area if you need a different view.'}
+                              </p>
+                            </div>
+                          </>
+                        )}
+
+                        {!reportScreenshotLoading && !reportScreenshotError && !reportScreenshotData && (
+                          <p className="report-dialog__preview-hint">Ready to capture the current preview.</p>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
+                </div>
 
                 {reportError && (
                   <p className="report-dialog__error" role="alert">

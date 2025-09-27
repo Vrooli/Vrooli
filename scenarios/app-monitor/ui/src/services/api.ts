@@ -53,6 +53,9 @@ export interface ReportIssuePayload {
   scenarioName?: string | null;
   source?: string;
   screenshotData?: string | null;
+  logs?: string[];
+  logsTotal?: number;
+  logsCapturedAt?: string | null;
 }
 
 // App Management

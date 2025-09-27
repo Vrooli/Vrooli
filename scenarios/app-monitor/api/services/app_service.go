@@ -1034,14 +1034,17 @@ func (s *AppService) RecordAppView(ctx context.Context, identifier string) (*rep
 
 // IssueReportRequest captures a request to forward an issue to app-issue-tracker
 type IssueReportRequest struct {
-	AppID             string `json:"-"`
-	Message           string `json:"message"`
-	IncludeScreenshot bool   `json:"includeScreenshot"`
-	PreviewURL        string `json:"previewUrl"`
-	AppName           string `json:"appName"`
-	ScenarioName      string `json:"scenarioName"`
-	Source            string `json:"source"`
-	ScreenshotData    string `json:"screenshotData"`
+	AppID             string   `json:"-"`
+	Message           string   `json:"message"`
+	IncludeScreenshot bool     `json:"includeScreenshot"`
+	PreviewURL        string   `json:"previewUrl"`
+	AppName           string   `json:"appName"`
+	ScenarioName      string   `json:"scenarioName"`
+	Source            string   `json:"source"`
+	ScreenshotData    string   `json:"screenshotData"`
+	Logs              []string `json:"logs"`
+	LogsTotal         int      `json:"logsTotal"`
+	LogsCapturedAt    string   `json:"logsCapturedAt"`
 }
 
 // IssueReportResult represents the outcome of forwarding an issue report
@@ -1097,8 +1100,36 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		}
 	}
 
+	const maxReportLogs = 300
+	sanitizedLogs := make([]string, 0, len(req.Logs))
+	for _, line := range req.Logs {
+		trimmed := strings.TrimRight(line, "\r\n")
+		sanitizedLogs = append(sanitizedLogs, trimmed)
+	}
+	if len(sanitizedLogs) > maxReportLogs {
+		sanitizedLogs = sanitizedLogs[len(sanitizedLogs)-maxReportLogs:]
+	}
+
+	logsTotal := req.LogsTotal
+	if logsTotal <= 0 {
+		logsTotal = len(req.Logs)
+	}
+
+	logsCapturedAt := strings.TrimSpace(req.LogsCapturedAt)
+
 	title := fmt.Sprintf("[app-monitor] %s", summarizeIssueTitle(message))
-	description := buildIssueDescription(appName, scenarioName, previewURL, req.Source, message, screenshotData, reportedAt)
+	description := buildIssueDescription(
+		appName,
+		scenarioName,
+		previewURL,
+		req.Source,
+		message,
+		screenshotData,
+		reportedAt,
+		sanitizedLogs,
+		logsTotal,
+		logsCapturedAt,
+	)
 	hasScreenshot := screenshotData != ""
 	tags := buildIssueTags(hasScreenshot)
 	environment := buildIssueEnvironment(appID, appName, previewURL, req.Source, reportedAt)
@@ -1254,7 +1285,7 @@ func summarizeIssueTitle(message string) string {
 	return firstLine
 }
 
-func buildIssueDescription(appName, scenarioName, previewURL, source, message, screenshotData string, reportedAt time.Time) string {
+func buildIssueDescription(appName, scenarioName, previewURL, source, message, screenshotData string, reportedAt time.Time, logs []string, logsTotal int, logsCapturedAt string) string {
 	var builder strings.Builder
 	builder.WriteString("## App Monitor Issue Report\n\n")
 	builder.WriteString(fmt.Sprintf("- App Name: %s\n", appName))
@@ -1270,6 +1301,32 @@ func buildIssueDescription(appName, scenarioName, previewURL, source, message, s
 	builder.WriteString("\n### Reporter Notes\n\n")
 	builder.WriteString(message)
 	builder.WriteString("\n")
+
+	if len(logs) > 0 || logsTotal > 0 {
+		builder.WriteString("\n### Recent Logs\n\n")
+		if logsCapturedAt != "" {
+			if parsed, err := time.Parse(time.RFC3339, logsCapturedAt); err == nil {
+				builder.WriteString(fmt.Sprintf("_Captured at: %s_\n\n", parsed.Format(time.RFC3339)))
+			} else {
+				builder.WriteString(fmt.Sprintf("_Captured at: %s_\n\n", logsCapturedAt))
+			}
+		}
+
+		if len(logs) > 0 {
+			builder.WriteString("```text\n")
+			for _, line := range logs {
+				builder.WriteString(line)
+				builder.WriteByte('\n')
+			}
+			builder.WriteString("```\n")
+
+			if logsTotal > len(logs) && logsTotal > 0 {
+				builder.WriteString(fmt.Sprintf("\n_Note: showing last %d of %d lines._\n", len(logs), logsTotal))
+			}
+		} else {
+			builder.WriteString("_No log entries were captured for this report._\n")
+		}
+	}
 
 	if screenshotData != "" {
 		builder.WriteString("\n### Screenshot\n\n")

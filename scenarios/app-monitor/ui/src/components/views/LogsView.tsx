@@ -31,8 +31,12 @@ export default function LogsView() {
 
     setLoading(true);
     try {
-      const appName = apps.find(a => a.id === selectedApp)?.name || selectedApp;
-      const result = await appService.getAppLogs(appName, logType);
+      const appEntry = apps.find(app => app.id === selectedApp || app.scenario_name === selectedApp);
+      const logIdentifier = [appEntry?.scenario_name, appEntry?.id, selectedApp]
+        .map(value => (typeof value === 'string' ? value.trim() : ''))
+        .find(value => value.length > 0) || selectedApp;
+
+      const result = await appService.getAppLogs(logIdentifier, logType);
       setLogs(result.logs || []);
       window.setTimeout(() => {
         scrollToBottom();
@@ -104,10 +108,10 @@ export default function LogsView() {
             value={selectedApp}
             onChange={(e) => setSelectedApp(e.target.value)}
           >
-            <option value="">SELECT APP...</option>
+            <option value="">SELECT SCENARIO...</option>
             {apps.map(app => (
-              <option key={app.id} value={app.id}>
-                {app.name}
+              <option key={app.id} value={app.id} title={app.name}>
+                {app.scenario_name || app.id}
               </option>
             ))}
           </select>

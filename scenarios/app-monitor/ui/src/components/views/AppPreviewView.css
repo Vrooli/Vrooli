@@ -305,7 +305,7 @@
 }
 
 .report-dialog {
-  width: min(90vw, 520px);
+  width: min(95vw, 960px);
   background: rgba(6, 18, 12, 0.98);
   border: 1px solid rgba(0, 255, 255, 0.25);
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45), 0 0 36px rgba(0, 255, 255, 0.15);
@@ -359,6 +359,22 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.report-dialog__layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.report-dialog__lane {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.report-dialog__lane--secondary {
+  gap: 1.25rem;
 }
 
 .report-dialog__label {
@@ -503,6 +519,148 @@
   letter-spacing: 0.04em;
 }
 
+.report-dialog__logs {
+  border: 1px solid rgba(0, 255, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(0, 24, 24, 0.55);
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.report-dialog__logs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.report-dialog__logs-title {
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--matrix-cyan);
+}
+
+.report-dialog__logs-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  background: rgba(0, 32, 32, 0.45);
+  color: var(--matrix-cyan);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.report-dialog__logs-toggle:hover:not(:disabled) {
+  background: rgba(0, 255, 255, 0.2);
+  color: var(--matrix-bg);
+}
+
+.report-dialog__logs-toggle:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.report-dialog__logs-note {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: rgba(224, 255, 249, 0.65);
+}
+
+.report-dialog__logs-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-top: 1px solid rgba(0, 255, 255, 0.2);
+  padding-top: 0.75rem;
+}
+
+.report-dialog__logs-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  color: rgba(224, 255, 249, 0.75);
+}
+
+.report-dialog__logs-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  background: rgba(0, 32, 32, 0.45);
+  color: var(--matrix-cyan);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.report-dialog__logs-refresh:hover:not(:disabled) {
+  background: rgba(0, 255, 255, 0.2);
+  color: var(--matrix-bg);
+}
+
+.report-dialog__logs-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.report-dialog__logs-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  color: rgba(224, 255, 249, 0.75);
+}
+
+.report-dialog__logs-message {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  color: rgba(224, 255, 249, 0.75);
+}
+
+.report-dialog__logs-message p {
+  margin: 0;
+}
+
+.report-dialog__logs-empty {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgba(224, 255, 249, 0.7);
+}
+
+.report-dialog__logs-content {
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  background: rgba(0, 16, 16, 0.7);
+  max-height: 240px;
+  overflow: auto;
+  font-family: 'Fira Code', 'Source Code Pro', monospace;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: rgba(224, 255, 249, 0.9);
+  white-space: pre-wrap;
+}
+
 .report-dialog__preview {
   margin-top: 0.35rem;
   border: 1px solid rgba(0, 255, 255, 0.25);
@@ -634,6 +792,30 @@
   font-size: 0.85rem;
   letter-spacing: 0.05em;
   color: rgba(224, 255, 249, 0.75);
+}
+
+@media (min-width: 960px) {
+  .report-dialog__layout {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .report-dialog__lane--primary {
+    flex: 0 1 36%;
+    max-width: 380px;
+  }
+
+  .report-dialog__lane--secondary {
+    flex: 1 1 64%;
+  }
+
+  .report-dialog__preview {
+    min-height: 320px;
+  }
+
+  .report-dialog__logs-content {
+    max-height: 320px;
+  }
 }
 
 .preview-iframe-container {
