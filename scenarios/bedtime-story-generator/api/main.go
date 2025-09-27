@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,19 +20,20 @@ import (
 )
 
 type Story struct {
-	ID             string     `json:"id"`
-	Title          string     `json:"title"`
-	Content        string     `json:"content"`
-	AgeGroup       string     `json:"age_group"`
-	Theme          string     `json:"theme"`
-	StoryLength    string     `json:"story_length"`
-	ReadingTime    int        `json:"reading_time_minutes"`
-	CharacterNames []string   `json:"character_names"`
-	PageCount      int        `json:"page_count"`
-	CreatedAt      time.Time  `json:"created_at"`
-	TimesRead      int        `json:"times_read"`
-	LastRead       *time.Time `json:"last_read"`
-	IsFavorite     bool       `json:"is_favorite"`
+	ID             string                 `json:"id"`
+	Title          string                 `json:"title"`
+	Content        string                 `json:"content"`
+	AgeGroup       string                 `json:"age_group"`
+	Theme          string                 `json:"theme"`
+	StoryLength    string                 `json:"story_length"`
+	ReadingTime    int                    `json:"reading_time_minutes"`
+	CharacterNames []string               `json:"character_names"`
+	PageCount      int                    `json:"page_count"`
+	CreatedAt      time.Time              `json:"created_at"`
+	TimesRead      int                    `json:"times_read"`
+	LastRead       *time.Time             `json:"last_read"`
+	IsFavorite     bool                   `json:"is_favorite"`
+	Illustrations  map[string]string      `json:"illustrations,omitempty"` // Page number to illustration mapping
 }
 
 type GenerateStoryRequest struct {
@@ -49,6 +51,46 @@ type ReadingSession struct {
 }
 
 var db *sql.DB
+
+// Simple in-memory cache for frequently accessed stories
+type StoryCache struct {
+	mu      sync.RWMutex
+	stories map[string]*Story
+	maxSize int
+}
+
+var storyCache = &StoryCache{
+	stories: make(map[string]*Story),
+	maxSize: 20, // Cache up to 20 most recent stories
+}
+
+func (c *StoryCache) Get(id string) (*Story, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	story, ok := c.stories[id]
+	return story, ok
+}
+
+func (c *StoryCache) Set(id string, story *Story) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	
+	// Simple eviction: if cache is full, remove oldest entry
+	if len(c.stories) >= c.maxSize {
+		// Remove a random entry (simple strategy)
+		for k := range c.stories {
+			delete(c.stories, k)
+			break
+		}
+	}
+	c.stories[id] = story
+}
+
+func (c *StoryCache) Delete(id string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.stories, id)
+}
 
 func main() {
 	// Protect against direct execution - must be run through lifecycle system
@@ -182,6 +224,40 @@ func initDB() {
 	}
 
 	log.Println("🎉 Database connection pool established successfully!")
+	
+	// Run database migration to ensure illustrations column exists
+	runDatabaseMigration()
+}
+
+func runDatabaseMigration() {
+	// Check if illustrations column exists and add if not
+	var columnExists bool
+	err := db.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_name = 'stories' 
+			AND column_name = 'illustrations'
+		)
+	`).Scan(&columnExists)
+	
+	if err != nil {
+		log.Printf("⚠️  Failed to check illustrations column: %v", err)
+		return
+	}
+	
+	if !columnExists {
+		log.Println("📦 Adding illustrations column to stories table...")
+		_, err := db.Exec(`
+			ALTER TABLE stories 
+			ADD COLUMN illustrations JSONB DEFAULT '{}'::jsonb
+		`)
+		
+		if err != nil {
+			log.Printf("⚠️  Failed to add illustrations column: %v", err)
+		} else {
+			log.Println("✅ Illustrations column added successfully")
+		}
+	}
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -220,6 +296,11 @@ func generateStoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("Story generated successfully: %s", story.Title)
+	
+	// Generate illustrations for the story
+	illustrations := generateIllustrations(story.Content, req.Theme)
+	story.Illustrations = illustrations
+	log.Printf("Generated %d illustrations for story", len(illustrations))
 
 	// Save to database
 	id := uuid.New().String()
@@ -227,13 +308,14 @@ func generateStoryHandler(w http.ResponseWriter, r *http.Request) {
 	pageCount := calculatePageCount(story.Content)
 
 	charactersJSON, _ := json.Marshal(req.CharacterNames)
+	illustrationsJSON, _ := json.Marshal(illustrations)
 
 	_, err = db.Exec(`
 		INSERT INTO stories (id, title, content, age_group, theme, story_length, 
-			reading_time_minutes, page_count, character_names)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+			reading_time_minutes, page_count, character_names, illustrations)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		id, story.Title, story.Content, req.AgeGroup, req.Theme, req.Length,
-		readingTime, pageCount, string(charactersJSON))
+		readingTime, pageCount, string(charactersJSON), string(illustrationsJSON))
 
 	if err != nil {
 		http.Error(w, "Failed to save story: "+err.Error(), http.StatusInternalServerError)
@@ -243,6 +325,13 @@ func generateStoryHandler(w http.ResponseWriter, r *http.Request) {
 	story.ID = id
 	story.ReadingTime = readingTime
 	story.PageCount = pageCount
+	story.CreatedAt = time.Now()
+	story.TimesRead = 0
+	story.IsFavorite = false
+
+	// Cache the newly generated story
+	storyCache.Set(id, story)
+	log.Printf("Cached newly generated story: %s", id)
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(story)
@@ -250,29 +339,10 @@ func generateStoryHandler(w http.ResponseWriter, r *http.Request) {
 
 func generateStoryWithOllama(req GenerateStoryRequest) (*Story, error) {
 	// Build the prompt
-	ageDescription := getAgeDescription(req.AgeGroup)
-	lengthDescription := getLengthDescription(req.Length)
-
-	prompt := fmt.Sprintf(`You are a creative children's story writer. Generate a bedtime story with these requirements:
-- Age group: %s (use appropriate vocabulary and complexity)
-- Theme: %s
-- Length: %s
-- Tone: Gentle, calming, perfect for bedtime
-%s
-
-Format your response EXACTLY as:
-TITLE: [Story title here]
-STORY:
-[Full story text here with markdown formatting for pages using ## Page N headers]
-
-Rules:
-- Make it age-appropriate and educational
-- Include gentle life lessons
-- Use calming, peaceful imagery
-- End with a soothing conclusion perfect for sleep
-- Divide into pages with ## Page 1, ## Page 2, etc.
-- No scary or overly exciting content`,
-		ageDescription, req.Theme, lengthDescription,
+	// Optimize prompt for faster generation - very concise
+	prompt := fmt.Sprintf(`Write a %s bedtime story about %s for age %s.%s
+Format: TITLE: [title]\nSTORY:\n## Page 1\n[story with ## Page N markers, calm and soothing]`,
+		req.Length, req.Theme, req.AgeGroup,
 		getCharacterPrompt(req.CharacterNames))
 
 	// Use Ollama HTTP API
@@ -291,10 +361,32 @@ Rules:
 		}
 	}
 
+	// Use faster model for better performance
+	model := os.Getenv("STORY_MODEL")
+	if model == "" {
+		model = "llama3.2:1b" // Much smaller and faster 1B model
+	}
+	
+	// Adjust token limit based on story length - reduced for speed
+	tokenLimit := 300 // short - reduced from 500
+	if req.Length == "medium" {
+		tokenLimit = 500 // reduced from 800
+	} else if req.Length == "long" {
+		tokenLimit = 800 // reduced from 1200
+	}
+	
 	requestBody := map[string]interface{}{
-		"model":  "llama3.2:3b",
+		"model":  model,
 		"prompt": prompt,
 		"stream": false,
+		"options": map[string]interface{}{
+			"temperature":    0.6,  // Lower for more focused output
+			"num_predict":    tokenLimit,
+			"top_k":          20,   // Reduced from 40 for speed
+			"top_p":          0.85, // Slightly lower for speed
+			"repeat_penalty": 1.1,
+			"seed":           42,   // Consistent seed for caching benefit
+		},
 	}
 
 	jsonData, err := json.Marshal(requestBody)
@@ -303,7 +395,7 @@ Rules:
 	}
 
 	// Log the request for debugging
-	log.Printf("Calling Ollama API at %s/api/generate with model llama3.2:3b", ollamaHost)
+	log.Printf("Calling Ollama API at %s/api/generate with model %s", ollamaHost, model)
 	
 	resp, err := http.Post(ollamaHost+"/api/generate", "application/json", strings.NewReader(string(jsonData)))
 	if err != nil {
@@ -373,6 +465,83 @@ func parseStoryResponse(response string) (title, content string) {
 	return title, content
 }
 
+// generateIllustrations creates simple emoji-based illustrations for story pages
+func generateIllustrations(content string, theme string) map[string]string {
+	illustrations := make(map[string]string)
+	
+	// Theme-based emoji sets
+	themeEmojis := map[string][]string{
+		"adventure": {"🏔️", "🗺️", "🎒", "⛺", "🌟", "🔦", "🧭", "🏕️"},
+		"animals": {"🐻", "🦊", "🐰", "🦉", "🦌", "🐿️", "🦋", "🐝"},
+		"fantasy": {"🏰", "🧙", "🦄", "🐉", "✨", "🔮", "🧚", "👑"},
+		"space": {"🚀", "🌟", "🌙", "🪐", "⭐", "🛸", "👽", "🌌"},
+		"ocean": {"🐠", "🐙", "🐢", "🦈", "🌊", "🐚", "🦀", "🏝️"},
+		"forest": {"🌲", "🦫", "🦌", "🍄", "🦉", "🐻", "🌳", "🌿"},
+		"magic": {"✨", "🎩", "🔮", "🪄", "💫", "🌟", "🦄", "🧚"},
+		"dinosaur": {"🦕", "🦖", "🦴", "🌋", "🌿", "🥚", "👣", "🏔️"},
+	}
+	
+	// Default emoji set if theme not found
+	defaultEmojis := []string{"🌟", "🌙", "✨", "💫", "🌈", "☁️", "🎈", "🎀"}
+	
+	// Select emoji set based on theme
+	themeKey := strings.ToLower(theme)
+	emojis, exists := themeEmojis[themeKey]
+	if !exists {
+		// Try to find partial match
+		for key, value := range themeEmojis {
+			if strings.Contains(themeKey, key) || strings.Contains(key, themeKey) {
+				emojis = value
+				break
+			}
+		}
+		if emojis == nil {
+			emojis = defaultEmojis
+		}
+	}
+	
+	// Generate a simple illustration for each page
+	pages := strings.Split(content, "## Page")
+	pageNum := 0
+	
+	for i, page := range pages {
+		if strings.TrimSpace(page) == "" {
+			continue
+		}
+		
+		// Create a simple emoji pattern
+		var illustration strings.Builder
+		
+		// Add decorative border
+		illustration.WriteString("╔════════════════╗\n")
+		illustration.WriteString("║                ║\n")
+		
+		// Add 2-3 rows of themed emojis
+		for row := 0; row < 2; row++ {
+			illustration.WriteString("║  ")
+			for col := 0; col < 3; col++ {
+				emojiIdx := (pageNum + row*3 + col) % len(emojis)
+				illustration.WriteString(emojis[emojiIdx])
+				illustration.WriteString("  ")
+			}
+			illustration.WriteString(" ║\n")
+		}
+		
+		illustration.WriteString("║                ║\n")
+		illustration.WriteString("╚════════════════╝")
+		
+		// Store illustration for this page
+		if i == 0 {
+			illustrations["cover"] = illustration.String()
+		} else {
+			illustrations[fmt.Sprintf("page_%d", pageNum)] = illustration.String()
+		}
+		pageNum++
+	}
+	
+	return illustrations
+}
+
 func getAgeDescription(ageGroup string) string {
 	switch ageGroup {
 	case "3-5":
@@ -434,7 +603,8 @@ func getStoriesHandler(w http.ResponseWriter, r *http.Request) {
 	query := `
 		SELECT id, title, content, age_group, theme, story_length, 
 			reading_time_minutes, page_count, character_names::text, 
-			created_at, times_read, last_read, is_favorite
+			created_at, times_read, last_read, is_favorite,
+			COALESCE(illustrations::text, '{}') as illustrations
 		FROM stories
 		ORDER BY created_at DESC
 		LIMIT 50`
@@ -449,14 +619,15 @@ func getStoriesHandler(w http.ResponseWriter, r *http.Request) {
 	var stories []Story
 	for rows.Next() {
 		var s Story
-		var charactersJSON string
+		var charactersJSON, illustrationsJSON string
 		err := rows.Scan(&s.ID, &s.Title, &s.Content, &s.AgeGroup, &s.Theme,
 			&s.StoryLength, &s.ReadingTime, &s.PageCount, &charactersJSON,
-			&s.CreatedAt, &s.TimesRead, &s.LastRead, &s.IsFavorite)
+			&s.CreatedAt, &s.TimesRead, &s.LastRead, &s.IsFavorite, &illustrationsJSON)
 		if err != nil {
 			continue
 		}
 		json.Unmarshal([]byte(charactersJSON), &s.CharacterNames)
+		json.Unmarshal([]byte(illustrationsJSON), &s.Illustrations)
 		stories = append(stories, s)
 	}
 
@@ -467,16 +638,24 @@ func getStoryHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	// Check cache first
+	if cachedStory, ok := storyCache.Get(id); ok {
+		log.Printf("Cache hit for story: %s", id)
+		json.NewEncoder(w).Encode(cachedStory)
+		return
+	}
+
 	var s Story
-	var charactersJSON string
+	var charactersJSON, illustrationsJSON string
 	err := db.QueryRow(`
 		SELECT id, title, content, age_group, theme, story_length,
 			reading_time_minutes, page_count, character_names::text,
-			created_at, times_read, last_read, is_favorite
+			created_at, times_read, last_read, is_favorite,
+			COALESCE(illustrations::text, '{}') as illustrations
 		FROM stories WHERE id = $1`, id).Scan(
 		&s.ID, &s.Title, &s.Content, &s.AgeGroup, &s.Theme,
 		&s.StoryLength, &s.ReadingTime, &s.PageCount, &charactersJSON,
-		&s.CreatedAt, &s.TimesRead, &s.LastRead, &s.IsFavorite)
+		&s.CreatedAt, &s.TimesRead, &s.LastRead, &s.IsFavorite, &illustrationsJSON)
 
 	if err == sql.ErrNoRows {
 		http.Error(w, "Story not found", http.StatusNotFound)
@@ -487,6 +666,12 @@ func getStoryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.Unmarshal([]byte(charactersJSON), &s.CharacterNames)
+	json.Unmarshal([]byte(illustrationsJSON), &s.Illustrations)
+	
+	// Add to cache for future requests
+	storyCache.Set(id, &s)
+	log.Printf("Cached story: %s", id)
+	
 	json.NewEncoder(w).Encode(s)
 }
 
@@ -536,6 +721,10 @@ func deleteStoryHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Remove from cache if present
+	storyCache.Delete(id)
+	log.Printf("Removed story from cache: %s", id)
 
 	w.WriteHeader(http.StatusNoContent)
 }

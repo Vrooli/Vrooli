@@ -2,8 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // Get ports from environment variables
-const UI_PORT = parseInt(process.env.UI_PORT);
-const API_PORT = parseInt(process.env.API_PORT);
+const UI_PORT = parseInt(process.env.UI_PORT) || 38899;
+const API_PORT = parseInt(process.env.API_PORT) || 16902;
 
 const API_BASE_URL = `http://localhost:${API_PORT}`;
 const WS_BASE_URL = `ws://localhost:${API_PORT}`;

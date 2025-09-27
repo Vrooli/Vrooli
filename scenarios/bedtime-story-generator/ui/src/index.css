@@ -983,3 +983,46 @@ body {
     padding: 22px;
   }
 }
+
+/* Speech Button Styles */
+.speech-button {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 2px solid #6366f1;
+  background: white;
+  color: #6366f1;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.95rem;
+}
+
+.speech-button:hover {
+  background: #6366f1;
+  color: white;
+  transform: scale(1.05);
+}
+
+.speech-button.speaking {
+  background: #6366f1;
+  color: white;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.speech-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+EOF < /dev/null

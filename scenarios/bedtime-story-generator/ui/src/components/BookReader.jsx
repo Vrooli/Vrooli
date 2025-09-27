@@ -23,6 +23,10 @@ const pageVariants = {
 const BookReader = ({ story, onClose }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [pages, setPages] = useState([]);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speechRate, setSpeechRate] = useState(0.9); // Slower for children
+  const [speechVoice, setSpeechVoice] = useState(null);
+  const [availableVoices, setAvailableVoices] = useState([]);
 
   useEffect(() => {
     const splitPages = story.content.split('## Page');
@@ -33,14 +37,78 @@ const BookReader = ({ story, onClose }) => {
     setCurrentPage(0);
   }, [story]);
 
+  // Initialize speech synthesis voices
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      setAvailableVoices(voices);
+      // Try to find a child-friendly or female voice
+      const preferredVoice = voices.find(voice => 
+        voice.name.toLowerCase().includes('female') || 
+        voice.name.toLowerCase().includes('child') ||
+        voice.name.toLowerCase().includes('samantha') ||
+        voice.name.toLowerCase().includes('victoria')
+      ) || voices[0];
+      setSpeechVoice(preferredVoice);
+    };
+
+    loadVoices();
+    // Some browsers load voices asynchronously
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
+
+  const speakText = (text) => {
+    if ('speechSynthesis' in window) {
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+      
+      // Remove markdown formatting for cleaner speech
+      const cleanText = text
+        .replace(/\*\*/g, '') // Remove bold markers
+        .replace(/##/g, '')   // Remove headers
+        .replace(/\n\n/g, '. ') // Replace double newlines with periods
+        .replace(/\n/g, ' ');  // Replace single newlines with spaces
+      
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = speechRate;
+      utterance.pitch = 1.1; // Slightly higher pitch for friendlier sound
+      if (speechVoice) {
+        utterance.voice = speechVoice;
+      }
+      
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+      
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const toggleSpeech = () => {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    } else {
+      speakText(pages[currentPage]);
+    }
+  };
+
   const nextPage = () => {
     if (currentPage < pages.length - 1) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
       setCurrentPage((prev) => prev + 1);
     }
   };
 
   const prevPage = () => {
     if (currentPage > 0) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
       setCurrentPage((prev) => prev - 1);
     }
   };
@@ -122,6 +190,16 @@ const BookReader = ({ story, onClose }) => {
           <button className="ghost-action" onClick={prevPage} disabled={currentPage === 0}>
             ← Previous
           </button>
+          
+          <button 
+            className={`speech-button ${isSpeaking ? 'speaking' : ''}`}
+            onClick={toggleSpeech}
+            title={isSpeaking ? 'Stop reading' : 'Read aloud'}
+            aria-label={isSpeaking ? 'Stop reading aloud' : 'Start reading aloud'}
+          >
+            {isSpeaking ? '🔊 Stop' : '🔈 Read Aloud'}
+          </button>
+          
           {currentPage === pages.length - 1 ? (
             <button className="primary-action" onClick={onClose}>
               Back to library

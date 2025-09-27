@@ -255,16 +255,16 @@ cmd_list() {
         esac
     done
     
-    echo -e "${BLUE}📚 Your Story Library${NC}"
-    echo ""
-    
     local response
     response=$(api_request "GET" "/api/v1/stories")
     
     if [[ $json_output == true ]]; then
+        # For JSON output, no decorative text
         echo "$response" | format_json
     else
         # Pretty print stories
+        echo -e "${BLUE}📚 Your Story Library${NC}"
+        echo ""
         local count=$(echo "$response" | jq 'length' 2>/dev/null || echo "0")
         echo -e "${CYAN}📋 Stories: $count${NC}"
         echo ""

@@ -206,11 +206,11 @@
       "steps": [
          {
            "name": "start-api",
-           "run": "cd api && ./bedtime-story-generator-api",
+           "run": "cd api && ./bedtime-story-api",
            "description": "Start Go API server in background",
            "background": true,
            "condition": {
-             "file_exists": "api/bedtime-story-generator-api"
+             "file_exists": "api/bedtime-story-api"
            }
          },
         {
