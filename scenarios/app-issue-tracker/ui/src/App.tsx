@@ -18,7 +18,7 @@ import {
 } from './data/sampleData';
 import './styles/app.css';
 
-const API_BASE_INPUT = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
+const API_BASE_INPUT = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api/v1';
 const API_BASE_URL = API_BASE_INPUT.endsWith('/') ? API_BASE_INPUT.slice(0, -1) : API_BASE_INPUT;
 const ISSUE_FETCH_LIMIT = 200;
 const VALID_STATUSES: IssueStatus[] = ['open', 'investigating', 'in-progress', 'fixed', 'closed', 'failed'];
@@ -196,6 +196,25 @@ function transformIssue(raw: ApiIssue): Issue {
   };
 }
 
+function getIssueIdFromLocation(): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const value = params.get('issue');
+    if (!value) {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  } catch (error) {
+    console.warn('[IssueTracker] Unable to parse issue id from URL', error);
+    return null;
+  }
+}
+
 const navItems = [
   {
     key: 'dashboard' as NavKey,
@@ -223,14 +242,31 @@ function App() {
   const [displaySettings, setDisplaySettings] = useState(AppSettings.display);
   const [rateLimits, setRateLimits] = useState(AppSettings.rateLimits);
   const [allowedAgents, setAllowedAgents] = useState<ActiveAgentOption[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(SampleData.activeAgents[0]?.id ?? '');
   const [issues, setIssues] = useState<Issue[]>([]);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>(DEFAULT_STATS);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [focusedIssueId, setFocusedIssueId] = useState<string | null>(() => getIssueIdFromLocation());
 
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handlePopState = () => {
+      setFocusedIssueId(getIssueIdFromLocation());
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
     };
   }, []);
 
@@ -313,8 +349,64 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const activeOptions = allowedAgents.length > 0 ? allowedAgents : SampleData.activeAgents;
+    setSelectedAgentId((prev) => {
+      if (prev && activeOptions.some((option) => option.id === prev)) {
+        return prev;
+      }
+      return activeOptions[0]?.id ?? '';
+    });
+  }, [allowedAgents]);
+
+  useEffect(() => {
     void fetchAllData();
   }, [fetchAllData]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    if (focusedIssueId) {
+      url.searchParams.set('issue', focusedIssueId);
+    } else {
+      url.searchParams.delete('issue');
+    }
+
+    const nextSearch = url.searchParams.toString();
+    const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ''}${url.hash}`;
+    window.history.replaceState({}, '', nextUrl);
+  }, [focusedIssueId]);
+
+  useEffect(() => {
+    if (!focusedIssueId) {
+      return;
+    }
+
+    const issueExists = issues.some((issue) => issue.id === focusedIssueId);
+    if (!issueExists) {
+      return;
+    }
+
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    const element = document.querySelector<HTMLElement>(`[data-issue-id="${focusedIssueId}"]`);
+    if (element) {
+      element.focus({ preventScroll: true });
+      window.setTimeout(() => {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+    }
+  }, [focusedIssueId, issues]);
+
+  useEffect(() => {
+    if (focusedIssueId && activeNav !== 'issues') {
+      setActiveNav('issues');
+    }
+  }, [focusedIssueId, activeNav]);
 
   const createIssue = useCallback(async () => {
     if (loading) {
@@ -356,6 +448,10 @@ function App() {
     void createIssue();
   }, [createIssue]);
 
+  const handleIssueSelect = useCallback((issueId: string) => {
+    setFocusedIssueId((current) => (current === issueId ? null : issueId));
+  }, []);
+
   const handleToggleActive = () => {
     setProcessorSettings((prev) => ({
       ...prev,
@@ -379,7 +475,13 @@ function App() {
           />
         );
       case 'issues':
-        return <IssuesBoard issues={issues} />;
+        return (
+          <IssuesBoard
+            issues={issues}
+            focusedIssueId={focusedIssueId}
+            onIssueSelect={handleIssueSelect}
+          />
+        );
       case 'settings':
         return (
           <SettingsPage
@@ -407,7 +509,15 @@ function App() {
     displaySettings,
     rateLimits,
     allowedAgents,
+    focusedIssueId,
+    handleIssueSelect,
   ]);
+
+  const activeAgentOptions = allowedAgents.length > 0 ? allowedAgents : SampleData.activeAgents;
+  const activeAgentId =
+    selectedAgentId && activeAgentOptions.some((option) => option.id === selectedAgentId)
+      ? selectedAgentId
+      : activeAgentOptions[0]?.id ?? '';
 
   return (
     <div className={`app-shell ${displaySettings.theme}`}>
@@ -421,9 +531,11 @@ function App() {
       <div className="main-panel">
         <Header
           processor={processorSettings}
-          agents={allowedAgents.length > 0 ? allowedAgents : SampleData.activeAgents}
+          agents={activeAgentOptions}
+          selectedAgentId={activeAgentId}
           onToggleActive={handleToggleActive}
           onCreateIssue={handleCreateIssue}
+          onSelectAgent={setSelectedAgentId}
         />
         <main className="page-container">
           {loading && <div className="data-banner loading">Loading latest data…</div>}

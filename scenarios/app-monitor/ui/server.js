@@ -27,9 +27,6 @@ const wss = new WebSocket.Server({
 
 const API_BASE = `http://localhost:${API_PORT}`;
 
-// Parse JSON bodies
-app.use(express.json());
-
 // Manual proxy function for API calls
 function proxyToApi(req, res, apiPath) {
     const options = {

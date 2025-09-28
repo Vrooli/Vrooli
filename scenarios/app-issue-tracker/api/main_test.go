@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -44,7 +45,7 @@ func TestGetIssueHandlerReturnsIssue(t *testing.T) {
 		t.Fatalf("failed to seed issue: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/issues/issue-123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/issues/issue-123", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": issue.ID})
 
 	rr := httptest.NewRecorder()
@@ -102,7 +103,7 @@ func TestUpdateIssueHandlerMovesIssueAndUpdatesFields(t *testing.T) {
 		t.Fatalf("failed to marshal payload: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPut, "/api/issues/issue-456", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/issues/issue-456", bytes.NewReader(body))
 	req = mux.SetURLVars(req, map[string]string{"id": issue.ID})
 
 	rr := httptest.NewRecorder()
@@ -152,7 +153,7 @@ func TestDeleteIssueHandlerRemovesIssue(t *testing.T) {
 		t.Fatalf("failed to seed issue: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/issues/issue-789", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/issues/issue-789", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": issue.ID})
 
 	rr := httptest.NewRecorder()
@@ -164,5 +165,94 @@ func TestDeleteIssueHandlerRemovesIssue(t *testing.T) {
 
 	if _, err := os.Stat(issueDir); !os.IsNotExist(err) {
 		t.Fatalf("expected issue directory to be removed, stat err: %v", err)
+	}
+}
+
+func TestCreateIssueHandlerStoresArtifacts(t *testing.T) {
+	server := newTestServer(t)
+
+	artifactContent := "line one\nline two"
+	imagePayload := base64.StdEncoding.EncodeToString([]byte("fake-image"))
+
+	payload := map[string]any{
+		"title":       "UI glitch in dashboard",
+		"description": "Steps to reproduce...",
+		"app_id":      "app-dashboard",
+		"metadata_extra": map[string]string{
+			"source": "unit-test",
+		},
+		"artifacts": []map[string]string{
+			{
+				"name":         "Lifecycle Logs",
+				"category":     "logs",
+				"content":      artifactContent,
+				"encoding":     "plain",
+				"content_type": "text/plain",
+			},
+			{
+				"name":         "Captured Screenshot",
+				"category":     "screenshot",
+				"content":      imagePayload,
+				"encoding":     "base64",
+				"content_type": "image/png",
+			},
+		},
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/issues", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+	server.createIssueHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Issue Issue `json:"issue"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Fatalf("expected success response")
+	}
+
+	created := resp.Data.Issue
+	if created.ID == "" {
+		t.Fatalf("expected issue id in response")
+	}
+	if created.Metadata.Extra == nil || created.Metadata.Extra["source"] != "unit-test" {
+		t.Fatalf("metadata extra not persisted: %#v", created.Metadata.Extra)
+	}
+	if len(created.Attachments) != 2 {
+		t.Fatalf("expected 2 attachments, got %d", len(created.Attachments))
+	}
+
+	issueDir, _, err := server.findIssueDirectory(created.ID)
+	if err != nil {
+		t.Fatalf("failed to locate stored issue: %v", err)
+	}
+	for _, attachment := range created.Attachments {
+		fullPath := filepath.Join(issueDir, attachment.Path)
+		if _, err := os.Stat(fullPath); err != nil {
+			t.Fatalf("expected attachment file %s to exist: %v", fullPath, err)
+		}
+	}
+
+	storedIssue, err := server.loadIssueFromDir(issueDir)
+	if err != nil {
+		t.Fatalf("failed to load issue metadata: %v", err)
+	}
+	if len(storedIssue.Attachments) != 2 {
+		t.Fatalf("expected attachments persisted to metadata, got %d", len(storedIssue.Attachments))
 	}
 }

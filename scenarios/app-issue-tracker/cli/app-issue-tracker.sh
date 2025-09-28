@@ -10,6 +10,7 @@ set -e
 
 # Configuration
 SCENARIO_NAME="app-issue-tracker"
+API_BASE_PATH="/api/v1"
 
 # Colors for output
 RED='\033[0;31m'
@@ -277,7 +278,7 @@ cmd_create() {
     echo -e "${BLUE}📝 Creating issue...${NC}"
     
     local response
-    response=$(api_request "POST" "/api/issues" "$request_body")
+    response=$(api_request "POST" "${API_BASE_PATH}/issues" "$request_body")
     
     if [[ $json_output == true ]]; then
         echo "$response" | format_json
@@ -353,7 +354,7 @@ cmd_list() {
         esac
     done
     
-    local endpoint="/api/issues"
+    local endpoint="${API_BASE_PATH}/issues"
     local query_params=""
     
     [[ -n "$status" ]] && query_params="${query_params:+$query_params&}status=$status"
@@ -494,7 +495,7 @@ cmd_search() {
     echo -e "${BLUE}🔍 Searching for: $query${NC}"
     
     local response
-    response=$(api_request "GET" "/api/issues/search?q=$encoded_query&limit=$limit")
+    response=$(api_request "GET" "${API_BASE_PATH}/issues/search?q=$encoded_query&limit=$limit")
     
     if [[ $json_output == true ]]; then
         echo "$response" | format_json
@@ -589,7 +590,7 @@ cmd_investigate() {
     echo ""
     
     local response
-    response=$(api_request "POST" "/api/investigate" "$request_body")
+    response=$(api_request "POST" "${API_BASE_PATH}/investigate" "$request_body")
     
     if [[ $json_output == true ]]; then
         echo "$response" | format_json
@@ -681,7 +682,7 @@ cmd_fix() {
     echo ""
     
     local response
-    response=$(api_request "POST" "/api/generate-fix" "$request_body")
+    response=$(api_request "POST" "${API_BASE_PATH}/generate-fix" "$request_body")
     
     if [[ $json_output == true ]]; then
         echo "$response" | format_json
@@ -733,7 +734,7 @@ cmd_agents() {
     echo -e "${BLUE}🤖 Fetching available agents...${NC}"
     
     local response
-    response=$(api_request "GET" "/api/agents")
+    response=$(api_request "GET" "${API_BASE_PATH}/agents")
     
     if [[ $json_output == true ]]; then
         echo "$response" | format_json
@@ -789,7 +790,7 @@ cmd_apps() {
     echo -e "${BLUE}📱 Fetching app statistics...${NC}"
     
     local response
-    response=$(api_request "GET" "/api/apps")
+    response=$(api_request "GET" "${API_BASE_PATH}/apps")
     
     if [[ $json_output == true ]]; then
         echo "$response" | format_json
@@ -843,7 +844,7 @@ cmd_stats() {
     echo -e "${BLUE}📊 Fetching issue statistics...${NC}"
     
     local response
-    response=$(api_request "GET" "/api/stats")
+    response=$(api_request "GET" "${API_BASE_PATH}/stats")
     
     if [[ $json_output == true ]]; then
         echo "$response" | format_json

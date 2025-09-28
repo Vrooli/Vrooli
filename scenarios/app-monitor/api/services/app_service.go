@@ -1304,8 +1304,9 @@ func valueOrDefault(value *int, fallback int) int {
 
 // IssueReportResult represents the outcome of forwarding an issue report
 type IssueReportResult struct {
-	IssueID string
-	Message string
+	IssueID  string
+	Message  string
+	IssueURL string
 }
 
 // ReportAppIssue forwards an issue report to the app-issue-tracker scenario
@@ -1514,6 +1515,12 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		metadataExtra = nil
 	}
 
+	reporterName := "App Monitor"
+	if reportSource != "" {
+		reporterName = fmt.Sprintf("App Monitor – %s", reportSource)
+	}
+	reporterEmail := "monitor@vrooli.local"
+
 	payload := map[string]interface{}{
 		"title":          title,
 		"description":    description,
@@ -1524,6 +1531,8 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		"environment":    environment,
 		"metadata_extra": metadataExtra,
 		"artifacts":      artifacts,
+		"reporter_name":  reporterName,
+		"reporter_email": reporterEmail,
 	}
 
 	result, err := submitIssueToTracker(ctx, port, payload)
@@ -1531,10 +1540,32 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		return nil, err
 	}
 
+	if result != nil && result.IssueID != "" {
+		if uiPort, err := resolveScenarioPortViaCLI(ctx, "app-issue-tracker", "UI_PORT"); err == nil && uiPort > 0 {
+			u := url.URL{
+				Scheme: "http",
+				Host:   fmt.Sprintf("localhost:%d", uiPort),
+				Path:   "/",
+			}
+			query := u.Query()
+			query.Set("issue", result.IssueID)
+			u.RawQuery = query.Encode()
+			result.IssueURL = u.String()
+		} else if err != nil {
+			fmt.Printf("Warning: failed to resolve app-issue-tracker UI port: %v\n", err)
+		}
+	}
+
 	return result, nil
 }
 
 func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error) {
+	if port, err := resolveScenarioPortViaCLI(ctx, "app-issue-tracker", "API_PORT"); err == nil && port > 0 {
+		return port, nil
+	} else if err != nil {
+		fmt.Printf("Warning: failed to resolve app-issue-tracker port via CLI: %v\n", err)
+	}
+
 	apps, err := s.GetAppsFromOrchestrator(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to inspect scenarios: %w", err)
@@ -1556,6 +1587,108 @@ func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error)
 	}
 
 	return 0, errors.New("app-issue-tracker is not running or no API port was found")
+}
+
+func resolveScenarioPortViaCLI(ctx context.Context, scenarioName, portLabel string) (int, error) {
+	port, err := executeScenarioPortCommand(ctx, scenarioName, portLabel)
+	if err == nil {
+		return port, nil
+	}
+
+	fallbackPorts, fallbackErr := executeScenarioPortList(ctx, scenarioName)
+	if fallbackErr == nil {
+		candidate := strings.ToUpper(strings.TrimSpace(portLabel))
+		if value, ok := fallbackPorts[candidate]; ok && value > 0 {
+			return value, nil
+		}
+	}
+
+	if fallbackErr != nil {
+		return 0, fmt.Errorf("%v; fallback error: %w", err, fallbackErr)
+	}
+
+	return 0, err
+}
+
+func executeScenarioPortCommand(ctx context.Context, scenarioName, portLabel string) (int, error) {
+	if strings.TrimSpace(scenarioName) == "" || strings.TrimSpace(portLabel) == "" {
+		return 0, errors.New("scenario and port labels are required")
+	}
+
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "port", scenarioName, portLabel)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return 0, fmt.Errorf("vrooli scenario port %s %s failed: %s", scenarioName, portLabel, strings.TrimSpace(string(output)))
+	}
+
+	return parsePortValueFromString(strings.TrimSpace(string(output)))
+}
+
+func executeScenarioPortList(ctx context.Context, scenarioName string) (map[string]int, error) {
+	if strings.TrimSpace(scenarioName) == "" {
+		return nil, errors.New("scenario name is required")
+	}
+
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "port", scenarioName)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("vrooli scenario port %s failed: %s", scenarioName, strings.TrimSpace(string(output)))
+	}
+
+	ports := make(map[string]int)
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, rawLine := range lines {
+		line := strings.TrimSpace(rawLine)
+		if line == "" {
+			continue
+		}
+
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		key := strings.ToUpper(strings.TrimSpace(parts[0]))
+		value := strings.TrimSpace(parts[1])
+		port, err := parsePortValueFromString(value)
+		if err != nil {
+			continue
+		}
+
+		if port > 0 {
+			ports[key] = port
+		}
+	}
+
+	if len(ports) == 0 {
+		return nil, errors.New("no port mappings returned")
+	}
+
+	return ports, nil
+}
+
+func parsePortValueFromString(value string) (int, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return 0, errors.New("empty port value")
+	}
+
+	port, err := strconv.Atoi(trimmed)
+	if err != nil {
+		return 0, fmt.Errorf("invalid port value %q", value)
+	}
+
+	if port <= 0 || port > 65535 {
+		return 0, fmt.Errorf("port value out of range: %d", port)
+	}
+
+	return port, nil
 }
 
 func resolvePort(portMappings map[string]interface{}, preferredKeys []string) int {
@@ -2051,6 +2184,15 @@ func submitIssueToTracker(ctx context.Context, port int, payload map[string]inte
 			issueID = value
 		} else if value, ok := trackerResp.Data["issueId"].(string); ok {
 			issueID = value
+		} else if rawIssue, ok := trackerResp.Data["issue"]; ok {
+			switch v := rawIssue.(type) {
+			case map[string]interface{}:
+				if nested, ok := v["id"].(string); ok {
+					issueID = nested
+				}
+			case struct{ ID string }:
+				issueID = strings.TrimSpace(v.ID)
+			}
 		}
 	}
 

@@ -5,6 +5,8 @@ import { IssueCard } from '../components/IssueCard';
 
 interface IssuesBoardProps {
   issues: Issue[];
+  focusedIssueId?: string | null;
+  onIssueSelect?: (issueId: string) => void;
 }
 
 const columnMeta: Record<IssueStatus, { title: string; icon: React.ComponentType<{ size?: number }> }> = {
@@ -16,7 +18,7 @@ const columnMeta: Record<IssueStatus, { title: string; icon: React.ComponentType
   failed: { title: 'Failed', icon: CircleSlash },
 };
 
-export function IssuesBoard({ issues }: IssuesBoardProps) {
+export function IssuesBoard({ issues, focusedIssueId, onIssueSelect }: IssuesBoardProps) {
   const grouped = useMemo(() => {
     const base: Record<IssueStatus, Issue[]> = {
       open: [],
@@ -61,7 +63,12 @@ export function IssuesBoard({ issues }: IssuesBoardProps) {
               </header>
               <div className="kanban-column-body">
                 {grouped[status].map((issue) => (
-                  <IssueCard key={issue.id} issue={issue} />
+                  <IssueCard
+                    key={issue.id}
+                    issue={issue}
+                    isFocused={issue.id === focusedIssueId}
+                    onSelect={onIssueSelect}
+                  />
                 ))}
                 {grouped[status].length === 0 && (
                   <div className="empty-column">

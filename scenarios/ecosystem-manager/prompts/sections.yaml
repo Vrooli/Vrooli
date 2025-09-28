@@ -104,6 +104,7 @@ operations:
       - "Health checks more robust: `timeout 5 curl -sf http://localhost:${PORT}/health` passes with error details"
       - "CLI commands standardized: `vrooli resource NAME help` shows status, health, logs, content commands"
       - "No regressions: All previously passing `lib/test.sh` tests still pass"
+      - "Security & standards baseline captured: `resource-auditor audit NAME --timeout 240` recorded before changes"
       - "Documentation updated: README reflects actual implementation, no broken links"
       - "Memory system updated: `vrooli resource qdrant search 'resource_name'` returns updated info"
     
@@ -111,6 +112,7 @@ operations:
       - "v2.0 compliance is priority #1"
       - "Health checks must be reliable"
       - "Preserve working functionality"
+      - "Surface inherited security debt before implementing fixes"
       - "Standardize patterns across resources"
       - "Enable better scenario integration"
 
@@ -193,6 +195,7 @@ operations:
       - "PRD accuracy validated: Each checked ✅ requirement tested and verified working"
       - "Progress measurable: At least one P0/P1 requirement moves from ☐ to ✅ with completion date"
       - "No regressions verified: All previously working features tested and still functional"
+      - "Security & standards baseline captured: `scenario-auditor audit NAME --timeout 240` recorded before changes"
       - "Validation gates pass: Health, functionality, security, and integration tests all succeed"
       - "Cross-scenario impacts assessed: Dependencies checked, no breaking changes to other scenarios"
       - "Memory updated: `vrooli resource qdrant search 'scenario improvements'` includes recent work"
@@ -201,6 +204,7 @@ operations:
       - "Trust but verify everything"
       - "Incremental progress is permanent"
       - "PRD accuracy is sacred"
+      - "Expose existing security debt before implementing fixes"
       - "Small focused changes win"
       - "Learn from past attempts"
 

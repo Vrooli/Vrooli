@@ -531,6 +531,15 @@
   letter-spacing: 0.04em;
 }
 
+.report-dialog__success-link {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.report-dialog__success-link .report-dialog__button {
+  width: auto;
+}
+
 .report-dialog__logs {
   border: 1px solid rgba(0, 255, 255, 0.18);
   border-radius: 10px;

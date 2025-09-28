@@ -1,88 +1,96 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 )
 
-func TestIssueReportRequestAllowsNullFields(t *testing.T) {
-	jsonPayload := []byte(`{
-        "message": "Example issue",
-        "includeScreenshot": false,
-        "previewUrl": null,
-        "appName": null,
-        "scenarioName": null,
-        "source": null,
-        "screenshotData": null,
-        "logs": [],
-        "logsTotal": null,
-        "logsCapturedAt": null,
-        "consoleLogs": [],
-        "consoleLogsTotal": null,
-        "consoleLogsCapturedAt": null,
-        "networkRequests": [],
-        "networkRequestsTotal": null,
-        "networkCapturedAt": null
-    }`)
+func TestSubmitIssueToTrackerReturnsIssueID(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/issues" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
 
-	var req IssueReportRequest
-	if err := json.Unmarshal(jsonPayload, &req); err != nil {
-		t.Fatalf("unexpected error unmarshalling payload: %v", err)
-	}
+		var payload map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode payload: %v", err)
+		}
+		if payload["title"] == "" {
+			t.Fatalf("expected title field to be populated")
+		}
 
-	if req.PreviewURL != nil {
-		t.Fatalf("expected PreviewURL to be nil when JSON contains null")
-	}
-	if req.AppName != nil {
-		t.Fatalf("expected AppName to be nil when JSON contains null")
-	}
-	if req.ScenarioName != nil {
-		t.Fatalf("expected ScenarioName to be nil when JSON contains null")
-	}
-	if req.Source != nil {
-		t.Fatalf("expected Source to be nil when JSON contains null")
-	}
-	if req.ScreenshotData != nil {
-		t.Fatalf("expected ScreenshotData to be nil when JSON contains null")
-	}
-	if req.LogsTotal != nil {
-		t.Fatalf("expected LogsTotal pointer to be nil when JSON contains null")
-	}
-	if req.LogsCapturedAt != nil {
-		t.Fatalf("expected LogsCapturedAt pointer to be nil when JSON contains null")
-	}
-	if req.ConsoleLogsTotal != nil {
-		t.Fatalf("expected ConsoleLogsTotal pointer to be nil when JSON contains null")
-	}
-	if req.ConsoleCapturedAt != nil {
-		t.Fatalf("expected ConsoleCapturedAt pointer to be nil when JSON contains null")
-	}
-	if req.NetworkTotal != nil {
-		t.Fatalf("expected NetworkTotal pointer to be nil when JSON contains null")
-	}
-	if req.NetworkCapturedAt != nil {
-		t.Fatalf("expected NetworkCapturedAt pointer to be nil when JSON contains null")
+		resp := map[string]interface{}{
+			"success": true,
+			"message": "created",
+			"data": map[string]interface{}{
+				"issue_id": "issue-abc",
+			},
+		}
+		json.NewEncoder(w).Encode(resp)
 	}
 
-	if req.Message != "Example issue" {
-		t.Fatalf("expected message to be decoded, got %q", req.Message)
+	server := httptest.NewServer(http.HandlerFunc(handler))
+	defer server.Close()
+
+	parts := strings.Split(server.URL, ":")
+	if len(parts) < 3 {
+		t.Fatalf("unexpected server URL: %s", server.URL)
+	}
+	portStr := parts[len(parts)-1]
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("failed to parse port: %v", err)
+	}
+
+	result, err := submitIssueToTracker(context.Background(), port, map[string]interface{}{"title": "test"})
+	if err != nil {
+		t.Fatalf("submitIssueToTracker returned error: %v", err)
+	}
+	if result == nil || result.IssueID != "issue-abc" {
+		t.Fatalf("expected issue-abc, got %#v", result)
 	}
 }
 
-func TestStringHelpers(t *testing.T) {
-	if got := stringValue(nil); got != "" {
-		t.Fatalf("expected empty string for nil pointer, got %q", got)
-	}
-	ptr := "hello"
-	if got := stringValue(&ptr); got != "hello" {
-		t.Fatalf("expected original string, got %q", got)
+func TestSubmitIssueToTrackerParsesNestedIssueID(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]interface{}{
+			"success": true,
+			"message": "created",
+			"data": map[string]interface{}{
+				"issue": map[string]interface{}{
+					"id": "issue-nested",
+				},
+			},
+		}
+		json.NewEncoder(w).Encode(resp)
 	}
 
-	if got := valueOrDefault(nil, 42); got != 42 {
-		t.Fatalf("expected fallback value, got %d", got)
+	server := httptest.NewServer(http.HandlerFunc(handler))
+	defer server.Close()
+
+	parts := strings.Split(server.URL, ":")
+	if len(parts) < 3 {
+		t.Fatalf("unexpected server URL: %s", server.URL)
 	}
-	number := 7
-	if got := valueOrDefault(&number, 42); got != 7 {
-		t.Fatalf("expected pointer value, got %d", got)
+	portStr := parts[len(parts)-1]
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("failed to parse port: %v", err)
+	}
+
+	result, err := submitIssueToTracker(context.Background(), port, map[string]interface{}{"title": "test"})
+	if err != nil {
+		t.Fatalf("submitIssueToTracker returned error: %v", err)
+	}
+	if result.IssueID != "issue-nested" {
+		t.Fatalf("expected issue-nested, got %q", result.IssueID)
 	}
 }

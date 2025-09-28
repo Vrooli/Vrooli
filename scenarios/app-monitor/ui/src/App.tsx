@@ -9,10 +9,12 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { useAppWebSocket } from '@/hooks/useWebSocket';
 import './App.css';
 import { useAppsStore } from '@/state/appsStore';
+import { useResourcesStore } from '@/state/resourcesStore';
 
 function App() {
   const loadApps = useAppsStore(state => state.loadApps);
   const updateAppInStore = useAppsStore(state => state.updateApp);
+  const loadResources = useResourcesStore(state => state.loadResources);
   const [isConnected, setIsConnected] = useState(false);
 
   // WebSocket connection for real-time updates
@@ -44,7 +46,8 @@ function App() {
   // Fetch initial data on component mount
   useEffect(() => {
     void loadApps();
-  }, [loadApps]);
+    void loadResources();
+  }, [loadApps, loadResources]);
 
   return (
     <ErrorBoundary>

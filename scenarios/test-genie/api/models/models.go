@@ -1,8 +1,8 @@
 package models
 
 import (
-	"time"
 	"github.com/google/uuid"
+	"time"
 )
 
 // Test Suite Models
@@ -31,34 +31,35 @@ type TestCase struct {
 	Priority       string    `json:"priority"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+	SourcePath     string    `json:"source_path,omitempty"`
 }
 
 type TestExecution struct {
-	ID                uuid.UUID           `json:"id"`
-	SuiteID           uuid.UUID           `json:"suite_id"`
-	ExecutionType     string              `json:"execution_type"`
-	StartTime         time.Time           `json:"start_time"`
-	EndTime           *time.Time          `json:"end_time,omitempty"`
-	Status            string              `json:"status"`
-	Results           []TestResult        `json:"results"`
+	ID                 uuid.UUID          `json:"id"`
+	SuiteID            uuid.UUID          `json:"suite_id"`
+	ExecutionType      string             `json:"execution_type"`
+	StartTime          time.Time          `json:"start_time"`
+	EndTime            *time.Time         `json:"end_time,omitempty"`
+	Status             string             `json:"status"`
+	Results            []TestResult       `json:"results"`
 	PerformanceMetrics PerformanceMetrics `json:"performance_metrics"`
-	Environment       string              `json:"environment"`
+	Environment        string             `json:"environment"`
 }
 
 type TestResult struct {
-	ID                  uuid.UUID         `json:"id"`
-	ExecutionID         uuid.UUID         `json:"execution_id"`
-	TestCaseID          uuid.UUID         `json:"test_case_id"`
-	Status              string            `json:"status"`
-	Duration            float64           `json:"duration"`
-	ErrorMessage        *string           `json:"error_message,omitempty"`
-	StackTrace          *string           `json:"stack_trace,omitempty"`
-	Assertions          []AssertionResult `json:"assertions"`
+	ID                  uuid.UUID              `json:"id"`
+	ExecutionID         uuid.UUID              `json:"execution_id"`
+	TestCaseID          uuid.UUID              `json:"test_case_id"`
+	Status              string                 `json:"status"`
+	Duration            float64                `json:"duration"`
+	ErrorMessage        *string                `json:"error_message,omitempty"`
+	StackTrace          *string                `json:"stack_trace,omitempty"`
+	Assertions          []AssertionResult      `json:"assertions"`
 	Artifacts           map[string]interface{} `json:"artifacts"`
-	StartedAt           time.Time         `json:"started_at"`
-	CompletedAt         time.Time         `json:"completed_at"`
-	TestCaseName        string            `json:"test_case_name,omitempty"`
-	TestCaseDescription string            `json:"test_case_description,omitempty"`
+	StartedAt           time.Time              `json:"started_at"`
+	CompletedAt         time.Time              `json:"completed_at"`
+	TestCaseName        string                 `json:"test_case_name,omitempty"`
+	TestCaseDescription string                 `json:"test_case_description,omitempty"`
 }
 
 type CoverageMetrics struct {
@@ -68,9 +69,9 @@ type CoverageMetrics struct {
 }
 
 type PerformanceMetrics struct {
-	ExecutionTime  float64                `json:"execution_time"`
-	ResourceUsage  map[string]interface{} `json:"resource_usage"`
-	ErrorCount     int                    `json:"error_count"`
+	ExecutionTime float64                `json:"execution_time"`
+	ResourceUsage map[string]interface{} `json:"resource_usage"`
+	ErrorCount    int                    `json:"error_count"`
 }
 
 type AssertionResult struct {
@@ -83,10 +84,10 @@ type AssertionResult struct {
 
 // Request/Response Models
 type GenerateTestSuiteRequest struct {
-	ScenarioName string   `json:"scenario_name" binding:"required"`
-	TestTypes    []string `json:"test_types" binding:"required"`
-	CoverageTarget float64 `json:"coverage_target"`
-	Options       TestGenerationOptions `json:"options"`
+	ScenarioName   string                `json:"scenario_name" binding:"required"`
+	TestTypes      []string              `json:"test_types" binding:"required"`
+	CoverageTarget float64               `json:"coverage_target"`
+	Options        TestGenerationOptions `json:"options"`
 }
 
 type TestGenerationOptions struct {
@@ -97,19 +98,19 @@ type TestGenerationOptions struct {
 }
 
 type GenerateTestSuiteResponse struct {
-	SuiteID           uuid.UUID            `json:"suite_id"`
-	GeneratedTests    int                  `json:"generated_tests"`
-	EstimatedCoverage float64              `json:"estimated_coverage"`
-	GenerationTime    float64              `json:"generation_time"`
-	TestFiles         map[string][]string  `json:"test_files"`
+	SuiteID           uuid.UUID           `json:"suite_id"`
+	GeneratedTests    int                 `json:"generated_tests"`
+	EstimatedCoverage float64             `json:"estimated_coverage"`
+	GenerationTime    float64             `json:"generation_time"`
+	TestFiles         map[string][]string `json:"test_files"`
 }
 
 type ExecuteTestSuiteRequest struct {
-	ExecutionType        string                      `json:"execution_type"`
-	Environment          string                      `json:"environment"`
-	ParallelExecution    bool                        `json:"parallel_execution"`
-	TimeoutSeconds       int                         `json:"timeout_seconds"`
-	NotificationSettings NotificationSettings       `json:"notification_settings"`
+	ExecutionType        string               `json:"execution_type"`
+	Environment          string               `json:"environment"`
+	ParallelExecution    bool                 `json:"parallel_execution"`
+	TimeoutSeconds       int                  `json:"timeout_seconds"`
+	NotificationSettings NotificationSettings `json:"notification_settings"`
 }
 
 type NotificationSettings struct {
@@ -127,13 +128,13 @@ type ExecuteTestSuiteResponse struct {
 }
 
 type TestExecutionResultsResponse struct {
-	ExecutionID         uuid.UUID                  `json:"execution_id"`
-	SuiteName          string                     `json:"suite_name"`
-	Status             string                     `json:"status"`
-	Summary            TestExecutionSummary       `json:"summary"`
-	FailedTests        []TestResult               `json:"failed_tests"`
-	PerformanceMetrics PerformanceMetrics         `json:"performance_metrics"`
-	Recommendations    []string                   `json:"recommendations"`
+	ExecutionID        uuid.UUID            `json:"execution_id"`
+	SuiteName          string               `json:"suite_name"`
+	Status             string               `json:"status"`
+	Summary            TestExecutionSummary `json:"summary"`
+	FailedTests        []TestResult         `json:"failed_tests"`
+	PerformanceMetrics PerformanceMetrics   `json:"performance_metrics"`
+	Recommendations    []string             `json:"recommendations"`
 }
 
 type TestExecutionSummary struct {
@@ -146,47 +147,47 @@ type TestExecutionSummary struct {
 }
 
 type CoverageAnalysisRequest struct {
-	ScenarioName     string   `json:"scenario_name" binding:"required"`
-	SourceCodePaths  []string `json:"source_code_paths"`
+	ScenarioName      string   `json:"scenario_name" binding:"required"`
+	SourceCodePaths   []string `json:"source_code_paths"`
 	ExistingTestPaths []string `json:"existing_test_paths"`
-	AnalysisDepth    string   `json:"analysis_depth"`
+	AnalysisDepth     string   `json:"analysis_depth"`
 }
 
 type CoverageAnalysisResponse struct {
-	OverallCoverage       float64                `json:"overall_coverage"`
-	CoverageByFile        map[string]float64     `json:"coverage_by_file"`
-	CoverageGaps          CoverageGaps           `json:"coverage_gaps"`
-	ImprovementSuggestions []string              `json:"improvement_suggestions"`
-	PriorityAreas         []string               `json:"priority_areas"`
+	OverallCoverage        float64            `json:"overall_coverage"`
+	CoverageByFile         map[string]float64 `json:"coverage_by_file"`
+	CoverageGaps           CoverageGaps       `json:"coverage_gaps"`
+	ImprovementSuggestions []string           `json:"improvement_suggestions"`
+	PriorityAreas          []string           `json:"priority_areas"`
 }
 
 type CoverageGaps struct {
-	UntestedFunctions  []string `json:"untested_functions"`
-	UntestedBranches   []string `json:"untested_branches"`
-	UntestedEdgeCases  []string `json:"untested_edge_cases"`
+	UntestedFunctions []string `json:"untested_functions"`
+	UntestedBranches  []string `json:"untested_branches"`
+	UntestedEdgeCases []string `json:"untested_edge_cases"`
 }
 
 // Vault Testing Types
 type TestVault struct {
-	ID                    uuid.UUID               `json:"id"`
-	ScenarioName          string                  `json:"scenario_name"`
-	VaultName             string                  `json:"vault_name"`
-	Phases                []string                `json:"phases"`
-	PhaseConfigurations   map[string]PhaseConfig  `json:"phase_configurations"`
-	SuccessCriteria       SuccessCriteria         `json:"success_criteria"`
-	TotalTimeout          int                     `json:"total_timeout"`
-	CreatedAt             time.Time               `json:"created_at"`
-	LastExecuted          *time.Time              `json:"last_executed,omitempty"`
-	Status                string                  `json:"status"`
+	ID                  uuid.UUID              `json:"id"`
+	ScenarioName        string                 `json:"scenario_name"`
+	VaultName           string                 `json:"vault_name"`
+	Phases              []string               `json:"phases"`
+	PhaseConfigurations map[string]PhaseConfig `json:"phase_configurations"`
+	SuccessCriteria     SuccessCriteria        `json:"success_criteria"`
+	TotalTimeout        int                    `json:"total_timeout"`
+	CreatedAt           time.Time              `json:"created_at"`
+	LastExecuted        *time.Time             `json:"last_executed,omitempty"`
+	Status              string                 `json:"status"`
 }
 
 type PhaseConfig struct {
-	Name         string            `json:"name"`
-	Description  string            `json:"description"`
-	Timeout      int               `json:"timeout"`
-	Tests        []PhaseTest       `json:"tests"`
-	Validation   PhaseValidation   `json:"validation"`
-	Dependencies []string          `json:"dependencies"`
+	Name         string          `json:"name"`
+	Description  string          `json:"description"`
+	Timeout      int             `json:"timeout"`
+	Tests        []PhaseTest     `json:"tests"`
+	Validation   PhaseValidation `json:"validation"`
+	Dependencies []string        `json:"dependencies"`
 }
 
 type PhaseTest struct {
@@ -209,42 +210,42 @@ type PhaseValidation struct {
 }
 
 type SuccessCriteria struct {
-	AllPhasesCompleted       bool    `json:"all_phases_completed"`
-	NoCriticalFailures       bool    `json:"no_critical_failures"`
-	CoverageThreshold        float64 `json:"coverage_threshold"`
-	PerformanceBaselineMet   bool    `json:"performance_baseline_met"`
+	AllPhasesCompleted     bool    `json:"all_phases_completed"`
+	NoCriticalFailures     bool    `json:"no_critical_failures"`
+	CoverageThreshold      float64 `json:"coverage_threshold"`
+	PerformanceBaselineMet bool    `json:"performance_baseline_met"`
 }
 
 type VaultExecution struct {
-	ID               uuid.UUID                `json:"id"`
-	VaultID          uuid.UUID                `json:"vault_id"`
-	ExecutionType    string                   `json:"execution_type"`
-	StartTime        time.Time                `json:"start_time"`
-	EndTime          *time.Time               `json:"end_time,omitempty"`
-	CurrentPhase     string                   `json:"current_phase"`
-	CompletedPhases  []string                 `json:"completed_phases"`
-	FailedPhases     []string                 `json:"failed_phases"`
-	Status           string                   `json:"status"`
-	PhaseResults     map[string]PhaseResult   `json:"phase_results"`
-	Environment      string                   `json:"environment"`
+	ID              uuid.UUID              `json:"id"`
+	VaultID         uuid.UUID              `json:"vault_id"`
+	ExecutionType   string                 `json:"execution_type"`
+	StartTime       time.Time              `json:"start_time"`
+	EndTime         *time.Time             `json:"end_time,omitempty"`
+	CurrentPhase    string                 `json:"current_phase"`
+	CompletedPhases []string               `json:"completed_phases"`
+	FailedPhases    []string               `json:"failed_phases"`
+	Status          string                 `json:"status"`
+	PhaseResults    map[string]PhaseResult `json:"phase_results"`
+	Environment     string                 `json:"environment"`
 }
 
 type PhaseResult struct {
-	PhaseName    string               `json:"phase_name"`
-	Status       string               `json:"status"`
-	StartTime    time.Time            `json:"start_time"`
-	EndTime      *time.Time           `json:"end_time,omitempty"`
-	TestResults  []TestResult         `json:"test_results"`
+	PhaseName    string                 `json:"phase_name"`
+	Status       string                 `json:"status"`
+	StartTime    time.Time              `json:"start_time"`
+	EndTime      *time.Time             `json:"end_time,omitempty"`
+	TestResults  []TestResult           `json:"test_results"`
 	Metrics      map[string]interface{} `json:"metrics"`
-	ErrorMessage string               `json:"error_message,omitempty"`
+	ErrorMessage string                 `json:"error_message,omitempty"`
 }
 
 // Health Check Types
 type HealthStatus struct {
-	Healthy   bool   `json:"healthy"`
-	Message   string `json:"message,omitempty"`
+	Healthy   bool                     `json:"healthy"`
+	Message   string                   `json:"message,omitempty"`
 	Services  map[string]ServiceHealth `json:"services,omitempty"`
-	Timestamp time.Time `json:"timestamp"`
+	Timestamp time.Time                `json:"timestamp"`
 }
 
 type ServiceHealth struct {

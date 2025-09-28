@@ -30,6 +30,126 @@ type SystemHandler struct {
 	resourceCache  *resourceCache
 }
 
+func lookupValue(raw map[string]interface{}, key string) interface{} {
+	if raw == nil {
+		return nil
+	}
+	for k, v := range raw {
+		if strings.EqualFold(k, key) {
+			return v
+		}
+	}
+	return nil
+}
+
+func (h *SystemHandler) invalidateResourceCache() {
+	h.resourceCache.mu.Lock()
+	defer h.resourceCache.mu.Unlock()
+	h.resourceCache.data = nil
+	h.resourceCache.timestamp = time.Time{}
+}
+
+func (h *SystemHandler) upsertResourceCache(resource map[string]interface{}) {
+	if resource == nil {
+		return
+	}
+
+	h.resourceCache.mu.Lock()
+	defer h.resourceCache.mu.Unlock()
+
+	if len(h.resourceCache.data) == 0 {
+		h.resourceCache.data = []map[string]interface{}{resource}
+		h.resourceCache.timestamp = time.Now()
+		return
+	}
+
+	replaced := false
+	for i, existing := range h.resourceCache.data {
+		if stringValue(existing["id"]) == stringValue(resource["id"]) {
+			h.resourceCache.data[i] = resource
+			replaced = true
+			break
+		}
+	}
+
+	if !replaced {
+		h.resourceCache.data = append(h.resourceCache.data, resource)
+	}
+
+	h.resourceCache.timestamp = time.Now()
+}
+
+func (h *SystemHandler) transformResource(raw map[string]interface{}) (map[string]interface{}, bool) {
+	name := stringValue(lookupValue(raw, "Name"))
+	if name == "" {
+		return nil, false
+	}
+
+	enabled, enabledKnown := parseBool(lookupValue(raw, "Enabled"))
+	running, _ := parseBool(lookupValue(raw, "Running"))
+	statusDetail := stringValue(lookupValue(raw, "Status"))
+	normalizedStatus := strings.ToLower(statusDetail)
+	typeValue := stringValue(lookupValue(raw, "Type"))
+	if typeValue == "" {
+		typeValue = name
+	}
+
+	status := "offline"
+	switch {
+	case strings.Contains(normalizedStatus, "unregistered"):
+		status = "unregistered"
+	case strings.Contains(normalizedStatus, "error") || strings.Contains(normalizedStatus, "failed"):
+		status = "error"
+	case running:
+		status = "online"
+	case enabled && enabledKnown:
+		status = "stopped"
+	case !enabledKnown && !running:
+		status = "unknown"
+	}
+
+	return map[string]interface{}{
+		"id":            name,
+		"name":          name,
+		"type":          typeValue,
+		"status":        status,
+		"enabled":       enabled,
+		"enabled_known": enabledKnown,
+		"running":       running,
+		"status_detail": statusDetail,
+	}, true
+}
+
+func (h *SystemHandler) fetchResourceStatus(ctx context.Context, name string) (map[string]interface{}, error) {
+	cmd := exec.CommandContext(ctx, "vrooli", "resource", "status", name, "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	var parsed interface{}
+	if err := json.Unmarshal(output, &parsed); err != nil {
+		return nil, err
+	}
+
+	switch value := parsed.(type) {
+	case []interface{}:
+		for _, item := range value {
+			if typed, ok := item.(map[string]interface{}); ok {
+				if transformed, valid := h.transformResource(typed); valid {
+					return transformed, nil
+				}
+			}
+		}
+	case map[string]interface{}:
+		if transformed, valid := h.transformResource(value); valid {
+			return transformed, nil
+		}
+	}
+
+	return nil, fmt.Errorf("resource %s not found", name)
+}
+
 func parseBool(value interface{}) (bool, bool) {
 	switch v := value.(type) {
 	case bool:
@@ -156,40 +276,9 @@ func (h *SystemHandler) GetResources(c *gin.Context) {
 	// Transform resource data for frontend
 	transformedResources := make([]map[string]interface{}, 0, len(resources))
 	for _, resource := range resources {
-		name := stringValue(resource["Name"])
-		if name == "" {
-			continue
+		if transformed, valid := h.transformResource(resource); valid {
+			transformedResources = append(transformedResources, transformed)
 		}
-
-		enabled, enabledKnown := parseBool(resource["Enabled"])
-		running, _ := parseBool(resource["Running"])
-		statusDetail := stringValue(resource["Status"])
-		normalizedStatus := strings.ToLower(statusDetail)
-
-		status := "offline"
-		switch {
-		case strings.Contains(normalizedStatus, "unregistered"):
-			status = "unregistered"
-		case strings.Contains(normalizedStatus, "error") || strings.Contains(normalizedStatus, "failed"):
-			status = "error"
-		case running:
-			status = "online"
-		case enabled && enabledKnown:
-			status = "stopped"
-		case !enabledKnown && !running:
-			status = "unknown"
-		}
-
-		transformedResources = append(transformedResources, map[string]interface{}{
-			"id":            name,
-			"name":          name,
-			"type":          name,
-			"status":        status,
-			"enabled":       enabled,
-			"enabled_known": enabledKnown,
-			"running":       running,
-			"status_detail": statusDetail,
-		})
 	}
 
 	// Update cache
@@ -199,4 +288,98 @@ func (h *SystemHandler) GetResources(c *gin.Context) {
 	h.resourceCache.mu.Unlock()
 
 	c.JSON(http.StatusOK, transformedResources)
+}
+
+func (h *SystemHandler) handleResourceAction(c *gin.Context, action string) {
+	name := strings.TrimSpace(c.Param("id"))
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Resource name is required",
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "vrooli", "resource", action, name)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		errMsg := strings.TrimSpace(string(output))
+		if errMsg == "" {
+			errMsg = err.Error()
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Failed to %s resource %s: %s", action, name, errMsg),
+		})
+		return
+	}
+
+	// Invalidate cache so subsequent requests fetch fresh data
+	h.invalidateResourceCache()
+
+	statusCtx, statusCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer statusCancel()
+
+	resource, fetchErr := h.fetchResourceStatus(statusCtx, name)
+	if fetchErr == nil {
+		h.upsertResourceCache(resource)
+	}
+
+	response := gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Resource %s command '%s' executed successfully", name, action),
+	}
+	if resource != nil {
+		response["data"] = resource
+	}
+
+	if fetchErr != nil {
+		response["warning"] = fmt.Sprintf("Command succeeded but failed to refresh status: %v", fetchErr)
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// StartResource starts a specific resource via the Vrooli CLI.
+func (h *SystemHandler) StartResource(c *gin.Context) {
+	h.handleResourceAction(c, "start")
+}
+
+// StopResource stops a specific resource via the Vrooli CLI.
+func (h *SystemHandler) StopResource(c *gin.Context) {
+	h.handleResourceAction(c, "stop")
+}
+
+// GetResourceStatus refreshes the status for a single resource.
+func (h *SystemHandler) GetResourceStatus(c *gin.Context) {
+	name := strings.TrimSpace(c.Param("id"))
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Resource name is required",
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resource, err := h.fetchResourceStatus(ctx, name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Failed to fetch resource %s status: %v", name, err),
+		})
+		return
+	}
+
+	h.upsertResourceCache(resource)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    resource,
+	})
 }

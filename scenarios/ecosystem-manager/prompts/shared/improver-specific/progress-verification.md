@@ -15,11 +15,17 @@
 # Scenario baseline (run from the scenario directory)
 make test > /tmp/${SCENARIO}_baseline_tests.txt
 make status > /tmp/${SCENARIO}_baseline_status.txt
+scenario-auditor audit ${SCENARIO} --timeout 240 > /tmp/${SCENARIO}_baseline_audit.json
+jq '{security: .security.outcome, standards: .standards.outcome}' /tmp/${SCENARIO}_baseline_audit.json
 
 # Resource baseline (run from the resource directory)
 ./lib/test.sh > /tmp/${RESOURCE}_baseline_tests.txt
 vrooli resource status ${RESOURCE} --json > /tmp/${RESOURCE}_baseline_status.json
+resource-auditor audit ${RESOURCE} --timeout 240 > /tmp/${RESOURCE}_baseline_audit.json
+jq '{security: .security.outcome, standards: .standards.outcome}' /tmp/${RESOURCE}_baseline_audit.json
 ```
+
+Capture the auditor JSON paths in your notes so downstream agents inherit the security and standards context.
 
 ### 2. Validate every PRD check
 ```bash

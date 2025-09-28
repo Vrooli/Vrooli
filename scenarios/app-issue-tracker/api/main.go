@@ -11,10 +11,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -145,6 +147,7 @@ type Issue struct {
 		Tags       []string          `yaml:"tags,omitempty" json:"tags,omitempty"`
 		Labels     map[string]string `yaml:"labels,omitempty" json:"labels,omitempty"`
 		Watchers   []string          `yaml:"watchers,omitempty" json:"watchers,omitempty"`
+		Extra      map[string]string `yaml:"extra,omitempty" json:"extra,omitempty"`
 	} `yaml:"metadata" json:"metadata"`
 
 	Notes string `yaml:"notes,omitempty" json:"notes,omitempty"`
@@ -158,17 +161,18 @@ type Attachment struct {
 }
 
 type UpdateIssueRequest struct {
-	Title       *string            `json:"title"`
-	Description *string            `json:"description"`
-	Type        *string            `json:"type"`
-	Priority    *string            `json:"priority"`
-	AppID       *string            `json:"app_id"`
-	Status      *string            `json:"status"`
-	Tags        *[]string          `json:"tags"`
-	Labels      *map[string]string `json:"labels"`
-	Watchers    *[]string          `json:"watchers"`
-	Notes       *string            `json:"notes"`
-	ResolvedAt  *string            `json:"resolved_at"`
+	Title         *string            `json:"title"`
+	Description   *string            `json:"description"`
+	Type          *string            `json:"type"`
+	Priority      *string            `json:"priority"`
+	AppID         *string            `json:"app_id"`
+	Status        *string            `json:"status"`
+	Tags          *[]string          `json:"tags"`
+	Labels        *map[string]string `json:"labels"`
+	Watchers      *[]string          `json:"watchers"`
+	Notes         *string            `json:"notes"`
+	ResolvedAt    *string            `json:"resolved_at"`
+	MetadataExtra *map[string]string `json:"metadata_extra"`
 
 	Reporter *struct {
 		Name      *string `json:"name"`
@@ -210,6 +214,60 @@ type UpdateIssueRequest struct {
 		RollbackPlan       *string `json:"rollback_plan"`
 		FixDurationMinutes *int    `json:"fix_duration_minutes"`
 	} `json:"fix"`
+
+	Artifacts []ArtifactPayload `json:"artifacts"`
+}
+
+type ArtifactPayload struct {
+	Name        string `json:"name"`
+	Category    string `json:"category"`
+	Content     string `json:"content"`
+	Encoding    string `json:"encoding"`
+	ContentType string `json:"content_type"`
+}
+
+type LegacyAttachmentPayload struct {
+	Name        string `json:"name"`
+	Content     string `json:"content"`
+	Encoding    string `json:"encoding"`
+	ContentType string `json:"content_type"`
+}
+
+type CreateIssueRequest struct {
+	Title         string            `json:"title"`
+	Description   string            `json:"description"`
+	Type          string            `json:"type"`
+	Priority      string            `json:"priority"`
+	AppID         string            `json:"app_id"`
+	Status        string            `json:"status"`
+	Tags          []string          `json:"tags"`
+	Labels        map[string]string `json:"labels"`
+	Watchers      []string          `json:"watchers"`
+	Notes         string            `json:"notes"`
+	Environment   map[string]string `json:"environment"`
+	MetadataExtra map[string]string `json:"metadata_extra"`
+	Reporter      *struct {
+		Name      string `json:"name"`
+		Email     string `json:"email"`
+		UserID    string `json:"user_id"`
+		Timestamp string `json:"timestamp"`
+	} `json:"reporter"`
+	ReporterName          string                    `json:"reporter_name"`
+	ReporterEmail         string                    `json:"reporter_email"`
+	ReporterUserID        string                    `json:"reporter_user_id"`
+	ErrorMessage          string                    `json:"error_message"`
+	ErrorLogs             string                    `json:"error_logs"`
+	StackTrace            string                    `json:"stack_trace"`
+	AffectedFiles         []string                  `json:"affected_files"`
+	AffectedComponents    []string                  `json:"affected_components"`
+	AppLogs               string                    `json:"app_logs"`
+	ConsoleLogs           string                    `json:"console_logs"`
+	NetworkLogs           string                    `json:"network_logs"`
+	ScreenshotData        string                    `json:"screenshot_data"`
+	ScreenshotContentType string                    `json:"screenshot_content_type"`
+	ScreenshotFilename    string                    `json:"screenshot_filename"`
+	Attachments           []LegacyAttachmentPayload `json:"attachments"`
+	Artifacts             []ArtifactPayload         `json:"artifacts"`
 }
 
 type Agent struct {
@@ -473,6 +531,258 @@ func looksLikeJSON(payload string) bool {
 	return (first == '{' && last == '}') || (first == '[' && last == ']')
 }
 
+var whitespaceSequence = regexp.MustCompile("-+")
+
+func sanitizeFileComponent(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	replaced := strings.ReplaceAll(trimmed, "\\", "-")
+	replaced = strings.ReplaceAll(replaced, "/", "-")
+	replaced = strings.ReplaceAll(replaced, " ", "-")
+	var builder strings.Builder
+	for _, r := range replaced {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			builder.WriteRune(unicode.ToLower(r))
+		case r == '-' || r == '_' || r == '.':
+			builder.WriteRune(r)
+		default:
+			builder.WriteRune('-')
+		}
+	}
+	sanitized := builder.String()
+	sanitized = whitespaceSequence.ReplaceAllString(sanitized, "-")
+	sanitized = strings.Trim(sanitized, "-_")
+	sanitized = strings.TrimLeft(sanitized, ".")
+	return sanitized
+}
+
+func ensureUniqueFilename(filename string, used map[string]int) string {
+	if used == nil {
+		used = make(map[string]int)
+	}
+	if filename == "" {
+		filename = "artifact"
+	}
+	if used[filename] == 0 {
+		used[filename] = 1
+		return filename
+	}
+	base := filename
+	ext := ""
+	if strings.Contains(filename, ".") {
+		ext = filepath.Ext(filename)
+		base = strings.TrimSuffix(filename, ext)
+	}
+	candidate := filename
+	counter := used[filename]
+	for {
+		candidate = fmt.Sprintf("%s-%d%s", base, counter, ext)
+		if used[candidate] == 0 {
+			used[filename] = counter + 1
+			used[candidate] = 1
+			return candidate
+		}
+		counter++
+	}
+}
+
+func decodeArtifactContent(payload ArtifactPayload) ([]byte, error) {
+	encoding := strings.ToLower(strings.TrimSpace(payload.Encoding))
+	switch encoding {
+	case "", "plain", "text", "markdown", "json":
+		return []byte(payload.Content), nil
+	case "base64":
+		return decodeBase64Payload(payload.Content)
+	default:
+		return nil, fmt.Errorf("unsupported artifact encoding: %s", payload.Encoding)
+	}
+}
+
+func determineContentType(payload ArtifactPayload, defaultForPlain string) string {
+	contentType := strings.TrimSpace(payload.ContentType)
+	if contentType != "" {
+		return contentType
+	}
+	encoding := strings.ToLower(strings.TrimSpace(payload.Encoding))
+	switch encoding {
+	case "json":
+		return "application/json"
+	case "", "plain", "text", "markdown":
+		if defaultForPlain != "" {
+			return defaultForPlain
+		}
+		return "text/plain"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+func (s *Server) persistArtifacts(issueDir string, payloads []ArtifactPayload) ([]Attachment, error) {
+	if len(payloads) == 0 {
+		return nil, nil
+	}
+	trimmed := make([]ArtifactPayload, 0, len(payloads))
+	for _, payload := range payloads {
+		if strings.TrimSpace(payload.Content) == "" {
+			continue
+		}
+		trimmed = append(trimmed, payload)
+	}
+	if len(trimmed) == 0 {
+		return nil, nil
+	}
+	destination := filepath.Join(issueDir, artifactsDirName)
+	if err := os.MkdirAll(destination, 0755); err != nil {
+		return nil, err
+	}
+	usedFilenames := make(map[string]int)
+	var attachments []Attachment
+	for idx, artifact := range trimmed {
+		data, err := decodeArtifactContent(artifact)
+		if err != nil {
+			return nil, fmt.Errorf("artifact %d: %w", idx, err)
+		}
+		displayName := strings.TrimSpace(artifact.Name)
+		if displayName == "" {
+			displayName = fmt.Sprintf("Artifact %d", idx+1)
+		}
+		baseComponent := sanitizeFileComponent(displayName)
+		if baseComponent == "" {
+			if artifact.Category != "" {
+				baseComponent = sanitizeFileComponent(artifact.Category)
+			}
+			if baseComponent == "" {
+				baseComponent = fmt.Sprintf("artifact-%d", idx+1)
+			}
+		}
+		ext := ""
+		if dot := strings.LastIndex(baseComponent, "."); dot != -1 {
+			ext = baseComponent[dot+1:]
+		}
+		filename := baseComponent
+		if ext == "" {
+			guessed := extensionFromContentType(artifact.ContentType)
+			if guessed == "" {
+				encoding := strings.ToLower(strings.TrimSpace(artifact.Encoding))
+				if encoding == "json" && !strings.HasSuffix(filename, ".json") {
+					guessed = "json"
+				}
+			}
+			if guessed != "" && !strings.HasSuffix(strings.ToLower(filename), "."+guessed) {
+				filename = fmt.Sprintf("%s.%s", filename, guessed)
+			}
+		}
+		filename = ensureUniqueFilename(filename, usedFilenames)
+		contentType := determineContentType(artifact, "")
+		if contentType == "" {
+			switch strings.ToLower(filepath.Ext(filename)) {
+			case ".txt":
+				contentType = "text/plain"
+			case ".json":
+				contentType = "application/json"
+			case ".png":
+				contentType = "image/png"
+			case ".jpg", ".jpeg":
+				contentType = "image/jpeg"
+			case ".webp":
+				contentType = "image/webp"
+			default:
+				contentType = "application/octet-stream"
+			}
+		}
+		filePath := filepath.Join(destination, filename)
+		if err := os.WriteFile(filePath, data, 0644); err != nil {
+			return nil, fmt.Errorf("artifact %q: %w", filename, err)
+		}
+		attachments = append(attachments, Attachment{
+			Name: displayName,
+			Type: contentType,
+			Path: filepath.Join(artifactsDirName, filename),
+			Size: int64(len(data)),
+		})
+	}
+	return attachments, nil
+}
+
+func mergeCreateArtifacts(req *CreateIssueRequest) []ArtifactPayload {
+	var artifacts []ArtifactPayload
+	artifacts = append(artifacts, req.Artifacts...)
+	if strings.TrimSpace(req.AppLogs) != "" {
+		artifacts = append(artifacts, ArtifactPayload{
+			Name:        "Application Logs",
+			Category:    "logs",
+			Content:     req.AppLogs,
+			Encoding:    "plain",
+			ContentType: "text/plain",
+		})
+	}
+	if strings.TrimSpace(req.ConsoleLogs) != "" {
+		artifacts = append(artifacts, ArtifactPayload{
+			Name:        "Console Logs",
+			Category:    "console",
+			Content:     req.ConsoleLogs,
+			Encoding:    "plain",
+			ContentType: "text/plain",
+		})
+	}
+	if strings.TrimSpace(req.NetworkLogs) != "" {
+		contentType := "application/json"
+		if !looksLikeJSON(req.NetworkLogs) {
+			contentType = "text/plain"
+		}
+		artifacts = append(artifacts, ArtifactPayload{
+			Name:        "Network Requests",
+			Category:    "network",
+			Content:     req.NetworkLogs,
+			Encoding:    "plain",
+			ContentType: contentType,
+		})
+	}
+	if strings.TrimSpace(req.ScreenshotData) != "" {
+		contentType := strings.TrimSpace(req.ScreenshotContentType)
+		if contentType == "" {
+			contentType = "image/png"
+		}
+		artifacts = append(artifacts, ArtifactPayload{
+			Name:        fallbackScreenshotName(req.ScreenshotFilename),
+			Category:    "screenshot",
+			Content:     req.ScreenshotData,
+			Encoding:    "base64",
+			ContentType: contentType,
+		})
+	}
+	for _, attachment := range req.Attachments {
+		content := strings.TrimSpace(attachment.Content)
+		name := strings.TrimSpace(attachment.Name)
+		if content == "" || name == "" {
+			continue
+		}
+		encoding := strings.TrimSpace(attachment.Encoding)
+		if encoding == "" {
+			encoding = "plain"
+		}
+		artifacts = append(artifacts, ArtifactPayload{
+			Name:        name,
+			Category:    "attachment",
+			Content:     content,
+			Encoding:    encoding,
+			ContentType: strings.TrimSpace(attachment.ContentType),
+		})
+	}
+	return artifacts
+}
+
+func fallbackScreenshotName(filename string) string {
+	trimmed := strings.TrimSpace(filename)
+	if trimmed == "" {
+		return "Screenshot"
+	}
+	return trimmed
+}
+
 func (s *Server) getAllIssues(statusFilter, priorityFilter, typeFilter string, limit int) ([]Issue, error) {
 	var allIssues []Issue
 
@@ -566,241 +876,131 @@ func (s *Server) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) createIssueHandler(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Title                 string            `json:"title"`
-		Description           string            `json:"description"`
-		Type                  string            `json:"type"`
-		Priority              string            `json:"priority"`
-		AppID                 string            `json:"app_id"`
-		ErrorMessage          string            `json:"error_message"`
-		StackTrace            string            `json:"stack_trace"`
-		Tags                  []string          `json:"tags"`
-		ReporterName          string            `json:"reporter_name"`
-		ReporterEmail         string            `json:"reporter_email"`
-		Environment           map[string]string `json:"environment"`
-		AppLogs               string            `json:"app_logs"`
-		ConsoleLogs           string            `json:"console_logs"`
-		NetworkLogs           string            `json:"network_logs"`
-		ScreenshotData        string            `json:"screenshot_data"`
-		ScreenshotContentType string            `json:"screenshot_content_type"`
-		ScreenshotFilename    string            `json:"screenshot_filename"`
-		Attachments           []struct {
-			Name        string `json:"name"`
-			Content     string `json:"content"`
-			Encoding    string `json:"encoding"`
-			ContentType string `json:"content_type"`
-		} `json:"attachments"`
-	}
-
+	var req CreateIssueRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	if req.Title == "" {
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
 		http.Error(w, "Title is required", http.StatusBadRequest)
 		return
 	}
 
-	if req.Type == "" {
-		req.Type = "bug"
-	}
-	if req.Priority == "" {
-		req.Priority = "medium"
-	}
-	if req.AppID == "" {
-		req.AppID = "unknown"
-	}
-	if req.Description == "" {
-		req.Description = req.Title
+	description := strings.TrimSpace(req.Description)
+	if description == "" {
+		description = title
 	}
 
+	issueType := strings.TrimSpace(req.Type)
+	if issueType == "" {
+		issueType = "bug"
+	}
+	priority := strings.TrimSpace(req.Priority)
+	if priority == "" {
+		priority = "medium"
+	}
+	appID := strings.TrimSpace(req.AppID)
+	if appID == "" {
+		appID = "unknown"
+	}
+
+	targetStatus := "open"
+	if trimmed := strings.ToLower(strings.TrimSpace(req.Status)); trimmed != "" {
+		if _, ok := validIssueStatuses[trimmed]; !ok {
+			http.Error(w, fmt.Sprintf("Invalid status: %s", trimmed), http.StatusBadRequest)
+			return
+		}
+		targetStatus = trimmed
+	}
+
+	issueID := fmt.Sprintf("issue-%s", uuid.New().String()[:8])
 	issue := Issue{
-		ID:          fmt.Sprintf("issue-%s", uuid.New().String()[:8]),
-		Title:       req.Title,
-		Description: req.Description,
-		Type:        req.Type,
-		Priority:    req.Priority,
-		AppID:       req.AppID,
-		Status:      "open",
+		ID:          issueID,
+		Title:       title,
+		Description: description,
+		Type:        issueType,
+		Priority:    priority,
+		AppID:       appID,
+		Status:      targetStatus,
+		Notes:       strings.TrimSpace(req.Notes),
 	}
 
-	issue.Reporter.Name = req.ReporterName
-	issue.Reporter.Email = req.ReporterEmail
-	issue.Reporter.Timestamp = time.Now().UTC().Format(time.RFC3339)
+	now := time.Now().UTC().Format(time.RFC3339)
+	if req.Reporter != nil {
+		issue.Reporter.Name = strings.TrimSpace(req.Reporter.Name)
+		issue.Reporter.Email = strings.TrimSpace(req.Reporter.Email)
+		issue.Reporter.UserID = strings.TrimSpace(req.Reporter.UserID)
+		issue.Reporter.Timestamp = strings.TrimSpace(req.Reporter.Timestamp)
+	}
+	if strings.TrimSpace(req.ReporterName) != "" {
+		issue.Reporter.Name = strings.TrimSpace(req.ReporterName)
+	}
+	if strings.TrimSpace(req.ReporterEmail) != "" {
+		issue.Reporter.Email = strings.TrimSpace(req.ReporterEmail)
+	}
+	if strings.TrimSpace(req.ReporterUserID) != "" {
+		issue.Reporter.UserID = strings.TrimSpace(req.ReporterUserID)
+	}
+	if strings.TrimSpace(issue.Reporter.Timestamp) == "" {
+		issue.Reporter.Timestamp = now
+	}
 
-	issue.ErrorContext.ErrorMessage = req.ErrorMessage
-	issue.ErrorContext.StackTrace = req.StackTrace
-	issue.ErrorContext.EnvironmentInfo = req.Environment
+	issue.ErrorContext.ErrorMessage = strings.TrimSpace(req.ErrorMessage)
+	if strings.TrimSpace(req.ErrorLogs) != "" {
+		issue.ErrorContext.ErrorLogs = req.ErrorLogs
+	}
+	if strings.TrimSpace(req.StackTrace) != "" {
+		issue.ErrorContext.StackTrace = req.StackTrace
+	}
+	if len(req.AffectedFiles) > 0 {
+		issue.ErrorContext.AffectedFiles = normalizeStringSlice(req.AffectedFiles)
+	}
+	if len(req.AffectedComponents) > 0 {
+		issue.ErrorContext.AffectedComponents = normalizeStringSlice(req.AffectedComponents)
+	}
+	if len(req.Environment) > 0 {
+		issue.ErrorContext.EnvironmentInfo = cloneStringMap(req.Environment)
+	}
 
-	issue.Metadata.Tags = req.Tags
+	issue.Metadata.Tags = normalizeStringSlice(req.Tags)
+	issue.Metadata.Labels = cloneStringMap(req.Labels)
+	issue.Metadata.Watchers = normalizeStringSlice(req.Watchers)
+	issue.Metadata.Extra = cloneStringMap(req.MetadataExtra)
 
-	issueDir := s.issueDir("open", issue.ID)
+	issueDir := s.issueDir(targetStatus, issue.ID)
 	if err := os.MkdirAll(issueDir, 0755); err != nil {
 		log.Printf("Error preparing issue directory: %v", err)
 		http.Error(w, "Failed to prepare storage", http.StatusInternalServerError)
 		return
 	}
 
-	var attachments []Attachment
-	var artifactsDir string
-	ensureArtifactsDir := func() (string, error) {
-		if artifactsDir != "" {
-			return artifactsDir, nil
-		}
-		dir := filepath.Join(issueDir, artifactsDirName)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return "", err
-		}
-		artifactsDir = dir
-		return dir, nil
-	}
-
-	addTextArtifact := func(label, fileName, content, contentType string) error {
-		if strings.TrimSpace(content) == "" {
-			return nil
-		}
-		dir, err := ensureArtifactsDir()
-		if err != nil {
-			return err
-		}
-		data := []byte(content)
-		relPath := filepath.Join(artifactsDirName, fileName)
-		if err := os.WriteFile(filepath.Join(dir, fileName), data, 0644); err != nil {
-			return err
-		}
-		attachments = append(attachments, Attachment{
-			Name: label,
-			Type: contentType,
-			Path: relPath,
-			Size: int64(len(data)),
-		})
-		return nil
-	}
-
-	if err := addTextArtifact("Application Logs", "app-logs.txt", req.AppLogs, "text/plain"); err != nil {
-		log.Printf("Error saving app logs: %v", err)
-		http.Error(w, "Failed to store app logs", http.StatusInternalServerError)
+	artifactPayloads := mergeCreateArtifacts(&req)
+	attachments, err := s.persistArtifacts(issueDir, artifactPayloads)
+	if err != nil {
+		log.Printf("Error storing artifacts: %v", err)
+		http.Error(w, "Failed to store artifacts", http.StatusInternalServerError)
 		return
 	}
-	if err := addTextArtifact("Console Logs", "console-logs.txt", req.ConsoleLogs, "text/plain"); err != nil {
-		log.Printf("Error saving console logs: %v", err)
-		http.Error(w, "Failed to store console logs", http.StatusInternalServerError)
-		return
-	}
-	networkContentType := "application/json"
-	networkFileName := "network-requests.json"
-	if !looksLikeJSON(req.NetworkLogs) {
-		networkContentType = "text/plain"
-		networkFileName = "network-requests.txt"
-	}
-	if err := addTextArtifact("Network Requests", networkFileName, req.NetworkLogs, networkContentType); err != nil {
-		log.Printf("Error saving network requests: %v", err)
-		http.Error(w, "Failed to store network requests", http.StatusInternalServerError)
-		return
-	}
-
-	if strings.TrimSpace(req.ScreenshotData) != "" {
-		data, err := decodeBase64Payload(req.ScreenshotData)
-		if err != nil {
-			log.Printf("Error decoding screenshot: %v", err)
-			http.Error(w, "Invalid screenshot data", http.StatusBadRequest)
-			return
-		}
-		dir, err := ensureArtifactsDir()
-		if err != nil {
-			log.Printf("Error preparing artifacts directory: %v", err)
-			http.Error(w, "Failed to store screenshot", http.StatusInternalServerError)
-			return
-		}
-		filename := strings.TrimSpace(req.ScreenshotFilename)
-		if filename == "" {
-			ext := extensionFromContentType(req.ScreenshotContentType)
-			if ext == "" {
-				ext = "png"
-			}
-			filename = fmt.Sprintf("screenshot.%s", ext)
-		}
-		filename = filepath.Base(filename)
-		relPath := filepath.Join(artifactsDirName, filename)
-		if err := os.WriteFile(filepath.Join(dir, filename), data, 0644); err != nil {
-			log.Printf("Error writing screenshot: %v", err)
-			http.Error(w, "Failed to store screenshot", http.StatusInternalServerError)
-			return
-		}
-		attachments = append(attachments, Attachment{
-			Name: "Screenshot",
-			Type: req.ScreenshotContentType,
-			Path: relPath,
-			Size: int64(len(data)),
-		})
-	}
-
-	for _, payload := range req.Attachments {
-		content := strings.TrimSpace(payload.Content)
-		name := strings.TrimSpace(payload.Name)
-		if content == "" || name == "" {
-			continue
-		}
-		var data []byte
-		var err error
-		switch strings.ToLower(payload.Encoding) {
-		case "", "plain", "text":
-			data = []byte(content)
-		case "base64":
-			data, err = decodeBase64Payload(content)
-		default:
-			err = fmt.Errorf("unsupported encoding: %s", payload.Encoding)
-		}
-		if err != nil {
-			log.Printf("Error decoding attachment %s: %v", payload.Name, err)
-			http.Error(w, "Failed to decode attachment", http.StatusBadRequest)
-			return
-		}
-		dir, err := ensureArtifactsDir()
-		if err != nil {
-			log.Printf("Error preparing artifacts directory: %v", err)
-			http.Error(w, "Failed to store attachment", http.StatusInternalServerError)
-			return
-		}
-		filename := filepath.Base(name)
-		if filepath.Ext(filename) == "" {
-			ext := extensionFromContentType(payload.ContentType)
-			if ext != "" {
-				filename = fmt.Sprintf("%s.%s", filename, ext)
-			}
-		}
-		relPath := filepath.Join(artifactsDirName, filename)
-		if err := os.WriteFile(filepath.Join(dir, filename), data, 0644); err != nil {
-			log.Printf("Error writing attachment %s: %v", filename, err)
-			http.Error(w, "Failed to store attachment", http.StatusInternalServerError)
-			return
-		}
-		attachments = append(attachments, Attachment{
-			Name: filename,
-			Type: payload.ContentType,
-			Path: relPath,
-			Size: int64(len(data)),
-		})
-	}
-
 	if len(attachments) > 0 {
 		issue.Attachments = attachments
 	}
 
-	if _, err := s.saveIssue(&issue, "open"); err != nil {
+	if _, err := s.saveIssue(&issue, targetStatus); err != nil {
 		log.Printf("Error saving issue: %v", err)
 		http.Error(w, "Failed to create issue", http.StatusInternalServerError)
 		return
 	}
 
+	storagePath := filepath.Join(targetStatus, issue.ID)
 	response := ApiResponse{
 		Success: true,
 		Message: "Issue created successfully",
 		Data: map[string]interface{}{
+			"issue":        issue,
 			"issue_id":     issue.ID,
-			"storage_path": filepath.Join("open", issue.ID),
-			"attachments":  issue.Attachments,
+			"storage_path": storagePath,
 		},
 	}
 
@@ -932,6 +1132,13 @@ func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
 			issue.Metadata.Watchers = nil
 		} else {
 			issue.Metadata.Watchers = normalizeStringSlice(*req.Watchers)
+		}
+	}
+	if req.MetadataExtra != nil {
+		if *req.MetadataExtra == nil {
+			issue.Metadata.Extra = nil
+		} else {
+			issue.Metadata.Extra = cloneStringMap(*req.MetadataExtra)
 		}
 	}
 	if req.Notes != nil {
@@ -1090,6 +1297,18 @@ func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		issueDir = targetDir
 		currentFolder = targetStatus
+	}
+
+	if len(req.Artifacts) > 0 {
+		newAttachments, err := s.persistArtifacts(issueDir, req.Artifacts)
+		if err != nil {
+			log.Printf("Failed to store artifacts for issue %s: %v", issueID, err)
+			http.Error(w, "Failed to store artifacts", http.StatusInternalServerError)
+			return
+		}
+		if len(newAttachments) > 0 {
+			issue.Attachments = append(issue.Attachments, newAttachments...)
+		}
 	}
 
 	issue.Status = currentFolder
@@ -1746,27 +1965,27 @@ func main() {
 	// Health check
 	r.HandleFunc("/health", server.healthHandler).Methods("GET")
 
-	// API routes
-	api := r.PathPrefix("/api").Subrouter()
-	api.HandleFunc("/issues", server.getIssuesHandler).Methods("GET")
-	api.HandleFunc("/issues", server.createIssueHandler).Methods("POST")
-	api.HandleFunc("/issues/{id}", server.getIssueHandler).Methods("GET")
-	api.HandleFunc("/issues/{id}", server.updateIssueHandler).Methods("PUT", "PATCH")
-	api.HandleFunc("/issues/{id}", server.deleteIssueHandler).Methods("DELETE")
-	api.HandleFunc("/issues/search", server.searchIssuesHandler).Methods("GET")
-	// api.HandleFunc("/issues/search/similar", server.vectorSearchHandler).Methods("POST") // TODO: Implement vector search
-	api.HandleFunc("/agents", server.getAgentsHandler).Methods("GET")
-	api.HandleFunc("/apps", server.getAppsHandler).Methods("GET")
-	api.HandleFunc("/investigate", server.triggerInvestigationHandler).Methods("POST")
-	api.HandleFunc("/generate-fix", server.triggerFixGenerationHandler).Methods("POST")
-	api.HandleFunc("/stats", server.getStatsHandler).Methods("GET")
+	// API routes (v1)
+	v1 := r.PathPrefix("/api/v1").Subrouter()
+	v1.HandleFunc("/issues", server.getIssuesHandler).Methods("GET")
+	v1.HandleFunc("/issues", server.createIssueHandler).Methods("POST")
+	v1.HandleFunc("/issues/{id}", server.getIssueHandler).Methods("GET")
+	v1.HandleFunc("/issues/{id}", server.updateIssueHandler).Methods("PUT", "PATCH")
+	v1.HandleFunc("/issues/{id}", server.deleteIssueHandler).Methods("DELETE")
+	v1.HandleFunc("/issues/search", server.searchIssuesHandler).Methods("GET")
+	// v1.HandleFunc("/issues/search/similar", server.vectorSearchHandler).Methods("POST") // TODO: Implement vector search
+	v1.HandleFunc("/agents", server.getAgentsHandler).Methods("GET")
+	v1.HandleFunc("/apps", server.getAppsHandler).Methods("GET")
+	v1.HandleFunc("/investigate", server.triggerInvestigationHandler).Methods("POST")
+	v1.HandleFunc("/generate-fix", server.triggerFixGenerationHandler).Methods("POST")
+	v1.HandleFunc("/stats", server.getStatsHandler).Methods("GET")
 
 	// Apply CORS middleware
 	handler := corsMiddleware(r)
 
 	log.Printf("Starting File-Based App Issue Tracker API on port %s", config.Port)
 	log.Printf("Health check: http://localhost:%s/health", config.Port)
-	log.Printf("API base URL: http://localhost:%s/api", config.Port)
+	log.Printf("API base URL: http://localhost:%s/api/v1", config.Port)
 	log.Printf("Issues directory: %s", config.IssuesDir)
 
 	if err := http.ListenAndServe(":"+config.Port, handler); err != nil {

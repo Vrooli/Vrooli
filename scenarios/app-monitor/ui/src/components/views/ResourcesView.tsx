@@ -1,26 +1,115 @@
-import { useState, useEffect } from 'react';
-import { resourceService } from '@/services/api';
-import type { Resource } from '@/types';
+import { useEffect, useState } from 'react';
+import { Play, Square, Info, Loader2 } from 'lucide-react';
 import { ResourcesGridSkeleton } from '../LoadingSkeleton';
 import './ResourcesView.css';
+import { useResourcesStore } from '@/state/resourcesStore';
 
 export default function ResourcesView() {
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [loading, setLoading] = useState(false);
+  const resources = useResourcesStore(state => state.resources);
+  const loading = useResourcesStore(state => state.loading);
+  const loadResources = useResourcesStore(state => state.loadResources);
+  const startResource = useResourcesStore(state => state.startResource);
+  const stopResource = useResourcesStore(state => state.stopResource);
+  const refreshResource = useResourcesStore(state => state.refreshResource);
+  const storeError = useResourcesStore(state => state.error);
+  const clearError = useResourcesStore(state => state.clearError);
+
+  type ResourceAction = 'start' | 'stop' | 'refresh';
+
+  const [pendingActions, setPendingActions] = useState<Record<string, ResourceAction | null>>({});
+  const [actionFeedback, setActionFeedback] = useState<Record<string, { type: 'success' | 'error'; message: string }>>({});
+  const [globalFeedback, setGlobalFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
-    fetchResources();
-  }, []);
+    void loadResources();
+  }, [loadResources]);
 
-  const fetchResources = async () => {
-    setLoading(true);
+  useEffect(() => {
+    if (storeError) {
+      setGlobalFeedback({ type: 'error', message: storeError });
+    } else {
+      setGlobalFeedback(null);
+    }
+  }, [storeError]);
+
+  useEffect(() => () => {
+    clearError();
+  }, [clearError]);
+
+  const getPendingAction = (id: string): ResourceAction | null => pendingActions[id] ?? null;
+
+  const isActionDisabled = (id: string, action: ResourceAction, status: string): boolean => {
+    const pending = getPendingAction(id);
+    if (pending !== null) {
+      return true;
+    }
+
+    if (action === 'start') {
+      return ['online'].includes(status);
+    }
+    if (action === 'stop') {
+      return ['offline', 'stopped', 'unknown', 'unregistered'].includes(status);
+    }
+    return false;
+  };
+
+  const handleResourceAction = async (id: string, action: ResourceAction) => {
+    setPendingActions(prev => ({ ...prev, [id]: action }));
+    setActionFeedback(prev => {
+      const { [id]: _, ...rest } = prev;
+      return rest;
+    });
+    setGlobalFeedback(null);
+
     try {
-      const data = await resourceService.getResources();
-      setResources(data);
+      if (action === 'start') {
+        const response = await startResource(id);
+        if (response?.success) {
+          if (response.warning) {
+            const warningMessage = response.warning ?? 'Command succeeded but reported a warning.';
+            setActionFeedback(prev => ({ ...prev, [id]: { type: 'error', message: warningMessage } }));
+            setGlobalFeedback({ type: 'error', message: warningMessage });
+          } else {
+            setActionFeedback(prev => ({ ...prev, [id]: { type: 'success', message: 'Resource start requested.' } }));
+          }
+        } else if (response?.error) {
+          const message = response.error ?? 'Failed to start resource.';
+          setActionFeedback(prev => ({ ...prev, [id]: { type: 'error', message } }));
+          setGlobalFeedback({ type: 'error', message });
+        }
+      } else if (action === 'stop') {
+        const response = await stopResource(id);
+        if (response?.success) {
+          if (response.warning) {
+            const warningMessage = response.warning ?? 'Command succeeded but reported a warning.';
+            setActionFeedback(prev => ({ ...prev, [id]: { type: 'error', message: warningMessage } }));
+            setGlobalFeedback({ type: 'error', message: warningMessage });
+          } else {
+            setActionFeedback(prev => ({ ...prev, [id]: { type: 'success', message: 'Resource stop requested.' } }));
+          }
+        } else if (response?.error) {
+          const message = response.error ?? 'Failed to stop resource.';
+          setActionFeedback(prev => ({ ...prev, [id]: { type: 'error', message } }));
+          setGlobalFeedback({ type: 'error', message });
+        }
+      } else {
+        const refreshed = await refreshResource(id);
+        if (refreshed) {
+          setActionFeedback(prev => ({ ...prev, [id]: { type: 'success', message: 'Status refreshed.' } }));
+        } else {
+          setActionFeedback(prev => ({ ...prev, [id]: { type: 'error', message: 'Failed to refresh status.' } }));
+          setGlobalFeedback({ type: 'error', message: 'Failed to refresh status.' });
+        }
+      }
     } catch (error) {
-      console.error('Failed to fetch resources:', error);
+      console.error('Resource action failed', error);
+      setActionFeedback(prev => ({ ...prev, [id]: { type: 'error', message: 'Unexpected failure.' } }));
+      setGlobalFeedback({ type: 'error', message: 'Unexpected failure.' });
     } finally {
-      setLoading(false);
+      setPendingActions(prev => {
+        const { [id]: _, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -42,11 +131,17 @@ export default function ResourcesView() {
       <div className="panel-header">
         <h2>RESOURCE STATUS</h2>
         <div className="panel-controls">
-          <button className="control-btn" onClick={fetchResources} disabled={loading}>
+          <button className="control-btn" onClick={() => { void loadResources({ force: true }); }} disabled={loading}>
             ⟳ REFRESH
           </button>
         </div>
       </div>
+
+      {globalFeedback && (
+        <div className={`resource-feedback ${globalFeedback.type}`}>
+          {globalFeedback.message}
+        </div>
+      )}
       
       {loading ? (
         <ResourcesGridSkeleton count={4} />
@@ -69,6 +164,49 @@ export default function ResourcesView() {
               {resource.description && (
                 <div className="resource-description">
                   {resource.description}
+                </div>
+              )}
+              <div className="resource-actions">
+                <button
+                  className="resource-action-btn start"
+                  disabled={isActionDisabled(resource.id, 'start', resource.status)}
+                  data-pending={getPendingAction(resource.id) === 'start'}
+                  aria-label={`Start ${resource.name}`}
+                  title="Start resource"
+                  onClick={() => { void handleResourceAction(resource.id, 'start'); }}
+                >
+                  {getPendingAction(resource.id) === 'start'
+                    ? <Loader2 className="resource-action-icon spinning" strokeWidth={2} />
+                    : <Play className="resource-action-icon" strokeWidth={2} />}
+                </button>
+                <button
+                  className="resource-action-btn stop"
+                  disabled={isActionDisabled(resource.id, 'stop', resource.status)}
+                  data-pending={getPendingAction(resource.id) === 'stop'}
+                  aria-label={`Stop ${resource.name}`}
+                  title="Stop resource"
+                  onClick={() => { void handleResourceAction(resource.id, 'stop'); }}
+                >
+                  {getPendingAction(resource.id) === 'stop'
+                    ? <Loader2 className="resource-action-icon spinning" strokeWidth={2} />
+                    : <Square className="resource-action-icon" strokeWidth={2} />}
+                </button>
+                <button
+                  className="resource-action-btn refresh"
+                  disabled={getPendingAction(resource.id) === 'refresh'}
+                  data-pending={getPendingAction(resource.id) === 'refresh'}
+                  aria-label={`Refresh ${resource.name} status`}
+                  title="Refresh status"
+                  onClick={() => { void handleResourceAction(resource.id, 'refresh'); }}
+                >
+                  {getPendingAction(resource.id) === 'refresh'
+                    ? <Loader2 className="resource-action-icon spinning" strokeWidth={2} />
+                    : <Info className="resource-action-icon" strokeWidth={2} />}
+                </button>
+              </div>
+              {actionFeedback[resource.id] && (
+                <div className={`resource-feedback ${actionFeedback[resource.id]?.type}`}>
+                  {actionFeedback[resource.id]?.message}
                 </div>
               )}
             </div>

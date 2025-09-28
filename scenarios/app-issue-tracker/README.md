@@ -155,7 +155,7 @@ vrooli scenario run app-issue-tracker  # Alternative
 
 ## 🔌 API Endpoints
 
-Base URL: `http://localhost:${API_PORT}`
+Base URL: `http://localhost:${API_PORT}/api/v1`
 
 ### Issues
 - `GET /issues` – List all issues
@@ -170,31 +170,42 @@ Base URL: `http://localhost:${API_PORT}`
 {
   "title": "Login button hangs",
   "description": "Users cannot sign in from mobile web",
-  "priority": "high",
   "type": "bug",
-  "reporter_name": "Casey QA",
-  "reporter_email": "casey@example.com",
-  "app_logs": "...text log...",
-  "console_logs": "...console captures...",
-  "network_logs": "{\"requests\":[...]}",
-  "screenshot_data": "data:image/png;base64,...",
-  "screenshot_content_type": "image/png",
-  "attachments": [
+  "priority": "high",
+  "app_id": "app-web",
+  "tags": ["auth", "mobile"],
+  "metadata_extra": {
+    "report_source": "app-monitor",
+    "logs_total": "18"
+  },
+  "reporter": {
+    "name": "Casey QA",
+    "email": "casey@example.com"
+  },
+  "artifacts": [
     {
-      "name": "har-export",
+      "name": "Lifecycle Logs",
+      "category": "logs",
+      "content": "...recent lifecycle output...",
+      "encoding": "plain",
+      "content_type": "text/plain"
+    },
+    {
+      "name": "Preview Screenshot",
+      "category": "screenshot",
       "content": "<base64>",
       "encoding": "base64",
-      "content_type": "application/json"
+      "content_type": "image/png"
     }
   ]
 }
 ```
 
-Logs and media are persisted in `artifacts/` alongside `metadata.yaml`, and attachment metadata is echoed back in API responses.
+Artifacts are persisted on disk under `artifacts/` alongside `metadata.yaml`, and the API echoes back the recorded attachment metadata. Legacy fields such as `app_logs`, `console_logs`, `network_logs`, and `screenshot_data` are still accepted and automatically converted into artifacts for backwards compatibility.
 
 ### Search
-- `GET /search?q=query` – Keyword search
-- `GET /search/semantic?query=description` – Vector search
+- `GET /issues/search?q=query` – Keyword search
+- `GET /issues/search/semantic?query=description` – Vector search
 
 ### Health
 - `GET /health` – Service status

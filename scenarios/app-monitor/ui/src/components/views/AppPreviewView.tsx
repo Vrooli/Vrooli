@@ -136,7 +136,7 @@ const AppPreviewView = () => {
   const [reportIncludeScreenshot, setReportIncludeScreenshot] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
-  const [reportResult, setReportResult] = useState<{ issueId?: string; message?: string } | null>(null);
+  const [reportResult, setReportResult] = useState<{ issueId?: string; issueUrl?: string; message?: string } | null>(null);
   const [reportScreenshotData, setReportScreenshotData] = useState<string | null>(null);
   const [reportScreenshotOriginalData, setReportScreenshotOriginalData] = useState<string | null>(null);
   const [reportScreenshotLoading, setReportScreenshotLoading] = useState(false);
@@ -2025,8 +2025,10 @@ const AppPreviewView = () => {
       const response = await appService.reportAppIssue(targetAppId, payload);
 
       const issueId = response.data?.issue_id;
+      const issueUrl = response.data?.issue_url;
       setReportResult({
         issueId,
+        issueUrl,
         message: response.message ?? 'Issue report sent successfully.',
       });
       setReportMessage('');
@@ -2441,6 +2443,17 @@ const AppPreviewView = () => {
                   <p className="report-dialog__success-id">
                     Tracking ID: <span>{reportResult.issueId}</span>
                   </p>
+                )}
+                {reportResult.issueUrl && (
+                  <div className="report-dialog__success-link">
+                    <button
+                      type="button"
+                      className="report-dialog__button"
+                      onClick={() => window.open(reportResult.issueUrl, '_blank', 'noopener,noreferrer')}
+                    >
+                      Open in Issue Tracker
+                    </button>
+                  </div>
                 )}
                 <div className="report-dialog__actions">
                   <button

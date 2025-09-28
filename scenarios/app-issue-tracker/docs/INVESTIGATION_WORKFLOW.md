@@ -17,7 +17,7 @@ Instead of complex workflow orchestration, the system now uses simple bash scrip
 
 ```bash
 # Trigger investigation via API
-curl -X POST http://localhost:8090/api/investigate \
+curl -X POST http://localhost:8090/api/v1/investigate \
   -H "Content-Type: application/json" \
   -d '{"issue_id": "issue-123", "agent_id": "deep-investigator"}'
 

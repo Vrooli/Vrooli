@@ -142,6 +142,9 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 
 		// Resource endpoints
 		v1.GET("/resources", h.system.GetResources)
+		v1.POST("/resources/:id/start", h.system.StartResource)
+		v1.POST("/resources/:id/stop", h.system.StopResource)
+		v1.GET("/resources/:id/status", h.system.GetResourceStatus)
 
 		// Docker integration endpoints
 		v1.GET("/docker/info", h.docker.GetDockerInfo)

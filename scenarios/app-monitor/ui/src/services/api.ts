@@ -167,9 +167,15 @@ export const appService = {
     }
   },
 
-  async reportAppIssue(appId: string, payload: ReportIssuePayload): Promise<ApiResponse<{ issue_id?: string }>> {
+  async reportAppIssue(
+    appId: string,
+    payload: ReportIssuePayload,
+  ): Promise<ApiResponse<{ issue_id?: string; issue_url?: string }>> {
     try {
-      const { data } = await api.post<ApiResponse<{ issue_id?: string }>>(`/apps/${encodeURIComponent(appId)}/report`, payload);
+      const { data } = await api.post<ApiResponse<{ issue_id?: string; issue_url?: string }>>(
+        `/apps/${encodeURIComponent(appId)}/report`,
+        payload,
+      );
       return data;
     } catch (error) {
       logger.error(`Failed to report issue for app ${appId}`, error);
@@ -199,6 +205,30 @@ export const resourceService = {
     } catch (error) {
       logger.error(`Failed to fetch resource ${id}`, error);
       return null;
+    }
+  },
+
+  // Start a resource
+  async startResource(id: string): Promise<ApiResponse<Resource>> {
+    try {
+      const { data } = await api.post<ApiResponse<Resource>>(`/resources/${encodeURIComponent(id)}/start`);
+      return data ?? { success: true };
+    } catch (error) {
+      const message = (error as { message?: string })?.message || `Failed to start resource ${id}`;
+      logger.error(`Failed to start resource ${id}`, error);
+      return { success: false, error: message };
+    }
+  },
+
+  // Stop a resource
+  async stopResource(id: string): Promise<ApiResponse<Resource>> {
+    try {
+      const { data } = await api.post<ApiResponse<Resource>>(`/resources/${encodeURIComponent(id)}/stop`);
+      return data ?? { success: true };
+    } catch (error) {
+      const message = (error as { message?: string })?.message || `Failed to stop resource ${id}`;
+      logger.error(`Failed to stop resource ${id}`, error);
+      return { success: false, error: message };
     }
   },
 };

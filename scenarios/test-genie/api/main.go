@@ -24,7 +24,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 )
 
 // Data Models
@@ -53,6 +53,7 @@ type TestCase struct {
 	Priority       string    `json:"priority"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+	SourcePath     string    `json:"source_path,omitempty"`
 }
 
 type TestExecution struct {
@@ -1556,6 +1557,49 @@ func parseTestAssertions(output string) []AssertionResult {
 	return assertions
 }
 
+func buildDiscoveredTestScript(scenarioRoot, relativePath string) string {
+	normalizedPath := filepath.ToSlash(relativePath)
+
+	var builder strings.Builder
+	builder.WriteString("#!/bin/bash\n")
+	builder.WriteString("set -euo pipefail\n")
+	builder.WriteString(fmt.Sprintf("cd %q\n", scenarioRoot))
+
+	switch ext := strings.ToLower(filepath.Ext(normalizedPath)); ext {
+	case ".sh", ".bash":
+		builder.WriteString(fmt.Sprintf("bash %q\n", normalizedPath))
+	case ".bats":
+		builder.WriteString(fmt.Sprintf("bats %q\n", normalizedPath))
+	case ".py":
+		builder.WriteString(fmt.Sprintf("python3 %q\n", normalizedPath))
+	case ".js":
+		builder.WriteString(fmt.Sprintf("node %q\n", normalizedPath))
+	case ".ts":
+		builder.WriteString(fmt.Sprintf("npx ts-node %q\n", normalizedPath))
+	default:
+		builder.WriteString(fmt.Sprintf("bash %q\n", normalizedPath))
+	}
+
+	return builder.String()
+}
+
+func determineSuiteTypeLabel(types []string) string {
+	if len(types) == 0 {
+		return "discovered"
+	}
+
+	joined := strings.Join(types, ",")
+	if len(joined) <= 50 {
+		return joined
+	}
+
+	if len(types) == 1 {
+		return types[0][:int(math.Min(50, float64(len(types[0]))))]
+	}
+
+	return fmt.Sprintf("multi:%d-types", len(types))
+}
+
 func executeTestSuite(suiteID uuid.UUID, executionID uuid.UUID, executionType string, environment string, timeoutSeconds int) {
 	log.Printf("🚀 Starting test suite execution: %s", suiteID)
 
@@ -1676,6 +1720,12 @@ func executeTestSuite(suiteID uuid.UUID, executionID uuid.UUID, executionType st
 	log.Printf("🎉 Test suite execution completed: %d passed, %d failed, %d skipped (%.2fs total)",
 		passed, failed, skipped, totalDuration.Seconds())
 }
+
+var runTestSuite = executeTestSuite
+
+var errSuiteNotFound = errors.New("test suite not found in repository")
+
+var syncSuiteForExecution = syncDiscoveredSuiteToDatabase
 
 func storeTestResult(result TestResult) error {
 	assertionsJSON, err := json.Marshal(result.Assertions)
@@ -2408,15 +2458,46 @@ func executeTestSuiteHandler(c *gin.Context) {
 		return
 	}
 
+	if strings.TrimSpace(req.ExecutionType) == "" {
+		req.ExecutionType = "full"
+	}
+	if strings.TrimSpace(req.Environment) == "" {
+		req.Environment = "local"
+	}
+	if req.TimeoutSeconds <= 0 {
+		req.TimeoutSeconds = 600
+	}
+
 	// Create test execution record
 	executionID := uuid.New()
-	_, err = db.Exec(`
+	insertStmt := `
 		INSERT INTO test_executions (id, suite_id, execution_type, start_time, status, environment)
 		VALUES ($1, $2, $3, $4, $5, $6)
-	`, executionID, suiteID, req.ExecutionType, time.Now(), "started", req.Environment)
+	`
+	insertArgs := []interface{}{executionID, suiteID, req.ExecutionType, time.Now(), "running", req.Environment}
+
+	_, err = db.Exec(insertStmt, insertArgs...)
+	if err != nil {
+		log.Printf("❌ Failed to create test execution for suite %s: %v", suiteID, err)
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23503" {
+			if _, syncErr := syncSuiteForExecution(c.Request.Context(), suiteID); syncErr != nil {
+				if errors.Is(syncErr, errSuiteNotFound) {
+					c.JSON(http.StatusNotFound, gin.H{"error": "Test suite not found", "details": syncErr.Error()})
+					return
+				}
+				log.Printf("❌ Unable to sync discovered suite %s: %v", suiteID, syncErr)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to prepare test suite for execution", "details": syncErr.Error()})
+				return
+			}
+
+			log.Printf("🔄 Discovered suite %s synced to database. Retrying execution insert.", suiteID)
+			_, err = db.Exec(insertStmt, insertArgs...)
+		}
+	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create test execution"})
+		log.Printf("❌ Failed to create test execution after synchronization for suite %s: %v", suiteID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create test execution", "details": err.Error()})
 		return
 	}
 
@@ -2429,7 +2510,7 @@ func executeTestSuiteHandler(c *gin.Context) {
 
 	response := ExecuteTestSuiteResponse{
 		ExecutionID:       executionID,
-		Status:            "started",
+		Status:            "running",
 		EstimatedDuration: float64(testCount * 30), // 30 seconds per test estimate
 		TestCount:         testCount,
 		TrackingURL:       fmt.Sprintf("/api/v1/test-execution/%s/results", executionID),
@@ -2438,7 +2519,7 @@ func executeTestSuiteHandler(c *gin.Context) {
 	// Start real test execution in background
 	go func() {
 		log.Printf("🚀 Starting background test execution for suite %s", suiteID)
-		executeTestSuite(suiteID, executionID, req.ExecutionType, req.Environment, req.TimeoutSeconds)
+		runTestSuite(suiteID, executionID, req.ExecutionType, req.Environment, req.TimeoutSeconds)
 	}()
 
 	c.JSON(http.StatusAccepted, response)
@@ -3261,7 +3342,8 @@ func discoverScenarioTestSuites(repoRoot, scenarioFilter string) ([]TestSuite, e
 			continue
 		}
 
-		testDir := filepath.Join(scenariosDir, scenarioName, "test")
+		scenarioRoot := filepath.Join(scenariosDir, scenarioName)
+		testDir := filepath.Join(scenarioRoot, "test")
 		if info, err := os.Stat(testDir); err != nil || !info.IsDir() {
 			continue
 		}
@@ -3301,6 +3383,7 @@ func discoverScenarioTestSuites(repoRoot, scenarioFilter string) ([]TestSuite, e
 				latestMod = modTime
 			}
 
+			relativePath := filepath.ToSlash(rel)
 			testType := deriveTestTypeFromPath(path)
 			if testType == "" {
 				testType = "unspecified"
@@ -3309,6 +3392,7 @@ func discoverScenarioTestSuites(repoRoot, scenarioFilter string) ([]TestSuite, e
 
 			caseID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("scenario-suite:"+scenarioName+":"+rel))
 			caseName := sanitizeTestCaseName(rel)
+			testScript := buildDiscoveredTestScript(scenarioRoot, relativePath)
 
 			testCases = append(testCases, TestCase{
 				ID:             caseID,
@@ -3316,12 +3400,14 @@ func discoverScenarioTestSuites(repoRoot, scenarioFilter string) ([]TestSuite, e
 				Name:           caseName,
 				Description:    fmt.Sprintf("Discovered test script: %s", rel),
 				TestType:       testType,
+				TestCode:       testScript,
 				ExpectedResult: "Exit code 0",
 				Timeout:        300,
 				Tags:           []string{"discovered", testType},
 				Priority:       "medium",
 				CreatedAt:      modTime,
 				UpdatedAt:      modTime,
+				SourcePath:     relativePath,
 			})
 
 			return nil
@@ -3349,7 +3435,7 @@ func discoverScenarioTestSuites(repoRoot, scenarioFilter string) ([]TestSuite, e
 		suite := TestSuite{
 			ID:           suiteID,
 			ScenarioName: scenarioName,
-			SuiteType:    strings.Join(suiteTypes, ","),
+			SuiteType:    determineSuiteTypeLabel(suiteTypes),
 			TestCases:    testCases,
 			CoverageMetrics: CoverageMetrics{
 				CodeCoverage:     0,
@@ -3383,6 +3469,108 @@ func findDiscoveredSuiteByID(repoRoot string, suiteID uuid.UUID) (*TestSuite, er
 	}
 
 	return nil, nil
+}
+
+func syncDiscoveredSuiteToDatabase(ctx context.Context, suiteID uuid.UUID) (*TestSuite, error) {
+	if db == nil {
+		return nil, errors.New("database connection not initialized")
+	}
+
+	repoRoot, err := findRepositoryRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	suite, err := findDiscoveredSuiteByID(repoRoot, suiteID)
+	if err != nil {
+		return nil, err
+	}
+
+	if suite == nil {
+		return nil, errSuiteNotFound
+	}
+
+	if suite.GeneratedAt.IsZero() {
+		suite.GeneratedAt = time.Now()
+	}
+
+	coverageJSON, err := json.Marshal(suite.CoverageMetrics)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	success := false
+	defer func() {
+		if !success {
+			tx.Rollback()
+		}
+	}()
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO test_suites (id, scenario_name, suite_type, coverage_metrics, generated_at, status)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (id) DO UPDATE
+		SET scenario_name = EXCLUDED.scenario_name,
+			suite_type = EXCLUDED.suite_type,
+			coverage_metrics = EXCLUDED.coverage_metrics,
+			status = EXCLUDED.status
+	`, suite.ID, suite.ScenarioName, suite.SuiteType, coverageJSON, suite.GeneratedAt, suite.Status); err != nil {
+		return nil, err
+	}
+
+	for _, tc := range suite.TestCases {
+		if tc.TestCode == "" {
+			log.Printf("⚠️  Skipping discovered test case %s due to missing script", tc.Name)
+			continue
+		}
+
+		if tc.CreatedAt.IsZero() {
+			tc.CreatedAt = suite.GeneratedAt
+		}
+		if tc.UpdatedAt.IsZero() {
+			tc.UpdatedAt = tc.CreatedAt
+		}
+
+		tc.SuiteID = suite.ID
+
+		dependenciesJSON, err := json.Marshal(tc.Dependencies)
+		if err != nil {
+			return nil, err
+		}
+		tagsJSON, err := json.Marshal(tc.Tags)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO test_cases (id, suite_id, name, description, test_type, test_code, expected_result, execution_timeout, dependencies, tags, priority, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+			ON CONFLICT (id) DO UPDATE
+			SET name = EXCLUDED.name,
+				description = EXCLUDED.description,
+				test_type = EXCLUDED.test_type,
+				test_code = EXCLUDED.test_code,
+				expected_result = EXCLUDED.expected_result,
+				execution_timeout = EXCLUDED.execution_timeout,
+				dependencies = EXCLUDED.dependencies,
+				tags = EXCLUDED.tags,
+				priority = EXCLUDED.priority,
+				updated_at = EXCLUDED.updated_at
+		`, tc.ID, tc.SuiteID, tc.Name, tc.Description, tc.TestType, tc.TestCode, tc.ExpectedResult, tc.Timeout, dependenciesJSON, tagsJSON, tc.Priority, tc.CreatedAt, tc.UpdatedAt); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	success = true
+	return suite, nil
 }
 
 func shouldSkipScenarioDir(name string) bool {

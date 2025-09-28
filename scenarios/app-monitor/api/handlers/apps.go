@@ -327,10 +327,15 @@ func (h *AppHandler) ReportAppIssue(c *gin.Context) {
 		"message": result.Message,
 	}
 
+	data := gin.H{}
 	if result.IssueID != "" {
-		response["data"] = gin.H{
-			"issue_id": result.IssueID,
-		}
+		data["issue_id"] = result.IssueID
+	}
+	if result.IssueURL != "" {
+		data["issue_url"] = result.IssueURL
+	}
+	if len(data) > 0 {
+		response["data"] = data
 	}
 
 	c.JSON(http.StatusOK, response)

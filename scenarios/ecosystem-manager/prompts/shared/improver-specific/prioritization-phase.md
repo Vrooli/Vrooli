@@ -12,6 +12,8 @@ Critical issues that prevent core functionality:
 - Data integrity issues
 - Core features that don't work
 
+Use the baseline `resource-auditor`/`scenario-auditor` report to spot inherited violations quickly and queue them ahead of net-new enhancements.
+
 ### P1 Requirements (Should Have - Do Next)
 Important improvements that significantly enhance value:
 - User experience improvements

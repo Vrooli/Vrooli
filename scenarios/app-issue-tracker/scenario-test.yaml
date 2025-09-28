@@ -39,18 +39,15 @@ tests:
       
   - name: Semantic Search API
     type: http
-    method: POST
-    url: http://localhost:8090/api/issues/search
-    body:
-      query: "authentication error"
-      limit: 10
+    method: GET
+    url: http://localhost:8090/api/v1/issues/search?q=authentication%20error&limit=10
     expected:
       status: 200
       
   - name: Agent Management API
     type: http
     method: GET
-    url: http://localhost:8090/api/agents
+    url: http://localhost:8090/api/v1/agents
     expected:
       status: 200
       body:

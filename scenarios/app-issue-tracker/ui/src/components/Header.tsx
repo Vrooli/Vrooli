@@ -5,11 +5,20 @@ import { ActiveAgentOption, ProcessorSettings } from '../data/sampleData';
 interface HeaderProps {
   processor: ProcessorSettings;
   agents: ActiveAgentOption[];
+  selectedAgentId: string;
   onToggleActive: () => void;
   onCreateIssue: () => void;
+  onSelectAgent: (agentId: string) => void;
 }
 
-export function Header({ processor, agents, onToggleActive, onCreateIssue }: HeaderProps) {
+export function Header({
+  processor,
+  agents,
+  selectedAgentId,
+  onToggleActive,
+  onCreateIssue,
+  onSelectAgent,
+}: HeaderProps) {
   const activeLabel = useMemo(() => (processor.active ? 'Active' : 'Paused'), [processor.active]);
 
   return (
@@ -30,7 +39,11 @@ export function Header({ processor, agents, onToggleActive, onCreateIssue }: Hea
         </button>
         <div className="active-agent-selector">
           <GaugeCircle size={18} />
-          <select aria-label="Active agents" value={agents[0]?.id ?? ''}>
+          <select
+            aria-label="Active agents"
+            value={selectedAgentId}
+            onChange={(event) => onSelectAgent(event.target.value)}
+          >
             {agents.map((agent) => (
               <option key={agent.id} value={agent.id}>
                 {agent.label}

@@ -15,7 +15,7 @@
   text-align: center;
   position: relative;
   transition: all 0.3s ease;
-  cursor: pointer;
+  cursor: default;
 }
 
 .resource-card:hover {
@@ -73,12 +73,111 @@
   border: 1px solid var(--matrix-yellow);
 }
 
+.resource-status.stopped {
+  background: rgba(0, 180, 255, 0.2);
+  color: var(--matrix-cyan);
+  border: 1px solid var(--matrix-cyan);
+}
+
+.resource-status.unknown {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--matrix-light-green);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.resource-status.unregistered {
+  background: rgba(255, 0, 64, 0.12);
+  color: var(--matrix-red);
+  border: 1px dashed var(--matrix-red);
+}
+
 .resource-description {
   margin-top: 1rem;
   font-size: 0.85rem;
   color: var(--matrix-green);
   opacity: 0.8;
   line-height: 1.4;
+}
+
+.resource-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  justify-content: center;
+}
+
+.resource-action-btn {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--matrix-border);
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--matrix-light-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  border-radius: 50%;
+  position: relative;
+}
+
+.resource-action-btn:hover:not(:disabled) {
+  border-color: var(--matrix-green);
+  box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+  color: var(--matrix-green);
+}
+
+.resource-action-btn.start {
+  border-color: rgba(0, 255, 65, 0.4);
+}
+
+.resource-action-btn.stop {
+  border-color: rgba(255, 0, 64, 0.4);
+}
+
+.resource-action-btn.refresh {
+  border-color: rgba(0, 200, 255, 0.4);
+}
+
+.resource-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.resource-action-btn[data-pending='true'] {
+  cursor: wait;
+}
+
+.resource-action-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.resource-action-icon.spinning {
+  animation: resource-spin 1s linear infinite;
+}
+
+.resource-feedback {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.resource-feedback.success {
+  color: var(--matrix-light-green);
+}
+
+.resource-feedback.error {
+  color: var(--matrix-red);
+}
+
+@keyframes resource-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-container {
