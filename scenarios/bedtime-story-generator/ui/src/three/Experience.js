@@ -10,6 +10,8 @@ import AudioAmbience from "./AudioAmbience.js";
 import HotspotRegistry from "./HotspotRegistry.js";
 import ResourceLoader from "./ResourceLoader.js";
 import Navigation from "./Navigation.js";
+import PostProcessing from "./PostProcessing.js";
+import PhysicsSimulation from "./PhysicsSimulation.js";
 import useExperienceStore from "../state/store.js";
 
 const SCENE_COLORS = {
@@ -54,6 +56,22 @@ export default class Experience {
     this.navigation = new Navigation({ experience: this, initialRoom: this.currentRoom });
     this.resourceLoader = new ResourceLoader({ initialRoom: this.currentRoom });
     this._ensureRoomAssets(this.currentRoom);
+
+    ["studio", "bedroom"].forEach((roomId) => {
+      if (roomId === this.currentRoom) {
+        return;
+      }
+      this.resourceLoader.loadRoom(roomId).catch((error) => {
+        console.warn(`[Experience] Failed to prefetch room ${roomId}`, error);
+      });
+    });
+
+    // Initialize post-processing and physics
+    this.postProcessing = new PostProcessing(this);
+    this.physicsSimulation = new PhysicsSimulation(this);
+    
+    // Enable physics for interactive experience
+    this.physicsSimulation.enable();
     
     // Subscribe to asset reload events for key assets
     this._setupHotReloadSubscriptions();
@@ -100,12 +118,28 @@ export default class Experience {
     this.cameraRailSystem.update(frame.delta);
     this.audioAmbience.update(frame.delta);
     this.world.update(frame);
-    this.renderer.update(frame);
+    
+    // Update physics simulation
+    if (this.physicsSimulation) {
+      this.physicsSimulation.update(frame.delta);
+    }
+    
+    // Render with post-processing if available
+    if (this.postProcessing && this.postProcessing.enabled) {
+      this.postProcessing.render();
+    } else {
+      this.renderer.update(frame);
+    }
   }
 
   _handleStoreChange(snapshot) {
     const targetColor = SCENE_COLORS[snapshot.timeOfDay] || SCENE_COLORS.day;
     this.sceneBackgroundTarget.set(targetColor);
+    
+    // Update post-processing for time of day
+    if (this.postProcessing) {
+      this.postProcessing.setTimeOfDay(snapshot.timeOfDay);
+    }
     this.world.setStoreSnapshot(snapshot);
     if (snapshot.activeRoom && snapshot.activeRoom !== this.currentRoom) {
       this.currentRoom = snapshot.activeRoom;
@@ -129,7 +163,7 @@ export default class Experience {
     
     // Play camera intro rail on first load
     if (this.cameraRailSystem && !this.hasPlayedIntro) {
-      this.cameraRailSystem.playRail('intro');
+      this.cameraRailSystem.playRail("intro");
       this.hasPlayedIntro = true;
     }
   }

@@ -15,8 +15,12 @@ const ParentDashboard = ({ onClose }) => {
   });
 
   useEffect(() => {
-    fetchStories();
-    calculateStats();
+    const fetchAndCalculate = async () => {
+      await fetchStories();
+      calculateStats();
+    };
+    fetchAndCalculate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterAgeGroup, sortBy]);
 
   const fetchStories = async () => {
@@ -37,13 +41,13 @@ const ParentDashboard = ({ onClose }) => {
         // Apply sorting
         data.sort((a, b) => {
           switch (sortBy) {
-            case "times_read":
-              return b.times_read - a.times_read;
-            case "title":
-              return a.title.localeCompare(b.title);
-            case "created_at":
-            default:
-              return new Date(b.created_at) - new Date(a.created_at);
+          case "times_read":
+            return b.times_read - a.times_read;
+          case "title":
+            return a.title.localeCompare(b.title);
+          case "created_at":
+          default:
+            return new Date(b.created_at) - new Date(a.created_at);
           }
         });
 

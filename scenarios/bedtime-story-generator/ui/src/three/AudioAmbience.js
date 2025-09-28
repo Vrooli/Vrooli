@@ -56,7 +56,7 @@ export default class AudioAmbience {
     };
     
     // Current states
-    this.currentTimeOfDay = 'day';
+    this.currentTimeOfDay = "day";
     this.currentStoryMood = null;
     this.activeAmbience = new Set();
     
@@ -72,7 +72,7 @@ export default class AudioAmbience {
     // Check if Web Audio API is available
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) {
-      console.warn('Web Audio API not supported');
+      console.warn("Web Audio API not supported");
       this.enabled = false;
       return;
     }
@@ -83,9 +83,9 @@ export default class AudioAmbience {
     // In production, these would load actual audio files
     
     const soundTypes = [
-      'birds', 'wind', 'children', 'crickets', 'owls',
-      'drums', 'heroic', 'chimes', 'mystical', 'waves',
-      'seagulls', 'synth', 'cosmic', 'leaves'
+      "birds", "wind", "children", "crickets", "owls",
+      "drums", "heroic", "chimes", "mystical", "waves",
+      "seagulls", "synth", "cosmic", "leaves"
     ];
     
     soundTypes.forEach(type => {
@@ -120,10 +120,10 @@ export default class AudioAmbience {
     };
     
     oscillator.frequency.value = frequencies[type] || 440;
-    oscillator.type = type.includes('wind') || type.includes('waves') ? 'triangle' : 'sine';
+    oscillator.type = type.includes("wind") || type.includes("waves") ? "triangle" : "sine";
     
     // Add some randomness for natural sound
-    if (type === 'crickets' || type === 'birds') {
+    if (type === "crickets" || type === "birds") {
       const lfo = this.listener.context.createOscillator();
       const lfoGain = this.listener.context.createGain();
       lfo.frequency.value = Math.random() * 2 + 0.5;

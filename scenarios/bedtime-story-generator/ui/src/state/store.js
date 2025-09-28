@@ -15,6 +15,8 @@ const ROOM_PRESETS = {
       bed: { id: "bed", label: "Bed & Reader" },
       window: { id: "window", label: "Window" },
       mobile: { id: "mobile", label: "Ceiling Mobile" },
+      lamp: { id: "lamp", label: "Reading Lamp" },
+      toyChest: { id: "toyChest", label: "Toy Chest" },
     },
   },
   bedroom: {
@@ -26,6 +28,8 @@ const ROOM_PRESETS = {
       bed: { id: "bed", label: "Bedtime Nook" },
       window: { id: "window", label: "Stargazing Window" },
       mobile: { id: "mobile", label: "Ceiling Mobile" },
+      lamp: { id: "lamp", label: "Reading Lamp" },
+      toyChest: { id: "toyChest", label: "Toy Chest" },
     },
   },
 };
@@ -64,7 +68,7 @@ const buildHotspotState = (room, requestedFocus) => {
 };
 
 const roomsInitial = cloneRooms();
-const initialRoomId = "studio";
+const initialRoomId = "bedroom";
 const initialHotspotState = buildHotspotState(
   roomsInitial[initialRoomId],
   roomsInitial[initialRoomId].defaultFocus,

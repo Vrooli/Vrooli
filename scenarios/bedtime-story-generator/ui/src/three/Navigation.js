@@ -77,7 +77,7 @@ export default class Navigation {
     this._syncWithCamera();
   }
 
-  update(frame) {
+  update(_frame) {
     if (this.autopilot) {
       // Keep internal state aligned for smooth transitions when autopilot resumes.
       this._syncWithCamera();
@@ -122,7 +122,7 @@ export default class Navigation {
         view.target.limits.z.max,
       );
     } else {
-    const smallestSide = this.experience.config.smallestSide || 600;
+      const smallestSide = this.experience.config.smallestSide || 600;
       view.spherical.value.theta -=
         (view.drag.delta.x * view.drag.sensitivity) / smallestSide;
       view.spherical.value.phi -=

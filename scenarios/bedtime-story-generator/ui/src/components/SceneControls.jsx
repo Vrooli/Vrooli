@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import useExperienceStore from "../state/store.js";
 import PhotoMode from "./PhotoMode.jsx";
+import BlenderAssetKit from "../three/BlenderAssetKit.js";
 
 const SceneControls = ({ experience }) => {
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -11,21 +12,43 @@ const SceneControls = ({ experience }) => {
 
   const handleCameraPreset = (preset) => {
     if (!experience?.cameraRailSystem) return;
-    
+
     const railMap = {
-      intro: 'intro',
-      bookshelf: 'bookshelfFocus',
-      window: 'windowPan',
-      story: 'storyOrbit',
-      lamp: 'lampZoom',
-      toyChest: 'toyChestReveal'
+      intro: "intro",
+      bookshelf: "bookshelfFocus",
+      window: "windowPan",
+      story: "storyOrbit",
+      lamp: "lampZoom",
+      toyChest: "toyChestReveal",
     };
-    
+
     const railName = railMap[preset];
-    if (railName === 'storyOrbit') {
+    if (railName === "storyOrbit") {
       experience.cameraRailSystem.playRail(railName, { loop: true });
     } else {
       experience.cameraRailSystem.playRail(railName);
+    }
+
+    const focusMap = {
+      intro: "wide",
+      bookshelf: "bookshelf",
+      window: "window",
+      story: "bed",
+      lamp: "lamp",
+      toyChest: "toyChest",
+    };
+
+    const focusId = focusMap[preset];
+    if (focusId) {
+      const {
+        setCameraFocus,
+        setCameraAutopilot,
+        cameraAutopilot,
+      } = useExperienceStore.getState();
+      setCameraFocus(focusId);
+      if (!cameraAutopilot) {
+        setCameraAutopilot(true);
+      }
     }
   };
 
@@ -68,27 +91,42 @@ const SceneControls = ({ experience }) => {
     }
   };
 
+  const handleExportAssetKit = async () => {
+    try {
+      const zipBlob = await BlenderAssetKit.createAssetPackage();
+      const url = URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'bedtime-story-asset-kit.zip';
+      link.click();
+      URL.revokeObjectURL(url);
+      console.log('Asset kit exported successfully');
+    } catch (error) {
+      console.error('Failed to export asset kit:', error);
+    }
+  };
+
   return (
     <div className="scene-controls">
       <div className="scene-controls__section">
         <h4>Camera Views</h4>
         <div className="scene-controls__buttons">
-          <button onClick={() => handleCameraPreset('intro')} className="scene-btn">
+          <button onClick={() => handleCameraPreset("intro")} className="scene-btn">
             Intro
           </button>
-          <button onClick={() => handleCameraPreset('bookshelf')} className="scene-btn">
+          <button onClick={() => handleCameraPreset("bookshelf")} className="scene-btn">
             Bookshelf
           </button>
-          <button onClick={() => handleCameraPreset('window')} className="scene-btn">
+          <button onClick={() => handleCameraPreset("window")} className="scene-btn">
             Window
           </button>
-          <button onClick={() => handleCameraPreset('story')} className="scene-btn">
+          <button onClick={() => handleCameraPreset("story")} className="scene-btn">
             Story Orbit
           </button>
-          <button onClick={() => handleCameraPreset('lamp')} className="scene-btn">
+          <button onClick={() => handleCameraPreset("lamp")} className="scene-btn">
             Reading Lamp
           </button>
-          <button onClick={() => handleCameraPreset('toyChest')} className="scene-btn">
+          <button onClick={() => handleCameraPreset("toyChest")} className="scene-btn">
             Toy Chest
           </button>
           <button onClick={stopCamera} className="scene-btn scene-btn--stop">
@@ -101,20 +139,20 @@ const SceneControls = ({ experience }) => {
         <h4>Time of Day</h4>
         <div className="scene-controls__buttons">
           <button 
-            onClick={() => handleTimeChange('day')} 
-            className={`scene-btn ${timeOfDay === 'day' ? 'scene-btn--active' : ''}`}
+            onClick={() => handleTimeChange("day")} 
+            className={`scene-btn ${timeOfDay === "day" ? "scene-btn--active" : ""}`}
           >
             Day
           </button>
           <button 
-            onClick={() => handleTimeChange('evening')} 
-            className={`scene-btn ${timeOfDay === 'evening' ? 'scene-btn--active' : ''}`}
+            onClick={() => handleTimeChange("evening")} 
+            className={`scene-btn ${timeOfDay === "evening" ? "scene-btn--active" : ""}`}
           >
             Evening
           </button>
           <button 
-            onClick={() => handleTimeChange('night')} 
-            className={`scene-btn ${timeOfDay === 'night' ? 'scene-btn--active' : ''}`}
+            onClick={() => handleTimeChange("night")} 
+            className={`scene-btn ${timeOfDay === "night" ? "scene-btn--active" : ""}`}
           >
             Night
           </button>
@@ -125,7 +163,7 @@ const SceneControls = ({ experience }) => {
         <h4>Audio Ambience</h4>
         <div className="scene-controls__audio">
           <button onClick={toggleAudio} className="scene-btn">
-            {audioEnabled ? '🔊 On' : '🔇 Off'}
+            {audioEnabled ? "🔊 On" : "🔇 Off"}
           </button>
           <input
             type="range"
@@ -144,10 +182,13 @@ const SceneControls = ({ experience }) => {
         <h4>Developer</h4>
         <div className="scene-controls__buttons">
           <button onClick={toggleDebug} className="scene-btn">
-            {debugMode ? '✅ Debug On' : '⬜ Debug Off'}
+            {debugMode ? "✅ Debug On" : "⬜ Debug Off"}
           </button>
           <button onClick={() => setShowPhotoMode(!showPhotoMode)} className="scene-btn">
             📸 Photo Mode
+          </button>
+          <button onClick={handleExportAssetKit} className="scene-btn">
+            📦 Asset Kit
           </button>
         </div>
       </div>
@@ -159,7 +200,7 @@ const SceneControls = ({ experience }) => {
         />
       )}
 
-      <style jsx>{`
+      <style>{`
         .scene-controls {
           position: absolute;
           bottom: 20px;

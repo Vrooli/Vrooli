@@ -23,6 +23,14 @@ const CAMERA_PRESETS = {
       position: new THREE.Vector3(-3.5, 3.1, 3.4),
       target: new THREE.Vector3(-2.4, 2.1, 1.2),
     },
+    lamp: {
+      position: new THREE.Vector3(1.4, 2.6, 2.6),
+      target: new THREE.Vector3(1.3, 0.8, -0.6),
+    },
+    toyChest: {
+      position: new THREE.Vector3(2.3, 1.9, 4.2),
+      target: new THREE.Vector3(1.8, 0.4, 1.5),
+    },
   },
   bedroom: {
     wide: {
@@ -44,6 +52,14 @@ const CAMERA_PRESETS = {
     mobile: {
       position: new THREE.Vector3(-5.0, 3.4, 0.6),
       target: new THREE.Vector3(-1.5, 2.0, -0.2),
+    },
+    lamp: {
+      position: new THREE.Vector3(2.4, 2.7, -1.4),
+      target: new THREE.Vector3(1.8, 1.1, -2.1),
+    },
+    toyChest: {
+      position: new THREE.Vector3(-2.6, 2.2, 2.6),
+      target: new THREE.Vector3(-1.6, 0.8, 0.8),
     },
   },
 };

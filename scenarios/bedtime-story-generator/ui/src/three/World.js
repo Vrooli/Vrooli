@@ -52,6 +52,7 @@ export default class World {
     };
 
     this.environmentMaps = {};
+    this.bedroomFallback = null;
 
     this.roomGroups.studio.visible = this.activeRoom === "studio";
     this.roomGroups.bedroom.visible = this.activeRoom === "bedroom";
@@ -62,6 +63,7 @@ export default class World {
     this._createLighting();
     this._setupFog();
     this._buildStudioFallbacks();
+    this._buildBedroomFallbacks();
 
     if (initialState) {
       this.setStoreSnapshot(initialState);
@@ -216,6 +218,14 @@ export default class World {
     this._createReadingLamp();
     this._createToyChest();
     this._createStoryProjector();
+    this._createVolumetricLighting();
+  }
+
+  _buildBedroomFallbacks() {
+    if (this.bedroomFallback) {
+      return;
+    }
+    this._createBedroomFallback();
   }
 
   _applyStudioAssets(assets) {
@@ -286,6 +296,14 @@ export default class World {
       });
 
       this.roomGroups.bedroom.add(this.bedroomRoom);
+
+      if (this.bedroomFallback) {
+        this.roomGroups.bedroom.remove(this.bedroomFallback);
+        this._disposeObject(this.bedroomFallback);
+        this.bedroomFallback = null;
+      }
+    } else {
+      this._buildBedroomFallbacks();
     }
   }
 
@@ -728,14 +746,14 @@ export default class World {
     projectorGroup.add(this.projectorLight.target);
     
     // Story text canvas (dynamic content)
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     canvas.width = 1024;
     canvas.height = 640;
     this.storyCanvas = canvas;
-    this.storyContext = canvas.getContext('2d');
+    this.storyContext = canvas.getContext("2d");
     
     // Initialize canvas
-    this.storyContext.fillStyle = '#000000';
+    this.storyContext.fillStyle = "#000000";
     this.storyContext.fillRect(0, 0, canvas.width, canvas.height);
     
     const canvasTexture = new THREE.CanvasTexture(canvas);
@@ -758,48 +776,48 @@ export default class World {
     const canvas = this.storyCanvas;
     
     // Clear canvas
-    ctx.fillStyle = story ? '#0a1929' : '#000000';
+    ctx.fillStyle = story ? "#0a1929" : "#000000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     if (story) {
       // Add gradient background
       const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      gradient.addColorStop(0, '#0a1929');
-      gradient.addColorStop(1, '#1a2332');
+      gradient.addColorStop(0, "#0a1929");
+      gradient.addColorStop(1, "#1a2332");
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
       // Draw title
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 48px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(story.title || 'Story Time', canvas.width / 2, 80);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 48px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(story.title || "Story Time", canvas.width / 2, 80);
       
       // Draw theme badge
       if (story.theme) {
-        ctx.fillStyle = '#4a90e2';
+        ctx.fillStyle = "#4a90e2";
         ctx.roundRect(canvas.width / 2 - 80, 110, 160, 35, 15);
         ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '20px Arial';
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "20px Arial";
         ctx.fillText(story.theme, canvas.width / 2, 135);
       }
       
       // Draw story excerpt
       if (story.content) {
-        ctx.fillStyle = '#e0e0e0';
-        ctx.font = '24px Arial';
-        ctx.textAlign = 'left';
-        const words = story.content.split(' ').slice(0, 50);
+        ctx.fillStyle = "#e0e0e0";
+        ctx.font = "24px Arial";
+        ctx.textAlign = "left";
+        const words = story.content.split(" ").slice(0, 50);
         const lines = [];
-        let currentLine = '';
+        let currentLine = "";
         
         words.forEach(word => {
-          const testLine = currentLine + word + ' ';
+          const testLine = currentLine + word + " ";
           const metrics = ctx.measureText(testLine);
           if (metrics.width > canvas.width - 100 && currentLine) {
             lines.push(currentLine);
-            currentLine = word + ' ';
+            currentLine = word + " ";
           } else {
             currentLine = testLine;
           }
@@ -813,14 +831,14 @@ export default class World {
       
       // Draw reading time
       if (story.reading_time_minutes) {
-        ctx.fillStyle = '#66bb6a';
-        ctx.font = '20px Arial';
-        ctx.textAlign = 'right';
+        ctx.fillStyle = "#66bb6a";
+        ctx.font = "20px Arial";
+        ctx.textAlign = "right";
         ctx.fillText(`${story.reading_time_minutes} min read`, canvas.width - 50, canvas.height - 30);
       }
       
       // Add decorative elements
-      ctx.strokeStyle = '#4a90e2';
+      ctx.strokeStyle = "#4a90e2";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(50, 160);
@@ -926,6 +944,37 @@ export default class World {
         }
       });
     }
+    
+    // Animate dust particles for cinematic atmosphere
+    if (this.dustParticles) {
+      const positions = this.dustParticles.geometry.attributes.position.array;
+      for (let i = 0; i < positions.length; i += 3) {
+        // Gentle floating motion
+        positions[i] += Math.sin(elapsed * 0.0001 + i) * 0.001;
+        positions[i + 1] += Math.sin(elapsed * 0.0002 + i) * 0.002;
+        positions[i + 2] += Math.cos(elapsed * 0.0001 + i) * 0.001;
+        
+        // Reset particles that float too high
+        if (positions[i + 1] > 5) {
+          positions[i + 1] = 0;
+        }
+      }
+      this.dustParticles.geometry.attributes.position.needsUpdate = true;
+      
+      // Rotate the entire dust system slowly
+      this.dustParticles.rotation.y = elapsed * 0.00002;
+    }
+    
+    // Animate volumetric lighting
+    if (this.volumetricLighting) {
+      this.volumetricLighting.children.forEach((child, index) => {
+        if (child.geometry && child.geometry.type === "ConeGeometry") {
+          // Subtle pulsing for god rays
+          const pulse = Math.sin(elapsed * 0.0005 + index * 0.5) * 0.02;
+          child.material.opacity = 0.1 + pulse;
+        }
+      });
+    }
   }
 
   _updateBedroom({ elapsed }) {
@@ -964,6 +1013,181 @@ export default class World {
     }
   }
 
+  _createBedroomFallback() {
+    const bedroomGroup = new THREE.Group();
+    
+    // Cinematic bed with soft materials
+    const bedGeometry = new THREE.BoxGeometry(3, 0.8, 4);
+    const bedMaterial = new THREE.MeshStandardMaterial({
+      color: "#3a5f7d",
+      roughness: 0.9,
+      metalness: 0,
+    });
+    const bed = new THREE.Mesh(bedGeometry, bedMaterial);
+    bed.position.set(0, -0.6, -1);
+    bed.castShadow = true;
+    bed.receiveShadow = true;
+    bedroomGroup.add(bed);
+    
+    // Pillows with soft lighting interaction
+    const pillowGeometry = new THREE.BoxGeometry(1.2, 0.3, 0.8);
+    const pillowMaterial = new THREE.MeshStandardMaterial({
+      color: "#f0e6d2",
+      roughness: 0.95,
+      metalness: 0,
+    });
+    
+    const pillow1 = new THREE.Mesh(pillowGeometry, pillowMaterial);
+    pillow1.position.set(-0.8, -0.1, -2.5);
+    pillow1.rotation.y = 0.1;
+    pillow1.castShadow = true;
+    bedroomGroup.add(pillow1);
+    
+    const pillow2 = new THREE.Mesh(pillowGeometry, pillowMaterial);
+    pillow2.position.set(0.8, -0.1, -2.5);
+    pillow2.rotation.y = -0.1;
+    pillow2.castShadow = true;
+    bedroomGroup.add(pillow2);
+    
+    // Night stand with lamp base
+    const nightStandGeometry = new THREE.BoxGeometry(0.8, 0.6, 0.8);
+    const nightStandMaterial = new THREE.MeshStandardMaterial({
+      color: "#5a4a3a",
+      roughness: 0.7,
+      metalness: 0.1,
+    });
+    const nightStand = new THREE.Mesh(nightStandGeometry, nightStandMaterial);
+    nightStand.position.set(2.2, -0.7, -2);
+    nightStand.castShadow = true;
+    nightStand.receiveShadow = true;
+    bedroomGroup.add(nightStand);
+    
+    // Dream catcher decoration
+    const dreamCatcherGeometry = new THREE.TorusGeometry(0.4, 0.02, 8, 32);
+    const dreamCatcherMaterial = new THREE.MeshStandardMaterial({
+      color: "#d4a574",
+      roughness: 0.8,
+      metalness: 0.1,
+    });
+    const dreamCatcher = new THREE.Mesh(dreamCatcherGeometry, dreamCatcherMaterial);
+    dreamCatcher.position.set(-2.5, 3, -3.8);
+    dreamCatcher.rotation.x = 0.1;
+    bedroomGroup.add(dreamCatcher);
+    
+    // Curtains for window (translucent)
+    const curtainGeometry = new THREE.PlaneGeometry(1.5, 3);
+    const curtainMaterial = new THREE.MeshStandardMaterial({
+      color: "#e8dcc6",
+      transparent: true,
+      opacity: 0.7,
+      roughness: 0.9,
+      metalness: 0,
+      side: THREE.DoubleSide,
+    });
+    
+    const curtainLeft = new THREE.Mesh(curtainGeometry, curtainMaterial);
+    curtainLeft.position.set(3, 2.5, -2.85);
+    curtainLeft.rotation.y = 0.2;
+    bedroomGroup.add(curtainLeft);
+    
+    const curtainRight = new THREE.Mesh(curtainGeometry, curtainMaterial);
+    curtainRight.position.set(5, 2.5, -2.85);
+    curtainRight.rotation.y = -0.2;
+    bedroomGroup.add(curtainRight);
+    
+    // Rug with texture pattern
+    const rugGeometry = new THREE.CircleGeometry(2.5, 32);
+    const rugMaterial = new THREE.MeshStandardMaterial({
+      color: "#8b6b47",
+      roughness: 0.95,
+      metalness: 0,
+    });
+    const rug = new THREE.Mesh(rugGeometry, rugMaterial);
+    rug.rotation.x = -Math.PI / 2;
+    rug.position.set(0, -0.99, 1);
+    rug.receiveShadow = true;
+    bedroomGroup.add(rug);
+    
+    // Wall art/posters
+    const posterGeometry = new THREE.PlaneGeometry(1, 1.4);
+    const posterMaterial1 = new THREE.MeshBasicMaterial({
+      color: "#4ecdc4",
+    });
+    const poster1 = new THREE.Mesh(posterGeometry, posterMaterial1);
+    poster1.position.set(-3.9, 2, -1);
+    poster1.rotation.y = Math.PI / 2;
+    bedroomGroup.add(poster1);
+    
+    const posterMaterial2 = new THREE.MeshBasicMaterial({
+      color: "#f9ca24",
+    });
+    const poster2 = new THREE.Mesh(posterGeometry, posterMaterial2);
+    poster2.position.set(-3.9, 2, 1);
+    poster2.rotation.y = Math.PI / 2;
+    bedroomGroup.add(poster2);
+    
+    this.bedroomFallback = bedroomGroup;
+    this.roomGroups.bedroom.add(this.bedroomFallback);
+  }
+  
+  _createVolumetricLighting() {
+    // Add volumetric fog for cinematic depth
+    const volumetricGroup = new THREE.Group();
+    
+    // God rays from window
+    const rayGeometry = new THREE.ConeGeometry(2, 6, 4);
+    const rayMaterial = new THREE.MeshBasicMaterial({
+      color: "#fff8dc",
+      transparent: true,
+      opacity: 0.1,
+      side: THREE.DoubleSide,
+    });
+    
+    for (let i = 0; i < 3; i++) {
+      const ray = new THREE.Mesh(rayGeometry, rayMaterial);
+      ray.position.set(4 + i * 0.3, 2.5, -1);
+      ray.rotation.z = Math.PI;
+      ray.rotation.x = 0.3;
+      volumetricGroup.add(ray);
+    }
+    
+    // Ambient dust particles for atmosphere
+    const dustGeometry = new THREE.BufferGeometry();
+    const dustCount = 200;
+    const dustPositions = new Float32Array(dustCount * 3);
+    const dustSizes = new Float32Array(dustCount);
+    
+    for (let i = 0; i < dustCount; i++) {
+      dustPositions[i * 3] = (Math.random() - 0.5) * 10;
+      dustPositions[i * 3 + 1] = Math.random() * 5;
+      dustPositions[i * 3 + 2] = (Math.random() - 0.5) * 8;
+      dustSizes[i] = Math.random() * 0.02 + 0.005;
+    }
+    
+    dustGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(dustPositions, 3)
+    );
+    dustGeometry.setAttribute(
+      "size",
+      new THREE.BufferAttribute(dustSizes, 1)
+    );
+    
+    const dustMaterial = new THREE.PointsMaterial({
+      size: 0.01,
+      color: "#ffe4c4",
+      transparent: true,
+      opacity: 0.4,
+      blending: THREE.AdditiveBlending,
+    });
+    
+    this.dustParticles = new THREE.Points(dustGeometry, dustMaterial);
+    volumetricGroup.add(this.dustParticles);
+    
+    this.volumetricLighting = volumetricGroup;
+    this.roomGroups.studio.add(this.volumetricLighting);
+  }
+
   destroy() {
     [this.studioRoom, this.studioAccessories, this.bedroomRoom].forEach(
       (object) => {
@@ -979,6 +1203,7 @@ export default class World {
       this.bookshelf,
       this.window,
       this.storyStage,
+      this.volumetricLighting,
     ];
 
     studioExtras.forEach((object) => {
@@ -986,6 +1211,12 @@ export default class World {
       this.roomGroups.studio.remove(object);
       this._disposeObject(object);
     });
+
+    if (this.bedroomFallback) {
+      this.roomGroups.bedroom.remove(this.bedroomFallback);
+      this._disposeObject(this.bedroomFallback);
+      this.bedroomFallback = null;
+    }
 
     Object.values(this.roomGroups).forEach((group) => {
       this.scene.remove(group);

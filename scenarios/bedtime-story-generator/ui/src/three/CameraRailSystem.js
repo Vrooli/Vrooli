@@ -177,8 +177,8 @@ export default class CameraRailSystem {
         }
         
         // Loop for orbital camera
-        if (railName === 'storyOrbit' && options.loop) {
-          this.playRail('storyOrbit', options);
+        if (railName === "storyOrbit" && options.loop) {
+          this.playRail("storyOrbit", options);
         }
       }
     });

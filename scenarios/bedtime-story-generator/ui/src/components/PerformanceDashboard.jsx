@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import * as THREE from "three";
 
 const PANEL_VARIANTS = {
   hidden: { opacity: 0, y: 20 },
@@ -40,21 +39,28 @@ const PerformanceDashboard = ({ experience, isOpen, onToggle }) => {
   const animationFrameRef = useRef(null);
 
   useEffect(() => {
-    if (!experience || !isOpen) {
+    if (!experience) {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      return;
+      return undefined;
     }
 
+    let mounted = true;
+
     const updateMetrics = () => {
+      if (!mounted) {
+        return;
+      }
+
       const now = performance.now();
       const deltaTime = now - lastTimeRef.current;
-      frameCountRef.current++;
+      frameCountRef.current += 1;
 
-      // Update FPS every 500ms
       if (deltaTime >= 500) {
-        const fps = Math.round((frameCountRef.current * 1000) / deltaTime);
+        const framesCaptured = frameCountRef.current;
+        const fps = framesCaptured > 0 ? Math.round((framesCaptured * 1000) / deltaTime) : 0;
+
         frameCountRef.current = 0;
         lastTimeRef.current = now;
 
@@ -63,31 +69,34 @@ const PerformanceDashboard = ({ experience, isOpen, onToggle }) => {
 
         if (renderer && scene) {
           const info = renderer.info;
-          const memory = info.memory;
-          const render = info.render;
+          const memoryInfo = info.memory;
+          const renderInfo = info.render;
 
-          // Calculate memory usage
           const memoryUsage = performance.memory
             ? Math.round(performance.memory.usedJSHeapSize / 1048576)
             : 0;
 
-          const newMetrics = {
-            fps,
-            frameTime: Math.round(1000 / fps * 100) / 100,
-            drawCalls: render.calls || 0,
-            triangles: render.triangles || 0,
-            textures: memory.textures || 0,
-            geometries: memory.geometries || 0,
+          const safeFps = Number.isFinite(fps) && fps > 0 ? fps : 0;
+          const frameTime = safeFps > 0 ? Math.round((1000 / safeFps) * 100) / 100 : 0;
+          const renderTime = framesCaptured > 0
+            ? Math.round((deltaTime / framesCaptured) * 100) / 100
+            : 0;
+
+          const nextMetrics = {
+            fps: safeFps,
+            frameTime,
+            drawCalls: renderInfo.calls || 0,
+            triangles: renderInfo.triangles || 0,
+            textures: memoryInfo.textures || 0,
+            geometries: memoryInfo.geometries || 0,
             memory: memoryUsage,
-            renderTime: Math.round(deltaTime / frameCountRef.current * 100) / 100,
+            renderTime,
           };
 
-          setMetrics(newMetrics);
-
-          // Update history (keep last 60 samples)
+          setMetrics(nextMetrics);
           setHistory((prev) => ({
-            fps: [...prev.fps.slice(-59), fps],
-            renderTime: [...prev.renderTime.slice(-59), newMetrics.renderTime],
+            fps: [...prev.fps.slice(-59), nextMetrics.fps],
+            renderTime: [...prev.renderTime.slice(-59), nextMetrics.renderTime],
           }));
         }
       }
@@ -95,14 +104,15 @@ const PerformanceDashboard = ({ experience, isOpen, onToggle }) => {
       animationFrameRef.current = requestAnimationFrame(updateMetrics);
     };
 
-    updateMetrics();
+    animationFrameRef.current = requestAnimationFrame(updateMetrics);
 
     return () => {
+      mounted = false;
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [experience, isOpen]);
+  }, [experience]);
 
   const getStatusColor = (value, target) => {
     if (target.min) {

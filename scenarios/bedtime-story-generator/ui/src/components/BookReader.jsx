@@ -24,9 +24,8 @@ const BookReader = ({ story, onClose }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [pages, setPages] = useState([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [speechRate, setSpeechRate] = useState(0.9); // Slower for children
   const [speechVoice, setSpeechVoice] = useState(null);
-  const [availableVoices, setAvailableVoices] = useState([]);
+  const [setAvailableVoices] = useState([]);
 
   useEffect(() => {
     const splitPages = story.content.split("## Page");

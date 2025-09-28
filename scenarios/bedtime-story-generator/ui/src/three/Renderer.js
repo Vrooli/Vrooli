@@ -13,7 +13,7 @@ export default class Renderer {
 
   _createRenderer() {
     this.instance = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    this.instance.outputEncoding = THREE.sRGBEncoding;
+    this.instance.outputColorSpace = THREE.SRGBColorSpace;
     this.instance.setClearColor("#0d1022", 1);
     this.instance.setPixelRatio(this.sizes.pixelRatio);
     this.instance.setSize(this.sizes.width, this.sizes.height);

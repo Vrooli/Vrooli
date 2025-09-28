@@ -3,10 +3,10 @@ import axios from "axios";
 import Bookshelf from "./components/Bookshelf";
 import BookReader from "./components/BookReader";
 import StoryGenerator from "./components/StoryGenerator";
-import { getTimeOfDay, getThemeForTime, getGreeting } from "./utils/timeUtils";
+import { getThemeForTime, getGreeting } from "./utils/timeUtils";
 
 const API_URL =
-  process.env.NODE_ENV === "production" ? "/api" : `http://localhost:16902/api`;
+  process.env.NODE_ENV === "production" ? "/api" : "http://localhost:16902/api";
 
 function App() {
   const [stories, setStories] = useState([]);

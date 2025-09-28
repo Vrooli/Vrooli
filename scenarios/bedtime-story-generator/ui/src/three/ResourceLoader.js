@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
-import assetManifest, {
+import {
   ROOM_ASSET_MANIFEST,
   SHARED_ASSETS,
 } from "../assets/manifest.js";
@@ -23,8 +23,10 @@ export default class ResourceLoader {
     this.textureLoader = new THREE.TextureLoader(this.manager);
     this.hdrLoader = new RGBELoader(this.manager);
     this.dracoLoader = new DRACOLoader(this.manager);
-    this.dracoLoader.setDecoderPath(SHARED_ASSETS.dracoDecoder || "");
-    this.dracoLoader.setDecoderConfig({ type: "js" });
+    const decoderPath = SHARED_ASSETS.dracoDecoder || "";
+    this.dracoLoader.setDecoderPath(decoderPath.endsWith("/") ? decoderPath : `${decoderPath}/`);
+    this.dracoLoader.setDecoderConfig({ type: "wasm" });
+    this.dracoLoader.preload();
 
     this.gltfLoader = new GLTFLoader(this.manager);
     this.gltfLoader.setDRACOLoader(this.dracoLoader);
@@ -49,6 +51,14 @@ export default class ResourceLoader {
       const state = loaderStore.getState();
       if (state.loader.status === "loading") {
         state.completeLoader();
+      }
+    };
+
+    this.manager.onError = (url) => {
+      console.error(`[ResourceLoader] Failed to load asset: ${url}`);
+      const state = loaderStore.getState();
+      if (state.loader.status === "loading") {
+        state.updateLoader({ label: "Encountered asset load error" });
       }
     };
   }
@@ -133,7 +143,7 @@ export default class ResourceLoader {
     if (manifest.baked) {
       Object.entries(manifest.baked).forEach(([key, path]) => {
         enqueueTexture(key, path, (texture) => {
-          texture.encoding = THREE.sRGBEncoding;
+          texture.colorSpace = THREE.SRGBColorSpace;
           texture.flipY = false;
           return texture;
         });
@@ -149,7 +159,7 @@ export default class ResourceLoader {
     if (manifest.textures) {
       Object.entries(manifest.textures).forEach(([key, path]) => {
         enqueueTexture(key, path, (texture) => {
-          texture.encoding = THREE.sRGBEncoding;
+          texture.colorSpace = THREE.SRGBColorSpace;
           texture.flipY = false;
           bucket[`texture_${key}`] = texture;
           return texture;
@@ -173,7 +183,17 @@ export default class ResourceLoader {
       });
     }
 
-    const roomPromise = Promise.allSettled(tasks).then(() => {
+    const roomPromise = Promise.allSettled(tasks).then((results) => {
+      const successfulLoads = results.filter(
+        (entry) => entry.status === "fulfilled" && entry.value?.success,
+      ).length;
+
+      if (this.expectedTotal > 0 && successfulLoads === 0) {
+        console.warn(
+          `[ResourceLoader] All asset loads failed for room ${roomId}. Falling back to procedural placeholder.`,
+        );
+      }
+
       if (roomId === "studio") {
         this._applyStudioFallbacks(bucket);
       }
@@ -270,7 +290,7 @@ export default class ResourceLoader {
           this.textureLoader.load(
             cacheBuster,
             (texture) => {
-              texture.encoding = THREE.sRGBEncoding;
+              texture.colorSpace = THREE.SRGBColorSpace;
               texture.flipY = false;
               
               const roomId = this.currentRoom;

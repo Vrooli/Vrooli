@@ -150,7 +150,7 @@ const PhotoMode = ({ experience, onClose }) => {
       setIsCapturing(false);
       setCaptureProgress(0);
     }
-  }, [experience, selectedResolution, selectedPreset, transparentBg]);
+  }, [experience, selectedResolution, selectedPreset, transparentBg, isCapturing]);
 
   const copyMarketingPrompt = useCallback(() => {
     const prompt = `Create marketing materials for a children's bedtime story app featuring:

@@ -1,42 +1,52 @@
-const base = "/experience";
+const resolveAsset = (path) => {
+  const trimmed = path.startsWith("/") ? path.slice(1) : path;
+
+  if (typeof document !== "undefined" && document.baseURI) {
+    return new URL(trimmed, document.baseURI).pathname;
+  }
+
+  const base = import.meta.env?.BASE_URL ?? "/";
+  const normalized = base.endsWith("/") ? base : `${base}/`;
+  return `${normalized}${trimmed}`;
+};
 
 export const ROOM_ASSET_MANIFEST = {
   studio: {
     baked: {
-      day: `${base}/bakedDay.jpg`,
-      evening: `${base}/bakedNeutral.jpg`,
-      night: `${base}/bakedNight.jpg`,
-      neutral: `${base}/bakedNeutral.jpg`,
-      lightMap: `${base}/lightMap.jpg`,
+      day: resolveAsset("experience/bakedDay.jpg"),
+      evening: resolveAsset("experience/bakedNeutral.jpg"),
+      night: resolveAsset("experience/bakedNight.jpg"),
+      neutral: resolveAsset("experience/bakedNeutral.jpg"),
+      lightMap: resolveAsset("experience/lightMap.jpg"),
     },
     models: {
-      room: `${base}/roomModel.glb`,
-      pcScreen: `${base}/pcScreenModel.glb`,
-      macScreen: `${base}/macScreenModel.glb`,
-      coffeeSteam: `${base}/coffeeSteamModel.glb`,
-      loupedeck: `${base}/loupedeckButtonsModel.glb`,
-      googleLeds: `${base}/googleHomeLedsModel.glb`,
-      topChair: `${base}/topChairModel.glb`,
-      elgato: `${base}/elgatoLightModel.glb`,
+      room: resolveAsset("experience/roomModel.glb"),
+      pcScreen: resolveAsset("experience/pcScreenModel.glb"),
+      macScreen: resolveAsset("experience/macScreenModel.glb"),
+      coffeeSteam: resolveAsset("experience/coffeeSteamModel.glb"),
+      loupedeck: resolveAsset("experience/loupedeckButtonsModel.glb"),
+      googleLeds: resolveAsset("experience/googleHomeLedsModel.glb"),
+      topChair: resolveAsset("experience/topChairModel.glb"),
+      elgato: resolveAsset("experience/elgatoLightModel.glb"),
     },
     textures: {
-      googleLedMask: `${base}/googleHomeLedMask.png`,
-      threeLogo: `${base}/threejsJourneyLogo.png`,
+      googleLedMask: resolveAsset("experience/googleHomeLedMask.png"),
+      threeLogo: resolveAsset("experience/threejsJourneyLogo.png"),
     },
     screens: {
-      pc: `${base}/videoPortfolio.mp4`,
-      mac: `${base}/videoStream.mp4`,
+      pc: resolveAsset("experience/videoPortfolio.mp4"),
+      mac: resolveAsset("experience/videoStream.mp4"),
     },
   },
   bedroom: {
     models: {
-      environment: `${base}/bedroom/bedroomScene.glb`,
+      environment: resolveAsset("experience/bedroom/bedroomScene.glb"),
     },
   },
 };
 
 export const SHARED_ASSETS = {
-  dracoDecoder: `${base}/draco/`,
+  dracoDecoder: `${resolveAsset("experience/draco/")}`,
 };
 
 export const LEGACY_ENVIRONMENT_MANIFEST = {

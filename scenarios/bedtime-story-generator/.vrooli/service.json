@@ -196,7 +196,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo 'Bedtime Story Generator ready - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: bedtime-story --help'",
+          "run": "echo \"Bedtime Story Generator ready - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: bedtime-story --help\"",
           "description": "Display access URLs"
         }
       ]
@@ -221,7 +221,7 @@
         },
          {
            "name": "show-urls",
-           "run": "echo 'Services running - Story Reader: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
+           "run": "echo \"Services running - Story Reader: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}\"",
            "description": "Display service URLs"
          }
       ]
