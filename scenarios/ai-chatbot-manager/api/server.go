@@ -20,9 +20,9 @@ type Server struct {
 	eventPublisher    *EventPublisher
 	baseURL           string
 	// Health check cache
-	healthCache       map[string]interface{}
-	healthCacheTime   time.Time
-	healthCacheMutex  sync.RWMutex
+	healthCache      map[string]interface{}
+	healthCacheTime  time.Time
+	healthCacheMutex sync.RWMutex
 }
 
 // NewServer creates a new server instance
@@ -33,7 +33,7 @@ func NewServer(config *Config, db *Database, logger *Logger) *Server {
 
 	// Create event publisher
 	eventPublisher := NewEventPublisher(logger)
-	
+
 	server := &Server{
 		config:            config,
 		db:                db,
@@ -65,7 +65,7 @@ func (s *Server) setupRoutes() {
 		return LoggingMiddleware(s.logger, next)
 	})
 	s.router.Use(CORSMiddleware)
-	
+
 	// Apply authentication middleware globally
 	authMiddleware := NewAuthenticationMiddleware(s.logger)
 	s.router.Use(authMiddleware.Middleware)
@@ -94,7 +94,7 @@ func (s *Server) setupRoutes() {
 
 	// Analytics
 	api.HandleFunc("/analytics/{id}", s.AnalyticsHandler).Methods("GET")
-	
+
 	// Escalations
 	api.HandleFunc("/chatbots/{id}/escalations", s.GetEscalationsHandler).Methods("GET")
 	api.HandleFunc("/escalations/{id}", s.UpdateEscalationHandler).Methods("PATCH")
@@ -106,12 +106,12 @@ func (s *Server) setupRoutes() {
 	// Multi-tenant endpoints
 	api.HandleFunc("/tenants", s.CreateTenantHandler).Methods("POST")
 	api.HandleFunc("/tenants/{id}", s.GetTenantHandler).Methods("GET")
-	
+
 	// A/B Testing endpoints
 	api.HandleFunc("/chatbots/{chatbot_id}/ab-tests", s.CreateABTestHandler).Methods("POST")
 	api.HandleFunc("/ab-tests/{test_id}/start", s.StartABTestHandler).Methods("POST")
 	api.HandleFunc("/ab-tests/{test_id}/results", s.GetABTestResultsHandler).Methods("GET")
-	
+
 	// CRM Integration endpoints
 	api.HandleFunc("/crm-integrations", s.CreateCRMIntegrationHandler).Methods("POST")
 	api.HandleFunc("/conversations/{conversation_id}/sync-crm", s.SyncCRMLeadHandler).Methods("POST")

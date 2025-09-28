@@ -152,7 +152,7 @@ func NewAuthenticationMiddleware(logger *Logger) *AuthenticationMiddleware {
 	apiKeys := make(map[string]bool)
 	// Default API key for development - should be changed in production
 	apiKeys["dev-api-key-change-in-production"] = true
-	
+
 	return &AuthenticationMiddleware{
 		apiKeys: apiKeys,
 		logger:  logger,
@@ -168,27 +168,27 @@ func (am *AuthenticationMiddleware) Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		
+
 		// Check for API key in header
 		apiKey := r.Header.Get("X-API-Key")
 		if apiKey == "" {
 			// Check for API key in query parameter (for browser testing)
 			apiKey = r.URL.Query().Get("api_key")
 		}
-		
+
 		// Validate API key
 		if apiKey == "" {
 			am.logger.Printf("Authentication failed: No API key provided for %s", path)
 			http.Error(w, `{"error":"API key required"}`, http.StatusUnauthorized)
 			return
 		}
-		
+
 		if !am.apiKeys[apiKey] {
 			am.logger.Printf("Authentication failed: Invalid API key for %s", path)
 			http.Error(w, `{"error":"Invalid API key"}`, http.StatusUnauthorized)
 			return
 		}
-		
+
 		// API key is valid, proceed
 		next.ServeHTTP(w, r)
 	})

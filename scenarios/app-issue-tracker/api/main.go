@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -154,10 +157,11 @@ type Issue struct {
 }
 
 type Attachment struct {
-	Name string `yaml:"name" json:"name"`
-	Type string `yaml:"type,omitempty" json:"type,omitempty"`
-	Path string `yaml:"path" json:"path"`
-	Size int64  `yaml:"size,omitempty" json:"size,omitempty"`
+	Name     string `yaml:"name" json:"name"`
+	Type     string `yaml:"type,omitempty" json:"type,omitempty"`
+	Path     string `yaml:"path" json:"path"`
+	Size     int64  `yaml:"size,omitempty" json:"size,omitempty"`
+	Category string `yaml:"category,omitempty" json:"category,omitempty"`
 }
 
 type UpdateIssueRequest struct {
@@ -589,6 +593,37 @@ func ensureUniqueFilename(filename string, used map[string]int) string {
 	}
 }
 
+func normalizeAttachmentPath(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	replaced := strings.ReplaceAll(trimmed, "\\", "/")
+	cleaned := path.Clean("/" + replaced)
+	cleaned = strings.TrimPrefix(cleaned, "/")
+	if cleaned == "." {
+		return ""
+	}
+	return cleaned
+}
+
+func resolveAttachmentPath(issueDir, relativeRef string) (string, error) {
+	normalized := normalizeAttachmentPath(relativeRef)
+	if normalized == "" {
+		return "", fmt.Errorf("invalid attachment path")
+	}
+	fsRelative := filepath.FromSlash(normalized)
+	full := filepath.Join(issueDir, fsRelative)
+	relative, err := filepath.Rel(issueDir, full)
+	if err != nil {
+		return "", err
+	}
+	if relative == "." || strings.HasPrefix(relative, "..") || strings.HasPrefix(filepath.ToSlash(relative), "../") {
+		return "", fmt.Errorf("invalid attachment path")
+	}
+	return full, nil
+}
+
 func decodeArtifactContent(payload ArtifactPayload) ([]byte, error) {
 	encoding := strings.ToLower(strings.TrimSpace(payload.Encoding))
 	switch encoding {
@@ -693,15 +728,17 @@ func (s *Server) persistArtifacts(issueDir string, payloads []ArtifactPayload) (
 				contentType = "application/octet-stream"
 			}
 		}
+		relativePath := path.Join(artifactsDirName, filename)
 		filePath := filepath.Join(destination, filename)
 		if err := os.WriteFile(filePath, data, 0644); err != nil {
 			return nil, fmt.Errorf("artifact %q: %w", filename, err)
 		}
 		attachments = append(attachments, Attachment{
-			Name: displayName,
-			Type: contentType,
-			Path: filepath.Join(artifactsDirName, filename),
-			Size: int64(len(data)),
+			Name:     displayName,
+			Type:     contentType,
+			Path:     relativePath,
+			Size:     int64(len(data)),
+			Category: strings.TrimSpace(artifact.Category),
 		})
 	}
 	return attachments, nil
@@ -1040,6 +1077,108 @@ func (s *Server) getIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) getIssueAttachmentHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	issueID := strings.TrimSpace(vars["id"])
+	attachmentPath := strings.TrimSpace(vars["attachment"])
+	if issueID == "" || attachmentPath == "" {
+		http.Error(w, "Issue ID and attachment path are required", http.StatusBadRequest)
+		return
+	}
+
+	decodedPath, err := url.PathUnescape(attachmentPath)
+	if err != nil {
+		http.Error(w, "Invalid attachment path", http.StatusBadRequest)
+		return
+	}
+
+	normalized := normalizeAttachmentPath(decodedPath)
+	if normalized == "" || strings.HasPrefix(normalized, "../") {
+		http.Error(w, "Invalid attachment path", http.StatusBadRequest)
+		return
+	}
+
+	issueDir, _, err := s.findIssueDirectory(issueID)
+	if err != nil {
+		http.Error(w, "Issue not found", http.StatusNotFound)
+		return
+	}
+
+	fsPath, err := resolveAttachmentPath(issueDir, normalized)
+	if err != nil {
+		http.Error(w, "Invalid attachment path", http.StatusBadRequest)
+		return
+	}
+
+	info, err := os.Stat(fsPath)
+	if err != nil || info.IsDir() {
+		http.Error(w, "Attachment not found", http.StatusNotFound)
+		return
+	}
+
+	loadedIssue, err := s.loadIssueFromDir(issueDir)
+	if err != nil {
+		log.Printf("Failed to load issue metadata for attachment lookup: %v", err)
+	}
+
+	var contentType string
+	var downloadName string
+	targetMetaPath := normalizeAttachmentPath(normalized)
+	var attachmentMeta *Attachment
+	if loadedIssue != nil {
+		for idx := range loadedIssue.Attachments {
+			attachment := &loadedIssue.Attachments[idx]
+			candidate := normalizeAttachmentPath(attachment.Path)
+			if candidate == targetMetaPath {
+				contentType = strings.TrimSpace(attachment.Type)
+				if strings.TrimSpace(attachment.Name) != "" {
+					downloadName = strings.TrimSpace(attachment.Name)
+				}
+				attachmentMeta = attachment
+				break
+			}
+		}
+	}
+
+	if contentType == "" {
+		if detected := mime.TypeByExtension(strings.ToLower(filepath.Ext(fsPath))); detected != "" {
+			contentType = detected
+		}
+	}
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	if downloadName == "" {
+		downloadName = filepath.Base(fsPath)
+	} else if !strings.Contains(downloadName, ".") {
+		if ext := filepath.Ext(fsPath); ext != "" {
+			downloadName = fmt.Sprintf("%s%s", downloadName, ext)
+		}
+	}
+
+	file, err := os.Open(fsPath)
+	if err != nil {
+		log.Printf("Failed to open attachment %s for issue %s: %v", normalized, issueID, err)
+		http.Error(w, "Failed to open attachment", http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	w.Header().Set("Content-Type", contentType)
+	disposition := "inline"
+	if !(strings.HasPrefix(contentType, "image/") || strings.HasPrefix(contentType, "text/") || strings.HasSuffix(contentType, "+json") || contentType == "application/json") {
+		disposition = "attachment"
+	}
+	w.Header().Set("Content-Disposition", fmt.Sprintf("%s; filename=%q", disposition, downloadName))
+	if attachmentMeta != nil && attachmentMeta.Category != "" {
+		w.Header().Set("X-Attachment-Category", attachmentMeta.Category)
+	}
+	w.Header().Set("Cache-Control", "no-store")
+
+	http.ServeContent(w, r, downloadName, info.ModTime(), file)
 }
 
 func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
@@ -1969,6 +2108,7 @@ func main() {
 	v1 := r.PathPrefix("/api/v1").Subrouter()
 	v1.HandleFunc("/issues", server.getIssuesHandler).Methods("GET")
 	v1.HandleFunc("/issues", server.createIssueHandler).Methods("POST")
+	v1.HandleFunc("/issues/{id}/attachments/{attachment:.*}", server.getIssueAttachmentHandler).Methods("GET")
 	v1.HandleFunc("/issues/{id}", server.getIssueHandler).Methods("GET")
 	v1.HandleFunc("/issues/{id}", server.updateIssueHandler).Methods("PUT", "PATCH")
 	v1.HandleFunc("/issues/{id}", server.deleteIssueHandler).Methods("DELETE")

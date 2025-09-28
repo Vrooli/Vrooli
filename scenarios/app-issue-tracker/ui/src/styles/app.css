@@ -514,14 +514,6 @@
   overflow-wrap: anywhere;
 }
 
-.issue-summary {
-  margin: 0;
-  color: var(--muted);
-  font-size: 14px;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-
 .issue-footer {
   display: flex;
   gap: 12px;
@@ -830,6 +822,14 @@ textarea::placeholder {
   overflow: hidden;
 }
 
+.dark .modal-backdrop {
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.dark .modal-panel {
+  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.65);
+}
+
 .modal-form {
   display: flex;
   flex-direction: column;
@@ -1047,6 +1047,338 @@ textarea::placeholder {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.issue-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.issue-section-heading h3 {
+  margin: 0;
+}
+
+.issue-section-meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.markdown-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #1f2937;
+}
+
+.dark .markdown-body {
+  color: #e2e8f0;
+}
+
+.markdown-body p {
+  margin: 0;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.markdown-body li {
+  margin: 4px 0;
+}
+
+.markdown-body code {
+  font-family: 'Fira Code', 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+  background: rgba(15, 23, 42, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
+.dark .markdown-body code {
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.markdown-body pre {
+  margin: 0;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.dark .markdown-body pre {
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.markdown-body blockquote {
+  border-left: 4px solid rgba(99, 102, 241, 0.45);
+  padding-left: 16px;
+  margin: 0;
+  color: inherit;
+  opacity: 0.9;
+}
+
+.markdown-body a {
+  color: #4338ca;
+}
+
+.dark .markdown-body a {
+  color: #a5b4fc;
+}
+
+.issue-detail-placeholder {
+  margin: 0;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.issue-attachments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.attachment-card {
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--card-bg);
+}
+
+.dark .attachment-card {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+.attachment-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.attachment-icon {
+  display: inline-flex;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #4338ca;
+}
+
+.dark .attachment-icon {
+  background: rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+}
+
+.attachment-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.attachment-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.attachment-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.attachment-category {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(99, 102, 241, 0.16);
+  color: #312e81;
+}
+
+.dark .attachment-category {
+  background: rgba(129, 140, 248, 0.28);
+  color: #e0e7ff;
+}
+
+.attachment-card-name {
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.attachment-card-details {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.attachment-preview {
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.04);
+  padding: 10px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.attachment-card--collapsed .attachment-preview {
+  display: none;
+}
+
+.dark .attachment-preview {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.attachment-preview-image {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
+}
+
+.attachment-preview-text {
+  margin: 0;
+  font-family: 'Fira Code', 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.attachment-preview-placeholder,
+.attachment-preview-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.attachment-preview-error {
+  color: #dc2626;
+}
+
+.dark .attachment-preview-error {
+  color: #fca5a5;
+}
+
+.attachment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attachment-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.attachment-toggle:hover,
+.attachment-toggle:focus-visible {
+  background: rgba(99, 102, 241, 0.12);
+  color: #312e81;
+  outline: none;
+}
+
+.dark .attachment-toggle:hover,
+.dark .attachment-toggle:focus-visible {
+  background: rgba(129, 140, 248, 0.18);
+  color: #c7d2fe;
+}
+
+.attachment-toggle-icon {
+  transition: transform 0.2s ease;
+}
+
+.attachment-card--collapsed .attachment-toggle-icon {
+  transform: rotate(-90deg);
+}
+
+.attachment-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  background: rgba(99, 102, 241, 0.08);
+  color: #312e81;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.attachment-button:hover {
+  background: rgba(99, 102, 241, 0.16);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.attachment-button:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.6);
+  outline-offset: 2px;
+}
+
+.dark .attachment-button {
+  background: rgba(129, 140, 248, 0.12);
+  border-color: rgba(129, 140, 248, 0.3);
+  color: #e0e7ff;
+}
+
+.dark .attachment-button:hover {
+  background: rgba(129, 140, 248, 0.2);
+  border-color: rgba(129, 140, 248, 0.45);
+}
+
+.attachment-spinner {
+  animation: attachment-spin 1s linear infinite;
+}
+
+@keyframes attachment-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .issue-detail-text {

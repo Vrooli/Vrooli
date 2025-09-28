@@ -56,30 +56,30 @@ type ABTest struct {
 
 // CRMIntegration model for CRM system integration
 type CRMIntegration struct {
-	ID         string                 `json:"id"`
-	TenantID   string                 `json:"tenant_id"`
-	ChatbotID  *string                `json:"chatbot_id,omitempty"`
-	Type       string                 `json:"type"` // salesforce, hubspot, pipedrive, webhook
-	Config     map[string]interface{} `json:"config"`
-	SyncEnabled bool                  `json:"sync_enabled"`
-	LastSyncAt *time.Time             `json:"last_sync_at,omitempty"`
-	SyncStatus string                 `json:"sync_status"`
-	SyncErrors map[string]interface{} `json:"sync_errors,omitempty"`
-	CreatedAt  time.Time              `json:"created_at"`
-	UpdatedAt  time.Time              `json:"updated_at"`
+	ID          string                 `json:"id"`
+	TenantID    string                 `json:"tenant_id"`
+	ChatbotID   *string                `json:"chatbot_id,omitempty"`
+	Type        string                 `json:"type"` // salesforce, hubspot, pipedrive, webhook
+	Config      map[string]interface{} `json:"config"`
+	SyncEnabled bool                   `json:"sync_enabled"`
+	LastSyncAt  *time.Time             `json:"last_sync_at,omitempty"`
+	SyncStatus  string                 `json:"sync_status"`
+	SyncErrors  map[string]interface{} `json:"sync_errors,omitempty"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
 }
 
 type Conversation struct {
-	ID             string                 `json:"id"`
-	ChatbotID      string                 `json:"chatbot_id"`
-	SessionID      string                 `json:"session_id"`
-	UserIP         string                 `json:"user_ip,omitempty"`
-	StartedAt      time.Time              `json:"started_at"`
-	EndedAt        *time.Time             `json:"ended_at,omitempty"`
-	LeadCaptured   bool                   `json:"lead_captured"`
-	LeadData       map[string]interface{} `json:"lead_data,omitempty"`
-	ABTestID       *string                `json:"ab_test_id,omitempty"`
-	ABTestVariant  *string                `json:"ab_test_variant,omitempty"`
+	ID            string                 `json:"id"`
+	ChatbotID     string                 `json:"chatbot_id"`
+	SessionID     string                 `json:"session_id"`
+	UserIP        string                 `json:"user_ip,omitempty"`
+	StartedAt     time.Time              `json:"started_at"`
+	EndedAt       *time.Time             `json:"ended_at,omitempty"`
+	LeadCaptured  bool                   `json:"lead_captured"`
+	LeadData      map[string]interface{} `json:"lead_data,omitempty"`
+	ABTestID      *string                `json:"ab_test_id,omitempty"`
+	ABTestVariant *string                `json:"ab_test_variant,omitempty"`
 }
 
 type Message struct {
@@ -161,13 +161,13 @@ type Intent struct {
 }
 
 type ConversionFunnel struct {
-	TotalVisitors      int     `json:"total_visitors"`
-	EngagedVisitors    int     `json:"engaged_visitors"`
-	QualifiedLeads     int     `json:"qualified_leads"`
-	CapturedLeads      int     `json:"captured_leads"`
-	EngagementRate     float64 `json:"engagement_rate"`
-	QualificationRate  float64 `json:"qualification_rate"`
-	CaptureRate        float64 `json:"capture_rate"`
+	TotalVisitors     int     `json:"total_visitors"`
+	EngagedVisitors   int     `json:"engaged_visitors"`
+	QualifiedLeads    int     `json:"qualified_leads"`
+	CapturedLeads     int     `json:"captured_leads"`
+	EngagementRate    float64 `json:"engagement_rate"`
+	QualificationRate float64 `json:"qualification_rate"`
+	CaptureRate       float64 `json:"capture_rate"`
 }
 
 type UserJourney struct {
@@ -190,11 +190,11 @@ type DropOffPoint struct {
 }
 
 type HourlyMetric struct {
-	Hour               int     `json:"hour"`
-	Conversations      int     `json:"conversations"`
-	Messages           int     `json:"messages"`
-	Leads              int     `json:"leads"`
-	AvgResponseTimeMs  float64 `json:"avg_response_time_ms"`
+	Hour              int     `json:"hour"`
+	Conversations     int     `json:"conversations"`
+	Messages          int     `json:"messages"`
+	Leads             int     `json:"leads"`
+	AvgResponseTimeMs float64 `json:"avg_response_time_ms"`
 }
 
 // Request types

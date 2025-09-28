@@ -44,7 +44,6 @@ export function IssueCard({ issue, isFocused = false, onSelect }: IssueCardProps
         <span className="issue-assignee">{issue.assignee}</span>
       </header>
       <h3 className="issue-title">{issue.title}</h3>
-      <p className="issue-summary">{issue.summary}</p>
       <footer className="issue-footer">
         <span className="issue-meta">
           <Hash size={14} />

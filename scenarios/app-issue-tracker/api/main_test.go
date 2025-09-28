@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -236,6 +238,9 @@ func TestCreateIssueHandlerStoresArtifacts(t *testing.T) {
 	if len(created.Attachments) != 2 {
 		t.Fatalf("expected 2 attachments, got %d", len(created.Attachments))
 	}
+	if created.Attachments[0].Category == "" || created.Attachments[1].Category == "" {
+		t.Fatalf("expected attachment categories to be populated: %#v", created.Attachments)
+	}
 
 	issueDir, _, err := server.findIssueDirectory(created.ID)
 	if err != nil {
@@ -254,5 +259,80 @@ func TestCreateIssueHandlerStoresArtifacts(t *testing.T) {
 	}
 	if len(storedIssue.Attachments) != 2 {
 		t.Fatalf("expected attachments persisted to metadata, got %d", len(storedIssue.Attachments))
+	}
+}
+
+func TestGetIssueAttachmentHandlerServesContent(t *testing.T) {
+	server := newTestServer(t)
+
+	artifactContent := "line one\nline two"
+	payload := map[string]any{
+		"title":       "Attachment fetch",
+		"description": "desc",
+		"app_id":      "app-dashboard",
+		"artifacts": []map[string]string{
+			{
+				"name":         "Execution Logs",
+				"category":     "logs",
+				"content":      artifactContent,
+				"encoding":     "plain",
+				"content_type": "text/plain",
+			},
+			{
+				"name":         "Screenshot",
+				"category":     "screenshot",
+				"content":      base64.StdEncoding.EncodeToString([]byte("fake-image")),
+				"encoding":     "base64",
+				"content_type": "image/png",
+			},
+		},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/issues", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+	server.createIssueHandler(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", rr.Code, http.StatusOK)
+	}
+	var createResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Issue Issue `json:"issue"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &createResp); err != nil {
+		t.Fatalf("failed to decode create response: %v", err)
+	}
+	if !createResp.Success {
+		t.Fatalf("expected create success")
+	}
+	if len(createResp.Data.Issue.Attachments) == 0 {
+		t.Fatalf("expected at least one attachment")
+	}
+	attachment := createResp.Data.Issue.Attachments[0]
+	attachmentPath := filepath.ToSlash(attachment.Path)
+	requestPath := fmt.Sprintf("/api/v1/issues/%s/attachments/%s", createResp.Data.Issue.ID, attachmentPath)
+	attachReq := httptest.NewRequest(http.MethodGet, requestPath, nil)
+	attachReq = mux.SetURLVars(attachReq, map[string]string{
+		"id":         createResp.Data.Issue.ID,
+		"attachment": attachmentPath,
+	})
+	attachRes := httptest.NewRecorder()
+	server.getIssueAttachmentHandler(attachRes, attachReq)
+	if attachRes.Code != http.StatusOK {
+		t.Fatalf("unexpected attachment status code: got %d, want %d", attachRes.Code, http.StatusOK)
+	}
+	if ct := attachRes.Header().Get("Content-Type"); ct != "text/plain" {
+		t.Fatalf("unexpected content type: %s", ct)
+	}
+	data, err := io.ReadAll(attachRes.Body)
+	if err != nil {
+		t.Fatalf("failed to read attachment body: %v", err)
+	}
+	if string(data) != artifactContent {
+		t.Fatalf("unexpected attachment body: %q", string(data))
 	}
 }

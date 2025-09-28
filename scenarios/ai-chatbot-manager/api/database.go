@@ -119,8 +119,8 @@ func (d *Database) CreateChatbot(chatbot *Chatbot) error {
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 
-	_, err := d.db.Exec(query, chatbot.ID, chatbot.Name, chatbot.Description, 
-		chatbot.Personality, chatbot.KnowledgeBase, modelConfigJSON, widgetConfigJSON, 
+	_, err := d.db.Exec(query, chatbot.ID, chatbot.Name, chatbot.Description,
+		chatbot.Personality, chatbot.KnowledgeBase, modelConfigJSON, widgetConfigJSON,
 		escalationConfigJSON, chatbot.IsActive, chatbot.CreatedAt, chatbot.UpdatedAt)
 
 	return err
@@ -208,13 +208,13 @@ func (d *Database) GetOrCreateConversation(chatbotID, sessionID, userIP string) 
 	if err == sql.ErrNoRows {
 		// Create new conversation
 		conversationID = uuid.New().String()
-		
+
 		// Handle empty IP address - use NULL for empty string
 		var ipValue interface{} = nil
 		if userIP != "" {
 			ipValue = userIP
 		}
-		
+
 		_, err = d.db.Exec(
 			"INSERT INTO conversations (id, chatbot_id, session_id, user_ip, started_at) VALUES ($1, $2, $3, $4, $5)",
 			conversationID, chatbotID, sessionID, ipValue, time.Now(),
@@ -642,17 +642,17 @@ func (d *Database) DeleteChatbot(chatbotID string) error {
 // CreateEscalation creates a new escalation record
 func (d *Database) CreateEscalation(escalation *Escalation) error {
 	webhookJSON, _ := json.Marshal(escalation.WebhookResponse)
-	
+
 	query := `
 		INSERT INTO escalations (id, conversation_id, chatbot_id, reason, 
 			confidence_score, escalation_type, status, escalated_at, webhook_response, email_sent)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
-	
+
 	_, err := d.db.Exec(query, escalation.ID, escalation.ConversationID, escalation.ChatbotID,
-		escalation.Reason, escalation.ConfidenceScore, escalation.EscalationType, 
+		escalation.Reason, escalation.ConfidenceScore, escalation.EscalationType,
 		escalation.Status, escalation.EscalatedAt, webhookJSON, escalation.EmailSent)
-	
+
 	return err
 }
 
@@ -666,41 +666,41 @@ func (d *Database) GetPendingEscalations(chatbotID string) ([]Escalation, error)
 		WHERE chatbot_id = $1 AND status = 'pending'
 		ORDER BY escalated_at DESC
 	`
-	
+
 	rows, err := d.db.Query(query, chatbotID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var escalations []Escalation
 	for rows.Next() {
 		var escalation Escalation
 		var resolvedAt sql.NullTime
 		var resolutionNotes sql.NullString
 		var webhookJSON []byte
-		
+
 		err := rows.Scan(&escalation.ID, &escalation.ConversationID, &escalation.ChatbotID,
 			&escalation.Reason, &escalation.ConfidenceScore, &escalation.EscalationType,
 			&escalation.Status, &escalation.EscalatedAt, &resolvedAt, &resolutionNotes,
 			&webhookJSON, &escalation.EmailSent)
-		
+
 		if err != nil {
 			d.logger.Printf("Failed to scan escalation: %v", err)
 			continue
 		}
-		
+
 		if resolvedAt.Valid {
 			escalation.ResolvedAt = &resolvedAt.Time
 		}
 		if resolutionNotes.Valid {
 			escalation.ResolutionNotes = resolutionNotes.String
 		}
-		
+
 		json.Unmarshal(webhookJSON, &escalation.WebhookResponse)
 		escalations = append(escalations, escalation)
 	}
-	
+
 	return escalations, nil
 }
 
@@ -711,13 +711,13 @@ func (d *Database) UpdateEscalationStatus(escalationID, status, notes string) er
 		SET status = $1, resolution_notes = $2, resolved_at = $3
 		WHERE id = $4
 	`
-	
+
 	var resolvedAt *time.Time
 	if status == "resolved" {
 		now := time.Now()
 		resolvedAt = &now
 	}
-	
+
 	_, err := d.db.Exec(query, status, notes, resolvedAt, escalationID)
 	return err
 }

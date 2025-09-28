@@ -29,11 +29,11 @@ type ConnectionManager struct {
 
 // WebSocketConnection represents a single WebSocket connection
 type WebSocketConnection struct {
-	conn       *websocket.Conn
-	sessionID  string
-	chatbotID  string
-	send       chan WebSocketMessage
-	manager    *ConnectionManager
+	conn      *websocket.Conn
+	sessionID string
+	chatbotID string
+	send      chan WebSocketMessage
+	manager   *ConnectionManager
 }
 
 // NewConnectionManager creates a new connection manager
@@ -86,10 +86,10 @@ func (cm *ConnectionManager) Start() {
 
 // WebSocketHandler handles WebSocket upgrade and communication
 type WebSocketHandler struct {
-	upgrader  websocket.Upgrader
-	manager   *ConnectionManager
-	server    *Server
-	logger    *Logger
+	upgrader websocket.Upgrader
+	manager  *ConnectionManager
+	server   *Server
+	logger   *Logger
 }
 
 // NewWebSocketHandler creates a new WebSocket handler
@@ -152,7 +152,7 @@ func (wsc *WebSocketConnection) readPump(server *Server, chatbot *Chatbot) {
 	conversationStartTime := time.Now()
 	var conversationID string
 	messageCount := 0
-	
+
 	defer func() {
 		// Publish conversation ended event if we had an active conversation
 		if conversationID != "" {

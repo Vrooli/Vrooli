@@ -3,10 +3,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CalendarClock,
   CircleAlert,
+  ChevronDown,
+  ExternalLink,
+  FileCode,
+  FileDown,
+  FileText,
   Hash,
+  Image as ImageIcon,
   KanbanSquare,
   LayoutDashboard,
+  Loader2,
   Mail,
+  Paperclip,
   Tag,
   User,
   X,
@@ -21,6 +29,7 @@ import {
   DashboardStats,
   ActiveAgentOption,
   Issue,
+  IssueAttachment,
   IssueStatus,
   NavKey,
   Priority,
@@ -33,6 +42,7 @@ import './styles/app.css';
 const API_BASE_INPUT = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api/v1';
 const API_BASE_URL = API_BASE_INPUT.endsWith('/') ? API_BASE_INPUT.slice(0, -1) : API_BASE_INPUT;
 const ISSUE_FETCH_LIMIT = 200;
+const MAX_ATTACHMENT_PREVIEW_CHARS = 8000;
 const VALID_STATUSES: IssueStatus[] = ['open', 'investigating', 'in-progress', 'fixed', 'closed', 'failed'];
 
 interface ApiIssue {
@@ -55,6 +65,14 @@ interface ApiIssue {
     email?: string;
     timestamp?: string;
   };
+  attachments?: ApiAttachment[];
+}
+
+interface ApiAttachment {
+  name?: string;
+  type?: string;
+  path?: string;
+  size?: number;
 }
 
 interface ApiStatsPayload {
@@ -83,6 +101,241 @@ interface CreateIssueInput {
 
 function buildApiUrl(path: string): string {
   return `${API_BASE_URL}${path}`;
+}
+
+function buildAttachmentUrl(issueId: string, attachmentPath: string): string {
+  const safeIssueId = encodeURIComponent(issueId);
+  const segments = attachmentPath
+    .split(/[\\/]+/)
+    .filter((segment) => segment.length > 0)
+    .map((segment) => encodeURIComponent(segment));
+  const normalized = segments.join('/');
+  return buildApiUrl(`/issues/${safeIssueId}/attachments/${normalized}`);
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderInlineMarkdown(source: string): string {
+  const codeSegments: string[] = [];
+  const codePlaceholderPrefix = '__CODESEG__';
+
+  let output = escapeHtml(source);
+
+  output = output.replace(/`([^`]+)`/g, (_match, code: string) => {
+    const placeholder = `${codePlaceholderPrefix}${codeSegments.length}__`;
+    codeSegments.push(`<code>${escapeHtml(code)}</code>`);
+    return placeholder;
+  });
+
+  output = output.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  output = output.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+  output = output.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  output = output.replace(/_([^_]+)_/g, '<em>$1</em>');
+  output = output.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+  output = output.replace(
+    /\[([^\]]+)]\(((?:https?:\/\/)[^\s)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
+  );
+
+  output = output.replace(/__CODESEG__(\d+)__/g, (_match, index: string) => {
+    const idx = Number.parseInt(index, 10);
+    return codeSegments[idx] ?? '';
+  });
+
+  return output;
+}
+
+function renderMarkdownToHtml(markdown: string): string {
+  const normalized = markdown.replace(/\r\n/g, '\n');
+  const lines = normalized.split('\n');
+  const blocks: string[] = [];
+  let listType: 'ul' | 'ol' | null = null;
+  let inCodeBlock = false;
+  let codeLanguage = '';
+  let codeBuffer: string[] = [];
+  let paragraphLines: string[] = [];
+  let blockquoteLines: string[] = [];
+
+  const flushParagraph = () => {
+    if (paragraphLines.length === 0) {
+      return;
+    }
+    const paragraph = paragraphLines
+      .map((line) => renderInlineMarkdown(line))
+      .join('<br />');
+    blocks.push(`<p>${paragraph}</p>`);
+    paragraphLines = [];
+  };
+
+  const flushList = () => {
+    if (!listType) {
+      return;
+    }
+    blocks.push(listType === 'ul' ? '</ul>' : '</ol>');
+    listType = null;
+  };
+
+  const flushBlockquote = () => {
+    if (blockquoteLines.length === 0) {
+      return;
+    }
+    const quote = blockquoteLines.map((line) => renderInlineMarkdown(line)).join('<br />');
+    blocks.push(`<blockquote>${quote}</blockquote>`);
+    blockquoteLines = [];
+  };
+
+  const flushCodeBlock = () => {
+    if (!inCodeBlock) {
+      return;
+    }
+    const languageClass = codeLanguage ? ` class="language-${escapeHtml(codeLanguage)}"` : '';
+    blocks.push(`<pre><code${languageClass}>${escapeHtml(codeBuffer.join('\n'))}</code></pre>`);
+    codeBuffer = [];
+    codeLanguage = '';
+    inCodeBlock = false;
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trimEnd();
+
+    if (inCodeBlock) {
+      if (trimmed.startsWith('```')) {
+        flushCodeBlock();
+        continue;
+      }
+      codeBuffer.push(line);
+      continue;
+    }
+
+    if (trimmed.startsWith('```')) {
+      flushParagraph();
+      flushList();
+      flushBlockquote();
+      inCodeBlock = true;
+      codeLanguage = trimmed.slice(3).trim();
+      continue;
+    }
+
+    if (trimmed === '') {
+      flushParagraph();
+      flushList();
+      flushBlockquote();
+      continue;
+    }
+
+    if (/^(?:-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+      flushParagraph();
+      flushList();
+      flushBlockquote();
+      blocks.push('<hr />');
+      continue;
+    }
+
+    const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      flushParagraph();
+      flushList();
+      flushBlockquote();
+      const level = headingMatch[1].length;
+      const headingText = headingMatch[2];
+      blocks.push(`<h${level}>${renderInlineMarkdown(headingText)}</h${level}>`);
+      continue;
+    }
+
+    if (trimmed.startsWith('>')) {
+      flushParagraph();
+      flushList();
+      blockquoteLines.push(trimmed.replace(/^>\s?/, ''));
+      continue;
+    }
+
+    const orderedMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+    const unorderedMatch = trimmed.match(/^[-*+]\s+(.*)$/);
+    if (orderedMatch) {
+      flushParagraph();
+      flushBlockquote();
+      if (listType !== 'ol') {
+        flushList();
+        listType = 'ol';
+        blocks.push('<ol>');
+      }
+      blocks.push(`<li>${renderInlineMarkdown(orderedMatch[2])}</li>`);
+      continue;
+    }
+    if (unorderedMatch) {
+      flushParagraph();
+      flushBlockquote();
+      if (listType !== 'ul') {
+        flushList();
+        listType = 'ul';
+        blocks.push('<ul>');
+      }
+      blocks.push(`<li>${renderInlineMarkdown(unorderedMatch[1])}</li>`);
+      continue;
+    }
+
+    flushList();
+    flushBlockquote();
+    paragraphLines.push(trimmed);
+  }
+
+  flushCodeBlock();
+  flushParagraph();
+  flushList();
+  flushBlockquote();
+
+  if (blocks.length === 0) {
+    return `<p>${renderInlineMarkdown(normalized)}</p>`;
+  }
+
+  return blocks.join('');
+}
+
+function formatFileSize(bytes?: number): string | null {
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes < 0) {
+    return null;
+  }
+  if (bytes < 1024) {
+    return `${Math.round(bytes)} B`;
+  }
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let value = bytes / 1024;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const precision = value >= 10 ? 0 : 1;
+  return `${value.toFixed(precision)} ${units[unitIndex]}`;
+}
+
+function classifyAttachment(attachment: IssueAttachment): 'image' | 'text' | 'json' | 'other' {
+  const mime = attachment.type?.toLowerCase() ?? '';
+  if (mime.startsWith('image/')) {
+    return 'image';
+  }
+  if (mime === 'application/json' || mime.endsWith('+json')) {
+    return 'json';
+  }
+  if (mime.startsWith('text/')) {
+    return 'text';
+  }
+
+  const lowerPath = attachment.path.toLowerCase();
+  if (lowerPath.endsWith('.json')) {
+    return 'json';
+  }
+  if (['.log', '.txt', '.md', '.markdown', '.yaml', '.yml', '.har'].some((ext) => lowerPath.endsWith(ext))) {
+    return 'text';
+  }
+  return 'other';
 }
 
 function normalizePriority(value?: string | null): Priority {
@@ -226,6 +479,23 @@ function transformIssue(raw: ApiIssue): Issue {
   const tags = Array.isArray(raw.metadata?.tags)
     ? raw.metadata?.tags.filter((tag) => Boolean(tag)).map((tag) => String(tag))
     : [];
+  const attachments: Issue['attachments'] = [];
+  if (Array.isArray(raw.attachments)) {
+    raw.attachments.forEach((attachment) => {
+      const path = attachment?.path?.trim();
+      if (!path) {
+        return;
+      }
+      attachments.push({
+        name: (attachment?.name ?? '').trim() || path.split(/[\\/]+/).pop() || 'Attachment',
+        type: (attachment?.type ?? '').trim() || undefined,
+        path,
+        size: typeof attachment?.size === 'number' ? attachment.size : undefined,
+        url: buildAttachmentUrl(raw.id, path),
+        category: (attachment?.category ?? '').trim() || undefined,
+      });
+    });
+  }
   const assignee =
     labels.assignee ??
     labels.owner ??
@@ -244,6 +514,7 @@ function transformIssue(raw: ApiIssue): Issue {
     status: normalizeStatus(raw.status),
     app: labels.app ?? raw.app_id ?? 'unknown',
     tags,
+    attachments,
     resolvedAt,
     updatedAt: raw.metadata?.updated_at ?? null,
     reporterName: raw.reporter?.name?.trim() || undefined,
@@ -495,6 +766,28 @@ function App() {
   useEffect(() => {
     setIssueDetailOpen(Boolean(focusedIssueId));
   }, [focusedIssueId]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const themeClass = displaySettings.theme === 'dark' ? 'dark' : 'light';
+    const body = document.body;
+    const root = document.documentElement;
+
+    body.classList.remove('light', 'dark');
+    body.classList.add(themeClass);
+
+    root.classList.remove('light', 'dark');
+    root.classList.add(themeClass);
+    root.style.setProperty('color-scheme', themeClass === 'dark' ? 'dark' : 'light');
+
+    return () => {
+      body.classList.remove(themeClass);
+      root.classList.remove(themeClass);
+    };
+  }, [displaySettings.theme]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -825,6 +1118,8 @@ function IssueDetailsModal({ issue, onClose }: IssueDetailsModalProps) {
   const createdHint = formatRelativeTime(issue.createdAt);
   const updatedHint = formatRelativeTime(issue.updatedAt);
   const resolvedHint = formatRelativeTime(issue.resolvedAt);
+  const description = issue.description?.trim();
+  const notes = issue.notes?.trim();
 
   return (
     <Modal onClose={onClose} labelledBy="issue-details-title">
@@ -875,13 +1170,33 @@ function IssueDetailsModal({ issue, onClose }: IssueDetailsModalProps) {
 
         <section className="issue-detail-section">
           <h3>Description</h3>
-          <p className="issue-detail-text">{issue.description}</p>
+          {description ? (
+            <MarkdownView content={description} />
+          ) : (
+            <p className="issue-detail-placeholder">No description provided.</p>
+          )}
         </section>
 
-        {issue.notes && (
+        {notes && (
           <section className="issue-detail-section">
             <h3>Notes</h3>
-            <p className="issue-detail-text">{issue.notes}</p>
+            <MarkdownView content={notes} />
+          </section>
+        )}
+
+        {issue.attachments.length > 0 && (
+          <section className="issue-detail-section">
+            <div className="issue-section-heading">
+              <h3>Attachments</h3>
+              <span className="issue-section-meta">
+                {issue.attachments.length} {issue.attachments.length === 1 ? 'file' : 'files'}
+              </span>
+            </div>
+            <div className="issue-attachments-grid">
+              {issue.attachments.map((attachment) => (
+                <AttachmentPreview key={attachment.path} attachment={attachment} />
+              ))}
+            </div>
           </section>
         )}
 
@@ -920,6 +1235,211 @@ function IssueDetailsModal({ issue, onClose }: IssueDetailsModalProps) {
         )}
       </div>
     </Modal>
+  );
+}
+
+interface MarkdownViewProps {
+  content: string;
+}
+
+function MarkdownView({ content }: MarkdownViewProps) {
+  const rendered = useMemo(() => renderMarkdownToHtml(content), [content]);
+  return <div className="markdown-body" dangerouslySetInnerHTML={{ __html: rendered }} />;
+}
+
+interface AttachmentPreviewProps {
+  attachment: IssueAttachment;
+}
+
+function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
+  const kind = classifyAttachment(attachment);
+  const canPreviewText = kind === 'text' || kind === 'json';
+  const [expanded, setExpanded] = useState(kind === 'image');
+  const [content, setContent] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const previewRequested = useRef(false);
+  const isCollapsible = canPreviewText;
+
+  useEffect(() => {
+    setExpanded(kind === 'image');
+    setContent(null);
+    setErrorMessage(null);
+    setLoading(false);
+    previewRequested.current = false;
+  }, [attachment.path, kind]);
+
+  useEffect(() => {
+    if (!canPreviewText || !expanded) {
+      return;
+    }
+    if (content !== null || previewRequested.current) {
+      return;
+    }
+
+    previewRequested.current = true;
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    setLoading(true);
+    setErrorMessage(null);
+
+    fetch(attachment.url, { signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Preview request failed with status ${response.status}`);
+        }
+        return response.text();
+      })
+      .then((data) => {
+        if (signal.aborted) {
+          return;
+        }
+        let previewText = data;
+        if (kind === 'json') {
+          try {
+            previewText = JSON.stringify(JSON.parse(data), null, 2);
+          } catch (parseError) {
+            // Keep raw response if parsing fails
+          }
+        }
+        if (previewText.length > MAX_ATTACHMENT_PREVIEW_CHARS) {
+          previewText = `${previewText.slice(0, MAX_ATTACHMENT_PREVIEW_CHARS)}\n…`;
+        }
+        setContent(previewText);
+      })
+      .catch((error) => {
+        if (signal.aborted) {
+          return;
+        }
+        console.error('[IssueTracker] Failed to fetch attachment preview', error);
+        setErrorMessage('Failed to load preview');
+      })
+      .finally(() => {
+        if (signal.aborted) {
+          return;
+        }
+        setLoading(false);
+      });
+
+    return () => {
+      controller.abort();
+      previewRequested.current = false;
+    };
+  }, [attachment.url, canPreviewText, content, expanded, kind]);
+
+  const displayName = attachment.name || attachment.path.split(/[\\/]+/).pop() || 'Attachment';
+  const storageName = attachment.path.split(/[\\/]+/).pop() || displayName;
+  const sizeLabel = formatFileSize(attachment.size);
+  const typeLabel = attachment.type?.split(';')[0];
+  const metadataParts = [typeLabel, sizeLabel].filter(Boolean) as string[];
+  const Icon =
+    kind === 'image' ? ImageIcon : kind === 'json' ? FileCode : kind === 'text' ? FileText : Paperclip;
+
+  const showPreview = kind === 'image' || (expanded && canPreviewText);
+  const categoryLabel = useMemo(() => {
+    if (attachment.category) {
+      return toTitleCase(attachment.category.replace(/[-_]+/g, ' '));
+    }
+    switch (kind) {
+      case 'image':
+        return 'Screenshot';
+      case 'json':
+        return 'JSON';
+      case 'text':
+        return 'Log';
+      default:
+        return 'Attachment';
+    }
+  }, [attachment.category, kind]);
+
+  const cardStateClass = isCollapsible && !expanded ? ' attachment-card--collapsed' : '';
+
+  const handleToggle = () => {
+    if (!isCollapsible) {
+      return;
+    }
+    setExpanded((state) => !state);
+  };
+
+  return (
+    <article className={`attachment-card${cardStateClass}`}>
+      <header className="attachment-card-header">
+        <div className="attachment-card-heading">
+          <span className="attachment-icon" aria-hidden>
+            <Icon size={18} />
+          </span>
+          <div className="attachment-card-meta">
+            <span className="attachment-card-name" title={displayName}>
+              {displayName}
+            </span>
+            {metadataParts.length > 0 && (
+              <span className="attachment-card-details">{metadataParts.join(' • ')}</span>
+            )}
+          </div>
+        </div>
+        <div className="attachment-header-actions">
+          <span className="attachment-category" aria-label="Attachment category">
+            {categoryLabel}
+          </span>
+          {isCollapsible && (
+            <button
+              type="button"
+              className="attachment-toggle"
+              onClick={handleToggle}
+              aria-expanded={expanded}
+            >
+              <ChevronDown size={16} className="attachment-toggle-icon" />
+              <span>{expanded ? 'Hide details' : 'Show details'}</span>
+            </button>
+          )}
+        </div>
+      </header>
+
+      {showPreview && (
+        <div className="attachment-preview">
+          {kind === 'image' && (
+            <img className="attachment-preview-image" src={attachment.url} alt={displayName} />
+          )}
+
+          {canPreviewText && expanded && (
+            <>
+              {loading && (
+                <div className="attachment-preview-placeholder">
+                  <Loader2 size={16} className="attachment-spinner" />
+                  <span>Loading preview…</span>
+                </div>
+              )}
+              {!loading && errorMessage && (
+                <div className="attachment-preview-error">{errorMessage}</div>
+              )}
+              {!loading && !errorMessage && content !== null && (
+                <pre className="attachment-preview-text">{content}</pre>
+              )}
+              {!loading && !errorMessage && content === null && (
+                <div className="attachment-preview-placeholder">No preview available.</div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="attachment-actions">
+        <a
+          className="attachment-button"
+          href={attachment.url}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <ExternalLink size={14} />
+          <span>Open</span>
+        </a>
+        <a className="attachment-button" href={attachment.url} download={storageName}>
+          <FileDown size={14} />
+          <span>Download</span>
+        </a>
+      </div>
+    </article>
   );
 }
 

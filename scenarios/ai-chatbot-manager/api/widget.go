@@ -22,7 +22,7 @@ func (s *Server) ServeWidgetJS(w http.ResponseWriter, r *http.Request) {
 	// Set appropriate headers
 	w.Header().Set("Content-Type", "application/javascript")
 	w.Header().Set("Cache-Control", "public, max-age=3600") // Cache for 1 hour
-	w.Header().Set("Access-Control-Allow-Origin", "*")     // Allow cross-origin requests
+	w.Header().Set("Access-Control-Allow-Origin", "*")      // Allow cross-origin requests
 	w.Write(content)
 }
 

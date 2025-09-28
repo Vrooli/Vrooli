@@ -68,8 +68,8 @@ func LoadConfig() (*Config, error) {
 		cfg.DatabasePass = os.Getenv("POSTGRES_PASSWORD")
 		cfg.DatabaseName = os.Getenv("POSTGRES_DB")
 
-		if cfg.DatabaseHost == "" || cfg.DatabasePort == "" || 
-		   cfg.DatabaseUser == "" || cfg.DatabasePass == "" || cfg.DatabaseName == "" {
+		if cfg.DatabaseHost == "" || cfg.DatabasePort == "" ||
+			cfg.DatabaseUser == "" || cfg.DatabasePass == "" || cfg.DatabaseName == "" {
 			return nil, fmt.Errorf("database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
 

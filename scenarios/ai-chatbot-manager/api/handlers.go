@@ -25,7 +25,7 @@ func isValidUUID(u string) bool {
 func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	overallStatus := "healthy"
 	startTime := time.Now()
-	
+
 	// Check if we have a cached health check result (cache for 30 seconds)
 	cacheDuration := 30 * time.Second
 	s.healthCacheMutex.RLock()
@@ -38,36 +38,36 @@ func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.healthCacheMutex.RUnlock()
-	
+
 	// Schema-compliant health response
 	healthResponse := map[string]interface{}{
-		"status":    overallStatus,
-		"service":   serviceName,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"readiness": true, // Service is ready to accept requests
-		"version":   apiVersion,
+		"status":       overallStatus,
+		"service":      serviceName,
+		"timestamp":    time.Now().UTC().Format(time.RFC3339),
+		"readiness":    true, // Service is ready to accept requests
+		"version":      apiVersion,
 		"dependencies": map[string]interface{}{},
 		"metrics": map[string]interface{}{
 			"uptime_seconds": time.Since(startTime).Seconds(), // Simplified uptime
 		},
 	}
-	
+
 	dependencies := healthResponse["dependencies"].(map[string]interface{})
-	
+
 	// 1. Check database connection (critical for chatbot CRUD operations)
 	dbHealth := s.checkDatabase()
 	dependencies["database"] = dbHealth
 	if dbHealth["connected"] == false {
 		overallStatus = "unhealthy" // Database is critical
 	}
-	
+
 	// 2. Check Ollama connection (critical for AI chat responses)
 	ollamaHealth := s.checkOllama()
 	dependencies["ollama"] = ollamaHealth
 	if ollamaHealth["connected"] == false {
 		overallStatus = "unhealthy" // Ollama is critical for functionality
 	}
-	
+
 	// 3. Check widget file system (for generated widget files)
 	widgetHealth := s.checkWidgetFileSystem()
 	dependencies["widget_storage"] = widgetHealth
@@ -76,7 +76,7 @@ func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
 			overallStatus = "degraded"
 		}
 	}
-	
+
 	// 4. Test basic AI inference capability (if Ollama is available)
 	// Skip inference check for basic health checks to improve response time
 	if r.URL.Query().Get("detailed") == "true" && ollamaHealth["connected"] == true {
@@ -88,16 +88,16 @@ func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	
+
 	// Update overall status
 	healthResponse["status"] = overallStatus
-	
+
 	// Cache the health check result
 	s.healthCacheMutex.Lock()
 	s.healthCache = healthResponse
 	s.healthCacheTime = time.Now()
 	s.healthCacheMutex.Unlock()
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(healthResponse)
 }
@@ -108,7 +108,7 @@ func (s *Server) checkDatabase() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	// Test database ping
 	if err := s.db.Ping(); err != nil {
 		result["error"] = map[string]interface{}{
@@ -119,7 +119,7 @@ func (s *Server) checkDatabase() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Test basic schema by trying to count chatbots
 	chatbots, err := s.db.ListChatbots(false)
 	if err != nil {
@@ -131,7 +131,7 @@ func (s *Server) checkDatabase() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	result["connected"] = true
 	result["chatbot_count"] = len(chatbots)
 	return result
@@ -143,7 +143,7 @@ func (s *Server) checkOllama() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	if s.config.OllamaURL == "" {
 		result["error"] = map[string]interface{}{
 			"code":      "OLLAMA_URL_MISSING",
@@ -153,7 +153,7 @@ func (s *Server) checkOllama() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Test Ollama API availability
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Get(s.config.OllamaURL + "/api/tags")
@@ -176,7 +176,7 @@ func (s *Server) checkOllama() map[string]interface{} {
 		return result
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		result["error"] = map[string]interface{}{
 			"code":      fmt.Sprintf("HTTP_%d", resp.StatusCode),
@@ -186,7 +186,7 @@ func (s *Server) checkOllama() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Parse response to check available models
 	var tagsResponse map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&tagsResponse); err != nil {
@@ -198,16 +198,16 @@ func (s *Server) checkOllama() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	result["connected"] = true
-	
+
 	// Check if models array exists and count models
 	if models, ok := tagsResponse["models"]; ok {
 		if modelsArray, ok := models.([]interface{}); ok {
 			result["available_models"] = len(modelsArray)
 		}
 	}
-	
+
 	return result
 }
 
@@ -217,7 +217,7 @@ func (s *Server) checkWidgetFileSystem() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	// Check if static directory exists for widget files
 	staticDir := "static"
 	if _, err := os.Stat(staticDir); err != nil {
@@ -242,7 +242,7 @@ func (s *Server) checkWidgetFileSystem() map[string]interface{} {
 			return result
 		}
 	}
-	
+
 	// Test writing a small test file
 	testFile := filepath.Join(staticDir, ".health_check_test")
 	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
@@ -254,10 +254,10 @@ func (s *Server) checkWidgetFileSystem() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Clean up test file
 	os.Remove(testFile)
-	
+
 	result["connected"] = true
 	return result
 }
@@ -268,7 +268,7 @@ func (s *Server) checkAIInference() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	// Create a simple test request
 	testRequest := map[string]interface{}{
 		"model": "llama3.2", // Default model
@@ -280,7 +280,7 @@ func (s *Server) checkAIInference() map[string]interface{} {
 		},
 		"stream": false,
 	}
-	
+
 	requestBody, err := json.Marshal(testRequest)
 	if err != nil {
 		result["error"] = map[string]interface{}{
@@ -291,7 +291,7 @@ func (s *Server) checkAIInference() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Send inference request with short timeout
 	client := &http.Client{Timeout: 10 * time.Second}
 	inferenceStart := time.Now()
@@ -315,9 +315,9 @@ func (s *Server) checkAIInference() map[string]interface{} {
 		return result
 	}
 	defer resp.Body.Close()
-	
+
 	inferenceTime := time.Since(inferenceStart)
-	
+
 	if resp.StatusCode != http.StatusOK {
 		result["error"] = map[string]interface{}{
 			"code":      fmt.Sprintf("INFERENCE_HTTP_%d", resp.StatusCode),
@@ -327,7 +327,7 @@ func (s *Server) checkAIInference() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Parse response
 	var inferenceResponse map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&inferenceResponse); err != nil {
@@ -339,7 +339,7 @@ func (s *Server) checkAIInference() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Check if response has expected structure
 	if _, hasMessage := inferenceResponse["message"]; !hasMessage {
 		result["error"] = map[string]interface{}{
@@ -350,7 +350,7 @@ func (s *Server) checkAIInference() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	result["connected"] = true
 	result["latency_ms"] = float64(inferenceTime.Nanoseconds()) / 1e6 // Convert to milliseconds
 	return result
@@ -634,7 +634,7 @@ func (s *Server) ProcessChatMessage(chatbotID string, req ChatRequest) (*ChatRes
 		s.logger.Printf("Failed to get/create conversation: %v", err)
 		return nil, fmt.Errorf("failed to manage conversation")
 	}
-	
+
 	// Publish event if this is a new conversation
 	if isNew {
 		userContext := map[string]interface{}{
@@ -690,10 +690,10 @@ func (s *Server) ProcessChatMessage(chatbotID string, req ChatRequest) (*ChatRes
 
 	// Check for lead qualification
 	leadQualification := s.AnalyzeForLeadQualification(req.Message, response)
-	
+
 	// Publish lead event if qualified
-	if len(leadQualification) > 0 && (leadQualification["email_mentioned"] == true || 
-		leadQualification["purchase_intent"] == true || 
+	if len(leadQualification) > 0 && (leadQualification["email_mentioned"] == true ||
+		leadQualification["purchase_intent"] == true ||
 		leadQualification["demo_interest"] == true) {
 		leadData := map[string]interface{}{
 			"qualification": leadQualification,
@@ -706,19 +706,19 @@ func (s *Server) ProcessChatMessage(chatbotID string, req ChatRequest) (*ChatRes
 	// Check if escalation is needed
 	shouldEscalate := false
 	escalationReason := ""
-	
+
 	if escalationConfig, ok := chatbot.EscalationConfig["enabled"].(bool); ok && escalationConfig {
 		threshold := 0.5
 		if thresh, ok := chatbot.EscalationConfig["threshold"].(float64); ok {
 			threshold = thresh
 		}
-		
+
 		// Check confidence threshold
 		if confidence < threshold {
 			shouldEscalate = true
 			escalationReason = fmt.Sprintf("Low confidence: %.2f < %.2f threshold", confidence, threshold)
 		}
-		
+
 		// Check for explicit escalation keywords
 		escalationKeywords := []string{"speak to human", "talk to agent", "human help", "real person", "escalate", "manager"}
 		lowerMessage := strings.ToLower(req.Message)
@@ -730,7 +730,7 @@ func (s *Server) ProcessChatMessage(chatbotID string, req ChatRequest) (*ChatRes
 			}
 		}
 	}
-	
+
 	// Handle escalation if needed
 	if shouldEscalate {
 		escalation := &Escalation{
@@ -744,17 +744,17 @@ func (s *Server) ProcessChatMessage(chatbotID string, req ChatRequest) (*ChatRes
 			EscalatedAt:     time.Now(),
 			EmailSent:       false,
 		}
-		
+
 		// Save escalation to database
 		if err := s.db.CreateEscalation(escalation); err != nil {
 			s.logger.Printf("Failed to save escalation: %v", err)
 		}
-		
+
 		// Trigger webhook if configured
 		if webhookURL, ok := chatbot.EscalationConfig["webhook_url"].(string); ok && webhookURL != "" {
 			go s.TriggerEscalationWebhook(webhookURL, escalation)
 		}
-		
+
 		// Send email notification if configured
 		if email, ok := chatbot.EscalationConfig["email"].(string); ok && email != "" {
 			go s.SendEscalationEmail(email, escalation)
@@ -883,22 +883,22 @@ func (s *Server) TriggerEscalationWebhook(webhookURL string, escalation *Escalat
 		"escalated_at":     escalation.EscalatedAt,
 		"conversation_url": fmt.Sprintf("%s/conversations/%s", s.baseURL, escalation.ConversationID),
 	}
-	
+
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		s.logger.Printf("Failed to marshal webhook payload: %v", err)
 		return
 	}
-	
+
 	req, err := http.NewRequest("POST", webhookURL, bytes.NewReader(jsonPayload))
 	if err != nil {
 		s.logger.Printf("Failed to create webhook request: %v", err)
 		return
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "AI-Chatbot-Manager/1.0")
-	
+
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -906,7 +906,7 @@ func (s *Server) TriggerEscalationWebhook(webhookURL string, escalation *Escalat
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	s.logger.Printf("Escalation webhook triggered for conversation %s (status: %d)", escalation.ConversationID, resp.StatusCode)
 }
 
@@ -914,7 +914,7 @@ func (s *Server) TriggerEscalationWebhook(webhookURL string, escalation *Escalat
 func (s *Server) SendEscalationEmail(email string, escalation *Escalation) {
 	// This is a placeholder implementation
 	// In production, you would integrate with an email service like SendGrid, AWS SES, etc.
-	
+
 	subject := fmt.Sprintf("Escalation Alert: Conversation %s requires attention", escalation.ConversationID[:8])
 	body := fmt.Sprintf(`
 An escalation has been triggered in the AI Chatbot Manager system.
@@ -940,10 +940,10 @@ View conversation: %s/conversations/%s
 		s.baseURL,
 		escalation.ConversationID,
 	)
-	
+
 	// Log the email details (in production, send actual email)
 	s.logger.Printf("Email notification prepared for %s:\nSubject: %s\nBody: %s", email, subject, body)
-	
+
 	// TODO: Integrate with email service provider
 	// Example: sendgrid.Send(email, subject, body)
 }
@@ -952,20 +952,20 @@ View conversation: %s/conversations/%s
 func (s *Server) GetEscalationsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	chatbotID := vars["id"]
-	
+
 	// Validate UUID format
 	if !isValidUUID(chatbotID) {
 		http.Error(w, "Invalid chatbot ID format", http.StatusBadRequest)
 		return
 	}
-	
+
 	escalations, err := s.db.GetPendingEscalations(chatbotID)
 	if err != nil {
 		s.logger.Printf("Failed to get escalations: %v", err)
 		http.Error(w, "Failed to retrieve escalations", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(escalations)
 }
@@ -974,24 +974,24 @@ func (s *Server) GetEscalationsHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) UpdateEscalationHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	escalationID := vars["id"]
-	
+
 	// Validate UUID format
 	if !isValidUUID(escalationID) {
 		http.Error(w, "Invalid escalation ID format", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Parse request body
 	var update struct {
 		Status string `json:"status"`
 		Notes  string `json:"notes"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validate status
 	validStatuses := []string{"pending", "in_progress", "resolved", "dismissed"}
 	isValid := false
@@ -1001,22 +1001,22 @@ func (s *Server) UpdateEscalationHandler(w http.ResponseWriter, r *http.Request)
 			break
 		}
 	}
-	
+
 	if !isValid {
 		http.Error(w, "Invalid status. Must be one of: pending, in_progress, resolved, dismissed", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Update escalation
 	if err := s.db.UpdateEscalationStatus(escalationID, update.Status, update.Notes); err != nil {
 		s.logger.Printf("Failed to update escalation: %v", err)
 		http.Error(w, "Failed to update escalation", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
-		"status": "success",
+		"status":  "success",
 		"message": "Escalation updated successfully",
 	})
 }

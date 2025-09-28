@@ -17,6 +17,18 @@ type DebugManager struct {
 }
 
 // NewDebugManager creates a new debug manager
+func sanitizePathComponent(s string) string {
+	s = filepath.Clean(s)
+	parts := strings.Split(s, string(filepath.Separator))
+	var cleanParts []string
+	for _, part := range parts {
+		if part != "." && part != ".." {
+			cleanParts = append(cleanParts, part)
+		}
+	}
+	return strings.Join(cleanParts, string(filepath.Separator))
+}
+
 func NewDebugManager() *DebugManager {
 	return &DebugManager{
 		logger: log.New(os.Stdout, "[debug-manager] ", log.LstdFlags|log.Lshortfile),
@@ -286,7 +298,8 @@ func (dm *DebugManager) getCPUInfo(appName string) (map[string]interface{}, erro
 
 func (dm *DebugManager) getDiskInfo(appName string) (map[string]interface{}, error) {
 	// Check disk usage of the app directory
-	appPath := fmt.Sprintf("../../../scenarios/%s", appName)
+	sanitizedApp := sanitizePathComponent(appName)
+	appPath := filepath.Join("../../../scenarios", sanitizedApp)
 	cmd := exec.Command("du", "-sh", appPath)
 	output, err := cmd.Output()
 	if err != nil {
@@ -312,10 +325,11 @@ func (dm *DebugManager) generatePerformanceRecommendations(results map[string]in
 
 func (dm *DebugManager) getRecentLogs(appName string) ([]string, error) {
 	// Try to find log files for the app
+	sanitizedApp := sanitizePathComponent(appName)
 	logPaths := []string{
-		fmt.Sprintf("../../../scenarios/%s/api/%s.log", appName, appName),
-		fmt.Sprintf("../../../scenarios/%s/api/app.log", appName),
-		fmt.Sprintf("/var/log/vrooli/%s.log", appName),
+		filepath.Join("../../../scenarios", sanitizedApp, "api", sanitizedApp+".log"),
+		filepath.Join("../../../scenarios", sanitizedApp, "api", "app.log"),
+		filepath.Join("/var/log/vrooli", sanitizedApp+".log"),
 	}
 
 	var logs []string
@@ -386,10 +400,11 @@ func (dm *DebugManager) generateFixSuggestions(errorPatterns []map[string]interf
 }
 
 func (dm *DebugManager) getLogPaths(appName string) ([]string, error) {
+	sanitizedApp := sanitizePathComponent(appName)
 	possiblePaths := []string{
-		fmt.Sprintf("../../../scenarios/%s/api/%s.log", appName, appName),
-		fmt.Sprintf("../../../scenarios/%s/logs/app.log", appName),
-		fmt.Sprintf("/var/log/vrooli/%s.log", appName),
+		filepath.Join("../../../scenarios", sanitizedApp, "api", sanitizedApp+".log"),
+		filepath.Join("../../../scenarios", sanitizedApp, "logs", "app.log"),
+		filepath.Join("/var/log/vrooli", sanitizedApp+".log"),
 	}
 
 	var validPaths []string

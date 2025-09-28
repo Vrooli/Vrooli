@@ -83,7 +83,7 @@ func (s *Server) CreateTenantHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"tenant": tenant,
+		"tenant":  tenant,
 		"message": "Tenant created successfully",
 	})
 }
@@ -134,8 +134,8 @@ func (s *Server) GetTenantHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"tenant": tenant,
 		"usage": map[string]interface{}{
-			"chatbot_count":          chatbotCount,
-			"monthly_conversations":  monthlyConversations,
+			"chatbot_count":         chatbotCount,
+			"monthly_conversations": monthlyConversations,
 		},
 	})
 }
@@ -195,7 +195,7 @@ func (s *Server) CreateABTestHandler(w http.ResponseWriter, r *http.Request) {
 	var createdAt string
 	err = s.db.QueryRow(query, chatbotID, tenantID, req.Name, req.Description, variantAJSON, variantBJSON, req.TrafficSplit).
 		Scan(&testID, &createdAt)
-	
+
 	if err != nil {
 		s.logger.Printf("Error creating A/B test: %v", err)
 		http.Error(w, `{"error":"Failed to create A/B test"}`, http.StatusInternalServerError)
@@ -265,7 +265,7 @@ func (s *Server) GetABTestResultsHandler(w http.ResponseWriter, r *http.Request)
 	var test ABTest
 	var variantAJSON, variantBJSON []byte
 	err := s.db.QueryRow(testQuery, testID).Scan(
-		&test.Name, &variantAJSON, &variantBJSON, 
+		&test.Name, &variantAJSON, &variantBJSON,
 		&test.TrafficSplit, &test.Status, &test.StartedAt, &test.EndedAt,
 	)
 
@@ -308,7 +308,7 @@ func (s *Server) GetABTestResultsHandler(w http.ResponseWriter, r *http.Request)
 		var avgEngagement sql.NullFloat64
 
 		rows.Scan(&variant, &total, &conversions, &avgEngagement)
-		
+
 		conversionRate := float64(0)
 		if total > 0 {
 			conversionRate = float64(conversions) / float64(total) * 100
@@ -316,9 +316,9 @@ func (s *Server) GetABTestResultsHandler(w http.ResponseWriter, r *http.Request)
 
 		results[fmt.Sprintf("variant_%s", variant)] = map[string]interface{}{
 			"total_conversations": total,
-			"conversions":        conversions,
-			"conversion_rate":    conversionRate,
-			"avg_engagement":     avgEngagement.Float64,
+			"conversions":         conversions,
+			"conversion_rate":     conversionRate,
+			"avg_engagement":      avgEngagement.Float64,
 		}
 	}
 
@@ -374,7 +374,7 @@ func (s *Server) CreateCRMIntegrationHandler(w http.ResponseWriter, r *http.Requ
 	var integrationID, createdAt string
 	err := s.db.QueryRow(query, req.TenantID, req.ChatbotID, req.Type, configJSON).
 		Scan(&integrationID, &createdAt)
-	
+
 	if err != nil {
 		s.logger.Printf("Error creating CRM integration: %v", err)
 		http.Error(w, `{"error":"Failed to create CRM integration"}`, http.StatusInternalServerError)
@@ -411,7 +411,7 @@ func (s *Server) SyncCRMLeadHandler(w http.ResponseWriter, r *http.Request) {
 	var chatbotID, tenantID string
 	var leadDataJSON []byte
 	err := s.db.QueryRow(query, conversationID).Scan(&chatbotID, &leadDataJSON, &tenantID)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, `{"error":"Conversation not found or no lead data"}`, http.StatusNotFound)
@@ -437,7 +437,7 @@ func (s *Server) SyncCRMLeadHandler(w http.ResponseWriter, r *http.Request) {
 	var integrationID, integrationType string
 	var configJSON []byte
 	err = s.db.QueryRow(integrationQuery, tenantID, chatbotID).Scan(&integrationID, &integrationType, &configJSON)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, `{"error":"No active CRM integration found"}`, http.StatusNotFound)
@@ -486,7 +486,7 @@ func isValidSlug(slug string) bool {
 func performCRMSync(crmType string, config map[string]interface{}, leadData map[string]interface{}) map[string]interface{} {
 	// This is a simplified implementation
 	// In production, this would make actual API calls to the respective CRM systems
-	
+
 	switch crmType {
 	case "webhook":
 		// Send to webhook endpoint
@@ -494,8 +494,8 @@ func performCRMSync(crmType string, config map[string]interface{}, leadData map[
 		if webhookURL != "" {
 			// Would make HTTP POST to webhook URL with lead data
 			return map[string]interface{}{
-				"success": true,
-				"message": "Lead data sent to webhook",
+				"success":     true,
+				"message":     "Lead data sent to webhook",
 				"webhook_url": webhookURL,
 			}
 		}
@@ -509,22 +509,22 @@ func performCRMSync(crmType string, config map[string]interface{}, leadData map[
 	case "hubspot":
 		// Would use HubSpot API
 		return map[string]interface{}{
-			"success": true,
-			"message": "Contact created in HubSpot",
+			"success":    true,
+			"message":    "Contact created in HubSpot",
 			"contact_id": "HS-" + generateID(),
 		}
 	case "pipedrive":
 		// Would use Pipedrive API
 		return map[string]interface{}{
-			"success": true,
-			"message": "Person created in Pipedrive",
+			"success":   true,
+			"message":   "Person created in Pipedrive",
 			"person_id": "PD-" + generateID(),
 		}
 	}
 
 	return map[string]interface{}{
 		"success": false,
-		"error": "CRM sync not implemented for type: " + crmType,
+		"error":   "CRM sync not implemented for type: " + crmType,
 	}
 }
 

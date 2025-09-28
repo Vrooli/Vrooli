@@ -52,24 +52,24 @@ func (ep *EventPublisher) PublishEvent(eventName string, payload map[string]inte
 		Timestamp: time.Now().UTC(),
 		Payload:   payload,
 	}
-	
+
 	subscribers, exists := ep.subscribers[eventName]
 	if !exists {
 		ep.logger.Printf("No subscribers for event: %s", eventName)
 		return
 	}
-	
+
 	eventData, err := json.Marshal(event)
 	if err != nil {
 		ep.logger.Printf("Failed to marshal event %s: %v", eventName, err)
 		return
 	}
-	
+
 	// Publish to each subscriber asynchronously
 	for _, endpoint := range subscribers {
 		go ep.sendToSubscriber(endpoint, eventData)
 	}
-	
+
 	ep.logger.Printf("Published event %s to %d subscribers", eventName, len(subscribers))
 }
 
@@ -80,10 +80,10 @@ func (ep *EventPublisher) sendToSubscriber(endpoint string, eventData []byte) {
 		ep.logger.Printf("Failed to create request for %s: %v", endpoint, err)
 		return
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Event-Source", "ai-chatbot-manager")
-	
+
 	resp, err := ep.httpClient.Do(req)
 	if err != nil {
 		// Log but don't fail - events are best-effort
@@ -91,7 +91,7 @@ func (ep *EventPublisher) sendToSubscriber(endpoint string, eventData []byte) {
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode >= 400 {
 		ep.logger.Printf("Subscriber %s returned error status: %d", endpoint, resp.StatusCode)
 	}
@@ -121,10 +121,10 @@ func (ep *EventPublisher) LeadCapturedEvent(chatbotID, conversationID string, le
 // ConversationEndedEvent publishes when a conversation ends
 func (ep *EventPublisher) ConversationEndedEvent(chatbotID, conversationID string, duration int, messageCount int) {
 	payload := map[string]interface{}{
-		"chatbot_id":      chatbotID,
-		"conversation_id": conversationID,
+		"chatbot_id":       chatbotID,
+		"conversation_id":  conversationID,
 		"duration_seconds": duration,
-		"message_count":   messageCount,
+		"message_count":    messageCount,
 	}
 	ep.PublishEvent("chatbot.conversation.ended", payload)
 }
