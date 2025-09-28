@@ -46,6 +46,19 @@ export function Dashboard({ stats, issues, processor, agentSettings }: Dashboard
     };
   }, [stats.priorityBreakdown]);
 
+  const priorityOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, ticks: { precision: 0 } },
+      },
+    }),
+    [],
+  );
+
   const trendData = useMemo(
     () => ({
       labels: stats.statusTrend.map((item) => item.label),
@@ -60,6 +73,19 @@ export function Dashboard({ stats, issues, processor, agentSettings }: Dashboard
       ],
     }),
     [stats.statusTrend],
+  );
+
+  const trendOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, ticks: { precision: 0 } },
+      },
+    }),
+    [],
   );
 
   const recentIssues = useMemo(
@@ -119,14 +145,18 @@ export function Dashboard({ stats, issues, processor, agentSettings }: Dashboard
             <h3>Issues by Priority</h3>
             <Flame size={16} />
           </header>
-          <Bar options={{ responsive: true, plugins: { legend: { display: false } } }} data={priorityData} />
+          <div className="chart-wrapper">
+            <Bar options={priorityOptions} data={priorityData} />
+          </div>
         </div>
         <div className="chart-card">
           <header>
             <h3>Investigations this Week</h3>
             <TrendingUp size={16} />
           </header>
-          <Bar options={{ responsive: true, plugins: { legend: { display: false } } }} data={trendData} />
+          <div className="chart-wrapper">
+            <Bar options={trendOptions} data={trendData} />
+          </div>
         </div>
       </section>
 

@@ -58,7 +58,7 @@ func TestHandleEdit(t *testing.T) {
 				},
 			},
 			expectedStatus: http.StatusInternalServerError, // FFmpeg will fail with fake data
-			checkResponse: nil,
+			checkResponse:  nil,
 		},
 		{
 			name: "volume adjustment with fake audio",
@@ -74,7 +74,7 @@ func TestHandleEdit(t *testing.T) {
 				},
 			},
 			expectedStatus: http.StatusInternalServerError, // FFmpeg will fail with fake data
-			checkResponse: nil,
+			checkResponse:  nil,
 		},
 		{
 			name:           "invalid request body",
@@ -291,7 +291,7 @@ func TestHandleAnalyze(t *testing.T) {
 	tempFile.Close()
 
 	requestBody := map[string]interface{}{
-		"audio_file": tempFile.Name(),
+		"audio_file":     tempFile.Name(),
 		"analysis_types": []string{"quality", "content", "spectral"},
 	}
 

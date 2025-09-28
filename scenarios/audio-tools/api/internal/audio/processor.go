@@ -33,26 +33,26 @@ type EditOperation struct {
 }
 
 type AudioFile struct {
-	ID               string    `json:"id"`
-	Path             string    `json:"path"`
-	Format           string    `json:"format"`
-	DurationSeconds  float64   `json:"duration_seconds"`
-	SampleRate       int       `json:"sample_rate"`
-	Channels         int       `json:"channels"`
-	Bitrate          int       `json:"bitrate"`
-	FileSizeBytes    int64     `json:"file_size_bytes"`
-	CreatedAt        time.Time `json:"created_at"`
+	ID              string    `json:"id"`
+	Path            string    `json:"path"`
+	Format          string    `json:"format"`
+	DurationSeconds float64   `json:"duration_seconds"`
+	SampleRate      int       `json:"sample_rate"`
+	Channels        int       `json:"channels"`
+	Bitrate         int       `json:"bitrate"`
+	FileSizeBytes   int64     `json:"file_size_bytes"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 type AudioMetadata struct {
-	Duration    string            `json:"duration"`
-	Format      string            `json:"format"`
-	Codec       string            `json:"codec"`
-	SampleRate  string            `json:"sample_rate"`
-	Channels    int               `json:"channels"`
-	Bitrate     string            `json:"bitrate"`
-	Size        int64             `json:"size"`
-	Tags        map[string]string `json:"tags"`
+	Duration   string            `json:"duration"`
+	Format     string            `json:"format"`
+	Codec      string            `json:"codec"`
+	SampleRate string            `json:"sample_rate"`
+	Channels   int               `json:"channels"`
+	Bitrate    string            `json:"bitrate"`
+	Size       int64             `json:"size"`
+	Tags       map[string]string `json:"tags"`
 }
 
 // ExtractMetadata uses ffprobe to extract audio file metadata
@@ -115,7 +115,7 @@ func (p *AudioProcessor) ExtractMetadataWithContext(ctx context.Context, filePat
 		if bitrate, ok := format["bit_rate"].(string); ok {
 			metadata.Bitrate = bitrate
 		}
-		
+
 		// Extract tags
 		if tags, ok := format["tags"].(map[string]interface{}); ok {
 			for k, v := range tags {
@@ -193,7 +193,7 @@ func (p *AudioProcessor) ConvertFormatWithContext(ctx context.Context, inputPath
 	}
 
 	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
-	
+
 	// Start the command
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("failed to start ffmpeg: %v", err)
@@ -424,11 +424,11 @@ func (p *AudioProcessor) FadeOut(inputPath string, duration float64) (string, er
 	outputPath := filepath.Join(p.WorkDir, fmt.Sprintf("%s_fadeout%s", outputID, filepath.Ext(inputPath)))
 
 	startTime := totalDuration - duration
-	
+
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	cmd := exec.CommandContext(ctx, "ffmpeg",
 		"-y",
 		"-i", inputPath,
@@ -503,11 +503,11 @@ func (p *AudioProcessor) ApplyNoiseReduction(inputPath string, intensity float64
 
 // VoiceActivityDetection represents VAD results
 type VoiceActivityDetection struct {
-	SpeechSegments []SpeechSegment `json:"speech_segments"`
-	TotalDuration  float64         `json:"total_duration_seconds"`
-	SpeechDuration float64         `json:"speech_duration_seconds"`
-	SilenceDuration float64        `json:"silence_duration_seconds"`
-	SpeechRatio    float64         `json:"speech_ratio"`
+	SpeechSegments  []SpeechSegment `json:"speech_segments"`
+	TotalDuration   float64         `json:"total_duration_seconds"`
+	SpeechDuration  float64         `json:"speech_duration_seconds"`
+	SilenceDuration float64         `json:"silence_duration_seconds"`
+	SpeechRatio     float64         `json:"speech_ratio"`
 }
 
 // SpeechSegment represents a segment of detected speech
@@ -680,11 +680,11 @@ func (p *AudioProcessor) ChangePitch(inputPath string, pitchSemitones int) (stri
 
 	// Calculate frequency ratio from semitones
 	ratio := math.Pow(2, float64(pitchSemitones)/12.0)
-	
+
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	
+
 	cmd := exec.CommandContext(ctx, "ffmpeg",
 		"-y",
 		"-loglevel", "error",
@@ -731,7 +731,7 @@ func (p *AudioProcessor) ApplyEqualizer(inputPath string, eqSettings map[string]
 // Split audio file at specified points
 func (p *AudioProcessor) Split(inputPath string, splitPoints []float64) ([]string, error) {
 	var outputPaths []string
-	
+
 	// Add 0 at the beginning if not present
 	if len(splitPoints) == 0 || splitPoints[0] != 0 {
 		splitPoints = append([]float64{0}, splitPoints...)
@@ -742,12 +742,12 @@ func (p *AudioProcessor) Split(inputPath string, splitPoints []float64) ([]strin
 	if err != nil {
 		return nil, err
 	}
-	
+
 	totalDuration, err := strconv.ParseFloat(metadata.Duration, 64)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse duration: %v", err)
 	}
-	
+
 	// Add end time if not present
 	if splitPoints[len(splitPoints)-1] < totalDuration {
 		splitPoints = append(splitPoints, totalDuration)
@@ -757,14 +757,14 @@ func (p *AudioProcessor) Split(inputPath string, splitPoints []float64) ([]strin
 	for i := 0; i < len(splitPoints)-1; i++ {
 		outputID := uuid.New().String()
 		outputPath := filepath.Join(p.WorkDir, fmt.Sprintf("%s_part%d%s", outputID, i+1, filepath.Ext(inputPath)))
-		
+
 		startTime := splitPoints[i]
 		duration := splitPoints[i+1] - startTime
-		
+
 		// Create context with timeout for each split operation
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		
+
 		cmd := exec.CommandContext(ctx, "ffmpeg",
 			"-y",
 			"-loglevel", "error",
@@ -773,7 +773,7 @@ func (p *AudioProcessor) Split(inputPath string, splitPoints []float64) ([]strin
 			"-t", fmt.Sprintf("%.2f", duration),
 			"-c", "copy",
 			outputPath)
-		
+
 		if err := cmd.Run(); err != nil {
 			// Clean up any created files
 			for _, path := range outputPaths {
@@ -781,7 +781,7 @@ func (p *AudioProcessor) Split(inputPath string, splitPoints []float64) ([]strin
 			}
 			return nil, fmt.Errorf("split failed at segment %d: %v", i+1, err)
 		}
-		
+
 		outputPaths = append(outputPaths, outputPath)
 	}
 

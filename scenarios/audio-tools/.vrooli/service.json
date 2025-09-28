@@ -269,16 +269,6 @@
           }
         },
         {
-          "name": "start-ui",
-          "run": "cd ui && npm run dev -- --port $UI_PORT --host 0.0.0.0",
-          "description": "Start UI server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/package.json",
-            "json_path_exists": "ui/package.json:scripts.dev"
-          }
-        },
-        {
           "name": "show-urls",
           "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  CLI: audio-tools --help'",
           "description": "Display service URLs"
@@ -518,9 +508,9 @@
     ]
   },
   "ui": {
-    "enabled": true,
+    "enabled": false,
     "path": "/",
-    "description": "React-based web interface",
+    "description": "React-based web interface (not implemented)",
     "features": [
       "responsive-design",
       "real-time-updates",

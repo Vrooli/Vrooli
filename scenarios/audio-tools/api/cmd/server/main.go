@@ -29,10 +29,10 @@ type Server struct {
 }
 
 type Config struct {
-	Port         string
-	DatabaseURL  string
-	WorkDir      string
-	DataDir      string
+	Port            string
+	DatabaseURL     string
+	WorkDir         string
+	DataDir         string
 	MinIOEndpoint   string
 	MinIOAccessKey  string
 	MinIOSecretKey  string
@@ -80,12 +80,12 @@ func initializeDatabase(db *sql.DB) error {
 		tags TEXT[]
 	);
 	`
-	
+
 	_, err := db.Exec(createTableSQL)
 	if err != nil {
 		return fmt.Errorf("failed to create tables: %w", err)
 	}
-	
+
 	// Create indexes
 	indexSQL := `
 	CREATE INDEX IF NOT EXISTS idx_audio_assets_format ON audio_assets(format);
@@ -94,22 +94,22 @@ func initializeDatabase(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_audio_processing_jobs_status ON audio_processing_jobs(status);
 	CREATE INDEX IF NOT EXISTS idx_audio_processing_jobs_operation ON audio_processing_jobs(operation_type);
 	`
-	
+
 	_, err = db.Exec(indexSQL)
 	if err != nil {
 		// Indexes are optional, just log the error
 		log.Printf("Warning: Could not create indexes: %v", err)
 	}
-	
+
 	return nil
 }
 
 func NewServer() (*Server, error) {
 	config := &Config{
-		Port:        getEnv("API_PORT", "8080"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/audio_tools"),
-		WorkDir:     getEnv("WORK_DIR", "/tmp/audio-tools"),
-		DataDir:     getEnv("DATA_DIR", "./data"),
+		Port:            getEnv("API_PORT", "8080"),
+		DatabaseURL:     getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/audio_tools"),
+		WorkDir:         getEnv("WORK_DIR", "/tmp/audio-tools"),
+		DataDir:         getEnv("DATA_DIR", "./data"),
 		MinIOEndpoint:   getEnv("MINIO_ENDPOINT", "localhost:9000"),
 		MinIOAccessKey:  getEnv("MINIO_ACCESS_KEY", "minioadmin"),
 		MinIOSecretKey:  getEnv("MINIO_SECRET_KEY", "minioadmin"),
@@ -124,7 +124,7 @@ func NewServer() (*Server, error) {
 	// Connect to database (optional - will work without it)
 	var db *sql.DB
 	dbURL := config.DatabaseURL
-	
+
 	// Use resource postgres port if available - check multiple env vars
 	pgPort := ""
 	if port := os.Getenv("RESOURCE_PORTS_POSTGRES"); port != "" {
@@ -140,7 +140,7 @@ func NewServer() (*Server, error) {
 			}
 		}
 	}
-	
+
 	if pgPort != "" {
 		// Use vrooli user and database from environment if available
 		pgUser := os.Getenv("POSTGRES_USER")
@@ -152,12 +152,12 @@ func NewServer() (*Server, error) {
 			pgPassword = "postgres"
 		}
 		pgDatabase := "audio_tools" // Use audio_tools database
-		
-		config.DatabaseURL = fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", 
+
+		config.DatabaseURL = fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable",
 			pgUser, pgPassword, pgPort, pgDatabase)
 		dbURL = config.DatabaseURL
 	}
-	
+
 	if dbURL != "" {
 		var err error
 		db, err = sql.Open("postgres", dbURL)
@@ -169,7 +169,7 @@ func NewServer() (*Server, error) {
 			db.SetMaxOpenConns(25)
 			db.SetMaxIdleConns(5)
 			db.SetConnMaxLifetime(5 * time.Minute)
-			
+
 			// Try to ping with retry
 			retries := 3
 			for i := 0; i < retries; i++ {
@@ -292,11 +292,11 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	status := map[string]interface{}{
-		"service":     "audio-tools",
-		"version":     "1.0.0",
-		"uptime":      time.Since(startTime).Seconds(),
-		"work_dir":    s.config.WorkDir,
-		"data_dir":    s.config.DataDir,
+		"service":  "audio-tools",
+		"version":  "1.0.0",
+		"uptime":   time.Since(startTime).Seconds(),
+		"work_dir": s.config.WorkDir,
+		"data_dir": s.config.DataDir,
 		"capabilities": []string{
 			"edit", "convert", "metadata", "enhance", "analyze",
 			"trim", "merge", "split", "fade", "volume", "normalize",

@@ -9,7 +9,9 @@ readonly CLI_NAME="audio-tools"
 readonly CLI_VERSION="1.0.0"
 readonly CONFIG_DIR="$HOME/.audio-tools"
 readonly CONFIG_FILE="$CONFIG_DIR/config.json"
-readonly DEFAULT_API_BASE="http://localhost:${API_PORT:-8080}"
+# Use environment variable or default port
+readonly DEFAULT_API_PORT="${API_PORT:-19605}"
+readonly DEFAULT_API_BASE="http://localhost:${DEFAULT_API_PORT}"
 readonly DEFAULT_TOKEN=""
 
 # Colors for output
@@ -30,7 +32,8 @@ init_config() {
 {
     "api_base": "$DEFAULT_API_BASE",
     "api_token": "$DEFAULT_TOKEN",
-    "output_format": "table",
+    "output_format": "json",
+    "default_quality": "high",
     "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 }
 EOF
@@ -43,11 +46,11 @@ load_config() {
     if [[ -f "$CONFIG_FILE" ]]; then
         API_BASE=$(jq -r '.api_base // "'$DEFAULT_API_BASE'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_API_BASE")
         API_TOKEN=$(jq -r '.api_token // "'$DEFAULT_TOKEN'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_TOKEN")
-        OUTPUT_FORMAT=$(jq -r '.output_format // "table"' "$CONFIG_FILE" 2>/dev/null || echo "table")
+        OUTPUT_FORMAT=$(jq -r '.output_format // "json"' "$CONFIG_FILE" 2>/dev/null || echo "json")
     else
         API_BASE="$DEFAULT_API_BASE"
         API_TOKEN="$DEFAULT_TOKEN"
-        OUTPUT_FORMAT="table"
+        OUTPUT_FORMAT="json"
     fi
 }
 
@@ -58,7 +61,11 @@ api_request() {
     local data="${3:-}"
     
     local url="${API_BASE}${endpoint}"
-    local curl_opts=(-s -X "$method" -H "Authorization: Bearer $API_TOKEN")
+    local curl_opts=(-s -X "$method")
+    
+    if [[ -n "$API_TOKEN" ]]; then
+        curl_opts+=(-H "Authorization: Bearer $API_TOKEN")
+    fi
     
     if [[ -n "$data" ]]; then
         curl_opts+=(-H "Content-Type: application/json" -d "$data")
@@ -75,6 +82,42 @@ api_request() {
     echo "$response"
 }
 
+# Upload file for processing
+upload_file() {
+    local file="$1"
+    local endpoint="$2"
+    shift 2
+    local extra_fields=("$@")
+    
+    if [[ ! -f "$file" ]]; then
+        echo -e "${RED}✗${NC} File not found: $file" >&2
+        return 1
+    fi
+    
+    local url="${API_BASE}${endpoint}"
+    local curl_opts=(-s -X POST)
+    
+    if [[ -n "$API_TOKEN" ]]; then
+        curl_opts+=(-H "Authorization: Bearer $API_TOKEN")
+    fi
+    
+    curl_opts+=(-F "audio=@$file")
+    
+    for field in "${extra_fields[@]}"; do
+        curl_opts+=(-F "$field")
+    done
+    
+    response=$(curl "${curl_opts[@]}" "$url" 2>/dev/null)
+    exit_code=$?
+    
+    if [[ $exit_code -ne 0 ]]; then
+        echo -e "${RED}✗${NC} Failed to upload file to $url" >&2
+        return 1
+    fi
+    
+    echo "$response"
+}
+
 # Format output
 format_output() {
     local data="$1"
@@ -84,13 +127,14 @@ format_output() {
         json)
             echo "$data" | jq '.' 2>/dev/null || echo "$data"
             ;;
-        table)
-            # Convert JSON to simple table format
+        simple)
             echo "$data" | jq -r '
-                if type == "array" then
-                    .[] | [.id, .name, .status // .description // ""] | @tsv
-                elif type == "object" then
-                    to_entries | .[] | [.key, .value] | @tsv
+                if .file_path then
+                    "Output: \(.file_path)"
+                elif .metadata then
+                    "Duration: \(.metadata.duration)s\nFormat: \(.metadata.format)\nBitrate: \(.metadata.bitrate)"
+                elif .analysis_results then
+                    "Analysis complete: \(.analysis_id)"
                 else
                     .
                 end
@@ -105,426 +149,530 @@ format_output() {
     esac
 }
 
-# Command: health
-cmd_health() {
-    echo -e "${BLUE}Checking system health...${NC}"
-    
-    response=$(api_request GET "/health")
-    if [[ $? -eq 0 ]]; then
-        status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
-        
-        if [[ "$status" == "healthy" ]]; then
-            echo -e "${GREEN}✓${NC} System is healthy"
-        else
-            echo -e "${YELLOW}⚠${NC} System status: $status"
-        fi
-        
-        echo "$response" | jq -r '
-            "  API: \(.service // "Unknown")",
-            "  Version: \(.version // "Unknown")",
-            "  Database: \(.database // "Unknown")"
-        ' 2>/dev/null
-    else
-        echo -e "${RED}✗${NC} API is not responding"
-        return 1
-    fi
-}
-
-# Command: list resources
-cmd_list() {
-    local resource="${1:-resources}"
-    
-    echo -e "${BLUE}Listing ${resource}...${NC}"
-    
-    response=$(api_request GET "/api/v1/${resource}")
-    if [[ $? -eq 0 ]]; then
-        count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
-        echo -e "${GREEN}✓${NC} Found $count ${resource}"
-        echo
-        format_output "$response"
-    else
-        echo -e "${RED}✗${NC} Failed to list ${resource}"
-        return 1
-    fi
-}
-
-# Command: get resource
-cmd_get() {
-    local resource="${1:-resources}"
-    local id="$2"
-    
-    if [[ -z "$id" ]]; then
-        echo -e "${RED}✗${NC} ID is required" >&2
-        return 1
-    fi
-    
-    echo -e "${BLUE}Getting ${resource} ${id}...${NC}"
-    
-    response=$(api_request GET "/api/v1/${resource}/${id}")
-    if [[ $? -eq 0 ]]; then
-        echo -e "${GREEN}✓${NC} Retrieved ${resource}"
-        echo
-        format_output "$response"
-    else
-        echo -e "${RED}✗${NC} Failed to get ${resource}"
-        return 1
-    fi
-}
-
-# Command: create resource
-cmd_create() {
-    local resource="${1:-resources}"
-    shift
-    
-    # Build JSON from remaining arguments
-    local json_data="{}"
-    while [[ $# -gt 0 ]]; do
-        key="$1"
-        value="${2:-}"
-        json_data=$(echo "$json_data" | jq --arg k "$key" --arg v "$value" '. + {($k): $v}')
-        shift 2 || break
-    done
-    
-    echo -e "${BLUE}Creating ${resource}...${NC}"
-    
-    response=$(api_request POST "/api/v1/${resource}" "$json_data")
-    if [[ $? -eq 0 ]]; then
-        id=$(echo "$response" | jq -r '.data.id // .id // ""' 2>/dev/null)
-        echo -e "${GREEN}✓${NC} Created ${resource} ${id}"
-        echo
-        format_output "$response"
-    else
-        echo -e "${RED}✗${NC} Failed to create ${resource}"
-        return 1
-    fi
-}
-
-# Command: update resource
-cmd_update() {
-    local resource="${1:-resources}"
-    local id="$2"
-    shift 2
-    
-    if [[ -z "$id" ]]; then
-        echo -e "${RED}✗${NC} ID is required" >&2
-        return 1
-    fi
-    
-    # Build JSON from remaining arguments
-    local json_data="{}"
-    while [[ $# -gt 0 ]]; do
-        key="$1"
-        value="${2:-}"
-        json_data=$(echo "$json_data" | jq --arg k "$key" --arg v "$value" '. + {($k): $v}')
-        shift 2 || break
-    done
-    
-    echo -e "${BLUE}Updating ${resource} ${id}...${NC}"
-    
-    response=$(api_request PUT "/api/v1/${resource}/${id}" "$json_data")
-    if [[ $? -eq 0 ]]; then
-        echo -e "${GREEN}✓${NC} Updated ${resource} ${id}"
-        echo
-        format_output "$response"
-    else
-        echo -e "${RED}✗${NC} Failed to update ${resource}"
-        return 1
-    fi
-}
-
-# Command: delete resource
-cmd_delete() {
-    local resource="${1:-resources}"
-    local id="$2"
-    
-    if [[ -z "$id" ]]; then
-        echo -e "${RED}✗${NC} ID is required" >&2
-        return 1
-    fi
-    
-    echo -e "${BLUE}Deleting ${resource} ${id}...${NC}"
-    
-    response=$(api_request DELETE "/api/v1/${resource}/${id}")
-    if [[ $? -eq 0 ]]; then
-        echo -e "${GREEN}✓${NC} Deleted ${resource} ${id}"
-    else
-        echo -e "${RED}✗${NC} Failed to delete ${resource}"
-        return 1
-    fi
-}
-
-# Command: execute workflow
-cmd_execute() {
-    local workflow_id="${1:-}"
-    shift
-    
-    if [[ -z "$workflow_id" ]]; then
-        echo -e "${RED}✗${NC} Workflow ID is required" >&2
-        return 1
-    fi
-    
-    # Build input data from remaining arguments
-    local input_data="{\"workflow_id\": \"$workflow_id\""
-    if [[ $# -gt 0 ]]; then
-        local user_input="$*"
-        input_data="${input_data}, \"input\": \"$user_input\""
-    fi
-    input_data="${input_data}}"
-    
-    echo -e "${BLUE}Executing workflow ${workflow_id}...${NC}"
-    
-    response=$(api_request POST "/api/v1/execute" "$input_data")
-    if [[ $? -eq 0 ]]; then
-        execution_id=$(echo "$response" | jq -r '.data.execution_id // .execution_id // ""' 2>/dev/null)
-        echo -e "${GREEN}✓${NC} Started execution ${execution_id}"
-        echo
-        format_output "$response"
-    else
-        echo -e "${RED}✗${NC} Failed to execute workflow"
-        return 1
-    fi
-}
-
-# Audio-specific commands
-cmd_status() {
-    echo -e "${BLUE}Getting service status...${NC}"
-    response=$(api_request GET "/api/v1/status")
-    if [[ $? -eq 0 ]]; then
-        echo -e "${GREEN}✓${NC} Service status retrieved"
-        format_output "$response"
-    else
-        echo -e "${RED}✗${NC} Failed to get status"
-        return 1
-    fi
-}
-
+# Command: Convert audio format
 cmd_convert() {
-    local input_file="$1"
-    local output_format="$2"
+    local input_file=""
+    local output_format=""
+    local bitrate=""
+    local sample_rate=""
     
-    if [[ -z "$input_file" ]] || [[ -z "$output_format" ]]; then
-        echo -e "${RED}Error: Input file and format required${NC}" >&2
-        echo "Usage: $CLI_NAME convert <input_file> <format>" >&2
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -i|--input)
+                input_file="$2"
+                shift 2
+                ;;
+            -f|--format)
+                output_format="$2"
+                shift 2
+                ;;
+            -b|--bitrate)
+                bitrate="$2"
+                shift 2
+                ;;
+            -s|--sample-rate)
+                sample_rate="$2"
+                shift 2
+                ;;
+            *)
+                input_file="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input_file" || -z "$output_format" ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME convert -i <input_file> -f <format> [-b <bitrate>] [-s <sample_rate>]" >&2
         return 1
     fi
     
-    if [[ ! -f "$input_file" ]]; then
-        echo -e "${RED}Error: File not found: $input_file${NC}" >&2
-        return 1
-    fi
+    local extra_fields=("format=$output_format")
+    [[ -n "$bitrate" ]] && extra_fields+=("bitrate=$bitrate")
+    [[ -n "$sample_rate" ]] && extra_fields+=("sample_rate=$sample_rate")
     
-    local request_data=$(jq -n \
-        --arg file "$input_file" \
-        --arg fmt "$output_format" \
-        '{audio_file: $file, operations: [], output_format: $fmt}')
+    echo -e "${BLUE}→${NC} Converting $input_file to $output_format..."
+    response=$(upload_file "$input_file" "/api/v1/audio/convert" "${extra_fields[@]}")
     
-    echo -e "${BLUE}Converting $input_file to $output_format...${NC}"
-    response=$(api_request POST "/api/v1/audio/edit" "$request_data")
     if [[ $? -eq 0 ]]; then
-        echo -e "${GREEN}✓${NC} Conversion successful"
+        echo -e "${GREEN}✓${NC} Conversion complete"
         format_output "$response"
-    else
-        echo -e "${RED}✗${NC} Conversion failed"
-        return 1
     fi
 }
 
+# Command: Trim audio
 cmd_trim() {
-    local input_file="$1"
-    local start_time="${2:-0}"
-    local end_time="${3:-30}"
+    local input_file=""
+    local start_time=""
+    local end_time=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -i|--input)
+                input_file="$2"
+                shift 2
+                ;;
+            -s|--start)
+                start_time="$2"
+                shift 2
+                ;;
+            -e|--end)
+                end_time="$2"
+                shift 2
+                ;;
+            *)
+                input_file="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input_file" || -z "$start_time" || -z "$end_time" ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME trim -i <input_file> -s <start_time> -e <end_time>" >&2
+        return 1
+    fi
+    
+    local data=$(cat <<EOF
+{
+    "audio_file": "$input_file",
+    "operations": [
+        {
+            "type": "trim",
+            "parameters": {
+                "start_time": $start_time,
+                "end_time": $end_time
+            }
+        }
+    ]
+}
+EOF
+    )
+    
+    echo -e "${BLUE}→${NC} Trimming $input_file from ${start_time}s to ${end_time}s..."
+    response=$(api_request POST "/api/v1/audio/edit" "$data")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Trim complete"
+        format_output "$response"
+    fi
+}
+
+# Command: Normalize audio
+cmd_normalize() {
+    local input_file=""
+    local target_level="-16"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -i|--input)
+                input_file="$2"
+                shift 2
+                ;;
+            -l|--level)
+                target_level="$2"
+                shift 2
+                ;;
+            *)
+                input_file="$1"
+                shift
+                ;;
+        esac
+    done
     
     if [[ -z "$input_file" ]]; then
-        echo -e "${RED}Error: Input file required${NC}" >&2
-        echo "Usage: $CLI_NAME trim <input_file> [start_time] [end_time]" >&2
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME normalize -i <input_file> [-l <target_level>]" >&2
         return 1
     fi
     
-    local operations=$(jq -n \
-        --argjson start "$start_time" \
-        --argjson end "$end_time" \
-        '[{type: "trim", parameters: {start_time: $start, end_time: $end}}]')
+    local data=$(cat <<EOF
+{
+    "audio_file": "$input_file",
+    "operations": [
+        {
+            "type": "normalize",
+            "parameters": {
+                "target_level": $target_level
+            }
+        }
+    ]
+}
+EOF
+    )
     
-    local request_data=$(jq -n \
-        --arg file "$input_file" \
-        --argjson ops "$operations" \
-        '{audio_file: $file, operations: $ops}')
+    echo -e "${BLUE}→${NC} Normalizing $input_file to ${target_level} LUFS..."
+    response=$(api_request POST "/api/v1/audio/edit" "$data")
     
-    echo -e "${BLUE}Trimming audio...${NC}"
-    response=$(api_request POST "/api/v1/audio/edit" "$request_data")
     if [[ $? -eq 0 ]]; then
-        echo -e "${GREEN}✓${NC} Trim successful"
+        echo -e "${GREEN}✓${NC} Normalization complete"
+        format_output "$response"
+    fi
+}
+
+# Command: Extract metadata
+cmd_metadata() {
+    local input_file="$1"
+    
+    if [[ -z "$input_file" ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME metadata <input_file>" >&2
+        return 1
+    fi
+    
+    echo -e "${BLUE}→${NC} Extracting metadata from $input_file..."
+    
+    # Try file upload method first
+    response=$(upload_file "$input_file" "/api/v1/audio/metadata")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Metadata extracted"
+        format_output "$response" "simple"
+    fi
+}
+
+# Command: Enhance audio
+cmd_enhance() {
+    local input_file=""
+    local environment="general"
+    local noise_reduction="0.5"
+    local auto_level="true"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -i|--input)
+                input_file="$2"
+                shift 2
+                ;;
+            -e|--environment)
+                environment="$2"
+                shift 2
+                ;;
+            -n|--noise-reduction)
+                noise_reduction="$2"
+                shift 2
+                ;;
+            --no-auto-level)
+                auto_level="false"
+                shift
+                ;;
+            *)
+                input_file="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input_file" ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME enhance -i <input_file> [-e <environment>] [-n <intensity>]" >&2
+        echo "  Environments: general, podcast, music, voice, conference" >&2
+        return 1
+    fi
+    
+    local enhancements='[{"type":"noise_reduction","intensity":'$noise_reduction'}'
+    if [[ "$auto_level" == "true" ]]; then
+        enhancements+=',{"type":"auto_level"}'
+    fi
+    enhancements+=']'
+    
+    local data=$(cat <<EOF
+{
+    "audio_file": "$input_file",
+    "enhancements": $enhancements,
+    "target_environment": "$environment"
+}
+EOF
+    )
+    
+    echo -e "${BLUE}→${NC} Enhancing $input_file for $environment environment..."
+    response=$(api_request POST "/api/v1/audio/enhance" "$data")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Enhancement complete"
+        format_output "$response"
+    fi
+}
+
+# Command: Analyze audio
+cmd_analyze() {
+    local input_file=""
+    local analyses="all"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -i|--input)
+                input_file="$2"
+                shift 2
+                ;;
+            -a|--analyses)
+                analyses="$2"
+                shift 2
+                ;;
+            *)
+                input_file="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$input_file" ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME analyze -i <input_file> [-a <analyses>]" >&2
+        echo "  Analyses: spectrum, loudness, silence, all" >&2
+        return 1
+    fi
+    
+    local analyses_array='["spectrum","loudness","silence","peaks","frequency"]'
+    if [[ "$analyses" != "all" ]]; then
+        analyses_array="[\"$analyses\"]"
+    fi
+    
+    local data=$(cat <<EOF
+{
+    "audio_file": "$input_file",
+    "analyses": $analyses_array
+}
+EOF
+    )
+    
+    echo -e "${BLUE}→${NC} Analyzing $input_file..."
+    response=$(api_request POST "/api/v1/audio/analyze" "$data")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Analysis complete"
+        format_output "$response"
+    fi
+}
+
+# Command: Batch process
+cmd_batch() {
+    local operation="$1"
+    shift
+    local files=("$@")
+    
+    if [[ -z "$operation" || ${#files[@]} -eq 0 ]]; then
+        echo -e "${RED}✗${NC} Usage: $CLI_NAME batch <operation> <file1> <file2> ..." >&2
+        echo "  Operations: normalize, enhance, convert:mp3, convert:wav" >&2
+        return 1
+    fi
+    
+    echo -e "${BLUE}→${NC} Batch processing ${#files[@]} files..."
+    
+    local success=0
+    local failed=0
+    
+    for file in "${files[@]}"; do
+        echo -e "\n${YELLOW}Processing:${NC} $file"
+        
+        case "$operation" in
+            normalize)
+                cmd_normalize "$file"
+                ;;
+            enhance)
+                cmd_enhance "$file"
+                ;;
+            convert:*)
+                format="${operation#convert:}"
+                cmd_convert -i "$file" -f "$format"
+                ;;
+            *)
+                echo -e "${RED}✗${NC} Unknown operation: $operation"
+                ((failed++))
+                continue
+                ;;
+        esac
+        
+        if [[ $? -eq 0 ]]; then
+            ((success++))
+        else
+            ((failed++))
+        fi
+    done
+    
+    echo -e "\n${GREEN}✓${NC} Batch complete: $success succeeded, $failed failed"
+}
+
+# Command: Show status
+cmd_status() {
+    echo -e "${BLUE}→${NC} Checking audio-tools status..."
+    response=$(api_request GET "/health")
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Service is healthy"
         format_output "$response"
     else
-        echo -e "${RED}✗${NC} Trim failed"
+        echo -e "${RED}✗${NC} Service is not responding"
         return 1
     fi
 }
 
-# Command: configure
-cmd_configure() {
-    local key="${1:-}"
-    local value="${2:-}"
+# Help message
+show_help() {
+    cat <<EOF
+${GREEN}audio-tools${NC} v${CLI_VERSION}
+Comprehensive audio processing and analysis CLI
+
+${YELLOW}USAGE:${NC}
+    $CLI_NAME <command> [options]
+
+${YELLOW}COMMANDS:${NC}
+    ${BLUE}convert${NC}    Convert audio format
+                -i <file> -f <format> [-b <bitrate>] [-s <sample_rate>]
+                Formats: mp3, wav, flac, ogg, aac, m4a
     
-    if [[ -z "$key" ]]; then
-        echo "Current configuration:"
-        cat "$CONFIG_FILE" | jq '.' 2>/dev/null || cat "$CONFIG_FILE"
-        return 0
-    fi
+    ${BLUE}trim${NC}       Trim audio file
+                -i <file> -s <start_time> -e <end_time>
     
-    case "$key" in
-        api|api_base)
-            jq --arg v "$value" '.api_base = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-            echo -e "${GREEN}✓${NC} API base set to: $value"
+    ${BLUE}normalize${NC}  Normalize audio levels
+                -i <file> [-l <target_level>]
+                Default level: -16 LUFS
+    
+    ${BLUE}enhance${NC}    Enhance audio quality
+                -i <file> [-e <environment>] [-n <noise_reduction>]
+                Environments: general, podcast, music, voice, conference
+    
+    ${BLUE}metadata${NC}   Extract audio metadata
+                <file>
+    
+    ${BLUE}analyze${NC}    Analyze audio characteristics
+                -i <file> [-a <analyses>]
+                Analyses: spectrum, loudness, silence, all
+    
+    ${BLUE}batch${NC}      Process multiple files
+                <operation> <file1> <file2> ...
+                Operations: normalize, enhance, convert:mp3, convert:wav
+    
+    ${BLUE}status${NC}     Check service status
+    
+    ${BLUE}config${NC}     Show/set configuration
+                get [key] | set <key> <value>
+    
+    ${BLUE}help${NC}       Show this help message
+
+${YELLOW}EXAMPLES:${NC}
+    # Convert WAV to MP3 with 192k bitrate
+    $CLI_NAME convert -i input.wav -f mp3 -b 192000
+    
+    # Trim audio from 10s to 30s
+    $CLI_NAME trim -i song.mp3 -s 10 -e 30
+    
+    # Normalize multiple files
+    $CLI_NAME batch normalize *.wav
+    
+    # Enhance podcast audio
+    $CLI_NAME enhance -i recording.wav -e podcast -n 0.7
+    
+    # Extract metadata
+    $CLI_NAME metadata audio.mp3
+
+${YELLOW}CONFIGURATION:${NC}
+    Config file: $CONFIG_FILE
+    API endpoint: $DEFAULT_API_BASE
+
+For more information, visit: https://github.com/vrooli/audio-tools
+EOF
+}
+
+# Command: Config management
+cmd_config() {
+    local action="${1:-get}"
+    local key="${2:-}"
+    local value="${3:-}"
+    
+    case "$action" in
+        get)
+            if [[ -z "$key" ]]; then
+                cat "$CONFIG_FILE" | jq '.'
+            else
+                jq -r ".$key // \"not set\"" "$CONFIG_FILE"
+            fi
             ;;
-        token|api_token)
-            jq --arg v "$value" '.api_token = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-            echo -e "${GREEN}✓${NC} API token updated"
-            ;;
-        format|output_format)
-            jq --arg v "$value" '.output_format = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-            echo -e "${GREEN}✓${NC} Output format set to: $value"
+        set)
+            if [[ -z "$key" || -z "$value" ]]; then
+                echo -e "${RED}✗${NC} Usage: $CLI_NAME config set <key> <value>" >&2
+                return 1
+            fi
+            
+            # Update config file
+            jq ".$key = \"$value\"" "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && \
+                mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}✓${NC} Configuration updated: $key = $value"
             ;;
         *)
-            echo -e "${RED}✗${NC} Unknown configuration key: $key"
-            echo "Valid keys: api_base, api_token, output_format"
+            echo -e "${RED}✗${NC} Unknown config action: $action" >&2
             return 1
             ;;
     esac
 }
 
-# Command: version
-cmd_version() {
-    echo "$CLI_NAME version $CLI_VERSION"
-    echo "API endpoint: $API_BASE"
-}
-
-# Command: help
-cmd_help() {
-    cat <<EOF
-$CLI_NAME - Command-line interface for SCENARIO_NAME_PLACEHOLDER
-
-Usage: $CLI_NAME <command> [options]
-
-Commands:
-    health              Check system health
-    status              Show audio service status
-    convert <file> <format>  Convert audio format
-    trim <file> [start] [end]  Trim audio file
-    list [resource]     List resources
-    get <resource> <id> Get specific resource
-    create <resource> [key value...]  Create new resource
-    update <resource> <id> [key value...]  Update resource
-    delete <resource> <id>  Delete resource
-    execute <workflow_id> [input...]  Execute workflow
-    configure [key] [value]  View or update configuration
-    version             Show version information
-    help                Show this help message
-
-Configuration:
-    The CLI stores its configuration in: $CONFIG_FILE
-    
-    Configure API endpoint:
-        $CLI_NAME configure api_base http://localhost:8090
-    
-    Configure API token:
-        $CLI_NAME configure api_token your-token-here
-    
-    Configure output format (json|table|raw):
-        $CLI_NAME configure output_format json
-
-Examples:
-    # Check health
-    $CLI_NAME health
-    
-    # List all resources
-    $CLI_NAME list resources
-    
-    # Get specific resource
-    $CLI_NAME get resources abc123
-    
-    # Create new resource
-    $CLI_NAME create resources name "My Resource" description "A test resource"
-    
-    # Execute workflow
-    $CLI_NAME execute workflow-1 "Process this data"
-    
-    # Update configuration
-    $CLI_NAME configure api_base http://api.example.com:8090
-
-Environment Variables:
-    ${CLI_NAME^^}_API_BASE    Override API base URL
-    ${CLI_NAME^^}_API_TOKEN   Override API token
-    ${CLI_NAME^^}_FORMAT      Override output format
-
-For more information, visit: https://github.com/Vrooli/Vrooli
-EOF
-}
-
 # Main entry point
 main() {
-    # Initialize configuration on first run
     init_config
-    
-    # Load configuration
     load_config
     
-    # Override with environment variables if set
-    API_BASE="${AUDIO_TOOLS_API_BASE:-$API_BASE}"
-    API_TOKEN="${AUDIO_TOOLS_API_TOKEN:-$API_TOKEN}"
-    OUTPUT_FORMAT="${AUDIO_TOOLS_FORMAT:-$OUTPUT_FORMAT}"
+    # Parse global options
+    while [[ $# -gt 0 ]] && [[ "$1" =~ ^- ]]; do
+        case "$1" in
+            -v|--version)
+                echo "$CLI_NAME v$CLI_VERSION"
+                exit 0
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            --api-base)
+                API_BASE="$2"
+                shift 2
+                ;;
+            --format)
+                OUTPUT_FORMAT="$2"
+                shift 2
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
     
-    # Parse command
+    # Get command
     local command="${1:-help}"
     shift || true
     
+    # Execute command
     case "$command" in
-        health)
-            cmd_health "$@"
-            ;;
-        status)
-            cmd_status "$@"
-            ;;
         convert)
             cmd_convert "$@"
             ;;
         trim)
             cmd_trim "$@"
             ;;
-        list|ls)
-            cmd_list "$@"
+        normalize)
+            cmd_normalize "$@"
             ;;
-        get)
-            cmd_get "$@"
+        enhance)
+            cmd_enhance "$@"
             ;;
-        create|add)
-            cmd_create "$@"
+        metadata)
+            cmd_metadata "$@"
             ;;
-        update|edit)
-            cmd_update "$@"
+        analyze)
+            cmd_analyze "$@"
             ;;
-        delete|rm|remove)
-            cmd_delete "$@"
+        batch)
+            cmd_batch "$@"
             ;;
-        execute|exec|run)
-            cmd_execute "$@"
+        status)
+            cmd_status
             ;;
-        configure|config)
-            cmd_configure "$@"
+        config)
+            cmd_config "$@"
             ;;
-        version|--version|-v)
-            cmd_version
-            ;;
-        help|--help|-h)
-            cmd_help
+        help)
+            show_help
             ;;
         *)
-            echo -e "${RED}✗${NC} Unknown command: $command"
-            echo "Run '$CLI_NAME help' for usage information"
+            echo -e "${RED}✗${NC} Unknown command: $command" >&2
+            echo "Run '$CLI_NAME help' for usage information" >&2
             exit 1
             ;;
     esac
 }
 
-# Run main function with all arguments
+# Run main function
 main "$@"

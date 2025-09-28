@@ -1,5 +1,16 @@
+import type { FormEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CircleAlert, KanbanSquare, LayoutDashboard } from 'lucide-react';
+import {
+  CalendarClock,
+  CircleAlert,
+  Hash,
+  KanbanSquare,
+  LayoutDashboard,
+  Mail,
+  Tag,
+  User,
+  X,
+} from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { Dashboard } from './pages/Dashboard';
@@ -16,6 +27,7 @@ import {
   ProcessorSettings,
   SampleData,
 } from './data/sampleData';
+import { formatDistanceToNow as formatRelativeDistance } from './utils/date';
 import './styles/app.css';
 
 const API_BASE_INPUT = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api/v1';
@@ -56,6 +68,17 @@ interface ApiAgent {
   id: string;
   name?: string;
   display_name?: string;
+}
+
+interface CreateIssueInput {
+  title: string;
+  description: string;
+  priority: Priority;
+  status: IssueStatus;
+  appId: string;
+  tags: string[];
+  reporterName?: string;
+  reporterEmail?: string;
 }
 
 function buildApiUrl(path: string): string {
@@ -100,6 +123,24 @@ function getDateKey(value?: string | null): string | null {
   return new Date(parsed).toISOString().slice(0, 10);
 }
 
+function formatDateTime(value?: string | null): string {
+  if (!value) {
+    return '—';
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleString();
+}
+
+function formatRelativeTime(value?: string | null): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  return formatRelativeDistance(value);
+}
+
 function buildStatusTrend(issues: Issue[]): DashboardStats['statusTrend'] {
   const today = new Date();
   const days = 7;
@@ -117,6 +158,14 @@ function buildStatusTrend(issues: Issue[]): DashboardStats['statusTrend'] {
   }
 
   return trend;
+}
+
+function toTitleCase(value: string): string {
+  return value
+    .split(' ')
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ');
 }
 
 const DEFAULT_STATS: DashboardStats = {
@@ -172,6 +221,8 @@ function transformIssue(raw: ApiIssue): Issue {
   const createdAt = raw.metadata?.created_at ?? raw.reporter?.timestamp ?? new Date().toISOString();
   const resolvedAt = raw.metadata?.resolved_at ?? null;
   const summary = (raw.description ?? raw.notes ?? '').trim() || 'No summary provided yet.';
+  const description = (raw.description ?? '').trim();
+  const notes = (raw.notes ?? '').trim();
   const tags = Array.isArray(raw.metadata?.tags)
     ? raw.metadata?.tags.filter((tag) => Boolean(tag)).map((tag) => String(tag))
     : [];
@@ -186,6 +237,7 @@ function transformIssue(raw: ApiIssue): Issue {
     id: raw.id,
     title: raw.title,
     summary,
+    description: description || summary,
     assignee,
     priority: normalizePriority(raw.priority),
     createdAt,
@@ -193,6 +245,10 @@ function transformIssue(raw: ApiIssue): Issue {
     app: labels.app ?? raw.app_id ?? 'unknown',
     tags,
     resolvedAt,
+    updatedAt: raw.metadata?.updated_at ?? null,
+    reporterName: raw.reporter?.name?.trim() || undefined,
+    reporterEmail: raw.reporter?.email?.trim() || undefined,
+    notes: notes || undefined,
   };
 }
 
@@ -233,9 +289,49 @@ const navItems = [
   },
 ];
 
+function normalizePathname(pathname: string): string {
+  if (pathname === '/') {
+    return '/';
+  }
+  const trimmed = pathname.replace(/\/+$/, '');
+  return trimmed.length > 0 ? trimmed : '/';
+}
+
+function pathToNavKey(pathname: string): NavKey {
+  const normalized = normalizePathname(pathname);
+  switch (normalized) {
+    case '/issues':
+      return 'issues';
+    case '/settings':
+      return 'settings';
+    case '/':
+    default:
+      return 'dashboard';
+  }
+}
+
+function navKeyToPath(nav: NavKey): string {
+  switch (nav) {
+    case 'issues':
+      return '/issues';
+    case 'settings':
+      return '/settings';
+    case 'dashboard':
+    default:
+      return '/';
+  }
+}
+
+function getInitialNavKey(): NavKey {
+  if (typeof window === 'undefined') {
+    return 'dashboard';
+  }
+  return pathToNavKey(window.location.pathname);
+}
+
 function App() {
   const isMountedRef = useRef(true);
-  const [activeNav, setActiveNav] = useState<NavKey>('dashboard');
+  const [activeNav, setActiveNav] = useState<NavKey>(() => getInitialNavKey());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [processorSettings, setProcessorSettings] = useState<ProcessorSettings>(SampleData.processor);
   const [agentSettings, setAgentSettings] = useState(AppSettings.agent);
@@ -244,12 +340,19 @@ function App() {
   const [allowedAgents, setAllowedAgents] = useState<ActiveAgentOption[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>(SampleData.activeAgents[0]?.id ?? '');
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [createIssueOpen, setCreateIssueOpen] = useState(false);
+  const [issueDetailOpen, setIssueDetailOpen] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>(DEFAULT_STATS);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [focusedIssueId, setFocusedIssueId] = useState<string | null>(() => getIssueIdFromLocation());
 
+  const selectedIssue = useMemo(() => {
+    return issues.find((issue) => issue.id === focusedIssueId) ?? null;
+  }, [issues, focusedIssueId]);
+
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
     };
@@ -261,13 +364,23 @@ function App() {
     }
 
     const handlePopState = () => {
-      setFocusedIssueId(getIssueIdFromLocation());
+      const nextIssueId = getIssueIdFromLocation();
+      setFocusedIssueId(nextIssueId);
+      setIssueDetailOpen(Boolean(nextIssueId));
+      setActiveNav(pathToNavKey(window.location.pathname));
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    setActiveNav(pathToNavKey(window.location.pathname));
   }, []);
 
   const fetchAllData = useCallback(async () => {
@@ -380,6 +493,27 @@ function App() {
   }, [focusedIssueId]);
 
   useEffect(() => {
+    setIssueDetailOpen(Boolean(focusedIssueId));
+  }, [focusedIssueId]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const originalOverflow = document.body.style.overflow;
+    if (createIssueOpen || (issueDetailOpen && selectedIssue)) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [createIssueOpen, issueDetailOpen, selectedIssue]);
+
+  useEffect(() => {
     if (!focusedIssueId) {
       return;
     }
@@ -403,54 +537,132 @@ function App() {
   }, [focusedIssueId, issues]);
 
   useEffect(() => {
-    if (focusedIssueId && activeNav !== 'issues') {
-      setActiveNav('issues');
-    }
-  }, [focusedIssueId, activeNav]);
-
-  const createIssue = useCallback(async () => {
-    if (loading) {
+    if (!focusedIssueId) {
       return;
     }
 
-    try {
-      const now = new Date();
+    if (activeNav !== 'issues') {
+      setActiveNav('issues');
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const normalizedPath = normalizePathname(window.location.pathname);
+    if (normalizedPath !== '/issues') {
+      const url = new URL(window.location.href);
+      url.pathname = '/issues';
+      const nextSearch = url.searchParams.toString();
+      const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ''}${url.hash}`;
+      window.history.replaceState({}, '', nextUrl);
+    }
+  }, [focusedIssueId, activeNav]);
+
+  const createIssue = useCallback(
+    async (input: CreateIssueInput): Promise<string | null> => {
+      const payload = {
+        title: input.title.trim(),
+        description: input.description.trim() || input.title.trim(),
+        priority: input.priority.toLowerCase(),
+        status: input.status.toLowerCase(),
+        app_id: input.appId.trim() || 'unknown',
+        tags: input.tags,
+        reporter_name: input.reporterName?.trim(),
+        reporter_email: input.reporterEmail?.trim(),
+      };
+
       const response = await fetch(buildApiUrl('/issues'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          title: `UI created issue at ${now.toLocaleTimeString()}`,
-          description: 'Issue created from the web UI quick action.',
-          type: 'bug',
-          priority: 'medium',
-          app_id: 'web-ui',
-          reporter_name: 'UI Operator',
-          reporter_email: 'ui-operator@local.test',
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         throw new Error(`Issue creation failed with status ${response.status}`);
       }
 
+      const responseBody = await response.json();
       await fetchAllData();
-    } catch (error) {
-      console.error('Failed to create issue', error);
-      if (isMountedRef.current) {
-        setLoadError('Failed to create a new issue via the API.');
-      }
-    }
-  }, [fetchAllData, loading]);
+      const issueId = typeof responseBody?.data?.issue_id === 'string' ? responseBody.data.issue_id : null;
+      return issueId;
+    },
+    [fetchAllData],
+  );
 
   const handleCreateIssue = useCallback(() => {
-    void createIssue();
-  }, [createIssue]);
+    setCreateIssueOpen(true);
+  }, []);
+
+  const handleCreateIssueClose = useCallback(() => {
+    setCreateIssueOpen(false);
+  }, []);
 
   const handleIssueSelect = useCallback((issueId: string) => {
-    setFocusedIssueId((current) => (current === issueId ? null : issueId));
+    setFocusedIssueId((current) => {
+      if (current === issueId) {
+        setIssueDetailOpen(false);
+        return null;
+      }
+      setIssueDetailOpen(true);
+      return issueId;
+    });
   }, []);
+
+  const handleSubmitNewIssue = useCallback(
+    async (input: CreateIssueInput) => {
+      const newIssueId = await createIssue(input);
+      setActiveNav('issues');
+      if (newIssueId) {
+        setFocusedIssueId(newIssueId);
+        setIssueDetailOpen(true);
+      }
+    },
+    [createIssue],
+  );
+
+  const handleIssueDetailClose = useCallback(() => {
+    setIssueDetailOpen(false);
+    setFocusedIssueId(null);
+  }, []);
+
+  const handleNavSelect = useCallback(
+    (nextNav: NavKey) => {
+      setActiveNav(nextNav);
+      if (nextNav !== 'issues') {
+        setFocusedIssueId(null);
+        setIssueDetailOpen(false);
+      }
+
+      if (typeof window === 'undefined') {
+        return;
+      }
+
+      const url = new URL(window.location.href);
+      const targetPath = navKeyToPath(nextNav);
+      const normalizedCurrent = normalizePathname(url.pathname);
+      const normalizedTarget = normalizePathname(targetPath);
+
+      if (normalizedCurrent !== normalizedTarget) {
+        url.pathname = targetPath;
+      }
+
+      if (nextNav !== 'issues') {
+        url.searchParams.delete('issue');
+      }
+
+      const nextSearch = url.searchParams.toString();
+      const nextUrl = `${normalizePathname(url.pathname)}${nextSearch ? `?${nextSearch}` : ''}${url.hash}`;
+      const currentUrl = `${normalizePathname(window.location.pathname)}${window.location.search}${window.location.hash}`;
+
+      if (nextUrl !== currentUrl) {
+        window.history.pushState({}, '', nextUrl);
+      }
+    },
+    [],
+  );
 
   const handleToggleActive = () => {
     setProcessorSettings((prev) => ({
@@ -519,38 +731,376 @@ function App() {
       ? selectedAgentId
       : activeAgentOptions[0]?.id ?? '';
 
+  const showIssueDetailModal = issueDetailOpen && selectedIssue;
+
   return (
-    <div className={`app-shell ${displaySettings.theme}`}>
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        items={navItems}
-        activeItem={activeNav}
-        onSelect={setActiveNav}
-        onToggle={() => setSidebarCollapsed((state) => !state)}
-      />
-      <div className="main-panel">
-        <Header
-          processor={processorSettings}
-          agents={activeAgentOptions}
-          selectedAgentId={activeAgentId}
-          onToggleActive={handleToggleActive}
-          onCreateIssue={handleCreateIssue}
-          onSelectAgent={setSelectedAgentId}
+    <>
+      <div className={`app-shell ${displaySettings.theme}`}>
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          items={navItems}
+          activeItem={activeNav}
+          onSelect={handleNavSelect}
+          onToggle={() => setSidebarCollapsed((state) => !state)}
         />
-        <main className="page-container">
-          {loading && <div className="data-banner loading">Loading latest data…</div>}
-          {loadError && (
-            <div className="data-banner error">
-              <span>{loadError}</span>
-              <button type="button" onClick={() => void fetchAllData()}>
-                Retry
-              </button>
-            </div>
-          )}
-          {renderedPage}
-        </main>
+        <div className="main-panel">
+          <Header
+            processor={processorSettings}
+            agents={activeAgentOptions}
+            selectedAgentId={activeAgentId}
+            onToggleActive={handleToggleActive}
+            onCreateIssue={handleCreateIssue}
+            onSelectAgent={setSelectedAgentId}
+          />
+          <main className="page-container">
+            {loading && <div className="data-banner loading">Loading latest data…</div>}
+            {loadError && (
+              <div className="data-banner error">
+                <span>{loadError}</span>
+                <button type="button" onClick={() => void fetchAllData()}>
+                  Retry
+                </button>
+              </div>
+            )}
+            {renderedPage}
+          </main>
+        </div>
+      </div>
+
+      {createIssueOpen && (
+        <CreateIssueModal onClose={handleCreateIssueClose} onSubmit={handleSubmitNewIssue} />
+      )}
+
+      {showIssueDetailModal && selectedIssue && (
+        <IssueDetailsModal issue={selectedIssue} onClose={handleIssueDetailClose} />
+      )}
+    </>
+  );
+}
+
+interface ModalProps {
+  onClose: () => void;
+  labelledBy?: string;
+  children: ReactNode;
+}
+
+function Modal({ onClose, labelledBy, children }: ModalProps) {
+  const handleBackdropMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="modal-backdrop" onMouseDown={handleBackdropMouseDown}>
+      <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+        {children}
       </div>
     </div>
+  );
+}
+
+interface IssueDetailsModalProps {
+  issue: Issue;
+  onClose: () => void;
+}
+
+function IssueDetailsModal({ issue, onClose }: IssueDetailsModalProps) {
+  const createdText = formatDateTime(issue.createdAt);
+  const updatedText = formatDateTime(issue.updatedAt);
+  const resolvedText = formatDateTime(issue.resolvedAt);
+  const createdHint = formatRelativeTime(issue.createdAt);
+  const updatedHint = formatRelativeTime(issue.updatedAt);
+  const resolvedHint = formatRelativeTime(issue.resolvedAt);
+
+  return (
+    <Modal onClose={onClose} labelledBy="issue-details-title">
+      <div className="modal-header">
+        <div>
+          <p className="modal-eyebrow">
+            <Hash size={14} />
+            {issue.id}
+          </p>
+          <h2 id="issue-details-title" className="modal-title">
+            {issue.title}
+          </h2>
+        </div>
+        <button className="modal-close" type="button" aria-label="Close issue details" onClick={onClose}>
+          <X size={18} />
+        </button>
+      </div>
+
+      <div className="modal-body">
+        <div className="issue-detail-grid">
+          <IssueMetaTile label="Status" value={toTitleCase(issue.status.replace(/-/g, ' '))} />
+          <IssueMetaTile label="Priority" value={issue.priority} />
+          <IssueMetaTile label="Assignee" value={issue.assignee || 'Unassigned'} />
+          <IssueMetaTile label="App" value={issue.app} />
+          <IssueMetaTile
+            label="Created"
+            value={createdText}
+            hint={createdHint}
+            icon={<CalendarClock size={14} />}
+          />
+          {issue.updatedAt && (
+            <IssueMetaTile
+              label="Updated"
+              value={updatedText}
+              hint={updatedHint}
+              icon={<CalendarClock size={14} />}
+            />
+          )}
+          {issue.resolvedAt && (
+            <IssueMetaTile
+              label="Resolved"
+              value={resolvedText}
+              hint={resolvedHint}
+              icon={<CalendarClock size={14} />}
+            />
+          )}
+        </div>
+
+        <section className="issue-detail-section">
+          <h3>Description</h3>
+          <p className="issue-detail-text">{issue.description}</p>
+        </section>
+
+        {issue.notes && (
+          <section className="issue-detail-section">
+            <h3>Notes</h3>
+            <p className="issue-detail-text">{issue.notes}</p>
+          </section>
+        )}
+
+        {issue.tags.length > 0 && (
+          <section className="issue-detail-section">
+            <h3>Tags</h3>
+            <div className="issue-detail-tags">
+              <Tag size={14} />
+              {issue.tags.map((tag) => (
+                <span key={tag} className="issue-detail-tag">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {(issue.reporterName || issue.reporterEmail) && (
+          <section className="issue-detail-section">
+            <h3>Reporter</h3>
+            <div className="issue-detail-inline">
+              {issue.reporterName && (
+                <span>
+                  <User size={14} />
+                  {issue.reporterName}
+                </span>
+              )}
+              {issue.reporterEmail && (
+                <a href={`mailto:${issue.reporterEmail}`}>
+                  <Mail size={14} />
+                  {issue.reporterEmail}
+                </a>
+              )}
+            </div>
+          </section>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+interface IssueMetaTileProps {
+  label: string;
+  value: string;
+  hint?: string;
+  icon?: ReactNode;
+}
+
+function IssueMetaTile({ label, value, hint, icon }: IssueMetaTileProps) {
+  return (
+    <div className="issue-detail-tile">
+      <span className="issue-detail-label">{label}</span>
+      <span className="issue-detail-value">
+        {icon && <span className="issue-detail-value-icon">{icon}</span>}
+        {value}
+      </span>
+      {hint && <span className="issue-detail-hint">{hint}</span>}
+    </div>
+  );
+}
+
+interface CreateIssueModalProps {
+  onClose: () => void;
+  onSubmit: (input: CreateIssueInput) => Promise<void>;
+}
+
+function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState<Priority>('Medium');
+  const [status, setStatus] = useState<IssueStatus>('open');
+  const [appId, setAppId] = useState('web-ui');
+  const [tags, setTags] = useState('');
+  const [reporterName, setReporterName] = useState('');
+  const [reporterEmail, setReporterEmail] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!title.trim()) {
+      setErrorMessage('Title is required.');
+      return;
+    }
+
+    setSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      await onSubmit({
+        title,
+        description,
+        priority,
+        status,
+        appId,
+        tags: tags
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+        reporterName: reporterName.trim() || undefined,
+        reporterEmail: reporterEmail.trim() || undefined,
+      });
+      onClose();
+    } catch (error) {
+      console.error('Failed to create issue', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to create issue.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal onClose={onClose} labelledBy="create-issue-title">
+      <form className="modal-form" onSubmit={handleSubmit}>
+        <div className="modal-header">
+          <div>
+            <p className="modal-eyebrow">New Issue</p>
+            <h2 id="create-issue-title" className="modal-title">
+              Create Issue
+            </h2>
+          </div>
+          <button className="modal-close" type="button" aria-label="Close create issue" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="modal-body">
+          <div className="form-grid">
+            <label className="form-field">
+              <span>Title</span>
+              <input
+                type="text"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Summarize the issue"
+                required
+              />
+            </label>
+            <label className="form-field">
+              <span>Application</span>
+              <input
+                type="text"
+                value={appId}
+                onChange={(event) => setAppId(event.target.value)}
+                placeholder="e.g. web-ui"
+              />
+            </label>
+            <label className="form-field">
+              <span>Priority</span>
+              <select value={priority} onChange={(event) => setPriority(event.target.value as Priority)}>
+                {(['Critical', 'High', 'Medium', 'Low'] as Priority[]).map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="form-field">
+              <span>Status</span>
+              <select value={status} onChange={(event) => setStatus(event.target.value as IssueStatus)}>
+                {VALID_STATUSES.map((option) => (
+                  <option key={option} value={option}>
+                    {toTitleCase(option.replace(/-/g, ' '))}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="form-field">
+              <span>Reporter name</span>
+              <input
+                type="text"
+                value={reporterName}
+                onChange={(event) => setReporterName(event.target.value)}
+                placeholder="Optional"
+              />
+            </label>
+            <label className="form-field">
+              <span>Reporter email</span>
+              <input
+                type="email"
+                value={reporterEmail}
+                onChange={(event) => setReporterEmail(event.target.value)}
+                placeholder="Optional"
+              />
+            </label>
+            <label className="form-field form-field-full">
+              <span>Tags</span>
+              <input
+                type="text"
+                value={tags}
+                onChange={(event) => setTags(event.target.value)}
+                placeholder="Comma separated (e.g. backend, regression)"
+              />
+            </label>
+            <label className="form-field form-field-full">
+              <span>Description</span>
+              <textarea
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="Describe the issue, error messages, reproduction steps…"
+                rows={5}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="modal-footer">
+          {errorMessage && <span className="form-error">{errorMessage}</span>}
+          <div className="modal-actions">
+            <button className="ghost-button" type="button" onClick={onClose} disabled={submitting}>
+              Cancel
+            </button>
+            <button className="primary-button" type="submit" disabled={submitting}>
+              {submitting ? 'Creating…' : 'Create Issue'}
+            </button>
+          </div>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

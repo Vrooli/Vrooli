@@ -34,27 +34,27 @@ func NewAudioHandler(db *sql.DB, workDir, dataDir string) *AudioHandler {
 }
 
 type EditRequest struct {
-	AudioFile  interface{}              `json:"audio_file"`
-	Operations []audio.EditOperation    `json:"operations"`
-	OutputFormat string                 `json:"output_format"`
+	AudioFile       interface{}            `json:"audio_file"`
+	Operations      []audio.EditOperation  `json:"operations"`
+	OutputFormat    string                 `json:"output_format"`
 	QualitySettings map[string]interface{} `json:"quality_settings"`
 }
 
 type EditResponse struct {
-	JobID        string                 `json:"job_id"`
-	OutputFiles  []map[string]interface{} `json:"output_files"`
-	ProcessingTimeMs int64              `json:"processing_time_ms"`
-	QualityMetrics   map[string]interface{} `json:"quality_metrics,omitempty"`
+	JobID            string                   `json:"job_id"`
+	OutputFiles      []map[string]interface{} `json:"output_files"`
+	ProcessingTimeMs int64                    `json:"processing_time_ms"`
+	QualityMetrics   map[string]interface{}   `json:"quality_metrics,omitempty"`
 }
 
 // HandleEdit processes audio editing operations
 // Supports both JSON and multipart form data
 func (h *AudioHandler) HandleEdit(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
-	
+
 	var req EditRequest
 	var inputPath string
-	
+
 	// Check if this is multipart or JSON
 	if strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
 		// Parse multipart form
@@ -63,7 +63,7 @@ func (h *AudioHandler) HandleEdit(w http.ResponseWriter, r *http.Request) {
 			sendError(w, http.StatusBadRequest, "failed to parse form")
 			return
 		}
-		
+
 		// Get the file
 		file, header, err := r.FormFile("audio")
 		if err != nil {
@@ -71,32 +71,32 @@ func (h *AudioHandler) HandleEdit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer file.Close()
-		
+
 		// Save uploaded file
 		tempID := uuid.New().String()
 		tempPath := filepath.Join(h.workDir, fmt.Sprintf("%s%s", tempID, filepath.Ext(header.Filename)))
-		
+
 		dst, err := os.Create(tempPath)
 		if err != nil {
 			sendError(w, http.StatusInternalServerError, "failed to save file")
 			return
 		}
 		defer dst.Close()
-		
+
 		if _, err := io.Copy(dst, file); err != nil {
 			sendError(w, http.StatusInternalServerError, "failed to save file")
 			return
 		}
-		
+
 		inputPath = tempPath
-		
+
 		// Parse operations from form field
 		operation := r.FormValue("operation")
 		if operation == "" {
 			sendError(w, http.StatusBadRequest, "operation parameter required")
 			return
 		}
-		
+
 		// Parse parameters from form field (JSON string)
 		paramsStr := r.FormValue("parameters")
 		params := make(map[string]interface{})
@@ -106,11 +106,11 @@ func (h *AudioHandler) HandleEdit(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		
+
 		// Build request from form data
 		req.Operations = []audio.EditOperation{
 			{
-				Type: operation,
+				Type:       operation,
 				Parameters: params,
 			},
 		}
@@ -177,7 +177,7 @@ func (h *AudioHandler) HandleEdit(w http.ResponseWriter, r *http.Request) {
 			} else {
 				newPath, err = h.processor.Trim(currentPath, startTime, endTime)
 			}
-		
+
 		case "merge":
 			if targetFiles, ok := op.Parameters["target_files"].([]interface{}); ok {
 				var paths []string
@@ -187,7 +187,7 @@ func (h *AudioHandler) HandleEdit(w http.ResponseWriter, r *http.Request) {
 				}
 				newPath, err = h.processor.Merge(paths, req.OutputFormat)
 			}
-		
+
 		case "split":
 			if points, ok := op.Parameters["split_points"].([]interface{}); ok {
 				var splitPoints []float64
@@ -201,9 +201,9 @@ func (h *AudioHandler) HandleEdit(w http.ResponseWriter, r *http.Request) {
 					for i, path := range paths {
 						fileInfo, _ := os.Stat(path)
 						outputFiles = append(outputFiles, map[string]interface{}{
-							"file_id": uuid.New().String(),
-							"file_path": path,
-							"part_number": i + 1,
+							"file_id":         uuid.New().String(),
+							"file_path":       path,
+							"part_number":     i + 1,
 							"file_size_bytes": fileInfo.Size(),
 						})
 					}
@@ -214,7 +214,7 @@ func (h *AudioHandler) HandleEdit(w http.ResponseWriter, r *http.Request) {
 				}
 				err = splitErr
 			}
-		
+
 		case "fade":
 			if fadeIn, ok := getFloat(op.Parameters["fade_in"]); ok && fadeIn > 0 {
 				newPath, err = h.processor.FadeIn(currentPath, fadeIn)
@@ -225,29 +225,29 @@ func (h *AudioHandler) HandleEdit(w http.ResponseWriter, r *http.Request) {
 			if fadeOut, ok := getFloat(op.Parameters["fade_out"]); ok && fadeOut > 0 {
 				newPath, err = h.processor.FadeOut(currentPath, fadeOut)
 			}
-		
+
 		case "volume":
 			if factor, ok := getFloat(op.Parameters["volume_factor"]); ok {
 				newPath, err = h.processor.AdjustVolume(currentPath, factor)
 			}
-		
+
 		case "normalize":
 			targetLevel := -16.0 // Default LUFS
 			if level, ok := getFloat(op.Parameters["target_level"]); ok {
 				targetLevel = level
 			}
 			newPath, err = h.processor.Normalize(currentPath, targetLevel)
-		
+
 		case "speed":
 			if factor, ok := getFloat(op.Parameters["speed_factor"]); ok {
 				newPath, err = h.processor.ChangeSpeed(currentPath, factor)
 			}
-		
+
 		case "pitch":
 			if semitones, ok := getFloat(op.Parameters["semitones"]); ok {
 				newPath, err = h.processor.ChangePitch(currentPath, int(semitones))
 			}
-		
+
 		case "equalizer":
 			if eqSettings, ok := op.Parameters["eq_settings"].(map[string]interface{}); ok {
 				eqMap := make(map[string]float64)
@@ -258,14 +258,14 @@ func (h *AudioHandler) HandleEdit(w http.ResponseWriter, r *http.Request) {
 				}
 				newPath, err = h.processor.ApplyEqualizer(currentPath, eqMap)
 			}
-		
+
 		case "noise_reduction":
 			intensity := 0.5
 			if i, ok := getFloat(op.Parameters["intensity"]); ok {
 				intensity = i
 			}
 			newPath, err = h.processor.ApplyNoiseReduction(currentPath, intensity)
-		
+
 		default:
 			err = fmt.Errorf("unsupported operation: %s", op.Type)
 		}
@@ -291,24 +291,24 @@ func (h *AudioHandler) HandleEdit(w http.ResponseWriter, r *http.Request) {
 	// Get metadata for final file
 	metadata, _ := h.processor.ExtractMetadata(currentPath)
 	fileInfo, err := os.Stat(currentPath)
-	
+
 	// Add final output file if not a split operation
 	if len(outputFiles) == 0 {
 		duration := 0.0
 		if metadata != nil && metadata.Duration != "" {
 			duration, _ = strconv.ParseFloat(metadata.Duration, 64)
 		}
-		
+
 		fileSize := int64(0)
 		if err == nil && fileInfo != nil {
 			fileSize = fileInfo.Size()
 		}
-		
+
 		outputFiles = append(outputFiles, map[string]interface{}{
-			"file_id": uuid.New().String(),
-			"file_path": currentPath,
+			"file_id":          uuid.New().String(),
+			"file_path":        currentPath,
 			"duration_seconds": duration,
-			"file_size_bytes": fileSize,
+			"file_size_bytes":  fileSize,
 		})
 	}
 
@@ -318,7 +318,7 @@ func (h *AudioHandler) HandleEdit(w http.ResponseWriter, r *http.Request) {
 			INSERT INTO audio_processing_jobs (id, operation_type, status, output_files, created_at)
 			VALUES ($1, $2, $3, $4, $5)`,
 			jobID, "edit", "completed", json.RawMessage(mustMarshal(outputFiles)), time.Now())
-		
+
 		if err != nil {
 			// Log error but don't fail the request
 			fmt.Printf("Failed to store job info: %v\n", err)
@@ -354,7 +354,7 @@ func (h *AudioHandler) HandleConvert(w http.ResponseWriter, r *http.Request) {
 	// Save uploaded file
 	tempID := uuid.New().String()
 	tempPath := filepath.Join(h.workDir, fmt.Sprintf("%s%s", tempID, filepath.Ext(header.Filename)))
-	
+
 	dst, err := os.Create(tempPath)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, "failed to save file")
@@ -399,11 +399,11 @@ func (h *AudioHandler) HandleConvert(w http.ResponseWriter, r *http.Request) {
 	fileInfo, _ := os.Stat(outputPath)
 
 	response := map[string]interface{}{
-		"file_id": uuid.New().String(),
-		"file_path": outputPath,
-		"format": format,
+		"file_id":         uuid.New().String(),
+		"file_path":       outputPath,
+		"format":          format,
 		"file_size_bytes": fileInfo.Size(),
-		"metadata": metadata,
+		"metadata":        metadata,
 	}
 
 	sendJSON(w, http.StatusOK, response)
@@ -412,7 +412,7 @@ func (h *AudioHandler) HandleConvert(w http.ResponseWriter, r *http.Request) {
 // HandleMetadata extracts and returns audio metadata
 func (h *AudioHandler) HandleMetadata(w http.ResponseWriter, r *http.Request) {
 	var filePath string
-	
+
 	// Check if this is a file upload or an ID reference
 	if r.Method == http.MethodPost {
 		// Handle file upload
@@ -432,7 +432,7 @@ func (h *AudioHandler) HandleMetadata(w http.ResponseWriter, r *http.Request) {
 		// Save uploaded file temporarily
 		tempID := uuid.New().String()
 		tempPath := filepath.Join(h.workDir, fmt.Sprintf("%s%s", tempID, filepath.Ext(header.Filename)))
-		
+
 		dst, err := os.Create(tempPath)
 		if err != nil {
 			sendError(w, http.StatusInternalServerError, "failed to save file")
@@ -445,7 +445,7 @@ func (h *AudioHandler) HandleMetadata(w http.ResponseWriter, r *http.Request) {
 			sendError(w, http.StatusInternalServerError, "failed to save file")
 			return
 		}
-		
+
 		filePath = tempPath
 	} else {
 		// Handle ID-based lookup
@@ -537,9 +537,9 @@ func (h *AudioHandler) HandleEnhance(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// Handle JSON request
 		var req struct {
-			AudioFile     interface{}            `json:"audio_file"`
-			Enhancements  []map[string]interface{} `json:"enhancements"`
-			TargetEnvironment string             `json:"target_environment"`
+			AudioFile         interface{}              `json:"audio_file"`
+			Enhancements      []map[string]interface{} `json:"enhancements"`
+			TargetEnvironment string                   `json:"target_environment"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -588,17 +588,17 @@ func (h *AudioHandler) HandleEnhance(w http.ResponseWriter, r *http.Request) {
 		case "noise_reduction":
 			newPath, err = h.processor.ApplyNoiseReduction(currentPath, intensity)
 			appliedEnhancements = append(appliedEnhancements, "noise_reduction")
-		
+
 		case "auto_level":
 			newPath, err = h.processor.Normalize(currentPath, -16.0) // Standard LUFS
 			appliedEnhancements = append(appliedEnhancements, "auto_level")
-		
+
 		case "eq":
 			// Apply preset EQ based on target environment
 			eqSettings := getEQPreset(targetEnvironment)
 			newPath, err = h.processor.ApplyEqualizer(currentPath, eqSettings)
 			appliedEnhancements = append(appliedEnhancements, "eq_"+targetEnvironment)
-		
+
 		case "compressor":
 			// Simple volume normalization as compression placeholder
 			newPath, err = h.processor.Normalize(currentPath, -14.0)
@@ -618,7 +618,7 @@ func (h *AudioHandler) HandleEnhance(w http.ResponseWriter, r *http.Request) {
 	// Get metadata for enhanced file
 	metadata, _ := h.processor.ExtractMetadata(currentPath)
 	fileInfo, err := os.Stat(currentPath)
-	
+
 	fileSize := int64(0)
 	if err == nil && fileInfo != nil {
 		fileSize = fileInfo.Size()
@@ -626,16 +626,16 @@ func (h *AudioHandler) HandleEnhance(w http.ResponseWriter, r *http.Request) {
 
 	response := map[string]interface{}{
 		"enhanced_file": map[string]interface{}{
-			"file_id": uuid.New().String(),
+			"file_id":   uuid.New().String(),
 			"file_path": currentPath,
 			"improvement_metrics": map[string]interface{}{
 				"applied_enhancements": appliedEnhancements,
-				"file_size_bytes": fileSize,
+				"file_size_bytes":      fileSize,
 			},
 		},
-		"enhanced_file_path": currentPath,  // For backward compatibility with tests
+		"enhanced_file_path":   currentPath, // For backward compatibility with tests
 		"applied_enhancements": appliedEnhancements,
-		"metadata": metadata,
+		"metadata":             metadata,
 	}
 
 	sendJSON(w, http.StatusOK, response)
@@ -645,7 +645,7 @@ func (h *AudioHandler) HandleEnhance(w http.ResponseWriter, r *http.Request) {
 func (h *AudioHandler) HandleAnalyze(w http.ResponseWriter, r *http.Request) {
 	var inputPath string
 	var analysisTypes []string
-	_ = map[string]bool{}  // options reserved for future use
+	_ = map[string]bool{} // options reserved for future use
 
 	// Check if it's a multipart request
 	if strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
@@ -692,8 +692,8 @@ func (h *AudioHandler) HandleAnalyze(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// Handle JSON request
 		var req struct {
-			AudioFile     interface{} `json:"audio_file"`
-			AnalysisTypes []string    `json:"analysis_types"`
+			AudioFile     interface{}     `json:"audio_file"`
+			AnalysisTypes []string        `json:"analysis_types"`
 			Options       map[string]bool `json:"options"`
 		}
 
@@ -748,37 +748,37 @@ func (h *AudioHandler) HandleAnalyze(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				// Fall back to basic metadata
 				analysisResults["quality_metrics"] = map[string]interface{}{
-					"format": metadata.Format,
-					"codec": metadata.Codec,
+					"format":      metadata.Format,
+					"codec":       metadata.Codec,
 					"sample_rate": metadata.SampleRate,
-					"bitrate": metadata.Bitrate,
-					"channels": metadata.Channels,
-					"error": "Advanced quality analysis unavailable",
+					"bitrate":     metadata.Bitrate,
+					"channels":    metadata.Channels,
+					"error":       "Advanced quality analysis unavailable",
 				}
 			} else {
 				analysisResults["quality_metrics"] = qualityMetrics
 			}
-		
+
 		case "content":
 			analysisResults["content_classification"] = []string{
 				"audio",
 				fmt.Sprintf("%d_channels", metadata.Channels),
 			}
-		
+
 		case "spectral":
 			// Placeholder for spectral analysis
 			analysisResults["spectral_analysis"] = map[string]interface{}{
 				"dominant_frequency": "placeholder",
-				"frequency_range": "20Hz-20kHz",
+				"frequency_range":    "20Hz-20kHz",
 			}
 		}
 	}
 
 	response := map[string]interface{}{
 		"analysis_results": analysisResults,
-		"metadata": metadata,
-		"analysis": metadata,  // For backward compatibility with tests
-		"analysis_time_ms": 100, // Placeholder
+		"metadata":         metadata,
+		"analysis":         metadata, // For backward compatibility with tests
+		"analysis_time_ms": 100,      // Placeholder
 	}
 
 	sendJSON(w, http.StatusOK, response)
@@ -813,10 +813,10 @@ func (h *AudioHandler) HandleVAD(w http.ResponseWriter, r *http.Request) {
 
 	// Check content type
 	contentType := r.Header.Get("Content-Type")
-	
+
 	var inputPath string
 	var threshold float64 = -40 // Default threshold
-	
+
 	if strings.Contains(contentType, "multipart/form-data") {
 		// Parse multipart form
 		err := r.ParseMultipartForm(32 << 20) // 32MB max memory
@@ -863,7 +863,7 @@ func (h *AudioHandler) HandleVAD(w http.ResponseWriter, r *http.Request) {
 			AudioFile interface{} `json:"audio_file"`
 			Threshold float64     `json:"threshold"`
 		}
-		
+
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			sendError(w, http.StatusBadRequest, "Invalid request body")
 			return
@@ -908,12 +908,12 @@ func (h *AudioHandler) HandleVAD(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"speech_segments": vad.SpeechSegments,
-		"total_duration_seconds": vad.TotalDuration,
-		"speech_duration_seconds": vad.SpeechDuration,
+		"speech_segments":          vad.SpeechSegments,
+		"total_duration_seconds":   vad.TotalDuration,
+		"speech_duration_seconds":  vad.SpeechDuration,
 		"silence_duration_seconds": vad.SilenceDuration,
-		"speech_ratio": vad.SpeechRatio,
-		"processing_time_ms": time.Since(startTime).Milliseconds(),
+		"speech_ratio":             vad.SpeechRatio,
+		"processing_time_ms":       time.Since(startTime).Milliseconds(),
 	}
 
 	sendJSON(w, http.StatusOK, response)
@@ -928,11 +928,11 @@ func (h *AudioHandler) HandleRemoveSilence(w http.ResponseWriter, r *http.Reques
 
 	// Check content type
 	contentType := r.Header.Get("Content-Type")
-	
+
 	var inputPath string
 	var threshold float64 = -40 // Default threshold
 	var outputFormat string = ""
-	
+
 	if strings.Contains(contentType, "multipart/form-data") {
 		// Parse multipart form
 		err := r.ParseMultipartForm(32 << 20) // 32MB max memory
@@ -978,11 +978,11 @@ func (h *AudioHandler) HandleRemoveSilence(w http.ResponseWriter, r *http.Reques
 	} else {
 		// Parse JSON request
 		var req struct {
-			AudioFile interface{} `json:"audio_file"`
-			Threshold float64     `json:"threshold"`
-			OutputFormat string   `json:"output_format"`
+			AudioFile    interface{} `json:"audio_file"`
+			Threshold    float64     `json:"threshold"`
+			OutputFormat string      `json:"output_format"`
 		}
-		
+
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			sendError(w, http.StatusBadRequest, "Invalid request body")
 			return
@@ -1046,11 +1046,11 @@ func (h *AudioHandler) HandleRemoveSilence(w http.ResponseWriter, r *http.Reques
 
 	// Generate output file ID
 	outputID := uuid.New().String()
-	
+
 	// Copy to data directory with proper naming
 	outputFileName := fmt.Sprintf("%s_speech_only%s", outputID, filepath.Ext(finalPath))
 	permanentPath := filepath.Join(h.dataDir, outputFileName)
-	
+
 	// Copy file to permanent location
 	src, err := os.Open(finalPath)
 	if err != nil {
@@ -1077,10 +1077,10 @@ func (h *AudioHandler) HandleRemoveSilence(w http.ResponseWriter, r *http.Reques
 	response := map[string]interface{}{
 		"job_id": outputID,
 		"output_file": map[string]interface{}{
-			"file_id": outputID,
-			"file_path": permanentPath,
+			"file_id":          outputID,
+			"file_path":        permanentPath,
 			"duration_seconds": metadata.Duration,
-			"file_size_bytes": fileInfo.Size(),
+			"file_size_bytes":  fileInfo.Size(),
 		},
 		"processing_time_ms": time.Since(startTime).Milliseconds(),
 	}
@@ -1091,30 +1091,30 @@ func (h *AudioHandler) HandleRemoveSilence(w http.ResponseWriter, r *http.Reques
 func getEQPreset(environment string) map[string]float64 {
 	presets := map[string]map[string]float64{
 		"podcast": {
-			"100":  -2.0,
-			"200":  0.0,
-			"500":  1.0,
-			"1000": 2.0,
-			"2000": 1.0,
-			"5000": 0.0,
+			"100":   -2.0,
+			"200":   0.0,
+			"500":   1.0,
+			"1000":  2.0,
+			"2000":  1.0,
+			"5000":  0.0,
 			"10000": -1.0,
 		},
 		"meeting": {
-			"100":  -3.0,
-			"200":  -1.0,
-			"500":  1.0,
-			"1000": 2.0,
-			"2000": 2.0,
-			"5000": 1.0,
+			"100":   -3.0,
+			"200":   -1.0,
+			"500":   1.0,
+			"1000":  2.0,
+			"2000":  2.0,
+			"5000":  1.0,
 			"10000": 0.0,
 		},
 		"music": {
-			"100":  1.0,
-			"200":  0.5,
-			"500":  0.0,
-			"1000": 0.0,
-			"2000": 0.5,
-			"5000": 1.0,
+			"100":   1.0,
+			"200":   0.5,
+			"500":   0.0,
+			"1000":  0.0,
+			"2000":  0.5,
+			"5000":  1.0,
 			"10000": 0.5,
 		},
 	}
@@ -1122,11 +1122,11 @@ func getEQPreset(environment string) map[string]float64 {
 	if preset, ok := presets[environment]; ok {
 		return preset
 	}
-	
+
 	// Default flat response
 	return map[string]float64{
-		"100":  0.0,
-		"1000": 0.0,
+		"100":   0.0,
+		"1000":  0.0,
 		"10000": 0.0,
 	}
 }
@@ -1141,7 +1141,7 @@ func sendError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": message,
+		"error":  message,
 		"status": status,
 	})
 }

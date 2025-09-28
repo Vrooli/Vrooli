@@ -29,7 +29,7 @@ func TestExtractMetadata(t *testing.T) {
 	defer os.Remove(testFile)
 
 	metadata, err := processor.ExtractMetadata(testFile)
-	
+
 	// With a non-audio file, ffprobe will fail but shouldn't crash
 	assert.Error(t, err)
 	assert.Nil(t, metadata)
@@ -122,7 +122,7 @@ func TestMerge(t *testing.T) {
 	err := os.WriteFile(testFile1, []byte("fake audio 1"), 0644)
 	require.NoError(t, err)
 	defer os.Remove(testFile1)
-	
+
 	err = os.WriteFile(testFile2, []byte("fake audio 2"), 0644)
 	require.NoError(t, err)
 	defer os.Remove(testFile2)
@@ -271,7 +271,7 @@ func TestApplyNoiseReduction(t *testing.T) {
 
 	outputPath, err := processor.ApplyNoiseReduction(testFile, 0.7)
 
-	// With fake data, noise reduction will fail but shouldn't crash  
+	// With fake data, noise reduction will fail but shouldn't crash
 	if err == nil {
 		assert.Contains(t, outputPath, "noise_reduced")
 		// Clean up if successful
@@ -281,7 +281,7 @@ func TestApplyNoiseReduction(t *testing.T) {
 
 func TestDetectVoiceActivity(t *testing.T) {
 	processor := &AudioProcessor{WorkDir: "/tmp"}
-	
+
 	// Create a test file
 	testFile := filepath.Join("/tmp", "test_vad.wav")
 	err := os.WriteFile(testFile, []byte("fake audio data"), 0644)
@@ -289,7 +289,7 @@ func TestDetectVoiceActivity(t *testing.T) {
 	defer os.Remove(testFile)
 
 	vad, err := processor.DetectVoiceActivity(testFile, -40)
-	
+
 	// With fake data, VAD will fail but should handle gracefully
 	if err == nil {
 		assert.NotNil(t, vad)
@@ -305,7 +305,7 @@ func TestDetectVoiceActivity(t *testing.T) {
 
 func TestRemoveSilence(t *testing.T) {
 	processor := &AudioProcessor{WorkDir: "/tmp"}
-	
+
 	// Create a test file
 	testFile := filepath.Join("/tmp", "test_silence.wav")
 	err := os.WriteFile(testFile, []byte("fake audio data"), 0644)
@@ -313,7 +313,7 @@ func TestRemoveSilence(t *testing.T) {
 	defer os.Remove(testFile)
 
 	outputPath, err := processor.RemoveSilence(testFile, -40)
-	
+
 	// With fake data, silence removal will fail but should handle gracefully
 	if err == nil {
 		assert.Contains(t, outputPath, "no_silence")

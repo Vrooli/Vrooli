@@ -7,6 +7,8 @@ set -euo pipefail
 # Configuration
 # Detect the actual running port from the service
 if [ -z "${API_PORT:-}" ]; then
+    # Using ps with grep as pgrep may not capture complex patterns
+    # shellcheck disable=SC2009
     API_PORT=$(ps aux | grep -E "audio-tools.*-port" | grep -oE "\-port [0-9]+" | awk '{print $2}' | head -1)
     if [ -z "$API_PORT" ]; then
         API_PORT="19607"
@@ -14,12 +16,11 @@ if [ -z "${API_PORT:-}" ]; then
 fi
 readonly API_BASE="http://localhost:${API_PORT}"
 readonly TEST_DIR="/tmp/audio-tools-test-$$"
-readonly TIMEOUT=5
+# Test configuration
 
 # Colors for output
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
 readonly BLUE='\033[0;34m'
 readonly NC='\033[0m' # No Color
 
