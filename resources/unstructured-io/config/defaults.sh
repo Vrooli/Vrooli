@@ -29,7 +29,7 @@ fi
 
 # Docker configuration
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_IMAGE="; then
-    readonly UNSTRUCTURED_IO_IMAGE="downloads.unstructured.io/unstructured-io/unstructured-api:0.0.78"
+    readonly UNSTRUCTURED_IO_IMAGE="downloads.unstructured.io/unstructured-io/unstructured-api:latest"
 fi
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_API_PORT="; then
     readonly UNSTRUCTURED_IO_API_PORT=8000  # Internal container port

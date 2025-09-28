@@ -3,6 +3,18 @@
 ## Current Problems
 None - All known issues have been resolved.
 
+## Recently Fixed Issues (2025-09-28)
+
+### 1. ✅ Docker Image Updated (FIXED - 2025-09-28)
+**Previous Issue**: Resource was using older Docker image version (0.0.78).
+
+**Fix Applied**:
+- Updated to latest Docker image tag for improved performance and features
+- Fixed install function parameter handling bug (added default value for force parameter)
+- Validated all functionality works with new version
+
+**Status**: FIXED - Resource now uses latest unstructured-api Docker image
+
 ## Recently Fixed Issues (2025-09-16)
 
 ### 1. ✅ Security: Hardcoded Port Fallbacks (FIXED - 2025-09-16)

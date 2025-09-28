@@ -38,11 +38,27 @@ ffmpeg::inject::batch_process() {
     # Create output and temp directories
     mkdir -p "${FFMPEG_OUTPUT_DIR}" "${FFMPEG_TEMP_DIR}"
     
+    # Check available memory and adjust max_parallel if needed
+    local available_mem_kb=$(awk '/MemAvailable/ {print $2}' /proc/meminfo 2>/dev/null || echo "4194304")
+    local available_mem_gb=$((available_mem_kb / 1048576))
+    
+    # Estimate memory per job (assume ~500MB per ffmpeg instance)
+    local mem_per_job_gb=1  # Conservative estimate: 1GB per job
+    local max_jobs_by_mem=$((available_mem_gb / mem_per_job_gb))
+    
+    # Adjust max_parallel based on available memory
+    if [[ $max_jobs_by_mem -lt $max_parallel ]]; then
+        log::warn "Limited memory available. Reducing parallel jobs from $max_parallel to $max_jobs_by_mem"
+        max_parallel=$max_jobs_by_mem
+        [[ $max_parallel -lt 1 ]] && max_parallel=1
+    fi
+    
     log::header "🎬 FFmpeg Batch Processing"
     log::info "Directory: $directory"
     log::info "Action: $action"
     log::info "Pattern: $pattern"
     log::info "Max parallel: $max_parallel"
+    log::info "Available memory: ${available_mem_gb}GB"
     echo
     
     # Find all media files matching pattern
@@ -68,6 +84,32 @@ ffmpeg::inject::batch_process() {
     local pids=()
     
     for file in "${files[@]}"; do
+        # Check memory before starting new job
+        local current_mem_kb=$(awk '/MemAvailable/ {print $2}' /proc/meminfo 2>/dev/null || echo "1048576")
+        local current_mem_gb=$((current_mem_kb / 1048576))
+        
+        # If memory is critically low (< 1GB), wait for jobs to complete
+        while [[ $current_mem_gb -lt 1 ]] && [[ $current_jobs -gt 0 ]]; do
+            log::warn "Low memory (${current_mem_gb}GB). Waiting for jobs to complete..."
+            for i in "${!pids[@]}"; do
+                if ! kill -0 "${pids[$i]}" 2>/dev/null; then
+                    wait "${pids[$i]}"
+                    local exit_code=$?
+                    if [[ $exit_code -eq 0 ]]; then
+                        ((processed++))
+                    else
+                        ((failed++))
+                    fi
+                    unset pids[$i]
+                    ((current_jobs--))
+                    break
+                fi
+            done
+            sleep 1
+            current_mem_kb=$(awk '/MemAvailable/ {print $2}' /proc/meminfo 2>/dev/null || echo "1048576")
+            current_mem_gb=$((current_mem_kb / 1048576))
+        done
+        
         # Wait if we've reached max parallel jobs
         while [[ $current_jobs -ge $max_parallel ]]; do
             for i in "${!pids[@]}"; do

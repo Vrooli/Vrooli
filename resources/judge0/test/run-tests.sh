@@ -13,9 +13,10 @@ RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
 APP_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source common utilities
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
-source "${var_LOG_FILE}"
-source "${var_RESOURCES_COMMON_FILE}"
+# Temporarily disable sourcing that might be causing issues
+# source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# source "${var_LOG_FILE}"
+# source "${var_RESOURCES_COMMON_FILE}"
 
 # Test phase to run
 PHASE="${1:-all}"

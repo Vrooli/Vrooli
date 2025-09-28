@@ -43,13 +43,15 @@ test_video_transcoding() {
         return 1
     fi
     
-    # Transcode using CLI
-    if $CLI transcode --input "$input" --output "$output" &> /dev/null; then
-        if [[ -f "$output" ]]; then
+    # Transcode using CLI (transcode takes only input file and outputs to same dir with _transcoded suffix)
+    if $CLI transcode "$input" &> /dev/null; then
+        # Check for the default output file name
+        local expected_output="${input%.mp4}_transcoded.mp4"
+        if [[ -f "$expected_output" ]]; then
             echo "✅ Video transcoding successful"
             return 0
         else
-            echo "❌ Output file not created"
+            echo "❌ Output file not created at $expected_output"
             return 1
         fi
     else
@@ -67,11 +69,13 @@ test_audio_extraction() {
     # Create test video with audio
     create_test_video "$input"
     
-    # Extract audio using CLI
-    if $CLI extract --type audio --input "$input" --output "$output" &> /dev/null; then
-        if [[ -f "$output" ]]; then
+    # Extract audio using CLI (extract takes only input file)
+    if $CLI extract "$input" &> /dev/null; then
+        # Check for the default output file name
+        local expected_output="${input%.mp4}_audio.mp3"
+        if [[ -f "$expected_output" ]]; then
             # Verify it's audio only
-            if ffprobe -v error -select_streams v -show_entries stream=codec_type -of csv=p=0 "$output" 2>/dev/null | grep -q video; then
+            if ffprobe -v error -select_streams v -show_entries stream=codec_type -of csv=p=0 "$expected_output" 2>/dev/null | grep -q video; then
                 echo "❌ Output contains video (should be audio only)"
                 return 1
             else
@@ -79,7 +83,7 @@ test_audio_extraction() {
                 return 0
             fi
         else
-            echo "❌ Audio file not created"
+            echo "❌ Audio file not created at $expected_output"
             return 1
         fi
     else
@@ -124,8 +128,8 @@ test_media_info_query() {
     local test_file="$TEST_DIR/info_test.mp4"
     create_test_video "$test_file"
     
-    # Get media info using CLI
-    if $CLI info --file "$test_file" &> /dev/null; then
+    # Get media info using CLI (media-info takes file path directly)
+    if $CLI media-info "$test_file" &> /dev/null; then
         echo "✅ Media info query successful"
         return 0
     else
@@ -170,9 +174,9 @@ test_batch_processing() {
 test_error_handling() {
     echo "Testing: Error handling..."
     
-    # Test with non-existent file
+    # Test with non-existent file (media-info takes file path directly)
     local result=0
-    if ! $CLI info --file "/tmp/nonexistent_file_xyz.mp4" &> /dev/null; then
+    if ! $CLI media-info "/tmp/nonexistent_file_xyz.mp4" &> /dev/null; then
         echo "✅ Correctly handled non-existent file"
     else
         echo "❌ Failed to handle non-existent file error"

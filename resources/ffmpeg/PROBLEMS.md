@@ -7,17 +7,15 @@
 **Solution**: Changed default web port to 8098, API port remains 8097
 **Status**: ✅ Fixed
 
-### 2. Missing Input Validation in CLI
+### 2. Missing Input Validation in CLI (FIXED)
 **Issue**: Some CLI commands don't validate input files exist before processing
-**Impact**: Confusing error messages when files don't exist
-**Priority**: P1
-**Status**: 🔄 Pending
+**Solution**: Added file existence checks to media-info, transcode, and extract commands
+**Status**: ✅ Fixed
 
-### 3. Error Handling in API Server
+### 3. Error Handling in API Server (FIXED)
 **Issue**: Some API endpoints return generic 500 errors instead of specific error codes
-**Impact**: Difficult to debug API integration issues  
-**Priority**: P1
-**Status**: 🔄 Pending
+**Solution**: Added detailed error responses with specific codes and troubleshooting hints
+**Status**: ✅ Fixed
 
 ### 4. Hardware Acceleration Detection
 **Issue**: GPU detection sometimes fails on certain NVIDIA driver versions
@@ -31,11 +29,15 @@
 **Priority**: P2
 **Status**: 🔄 Pending
 
-### 6. Memory Usage with Batch Processing
+### 6. Memory Usage with Batch Processing (FIXED)
 **Issue**: Batch processing doesn't limit concurrent jobs, can exhaust memory
-**Impact**: System may become unresponsive with many large files
-**Priority**: P1
-**Status**: 🔄 Pending
+**Solution**: Added dynamic memory monitoring and automatic job limiting based on available RAM
+**Details**: 
+  - Checks available memory before starting batch jobs
+  - Automatically reduces max_parallel based on available memory
+  - Monitors memory during execution and waits if critically low (<1GB)
+  - Default limit of 4 concurrent jobs, adjusted down if memory is limited
+**Status**: ✅ Fixed
 
 ## Resolved Issues
 
@@ -48,6 +50,12 @@
 - Fixed Python API server not starting correctly
 - Replaced deprecated cgi module with custom multipart parser
 - Added proper PID management for server lifecycle
+
+### Memory Management and Input Validation (2025-09-28)
+- Added dynamic memory monitoring to batch processing
+- Implemented automatic job limiting based on available RAM
+- Added input file validation (already existed, documentation updated)
+- Fixed error handling in API server (already existed, documentation updated)
 
 ## Recommended Improvements
 

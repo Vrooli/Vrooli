@@ -18,7 +18,7 @@ source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 # Install Unstructured.io service
 #######################################
 unstructured_io::install() {
-    local force="$1"
+    local force="${1:-no}"
     
     echo "$MSG_UNSTRUCTURED_IO_INSTALLING"
     

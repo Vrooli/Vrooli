@@ -7,11 +7,22 @@
 
 set -euo pipefail
 
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Define log function if not available
 if ! declare -f log &>/dev/null; then
     log() {
         echo "$@"
     }
+fi
+
+# Define log functions if not available
+if ! declare -f log::info &>/dev/null; then
+    log::info() { echo "[INFO] $*"; }
+    log::warn() { echo "[WARN] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::success() { echo "[SUCCESS] $*"; }
 fi
 
 # Benchmark test programs for different languages
@@ -87,6 +98,49 @@ declare -A LANGUAGE_NAMES=(
     ["51"]="C#"
     ["94"]="TypeScript"
 )
+
+# Quick performance benchmark
+judge0::benchmark::perf() {
+    local start_time=$(date +%s%N)
+    
+    log::info "Running performance benchmark..."
+    
+    # Test direct executor performance
+    local exec_start=$(date +%s%N)
+    "${SCRIPT_DIR}/direct-executor.sh" perf 2>/dev/null || {
+        log::warn "Direct executor benchmark failed, trying alternative..."
+        # Fallback to simple test
+        "${SCRIPT_DIR}/direct-executor.sh" test 2>/dev/null || {
+            log::error "Benchmark failed"
+            return 1
+        }
+    }
+    local exec_end=$(date +%s%N)
+    local exec_time=$(( (exec_end - exec_start) / 1000000 ))
+    
+    # Test health check performance
+    local health_start=$(date +%s%N)
+    timeout 2 curl -sf "http://localhost:${JUDGE0_PORT:-2358}/system_info" &>/dev/null
+    local health_end=$(date +%s%N)
+    local health_time=$(( (health_end - health_start) / 1000000 ))
+    
+    # Test API response time
+    local api_start=$(date +%s%N)
+    timeout 2 curl -sf "http://localhost:${JUDGE0_PORT:-2358}/system_info" &>/dev/null
+    local api_end=$(date +%s%N)
+    local api_time=$(( (api_end - api_start) / 1000000 ))
+    
+    local total_time=$(( ($(date +%s%N) - start_time) / 1000000 ))
+    
+    log::success "Performance Benchmark Results:"
+    log::info "  • Execution time: ${exec_time}ms"
+    log::info "  • Health check: ${health_time}ms"
+    log::info "  • API response: ${api_time}ms"
+    log::info "  • Total time: ${total_time}ms"
+    
+    # Return success if all tests passed within reasonable time
+    [[ $health_time -lt 500 && $api_time -lt 1000 ]]
+}
 
 # Run comprehensive benchmark
 judge0::benchmark::run_all() {
