@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { App, Resource, LogEntry, ApiResponse, AppLogsResponse, AppViewStats } from '@/types';
+import type { App, Resource, LogEntry, ApiResponse, AppLogsResponse, AppViewStats, ResourceDetail } from '@/types';
 import { logger } from '@/services/logger';
 
 // Create axios instance with default config
@@ -204,6 +204,16 @@ export const resourceService = {
       return data.data || null;
     } catch (error) {
       logger.error(`Failed to fetch resource ${id}`, error);
+      return null;
+    }
+  },
+
+  async getResourceDetails(id: string): Promise<ResourceDetail | null> {
+    try {
+      const { data } = await api.get<ApiResponse<ResourceDetail>>(`/resources/${encodeURIComponent(id)}`);
+      return data?.data ?? null;
+    } catch (error) {
+      logger.error(`Failed to fetch resource ${id} details`, error);
       return null;
     }
   },

@@ -138,6 +138,15 @@
   border-color: rgba(0, 200, 255, 0.4);
 }
 
+.resource-action-btn.detail {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.resource-action-btn.detail:hover:not(:disabled) {
+  border-color: var(--matrix-cyan);
+  color: var(--matrix-cyan);
+}
+
 .resource-action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;

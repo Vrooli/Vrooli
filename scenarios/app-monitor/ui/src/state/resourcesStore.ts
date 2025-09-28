@@ -66,10 +66,13 @@ export const useResourcesStore = create<ResourcesStoreState>((set, get) => ({
     }
 
     set({ loading: true, error: null });
+    let resourcesLoaded = false;
+
     try {
       const fetched = await resourceService.getResources();
       if (Array.isArray(fetched)) {
         set({ resources: fetched });
+        resourcesLoaded = true;
       } else if (force) {
         set({ resources: [] });
       }
@@ -79,7 +82,10 @@ export const useResourcesStore = create<ResourcesStoreState>((set, get) => ({
         set({ error: 'Unable to load resources.' });
       }
     } finally {
-      set({ loading: false, hasInitialized: true });
+      set((state) => ({
+        loading: false,
+        hasInitialized: state.hasInitialized || resourcesLoaded || state.resources.length > 0,
+      }));
     }
   },
 

@@ -251,7 +251,7 @@ const AppPreviewView = () => {
     }
   }, [reportNetworkFetchedAt]);
 
-  const trimForPayload = (value: string, max: number): string => {
+  const trimForPayload = useCallback((value: string, max: number): string => {
     if (typeof value !== 'string' || value.length === 0) {
       return value;
     }
@@ -259,7 +259,7 @@ const AppPreviewView = () => {
       return value;
     }
     return `${value.slice(0, max)}...`;
-  };
+  }, []);
 
   const matchesAppIdentifier = useCallback((app: App, identifier?: string | null) => {
     if (!identifier) {
@@ -1235,7 +1235,7 @@ const AppPreviewView = () => {
     return `${timestamp} [${source}/${level}] ${body}`.trim();
   }, [buildConsoleEventBody]);
 
-  const toConsoleEntry = (event: BridgeLogEvent): ReportConsoleEntry => ({
+  const toConsoleEntry = useCallback((event: BridgeLogEvent): ReportConsoleEntry => ({
     display: formatBridgeLogEvent(event),
     severity: normalizeConsoleLevel(event.level),
     payload: {
@@ -1244,9 +1244,9 @@ const AppPreviewView = () => {
       source: event.source,
       text: trimForPayload(buildConsoleEventBody(event), MAX_CONSOLE_TEXT_LENGTH),
     },
-  });
+  }), [buildConsoleEventBody, formatBridgeLogEvent, trimForPayload]);
 
-  const formatBridgeNetworkEvent = (event: BridgeNetworkEvent): string => {
+  const formatBridgeNetworkEvent = useCallback((event: BridgeNetworkEvent): string => {
     const timestamp = (() => {
       try {
         return new Date(event.ts).toLocaleTimeString();
@@ -1274,9 +1274,9 @@ const AppPreviewView = () => {
     }
     const tail = extras.length > 0 ? ` (${extras.join(', ')})` : '';
     return `${timestamp} ${method} ${url} -> ${status}${tail}`;
-  };
+  }, []);
 
-  const toNetworkEntry = (event: BridgeNetworkEvent): ReportNetworkEntry => {
+  const toNetworkEntry = useCallback((event: BridgeNetworkEvent): ReportNetworkEntry => {
     const sanitizedURL = trimForPayload((event.url || '').trim() || '(unknown URL)', MAX_NETWORK_URL_LENGTH);
     const sanitizedError = trimForPayload(event.error ?? '', MAX_NETWORK_ERROR_LENGTH).trim();
     const sanitizedRequestId = trimForPayload(event.requestId ?? '', MAX_NETWORK_REQUEST_ID_LENGTH).trim();
@@ -1298,7 +1298,7 @@ const AppPreviewView = () => {
         requestId: sanitizedRequestId || undefined,
       },
     };
-  };
+  }, [formatBridgeNetworkEvent, trimForPayload]);
 
   const fetchReportAppLogs = useCallback(async (options?: { force?: boolean }) => {
     const identifier = resolveReportLogIdentifier();
@@ -1367,7 +1367,7 @@ const AppPreviewView = () => {
     } finally {
       setReportAppLogsLoading(false);
     }
-  }, [REPORT_APP_LOGS_MAX_LINES, logger, resolveReportLogIdentifier]);
+  }, [REPORT_APP_LOGS_MAX_LINES, resolveReportLogIdentifier]);
 
   const fetchReportConsoleLogs = useCallback(async (options?: { force?: boolean }) => {
     const identifier = resolveReportLogIdentifier();
@@ -1437,7 +1437,6 @@ const AppPreviewView = () => {
     bridgeState.isSupported,
     configureLogs,
     getRecentLogs,
-    logger,
     logState,
     requestLogBatch,
     resolveReportLogIdentifier,
@@ -1512,7 +1511,6 @@ const AppPreviewView = () => {
     bridgeState.isSupported,
     configureNetwork,
     getRecentNetworkEvents,
-    logger,
     networkState,
     requestNetworkBatch,
     resolveReportLogIdentifier,

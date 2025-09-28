@@ -403,6 +403,8 @@ const AppsView = memo(() => {
   const loadingInitial = useAppsStore(state => state.loadingInitial);
   const loadingDetailed = useAppsStore(state => state.loadingDetailed);
   const hasInitialized = useAppsStore(state => state.hasInitialized);
+  const storeError = useAppsStore(state => state.error);
+  const clearError = useAppsStore(state => state.clearError);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
@@ -417,9 +419,30 @@ const AppsView = memo(() => {
   const [modalOpen, setModalOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const initialPositionsRef = useRef<Map<string, number>>(new Map());
+  const emptyReloadRef = useRef(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loading = loadingInitial && apps.length === 0;
   const hydrating = loadingDetailed;
+
+  useEffect(() => {
+    setErrorMessage(storeError ?? null);
+  }, [storeError]);
+
+  useEffect(() => () => {
+    clearError();
+  }, [clearError]);
+
+  useEffect(() => {
+    if (hasInitialized && !loadingInitial && apps.length === 0) {
+      if (!emptyReloadRef.current) {
+        emptyReloadRef.current = true;
+        void loadApps({ force: true });
+      }
+    } else if (apps.length > 0) {
+      emptyReloadRef.current = false;
+    }
+  }, [apps.length, hasInitialized, loadApps, loadingInitial]);
 
   useEffect(() => {
     const nextSearch = searchParams.get('q') ?? '';
@@ -745,6 +768,11 @@ const AppsView = memo(() => {
 
   const useVirtualScrolling = viewMode === 'grid' && filteredApps.length > 100;
 
+  const handleErrorDismiss = useCallback(() => {
+    setErrorMessage(null);
+    clearError();
+  }, [clearError]);
+
   return (
     <div className="apps-view">
       <div className="panel-header">
@@ -765,6 +793,20 @@ const AppsView = memo(() => {
           )}
         </div>
       </div>
+
+      {errorMessage && (
+        <div className="app-notice error" role="alert">
+          <span className="app-notice-message">{errorMessage}</span>
+          <button
+            type="button"
+            className="app-notice-dismiss"
+            onClick={handleErrorDismiss}
+            aria-label="Dismiss error message"
+          >
+            <X size={16} aria-hidden />
+          </button>
+        </div>
+      )}
 
       {loading && filteredApps.length === 0 ? (
         <AppsGridSkeleton count={6} viewMode={viewMode} />

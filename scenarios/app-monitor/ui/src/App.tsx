@@ -5,6 +5,7 @@ import AppsView from '@/components/views/AppsView';
 import AppPreviewView from '@/components/views/AppPreviewView';
 import LogsView from '@/components/views/LogsView';
 import ResourcesView from '@/components/views/ResourcesView';
+import ResourceDetailView from '@/components/views/ResourceDetailView';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useAppWebSocket } from '@/hooks/useWebSocket';
 import './App.css';
@@ -62,6 +63,7 @@ function App() {
               <Route path="/logs" element={<LogsView />} />
               <Route path="/logs/:appId" element={<LogsView />} />
               <Route path="/resources" element={<ResourcesView />} />
+              <Route path="/resources/:resourceId" element={<ResourceDetailView />} />
               <Route path="*" element={<Navigate to="/apps" replace />} />
             </Routes>
           </Layout>

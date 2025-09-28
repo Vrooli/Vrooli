@@ -45,6 +45,38 @@ export interface Resource {
   status_detail?: string;
 }
 
+export interface ResourceStatusSummary {
+  id: string;
+  name: string;
+  type: string;
+  status: Resource['status'] | string;
+  enabled?: boolean;
+  enabledKnown?: boolean;
+  running?: boolean;
+  statusDetail?: string;
+}
+
+export interface ResourcePaths {
+  serviceConfig?: string;
+  runtimeConfig?: string;
+  capabilities?: string;
+  schema?: string;
+}
+
+export interface ResourceDetail {
+  id: string;
+  name: string;
+  category?: string;
+  description?: string;
+  summary: ResourceStatusSummary;
+  cliStatus?: Record<string, unknown>;
+  serviceConfig?: Record<string, unknown>;
+  runtimeConfig?: Record<string, unknown>;
+  capabilityMetadata?: Record<string, unknown>;
+  schema?: Record<string, unknown>;
+  paths?: ResourcePaths;
+}
+
 // System Metrics
 export interface SystemMetrics {
   cpu: number;

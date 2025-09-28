@@ -3,9 +3,13 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +17,7 @@ import (
 	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
+	"gopkg.in/yaml.v3"
 )
 
 // resourceCache caches resource status to prevent excessive command execution
@@ -28,6 +33,182 @@ type resourceCache struct {
 type SystemHandler struct {
 	metricsService *services.MetricsService
 	resourceCache  *resourceCache
+}
+
+type ResourceStatusSummary struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Type         string `json:"type"`
+	Status       string `json:"status"`
+	Enabled      bool   `json:"enabled"`
+	EnabledKnown bool   `json:"enabledKnown"`
+	Running      bool   `json:"running"`
+	StatusDetail string `json:"statusDetail"`
+}
+
+type ResourcePaths struct {
+	ServiceConfig string `json:"serviceConfig,omitempty"`
+	RuntimeConfig string `json:"runtimeConfig,omitempty"`
+	Capabilities  string `json:"capabilities,omitempty"`
+	Schema        string `json:"schema,omitempty"`
+}
+
+type ResourceDetailResponse struct {
+	ID                 string                 `json:"id"`
+	Name               string                 `json:"name"`
+	Category           string                 `json:"category,omitempty"`
+	Description        string                 `json:"description,omitempty"`
+	Summary            ResourceStatusSummary  `json:"summary"`
+	CLIStatus          map[string]interface{} `json:"cliStatus,omitempty"`
+	ServiceConfig      map[string]interface{} `json:"serviceConfig,omitempty"`
+	RuntimeConfig      map[string]interface{} `json:"runtimeConfig,omitempty"`
+	CapabilityMetadata map[string]interface{} `json:"capabilityMetadata,omitempty"`
+	Schema             map[string]interface{} `json:"schema,omitempty"`
+	Paths              ResourcePaths          `json:"paths"`
+}
+
+func findRepoRoot() (string, error) {
+	if root := os.Getenv("VROOLI_ROOT"); root != "" {
+		return root, nil
+	}
+	if root := os.Getenv("APP_ROOT"); root != "" {
+		return root, nil
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	dir := wd
+	for {
+		if dir == "" || dir == string(filepath.Separator) {
+			break
+		}
+		if _, err := os.Stat(filepath.Join(dir, ".vrooli")); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "", fmt.Errorf("repository root not found from %s", wd)
+}
+
+func toRelativePath(root, target string) string {
+	if root == "" || target == "" {
+		return target
+	}
+	if rel, err := filepath.Rel(root, target); err == nil {
+		return rel
+	}
+	return target
+}
+
+func readJSONFile(path string) (map[string]interface{}, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(content, &data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func readYAMLFile(path string) (map[string]interface{}, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var data map[string]interface{}
+	if err := yaml.Unmarshal(content, &data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func loadServiceResourceConfig(root, name string) (map[string]interface{}, string, error) {
+	if root == "" {
+		return nil, "", fmt.Errorf("repository root not available")
+	}
+	path := filepath.Join(root, ".vrooli", "service.json")
+	data, err := readJSONFile(path)
+	if err != nil {
+		return nil, path, err
+	}
+	resourcesRaw, ok := data["resources"].(map[string]interface{})
+	if !ok {
+		return nil, path, fmt.Errorf("service.json missing resources section")
+	}
+	entryRaw, exists := resourcesRaw[name]
+	if !exists {
+		return nil, path, fs.ErrNotExist
+	}
+	entry, ok := entryRaw.(map[string]interface{})
+	if !ok {
+		return nil, path, fmt.Errorf("resource %s entry is not an object", name)
+	}
+	return entry, path, nil
+}
+
+func loadJSONIfExists(path string) (map[string]interface{}, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, fs.ErrNotExist
+		}
+		return nil, err
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("%s is a directory", path)
+	}
+	return readJSONFile(path)
+}
+
+func loadYAMLIfExists(path string) (map[string]interface{}, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, fs.ErrNotExist
+		}
+		return nil, err
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("%s is a directory", path)
+	}
+	return readYAMLFile(path)
+}
+
+func buildSummaryFromMap(data map[string]interface{}) ResourceStatusSummary {
+	summary := ResourceStatusSummary{
+		ID:           stringValue(data["id"]),
+		Name:         stringValue(data["name"]),
+		Type:         stringValue(data["type"]),
+		Status:       stringValue(data["status"]),
+		StatusDetail: stringValue(data["status_detail"]),
+	}
+	if value, known := parseBool(data["enabled"]); known {
+		summary.Enabled = value
+	}
+	if enabledKnownRaw, ok := data["enabled_known"]; ok {
+		if value, known := parseBool(enabledKnownRaw); known {
+			summary.EnabledKnown = value
+		} else if boolVal, ok := enabledKnownRaw.(bool); ok {
+			summary.EnabledKnown = boolVal
+		}
+	}
+	if value, known := parseBool(data["running"]); known {
+		summary.Running = value
+	}
+	if summary.Status == "" {
+		summary.Status = stringValue(data["status"])
+	}
+	if summary.Type == "" {
+		summary.Type = stringValue(data["name"])
+	}
+	return summary
 }
 
 func lookupValue(raw map[string]interface{}, key string) interface{} {
@@ -148,6 +329,60 @@ func (h *SystemHandler) fetchResourceStatus(ctx context.Context, name string) (m
 	}
 
 	return nil, fmt.Errorf("resource %s not found", name)
+}
+func (h *SystemHandler) fetchResourceDetail(ctx context.Context, name string) (map[string]interface{}, map[string]interface{}, error) {
+	cmd := exec.CommandContext(ctx, "vrooli", "resource", "status", name, "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var parsed interface{}
+	if err := json.Unmarshal(output, &parsed); err != nil {
+		return nil, nil, err
+	}
+
+	var candidate map[string]interface{}
+	switch value := parsed.(type) {
+	case []interface{}:
+		for _, item := range value {
+			typed, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			resourceName := stringValue(lookupValue(typed, "Name"))
+			if resourceName == "" {
+				resourceName = stringValue(lookupValue(typed, "name"))
+			}
+			if resourceName != "" && strings.EqualFold(resourceName, name) {
+				candidate = typed
+				break
+			}
+		}
+		if candidate == nil {
+			for _, item := range value {
+				typed, ok := item.(map[string]interface{})
+				if ok {
+					candidate = typed
+					break
+				}
+			}
+		}
+	case map[string]interface{}:
+		candidate = value
+	default:
+		return nil, nil, fmt.Errorf("unexpected response for resource %s", name)
+	}
+
+	if candidate == nil {
+		return nil, nil, fmt.Errorf("resource %s not found", name)
+	}
+
+	if transformed, valid := h.transformResource(candidate); valid {
+		return candidate, transformed, nil
+	}
+
+	return nil, nil, fmt.Errorf("resource %s response missing required fields", name)
 }
 
 func parseBool(value interface{}) (bool, bool) {
@@ -381,5 +616,97 @@ func (h *SystemHandler) GetResourceStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    resource,
+	})
+}
+
+func (h *SystemHandler) GetResourceDetails(c *gin.Context) {
+	name := strings.TrimSpace(c.Param("id"))
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Resource name is required",
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	rawStatus, summaryMap, err := h.fetchResourceDetail(ctx, name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Failed to fetch resource %s details: %v", name, err),
+		})
+		return
+	}
+
+	summary := buildSummaryFromMap(summaryMap)
+	h.upsertResourceCache(summaryMap)
+
+	detail := ResourceDetailResponse{
+		ID:          summary.ID,
+		Name:        summary.Name,
+		Category:    stringValue(lookupValue(rawStatus, "Category")),
+		Description: stringValue(lookupValue(rawStatus, "Description")),
+		Summary:     summary,
+		CLIStatus:   rawStatus,
+		Paths:       ResourcePaths{},
+	}
+
+	if detail.Category == "" {
+		detail.Category = summary.Type
+	}
+
+	if root, rootErr := findRepoRoot(); rootErr == nil {
+		if serviceCfg, servicePath, err := loadServiceResourceConfig(root, name); err == nil {
+			detail.ServiceConfig = serviceCfg
+			detail.Paths.ServiceConfig = toRelativePath(root, servicePath)
+			if detail.Description == "" {
+				detail.Description = stringValue(serviceCfg["description"])
+			}
+			if detail.Category == "" {
+				if category := stringValue(serviceCfg["category"]); category != "" {
+					detail.Category = category
+				}
+			}
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			detail.Paths.ServiceConfig = toRelativePath(root, filepath.Join(root, ".vrooli", "service.json"))
+		}
+
+		resourceRoot := filepath.Join(root, "resources", name)
+
+		runtimePath := filepath.Join(resourceRoot, "config", "runtime.json")
+		if runtimeCfg, err := loadJSONIfExists(runtimePath); err == nil {
+			detail.RuntimeConfig = runtimeCfg
+			detail.Paths.RuntimeConfig = toRelativePath(root, runtimePath)
+		} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			detail.Paths.RuntimeConfig = toRelativePath(root, runtimePath)
+		}
+
+		capabilitiesPath := filepath.Join(resourceRoot, "config", "capabilities.yaml")
+		if capabilityData, err := loadYAMLIfExists(capabilitiesPath); err == nil {
+			detail.CapabilityMetadata = capabilityData
+			detail.Paths.Capabilities = toRelativePath(root, capabilitiesPath)
+		} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			detail.Paths.Capabilities = toRelativePath(root, capabilitiesPath)
+		}
+
+		schemaPath := filepath.Join(resourceRoot, "config", "schema.json")
+		if schemaData, err := loadJSONIfExists(schemaPath); err == nil {
+			detail.Schema = schemaData
+			detail.Paths.Schema = toRelativePath(root, schemaPath)
+		} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			detail.Paths.Schema = toRelativePath(root, schemaPath)
+		}
+	}
+
+	if detail.Description == "" && summary.StatusDetail != "" {
+		detail.Description = summary.StatusDetail
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    detail,
 	})
 }

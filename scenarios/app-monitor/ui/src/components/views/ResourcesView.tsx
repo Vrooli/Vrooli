@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Play, Square, Info, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Play, Square, Info, Loader2, RefreshCw } from 'lucide-react';
 import { ResourcesGridSkeleton } from '../LoadingSkeleton';
 import './ResourcesView.css';
 import { useResourcesStore } from '@/state/resourcesStore';
@@ -13,16 +14,31 @@ export default function ResourcesView() {
   const refreshResource = useResourcesStore(state => state.refreshResource);
   const storeError = useResourcesStore(state => state.error);
   const clearError = useResourcesStore(state => state.clearError);
+  const hasInitialized = useResourcesStore(state => state.hasInitialized);
 
   type ResourceAction = 'start' | 'stop' | 'refresh';
+
+  const navigate = useNavigate();
 
   const [pendingActions, setPendingActions] = useState<Record<string, ResourceAction | null>>({});
   const [actionFeedback, setActionFeedback] = useState<Record<string, { type: 'success' | 'error'; message: string }>>({});
   const [globalFeedback, setGlobalFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const emptyReloadRef = useRef(false);
 
   useEffect(() => {
     void loadResources();
   }, [loadResources]);
+
+  useEffect(() => {
+    if (hasInitialized && !loading && resources.length === 0) {
+      if (!emptyReloadRef.current) {
+        emptyReloadRef.current = true;
+        void loadResources({ force: true });
+      }
+    } else if (resources.length > 0) {
+      emptyReloadRef.current = false;
+    }
+  }, [hasInitialized, loadResources, loading, resources.length]);
 
   useEffect(() => {
     if (storeError) {
@@ -56,8 +72,12 @@ export default function ResourcesView() {
   const handleResourceAction = async (id: string, action: ResourceAction) => {
     setPendingActions(prev => ({ ...prev, [id]: action }));
     setActionFeedback(prev => {
-      const { [id]: _, ...rest } = prev;
-      return rest;
+      if (!(id in prev)) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next[id];
+      return next;
     });
     setGlobalFeedback(null);
 
@@ -107,8 +127,12 @@ export default function ResourcesView() {
       setGlobalFeedback({ type: 'error', message: 'Unexpected failure.' });
     } finally {
       setPendingActions(prev => {
-        const { [id]: _, ...rest } = prev;
-        return rest;
+        if (!(id in prev)) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[id];
+        return next;
       });
     }
   };
@@ -201,7 +225,15 @@ export default function ResourcesView() {
                 >
                   {getPendingAction(resource.id) === 'refresh'
                     ? <Loader2 className="resource-action-icon spinning" strokeWidth={2} />
-                    : <Info className="resource-action-icon" strokeWidth={2} />}
+                    : <RefreshCw className="resource-action-icon" strokeWidth={2} />}
+                </button>
+                <button
+                  className="resource-action-btn detail"
+                  aria-label={`View ${resource.name} details`}
+                  title="View details"
+                  onClick={() => navigate(`/resources/${encodeURIComponent(resource.id)}`)}
+                >
+                  <Info className="resource-action-icon" strokeWidth={2} />
                 </button>
               </div>
               {actionFeedback[resource.id] && (

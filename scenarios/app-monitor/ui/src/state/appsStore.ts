@@ -72,10 +72,13 @@ export const useAppsStore = create<AppsStoreState>((set, get) => ({
 
     set({ loadingInitial: true, error: null });
 
+    let summariesLoaded = false;
+
     try {
       const summaries = await appService.getAppSummaries();
-      if (Array.isArray(summaries) && summaries.length > 0) {
+      if (Array.isArray(summaries)) {
         set({ apps: summaries });
+        summariesLoaded = true;
       } else if (force) {
         set({ apps: [] });
       }
@@ -85,7 +88,10 @@ export const useAppsStore = create<AppsStoreState>((set, get) => ({
         set({ error: 'Unable to load scenario summaries.' });
       }
     } finally {
-      set({ loadingInitial: false, hasInitialized: true });
+      set((state) => ({
+        loadingInitial: false,
+        hasInitialized: state.hasInitialized || summariesLoaded || state.apps.length > 0,
+      }));
     }
 
     await runDetailedFetch();
