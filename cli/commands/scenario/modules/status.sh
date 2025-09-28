@@ -28,9 +28,22 @@ scenario::status::show() {
     local api_url="http://localhost:${api_port}"
     
     # Check if API is reachable
-    if ! timeout 10 curl -s "${api_url}/health" >/dev/null 2>&1; then
-        log::error "Vrooli API is not accessible at ${api_url}"
-        log::info "The API may not be running. Start it with: vrooli develop"
+    local timeout_seconds=30
+    local curl_output=""
+    local curl_status=0
+    curl_output=$(timeout "${timeout_seconds}" curl -s -o /dev/null "${api_url}/health" 2>&1) || curl_status=$?
+
+    if [[ ${curl_status} -ne 0 ]]; then
+        if [[ ${curl_status} -eq 124 ]]; then
+            log::error "Vrooli API health check timed out after ${timeout_seconds}s at ${api_url}/health"
+            log::info "The API may still be running but responded too slowly. Inspect the API logs or try again."
+        else
+            log::error "Vrooli API is not accessible at ${api_url}"
+            if [[ -n "${curl_output}" ]]; then
+                log::info "curl error: ${curl_output}"
+            fi
+            log::info "The API may not be running. Start it with: vrooli develop"
+        fi
         return 1
     fi
     

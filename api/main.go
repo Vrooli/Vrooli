@@ -2,6 +2,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -44,6 +46,31 @@ type RunningScenario struct {
 	Ports     map[string]int `json:"ports"`
 }
 
+type processTableEntry struct {
+	PID     int
+	PPID    int
+	State   string
+	Command string
+}
+
+type trackedProcessStats struct {
+	trackedPIDs    map[int]struct{}
+	trackedCount   int
+	runningTracked int
+}
+
+type ProcessHealthSnapshot struct {
+	ZombieCount   int
+	ZombieStatus  string
+	ZombieEmoji   string
+	OrphanCount   int
+	OrphanStatus  string
+	OrphanEmoji   string
+	OverallStatus string
+}
+
+var orphanCommandPattern = regexp.MustCompile(`(vrooli|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel)`)
+
 // Helper function to check if a scenario name corresponds to a valid scenario directory
 func isValidScenario(name string) bool {
 	// Check if scenario directory exists
@@ -72,255 +99,283 @@ func checkForkBomb() error {
 	return nil
 }
 
-// Count zombie processes on the system (ALL defunct processes)
-func countZombieProcesses() (int, error) {
-	cmd := exec.Command("bash", "-c", "ps aux | grep '<defunct>' | grep -v grep | wc -l")
-	output, err := cmd.CombinedOutput()
+// Build process table using a single ps invocation for efficient lookups
+func buildProcessTable() (map[int]processTableEntry, error) {
+	cmd := exec.Command("ps", "-eo", "pid,ppid,state,cmd")
+	output, err := cmd.Output()
 	if err != nil {
-		// If command fails, return 0 as we can't determine zombie count
-		return 0, fmt.Errorf("failed to count zombies: %v", err)
+		return nil, fmt.Errorf("failed to inspect process table: %w", err)
 	}
 
-	count := 0
-	if _, err := fmt.Sscanf(strings.TrimSpace(string(output)), "%d", &count); err != nil {
-		return 0, fmt.Errorf("failed to parse zombie count: %v", err)
-	}
-
-	return count, nil
-}
-
-// Count orphaned Vrooli processes (running but not properly tracked)
-// A process is only an orphan if neither it nor any of its ancestors are tracked
-func countOrphanProcesses() (int, error) {
-	// First, build a set of all tracked PIDs
-	trackedPIDs := make(map[string]bool)
-	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios")
-
-	if _, err := os.Stat(processesDir); !os.IsNotExist(err) {
-		err := filepath.Walk(processesDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return nil // Skip errors, continue walking
-			}
-
-			if !strings.HasSuffix(path, ".json") {
-				return nil
-			}
-
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return nil
-			}
-
-			var processInfo map[string]interface{}
-			if err := json.Unmarshal(data, &processInfo); err != nil {
-				return nil
-			}
-
-			// Get both PID and PGID if available
-			if pidFloat, ok := processInfo["pid"].(float64); ok {
-				pid := fmt.Sprintf("%.0f", pidFloat)
-				trackedPIDs[pid] = true
-			}
-
-			if pgidFloat, ok := processInfo["pgid"].(float64); ok {
-				pgid := fmt.Sprintf("%.0f", pgidFloat)
-				trackedPIDs[pgid] = true
-			}
-
-			return nil
-		})
-
-		if err != nil {
-			log.Printf("Error walking process directory: %v", err)
+	processTable := make(map[int]processTableEntry)
+	scanner := bufio.NewScanner(bytes.NewReader(output))
+	lineNum := 0
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if lineNum == 0 {
+			lineNum += 1
+			continue // Skip header
 		}
-	}
-
-	// Get all Vrooli-related running processes
-	cmd := exec.Command("bash", "-c", `ps aux | grep -E "(vrooli|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel)" | grep -v grep | grep -v 'bash -c'`)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		// If command fails, assume no orphans
-		return 0, nil
-	}
-
-	processLines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(processLines) == 1 && processLines[0] == "" {
-		return 0, nil // No processes found
-	}
-
-	orphanCount := 0
-
-	for _, line := range processLines {
-		if strings.TrimSpace(line) == "" {
+		lineNum += 1
+		if line == "" {
 			continue
 		}
 
-		// Extract PID (second field)
 		fields := strings.Fields(line)
-		if len(fields) < 2 {
+		if len(fields) < 4 {
 			continue
 		}
 
-		pid := fields[1]
-		if !regexp.MustCompile(`^\d+$`).MatchString(pid) {
+		pid, err := strconv.Atoi(fields[0])
+		if err != nil {
 			continue
 		}
 
-		// Skip our own API process
-		if strings.Contains(line, "./vrooli-api") || strings.Contains(line, "vrooli-api-new") {
-			continue
+		ppid, err := strconv.Atoi(fields[1])
+		if err != nil {
+			ppid = 0
 		}
 
-		// Check if this process or any of its ancestors are tracked
-		if isProcessOrAncestorTracked(pid, trackedPIDs) {
-			continue // This process is tracked or is a child of a tracked process
-		}
+		state := fields[2]
+		command := strings.Join(fields[3:], " ")
 
-		// If not tracked and no tracked ancestors, it's an orphan
-		orphanCount++
+		processTable[pid] = processTableEntry{
+			PID:     pid,
+			PPID:    ppid,
+			State:   state,
+			Command: command,
+		}
 	}
 
-	return orphanCount, nil
+	return processTable, nil
 }
 
-// Helper function to check if a process or any of its ancestors are tracked
-func isProcessOrAncestorTracked(pid string, trackedPIDs map[string]bool) bool {
-	// Check the process itself
-	if trackedPIDs[pid] {
+// Load tracked process metadata (PIDs/PGIDs) from lifecycle process files once
+func loadTrackedProcessStats(processTable map[int]processTableEntry) trackedProcessStats {
+	stats := trackedProcessStats{
+		trackedPIDs: make(map[int]struct{}),
+	}
+
+	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios")
+	if _, err := os.Stat(processesDir); os.IsNotExist(err) {
+		return stats
+	}
+
+	_ = filepath.Walk(processesDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		if info.IsDir() || !strings.HasSuffix(path, ".json") {
+			return nil
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+
+		var processInfo map[string]interface{}
+		if err := json.Unmarshal(data, &processInfo); err != nil {
+			return nil
+		}
+
+		if pidFloat, ok := processInfo["pid"].(float64); ok {
+			pid := int(pidFloat)
+			if pid > 0 {
+				stats.trackedPIDs[pid] = struct{}{}
+				stats.trackedCount += 1
+				if _, running := processTable[pid]; running {
+					stats.runningTracked += 1
+				}
+			}
+		}
+
+		if pgidFloat, ok := processInfo["pgid"].(float64); ok {
+			pgid := int(pgidFloat)
+			if pgid > 0 {
+				stats.trackedPIDs[pgid] = struct{}{}
+			}
+		}
+
+		return nil
+	})
+
+	return stats
+}
+
+func interpretZombieStatus(count int) (string, string) {
+	switch {
+	case count == 0:
+		return "healthy", "✅"
+	case count <= 5:
+		return "normal", "✅"
+	case count <= 20:
+		return "warning", "⚠️"
+	default:
+		return "critical", "🔴"
+	}
+}
+
+func interpretOrphanStatus(count int) (string, string) {
+	switch {
+	case count == 0:
+		return "healthy", "✅"
+	case count <= 3:
+		return "normal", "✅"
+	case count <= 10:
+		return "warning", "⚠️"
+	default:
+		return "critical", "🔴"
+	}
+}
+
+func isTrackedOrAncestorTracked(pid int, tracked map[int]struct{}, processTable map[int]processTableEntry, memo map[int]bool, visiting map[int]bool) bool {
+	if _, ok := tracked[pid]; ok {
+		memo[pid] = true
 		return true
 	}
 
-	// Get the parent PID
-	ppidCmd := exec.Command("ps", "-o", "ppid=", "-p", pid)
-	ppidOutput, err := ppidCmd.Output()
+	if val, ok := memo[pid]; ok {
+		return val
+	}
+
+	entry, ok := processTable[pid]
+	if !ok {
+		memo[pid] = false
+		return false
+	}
+
+	if entry.PPID == 0 || entry.PPID == 1 {
+		memo[pid] = false
+		return false
+	}
+
+	if visiting[pid] {
+		memo[pid] = false
+		return false
+	}
+	visiting[pid] = true
+
+	trackedAncestor := isTrackedOrAncestorTracked(entry.PPID, tracked, processTable, memo, visiting)
+	visiting[pid] = false
+	if trackedAncestor {
+		memo[pid] = true
+		return true
+	}
+
+	memo[pid] = false
+	return false
+}
+
+func countOrphanProcessesFast(processTable map[int]processTableEntry, tracked map[int]struct{}) int {
+	orphanCount := 0
+	memo := make(map[int]bool)
+	visiting := make(map[int]bool)
+	for pid, entry := range processTable {
+		if !orphanCommandPattern.MatchString(entry.Command) {
+			continue
+		}
+		if strings.Contains(entry.Command, "./vrooli-api") || strings.Contains(entry.Command, "vrooli-api-new") {
+			continue
+		}
+		if isTrackedOrAncestorTracked(pid, tracked, processTable, memo, visiting) {
+			continue
+		}
+		orphanCount += 1
+	}
+	return orphanCount
+}
+
+func collectProcessHealthSnapshot() ProcessHealthSnapshot {
+	processTable, err := buildProcessTable()
 	if err != nil {
-		return false // Can't determine parent, assume not tracked
+		log.Printf("Failed to build process table: %v", err)
+		return ProcessHealthSnapshot{
+			ZombieStatus:  "unknown",
+			ZombieEmoji:   "❔",
+			OrphanStatus:  "unknown",
+			OrphanEmoji:   "❔",
+			OverallStatus: "unknown",
+		}
 	}
 
-	ppid := strings.TrimSpace(string(ppidOutput))
-	if ppid == "" || ppid == "0" || ppid == "1" {
-		return false // Reached init or no parent
-	}
-
-	// Recursively check parent
-	return isProcessOrAncestorTracked(ppid, trackedPIDs)
+	snapshot, _ := computeProcessSnapshot(processTable)
+	return snapshot
 }
 
-// Get zombie status with thresholds for display
-func getZombieStatus() (count int, status string, emoji string) {
-	count, _ = countZombieProcesses() // Ignore error, default to 0
+func computeProcessSnapshot(processTable map[int]processTableEntry) (ProcessHealthSnapshot, trackedProcessStats) {
+	stats := loadTrackedProcessStats(processTable)
 
+	zombieCount := 0
+	for _, entry := range processTable {
+		if strings.HasPrefix(entry.State, "Z") {
+			zombieCount += 1
+		}
+	}
+
+	orphanCount := countOrphanProcessesFast(processTable, stats.trackedPIDs)
+	zombieStatus, zombieEmoji := interpretZombieStatus(zombieCount)
+	orphanStatus, orphanEmoji := interpretOrphanStatus(orphanCount)
+
+	overallStatus := "healthy"
 	switch {
-	case count == 0:
-		return count, "healthy", "✅"
-	case count <= 5:
-		return count, "normal", "✅"
-	case count <= 20:
-		return count, "warning", "⚠️"
-	default:
-		return count, "critical", "🔴"
+	case zombieStatus == "critical" || orphanStatus == "critical":
+		overallStatus = "critical"
+	case zombieStatus == "warning" || orphanStatus == "warning":
+		overallStatus = "warning"
+	case zombieStatus == "normal" || orphanStatus == "normal":
+		overallStatus = "normal"
 	}
+
+	snapshot := ProcessHealthSnapshot{
+		ZombieCount:   zombieCount,
+		ZombieStatus:  zombieStatus,
+		ZombieEmoji:   zombieEmoji,
+		OrphanCount:   orphanCount,
+		OrphanStatus:  orphanStatus,
+		OrphanEmoji:   orphanEmoji,
+		OverallStatus: overallStatus,
+	}
+
+	return snapshot, stats
 }
 
-// Get orphan status with thresholds for display
-func getOrphanStatus() (count int, status string, emoji string) {
-	count, _ = countOrphanProcesses() // Ignore error, default to 0
-
-	switch {
-	case count == 0:
-		return count, "healthy", "✅"
-	case count <= 3:
-		return count, "normal", "✅"
-	case count <= 10:
-		return count, "warning", "⚠️"
-	default:
-		return count, "critical", "🔴"
-	}
-}
-
-// Get combined process health status
-// Get enhanced process metrics for detailed monitoring
 func getEnhancedProcessMetrics() map[string]interface{} {
-	metrics := make(map[string]interface{})
-
-	// Count tracked processes
-	trackedCount := 0
-	runningTrackedCount := 0
-	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios")
-
-	if _, err := os.Stat(processesDir); !os.IsNotExist(err) {
-		filepath.Walk(processesDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil || !strings.HasSuffix(path, ".json") {
-				return nil
-			}
-
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return nil
-			}
-
-			var processInfo map[string]interface{}
-			if err := json.Unmarshal(data, &processInfo); err != nil {
-				return nil
-			}
-
-			if pidFloat, ok := processInfo["pid"].(float64); ok {
-				trackedCount++
-				pid := fmt.Sprintf("%.0f", pidFloat)
-
-				// Check if process is running
-				checkCmd := exec.Command("kill", "-0", pid)
-				if err := checkCmd.Run(); err == nil {
-					runningTrackedCount++
-				}
-			}
-
-			return nil
-		})
+	processTable, err := buildProcessTable()
+	if err != nil {
+		log.Printf("Failed to build process table for metrics: %v", err)
+		return map[string]interface{}{
+			"tracked_processes": 0,
+			"running_tracked":   0,
+			"child_processes":   0,
+			"total_processes":   0,
+			"zombie_processes":  0,
+			"orphan_processes":  0,
+		}
 	}
 
-	// Count all Vrooli-related processes
-	totalProcesses := 0
-	cmd := exec.Command("bash", "-c", `ps aux | grep -E "(vrooli|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel)" | grep -v grep | grep -v 'bash -c' | wc -l`)
-	if output, err := cmd.Output(); err == nil {
-		fmt.Sscanf(strings.TrimSpace(string(output)), "%d", &totalProcesses)
-	}
+	snapshot, stats := computeProcessSnapshot(processTable)
 
-	// Calculate child processes (total - tracked - API)
-	childProcesses := totalProcesses - runningTrackedCount - 1 // -1 for API itself
+	totalProcesses := len(processTable)
+	childProcesses := totalProcesses - stats.runningTracked
+	if _, exists := processTable[os.Getpid()]; exists {
+		childProcesses -= 1 // Exclude API process
+	}
 	if childProcesses < 0 {
 		childProcesses = 0
 	}
 
-	// Get zombie and orphan counts
-	zombieCount, _ := countZombieProcesses()
-	orphanCount, _ := countOrphanProcesses()
-
-	metrics["tracked_processes"] = trackedCount
-	metrics["running_tracked"] = runningTrackedCount
-	metrics["child_processes"] = childProcesses
-	metrics["total_processes"] = totalProcesses
-	metrics["zombie_processes"] = zombieCount
-	metrics["orphan_processes"] = orphanCount
+	metrics := map[string]interface{}{
+		"tracked_processes": stats.trackedCount,
+		"running_tracked":   stats.runningTracked,
+		"child_processes":   childProcesses,
+		"total_processes":   totalProcesses,
+		"zombie_processes":  snapshot.ZombieCount,
+		"orphan_processes":  snapshot.OrphanCount,
+	}
 
 	return metrics
-}
-
-func getProcessHealthStatus() (zombieCount, orphanCount int, overallStatus string) {
-	zombieCount, zombieStatus, _ := getZombieStatus()
-	orphanCount, orphanStatus, _ := getOrphanStatus()
-
-	// Overall status is worst of the two
-	if zombieStatus == "critical" || orphanStatus == "critical" {
-		return zombieCount, orphanCount, "critical"
-	}
-	if zombieStatus == "warning" || orphanStatus == "warning" {
-		return zombieCount, orphanCount, "warning"
-	}
-	if zombieStatus == "normal" || orphanStatus == "normal" {
-		return zombieCount, orphanCount, "normal"
-	}
-	return zombieCount, orphanCount, "healthy"
 }
 
 // Discover ports for a specific scenario by reading process environment variables
@@ -1416,9 +1471,14 @@ func listScenariosNative(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get process health information for system warnings
-	zombieCount, orphanCount, processStatus := getProcessHealthStatus()
-	zombieCount, zombieStatus, zombieEmoji := getZombieStatus()
-	orphanCount, orphanStatus, orphanEmoji := getOrphanStatus()
+	healthSnapshot := collectProcessHealthSnapshot()
+	zombieCount := healthSnapshot.ZombieCount
+	zombieStatus := healthSnapshot.ZombieStatus
+	zombieEmoji := healthSnapshot.ZombieEmoji
+	orphanCount := healthSnapshot.OrphanCount
+	orphanStatus := healthSnapshot.OrphanStatus
+	orphanEmoji := healthSnapshot.OrphanEmoji
+	processStatus := healthSnapshot.OverallStatus
 
 	scenarios := []map[string]interface{}{}
 	for _, entry := range entries {
@@ -1659,16 +1719,22 @@ func processMetricsHandler(w http.ResponseWriter, r *http.Request) {
 
 // === Health Check ===
 func healthCheck(w http.ResponseWriter, r *http.Request) {
-	// Get process health information
-	zombieCount, orphanCount, processStatus := getProcessHealthStatus()
-	zombieCount, zombieStatus, _ := getZombieStatus()
-	orphanCount, orphanStatus, _ := getOrphanStatus()
+	// Get process health information in a single pass
+	healthSnapshot := collectProcessHealthSnapshot()
+	zombieCount := healthSnapshot.ZombieCount
+	zombieStatus := healthSnapshot.ZombieStatus
+	orphanCount := healthSnapshot.OrphanCount
+	orphanStatus := healthSnapshot.OrphanStatus
+	processStatus := healthSnapshot.OverallStatus
 
 	// Determine overall health based on process status
 	overallStatus := "healthy"
-	if processStatus == "critical" {
+	switch processStatus {
+	case "critical":
 		overallStatus = "unhealthy"
-	} else if processStatus == "warning" {
+	case "warning":
+		overallStatus = "degraded"
+	case "unknown":
 		overallStatus = "degraded"
 	}
 
