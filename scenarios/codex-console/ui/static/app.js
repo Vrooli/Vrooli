@@ -1,0 +1,374 @@
+const elements = {
+  startBtn: document.getElementById('startBtn'),
+  stopBtn: document.getElementById('stopBtn'),
+  sendBtn: document.getElementById('sendBtn'),
+  operatorInput: document.getElementById('operatorInput'),
+  sessionId: document.getElementById('sessionId'),
+  sessionPhase: document.getElementById('sessionPhase'),
+  socketState: document.getElementById('socketState'),
+  transcriptSize: document.getElementById('transcriptSize'),
+  eventFeed: document.getElementById('eventFeed'),
+  statusBadge: document.getElementById('statusBadge'),
+  inputBox: document.getElementById('inputBox'),
+  inputForm: document.getElementById('inputForm'),
+  errorBanner: document.getElementById('errorBanner'),
+  terminalContainer: document.getElementById('terminal')
+}
+
+const term = new window.Terminal({
+  convertEol: true,
+  cursorBlink: true,
+  fontFamily: 'JetBrains Mono, SFMono-Regular, Menlo, monospace',
+  fontSize: 14,
+  theme: {
+    background: '#0f172a',
+    foreground: '#e2e8f0',
+    cursor: '#38bdf8'
+  }
+})
+const fitAddon = new window.FitAddon.FitAddon()
+term.loadAddon(fitAddon)
+term.open(elements.terminalContainer)
+fitAddon.fit()
+window.addEventListener('resize', () => requestAnimationFrame(() => fitAddon.fit()))
+
+const state = {
+  phase: 'idle',
+  socketState: 'disconnected',
+  session: null,
+  socket: null,
+  transcript: [],
+  events: [],
+  bridge: null
+}
+
+const textDecoder = new TextDecoder()
+
+function proxyToApi(path, { method = 'GET', json, headers } = {}) {
+  const targetPath = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? path : `/${path}`}`
+  const requestInit = { method, headers: headers ? new Headers(headers) : new Headers() }
+  if (json !== undefined) {
+    requestInit.headers.set('Content-Type', 'application/json')
+    requestInit.body = JSON.stringify(json)
+  }
+  return fetch(targetPath, requestInit)
+}
+
+function buildWebSocketUrl(path) {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const host = window.location.host
+  const normalized = path.startsWith('/') ? path : `/${path}`
+  return `${protocol}//${host}${normalized}`
+}
+
+function initializeIframeBridge() {
+  const CHANNEL = 'codex-console'
+  const emit = (type, payload) => {
+    if (window.parent) {
+      window.parent.postMessage({ channel: CHANNEL, type, payload }, '*')
+    }
+  }
+
+  window.addEventListener('message', async (event) => {
+    const message = event.data
+    if (!message || message.channel !== CHANNEL) {
+      return
+    }
+    try {
+      switch (message.type) {
+        case 'init-session':
+          if (message.payload && typeof message.payload === 'object' && typeof message.payload.operator === 'string') {
+            elements.operatorInput.value = message.payload.operator
+          }
+          emit('ready', { timestamp: Date.now() })
+          break
+        case 'end-session':
+          await stopSession()
+          emit('session-ended', { requestedByParent: true })
+          break
+        case 'request-screenshot':
+          if (window.html2canvas) {
+            const canvas = await window.html2canvas(document.body, { backgroundColor: '#0f172a' })
+            emit('screenshot', { image: canvas.toDataURL('image/png', 0.9), requestedAt: Date.now() })
+          } else {
+            emit('error', { type: 'request-screenshot', message: 'html2canvas not available' })
+          }
+          break
+        case 'request-transcript':
+          emit('transcript', { transcript: state.transcript, requestedAt: Date.now() })
+          break
+        case 'request-logs':
+          emit('logs', { logs: state.events.slice(-100), requestedAt: Date.now() })
+          break
+        default:
+          emit('error', { type: 'unknown-command', payload: message })
+      }
+    } catch (error) {
+      emit('error', { type: message.type, message: error instanceof Error ? error.message : 'unknown error' })
+    }
+  })
+
+  emit('bridge-initialized', { timestamp: Date.now() })
+  return { emit }
+}
+
+state.bridge = initializeIframeBridge()
+
+function setPhase(phase) {
+  state.phase = phase
+  updateUI()
+}
+
+function setSocketState(socket) {
+  state.socketState = socket
+  updateUI()
+}
+
+function updateUI() {
+  elements.sessionPhase.textContent = state.phase
+  elements.socketState.textContent = state.socketState
+  elements.startBtn.disabled = state.phase === 'creating' || state.phase === 'running'
+  elements.stopBtn.disabled = !state.session || state.phase === 'idle' || state.phase === 'closed'
+  elements.sendBtn.disabled = state.socketState !== 'open'
+  elements.inputBox.disabled = state.socketState !== 'open'
+  elements.sessionId.textContent = state.session ? `${state.session.id.slice(0, 8)}…` : '—'
+  elements.transcriptSize.textContent = `${state.transcript.length} records`
+
+  const badgeColor = state.phase === 'running' ? '#22c55e' : state.phase === 'closing' ? '#f97316' : '#38bdf8'
+  elements.statusBadge.textContent = `${state.phase.toUpperCase()} · ${state.socketState.toUpperCase()}`
+  elements.statusBadge.style.color = badgeColor
+
+  renderEvents()
+
+  state.bridge?.emit('session-update', {
+    phase: state.phase,
+    socketState: state.socketState,
+    session: state.session,
+    transcriptSize: state.transcript.length,
+    events: state.events.slice(-20)
+  })
+}
+
+function renderEvents() {
+  const recent = state.events.slice(-12).reverse()
+  elements.eventFeed.innerHTML = ''
+  recent.forEach((event) => {
+    const li = document.createElement('li')
+    const time = document.createElement('time')
+    time.textContent = new Date(event.timestamp).toLocaleTimeString()
+    const label = document.createElement('div')
+    label.textContent = event.type
+    label.style.fontWeight = '600'
+    li.appendChild(time)
+    li.appendChild(label)
+    elements.eventFeed.appendChild(li)
+  })
+}
+
+function appendEvent(type, payload) {
+  state.events.push({ type, payload, timestamp: Date.now() })
+  if (state.events.length > 200) {
+    state.events.splice(0, state.events.length - 200)
+  }
+  updateUI()
+}
+
+function recordTranscript(entry) {
+  state.transcript.push(entry)
+  if (state.transcript.length > 5000) {
+    state.transcript.splice(0, state.transcript.length - 5000)
+  }
+  updateUI()
+}
+
+function showError(message) {
+  if (!message) {
+    elements.errorBanner.classList.add('hidden')
+    elements.errorBanner.textContent = ''
+    return
+  }
+  elements.errorBanner.textContent = message
+  elements.errorBanner.classList.remove('hidden')
+}
+
+async function startSession() {
+  if (state.phase === 'creating' || state.phase === 'running') return
+  showError('')
+  setPhase('creating')
+  setSocketState('connecting')
+
+  try {
+    const response = await proxyToApi('/api/v1/sessions', {
+      method: 'POST',
+      json: {
+        operator: elements.operatorInput.value.trim() || undefined
+      }
+    })
+    if (!response.ok) {
+      const text = await response.text()
+      throw new Error(text || `API error (${response.status})`)
+    }
+    const data = await response.json()
+    state.session = data
+    state.transcript = []
+    state.events = []
+    term.reset()
+    appendEvent('session-created', data)
+    connectWebSocket(data.id)
+    setPhase('running')
+    state.bridge?.emit('session-started', data)
+  } catch (error) {
+    setPhase('idle')
+    setSocketState('disconnected')
+    showError(error instanceof Error ? error.message : 'Unknown error starting session')
+    appendEvent('session-error', error)
+  }
+}
+
+async function stopSession() {
+  if (!state.session) return
+  setPhase('closing')
+  setSocketState('closing')
+  appendEvent('session-stop-requested', { id: state.session.id })
+  try {
+    await proxyToApi(`/api/v1/sessions/${state.session.id}`, { method: 'DELETE' })
+  } catch (error) {
+    appendEvent('session-stop-error', error)
+  } finally {
+    state.socket?.close()
+    state.socket = null
+    setPhase('closed')
+    setSocketState('disconnected')
+    state.bridge?.emit('session-ended', { id: state.session?.id })
+  }
+}
+
+function connectWebSocket(sessionId) {
+  const url = buildWebSocketUrl(`/ws/sessions/${sessionId}/stream`)
+  const socket = new WebSocket(url)
+  state.socket = socket
+
+  socket.addEventListener('open', () => {
+    setSocketState('open')
+    appendEvent('ws-open', { sessionId })
+  })
+
+  socket.addEventListener('message', (event) => {
+    try {
+      const envelope = JSON.parse(event.data)
+      handleStreamEnvelope(envelope)
+    } catch (error) {
+      appendEvent('ws-message-error', error)
+    }
+  })
+
+  socket.addEventListener('error', (error) => {
+    setSocketState('error')
+    showError('WebSocket error occurred')
+    appendEvent('ws-error', error)
+  })
+
+  socket.addEventListener('close', (event) => {
+    setSocketState('disconnected')
+    appendEvent('ws-close', { code: event.code, reason: event.reason })
+    if (state.phase === 'running' || state.phase === 'closing') {
+      setPhase('closed')
+    }
+    state.bridge?.emit('session-ended', { id: sessionId, reason: 'ws-close' })
+  })
+}
+
+function handleStreamEnvelope(envelope) {
+  if (!envelope || typeof envelope.type !== 'string') return
+
+  switch (envelope.type) {
+    case 'output':
+      handleOutputPayload(envelope.payload)
+      break
+    case 'status':
+      appendEvent('session-status', envelope.payload)
+      recordTranscript({
+        timestamp: Date.now(),
+        direction: 'status',
+        message: JSON.stringify(envelope.payload)
+      })
+      break
+    case 'heartbeat':
+      appendEvent('session-heartbeat', envelope.payload)
+      break
+    default:
+      appendEvent('session-envelope', envelope)
+  }
+}
+
+function handleOutputPayload(payload) {
+  if (!payload || typeof payload.data !== 'string') return
+
+  let text = payload.data
+  if (payload.encoding === 'base64') {
+    try {
+      const bytes = Uint8Array.from(atob(payload.data), (c) => c.charCodeAt(0))
+      text = textDecoder.decode(bytes)
+    } catch (error) {
+      appendEvent('decode-error', error)
+      return
+    }
+  }
+
+  term.write(text)
+  recordTranscript({
+    timestamp: payload.timestamp ? Date.parse(payload.timestamp) : Date.now(),
+    direction: payload.direction || 'stdout',
+    encoding: payload.encoding,
+    data: payload.data
+  })
+}
+
+elements.inputForm.addEventListener('submit', (event) => {
+  event.preventDefault()
+  sendInput(elements.inputBox.value)
+})
+
+elements.inputBox.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    sendInput(elements.inputBox.value)
+  }
+})
+
+elements.startBtn.addEventListener('click', () => startSession())
+elements.stopBtn.addEventListener('click', () => stopSession())
+
+elements.operatorInput.addEventListener('change', () => {
+  state.bridge?.emit('operator-updated', { operator: elements.operatorInput.value })
+})
+
+function sendInput(value) {
+  const trimmed = value.trim()
+  if (!trimmed) return
+  if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
+    showError('Session stream is not connected')
+    return
+  }
+
+  const payload = {
+    type: 'input',
+    payload: {
+      data: value.endsWith('\n') ? value : `${value}\n`,
+      encoding: 'utf-8'
+    }
+  }
+
+  state.socket.send(JSON.stringify(payload))
+  recordTranscript({
+    timestamp: Date.now(),
+    direction: 'stdin',
+    encoding: 'utf-8',
+    data: btoa(payload.payload.data)
+  })
+  appendEvent('stdin', { length: payload.payload.data.length })
+  elements.inputBox.value = ''
+  showError('')
+}
+
+updateUI()

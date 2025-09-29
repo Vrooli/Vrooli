@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Codex Console</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="header">
+        <div>
+          <h1>Codex Console Telepresence</h1>
+          <p>Embed this console inside an authenticated scenario. Direct exposure is prohibited.</p>
+        </div>
+        <div class="header-actions">
+          <span id="statusBadge" class="status-badge">IDLE · DISCONNECTED</span>
+          <button id="startBtn" class="btn btn-primary">Launch Codex</button>
+          <button id="stopBtn" class="btn btn-danger" disabled>Stop Session</button>
+        </div>
+      </header>
+
+      <section class="layout">
+        <aside class="sidebar">
+          <section class="panel">
+            <h2>Operator</h2>
+            <input id="operatorInput" type="text" placeholder="Operator codename" />
+            <p class="panel-note">Name is recorded in transcripts and surfaced to the parent scenario.</p>
+          </section>
+
+          <section class="panel">
+            <h2>Session</h2>
+            <ul class="info-list">
+              <li><span>ID</span><span id="sessionId">—</span></li>
+              <li><span>Phase</span><span id="sessionPhase">idle</span></li>
+              <li><span>Socket</span><span id="socketState">disconnected</span></li>
+              <li><span>Transcript</span><span id="transcriptSize">0 records</span></li>
+            </ul>
+          </section>
+
+          <section class="panel">
+            <h2>Event Feed</h2>
+            <ul id="eventFeed" class="event-feed"></ul>
+          </section>
+
+          <section class="panel warning">
+            <h2>Safety Notice</h2>
+            <p><strong>Codex Console ships with no authentication.</strong> Always embed it behind a secure proxy and parent scenario with proper identity controls.</p>
+          </section>
+        </aside>
+
+        <section class="console">
+          <div id="terminal" class="terminal"></div>
+          <form id="inputForm" class="input-bar">
+            <textarea id="inputBox" rows="2" placeholder="Enter instruction for Codex. Press Enter to send, Shift+Enter for newline"></textarea>
+            <button id="sendBtn" type="submit" class="btn btn-accent">Send</button>
+          </form>
+          <div id="errorBanner" class="error-banner hidden"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
