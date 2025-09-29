@@ -41,12 +41,74 @@
             overflow-y: auto;
         }
 
+        .info-panel {
+            max-width: 1100px;
+            margin: 0 auto var(--spacing-lg);
+            padding: var(--spacing-lg);
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+        }
+
+        .info-panel h1 {
+            font-size: 1.75rem;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .info-panel p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .info-grid {
+            display: grid;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-md);
+        }
+
+        @media (min-width: 960px) {
+            .info-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .info-card {
+            padding: var(--spacing-md);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(42, 42, 42, 0.6);
+        }
+
+        .info-card h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent-primary);
+        }
+
+        .info-card p,
+        .info-card ul {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .info-card ul {
+            padding-left: 1.2rem;
+            margin: 0;
+        }
+
         .vault-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: var(--spacing-lg);
             max-width: 1400px;
             margin: 0 auto;
+        }
+
+        @media (max-width: 1100px) {
+            .vault-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .vault-panel {
@@ -64,29 +126,51 @@
         }
 
         .phase-selector {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
             gap: var(--spacing-sm);
-            margin-bottom: var(--spacing-lg);
         }
 
-        .phase-chip {
-            padding: 0.5rem 1rem;
-            background: var(--bg-secondary);
+        .phase-option {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-sm);
+            padding: 0.75rem 1rem;
             border: 1px solid var(--border);
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.2s ease;
+            border-radius: 10px;
+            background: var(--bg-secondary);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .phase-chip:hover {
+        .phase-option:hover {
             border-color: var(--accent-primary);
+            box-shadow: 0 0 12px rgba(0, 255, 65, 0.15);
         }
 
-        .phase-chip.selected {
-            background: var(--accent-primary);
-            color: var(--bg-primary);
+        .phase-option:focus-within {
             border-color: var(--accent-primary);
+            box-shadow: 0 0 12px rgba(0, 255, 65, 0.25);
+        }
+
+        .phase-option input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-top: 4px;
+            accent-color: var(--accent-primary);
+        }
+
+        .phase-option-body {
+            flex: 1;
+        }
+
+        .phase-option-body .phase-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .phase-option-body .phase-description {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
         }
 
         .phase-config {
@@ -224,6 +308,11 @@
             border-color: var(--accent-error);
         }
 
+        .timeline-indicator.pending {
+            background: transparent;
+            color: var(--text-muted);
+        }
+
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -243,6 +332,74 @@
             font-size: 0.875rem;
         }
 
+        .vault-history {
+            margin-top: var(--spacing-lg);
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .history-table th,
+        .history-table td {
+            text-align: left;
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.85rem;
+        }
+
+        .history-table tr[data-latest="true"] td {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .history-table th {
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .history-empty {
+            padding: 1rem;
+            color: var(--text-muted);
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-secondary);
+        }
+
+        .status-pill[data-status="completed"],
+        .status-pill[data-status="passed"] {
+            background: rgba(57, 255, 20, 0.15);
+            color: var(--accent-success);
+        }
+
+        .status-pill[data-status="running"],
+        .status-pill[data-status="in_progress"] {
+            background: rgba(0, 212, 255, 0.15);
+            color: var(--accent-secondary);
+        }
+
+        .status-pill[data-status="failed"],
+        .status-pill[data-status="error"] {
+            background: rgba(255, 0, 64, 0.15);
+            color: var(--accent-error);
+        }
+
         .form-group {
             margin-bottom: var(--spacing-md);
         }
@@ -253,6 +410,13 @@
             color: var(--text-secondary);
             font-size: 0.875rem;
             font-weight: 500;
+        }
+
+        .form-helper {
+            display: block;
+            margin-top: 0.35rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
         }
 
         .form-input,
@@ -331,31 +495,91 @@
         <div id="nav-container"></div>
         
         <main class="main-content">
+            <section class="info-panel">
+                <h1>Test Vaults</h1>
+                <p>Vaults orchestrate an end-to-end validation journey for a scenario. Instead of kicking off individual suites manually, you define the phases, articulate success criteria, and let Test Genie enforce the entire run every time.</p>
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h3>When to use a vault</h3>
+                        <ul>
+                            <li>Pre-release sign-off that must cover setup → develop → test → deploy.</li>
+                            <li>Customer or environment-specific smoke workflows you need on repeat.</li>
+                            <li>Chaos or incident drills where every step must complete without intervention.</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <h3>What you configure</h3>
+                        <ul>
+                            <li>Scenario &amp; vault name for traceability.</li>
+                            <li>Phases to run, with per-phase notes and time budgets.</li>
+                            <li>Success criteria such as coverage thresholds or failure tolerance.</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <h3>What you get back</h3>
+                        <p>An executable asset you can trigger from the UI or API. Test Genie stores history, streams live phase progress, and blocks completion until every requirement is satisfied.</p>
+                    </div>
+                </div>
+            </section>
             <div class="vault-grid">
                 <!-- Create Vault Panel -->
                 <div class="vault-panel">
                     <h2 class="panel-title">Create Test Vault</h2>
+                    <p class="form-helper">Pick or enter a scenario, choose the phases that matter, and we will assemble a reusable vault blueprint.</p>
                     
                     <form id="create-vault-form">
                         <div class="form-group">
-                            <label class="form-label" for="scenario-name">Scenario Name</label>
-                            <input type="text" id="scenario-name" class="form-input" placeholder="e.g., my-application" required>
+                            <label class="form-label" for="scenario-name">Scenario</label>
+                            <input type="text" id="scenario-name" class="form-input" placeholder="Start typing to search scenarios" list="scenario-options" autocomplete="off" required>
+                            <datalist id="scenario-options"></datalist>
+                            <span class="form-helper">We surface recently generated scenarios; you can always type a new name.</span>
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label" for="vault-name">Vault Name</label>
-                            <input type="text" id="vault-name" class="form-input" placeholder="e.g., comprehensive-test-vault" required>
+                            <input type="text" id="vault-name" class="form-input" placeholder="e.g., release-candidate-vault" required>
                         </div>
                         
                         <div class="form-group">
-                            <label class="form-label">Select Phases</label>
-                            <div class="phase-selector">
-                                <div class="phase-chip" data-phase="setup">Setup</div>
-                                <div class="phase-chip" data-phase="develop">Develop</div>
-                                <div class="phase-chip" data-phase="test">Test</div>
-                                <div class="phase-chip" data-phase="deploy">Deploy</div>
-                                <div class="phase-chip" data-phase="monitor">Monitor</div>
+                            <label class="form-label">Phases to Enforce</label>
+                            <div class="phase-selector" id="phase-selector">
+                                <label class="phase-option">
+                                    <input type="checkbox" data-phase="setup" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Setup</span>
+                                        <span class="phase-description">Provision dependencies, seed data, confirm configuration drift.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" data-phase="develop" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Develop</span>
+                                        <span class="phase-description">Execute unit and integration suites critical to developer feedback.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" data-phase="test" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Test</span>
+                                        <span class="phase-description">Run regression, smoke, or vault suites to validate functionality.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" data-phase="deploy">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Deploy</span>
+                                        <span class="phase-description">Verify rollout scripts, migrations, or packaging steps.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" data-phase="monitor">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Monitor</span>
+                                        <span class="phase-description">Watch health metrics, load tests, or canary checks after deployment.</span>
+                                    </div>
+                                </label>
                             </div>
+                            <span class="form-helper">Select every phase that must pass. We will create per-phase configuration sections below.</span>
                         </div>
                         
                         <div id="phase-configurations"></div>
@@ -383,8 +607,9 @@
                         </div>
                         
                         <div class="form-group">
-                            <label class="form-label" for="total-timeout">Total Timeout (seconds)</label>
+                            <label class="form-label" for="total-timeout">Total Vault Timeout (seconds)</label>
                             <input type="number" id="total-timeout" class="form-input" value="3600" min="60" required>
+                            <span class="form-helper">Acts as a failsafe to abort the run if the combined phases go longer than expected.</span>
                         </div>
                         
                         <button type="submit" class="btn btn-primary btn-block">Create Test Vault</button>
@@ -394,6 +619,7 @@
                 <!-- Existing Vaults Panel -->
                 <div class="vault-panel">
                     <h2 class="panel-title">Existing Vaults</h2>
+                    <p class="form-helper" style="margin-bottom: var(--spacing-md);">Click a vault to inspect its latest execution. A detailed timeline will appear below once metrics stream in.</p>
                     
                     <div class="vault-list" id="vault-list">
                         <!-- Vaults will be loaded here -->
@@ -403,6 +629,11 @@
                     <div class="execution-timeline" id="execution-timeline" style="display: none;">
                         <h3 style="margin-bottom: var(--spacing-md);">Execution Progress</h3>
                         <div id="timeline-phases"></div>
+                    </div>
+
+                    <div class="vault-history" id="vault-history" style="display: none;">
+                        <h3 style="margin-bottom: var(--spacing-md);">Execution History</h3>
+                        <div id="vault-history-content"></div>
                     </div>
                 </div>
             </div>
@@ -425,46 +656,130 @@
         header.startStatusCheck();
         
         // Phase selection
-        const phaseChips = document.querySelectorAll('.phase-chip');
+        const phaseCheckboxes = document.querySelectorAll('#phase-selector input[type="checkbox"]');
         const phaseConfigurations = document.getElementById('phase-configurations');
         const selectedPhases = new Set();
-        
-        phaseChips.forEach(chip => {
-            chip.addEventListener('click', () => {
-                const phase = chip.dataset.phase;
-                
-                if (selectedPhases.has(phase)) {
-                    selectedPhases.delete(phase);
-                    chip.classList.remove('selected');
-                } else {
+        const phaseDrafts = new Map();
+        const defaultPhaseSelection = new Set(['setup', 'develop', 'test']);
+        const phaseDefinitions = {
+            setup: {
+                label: 'Setup',
+                description: 'Describe provisioning, seeding, or environment validation steps.',
+                defaultTimeout: 600
+            },
+            develop: {
+                label: 'Develop',
+                description: 'Outline developer-focused checks (lint, unit, feature toggles).',
+                defaultTimeout: 900
+            },
+            test: {
+                label: 'Test',
+                description: 'List the regression, smoke, and integration runs required here.',
+                defaultTimeout: 1200
+            },
+            deploy: {
+                label: 'Deploy',
+                description: 'Capture rollout, migration, or packaging requirements.',
+                defaultTimeout: 900
+            },
+            monitor: {
+                label: 'Monitor',
+                description: 'Document the signals that prove the system is healthy post-deploy.',
+                defaultTimeout: 900
+            }
+        };
+
+        phaseCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                const phase = checkbox.dataset.phase;
+                if (checkbox.checked) {
                     selectedPhases.add(phase);
-                    chip.classList.add('selected');
+                } else {
+                    selectedPhases.delete(phase);
                 }
-                
                 updatePhaseConfigurations();
             });
         });
-        
+
         function updatePhaseConfigurations() {
+            // Capture current edits before rebuilding UI
+            document.querySelectorAll('.phase-config').forEach(config => {
+                const timeoutInput = config.querySelector('.timeout-input');
+                const notesField = config.querySelector('textarea');
+                const phase = timeoutInput?.dataset.phase;
+                if (!phase) return;
+                phaseDrafts.set(phase, {
+                    timeout: timeoutInput.value,
+                    description: notesField?.value || ''
+                });
+            });
+
             phaseConfigurations.innerHTML = '';
-            
-            selectedPhases.forEach(phase => {
+
+            if (selectedPhases.size === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'form-helper';
+                empty.style.padding = '0.75rem 0';
+                empty.textContent = 'Select at least one phase above to configure timeouts and intent.';
+                phaseConfigurations.appendChild(empty);
+                return;
+            }
+
+            const orderedPhases = Object.keys(phaseDefinitions).filter(phase => selectedPhases.has(phase));
+            orderedPhases.forEach(phase => {
+                const definition = phaseDefinitions[phase];
+                const draft = phaseDrafts.get(phase) || {};
+                const timeoutValue = Number(draft.timeout) || definition.defaultTimeout;
+                const notesValue = draft.description || '';
                 const config = document.createElement('div');
                 config.className = 'phase-config';
                 config.innerHTML = `
                     <div class="phase-config-header">
-                        <span class="phase-name">${phase.charAt(0).toUpperCase() + phase.slice(1)} Phase</span>
+                        <span class="phase-name">${definition.label} Phase</span>
                         <div class="phase-timeout">
                             <label>Timeout:</label>
-                            <input type="number" class="timeout-input" data-phase="${phase}" value="600" min="30">
+                            <input type="number" class="timeout-input" data-phase="${phase}" value="${timeoutValue}" min="30">
                             <span>seconds</span>
                         </div>
                     </div>
-                    <textarea class="form-textarea" placeholder="Describe tests for ${phase} phase..." data-phase-desc="${phase}"></textarea>
+                    <textarea class="form-textarea" placeholder="${definition.description}" data-phase-desc="${phase}"></textarea>
                 `;
                 phaseConfigurations.appendChild(config);
+
+                const timeoutInput = config.querySelector('.timeout-input');
+                const notesField = config.querySelector('textarea');
+                timeoutInput.value = timeoutValue;
+                if (notesValue) {
+                    notesField.value = notesValue;
+                }
+
+                const persistDraft = () => {
+                    phaseDrafts.set(phase, {
+                        timeout: timeoutInput.value,
+                        description: notesField.value
+                    });
+                };
+
+                timeoutInput.addEventListener('input', persistDraft);
+                notesField.addEventListener('input', persistDraft);
             });
         }
+
+        function resetPhaseSelectionToDefault() {
+            selectedPhases.clear();
+            phaseDrafts.clear();
+            phaseCheckboxes.forEach(checkbox => {
+                const phase = checkbox.dataset.phase;
+                const shouldSelect = defaultPhaseSelection.has(phase);
+                checkbox.checked = shouldSelect;
+                if (shouldSelect) {
+                    selectedPhases.add(phase);
+                }
+            });
+            updatePhaseConfigurations();
+        }
+
+        resetPhaseSelectionToDefault();
         
         // Form submission
         const form = document.getElementById('create-vault-form');
@@ -477,7 +792,7 @@
             }
             
             const phaseConfigs = {};
-            selectedPhases.forEach(phase => {
+            Array.from(selectedPhases).forEach(phase => {
                 const timeout = document.querySelector(`input[data-phase="${phase}"]`)?.value || 600;
                 const description = document.querySelector(`textarea[data-phase-desc="${phase}"]`)?.value || '';
                 
@@ -510,15 +825,251 @@
                 const result = await api.createTestVault(vaultConfig);
                 Toast.show('Test vault created successfully!', 'success');
                 form.reset();
-                selectedPhases.clear();
-                phaseChips.forEach(chip => chip.classList.remove('selected'));
-                phaseConfigurations.innerHTML = '';
+                resetPhaseSelectionToDefault();
                 loadVaults();
+                loadScenarioOptions();
             } catch (error) {
                 Toast.show('Failed to create vault: ' + error.message, 'error');
             }
         });
-        
+
+        async function loadScenarioOptions() {
+            const datalist = document.getElementById('scenario-options');
+            if (!datalist) return;
+
+            try {
+                const response = await api.listTestSuites();
+                let suites = [];
+                if (Array.isArray(response)) {
+                    suites = response;
+                } else if (Array.isArray(response?.test_suites)) {
+                    suites = response.test_suites;
+                } else if (Array.isArray(response?.items)) {
+                    suites = response.items;
+                } else if (Array.isArray(response?.data)) {
+                    suites = response.data;
+                }
+
+                const names = Array.from(new Set(suites
+                    .map(suite => suite?.scenario_name)
+                    .filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+                if (names.length > 0) {
+                    datalist.innerHTML = names.map(name => `<option value="${name}"></option>`).join('');
+                }
+            } catch (error) {
+                console.warn('Unable to load scenario names for vaults', error);
+            }
+        }
+
+        function normalizeExecutionsResponse(response) {
+            if (!response) return [];
+            if (Array.isArray(response)) return response;
+            if (Array.isArray(response.executions)) return response.executions;
+            if (Array.isArray(response.items)) return response.items;
+            if (Array.isArray(response.data)) return response.data;
+            return [];
+        }
+
+        function parseDate(value) {
+            if (!value) return null;
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? null : date;
+        }
+
+        function formatDateTime(value) {
+            const date = parseDate(value);
+            if (!date) return '—';
+            return date.toLocaleString();
+        }
+
+        function formatDurationSeconds(totalSeconds) {
+            if (!Number.isFinite(totalSeconds)) {
+                return '—';
+            }
+            const seconds = Math.max(0, Math.round(totalSeconds));
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const remainingSeconds = seconds % 60;
+            const parts = [];
+            if (hours) parts.push(`${hours}h`);
+            if (minutes) parts.push(`${minutes}m`);
+            if (!hours && (remainingSeconds || parts.length === 0)) {
+                parts.push(`${remainingSeconds}s`);
+            }
+            return parts.join(' ');
+        }
+
+        function getStatusDescriptor(status) {
+            const normalized = (status || '').toString().toLowerCase();
+            if (["passed", "completed", "success", "succeeded", "done"].includes(normalized)) {
+                return { key: 'completed', label: 'Completed', icon: 'check' };
+            }
+            if (["running", "in_progress", "active", "processing"].includes(normalized)) {
+                return { key: 'running', label: 'In Progress', icon: 'zap' };
+            }
+            if (["failed", "error", "stopped", "cancelled"].includes(normalized)) {
+                return { key: 'failed', label: 'Failed', icon: 'x' };
+            }
+            return { key: 'pending', label: 'Pending', icon: 'clock' };
+        }
+
+        function ensurePhaseOrder(configuredPhases, executionDetails, latestExecution) {
+            const order = [];
+            const seen = new Set();
+
+            function addPhase(phase) {
+                if (!phase) return;
+                const phaseName = String(phase);
+                const key = phaseName.toLowerCase();
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    order.push(phaseName);
+                }
+            }
+
+            (configuredPhases || []).forEach(addPhase);
+
+            const phaseResults = executionDetails?.phase_results || {};
+            Object.keys(phaseResults).forEach(addPhase);
+
+            (executionDetails?.completed_phases || latestExecution?.completed_phases || []).forEach(addPhase);
+            (executionDetails?.failed_phases || latestExecution?.failed_phases || []).forEach(addPhase);
+            addPhase(executionDetails?.current_phase || latestExecution?.current_phase);
+
+            return order;
+        }
+
+        function formatPhaseLabel(phase) {
+            if (!phase) return 'Phase';
+            return phase
+                .toString()
+                .replace(/[_-]+/g, ' ')
+                .split(' ')
+                .filter(Boolean)
+                .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                .join(' ');
+        }
+
+        function renderTimelineForVault(phases, executionDetails, latestExecution, container) {
+            const phaseResultsRaw = executionDetails?.phase_results || {};
+            const phaseResults = {};
+            Object.entries(phaseResultsRaw).forEach(([key, value]) => {
+                phaseResults[key.toLowerCase()] = value;
+            });
+
+            const completedSet = new Set((executionDetails?.completed_phases || latestExecution?.completed_phases || []).map(p => p.toLowerCase()));
+            const failedSet = new Set((executionDetails?.failed_phases || latestExecution?.failed_phases || []).map(p => p.toLowerCase()));
+            const currentPhase = (executionDetails?.current_phase || latestExecution?.current_phase || '').toLowerCase();
+
+            const orderedPhases = ensurePhaseOrder(phases, executionDetails, latestExecution);
+
+            if (!orderedPhases.length) {
+                container.innerHTML = '<div class="history-empty">No phase data available yet. Run the vault to populate results.</div>';
+                return;
+            }
+
+            const timelineHtml = orderedPhases.map(phaseName => {
+                const lowerPhase = phaseName.toLowerCase();
+                const result = phaseResults[lowerPhase];
+                let descriptor = result ? getStatusDescriptor(result.status) : getStatusDescriptor(null);
+
+                if (failedSet.has(lowerPhase)) {
+                    descriptor = { key: 'failed', label: 'Failed', icon: 'x' };
+                } else if (completedSet.has(lowerPhase)) {
+                    descriptor = { key: 'completed', label: 'Completed', icon: 'check' };
+                } else if (currentPhase === lowerPhase) {
+                    descriptor = { key: 'running', label: 'In Progress', icon: 'zap' };
+                }
+
+                const detailParts = [];
+                const duration = result?.duration ?? executionDetails?.phase_results?.[phaseName]?.duration;
+                if (Number.isFinite(duration)) {
+                    detailParts.push(`Duration: ${formatDurationSeconds(duration)}`);
+                }
+                let testCount = result?.test_count;
+                if (!Number.isFinite(testCount) && Array.isArray(result?.test_results)) {
+                    testCount = result.test_results.length;
+                }
+                if (Number.isFinite(testCount)) {
+                    detailParts.push(`${testCount} tests`);
+                }
+                if (!detailParts.length) {
+                    if (descriptor.key === 'pending') {
+                        detailParts.push('Waiting to start');
+                    } else {
+                        detailParts.push(descriptor.label);
+                    }
+                }
+
+                const iconHtml = descriptor.icon ? `<i data-lucide="${descriptor.icon}"></i>` : '';
+                const label = formatPhaseLabel(phaseName);
+
+                return `
+                    <div class="timeline-phase">
+                        <div class="timeline-indicator ${descriptor.key}">${iconHtml}</div>
+                        <div class="timeline-content">
+                            <div class="timeline-phase-name">${label}</div>
+                            <div class="timeline-phase-status">${detailParts.join(' • ')}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = timelineHtml;
+        }
+
+        function renderVaultHistoryTable(executions, container) {
+            if (!Array.isArray(executions) || executions.length === 0) {
+                container.innerHTML = '<div class="history-empty">No execution history available.</div>';
+                return;
+            }
+
+            const rows = executions.map((execution, index) => {
+                const descriptor = getStatusDescriptor(execution.status);
+                const statusHtml = `<span class="status-pill" data-status="${descriptor.key}"><i data-lucide="${descriptor.icon}"></i>${descriptor.label}</span>`;
+
+                let durationSeconds = Number(execution.duration);
+                if (!Number.isFinite(durationSeconds)) {
+                    const start = parseDate(execution.start_time);
+                    const end = parseDate(execution.end_time);
+                    if (start && end) {
+                        durationSeconds = (end.getTime() - start.getTime()) / 1000;
+                    }
+                }
+
+                const completedCount = Array.isArray(execution.completed_phases) ? execution.completed_phases.length : 0;
+                const failedCount = Array.isArray(execution.failed_phases) ? execution.failed_phases.length : 0;
+
+                return `
+                    <tr ${index === 0 ? 'data-latest="true"' : ''}>
+                        <td>${formatDateTime(execution.start_time)}</td>
+                        <td>${statusHtml}</td>
+                        <td>${completedCount}</td>
+                        <td>${failedCount}</td>
+                        <td>${formatDurationSeconds(durationSeconds)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Started</th>
+                            <th>Status</th>
+                            <th>Completed</th>
+                            <th>Failed</th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            `;
+        }
+
         // Load existing vaults
         async function loadVaults() {
             const vaultList = document.getElementById('vault-list');
@@ -526,13 +1077,14 @@
             
             try {
                 const vaults = await api.request('GET', '/test-vaults');
-                
-                if (vaults.length === 0) {
+                const vaultArray = Array.isArray(vaults) ? vaults : (Array.isArray(vaults?.items) ? vaults.items : []);
+
+                if (!Array.isArray(vaultArray) || vaultArray.length === 0) {
                     vaultList.innerHTML = '<div class="empty-message">No vaults created yet</div>';
                     return;
                 }
-                
-                vaultList.innerHTML = vaults.map(vault => `
+
+                vaultList.innerHTML = vaultArray.map(vault => `
                     <div class="vault-item" data-vault-id="${vault.id}">
                         <div class="vault-header">
                             <span class="vault-name">${vault.vault_name}</span>
@@ -562,47 +1114,56 @@
         async function showVaultExecution(vaultId) {
             const timeline = document.getElementById('execution-timeline');
             const timelinePhases = document.getElementById('timeline-phases');
-            
+            const historyContainer = document.getElementById('vault-history');
+            const historyContent = document.getElementById('vault-history-content');
+
             timeline.style.display = 'block';
+            historyContainer.style.display = 'block';
             timelinePhases.innerHTML = '<div class="loading-message">Loading execution details...</div>';
-            
+            historyContent.innerHTML = '<div class="loading-message">Loading vault history...</div>';
+
             try {
-                const vault = await api.getTestVault(vaultId);
-                
-                // Mock execution data (replace with real API call)
-                const phases = vault.phases || ['setup', 'develop', 'test'];
-                const executionStatus = {
-                    'setup': 'completed',
-                    'develop': 'running',
-                    'test': 'pending'
-                };
-                
-                timelinePhases.innerHTML = phases.map(phase => {
-                    const status = executionStatus[phase] || 'pending';
-                    const icon = status === 'completed' ? '<i data-lucide="check"></i>' : status === 'running' ? '<i data-lucide="zap"></i>' : '';
-                    
-                    return `
-                        <div class="timeline-phase">
-                            <div class="timeline-indicator ${status}">${icon}</div>
-                            <div class="timeline-content">
-                                <div class="timeline-phase-name">${phase.charAt(0).toUpperCase() + phase.slice(1)}</div>
-                                <div class="timeline-phase-status">${
-                                    status === 'completed' ? 'Completed successfully' :
-                                    status === 'running' ? 'Currently executing...' :
-                                    'Waiting to start'
-                                }</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
+                const [vault, executionsResponse] = await Promise.all([
+                    api.getTestVault(vaultId),
+                    api.listVaultExecutions({ vault_id: vaultId })
+                ]);
+
+                const executions = normalizeExecutionsResponse(executionsResponse);
+
+                if (!executions.length) {
+                    timelinePhases.innerHTML = '<div class="history-empty">No vault executions yet. Trigger the vault to see progress.</div>';
+                    historyContent.innerHTML = '<div class="history-empty">No execution history available.</div>';
+                    return;
+                }
+
+                executions.sort((a, b) => {
+                    const aDate = parseDate(a.start_time) || new Date(0);
+                    const bDate = parseDate(b.start_time) || new Date(0);
+                    return bDate.getTime() - aDate.getTime();
+                });
+
+                const latestExecution = executions[0];
+                let executionDetails = null;
+
+                try {
+                    executionDetails = await api.getVaultExecutionResults(latestExecution.id);
+                } catch (detailsError) {
+                    console.warn('Unable to load vault execution details', detailsError);
+                }
+
+                renderTimelineForVault(vault?.phases || [], executionDetails, latestExecution, timelinePhases);
+                renderVaultHistoryTable(executions, historyContent);
             } catch (error) {
+                console.error('Failed to load vault execution data:', error);
                 timelinePhases.innerHTML = '<div class="error-message">Failed to load execution details</div>';
+                historyContent.innerHTML = '<div class="error-message">Failed to load execution history</div>';
             }
         }
-        
+
         // Initial load
         loadVaults();
-        
+        loadScenarioOptions();
+
         // Initialize Lucide icons
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();

@@ -331,6 +331,12 @@
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 18px 28px rgba(0, 0, 0, 0.35);
+  table-layout: fixed;
+}
+
+.apps-table tbody {
+  display: table-row-group;
+  width: 100%;
 }
 
 .apps-table thead {
@@ -356,6 +362,7 @@
   background: rgba(8, 18, 12, 0.72);
   transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
+  width: 100%;
 }
 
 .apps-table tbody tr:nth-child(even) {
@@ -444,9 +451,9 @@
 
 .app-ports {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
   min-height: 32px;
 }
 
@@ -472,11 +479,13 @@
   display: inline-block;
   background: var(--matrix-dark);
   border: 1px solid var(--matrix-dark-green);
-  padding: 0.2rem 0.5rem;
+  padding: 0.15rem 0.45rem;
   border-radius: 2px;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   color: var(--matrix-light-green);
   font-family: 'Orbitron', monospace;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
 }
 
 .actions-cell {

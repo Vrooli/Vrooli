@@ -125,6 +125,7 @@ cd ui && npm start
 - **📈 Real-time Metrics**: Active suites, running tests, coverage trends
 - **🧪 Test Suite Management**: Create, execute, and monitor test suites
 - **📊 Coverage Visualization**: Interactive coverage analysis and gap identification
+- **🧠 Reports & Insights**: Aggregated quality analytics, trend visualizations, and AI-driven recommendations
 - **🏛️ Vault Creation**: Visual vault builder with drag-and-drop phases
 - **📋 Execution History**: Complete history of all test runs with detailed results
 

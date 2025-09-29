@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -339,4 +340,33 @@ func (h *AppHandler) ReportAppIssue(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// CheckAppIframeBridge evaluates iframe bridge diagnostics via scenario-auditor.
+func (h *AppHandler) CheckAppIframeBridge(c *gin.Context) {
+	id := c.Param("id")
+
+	result, err := h.appService.CheckIframeBridgeRule(c.Request.Context(), id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrAppNotFound), errors.Is(err, services.ErrScenarioBridgeScenarioMissing):
+			status = http.StatusNotFound
+		case errors.Is(err, services.ErrScenarioAuditorUnavailable):
+			status = http.StatusServiceUnavailable
+		}
+
+		c.JSON(status, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+	})
 }

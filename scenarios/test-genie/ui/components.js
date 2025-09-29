@@ -285,6 +285,16 @@ class TestGenieAPI {
         return this.request('POST', `/test-vault/${vaultId}/execute`, config);
     }
 
+    async listVaultExecutions(params = {}) {
+        const query = new URLSearchParams(params).toString();
+        const endpoint = query ? `/vault-executions?${query}` : '/vault-executions';
+        return this.request('GET', endpoint);
+    }
+
+    async getVaultExecutionResults(executionId) {
+        return this.request('GET', `/vault-execution/${executionId}/results`);
+    }
+
     // System Methods
     async getSystemStatus() {
         return this.request('GET', '/system/status');

@@ -659,3 +659,247 @@ func checkSlotConflicts(startTime, endTime time.Time, participants []string) int
 	
 	return conflictCount
 }
+
+// Date arithmetic handlers
+
+// addTimeHandler handles adding duration to a time
+func addTimeHandler(w http.ResponseWriter, r *http.Request) {
+	var req TimeArithmeticRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	
+	// Parse the input time
+	inputTime, err := time.Parse(time.RFC3339, req.Time)
+	if err != nil {
+		// Try common formats
+		inputTime, err = time.Parse("2006-01-02 15:04:05", req.Time)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "Invalid time format")
+			return
+		}
+	}
+	
+	// Parse duration
+	duration, err := parseDuration(req.Duration, req.Unit)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid duration format")
+		return
+	}
+	
+	// Add duration
+	resultTime := inputTime.Add(duration)
+	
+	// Apply timezone if specified
+	if req.Timezone != "" {
+		loc, err := time.LoadLocation(req.Timezone)
+		if err == nil {
+			resultTime = resultTime.In(loc)
+		}
+	}
+	
+	response := TimeArithmeticResponse{
+		OriginalTime: inputTime.Format(time.RFC3339),
+		Duration:     req.Duration,
+		ResultTime:   resultTime.Format(time.RFC3339),
+		Operation:    "add",
+	}
+	
+	respondJSON(w, http.StatusOK, response)
+}
+
+// subtractTimeHandler handles subtracting duration from a time
+func subtractTimeHandler(w http.ResponseWriter, r *http.Request) {
+	var req TimeArithmeticRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	
+	// Parse the input time
+	inputTime, err := time.Parse(time.RFC3339, req.Time)
+	if err != nil {
+		// Try common formats
+		inputTime, err = time.Parse("2006-01-02 15:04:05", req.Time)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "Invalid time format")
+			return
+		}
+	}
+	
+	// Parse duration
+	duration, err := parseDuration(req.Duration, req.Unit)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid duration format")
+		return
+	}
+	
+	// Subtract duration
+	resultTime := inputTime.Add(-duration)
+	
+	// Apply timezone if specified
+	if req.Timezone != "" {
+		loc, err := time.LoadLocation(req.Timezone)
+		if err == nil {
+			resultTime = resultTime.In(loc)
+		}
+	}
+	
+	response := TimeArithmeticResponse{
+		OriginalTime: inputTime.Format(time.RFC3339),
+		Duration:     req.Duration,
+		ResultTime:   resultTime.Format(time.RFC3339),
+		Operation:    "subtract",
+	}
+	
+	respondJSON(w, http.StatusOK, response)
+}
+
+// parseTimeHandler intelligently parses various time formats
+func parseTimeHandler(w http.ResponseWriter, r *http.Request) {
+	var req TimeParseRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	
+	// Try various time formats
+	formats := []string{
+		time.RFC3339,
+		time.RFC3339Nano,
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04:05",
+		"01/02/2006 15:04:05",
+		"01/02/2006 3:04 PM",
+		"02-Jan-2006 15:04:05",
+		"Mon Jan 2 15:04:05 2006",
+		"2006-01-02",
+		"01/02/2006",
+		"02-Jan-2006",
+		"January 2, 2006",
+		"Jan 2, 2006",
+		"15:04:05",
+		"3:04 PM",
+		"15:04",
+		"3:04pm",
+	}
+	
+	var parsedTime time.Time
+	var parseErr error
+	confidence := "high"
+	isAmbiguous := false
+	
+	// If format hint provided, try it first
+	if req.Format != "" {
+		parsedTime, parseErr = time.Parse(req.Format, req.Input)
+	}
+	
+	// Try standard formats
+	if parseErr != nil {
+		for _, format := range formats {
+			parsedTime, parseErr = time.Parse(format, req.Input)
+			if parseErr == nil {
+				// Check for ambiguity (e.g., 01/02/2006 could be MM/DD or DD/MM)
+				if strings.Contains(format, "01/02") || strings.Contains(format, "02/01") {
+					isAmbiguous = true
+					confidence = "medium"
+				}
+				break
+			}
+		}
+	}
+	
+	if parseErr != nil {
+		// Try Unix timestamp
+		if timestamp, err := strconv.ParseInt(req.Input, 10, 64); err == nil {
+			parsedTime = time.Unix(timestamp, 0)
+			parseErr = nil
+		}
+	}
+	
+	if parseErr != nil {
+		respondError(w, http.StatusBadRequest, "Unable to parse time format")
+		return
+	}
+	
+	// Apply timezone if specified
+	timezone := "UTC"
+	if req.Timezone != "" {
+		if loc, err := time.LoadLocation(req.Timezone); err == nil {
+			parsedTime = parsedTime.In(loc)
+			timezone = req.Timezone
+		}
+	}
+	
+	response := TimeParseResponse{
+		ParsedTime:  parsedTime.Format(time.RFC3339),
+		RFC3339:     parsedTime.Format(time.RFC3339),
+		Unix:        parsedTime.Unix(),
+		Timezone:    timezone,
+		IsAmbiguous: isAmbiguous,
+		Confidence:  confidence,
+	}
+	
+	respondJSON(w, http.StatusOK, response)
+}
+
+// parseDuration parses duration string like "2 hours", "30 minutes", "1 day"
+func parseDuration(duration string, unit string) (time.Duration, error) {
+	// Try standard Go duration first
+	if d, err := time.ParseDuration(duration); err == nil {
+		return d, nil
+	}
+	
+	// Parse custom format "X unit"
+	parts := strings.Fields(duration)
+	if len(parts) == 2 {
+		amount, err := strconv.ParseFloat(parts[0], 64)
+		if err != nil {
+			return 0, err
+		}
+		
+		unit := strings.ToLower(parts[1])
+		switch {
+		case strings.HasPrefix(unit, "second"):
+			return time.Duration(amount * float64(time.Second)), nil
+		case strings.HasPrefix(unit, "minute"):
+			return time.Duration(amount * float64(time.Minute)), nil
+		case strings.HasPrefix(unit, "hour"):
+			return time.Duration(amount * float64(time.Hour)), nil
+		case strings.HasPrefix(unit, "day"):
+			return time.Duration(amount * 24 * float64(time.Hour)), nil
+		case strings.HasPrefix(unit, "week"):
+			return time.Duration(amount * 7 * 24 * float64(time.Hour)), nil
+		case strings.HasPrefix(unit, "month"):
+			// Approximate - 30 days
+			return time.Duration(amount * 30 * 24 * float64(time.Hour)), nil
+		case strings.HasPrefix(unit, "year"):
+			// Approximate - 365 days
+			return time.Duration(amount * 365 * 24 * float64(time.Hour)), nil
+		}
+	}
+	
+	// If unit provided separately
+	if unit != "" && duration != "" {
+		amount, err := strconv.ParseFloat(duration, 64)
+		if err != nil {
+			return 0, err
+		}
+		
+		switch strings.ToLower(unit) {
+		case "s", "second", "seconds":
+			return time.Duration(amount * float64(time.Second)), nil
+		case "m", "minute", "minutes":
+			return time.Duration(amount * float64(time.Minute)), nil
+		case "h", "hour", "hours":
+			return time.Duration(amount * float64(time.Hour)), nil
+		case "d", "day", "days":
+			return time.Duration(amount * 24 * float64(time.Hour)), nil
+		case "w", "week", "weeks":
+			return time.Duration(amount * 7 * 24 * float64(time.Hour)), nil
+		}
+	}
+	
+	return 0, fmt.Errorf("invalid duration format")
+}

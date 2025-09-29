@@ -7,13 +7,13 @@ echo "🔍 Setting up Qdrant vector collections..."
 
 # Wait for Qdrant to be ready
 echo "Waiting for Qdrant to be ready..."
-timeout 60 bash -c 'until curl -sf http://localhost:${RESOURCE_PORTS[qdrant]}/health > /dev/null 2>&1; do sleep 1; done'
+timeout 60 bash -c 'until curl -sf http://localhost:6333/ > /dev/null 2>&1; do sleep 1; done'
 
 # Create collections
 echo "Creating vector collections..."
 
 # Collection for scraped content similarity
-curl -X PUT "http://localhost:${RESOURCE_PORTS[qdrant]}/collections/scraped_content" \
+curl -X PUT "http://localhost:6333/collections/scraped_content" \
   -H "Content-Type: application/json" \
   -d '{
     "vectors": {
@@ -26,7 +26,7 @@ curl -X PUT "http://localhost:${RESOURCE_PORTS[qdrant]}/collections/scraped_cont
   }' || echo "Collection scraped_content may already exist"
 
 # Collection for content deduplication
-curl -X PUT "http://localhost:${RESOURCE_PORTS[qdrant]}/collections/content_dedupe" \
+curl -X PUT "http://localhost:6333/collections/content_dedupe" \
   -H "Content-Type: application/json" \
   -d '{
     "vectors": {

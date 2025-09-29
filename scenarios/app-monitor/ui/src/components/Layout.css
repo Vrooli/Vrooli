@@ -221,6 +221,7 @@
 
 .status-chip {
   display: inline-flex;
+  flex-direction: row;
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0.9rem;
@@ -246,6 +247,7 @@
   height: 0.55rem;
   border-radius: 999px;
   box-shadow: 0 0 10px currentColor;
+  flex-shrink: 0;
 }
 
 .status-indicator.online {
@@ -258,6 +260,9 @@
 
 .status-text {
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .status-chip.offline .status-text {

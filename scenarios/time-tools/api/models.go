@@ -45,6 +45,35 @@ type DurationCalculationResponse struct {
 	CalendarDays     int     `json:"calendar_days"`
 }
 
+type TimeArithmeticRequest struct {
+	Time     string `json:"time"`
+	Duration string `json:"duration"`
+	Unit     string `json:"unit,omitempty"`
+	Timezone string `json:"timezone,omitempty"`
+}
+
+type TimeArithmeticResponse struct {
+	OriginalTime string `json:"original_time"`
+	Duration     string `json:"duration"`
+	ResultTime   string `json:"result_time"`
+	Operation    string `json:"operation"`
+}
+
+type TimeParseRequest struct {
+	Input    string `json:"input"`
+	Timezone string `json:"timezone,omitempty"`
+	Format   string `json:"format,omitempty"`
+}
+
+type TimeParseResponse struct {
+	ParsedTime   string `json:"parsed_time"`
+	RFC3339      string `json:"rfc3339"`
+	Unix         int64  `json:"unix"`
+	Timezone     string `json:"timezone"`
+	IsAmbiguous  bool   `json:"is_ambiguous"`
+	Confidence   string `json:"confidence"`
+}
+
 type ScheduleOptimizationRequest struct {
 	Participants     []string  `json:"participants"`
 	DurationMinutes  int       `json:"duration_minutes"`

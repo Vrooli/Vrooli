@@ -46,6 +46,35 @@ type AppService struct {
 	viewStats   map[string]*viewStatsEntry
 }
 
+var (
+	ErrAppIdentifierRequired         = errors.New("app identifier is required")
+	ErrAppNotFound                   = errors.New("app not found")
+	ErrScenarioAuditorUnavailable    = errors.New("scenario-auditor unavailable")
+	ErrScenarioBridgeScenarioMissing = errors.New("scenario missing for bridge audit")
+)
+
+type BridgeRuleViolation struct {
+	Type           string `json:"type"`
+	Title          string `json:"title"`
+	Description    string `json:"description"`
+	FilePath       string `json:"file_path"`
+	Line           int    `json:"line"`
+	Recommendation string `json:"recommendation"`
+	Severity       string `json:"severity"`
+	Standard       string `json:"standard,omitempty"`
+}
+
+type BridgeRuleReport struct {
+	RuleID       string                `json:"rule_id"`
+	Scenario     string                `json:"scenario"`
+	FilesScanned int                   `json:"files_scanned"`
+	DurationMs   int64                 `json:"duration_ms"`
+	Warning      string                `json:"warning,omitempty"`
+	Targets      []string              `json:"targets,omitempty"`
+	Violations   []BridgeRuleViolation `json:"violations"`
+	CheckedAt    time.Time             `json:"checked_at"`
+}
+
 // AppLogsResult captures lifecycle logs and background step logs for a scenario.
 type AppLogsResult struct {
 	Lifecycle  []string
@@ -78,6 +107,13 @@ func NewAppService(repo repository.AppRepository) *AppService {
 		viewStats: make(map[string]*viewStatsEntry),
 	}
 }
+
+const (
+	attachmentLifecycleName  = "app-monitor-lifecycle.txt"
+	attachmentConsoleName    = "app-monitor-console.json"
+	attachmentNetworkName    = "app-monitor-network.json"
+	attachmentScreenshotName = "app-monitor-screenshot.png"
+)
 
 func (s *AppService) invalidateCache() {
 	if s == nil || s.cache == nil {
@@ -1462,7 +1498,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	if len(sanitizedLogs) > 0 {
 		artifactContent := strings.Join(sanitizedLogs, "\n")
 		artifacts = append(artifacts, map[string]interface{}{
-			"name":         "app-monitor-lifecycle.txt",
+			"name":         attachmentLifecycleName,
 			"category":     "logs",
 			"content":      artifactContent,
 			"encoding":     "plain",
@@ -1478,7 +1514,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 			consoleContent = "[]"
 		}
 		artifacts = append(artifacts, map[string]interface{}{
-			"name":         "app-monitor-console.json",
+			"name":         attachmentConsoleName,
 			"category":     "console",
 			"content":      consoleContent,
 			"encoding":     "plain",
@@ -1494,7 +1530,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 			networkContent = "[]"
 		}
 		artifacts = append(artifacts, map[string]interface{}{
-			"name":         "app-monitor-network.json",
+			"name":         attachmentNetworkName,
 			"category":     "network",
 			"content":      networkContent,
 			"encoding":     "plain",
@@ -1503,7 +1539,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	}
 	if screenshotData != "" {
 		artifacts = append(artifacts, map[string]interface{}{
-			"name":         "app-monitor-screenshot.png",
+			"name":         attachmentScreenshotName,
 			"category":     "screenshot",
 			"content":      screenshotData,
 			"encoding":     "base64",
@@ -1559,6 +1595,128 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	return result, nil
 }
 
+type scenarioAuditorRuleResponse struct {
+	RuleID       string                     `json:"rule_id"`
+	Scenario     string                     `json:"scenario"`
+	FilesScanned int                        `json:"files_scanned"`
+	Violations   []scenarioAuditorViolation `json:"violations"`
+	Targets      []string                   `json:"targets"`
+	DurationMs   int64                      `json:"duration_ms"`
+	Warning      string                     `json:"warning"`
+}
+
+type scenarioAuditorViolation struct {
+	ID             string `json:"id"`
+	ScenarioName   string `json:"scenario_name"`
+	Type           string `json:"type"`
+	Severity       string `json:"severity"`
+	Title          string `json:"title"`
+	Description    string `json:"description"`
+	FilePath       string `json:"file_path"`
+	LineNumber     int    `json:"line_number"`
+	Recommendation string `json:"recommendation"`
+	Standard       string `json:"standard"`
+}
+
+// CheckIframeBridgeRule validates scenario iframe bridge compliance via scenario-auditor.
+func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*BridgeRuleReport, error) {
+	id := strings.TrimSpace(appID)
+	if id == "" {
+		return nil, ErrAppIdentifierRequired
+	}
+
+	app, err := s.GetApp(ctx, id)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return nil, fmt.Errorf("%w: %v", ErrAppNotFound, err)
+		}
+		return nil, err
+	}
+
+	scenarioName := strings.TrimSpace(app.ScenarioName)
+	if scenarioName == "" {
+		scenarioName = strings.TrimSpace(app.ID)
+	}
+	if scenarioName == "" {
+		scenarioName = id
+	}
+
+	port, err := s.locateScenarioAuditorAPIPort(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrScenarioAuditorUnavailable, err)
+	}
+
+	payload := struct {
+		Scenario string `json:"scenario"`
+	}{Scenario: scenarioName}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	endpoint := fmt.Sprintf("http://localhost:%d/api/v1/rules/iframe_bridge_quality/scenario-test", port)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrScenarioAuditorUnavailable, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("%w: scenario %s", ErrScenarioBridgeScenarioMissing, scenarioName)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		reason := strings.TrimSpace(string(bodyBytes))
+		if reason == "" {
+			reason = http.StatusText(resp.StatusCode)
+		}
+		return nil, fmt.Errorf("scenario-auditor returned status %d: %s", resp.StatusCode, reason)
+	}
+
+	var auditorResp scenarioAuditorRuleResponse
+	if err := json.NewDecoder(resp.Body).Decode(&auditorResp); err != nil {
+		return nil, fmt.Errorf("failed to decode scenario-auditor response: %w", err)
+	}
+
+	scenario := strings.TrimSpace(auditorResp.Scenario)
+	if scenario == "" {
+		scenario = scenarioName
+	}
+
+	result := &BridgeRuleReport{
+		RuleID:       strings.TrimSpace(auditorResp.RuleID),
+		Scenario:     scenario,
+		FilesScanned: auditorResp.FilesScanned,
+		DurationMs:   auditorResp.DurationMs,
+		Warning:      strings.TrimSpace(auditorResp.Warning),
+		Targets:      auditorResp.Targets,
+		Violations:   make([]BridgeRuleViolation, 0, len(auditorResp.Violations)),
+		CheckedAt:    time.Now().UTC(),
+	}
+
+	for _, violation := range auditorResp.Violations {
+		result.Violations = append(result.Violations, BridgeRuleViolation{
+			Type:           strings.TrimSpace(violation.Type),
+			Title:          strings.TrimSpace(violation.Title),
+			Description:    strings.TrimSpace(violation.Description),
+			FilePath:       strings.TrimSpace(violation.FilePath),
+			Line:           violation.LineNumber,
+			Recommendation: strings.TrimSpace(violation.Recommendation),
+			Severity:       strings.TrimSpace(violation.Severity),
+			Standard:       strings.TrimSpace(violation.Standard),
+		})
+	}
+
+	return result, nil
+}
+
 func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error) {
 	if port, err := resolveScenarioPortViaCLI(ctx, "app-issue-tracker", "API_PORT"); err == nil && port > 0 {
 		return port, nil
@@ -1587,6 +1745,36 @@ func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error)
 	}
 
 	return 0, errors.New("app-issue-tracker is not running or no API port was found")
+}
+
+func (s *AppService) locateScenarioAuditorAPIPort(ctx context.Context) (int, error) {
+	if port, err := resolveScenarioPortViaCLI(ctx, "scenario-auditor", "API_PORT"); err == nil && port > 0 {
+		return port, nil
+	} else if err != nil {
+		fmt.Printf("Warning: failed to resolve scenario-auditor port via CLI: %v\n", err)
+	}
+
+	apps, err := s.GetAppsFromOrchestrator(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to inspect scenarios: %w", err)
+	}
+
+	for _, candidate := range apps {
+		name := strings.ToLower(strings.TrimSpace(candidate.ScenarioName))
+		if name == "" {
+			name = strings.ToLower(strings.TrimSpace(candidate.ID))
+		}
+		if name != "scenario-auditor" {
+			continue
+		}
+
+		port := resolvePort(candidate.PortMappings, []string{"api", "api_port", "API", "API_PORT"})
+		if port > 0 {
+			return port, nil
+		}
+	}
+
+	return 0, errors.New("scenario-auditor is not running or no API port was found")
 }
 
 func resolveScenarioPortViaCLI(ctx context.Context, scenarioName, portLabel string) (int, error) {
@@ -1820,83 +2008,54 @@ func buildIssueDescription(
 	}
 	builder.WriteString(fmt.Sprintf("- Reported At: %s\n", reportedAt.Format(time.RFC3339)))
 
+	trimmedMessage := strings.TrimSpace(message)
 	builder.WriteString("\n### Reporter Notes\n\n")
-	builder.WriteString(message)
+	if trimmedMessage != "" {
+		builder.WriteString(trimmedMessage)
+		builder.WriteString("\n")
+	} else {
+		builder.WriteString("_No additional notes were provided._\n")
+	}
+
+	builder.WriteString("\n### Diagnostics Summary\n\n")
+	builder.WriteString(formatDiagnosticsLine("Lifecycle logs", len(logs), logsTotal, logsCapturedAt, attachmentLifecycleName))
 	builder.WriteString("\n")
-
-	if len(logs) > 0 || logsTotal > 0 {
-		builder.WriteString("\n### Recent Logs\n\n")
-		if logsCapturedAt != "" {
-			if parsed, err := time.Parse(time.RFC3339, logsCapturedAt); err == nil {
-				builder.WriteString(fmt.Sprintf("_Captured at: %s_\n\n", parsed.Format(time.RFC3339)))
-			} else {
-				builder.WriteString(fmt.Sprintf("_Captured at: %s_\n\n", logsCapturedAt))
-			}
-		}
-
-		if len(logs) > 0 {
-			builder.WriteString("```text\n")
-			for _, line := range logs {
-				builder.WriteString(line)
-				builder.WriteByte('\n')
-			}
-			builder.WriteString("```\n")
-
-			if logsTotal > len(logs) && logsTotal > 0 {
-				builder.WriteString(fmt.Sprintf("\n_Note: showing last %d of %d lines._\n", len(logs), logsTotal))
-			}
-		} else {
-			builder.WriteString("_No log entries were captured for this report._\n")
-		}
-	}
-
-	if len(consoleLogs) > 0 || consoleTotal > 0 {
-		builder.WriteString("\n### Console Logs\n\n")
-		if consoleCapturedAt != "" {
-			builder.WriteString(fmt.Sprintf("_Captured at: %s_\n\n", parseOrEchoTimestamp(consoleCapturedAt)))
-		}
-
-		if len(consoleLogs) > 0 {
-			builder.WriteString("```text\n")
-			for _, entry := range consoleLogs {
-				builder.WriteString(formatConsoleLogEntry(entry))
-				builder.WriteByte('\n')
-			}
-			builder.WriteString("```\n")
-			if consoleTotal > len(consoleLogs) && consoleTotal > 0 {
-				builder.WriteString(fmt.Sprintf("\n_Note: showing last %d of %d console events._\n", len(consoleLogs), consoleTotal))
-			}
-		} else {
-			builder.WriteString("_No console events were captured for this report._\n")
-		}
-	}
-
-	if len(network) > 0 || networkTotal > 0 {
-		builder.WriteString("\n### Network Requests\n\n")
-		if networkCapturedAt != "" {
-			builder.WriteString(fmt.Sprintf("_Captured at: %s_\n\n", parseOrEchoTimestamp(networkCapturedAt)))
-		}
-
-		if len(network) > 0 {
-			builder.WriteString("```text\n")
-			for _, entry := range network {
-				builder.WriteString(formatNetworkEntry(entry))
-				builder.WriteByte('\n')
-			}
-			builder.WriteString("```\n")
-			if networkTotal > len(network) && networkTotal > 0 {
-				builder.WriteString(fmt.Sprintf("\n_Note: showing last %d of %d requests._\n", len(network), networkTotal))
-			}
-		} else {
-			builder.WriteString("_No network activity was captured for this report._\n")
-		}
-	}
-
+	builder.WriteString(formatDiagnosticsLine("Console events", len(consoleLogs), consoleTotal, consoleCapturedAt, attachmentConsoleName))
+	builder.WriteString("\n")
+	builder.WriteString(formatDiagnosticsLine("Network requests", len(network), networkTotal, networkCapturedAt, attachmentNetworkName))
+	builder.WriteString("\n")
 	if screenshotData != "" {
-		builder.WriteString("\n### Screenshot\n\n")
-		builder.WriteString("![Preview Screenshot](data:image/png;base64,")
-		builder.WriteString(screenshotData)
-		builder.WriteString(")\n")
+		builder.WriteString(fmt.Sprintf("- Screenshot captured (see `%s`).\n", attachmentScreenshotName))
+	} else {
+		builder.WriteString("- Screenshot not captured for this report.\n")
+	}
+
+	return builder.String()
+}
+
+func formatDiagnosticsLine(label string, capturedCount, reportedTotal int, capturedAt, attachmentName string) string {
+	var builder strings.Builder
+	if capturedCount <= 0 && reportedTotal <= 0 {
+		builder.WriteString(fmt.Sprintf("- %s were not captured for this report.", label))
+		return builder.String()
+	}
+
+	if capturedCount > 0 {
+		reported := reportedTotal
+		if reported < capturedCount {
+			reported = capturedCount
+		}
+		builder.WriteString(fmt.Sprintf("- %s: %d captured", label, capturedCount))
+		if reported > capturedCount {
+			builder.WriteString(fmt.Sprintf(" (showing subset of %d)", reported))
+		}
+		builder.WriteString(fmt.Sprintf("; see `%s`.", attachmentName))
+	} else {
+		builder.WriteString(fmt.Sprintf("- %s: report indicated %d available, but none were attached.", label, reportedTotal))
+	}
+
+	if capturedAt != "" {
+		builder.WriteString(fmt.Sprintf(" Captured at %s.", parseOrEchoTimestamp(capturedAt)))
 	}
 
 	return builder.String()

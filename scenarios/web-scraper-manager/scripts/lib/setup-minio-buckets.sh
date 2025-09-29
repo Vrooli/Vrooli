@@ -7,10 +7,10 @@ echo "🗄️ Setting up MinIO storage buckets..."
 
 # Wait for MinIO to be ready
 echo "Waiting for MinIO to be ready..."
-timeout 60 bash -c 'until curl -sf http://localhost:${RESOURCE_PORTS[minio]}/minio/health/ready > /dev/null 2>&1; do sleep 1; done'
+timeout 60 bash -c 'until curl -sf http://localhost:9000/minio/health/ready > /dev/null 2>&1; do sleep 1; done'
 
 # Configure MinIO client
-mc alias set local http://localhost:${RESOURCE_PORTS[minio]} minioadmin minioadmin 2>/dev/null || true
+mc alias set local http://localhost:9000 minioadmin minioadmin 2>/dev/null || true
 
 # Create buckets
 echo "Creating storage buckets..."

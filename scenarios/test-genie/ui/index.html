@@ -92,11 +92,19 @@
             background-size: 20px 20px;
         }
 
+        body.dialog-open {
+            overflow: hidden;
+        }
+
         body.sidebar-open {
             overflow: hidden;
         }
 
         body.suite-detail-open {
+            overflow: hidden;
+        }
+
+        body.execution-detail-open {
             overflow: hidden;
         }
 
@@ -486,6 +494,12 @@
             margin-bottom: var(--spacing-lg);
         }
 
+        .page-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
         .page-title {
             font-size: 2rem;
             font-weight: 600;
@@ -602,6 +616,12 @@
             justify-content: space-between;
         }
 
+        .panel-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
         .panel-title {
             font-size: 1.125rem;
             font-weight: 600;
@@ -611,6 +631,303 @@
         .panel-body {
             padding: var(--spacing-lg);
             overflow-x: auto;
+        }
+
+        .panel-subtext {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Reports */
+        .reports-content {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .reports-window-meta {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            letter-spacing: 0.02em;
+        }
+
+        .reports-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+        }
+
+        .report-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            padding: var(--spacing-md);
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.05);
+        }
+
+        .report-card-label {
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .report-card-value {
+            font-family: var(--font-mono);
+            font-size: 2.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.1;
+        }
+
+        .report-card-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .reports-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+            gap: var(--spacing-md);
+        }
+
+        .reports-trend-body {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        #reports-trend-canvas {
+            width: 100%;
+            border-radius: var(--panel-border-radius);
+            background: var(--bg-secondary);
+        }
+
+        .chart-legend {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .legend-swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .legend-swatch.pass {
+            background: #00ff41;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.25);
+        }
+
+        .legend-swatch.fail {
+            background: rgba(255, 0, 64, 0.7);
+            box-shadow: 0 0 10px rgba(255, 0, 64, 0.25);
+        }
+
+        .reports-empty,
+        .reports-error {
+            padding: var(--spacing-lg);
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .reports-error {
+            color: var(--accent-error);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .reports-table th,
+        .reports-table td {
+            white-space: nowrap;
+        }
+
+        .reports-cell-scenario {
+            min-width: 220px;
+        }
+
+        .reports-cell-scenario .scenario-name {
+            font-weight: 600;
+        }
+
+        .reports-cell-scenario .scenario-meta {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 0.35rem;
+        }
+
+        .reports-cell-health {
+            min-width: 140px;
+        }
+
+        .reports-cell-health .progress {
+            margin-bottom: 0.35rem;
+        }
+
+        .reports-cell-health .health-score {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .reports-cell-pass {
+            min-width: 90px;
+        }
+
+        .reports-cell-fail {
+            min-width: 120px;
+        }
+
+        .reports-cell-coverage {
+            min-width: 200px;
+        }
+
+        .reports-cell-coverage .coverage-target {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .reports-cell-vault {
+            min-width: 170px;
+        }
+
+        .vault-summary {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .vault-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .reports-cell-last {
+            min-width: 220px;
+        }
+
+        .reports-cell-last .last-status {
+            margin-bottom: 0.35rem;
+        }
+
+        .reports-cell-last .last-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .code {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .insight-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            padding: var(--spacing-md);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .insight-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: var(--spacing-sm);
+        }
+
+        .insight-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .insight-meta {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-top: 0.25rem;
+        }
+
+        .insight-scenario {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 12px;
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-secondary);
+            font-size: 0.75rem;
+        }
+
+        .insight-severity {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+        }
+
+        .insight-severity-high {
+            background: rgba(255, 0, 64, 0.15);
+            color: var(--accent-error);
+        }
+
+        .insight-severity-medium {
+            background: rgba(255, 107, 53, 0.15);
+            color: var(--accent-warning);
+        }
+
+        .insight-severity-info {
+            background: rgba(0, 212, 255, 0.15);
+            color: var(--accent-secondary);
+        }
+
+        .insight-severity-low {
+            background: rgba(57, 255, 20, 0.15);
+            color: var(--accent-success);
+        }
+
+        .insight-detail {
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .insight-actions {
+            margin-left: 1.2rem;
+            color: var(--text-secondary);
+        }
+
+        .insight-actions li {
+            margin-bottom: 0.35rem;
+        }
+
+        .reports-window-select {
+            width: auto;
+            min-width: 150px;
+            padding: 0.5rem 2.5rem 0.5rem 0.75rem;
         }
 
         #suites .panel-body {
@@ -740,6 +1057,24 @@
             height: 18px;
         }
 
+        .btn.icon-btn.highlighted {
+            border: 1px solid rgba(0, 212, 255, 0.35);
+            color: var(--accent-secondary);
+            background: rgba(0, 212, 255, 0.08);
+        }
+
+        .btn.icon-btn.highlighted:hover,
+        .btn.icon-btn.highlighted:focus-visible {
+            background: rgba(0, 212, 255, 0.18);
+            border-color: var(--accent-secondary);
+            color: var(--text-primary);
+            box-shadow: 0 0 16px rgba(0, 212, 255, 0.25);
+        }
+
+        .is-hidden {
+            display: none !important;
+        }
+
         /* Tables */
         .table {
             width: 100%;
@@ -786,12 +1121,20 @@
             color: var(--text-primary);
         }
 
+        .scenario-row.missing-scenario {
+            background: rgba(255, 107, 53, 0.06);
+        }
+
+        .scenario-row.missing-scenario:hover {
+            background: rgba(255, 107, 53, 0.12);
+        }
+
         .table .cell-scenario strong {
             color: var(--text-primary);
             font-weight: 600;
         }
 
-        .table .cell-types {
+        .table .cell-phases {
             color: var(--text-secondary);
             overflow-wrap: anywhere;
         }
@@ -800,10 +1143,16 @@
             white-space: nowrap;
         }
 
+        .coverage-empty {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
         .table .cell-actions {
             display: flex;
             align-items: center;
             justify-content: flex-end;
+            flex-direction: row;
             gap: 0.5rem;
             flex-wrap: wrap;
         }
@@ -826,14 +1175,40 @@
             padding: 0.75rem 1rem;
         }
 
-        .suites-table .cell-types {
+        .executions-table thead th {
+            padding: 0.75rem 1rem;
+        }
+
+        .executions-table tbody td {
+            padding: 0.75rem 1rem;
+        }
+
+        .suites-table .cell-phases {
             max-width: 22rem;
         }
 
-        .suites-table .cell-count,
         .suites-table .cell-status,
         .suites-table .cell-created {
             white-space: nowrap;
+        }
+
+        .table .cell-select {
+            width: 3rem;
+            text-align: center;
+        }
+
+        .table .cell-select input[type="checkbox"] {
+            width: 1rem;
+            height: 1rem;
+            cursor: pointer;
+        }
+
+        #executions-table {
+            padding: 0;
+        }
+
+        #executions .panel-body {
+            padding: 0;
         }
 
         .text-success {
@@ -935,6 +1310,18 @@
             flex-direction: column;
             overflow: hidden;
             position: relative;
+        }
+
+        #generate-dialog-overlay .suite-detail-panel {
+            max-width: 720px;
+        }
+
+        #vault-dialog-overlay .suite-detail-panel {
+            max-width: 960px;
+        }
+
+        #coverage-detail-overlay .suite-detail-panel {
+            max-width: 960px;
         }
 
         .suite-detail-header {
@@ -1135,6 +1522,157 @@
             color: var(--text-muted);
         }
 
+        /* Execution Detail Panel */
+        .execution-detail-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .execution-detail-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .execution-detail-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .execution-detail-status {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .execution-detail-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .execution-detail-content h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .execution-detail-failed-tests {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .execution-detail-failed-test {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-panel);
+            padding: 0.75rem 1rem;
+        }
+
+        .execution-detail-failed-test summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 1rem;
+        }
+
+        .execution-detail-failed-test summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .execution-detail-failed-test strong {
+            color: var(--accent-secondary);
+        }
+
+        .execution-detail-assertions {
+            margin-top: 0.5rem;
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .execution-detail-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .execution-detail-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 999px;
+            background: rgba(0, 212, 255, 0.12);
+            color: var(--accent-secondary);
+            font-size: 0.75rem;
+            letter-spacing: 0.02em;
+        }
+
+        .execution-detail-assertion {
+            padding: 0.75rem;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .execution-detail-recommendations {
+            margin-top: 0.5rem;
+            padding-left: 1.2rem;
+            color: var(--text-secondary);
+            display: grid;
+            gap: 0.35rem;
+            list-style: disc;
+            list-style-position: inside;
+        }
+
+        .execution-detail-stack {
+            margin-top: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-panel);
+            overflow: hidden;
+        }
+
+        .execution-detail-stack summary {
+            cursor: pointer;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .execution-detail-stack summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .execution-detail-stack pre {
+            margin: 0;
+            border-radius: 0;
+            border: none;
+        }
+
+        .execution-detail-empty {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 2rem;
+        }
+
         @media (max-width: 768px) {
             .suite-detail-panel {
                 width: 100%;
@@ -1276,6 +1814,18 @@
                 pointer-events: auto;
             }
 
+            .reports-metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .reports-grid {
+                gap: var(--spacing-sm);
+            }
+
+            .report-card {
+                padding: var(--spacing-sm);
+            }
+
             .content {
                 padding: var(--spacing-md);
             }
@@ -1287,6 +1837,299 @@
             body.sidebar-collapsed .sidebar {
                 display: block;
             }
+        }
+
+        /* Vault Enhancements */
+        .vault-overview {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .vault-overview .panel-body {
+            display: grid;
+            gap: var(--spacing-md);
+        }
+
+        .vault-overview-grid {
+            display: grid;
+            gap: var(--spacing-md);
+        }
+
+        @media (min-width: 960px) {
+            .vault-overview-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .vault-overview-card {
+            padding: var(--spacing-md);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(26, 26, 26, 0.8);
+        }
+
+        .vault-overview-card h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent-primary);
+        }
+
+        .vault-overview-card p,
+        .vault-overview-card ul {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.55;
+        }
+
+        .vault-overview-card ul {
+            padding-left: 1.2rem;
+            margin: 0;
+        }
+
+        .vault-inline-list {
+            margin: var(--spacing-sm) 0 0;
+            padding-left: 1.25rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .vault-inline-list li {
+            margin-bottom: 0.35rem;
+        }
+
+        .vault-main-layout {
+            display: grid;
+            gap: var(--spacing-lg);
+            grid-template-columns: 1fr;
+        }
+
+        @media (max-width: 1180px) {
+            .vault-main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-helper {
+            display: block;
+            margin-top: 0.35rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        .vault-phase-selector {
+            display: grid;
+            gap: var(--spacing-sm);
+        }
+
+        .phase-option {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-sm);
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-secondary);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .phase-option input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-top: 4px;
+            accent-color: var(--accent-primary);
+        }
+
+        .phase-option:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 12px rgba(0, 255, 65, 0.15);
+        }
+
+        .phase-option:focus-within {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 12px rgba(0, 255, 65, 0.25);
+        }
+
+        .phase-option-body {
+            flex: 1;
+        }
+
+        .phase-option-body .phase-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .phase-option-body .phase-description {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .vault-phase-configurations {
+            margin-top: var(--spacing-md);
+        }
+
+        .vault-phase-configurations .phase-config {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .vault-phase-configurations .phase-config:last-child {
+            margin-bottom: 0;
+        }
+
+        .phase-config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .phase-timeout {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .vault-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .vault-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: var(--spacing-md);
+            cursor: pointer;
+            transition: border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .vault-item:hover {
+            border-color: var(--accent-primary);
+            transform: translateX(4px);
+        }
+
+        .vault-item.is-active {
+            border-color: var(--accent-secondary);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.18);
+        }
+
+        .vault-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .vault-item-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .vault-timeline {
+            margin-top: var(--spacing-lg);
+        }
+
+        .timeline-indicator.pending {
+            background: transparent;
+            color: var(--text-muted);
+            border-color: var(--border);
+        }
+
+        .vault-history {
+            margin-top: var(--spacing-lg);
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .history-table th,
+        .history-table td {
+            text-align: left;
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.85rem;
+        }
+
+        .history-table th {
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .history-table tr[data-latest="true"] td {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .history-empty,
+        .loading-message,
+        .error-message,
+        .empty-message {
+            padding: 1rem;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .error-message {
+            color: var(--accent-error);
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-secondary);
+        }
+
+        .status-pill[data-status="completed"],
+        .status-pill[data-status="passed"] {
+            background: rgba(57, 255, 20, 0.15);
+            color: var(--accent-success);
+        }
+
+        .status-pill[data-status="running"],
+        .status-pill[data-status="in_progress"] {
+            background: rgba(0, 212, 255, 0.15);
+            color: var(--accent-secondary);
+        }
+
+        .status-pill[data-status="failed"],
+        .status-pill[data-status="error"] {
+            background: rgba(255, 0, 64, 0.15);
+            color: var(--accent-error);
+        }
+
+        .vault-result-card {
+            margin-top: var(--spacing-md);
+            padding: var(--spacing-md);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            background: rgba(0, 255, 65, 0.05);
+            display: none;
+        }
+
+        .vault-result-card.visible {
+            display: block;
         }
 
         /* Accessibility */
@@ -1306,6 +2149,74 @@
         .form-textarea:focus {
             outline: 2px solid var(--accent-primary);
             outline-offset: 2px;
+        }
+
+        .coverage-warning {
+            margin-top: 0.25rem;
+            font-size: 0.75rem;
+            color: var(--accent-warning);
+        }
+
+        .coverage-detail {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .coverage-detail-empty {
+            color: var(--text-muted);
+            text-align: center;
+            padding: var(--spacing-lg) 0;
+        }
+
+        .coverage-detail-grid {
+            display: grid;
+            gap: var(--spacing-lg);
+            grid-template-columns: 2fr 1fr;
+        }
+
+        .coverage-detail-column {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .coverage-detail-column h4 {
+            margin-bottom: 0.5rem;
+            color: var(--accent-primary);
+        }
+
+        .coverage-detail-column ul {
+            margin: 0 0 var(--spacing-sm);
+            padding-left: 1.25rem;
+            color: var(--text-secondary);
+        }
+
+        .coverage-gap-section {
+            margin-top: var(--spacing-sm);
+        }
+
+        .table.compact td,
+        .table.compact th {
+            padding: 0.4rem 0.6rem;
+        }
+
+        @media (max-width: 1024px) {
+            .coverage-detail-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .reports-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .reports-metrics {
+                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            }
+
+            .report-card-value {
+                font-size: 1.8rem;
+            }
         }
     </style>
 </head>
@@ -1371,10 +2282,6 @@
                 <div class="nav-item active" data-page="dashboard">
                     <i class="nav-icon" data-lucide="bar-chart-3"></i>
                     <span>Dashboard</span>
-                </div>
-                <div class="nav-item" data-page="generate">
-                    <i class="nav-icon" data-lucide="zap"></i>
-                    <span>Generate Tests</span>
                 </div>
                 <div class="nav-item" data-page="suites">
                     <i class="nav-icon" data-lucide="flask-conical"></i>
@@ -1501,80 +2408,23 @@
                 </div>
             </div>
 
-            <!-- Generate Tests Page -->
-            <div class="page" id="generate">
-                <div class="page-header">
-                    <div>
-                        <h1 class="page-title">Generate Test Suite</h1>
-                        <p class="page-subtitle">AI-powered comprehensive test generation</p>
-                    </div>
-                </div>
-
-                <div class="panel">
-                    <div class="panel-header">
-                        <h2 class="panel-title">Test Generation Configuration</h2>
-                    </div>
-                    <div class="panel-body">
-                        <form id="generate-form">
-                            <div class="form-group">
-                                <label class="form-label" for="scenario-name">Scenario Name</label>
-                                <input type="text" id="scenario-name" class="form-input" placeholder="Enter scenario name..." required>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label class="form-label" for="test-types">Test Types</label>
-                                    <select id="test-types" class="form-select" multiple>
-                                        <option value="unit" selected>Unit Tests</option>
-                                        <option value="integration" selected>Integration Tests</option>
-                                        <option value="performance">Performance Tests</option>
-                                        <option value="vault">Vault Tests</option>
-                                        <option value="regression">Regression Tests</option>
-                                    </select>
-                                </div>
-
-                                <div class="form-group">
-                                    <label class="form-label" for="coverage-target">Coverage Target (%)</label>
-                                    <input type="number" id="coverage-target" class="form-input" value="95" min="50" max="100">
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label">
-                                    <input type="checkbox" id="include-performance" checked> Include Performance Tests
-                                </label>
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label">
-                                    <input type="checkbox" id="include-security" checked> Include Security Tests
-                                </label>
-                            </div>
-
-                            <div class="form-group">
-                                <button type="submit" class="btn" id="generate-btn">
-                                    <i data-lucide="zap"></i>
-                                    Generate Test Suite
-                                </button>
-                            </div>
-                        </form>
-
-                        <div id="generation-result" class="code-block" style="display: none;"></div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Test Suites Page -->
             <div class="page" id="suites">
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Test Suites</h1>
-                        <p class="page-subtitle">Manage and monitor all test suites</p>
+                        <p class="page-subtitle">Inspect every scenario, generate suites, and monitor readiness</p>
                     </div>
-                    <button class="btn" onclick="loadTestSuites()">
-                        <i data-lucide="refresh-cw"></i>
-                        Refresh
-                    </button>
+                    <div class="page-actions">
+                        <button class="btn is-hidden" type="button" id="suites-run-selected-btn">
+                            <i data-lucide="play"></i>
+                            <span id="suites-run-selected-label">Run Selected</span>
+                        </button>
+                        <button class="btn" type="button" id="suites-refresh-btn">
+                            <i data-lucide="refresh-cw"></i>
+                            Refresh
+                        </button>
+                    </div>
                 </div>
 
                 <div class="panel">
@@ -1594,10 +2444,20 @@
                         <h1 class="page-title">Test Executions</h1>
                         <p class="page-subtitle">Monitor active and completed test runs</p>
                     </div>
-                    <button class="btn" onclick="loadExecutions()">
-                        <i data-lucide="refresh-cw"></i>
-                        Refresh
-                    </button>
+                    <div class="page-actions">
+                        <button class="btn secondary" type="button" id="executions-clear-btn">
+                            <i data-lucide="trash-2"></i>
+                            Clear All
+                        </button>
+                        <button class="btn warning is-hidden" type="button" id="executions-delete-selected-btn">
+                            <i data-lucide="trash-2"></i>
+                            Delete Selected
+                        </button>
+                        <button class="btn" type="button" id="executions-refresh-btn">
+                            <i data-lucide="refresh-cw"></i>
+                            Refresh
+                        </button>
+                    </div>
                 </div>
 
                 <div class="panel">
@@ -1615,41 +2475,28 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Coverage Analysis</h1>
-                        <p class="page-subtitle">Analyze test coverage and identify gaps</p>
+                        <p class="page-subtitle">Monitor per-scenario coverage and trigger new analyses</p>
+                    </div>
+                    <div class="page-actions">
+                        <button class="btn" type="button" id="coverage-refresh-btn">
+                            <i data-lucide="refresh-cw"></i>
+                            Refresh
+                        </button>
                     </div>
                 </div>
 
                 <div class="panel">
-                    <div class="panel-header">
-                        <h2 class="panel-title">Coverage Analysis Configuration</h2>
-                    </div>
                     <div class="panel-body">
-                        <form id="coverage-form">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label class="form-label" for="coverage-scenario">Scenario Name</label>
-                                    <input type="text" id="coverage-scenario" class="form-input" placeholder="Enter scenario name..." required>
-                                </div>
+                        <div id="coverage-table" class="loading">
+                            <div class="spinner"></div>
+                            Loading coverage summaries...
+                        </div>
+                    </div>
+                </div>
 
-                                <div class="form-group">
-                                    <label class="form-label" for="analysis-depth">Analysis Depth</label>
-                                    <select id="analysis-depth" class="form-select">
-                                        <option value="basic">Basic</option>
-                                        <option value="comprehensive" selected>Comprehensive</option>
-                                        <option value="deep">Deep Analysis</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <button type="submit" class="btn">
-                                    <i data-lucide="trending-up"></i>
-                                    Analyze Coverage
-                                </button>
-                            </div>
-                        </form>
-
-                        <div id="coverage-result" class="code-block" style="display: none;"></div>
+                <div class="panel coverage-hint">
+                    <div class="panel-body">
+                        <p class="panel-subtext">Select <strong>View</strong> to open coverage details in a dialog, or trigger a new analysis without leaving the summary grid.</p>
                     </div>
                 </div>
             </div>
@@ -1659,48 +2506,75 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Test Vaults</h1>
-                        <p class="page-subtitle">Phase-based comprehensive testing</p>
+                        <p class="page-subtitle">Codify the phases that must pass before you ship.</p>
+                    </div>
+                    <div class="page-actions">
+                        <button class="btn" type="button" id="vault-dialog-open">
+                            <i data-lucide="plus"></i>
+                            New Vault
+                        </button>
+                        <button class="btn" type="button" id="vault-refresh-btn">
+                            <i data-lucide="refresh-cw"></i>
+                            Refresh
+                        </button>
                     </div>
                 </div>
 
-                <div class="panel">
+                <div class="panel vault-overview">
                     <div class="panel-header">
-                        <h2 class="panel-title">Create Test Vault</h2>
+                        <h2 class="panel-title">Why vaults matter</h2>
                     </div>
                     <div class="panel-body">
-                        <form id="vault-form">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label class="form-label" for="vault-scenario">Scenario Name</label>
-                                    <input type="text" id="vault-scenario" class="form-input" placeholder="Enter scenario name..." required>
-                                </div>
+                        <p>Vaults orchestrate multi-phase validation so you can replay the same end-to-end gate—setup, develop, test, deploy, monitor—whenever you need confidence. Configure once, execute forever.</p>
+                        <div class="vault-overview-grid">
+                            <div class="vault-overview-card">
+                                <h3>When to use them</h3>
+                                <ul>
+                                    <li>Release sign-off that must run through every phase.</li>
+                                    <li>Customer environments with bespoke smoke checks.</li>
+                                    <li>Incident or chaos drills where nothing can be skipped.</li>
+                                </ul>
+                            </div>
+                            <div class="vault-overview-card">
+                                <h3>What you define</h3>
+                                <ul>
+                                    <li>Scenario and vault identity for traceability.</li>
+                                    <li>Phase order, time budgets, and key notes.</li>
+                                    <li>Success criteria and fail-fast thresholds.</li>
+                                </ul>
+                            </div>
+                            <div class="vault-overview-card">
+                                <h3>What you get</h3>
+                                <p>A reusable asset you can trigger via UI or API. Test Genie tracks history, enforces sequencing, and blocks completion until every requirement is satisfied.</p>
+                            </div>
+                        </div>
+                        <ul class="vault-inline-list">
+                            <li>Launch the dialog when you need to define a new gate for a scenario.</li>
+                            <li>Select the phases to enforce and tune time budgets before saving.</li>
+                            <li>Capture the success criteria once—every execution must honor it.</li>
+                        </ul>
+                    </div>
+                </div>
 
-                                <div class="form-group">
-                                    <label class="form-label" for="vault-phases">Test Phases</label>
-                                    <select id="vault-phases" class="form-select" multiple>
-                                        <option value="setup" selected>Setup</option>
-                                        <option value="develop" selected>Develop</option>
-                                        <option value="test" selected>Test</option>
-                                        <option value="deploy">Deploy</option>
-                                        <option value="monitor">Monitor</option>
-                                    </select>
-                                </div>
+                <div class="vault-main-layout">
+                    <div class="panel vault-activity-panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title">Existing Vaults</h2>
+                        </div>
+                        <div class="panel-body">
+                            <p class="form-helper" style="margin-bottom: var(--spacing-md);">Select a vault to inspect live phase progress and historical runs. We'll pull execution data from the API.</p>
+                            <div class="vault-list" id="vault-list"></div>
+
+                            <div class="vault-timeline" id="execution-timeline" style="display: none;">
+                                <h3 style="margin-bottom: var(--spacing-md);">Execution progress</h3>
+                                <div id="timeline-phases"></div>
                             </div>
 
-                            <div class="form-group">
-                                <label class="form-label" for="vault-timeout">Phase Timeout (seconds)</label>
-                                <input type="number" id="vault-timeout" class="form-input" value="1800" min="60">
+                            <div class="vault-history" id="vault-history" style="display: none;">
+                                <h3 style="margin-bottom: var(--spacing-md);">Execution history</h3>
+                                <div id="vault-history-content"></div>
                             </div>
-
-                            <div class="form-group">
-                                <button type="submit" class="btn">
-                                    <i data-lucide="building-2"></i>
-                                    Create Test Vault
-                                </button>
-                            </div>
-                        </form>
-
-                        <div id="vault-result" class="code-block" style="display: none;"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1710,21 +2584,73 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Reports & Analytics</h1>
-                        <p class="page-subtitle">Comprehensive testing insights and trends</p>
+                        <p class="page-subtitle">Real-time quality intelligence across every scenario</p>
                     </div>
                 </div>
 
-                <div class="panel">
-                    <div class="panel-body">
-                        <p>📊 Advanced reporting and analytics features coming soon...</p>
-                        <p>This will include:</p>
-                        <ul style="margin: 1rem 0; padding-left: 2rem; color: var(--text-secondary);">
-                            <li>Test trend analysis</li>
-                            <li>Coverage evolution tracking</li>
-                            <li>Performance benchmarking</li>
-                            <li>Quality metrics visualization</li>
-                            <li>AI-powered insights and recommendations</li>
-                        </ul>
+                <div class="reports-content">
+                    <div class="reports-window-meta" id="reports-window-meta"></div>
+
+                    <div class="reports-metrics">
+                        <div class="report-card">
+                            <span class="report-card-label">Quality Index</span>
+                            <span class="report-card-value" id="report-quality-index">--</span>
+                            <span class="report-card-subtitle" id="report-quality-subtitle">Loading…</span>
+                        </div>
+                        <div class="report-card">
+                            <span class="report-card-label">Active Regressions</span>
+                            <span class="report-card-value" id="report-regressions">--</span>
+                            <span class="report-card-subtitle" id="report-regressions-subtitle">Loading…</span>
+                        </div>
+                        <div class="report-card">
+                            <span class="report-card-label">Coverage vs Target</span>
+                            <span class="report-card-value" id="report-coverage">--</span>
+                            <span class="report-card-subtitle" id="report-coverage-subtitle">Loading…</span>
+                        </div>
+                        <div class="report-card">
+                            <span class="report-card-label">Vault Health</span>
+                            <span class="report-card-value" id="report-vault">--</span>
+                            <span class="report-card-subtitle" id="report-vault-subtitle">Loading…</span>
+                        </div>
+                    </div>
+
+                    <div class="reports-grid">
+                        <div class="panel reports-trend-panel">
+                            <div class="panel-header">
+                                <h2 class="panel-title">Quality Trends</h2>
+                                <div class="panel-actions">
+                                    <select id="reports-window-select" class="form-select reports-window-select">
+                                        <option value="7">Last 7 days</option>
+                                        <option value="30" selected>Last 30 days</option>
+                                        <option value="90">Last 90 days</option>
+                                    </select>
+                                    <button class="btn icon-btn" type="button" id="reports-refresh" aria-label="Refresh reports">
+                                        <i data-lucide="refresh-ccw"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="panel-body reports-trend-body" id="reports-trend-body">
+                                <div class="loading"><div class="spinner"></div>Loading analytics…</div>
+                            </div>
+                        </div>
+
+                        <div class="panel reports-insights-panel">
+                            <div class="panel-header">
+                                <h2 class="panel-title">Insights</h2>
+                            </div>
+                            <div class="panel-body" id="reports-insights">
+                                <div class="loading"><div class="spinner"></div>Loading analytics…</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel reports-scenarios-panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title">Scenario Quality Matrix</h2>
+                        </div>
+                        <div class="panel-body" id="reports-scenarios">
+                            <div class="loading"><div class="spinner"></div>Loading analytics…</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1807,16 +2733,16 @@
                     </div>
                     <div class="panel-body">
                         <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">1. Generate Your First Test Suite</h3>
-                        <p style="margin-bottom: 1rem;">Navigate to the "Generate Tests" page and enter your scenario name. Select test types and configure options, then click "Generate Test Suite".</p>
+                        <p style="margin-bottom: 1rem;">Open the "Test Suites" page, find your scenario, and press the <strong>Generate</strong> action. Configure the dialog (scenario name, test types, coverage target) and launch the run.</p>
 
                         <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">2. Execute Tests</h3>
-                        <p style="margin-bottom: 1rem;">Once generated, go to "Test Suites" to view and execute your tests. Monitor progress in the "Executions" page.</p>
+                        <p style="margin-bottom: 1rem;">Use the play icon on the same row to execute the latest suite. Monitor live status from the "Executions" page.</p>
 
                         <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">3. Analyze Coverage</h3>
-                        <p style="margin-bottom: 1rem;">Use the "Coverage Analysis" page to identify gaps and improve test coverage.</p>
+                        <p style="margin-bottom: 1rem;">Open the "Coverage Analysis" page and select <strong>View</strong> to launch the coverage detail dialog with file-level insights.</p>
 
                         <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">4. Create Test Vaults</h3>
-                        <p style="margin-bottom: 1rem;">For complex scenarios, create test vaults with multiple phases for comprehensive validation.</p>
+                        <p style="margin-bottom: 1rem;">From the "Test Vaults" page, click <strong>New Vault</strong> to configure phases, success criteria, and timeouts in the dialog.</p>
                     </div>
                 </div>
 
@@ -1848,6 +2774,218 @@ test-genie help
                 </div>
             </div>
         </main>
+    </div>
+
+    <div id="coverage-detail-overlay" class="suite-detail-overlay" aria-hidden="true">
+        <div class="suite-detail-panel coverage-detail-panel" role="dialog" aria-modal="true" aria-labelledby="coverage-detail-title">
+            <button class="suite-detail-close" type="button" id="coverage-detail-close" aria-label="Close coverage details">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="suite-detail-header">
+                <div class="suite-detail-meta">
+                    <h2 id="coverage-detail-title">Coverage Analysis</h2>
+                    <p class="suite-detail-subtitle">Deep dive into file-level coverage, gaps, and recommendations.</p>
+                </div>
+            </div>
+            <div class="suite-detail-content" id="coverage-detail-content">
+                <div class="coverage-detail-empty">Select a scenario to view coverage breakdown.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="generate-dialog-overlay" class="suite-detail-overlay" aria-hidden="true">
+        <div class="suite-detail-panel generate-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="generate-dialog-title">
+            <button class="suite-detail-close" type="button" id="generate-dialog-close" aria-label="Close test generation dialog">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="suite-detail-header">
+                <div class="suite-detail-meta">
+                    <h2 id="generate-dialog-title">Generate Test Suite</h2>
+                    <div class="suite-detail-subtitle">Configure AI-powered generation for any scenario.</div>
+                </div>
+            </div>
+            <div class="suite-detail-content">
+                <form id="generate-form" class="generate-form">
+                    <div class="form-group">
+                        <label class="form-label" for="scenario-name">Scenario Name</label>
+                        <input type="text" id="scenario-name" class="form-input" placeholder="Enter scenario name..." required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="test-types">Test Types</label>
+                            <select id="test-types" class="form-select" multiple>
+                                <option value="unit" selected>Unit Tests</option>
+                                <option value="integration" selected>Integration Tests</option>
+                                <option value="performance">Performance Tests</option>
+                                <option value="vault">Vault Tests</option>
+                                <option value="regression">Regression Tests</option>
+                            </select>
+                            <span class="form-helper">Select one or more suites to generate in a single run.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="coverage-target">Coverage Target (%)</label>
+                            <input type="number" id="coverage-target" class="form-input" value="95" min="50" max="100">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="include-performance" checked> Include Performance Tests
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="include-security" checked> Include Security Tests
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="btn" id="generate-btn">
+                            <i data-lucide="zap"></i>
+                            Generate Test Suite
+                        </button>
+                    </div>
+                </form>
+
+                <div id="generation-result" class="code-block" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="vault-dialog-overlay" class="suite-detail-overlay" aria-hidden="true">
+        <div class="suite-detail-panel vault-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="vault-dialog-title">
+            <button class="suite-detail-close" type="button" id="vault-dialog-close" aria-label="Close create vault dialog">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="suite-detail-header">
+                <div class="suite-detail-meta">
+                    <h2 id="vault-dialog-title">Create Vault</h2>
+                    <div class="suite-detail-subtitle">Curate the phases and guardrails required before shipping.</div>
+                </div>
+            </div>
+            <div class="suite-detail-content">
+                <form id="vault-form">
+                    <div class="form-group">
+                        <label class="form-label" for="vault-scenario">Scenario</label>
+                        <input type="text" id="vault-scenario" class="form-input" placeholder="Start typing to find a scenario" list="vault-scenario-options" autocomplete="off" required>
+                        <datalist id="vault-scenario-options"></datalist>
+                        <span class="form-helper">We bubble up recently generated scenarios; you can also type a new identifier.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="vault-name">Vault Name</label>
+                        <input type="text" id="vault-name" class="form-input" placeholder="e.g., release-candidate-vault" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Phases to enforce</label>
+                        <div class="vault-phase-selector" id="vault-phase-selector">
+                            <label class="phase-option">
+                                <input type="checkbox" data-vault-phase="setup" checked>
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Setup</span>
+                                    <span class="phase-description">Provision dependencies, seed data, confirm configuration isn't drifting.</span>
+                                </div>
+                            </label>
+                            <label class="phase-option">
+                                <input type="checkbox" data-vault-phase="develop" checked>
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Develop</span>
+                                    <span class="phase-description">Execute developer-focused checks (lint, unit, integration) that must stay green.</span>
+                                </div>
+                            </label>
+                            <label class="phase-option">
+                                <input type="checkbox" data-vault-phase="test" checked>
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Test</span>
+                                    <span class="phase-description">Run the regression, smoke, and vault suites that guard critical paths.</span>
+                                </div>
+                            </label>
+                            <label class="phase-option">
+                                <input type="checkbox" data-vault-phase="deploy">
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Deploy</span>
+                                    <span class="phase-description">Validate rollout scripts, migrations, and packaging steps.</span>
+                                </div>
+                            </label>
+                            <label class="phase-option">
+                                <input type="checkbox" data-vault-phase="monitor">
+                                <div class="phase-option-body">
+                                    <span class="phase-name">Monitor</span>
+                                    <span class="phase-description">Watch health metrics, load, or canary signals after deployment.</span>
+                                </div>
+                            </label>
+                        </div>
+                        <span class="form-helper">Select every phase that must complete successfully. We'll create configuration blocks for each.</span>
+                    </div>
+
+                    <div class="vault-phase-configurations" id="vault-phase-configurations"></div>
+
+                    <div class="form-group">
+                        <label class="form-label">Success criteria</label>
+                        <div class="success-criteria">
+                            <div class="criteria-item">
+                                <input type="checkbox" id="vault-criteria-all" class="criteria-checkbox" checked>
+                                <label for="vault-criteria-all">All phases must complete</label>
+                            </div>
+                            <div class="criteria-item">
+                                <input type="checkbox" id="vault-criteria-no-critical" class="criteria-checkbox" checked>
+                                <label for="vault-criteria-no-critical">No critical failures allowed</label>
+                            </div>
+                            <div class="criteria-item">
+                                <input type="checkbox" id="vault-criteria-coverage" class="criteria-checkbox">
+                                <label for="vault-criteria-coverage">Require coverage ≥ 95%</label>
+                            </div>
+                            <div class="criteria-item">
+                                <input type="checkbox" id="vault-criteria-performance" class="criteria-checkbox">
+                                <label for="vault-criteria-performance">Meet performance baseline</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="vault-total-timeout">Total vault timeout (seconds)</label>
+                        <input type="number" id="vault-total-timeout" class="form-input" value="3600" min="60" required>
+                        <span class="form-helper">Acts as a failsafe—if the combined phases run longer than this, we'll abort.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="btn">
+                            <i data-lucide="building-2"></i>
+                            Create Vault
+                        </button>
+                        <button type="reset" class="btn secondary">
+                            <i data-lucide="rotate-ccw"></i>
+                            Reset
+                        </button>
+                    </div>
+                </form>
+
+                <div id="vault-result" class="vault-result-card"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="execution-detail-overlay" class="suite-detail-overlay execution-detail-overlay" aria-hidden="true">
+        <div class="suite-detail-panel execution-detail-panel" role="dialog" aria-modal="true" aria-labelledby="execution-detail-title">
+            <button class="suite-detail-close" type="button" id="execution-detail-close" aria-label="Close test execution details">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="suite-detail-header execution-detail-header">
+                <div class="execution-detail-meta">
+                    <h2 id="execution-detail-title">Test Execution</h2>
+                    <div class="suite-id" id="execution-detail-id"></div>
+                    <div class="execution-detail-subtitle" id="execution-detail-subtitle"></div>
+                    <div class="execution-detail-status" id="execution-detail-status"></div>
+                </div>
+            </div>
+            <div class="suite-detail-content execution-detail-content" id="execution-detail-content">
+                <div class="execution-detail-empty">Select a test execution to view details.</div>
+            </div>
+        </div>
     </div>
 
     <div id="suite-detail-overlay" class="suite-detail-overlay" aria-hidden="true">

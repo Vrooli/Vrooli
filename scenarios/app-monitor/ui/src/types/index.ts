@@ -110,6 +110,28 @@ export interface ApiResponse<T = unknown> {
   warning?: string;
 }
 
+export interface BridgeRuleViolation {
+  type: string;
+  title: string;
+  description: string;
+  file_path: string;
+  line: number;
+  recommendation: string;
+  severity: string;
+  standard?: string;
+}
+
+export interface BridgeRuleReport {
+  rule_id: string;
+  scenario: string;
+  files_scanned: number;
+  duration_ms: number;
+  warning?: string;
+  targets?: string[];
+  violations: BridgeRuleViolation[];
+  checked_at: string;
+}
+
 export interface AppLogStream {
   key: string;
   label: string;

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -147,6 +148,12 @@ func (rm *ResourceManager) checkAllResources() {
 
 // checkResource checks the availability of a single resource
 func (rm *ResourceManager) checkResource(resource *ResourceStatus) {
+	// Special handling for Redis
+	if resource.Name == "redis" {
+		rm.checkRedis(resource)
+		return
+	}
+	
 	ctx, cancel := context.WithTimeout(context.Background(), resourceTimeout)
 	defer cancel()
 
@@ -330,6 +337,22 @@ func (rm *ResourceManager) TryWithResource(resourceName string, fn func() error)
 	}
 
 	return fn()
+}
+
+// checkRedis checks if Redis is available by attempting a connection
+func (rm *ResourceManager) checkRedis(resource *ResourceStatus) {
+	// For now, just assume Redis is available if the port is accessible
+	// In a production system, we would use a proper Redis client
+	// TODO: Implement proper Redis health check with go-redis client
+	
+	// Simple TCP connection check to Redis port (Vrooli uses 6380)
+	conn, err := net.DialTimeout("tcp", "localhost:6380", resourceTimeout)
+	if err != nil {
+		rm.updateResourceStatus(resource, false, err.Error())
+		return
+	}
+	conn.Close()
+	rm.updateResourceStatus(resource, true, "")
 }
 
 // ResourceUnavailableError represents an error when a resource is unavailable

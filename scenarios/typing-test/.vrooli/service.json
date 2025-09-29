@@ -173,7 +173,7 @@
         },
         {
           "name": "test-typing-endpoint",
-          "run": "curl -sf -X POST http://localhost:$API_PORT/api/typing-test -H 'Content-Type: application/json' -d '{\\\"text\\\":\\\"test\\\",\\\"wpm\\\":60,\\\"accuracy\\\":95}'",
+          "run": "curl -sf -X POST http://localhost:$API_PORT/api/submit-score -H 'Content-Type: application/json' -d '{\\\"name\\\":\\\"test\\\",\\\"wpm\\\":60,\\\"accuracy\\\":95,\\\"score\\\":100,\\\"difficulty\\\":\\\"medium\\\",\\\"mode\\\":\\\"classic\\\"}'",
           "description": "Test typing submission endpoint"
         },
         {

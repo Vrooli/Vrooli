@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { App, Resource, LogEntry, ApiResponse, AppLogsResponse, AppViewStats, ResourceDetail } from '@/types';
+import type { App, Resource, LogEntry, ApiResponse, AppLogsResponse, AppViewStats, ResourceDetail, BridgeRuleReport } from '@/types';
 import { logger } from '@/services/logger';
 
 // Create axios instance with default config
@@ -179,6 +179,20 @@ export const appService = {
       return data;
     } catch (error) {
       logger.error(`Failed to report issue for app ${appId}`, error);
+      throw error;
+    }
+  },
+
+  async getIframeBridgeDiagnostics(
+    appId: string,
+  ): Promise<ApiResponse<BridgeRuleReport>> {
+    try {
+      const { data } = await api.get<ApiResponse<BridgeRuleReport>>(
+        `/apps/${encodeURIComponent(appId)}/diagnostics/iframe-bridge`,
+      );
+      return data;
+    } catch (error) {
+      logger.error(`Failed to fetch iframe bridge diagnostics for ${appId}`, error);
       throw error;
     }
   },

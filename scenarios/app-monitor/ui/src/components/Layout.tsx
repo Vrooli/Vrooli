@@ -150,13 +150,13 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   const [resourceCount, setResourceCount] = useState(0);
   const [uptimeSeconds, setUptimeSeconds] = useState<number | null>(null);
   const [healthStatus, setHealthStatus] = useState<string | null>(null);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [appsSearch, setAppsSearch] = useState('');
   const [isHistoryMenuOpen, setIsHistoryMenuOpen] = useState(false);
   const [historyActiveIndex, setHistoryActiveIndex] = useState<number | null>(null);
   const mobileViewportRef = useRef(false);
-  const desktopCollapsedRef = useRef(false);
+  const desktopCollapsedRef = useRef(true);
   const pollingRef = useRef(false);
   const historyButtonRef = useRef<HTMLButtonElement | null>(null);
   const historyMenuRef = useRef<HTMLDivElement | null>(null);

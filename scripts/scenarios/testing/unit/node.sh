@@ -19,7 +19,12 @@ testing::unit::run_node_tests() {
     local verbose=false
     local coverage_warn_threshold=80
     local coverage_error_threshold=50
-    
+
+    # Reset any previously exported coverage metadata
+    unset -v TESTING_NODE_COVERAGE_COLLECTED TESTING_NODE_COVERAGE_PERCENT \
+        TESTING_NODE_COVERAGE_TOTALS_JSON TESTING_NODE_COVERAGE_SUMMARY_PATH \
+        TESTING_NODE_COVERAGE_LCOV_PATH 2>/dev/null || true
+
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -185,6 +190,26 @@ testing::unit::run_node_tests() {
             fi
         else
             echo "ℹ️  No coverage information found in test output or summary. Coverage may not be configured."
+        fi
+
+        # Export coverage metadata for downstream aggregation
+        declare -g TESTING_NODE_COVERAGE_COLLECTED="true"
+        if [ -n "$coverage_percent" ]; then
+            declare -g TESTING_NODE_COVERAGE_PERCENT="$coverage_percent"
+        fi
+
+        if [ -f "coverage/coverage-summary.json" ]; then
+            local summary_rel="${node_dir%/}/coverage/coverage-summary.json"
+            declare -g TESTING_NODE_COVERAGE_SUMMARY_PATH="$summary_rel"
+            local totals_json
+            totals_json=$(node -e "const summary=require('./coverage/coverage-summary.json'); const totals=(summary && summary.total) || {}; const pct=value=> (value && typeof value.pct === 'number') ? value.pct : null; const result={statements:pct(totals.statements), branches:pct(totals.branches), functions:pct(totals.functions), lines:pct(totals.lines)}; process.stdout.write(JSON.stringify(result));" 2>/dev/null || echo "")
+            if [ -n "$totals_json" ]; then
+                declare -g TESTING_NODE_COVERAGE_TOTALS_JSON="$totals_json"
+            fi
+        fi
+
+        if [ -f "coverage/lcov.info" ]; then
+            declare -g TESTING_NODE_COVERAGE_LCOV_PATH="${node_dir%/}/coverage/lcov.info"
         fi
 
         cd "$original_dir"

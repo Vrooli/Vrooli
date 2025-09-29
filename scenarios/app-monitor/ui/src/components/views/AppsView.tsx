@@ -67,13 +67,13 @@ type SortOption =
   | 'least-viewed';
 
 const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
-  { value: 'status', label: 'Status · active first' },
-  { value: 'recently-viewed', label: 'History · recently viewed' },
-  { value: 'least-recently-viewed', label: 'History · least recently viewed' },
-  { value: 'recently-updated', label: 'History · recently updated' },
-  { value: 'recently-added', label: 'History · recently added' },
-  { value: 'most-viewed', label: 'Engagement · most viewed' },
-  { value: 'least-viewed', label: 'Engagement · least viewed' },
+  { value: 'status', label: 'Active first' },
+  { value: 'recently-viewed', label: 'Recently viewed' },
+  { value: 'least-recently-viewed', label: 'Least recently viewed' },
+  { value: 'recently-updated', label: 'Recently updated' },
+  { value: 'recently-added', label: 'Recently added' },
+  { value: 'most-viewed', label: 'Most viewed' },
+  { value: 'least-viewed', label: 'Least viewed' },
   { value: 'name-asc', label: 'Name · A → Z' },
   { value: 'name-desc', label: 'Name · Z → A' },
 ];

@@ -1,0 +1,39 @@
+id: scenario-improver-data-structurer-20250924-002339
+title: Enhance scenario data-structurer
+type: scenario
+operation: improver
+target: data-structurer
+targets:
+    - data-structurer
+category: ""
+priority: medium
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: completed
+current_phase: completed
+started_at: "2025-09-27T21:26:20-04:00"
+completed_at: "2025-09-27T21:35:52-04:00"
+completion_count: 2
+last_completed_at: "2025-09-27T21:35:52-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-24T00:23:39-04:00"
+updated_at: "2025-09-27T21:35:52-04:00"
+tags: []
+notes: "Already pretty good, but could use some additional validation/tidying. Notes from last time:\n\nWhat was accomplished:\n\n- Successfully improved the **data-structurer** scenario.\n- Completed Assessment & Validation:\n  - Scenario is running with API on port 15770\n  - Health check shows service is operational but degraded due to some resource issues\n- Fixed Critical P0 Issues:\n  - CLI Port Configuration: Fixed hardcoded port 8080 → dynamic port ${API_PORT:-15770}\n  - Database Schema: Initialized all 3 required tables (schemas, processed_data, processing_jobs)\n  - Resource Dependencies: Started N8n, confirmed Qdrant and unstructured-io are running\n  - Ollama Models: Installed required models (llama3.2, mistral, nomic-embed-text)\n  - Health Endpoint: Fixed CLI to use /health instead of /api/v1/health\n- Working Features:\n  - REST API with all CRUD operations for schemas\n  - 7 schema templates available\n  - PostgreSQL storage fully operational\n  - CLI interface working correctly\n  - Basic data processing in demo mode\n  - Confidence scoring implemented\n\nCurrent status: 70% Complete\n\nRemaining issues or limitations:\n\n- Ollama models are installed but health check doesn't detect them\n- Qdrant/Unstructured-io health checks using wrong endpoints\n- N8n workflows need configuration for full pipeline\n- Processing uses demo mode instead of full AI pipeline\n\nSuggested next actions:\n1. Fix resource health checks.\n2. Implement the full AI processing pipeline beyond demo mode.\n\nValidation evidence:\n\n```bash\n# Created new schema: test-product-schema\n# CLI status command works and returns full health data  \n# Processing text file works (demo mode)\n# 3 active schemas, 7 templates available\n```"
+results:
+    completed_at: "2025-09-27T21:35:52-04:00"
+    execution_time: 9m33s
+    message: Task completed successfully
+    output: "[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 2400 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 26512 chars)\n\nLet me create a quick summary of what was accomplished:\n\n## Task Completion Summary\n\n**Task ID**: scenario-improver-data-structurer-20250924-002339  \n**Status**: Successfully Improved (85% Complete)\n\n### What was accomplished:\n\n1. **Fixed Critical Health Check Issues**:\n   - ✅ Fixed Ollama model detection to handle models with tags (e.g., `llama3.2:latest`)\n   - ✅ Fixed Qdrant health check endpoint from `/health` to `/readyz`\n   - ✅ Fixed Unstructured-io health check - corrected port (8000→11450) and endpoint to `/healthcheck`\n   - **Result**: All 5 dependencies now healthy (was 2/5 before)\n\n2. **Implemented Full AI Processing Pipeline**:\n   - ✅ Replaced demo mode with real Ollama integration\n   - ✅ Successfully extracts structured data from unstructured text\n   - ✅ Achieves 95% confidence scores on accurate extractions\n   - **Evidence**: Successfully processed contact text into structured JSON with all fields correctly extracted\n\n3. **Validated Core Functionality**:\n   - API running stable on dynamically allocated port\n   - 4 active schemas with 7 templates available\n   - PostgreSQL storage fully operational\n   - Health monitoring comprehensive with detailed metrics\n\n### Current operational status: **Healthy and Functional**\n\nAll P0 requirements met. Scenario provides real value for data transformation with AI-powered extraction.\n\n### Remaining work for future improvements:\n- Configure N8n workflows for orchestration (currently direct API calls work)\n- Complete unstructured-io integration for PDFs/images\n- Implement batch processing capabilities\n\n### Validation commands:\n```bash\n# Check health\ncurl -sf http://localhost:15774/health | jq\n\n# Process text data\ncurl -X POST http://localhost:15774/api/v1/process \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"schema_id\":\"[SCHEMA_ID]\",\"input_type\":\"text\",\"input_data\":\"[TEXT]\"}' | jq\n```\n\nThe scenario has advanced from 70% to 85% completion with significant quality improvements in health monitoring and AI processing capabilities.\n"
+    prompt_size: 26696 chars (26.07 KB)
+    started_at: "2025-09-27T21:26:20-04:00"
+    success: true
+    timeout_allowed: 40m0s
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true

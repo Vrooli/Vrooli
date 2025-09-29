@@ -1,54 +1,74 @@
 # Product Requirements Document: Typing Test
 
-## 1. Overview
-The Typing Test scenario is a web application that allows users to test their typing speed and accuracy. It provides a simple interface for typing practice and performance measurement.
+## Executive Summary
+**What**: Interactive web application for testing and improving typing speed and accuracy
+**Why**: Help users improve keyboard proficiency, essential for productivity in digital work
+**Who**: Students, professionals, and anyone seeking to improve typing skills
+**Value**: $15K - SaaS potential for educational institutions and corporate training
+**Priority**: Medium - Established market need with clear monetization path
 
-## 2. Target Users
-- Individuals looking to improve typing skills
-- Students or professionals needing typing speed assessment
-- Anyone interested in keyboard proficiency testing
+## P0 Requirements (Must Have)
+- [x] **Core Typing Test**: Real-time typing interface with text prompt and input field
+- [x] **WPM Calculation**: Accurate words-per-minute calculation using standard formula
+- [x] **Accuracy Tracking**: Real-time error detection and accuracy percentage display
+- [x] **Health Check**: API responds to /health endpoint with proper status
+- [x] **Lifecycle Management**: setup/develop/test/stop commands work properly
 
-## 3. Key Features
-- Real-time typing interface with a given text prompt
-- Timer to measure words per minute (WPM)
-- Accuracy calculation based on typed vs. prompt text
-- Session history to track progress over time
-- Basic statistics display (WPM, accuracy percentage)
+## P1 Requirements (Should Have)
+- [x] **Progress Tracking**: Store and display typing history with PostgreSQL
+- [x] **Difficulty Levels**: Multiple text difficulty options (easy/medium/hard)
+- [x] **Leaderboard**: Global and personal best scores display
+- [ ] **AI Coaching**: Personalized tips using Ollama integration (PARTIAL: basic coaching without AI)
 
-## 4. Functional Requirements
-### 4.1 User Authentication
-- Optional login for saving progress (simple session-based for now)
+## P2 Requirements (Nice to Have)
+- [ ] **Custom Texts**: Allow users to practice with their own text
+- [ ] **Export Results**: Download typing history as CSV/PDF
+- [ ] **Keyboard Heatmap**: Visual representation of typing patterns
 
-### 4.2 Typing Test Interface
-- Display a random or selected text prompt
-- Input field for user to type
-- Start/stop timer
-- Real-time character count and error highlighting
-- Submit button to end test and calculate results
+## Technical Specifications
 
-### 4.3 Results and Analytics
-- Calculate WPM: (characters typed / 5) / (time in minutes)
-- Accuracy: (correct characters / total characters) * 100
-- Display results immediately after test
-- Save results to user profile if logged in
+### Architecture
+- **Frontend**: HTML/CSS/JavaScript with real-time typing capture
+- **Backend**: Go API for result processing and data persistence
+- **Database**: PostgreSQL for user sessions and history
+- **AI**: Ollama for personalized coaching suggestions
+- **CLI**: Command-line interface for quick typing tests
 
-### 4.4 Additional Features
-- Multiple difficulty levels (easy, medium, hard text lengths)
-- Practice mode without timing
-- Export results
+### API Endpoints
+- `GET /health` - Health check endpoint
+- `POST /api/typing-test` - Submit typing test results
+- `GET /api/history` - Retrieve typing history
+- `GET /api/leaderboard` - Get leaderboard data
+- `POST /api/coaching` - Get AI coaching suggestions
 
-## 5. Non-Functional Requirements
-- Responsive web interface
-- Fast loading and smooth typing experience
-- Data persistence using local storage or database
-- Cross-browser compatibility
+### Dependencies
+- Go: gin, uuid, pq (PostgreSQL driver)
+- UI: Node.js for server, vanilla JS for frontend
+- Resources: PostgreSQL (required), Ollama (optional)
 
-## 6. Assumptions
-- Text prompts are sourced from a predefined list or generated
-- No advanced AI for text generation in initial version
-- Basic error handling for input validation
+## Success Metrics
 
-## 7. Out of Scope
-- Multi-user competitions
-- Advanced analytics dashboard
-- Integration with external typing APIs
+### Completion Targets
+- P0: 100% complete for v1.0 release
+- P1: 50% complete for v1.1 enhancement
+- P2: Optional for v2.0 roadmap
+
+### Quality Metrics
+- API response time < 500ms
+- UI input latency < 50ms
+- Accuracy calculation precision > 99%
+- Test coverage > 80%
+
+### Performance Metrics
+- Support 100 concurrent users
+- Database queries < 100ms
+- Page load time < 2 seconds
+
+## Progress History
+- 2025-09-28: 20% → 85% (Fixed dependencies, verified all P0 requirements working, P1 mostly complete)
+
+## Revenue Justification
+- **Educational Market**: $50/month per school subscription × 20 schools = $1000/month
+- **Corporate Training**: $200/month per company × 5 companies = $1000/month
+- **Individual Premium**: $5/month × 100 users = $500/month
+- **Total Monthly Recurring**: $2500/month = $30K annual revenue potential

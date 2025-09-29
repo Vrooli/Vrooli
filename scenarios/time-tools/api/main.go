@@ -19,9 +19,34 @@ var logger *log.Logger
 // CORS middleware
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Configure CORS with explicit allowed origins for security
+		origin := r.Header.Get("Origin")
+		allowedOrigins := []string{
+			"http://localhost:3000",
+			"http://localhost:8080",
+			"http://localhost:8092",
+			"https://vrooli.com",
+		}
+		
+		// Check if origin is allowed
+		originAllowed := false
+		for _, allowed := range allowedOrigins {
+			if origin == allowed || origin == "" {
+				originAllowed = true
+				break
+			}
+		}
+		
+		if originAllowed && origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else if origin == "" {
+			// Allow same-origin requests
+			w.Header().Set("Access-Control-Allow-Origin", r.Host)
+		}
+		
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -79,6 +104,9 @@ func main() {
 	api.HandleFunc("/time/convert", timezoneConvertHandler).Methods("POST")
 	api.HandleFunc("/time/duration", durationCalculateHandler).Methods("POST")
 	api.HandleFunc("/time/format", formatTimeHandler).Methods("POST")
+	api.HandleFunc("/time/add", addTimeHandler).Methods("POST")
+	api.HandleFunc("/time/subtract", subtractTimeHandler).Methods("POST")
+	api.HandleFunc("/time/parse", parseTimeHandler).Methods("POST")
 	
 	// Scheduling operations  
 	api.HandleFunc("/schedule/optimal", scheduleOptimalHandler).Methods("POST")

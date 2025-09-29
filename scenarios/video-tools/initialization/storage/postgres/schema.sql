@@ -1,202 +1,202 @@
--- SCENARIO_NAME_PLACEHOLDER Database Schema
--- Core database structure for API and application data
+-- Video Tools Database Schema
+-- Core database structure for video processing and management
 
--- Resources table: Main entity management
-CREATE TABLE IF NOT EXISTS resources (
+-- VideoAsset table: Main video file management
+CREATE TABLE IF NOT EXISTS video_assets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    type VARCHAR(100),
-    status VARCHAR(50) DEFAULT 'active',
-    config JSONB DEFAULT '{}',
+    format VARCHAR(50) NOT NULL,
+    duration_seconds DECIMAL(10,2),
+    resolution_width INTEGER,
+    resolution_height INTEGER,
+    frame_rate DECIMAL(5,2),
+    file_size_bytes BIGINT,
+    minio_path VARCHAR(500),
+    thumbnail_path VARCHAR(500),
+    codec VARCHAR(100),
+    bitrate_kbps INTEGER,
+    has_audio BOOLEAN DEFAULT true,
+    audio_channels INTEGER,
     metadata JSONB DEFAULT '{}',
+    tags TEXT[],
     
-    -- Relationships
-    parent_id UUID REFERENCES resources(id) ON DELETE SET NULL,
-    owner_id VARCHAR(255),
+    -- Status tracking
+    status VARCHAR(50) DEFAULT 'pending',
+    processing_error TEXT,
     
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP WITH TIME ZONE,
     
-    -- Constraints
-    CONSTRAINT unique_name_per_type UNIQUE(name, type)
+    -- Indexes
+    CONSTRAINT unique_minio_path UNIQUE(minio_path)
 );
 
--- Workflows table: Workflow definitions
-CREATE TABLE IF NOT EXISTS workflows (
+-- ProcessingJob table: Video processing tasks
+CREATE TABLE IF NOT EXISTS processing_jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id VARCHAR(255) UNIQUE NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    platform VARCHAR(50) NOT NULL CHECK (platform IN ('n8n', 'windmill', 'node-red')),
-    
-    -- Workflow configuration
-    definition JSONB NOT NULL,
-    input_schema JSONB,
-    output_schema JSONB,
-    config JSONB DEFAULT '{}',
-    
-    -- Metadata
-    version INTEGER DEFAULT 1,
-    is_active BOOLEAN DEFAULT true,
-    tags TEXT[],
-    
-    -- Statistics
-    execution_count INTEGER DEFAULT 0,
-    success_count INTEGER DEFAULT 0,
-    failure_count INTEGER DEFAULT 0,
-    avg_duration_ms INTEGER,
-    
-    -- Timestamps
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Executions table: Workflow execution history
-CREATE TABLE IF NOT EXISTS executions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id UUID REFERENCES workflows(id) ON DELETE CASCADE,
-    
-    -- Execution details
-    status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    input_data JSONB,
-    output_data JSONB,
+    video_id UUID REFERENCES video_assets(id) ON DELETE CASCADE,
+    job_type VARCHAR(50) NOT NULL CHECK (job_type IN ('edit', 'convert', 'analyze', 'enhance', 'stream', 'extract', 'compress')),
+    parameters JSONB NOT NULL DEFAULT '{}',
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
+    progress_percentage INTEGER DEFAULT 0 CHECK (progress_percentage >= 0 AND progress_percentage <= 100),
+    output_path VARCHAR(500),
     error_message TEXT,
+    processing_time_ms BIGINT,
+    created_by VARCHAR(255),
     
-    -- Performance metrics
-    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMP WITH TIME ZONE,
     completed_at TIMESTAMP WITH TIME ZONE,
-    duration_ms INTEGER,
     
-    -- Resource usage
-    resource_usage JSONB DEFAULT '{}',
-    
-    -- Context
-    triggered_by VARCHAR(255),
-    correlation_id UUID,
-    metadata JSONB DEFAULT '{}'
+    -- Priority and resource management
+    priority INTEGER DEFAULT 5 CHECK (priority >= 1 AND priority <= 10),
+    resource_usage JSONB DEFAULT '{}'
 );
 
--- Events table: Application event log
-CREATE TABLE IF NOT EXISTS events (
+-- VideoAnalytics table: AI-powered analysis results
+CREATE TABLE IF NOT EXISTS video_analytics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_type VARCHAR(100) NOT NULL,
-    event_name VARCHAR(255) NOT NULL,
+    video_id UUID REFERENCES video_assets(id) ON DELETE CASCADE,
+    analysis_type VARCHAR(50) NOT NULL CHECK (analysis_type IN ('scene', 'object', 'speech', 'emotion', 'activity', 'quality')),
+    confidence_score DECIMAL(5,4) CHECK (confidence_score >= 0 AND confidence_score <= 1),
+    start_time_seconds DECIMAL(10,2),
+    end_time_seconds DECIMAL(10,2),
+    bounding_box JSONB,
+    detected_objects JSONB,
+    transcript_text TEXT,
+    speaker_id VARCHAR(100),
+    emotion_data JSONB,
+    metadata JSONB DEFAULT '{}',
     
-    -- Event data
-    payload JSONB,
-    source VARCHAR(100),
-    target VARCHAR(100),
-    
-    -- Context
-    resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
-    execution_id UUID REFERENCES executions(id) ON DELETE CASCADE,
-    user_id VARCHAR(255),
-    session_id VARCHAR(255),
-    
-    -- Metadata
-    severity VARCHAR(20) DEFAULT 'info',
-    tags TEXT[],
-    
-    -- Timestamp
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    -- Timestamps
+    generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Configuration table: Application settings
-CREATE TABLE IF NOT EXISTS configuration (
+-- StreamingSession table: Live streaming management
+CREATE TABLE IF NOT EXISTS streaming_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    key VARCHAR(255) UNIQUE NOT NULL,
-    value JSONB NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    input_source VARCHAR(50) CHECK (input_source IN ('file', 'camera', 'rtmp')),
+    output_targets JSONB NOT NULL DEFAULT '[]',
+    resolution VARCHAR(20),
+    bitrate_kbps INTEGER,
+    is_active BOOLEAN DEFAULT false,
+    viewer_count INTEGER DEFAULT 0,
+    total_bytes_streamed BIGINT DEFAULT 0,
+    configuration JSONB DEFAULT '{}',
+    stream_key VARCHAR(255) UNIQUE,
     
-    -- Configuration metadata
-    category VARCHAR(100),
-    description TEXT,
-    is_secret BOOLEAN DEFAULT false,
-    is_active BOOLEAN DEFAULT true,
+    -- Related video if file-based
+    video_id UUID REFERENCES video_assets(id) ON DELETE SET NULL,
     
-    -- Validation
-    schema JSONB,
-    default_value JSONB,
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    start_time TIMESTAMP WITH TIME ZONE,
+    end_time TIMESTAMP WITH TIME ZONE
+);
+
+-- VideoEdit table: Edit operations history
+CREATE TABLE IF NOT EXISTS video_edits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    source_video_id UUID REFERENCES video_assets(id) ON DELETE CASCADE,
+    output_video_id UUID REFERENCES video_assets(id) ON DELETE SET NULL,
+    operation_type VARCHAR(50) NOT NULL,
+    operation_params JSONB NOT NULL,
+    
+    -- Tracking
+    applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    applied_by VARCHAR(255)
+);
+
+-- Subtitle table: Subtitle and caption management
+CREATE TABLE IF NOT EXISTS subtitles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    video_id UUID REFERENCES video_assets(id) ON DELETE CASCADE,
+    language_code VARCHAR(10) NOT NULL,
+    format VARCHAR(20) CHECK (format IN ('srt', 'vtt', 'ass', 'ssa')),
+    content TEXT NOT NULL,
+    is_auto_generated BOOLEAN DEFAULT false,
+    burn_in BOOLEAN DEFAULT false,
     
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Metrics table: Performance and usage metrics
-CREATE TABLE IF NOT EXISTS metrics (
+-- AudioTrack table: Audio track management
+CREATE TABLE IF NOT EXISTS audio_tracks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    metric_name VARCHAR(255) NOT NULL,
-    metric_type VARCHAR(50) NOT NULL,
-    
-    -- Metric data
-    value NUMERIC NOT NULL,
-    unit VARCHAR(50),
-    
-    -- Context
-    resource_type VARCHAR(100),
-    resource_id VARCHAR(255),
-    
-    -- Dimensions for grouping
-    dimensions JSONB DEFAULT '{}',
-    
-    -- Timestamp
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Sessions table: User session management
-CREATE TABLE IF NOT EXISTS sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_token VARCHAR(255) UNIQUE NOT NULL,
-    user_id VARCHAR(255),
-    
-    -- Session data
-    data JSONB DEFAULT '{}',
-    ip_address INET,
-    user_agent TEXT,
-    
-    -- Status
-    is_active BOOLEAN DEFAULT true,
+    video_id UUID REFERENCES video_assets(id) ON DELETE CASCADE,
+    track_number INTEGER NOT NULL,
+    language_code VARCHAR(10),
+    codec VARCHAR(50),
+    bitrate_kbps INTEGER,
+    channels INTEGER,
+    sample_rate_hz INTEGER,
+    duration_seconds DECIMAL(10,2),
+    minio_path VARCHAR(500),
     
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP WITH TIME ZONE
+    
+    -- Unique constraint
+    CONSTRAINT unique_video_track UNIQUE(video_id, track_number)
+);
+
+-- Frame table: Extracted frames and thumbnails
+CREATE TABLE IF NOT EXISTS frames (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    video_id UUID REFERENCES video_assets(id) ON DELETE CASCADE,
+    timestamp_seconds DECIMAL(10,3) NOT NULL,
+    frame_number INTEGER,
+    minio_path VARCHAR(500) NOT NULL,
+    width INTEGER,
+    height INTEGER,
+    format VARCHAR(20) DEFAULT 'jpg',
+    is_thumbnail BOOLEAN DEFAULT false,
+    
+    -- Analysis data
+    scene_change_score DECIMAL(5,4),
+    blur_score DECIMAL(5,4),
+    
+    -- Timestamps
+    extracted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Unique constraint
+    CONSTRAINT unique_video_timestamp UNIQUE(video_id, timestamp_seconds)
 );
 
 -- Create indexes for performance
-CREATE INDEX idx_resources_type ON resources(type) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_status ON resources(status) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_owner ON resources(owner_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_created ON resources(created_at DESC);
+CREATE INDEX idx_video_assets_status ON video_assets(status) WHERE deleted_at IS NULL;
+CREATE INDEX idx_video_assets_format ON video_assets(format) WHERE deleted_at IS NULL;
+CREATE INDEX idx_video_assets_created ON video_assets(created_at DESC);
+CREATE INDEX idx_video_assets_tags ON video_assets USING GIN(tags);
 
-CREATE INDEX idx_workflows_platform ON workflows(platform) WHERE is_active = true;
-CREATE INDEX idx_workflows_tags ON workflows USING GIN(tags);
-CREATE INDEX idx_workflows_active ON workflows(is_active);
+CREATE INDEX idx_processing_jobs_video ON processing_jobs(video_id);
+CREATE INDEX idx_processing_jobs_status ON processing_jobs(status);
+CREATE INDEX idx_processing_jobs_type ON processing_jobs(job_type);
+CREATE INDEX idx_processing_jobs_created ON processing_jobs(created_at DESC);
+CREATE INDEX idx_processing_jobs_priority ON processing_jobs(priority DESC) WHERE status = 'pending';
 
-CREATE INDEX idx_executions_workflow ON executions(workflow_id);
-CREATE INDEX idx_executions_status ON executions(status);
-CREATE INDEX idx_executions_started ON executions(started_at DESC);
-CREATE INDEX idx_executions_correlation ON executions(correlation_id);
+CREATE INDEX idx_video_analytics_video ON video_analytics(video_id);
+CREATE INDEX idx_video_analytics_type ON video_analytics(analysis_type);
+CREATE INDEX idx_video_analytics_confidence ON video_analytics(confidence_score DESC);
 
-CREATE INDEX idx_events_type ON events(event_type);
-CREATE INDEX idx_events_resource ON events(resource_id);
-CREATE INDEX idx_events_execution ON events(execution_id);
-CREATE INDEX idx_events_created ON events(created_at DESC);
-CREATE INDEX idx_events_tags ON events USING GIN(tags);
+CREATE INDEX idx_streaming_sessions_active ON streaming_sessions(is_active);
+CREATE INDEX idx_streaming_sessions_key ON streaming_sessions(stream_key) WHERE is_active = true;
 
-CREATE INDEX idx_configuration_category ON configuration(category) WHERE is_active = true;
-CREATE INDEX idx_configuration_key ON configuration(key) WHERE is_active = true;
+CREATE INDEX idx_subtitles_video ON subtitles(video_id);
+CREATE INDEX idx_subtitles_language ON subtitles(language_code);
 
-CREATE INDEX idx_metrics_name ON metrics(metric_name);
-CREATE INDEX idx_metrics_timestamp ON metrics(timestamp DESC);
-CREATE INDEX idx_metrics_resource ON metrics(resource_type, resource_id);
+CREATE INDEX idx_audio_tracks_video ON audio_tracks(video_id);
 
-CREATE INDEX idx_sessions_token ON sessions(session_token) WHERE is_active = true;
-CREATE INDEX idx_sessions_user ON sessions(user_id) WHERE is_active = true;
-CREATE INDEX idx_sessions_activity ON sessions(last_activity DESC) WHERE is_active = true;
+CREATE INDEX idx_frames_video ON frames(video_id);
+CREATE INDEX idx_frames_timestamp ON frames(video_id, timestamp_seconds);
+CREATE INDEX idx_frames_thumbnail ON frames(video_id) WHERE is_thumbnail = true;
 
 -- Update triggers for timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -207,80 +207,78 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_resources_updated_at BEFORE UPDATE ON resources
+CREATE TRIGGER update_video_assets_updated_at BEFORE UPDATE ON video_assets
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON workflows
+CREATE TRIGGER update_subtitles_updated_at BEFORE UPDATE ON subtitles
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_configuration_updated_at BEFORE UPDATE ON configuration
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Function to update workflow statistics after execution
-CREATE OR REPLACE FUNCTION update_workflow_stats()
+-- Function to update video processing status
+CREATE OR REPLACE FUNCTION update_video_status()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.status IN ('success', 'failed') AND NEW.workflow_id IS NOT NULL THEN
-        UPDATE workflows SET
-            execution_count = execution_count + 1,
-            success_count = success_count + CASE WHEN NEW.status = 'success' THEN 1 ELSE 0 END,
-            failure_count = failure_count + CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END,
-            avg_duration_ms = CASE
-                WHEN execution_count = 0 THEN NEW.duration_ms
-                ELSE ((avg_duration_ms * execution_count + COALESCE(NEW.duration_ms, 0)) / (execution_count + 1))::INTEGER
-            END,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = NEW.workflow_id;
+    IF NEW.status = 'completed' AND OLD.status != 'completed' THEN
+        UPDATE video_assets SET
+            status = 'ready'
+        WHERE id = NEW.video_id;
+    ELSIF NEW.status = 'failed' AND OLD.status != 'failed' THEN
+        UPDATE video_assets SET
+            status = 'error',
+            processing_error = NEW.error_message
+        WHERE id = NEW.video_id;
     END IF;
     RETURN NEW;
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_workflow_stats_on_execution
-    AFTER INSERT OR UPDATE OF status ON executions
+CREATE TRIGGER update_video_on_job_completion
+    AFTER UPDATE OF status ON processing_jobs
     FOR EACH ROW
-    WHEN (NEW.status IN ('success', 'failed'))
-    EXECUTE FUNCTION update_workflow_stats();
+    WHEN (NEW.status IN ('completed', 'failed'))
+    EXECUTE FUNCTION update_video_status();
 
 -- Useful views for monitoring
-CREATE OR REPLACE VIEW workflow_performance AS
+CREATE OR REPLACE VIEW video_processing_queue AS
 SELECT 
-    w.name,
-    w.platform,
-    w.execution_count,
-    w.success_count,
-    w.failure_count,
-    CASE WHEN w.execution_count > 0 
-         THEN (w.success_count::FLOAT / w.execution_count * 100)::NUMERIC(5,2)
-         ELSE 0 
-    END as success_rate,
-    w.avg_duration_ms,
-    w.is_active
-FROM workflows w
-ORDER BY w.execution_count DESC;
+    pj.id,
+    pj.job_type,
+    pj.status,
+    pj.progress_percentage,
+    pj.priority,
+    va.name as video_name,
+    va.format,
+    va.duration_seconds,
+    pj.created_at,
+    pj.started_at,
+    EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - pj.started_at)) as processing_seconds
+FROM processing_jobs pj
+JOIN video_assets va ON pj.video_id = va.id
+WHERE pj.status IN ('pending', 'processing')
+ORDER BY pj.priority DESC, pj.created_at ASC;
 
-CREATE OR REPLACE VIEW recent_executions AS
+CREATE OR REPLACE VIEW video_statistics AS
 SELECT 
-    e.id,
-    w.name as workflow_name,
-    e.status,
-    e.started_at,
-    e.completed_at,
-    e.duration_ms,
-    e.error_message
-FROM executions e
-JOIN workflows w ON e.workflow_id = w.id
-ORDER BY e.started_at DESC
+    COUNT(DISTINCT va.id) as total_videos,
+    SUM(va.file_size_bytes) as total_storage_bytes,
+    SUM(va.duration_seconds) as total_duration_seconds,
+    COUNT(DISTINCT pj.id) as total_jobs,
+    COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'completed') as completed_jobs,
+    COUNT(DISTINCT pj.id) FILTER (WHERE pj.status = 'failed') as failed_jobs,
+    COUNT(DISTINCT ss.id) FILTER (WHERE ss.is_active = true) as active_streams
+FROM video_assets va
+LEFT JOIN processing_jobs pj ON va.id = pj.video_id
+LEFT JOIN streaming_sessions ss ON va.id = ss.video_id;
+
+CREATE OR REPLACE VIEW recent_analytics AS
+SELECT 
+    va.name as video_name,
+    anal.analysis_type,
+    anal.confidence_score,
+    anal.start_time_seconds,
+    anal.end_time_seconds,
+    anal.transcript_text,
+    anal.generated_at
+FROM video_analytics anal
+JOIN video_assets va ON anal.video_id = va.id
+ORDER BY anal.generated_at DESC
 LIMIT 100;
-
-CREATE OR REPLACE VIEW resource_summary AS
-SELECT 
-    type,
-    status,
-    COUNT(*) as count,
-    MAX(created_at) as latest_created,
-    MAX(updated_at) as latest_updated
-FROM resources
-WHERE deleted_at IS NULL
-GROUP BY type, status
-ORDER BY type, status;

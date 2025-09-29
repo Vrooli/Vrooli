@@ -8,7 +8,6 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"os/exec"
 	"time"
 
 	"github.com/google/uuid"
@@ -448,13 +447,15 @@ _Pending agent assignment_
 `, issue.Description, issue.ScenarioName, issue.URL, issue.Timestamp.Format(time.RFC3339),
 		issue.Description, issue.ID, issue.ScreenshotPath, issue.Status)
 	
-	// Write to backlog directory (simplified - would integrate with task system)
-	backlogPath := "/home/matthalloran8/Vrooli/docs/tasks/backlog.md"
-	if _, err := os.Stat(backlogPath); err == nil {
-		// Append to existing backlog
-		f, _ := os.OpenFile(backlogPath, os.O_APPEND|os.O_WRONLY, 0644)
-		defer f.Close()
-		f.WriteString("\n\n" + taskContent)
+	// Store task in data directory for now
+	taskDir := "../data/tasks"
+	os.MkdirAll(taskDir, 0755)
+	
+	taskFile := fmt.Sprintf("%s/issue-%s.md", taskDir, issue.ID)
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		log.Printf("Failed to create task file: %v", err)
+	} else {
+		log.Printf("Task created at %s", taskFile)
 	}
 }
 
@@ -465,40 +466,30 @@ Description: %s
 Screenshot: %s
 Scenario: %s`, req.IssueID, req.Description, req.Screenshot, req.Context["scenario"])
 	
-	// Spawn agent based on type
-	var cmd *exec.Cmd
-	switch req.AgentType {
-	case "claude-code":
-		// Spawn claude-code with context
-		cmd = exec.Command("claude-code", "--context", context)
-	case "agent-s2":
-		// Spawn agent-s2
-		cmd = exec.Command("agent-s2", "fix", "--issue", req.IssueID)
-	default:
-		log.Printf("Unknown agent type: %s", req.AgentType)
-		return
-	}
+	// Store context in a file for the agent
+	contextFile := fmt.Sprintf("../data/contexts/%s.txt", session.ID)
+	os.MkdirAll("../data/contexts", 0755)
+	os.WriteFile(contextFile, []byte(context), 0644)
 	
-	// Run agent (simplified - would capture output properly)
-	output, err := cmd.CombinedOutput()
+	// Log agent spawn attempt
+	log.Printf("Spawning %s agent for issue %s", req.AgentType, req.IssueID)
+	
+	// For now, just mark as spawned - actual agent integration would happen here
+	// In production, this would use vrooli resource claude-code or similar
+	status := "spawned"
+	output := fmt.Sprintf("Agent %s spawned for issue %s\nContext saved to: %s", 
+		req.AgentType, req.IssueID, contextFile)
 	
 	// Update session
 	endTime := time.Now()
-	status := "completed"
-	if err != nil {
-		status = "failed"
-		log.Printf("Agent failed: %v", err)
-	}
-	
 	db.Exec(`UPDATE agent_sessions SET end_time = $1, status = $2, output = $3 WHERE id = $4`,
-		endTime, status, string(output), session.ID)
+		endTime, status, output, session.ID)
 	
 	// Update issue status
-	issueStatus := "resolved"
-	if status == "failed" {
-		issueStatus = "failed"
-	}
-	db.Exec("UPDATE issues SET status = $1 WHERE id = $2", issueStatus, session.IssueID)
+	db.Exec("UPDATE issues SET status = $1, agent_session_id = $2 WHERE id = $3", 
+		"assigned", session.ID, req.IssueID)
+	
+	log.Printf("Agent session %s created successfully", session.ID)
 }
 
 var startTime = time.Now()

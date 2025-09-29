@@ -19,7 +19,11 @@ testing::unit::run_go_tests() {
     local verbose=false
     local coverage_warn_threshold=80
     local coverage_error_threshold=50
-    
+
+    # Reset any previously exported coverage metadata
+    unset -v TESTING_GO_COVERAGE_COLLECTED TESTING_GO_COVERAGE_PERCENT \
+        TESTING_GO_COVERAGE_PROFILE TESTING_GO_COVERAGE_HTML 2>/dev/null || true
+
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -114,12 +118,12 @@ testing::unit::run_go_tests() {
             echo "📊 Go Test Coverage Summary:"
             local coverage_line=$(go tool cover -func=coverage.out | tail -1)
             echo "$coverage_line"
-            
+
             # Extract coverage percentage
             local coverage_percent=$(echo "$coverage_line" | grep -o '[0-9]*\.[0-9]*%' | sed 's/%//' | head -1)
             if [ -n "$coverage_percent" ]; then
                 local coverage_num=$(echo "$coverage_percent" | cut -d. -f1)
-                
+
                 # Check coverage thresholds
                 echo ""
                 if [ "$coverage_num" -lt "$coverage_error_threshold" ]; then
@@ -133,15 +137,25 @@ testing::unit::run_go_tests() {
                 else
                     echo "✅ Go test coverage ($coverage_percent%) meets quality thresholds"
                 fi
+
+                # Export parsed percentage for downstream aggregation
+                declare -g TESTING_GO_COVERAGE_PERCENT="$coverage_percent"
             else
                 echo "⚠️  WARNING: Could not parse coverage percentage from: $coverage_line"
             fi
-            
+
+            # Always record artifact paths so they can be copied later
+            declare -g TESTING_GO_COVERAGE_COLLECTED="true"
+            local coverage_profile_rel="${api_dir%/}/coverage.out"
+            declare -g TESTING_GO_COVERAGE_PROFILE="$coverage_profile_rel"
             # Generate HTML coverage report for manual inspection
-            go tool cover -html=coverage.out -o coverage.html 2>/dev/null && \
-                echo "ℹ️  HTML coverage report generated: $api_dir/coverage.html"
+            if go tool cover -html=coverage.out -o coverage.html 2>/dev/null; then
+                local coverage_html_rel="${api_dir%/}/coverage.html"
+                declare -g TESTING_GO_COVERAGE_HTML="$coverage_html_rel"
+                echo "ℹ️  HTML coverage report generated: $coverage_html_rel"
+            fi
         fi
-        
+
         cd "$original_dir"
         return 0
     else

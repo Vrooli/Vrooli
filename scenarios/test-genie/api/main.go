@@ -16,7 +16,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -94,6 +96,109 @@ type PerformanceMetrics struct {
 	ExecutionTime float64                `json:"execution_time"`
 	ResourceUsage map[string]interface{} `json:"resource_usage"`
 	ErrorCount    int                    `json:"error_count"`
+}
+
+type ScenarioOverview struct {
+	Name                   string     `json:"name"`
+	HasTestDirectory       bool       `json:"has_test_directory"`
+	HasTests               bool       `json:"has_tests"`
+	SuiteCount             int        `json:"suite_count"`
+	TestCaseCount          int        `json:"test_case_count"`
+	SuiteTypes             []string   `json:"suite_types,omitempty"`
+	LatestSuiteGeneratedAt *time.Time `json:"latest_suite_generated_at,omitempty"`
+	LatestSuiteID          string     `json:"latest_suite_id,omitempty"`
+	LatestSuiteStatus      string     `json:"latest_suite_status,omitempty"`
+	LatestSuiteCoverage    float64    `json:"latest_suite_coverage"`
+}
+
+type ReportsOverviewResponse struct {
+	GeneratedAt time.Time               `json:"generated_at"`
+	WindowStart time.Time               `json:"window_start"`
+	WindowEnd   time.Time               `json:"window_end"`
+	Global      ReportGlobalMetrics     `json:"global"`
+	Scenarios   []ScenarioReportSummary `json:"scenarios"`
+	Vaults      ReportVaultRollup       `json:"vaults"`
+}
+
+type ReportGlobalMetrics struct {
+	TotalTests       int     `json:"total_tests"`
+	PassedTests      int     `json:"passed_tests"`
+	FailedTests      int     `json:"failed_tests"`
+	PassRate         float64 `json:"pass_rate"`
+	AverageDuration  float64 `json:"average_duration_seconds"`
+	AverageCoverage  float64 `json:"average_coverage"`
+	ActiveScenarios  int     `json:"active_scenarios"`
+	ActiveExecutions int     `json:"active_executions"`
+	ActiveVaults     int     `json:"active_vaults"`
+	Regressions      int     `json:"active_regressions"`
+}
+
+type ScenarioReportSummary struct {
+	ScenarioName        string            `json:"scenario_name"`
+	HealthScore         int               `json:"health_score"`
+	PassRate            float64           `json:"pass_rate"`
+	Coverage            float64           `json:"coverage"`
+	TargetCoverage      float64           `json:"target_coverage"`
+	CoverageDelta       float64           `json:"coverage_delta"`
+	ExecutionCount      int               `json:"execution_count"`
+	ActiveFailures      int               `json:"active_failures"`
+	RunningExecutions   int               `json:"running_executions"`
+	AverageTestDuration float64           `json:"average_test_duration"`
+	LastExecutionID     string            `json:"last_execution_id"`
+	LastExecutionStatus string            `json:"last_execution_status"`
+	LastExecutionEnded  *time.Time        `json:"last_execution_ended_at,omitempty"`
+	Vault               ReportVaultStatus `json:"vault"`
+}
+
+type ReportVaultStatus struct {
+	HasVault        bool       `json:"has_vault"`
+	TotalExecutions int        `json:"total_executions"`
+	SuccessfulRuns  int        `json:"successful_runs"`
+	FailedRuns      int        `json:"failed_runs"`
+	SuccessRate     float64    `json:"success_rate"`
+	LatestStatus    string     `json:"latest_status"`
+	LatestEndedAt   *time.Time `json:"latest_ended_at,omitempty"`
+}
+
+type ReportVaultRollup struct {
+	TotalVaults        int     `json:"total_vaults"`
+	TotalExecutions    int     `json:"total_executions"`
+	FailedExecutions   int     `json:"failed_executions"`
+	SuccessRate        float64 `json:"success_rate"`
+	ScenariosWithVault int     `json:"scenarios_with_vault"`
+}
+
+type ReportTrendPoint struct {
+	Bucket           time.Time `json:"bucket"`
+	Executions       int       `json:"executions"`
+	FailedExecutions int       `json:"failed_executions"`
+	PassedTests      int       `json:"passed_tests"`
+	FailedTests      int       `json:"failed_tests"`
+	AverageDuration  float64   `json:"average_duration_seconds"`
+	AverageCoverage  float64   `json:"average_coverage"`
+}
+
+type ReportsTrendsResponse struct {
+	GeneratedAt time.Time          `json:"generated_at"`
+	BucketSize  string             `json:"bucket_size"`
+	WindowStart time.Time          `json:"window_start"`
+	WindowEnd   time.Time          `json:"window_end"`
+	Series      []ReportTrendPoint `json:"series"`
+}
+
+type ReportInsight struct {
+	Title        string   `json:"title"`
+	Severity     string   `json:"severity"`
+	ScenarioName string   `json:"scenario_name,omitempty"`
+	Detail       string   `json:"detail"`
+	Actions      []string `json:"actions"`
+}
+
+type ReportsInsightsResponse struct {
+	GeneratedAt time.Time       `json:"generated_at"`
+	WindowStart time.Time       `json:"window_start"`
+	WindowEnd   time.Time       `json:"window_end"`
+	Insights    []ReportInsight `json:"insights"`
 }
 
 type AssertionResult struct {
@@ -313,6 +418,50 @@ type AIGeneratedTest struct {
 var db *sql.DB
 var serviceManager *ServiceManager
 var openCodeAgentManager *AgentManager
+
+var (
+	repoRootOnce sync.Once
+	repoRootPath string
+	repoRootErr  error
+)
+
+type aggregatedCoverage struct {
+	GeneratedAt string               `json:"generated_at"`
+	Languages   []aggregatedLanguage `json:"languages"`
+}
+
+type aggregatedLanguage struct {
+	Language  string             `json:"language"`
+	Metrics   map[string]float64 `json:"metrics"`
+	Artifacts map[string]string  `json:"artifacts"`
+}
+
+type istanbulMetric struct {
+	Pct float64 `json:"pct"`
+}
+
+type istanbulSummary struct {
+	Statements istanbulMetric `json:"statements"`
+	Lines      istanbulMetric `json:"lines"`
+	Functions  istanbulMetric `json:"functions"`
+	Branches   istanbulMetric `json:"branches"`
+}
+
+type CoverageOverview struct {
+	ScenarioName    string                    `json:"scenario_name"`
+	OverallCoverage float64                   `json:"overall_coverage"`
+	GeneratedAt     string                    `json:"generated_at"`
+	Languages       []CoverageLanguageSummary `json:"languages"`
+	AggregatePath   string                    `json:"aggregate_path"`
+	HasArtifacts    bool                      `json:"has_artifacts"`
+	Warnings        []string                  `json:"warnings,omitempty"`
+}
+
+type CoverageLanguageSummary struct {
+	Language  string             `json:"language"`
+	Metrics   map[string]float64 `json:"metrics"`
+	Artifacts map[string]string  `json:"artifacts"`
+}
 
 type testTypeHint struct {
 	keyword  string
@@ -551,6 +700,45 @@ func createTables() {
 			assertions JSONB,
 			artifacts JSONB
 		)`,
+		`CREATE TABLE IF NOT EXISTS test_vaults (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			scenario_name VARCHAR(255) NOT NULL,
+			vault_name VARCHAR(255) NOT NULL,
+			phases JSONB DEFAULT '[]',
+			phase_configurations JSONB DEFAULT '{}',
+			success_criteria JSONB DEFAULT '{}',
+			total_timeout INTEGER DEFAULT 3600,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			last_executed TIMESTAMP,
+			status VARCHAR(50) DEFAULT 'active'
+		)`,
+		`CREATE TABLE IF NOT EXISTS vault_executions (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			vault_id UUID REFERENCES test_vaults(id) ON DELETE CASCADE,
+			execution_type VARCHAR(50),
+			start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			end_time TIMESTAMP,
+			current_phase VARCHAR(100),
+			completed_phases JSONB DEFAULT '[]',
+			failed_phases JSONB DEFAULT '[]',
+			status VARCHAR(50) DEFAULT 'running',
+			phase_results JSONB DEFAULT '{}',
+			environment VARCHAR(100),
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS coverage_analysis (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			scenario_name VARCHAR(255) NOT NULL,
+			overall_coverage DECIMAL(5,2),
+			coverage_by_file JSONB DEFAULT '{}',
+			coverage_gaps JSONB DEFAULT '{}',
+			improvement_suggestions JSONB DEFAULT '[]',
+			priority_areas JSONB DEFAULT '[]',
+			analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_test_vaults_scenario ON test_vaults(scenario_name)`,
+		`CREATE INDEX IF NOT EXISTS idx_vault_executions_vault ON vault_executions(vault_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_coverage_analysis_scenario ON coverage_analysis(scenario_name)`,
 	}
 
 	for _, query := range queries {
@@ -2663,6 +2851,430 @@ func getTestExecutionResultsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+func computeCoverageAnalysis(scenarioName string) (CoverageAnalysisResponse, bool, error) {
+	response := CoverageAnalysisResponse{
+		CoverageByFile: make(map[string]float64),
+		CoverageGaps: CoverageGaps{
+			UntestedFunctions: []string{},
+			UntestedBranches:  []string{},
+			UntestedEdgeCases: []string{},
+		},
+	}
+
+	aggregate, scenarioRoot, err := loadCoverageAggregate(scenarioName)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			scenarioLabel := scenarioName
+			if strings.TrimSpace(scenarioLabel) == "" {
+				scenarioLabel = "current scenario"
+			}
+			response.ImprovementSuggestions = []string{
+				fmt.Sprintf("Coverage artifacts not found for %s. Run the scenario's unit tests to generate coverage reports.", scenarioLabel),
+			}
+			response.PriorityAreas = []string{"Generate fresh coverage reports"}
+			return response, false, nil
+		}
+		return response, false, err
+	}
+
+	var coverageValues []float64
+	suggestions := []string{}
+	priorityAreas := []string{}
+
+	for _, language := range aggregate.Languages {
+		statementsCoverage := language.Metrics["statements"]
+		if statementsCoverage == 0 {
+			if v, ok := language.Metrics["lines"]; ok {
+				statementsCoverage = v
+			}
+		}
+		if statementsCoverage > 0 {
+			coverageValues = append(coverageValues, statementsCoverage)
+			response.CoverageByFile[fmt.Sprintf("%s:overall", language.Language)] = statementsCoverage
+			if statementsCoverage < 80 {
+				label := humanizeLanguage(language.Language)
+				suggestions = append(suggestions,
+					fmt.Sprintf("%s coverage is %.1f%% (below the 80%% target)", label, statementsCoverage))
+				priorityAreas = append(priorityAreas,
+					fmt.Sprintf("Increase %s automation coverage", label))
+			}
+		}
+
+		if language.Language == "node" {
+			if summaryRel, ok := language.Artifacts["summary"]; ok && summaryRel != "" {
+				summaryPath := filepath.Join(scenarioRoot, summaryRel)
+				if perFile, err := parseNodeCoverageSummary(summaryPath, scenarioRoot); err == nil {
+					for filePath, pct := range perFile {
+						response.CoverageByFile[fmt.Sprintf("node:%s", filePath)] = pct
+					}
+				} else {
+					log.Printf("⚠️  Failed to parse Node coverage summary (%s): %v", summaryPath, err)
+				}
+			}
+		}
+
+		if language.Language == "go" {
+			if profileRel, ok := language.Artifacts["cover_profile"]; ok && profileRel != "" {
+				profilePath := filepath.Join(scenarioRoot, profileRel)
+				if perFile, err := parseGoCoverageProfile(profilePath, scenarioRoot); err == nil {
+					for filePath, pct := range perFile {
+						response.CoverageByFile[fmt.Sprintf("go:%s", filePath)] = pct
+					}
+				} else {
+					log.Printf("⚠️  Failed to parse Go coverage profile (%s): %v", profilePath, err)
+				}
+			}
+		}
+	}
+
+	if len(coverageValues) > 0 {
+		var sum float64
+		for _, v := range coverageValues {
+			sum += v
+		}
+		response.OverallCoverage = sum / float64(len(coverageValues))
+	}
+
+	if len(suggestions) == 0 {
+		suggestions = append(suggestions, "Coverage levels meet configured thresholds")
+	}
+	if len(priorityAreas) == 0 {
+		priorityAreas = append(priorityAreas, "Monitor coverage trends over time")
+	}
+
+	response.ImprovementSuggestions = suggestions
+	response.PriorityAreas = priorityAreas
+
+	return response, true, nil
+}
+
+func loadCoverageAggregate(scenarioName string) (*aggregatedCoverage, string, error) {
+	candidates := aggregateFileCandidates(scenarioName)
+	var parseErr error
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+		data, err := os.ReadFile(candidate)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			parseErr = err
+			continue
+		}
+		var aggregate aggregatedCoverage
+		if err := json.Unmarshal(data, &aggregate); err != nil {
+			parseErr = err
+			continue
+		}
+		scenarioRoot := filepath.Dir(filepath.Dir(filepath.Dir(candidate)))
+		return &aggregate, scenarioRoot, nil
+	}
+
+	if parseErr != nil {
+		return nil, "", parseErr
+	}
+	return nil, "", os.ErrNotExist
+}
+
+func aggregateFileCandidates(scenarioName string) []string {
+	var candidates []string
+
+	if wd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Clean(filepath.Join(wd, "..", "coverage", "test-genie", "aggregate.json")))
+	}
+
+	if repoRoot, err := getRepoRoot(); err == nil {
+		if strings.TrimSpace(scenarioName) != "" {
+			candidates = append(candidates, filepath.Join(repoRoot, "scenarios", scenarioName, "coverage", "test-genie", "aggregate.json"))
+		}
+		candidates = append(candidates, filepath.Join(repoRoot, "scenarios", "test-genie", "coverage", "test-genie", "aggregate.json"))
+	}
+
+	seen := map[string]struct{}{}
+	unique := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		abs, err := filepath.Abs(candidate)
+		if err != nil {
+			continue
+		}
+		if _, ok := seen[abs]; ok {
+			continue
+		}
+		seen[abs] = struct{}{}
+		unique = append(unique, abs)
+	}
+
+	return unique
+}
+
+func listCoverageSummaries() ([]CoverageOverview, error) {
+	repoRoot, err := getRepoRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	scenariosDir := filepath.Join(repoRoot, "scenarios")
+	globPattern := filepath.Join(scenariosDir, "*", "coverage", "test-genie", "aggregate.json")
+	matches, err := filepath.Glob(globPattern)
+	if err != nil {
+		return nil, err
+	}
+
+	// Also check the test-genie scenario itself
+	matches = append(matches, filepath.Join(scenariosDir, "test-genie", "coverage", "test-genie", "aggregate.json"))
+
+	seen := make(map[string]struct{})
+	var overviews []CoverageOverview
+
+	for _, candidate := range matches {
+		if candidate == "" {
+			continue
+		}
+		absPath, err := filepath.Abs(candidate)
+		if err != nil {
+			continue
+		}
+		if _, ok := seen[absPath]; ok {
+			continue
+		}
+		seen[absPath] = struct{}{}
+
+		data, err := os.ReadFile(absPath)
+		if err != nil {
+			continue
+		}
+
+		var aggregate aggregatedCoverage
+		if err := json.Unmarshal(data, &aggregate); err != nil {
+			log.Printf("⚠️  Failed to unmarshal coverage aggregate %s: %v", absPath, err)
+			continue
+		}
+
+		scenarioPath := filepath.Dir(filepath.Dir(filepath.Dir(absPath)))
+		scenarioName := filepath.Base(scenarioPath)
+		if scenarioName == "coverage" {
+			// Handles cases where aggregate lives directly under scenario root
+			scenarioPath = filepath.Dir(scenarioPath)
+			scenarioName = filepath.Base(scenarioPath)
+		}
+
+		overview := CoverageOverview{
+			ScenarioName:  scenarioName,
+			GeneratedAt:   aggregate.GeneratedAt,
+			Languages:     []CoverageLanguageSummary{},
+			AggregatePath: filepath.ToSlash(absPath),
+			HasArtifacts:  len(aggregate.Languages) > 0,
+			Warnings:      []string{},
+		}
+
+		var coverageValues []float64
+
+		for _, language := range aggregate.Languages {
+			metricsCopy := make(map[string]float64, len(language.Metrics))
+			for key, value := range language.Metrics {
+				metricsCopy[key] = value
+			}
+			artifactsCopy := make(map[string]string, len(language.Artifacts))
+			for key, value := range language.Artifacts {
+				artifactsCopy[key] = value
+			}
+
+			overview.Languages = append(overview.Languages, CoverageLanguageSummary{
+				Language:  language.Language,
+				Metrics:   metricsCopy,
+				Artifacts: artifactsCopy,
+			})
+
+			if value, ok := metricsCopy["statements"]; ok && value > 0 {
+				coverageValues = append(coverageValues, value)
+			} else if value, ok := metricsCopy["lines"]; ok && value > 0 {
+				coverageValues = append(coverageValues, value)
+			}
+
+			if len(metricsCopy) == 0 {
+				overview.Warnings = append(overview.Warnings,
+					fmt.Sprintf("No coverage metrics recorded for %s", humanizeLanguage(language.Language)))
+			}
+		}
+
+		if len(coverageValues) > 0 {
+			var sum float64
+			for _, v := range coverageValues {
+				sum += v
+			}
+			overview.OverallCoverage = sum / float64(len(coverageValues))
+		} else {
+			overview.Warnings = append(overview.Warnings, "Coverage metrics not available")
+		}
+
+		if rel, err := filepath.Rel(repoRoot, absPath); err == nil {
+			overview.AggregatePath = filepath.ToSlash(rel)
+		}
+
+		overviews = append(overviews, overview)
+	}
+
+	sort.Slice(overviews, func(i, j int) bool {
+		if overviews[i].ScenarioName == overviews[j].ScenarioName {
+			return overviews[i].GeneratedAt > overviews[j].GeneratedAt
+		}
+		return strings.Compare(overviews[i].ScenarioName, overviews[j].ScenarioName) < 0
+	})
+
+	return overviews, nil
+}
+
+func getRepoRoot() (string, error) {
+	repoRootOnce.Do(func() {
+		dir, err := os.Getwd()
+		if err != nil {
+			repoRootErr = err
+			return
+		}
+		dir, err = filepath.Abs(dir)
+		if err != nil {
+			repoRootErr = err
+			return
+		}
+		for {
+			if fileExists(filepath.Join(dir, ".git")) || fileExists(filepath.Join(dir, "pnpm-workspace.yaml")) {
+				repoRootPath = dir
+				return
+			}
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				repoRootErr = fmt.Errorf("repository root not found starting at %s", dir)
+				return
+			}
+			dir = parent
+		}
+	})
+
+	return repoRootPath, repoRootErr
+}
+
+func fileExists(path string) bool {
+	if path == "" {
+		return false
+	}
+	if _, err := os.Stat(path); err == nil {
+		return true
+	}
+	return false
+}
+
+func parseNodeCoverageSummary(summaryPath, scenarioRoot string) (map[string]float64, error) {
+	data, err := os.ReadFile(summaryPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var raw map[string]istanbulSummary
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, err
+	}
+
+	results := make(map[string]float64)
+	for key, summary := range raw {
+		if strings.EqualFold(key, "total") {
+			continue
+		}
+		normalized := normalizePathRelativeToRoot(key, scenarioRoot)
+		results[normalized] = summary.Statements.Pct
+	}
+
+	return results, nil
+}
+
+func parseGoCoverageProfile(profilePath, scenarioRoot string) (map[string]float64, error) {
+	data, err := os.ReadFile(profilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	if len(lines) <= 1 {
+		return map[string]float64{}, nil
+	}
+
+	type coverageStat struct {
+		total   int
+		covered int
+	}
+
+	stats := make(map[string]*coverageStat)
+
+	for _, line := range lines[1:] {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		fileRange := fields[0]
+		numStmt, err := strconv.Atoi(fields[1])
+		if err != nil {
+			continue
+		}
+		count, err := strconv.ParseFloat(fields[2], 64)
+		if err != nil {
+			continue
+		}
+
+		filePath := strings.Split(fileRange, ":")[0]
+		stat, ok := stats[filePath]
+		if !ok {
+			stat = &coverageStat{}
+			stats[filePath] = stat
+		}
+		stat.total += numStmt
+		if count > 0 {
+			stat.covered += numStmt
+		}
+	}
+
+	results := make(map[string]float64, len(stats))
+	for filePath, stat := range stats {
+		if stat.total == 0 {
+			continue
+		}
+		coverage := (float64(stat.covered) / float64(stat.total)) * 100
+		results[normalizePathRelativeToRoot(filePath, scenarioRoot)] = coverage
+	}
+
+	return results, nil
+}
+
+func normalizePathRelativeToRoot(filePath, scenarioRoot string) string {
+	cleaned := filepath.Clean(filePath)
+	if filepath.IsAbs(cleaned) {
+		if rel, err := filepath.Rel(scenarioRoot, cleaned); err == nil {
+			return filepath.ToSlash(rel)
+		}
+		return filepath.ToSlash(cleaned)
+	}
+
+	joined := filepath.Join(scenarioRoot, cleaned)
+	if rel, err := filepath.Rel(scenarioRoot, joined); err == nil {
+		return filepath.ToSlash(rel)
+	}
+
+	return filepath.ToSlash(cleaned)
+}
+
+func humanizeLanguage(language string) string {
+	if language == "" {
+		return "Unknown"
+	}
+	runes := []rune(language)
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
+}
+
 func analyzeCoverageHandler(c *gin.Context) {
 	var req CoverageAnalysisRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -2670,46 +3282,18 @@ func analyzeCoverageHandler(c *gin.Context) {
 		return
 	}
 
-	// Mock coverage analysis for demo
-	response := CoverageAnalysisResponse{
-		OverallCoverage: 87.3,
-		CoverageByFile: map[string]float64{
-			"main.go":     95.2,
-			"handlers.go": 89.1,
-			"models.go":   76.5,
-			"utils.go":    92.8,
-		},
-		CoverageGaps: CoverageGaps{
-			UntestedFunctions: []string{
-				"handleError",
-				"validateInput",
-				"cleanup",
-			},
-			UntestedBranches: []string{
-				"error handling in main loop",
-				"timeout scenarios",
-				"edge case validation",
-			},
-			UntestedEdgeCases: []string{
-				"null input handling",
-				"concurrent access patterns",
-				"resource exhaustion scenarios",
-			},
-		},
-		ImprovementSuggestions: []string{
-			"Add unit tests for error handling functions",
-			"Create integration tests for concurrent scenarios",
-			"Implement performance tests for resource-intensive operations",
-			"Add boundary value testing for input validation",
-		},
-		PriorityAreas: []string{
-			"Error handling coverage",
-			"Concurrent access testing",
-			"Input validation edge cases",
-		},
+	analysis, hasData, err := computeCoverageAnalysis(req.ScenarioName)
+	if err != nil {
+		log.Printf("⚠️  Failed to compute coverage analysis: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to compute coverage analysis"})
+		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	if !hasData {
+		log.Printf("ℹ️  Coverage artifacts not found for scenario %q", req.ScenarioName)
+	}
+
+	c.JSON(http.StatusOK, analysis)
 }
 
 func healthHandler(c *gin.Context) {
@@ -3584,6 +4168,42 @@ func shouldSkipScenarioDir(name string) bool {
 	return skip
 }
 
+var errScenarioTestFound = errors.New("scenario test located")
+
+func scenarioHasRecognizedTests(scenarioRoot string) bool {
+	testDir := filepath.Join(scenarioRoot, "test")
+	info, err := os.Stat(testDir)
+	if err != nil || !info.IsDir() {
+		return false
+	}
+
+	err = filepath.WalkDir(testDir, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		if d.IsDir() {
+			if shouldSkipScenarioDir(d.Name()) {
+				return fs.SkipDir
+			}
+			return nil
+		}
+
+		if isRecognizedTestFile(path) {
+			return errScenarioTestFound
+		}
+		return nil
+	})
+
+	if errors.Is(err, errScenarioTestFound) {
+		return true
+	}
+	if err != nil {
+		log.Printf("⚠️  Failed to inspect tests for %s: %v", scenarioRoot, err)
+	}
+	return false
+}
+
 func isRecognizedTestFile(path string) bool {
 	name := filepath.Base(path)
 	lowerName := strings.ToLower(name)
@@ -3690,6 +4310,175 @@ func listTestSuitesHandler(c *gin.Context) {
 			"scenario": scenarioFilter,
 			"status":   statusFilter,
 		},
+	})
+}
+
+func listScenariosHandler(c *gin.Context) {
+	repoRoot, err := findRepositoryRoot()
+	if err != nil {
+		log.Printf("⚠️  Failed to locate repository root for scenario listing: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to enumerate scenarios"})
+		return
+	}
+
+	scenariosDir := filepath.Join(repoRoot, "scenarios")
+	entries, err := os.ReadDir(scenariosDir)
+	if err != nil {
+		log.Printf("⚠️  Failed to read scenarios directory: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to enumerate scenarios"})
+		return
+	}
+
+	type scenarioAccumulator struct {
+		data      ScenarioOverview
+		types     map[string]struct{}
+		hasStored bool
+	}
+
+	scenarioMap := make(map[string]*scenarioAccumulator)
+
+	ensureScenario := func(name string) *scenarioAccumulator {
+		acc, ok := scenarioMap[name]
+		if ok {
+			return acc
+		}
+
+		acc = &scenarioAccumulator{
+			data: ScenarioOverview{
+				Name: name,
+			},
+			types: make(map[string]struct{}),
+		}
+
+		scenarioRoot := filepath.Join(scenariosDir, name)
+		if info, err := os.Stat(scenarioRoot); err == nil && info.IsDir() {
+			acc.data.HasTestDirectory = scenarioHasRecognizedTests(scenarioRoot)
+		}
+
+		scenarioMap[name] = acc
+		return acc
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+
+		acc := ensureScenario(name)
+		if acc.data.Name == "" {
+			acc.data.Name = name
+		}
+
+		if acc.types == nil {
+			acc.types = make(map[string]struct{})
+		}
+	}
+
+	storedSuites, err := fetchStoredTestSuites(c.Request.Context(), "", "")
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		log.Printf("⚠️  Failed to load stored suites for scenario listing: %v", err)
+	}
+
+	repoSuites := make([]TestSuite, 0)
+	if repoRoot != "" {
+		if discovered, discoverErr := discoverScenarioTestSuites(repoRoot, ""); discoverErr != nil {
+			log.Printf("⚠️  Failed to discover scenario suites while listing scenarios: %v", discoverErr)
+		} else {
+			repoSuites = discovered
+		}
+	}
+
+	for _, suite := range storedSuites {
+		name := strings.TrimSpace(suite.ScenarioName)
+		if name == "" {
+			continue
+		}
+
+		acc := ensureScenario(name)
+		acc.hasStored = true
+		acc.data.SuiteCount++
+		acc.data.TestCaseCount += len(suite.TestCases)
+		acc.data.HasTests = true
+
+		if suite.SuiteType != "" {
+			for _, t := range strings.Split(suite.SuiteType, ",") {
+				trimmed := strings.TrimSpace(t)
+				if trimmed != "" {
+					acc.types[strings.ToLower(trimmed)] = struct{}{}
+				}
+			}
+		}
+
+		if acc.data.LatestSuiteGeneratedAt == nil || suite.GeneratedAt.After(*acc.data.LatestSuiteGeneratedAt) {
+			generatedAt := suite.GeneratedAt
+			acc.data.LatestSuiteGeneratedAt = &generatedAt
+			acc.data.LatestSuiteID = suite.ID.String()
+			acc.data.LatestSuiteStatus = suite.Status
+			acc.data.LatestSuiteCoverage = suite.CoverageMetrics.CodeCoverage
+		}
+	}
+
+	for _, suite := range repoSuites {
+		name := strings.TrimSpace(suite.ScenarioName)
+		if name == "" {
+			continue
+		}
+
+		acc := ensureScenario(name)
+		if acc.hasStored {
+			continue
+		}
+
+		acc.data.SuiteCount++
+		acc.data.TestCaseCount += len(suite.TestCases)
+		acc.data.HasTests = true
+
+		if suite.SuiteType != "" {
+			for _, t := range strings.Split(suite.SuiteType, ",") {
+				trimmed := strings.TrimSpace(t)
+				if trimmed != "" {
+					acc.types[strings.ToLower(trimmed)] = struct{}{}
+				}
+			}
+		}
+
+		if acc.data.LatestSuiteGeneratedAt == nil || suite.GeneratedAt.After(*acc.data.LatestSuiteGeneratedAt) {
+			generatedAt := suite.GeneratedAt
+			acc.data.LatestSuiteGeneratedAt = &generatedAt
+			acc.data.LatestSuiteID = suite.ID.String()
+			acc.data.LatestSuiteStatus = suite.Status
+			acc.data.LatestSuiteCoverage = suite.CoverageMetrics.CodeCoverage
+		}
+	}
+
+	results := make([]ScenarioOverview, 0, len(scenarioMap))
+	for _, acc := range scenarioMap {
+		if len(acc.types) > 0 {
+			types := make([]string, 0, len(acc.types))
+			for t := range acc.types {
+				types = append(types, t)
+			}
+			sort.Strings(types)
+			acc.data.SuiteTypes = types
+		}
+		if acc.data.HasTests {
+			acc.data.HasTests = acc.data.SuiteCount > 0
+		}
+		results = append(results, acc.data)
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return strings.Compare(results[i].Name, results[j].Name) < 0
+	})
+
+	c.JSON(http.StatusOK, gin.H{
+		"scenarios": results,
+		"count":     len(results),
 	})
 }
 
@@ -3991,45 +4780,868 @@ func listVaultExecutionsHandler(c *gin.Context) {
 }
 
 func getCoverageAnalysisHandler(c *gin.Context) {
-	_ = c.Param("scenario_name") // TODO: Use scenario name for filtering
+	scenarioName := c.Param("scenario_name")
 
-	// Mock coverage analysis - would query from database
-	response := CoverageAnalysisResponse{
-		OverallCoverage: 87.3,
-		CoverageByFile: map[string]float64{
-			"main.go":     95.2,
-			"handlers.go": 89.1,
-			"models.go":   76.5,
-			"utils.go":    92.8,
-		},
-		CoverageGaps: CoverageGaps{
-			UntestedFunctions: []string{
-				"handleError",
-				"validateInput",
-				"cleanup",
-			},
-			UntestedBranches: []string{
-				"error handling in main loop",
-				"timeout scenarios",
-			},
-			UntestedEdgeCases: []string{
-				"null input handling",
-				"concurrent access patterns",
-			},
-		},
-		ImprovementSuggestions: []string{
-			"Add unit tests for error handling functions",
-			"Create integration tests for concurrent scenarios",
-			"Implement performance tests for resource-intensive operations",
-		},
-		PriorityAreas: []string{
-			"Error handling functions (critical)",
-			"Input validation routines (high)",
-			"Concurrent access patterns (medium)",
-		},
+	analysis, hasData, err := computeCoverageAnalysis(scenarioName)
+	if err != nil {
+		log.Printf("⚠️  Failed to load coverage analysis for %q: %v", scenarioName, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load coverage analysis"})
+		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	if !hasData {
+		log.Printf("ℹ️  Coverage artifacts not found for scenario %q", scenarioName)
+	}
+
+	c.JSON(http.StatusOK, analysis)
+}
+
+func listCoverageAnalysesHandler(c *gin.Context) {
+	summaries, err := listCoverageSummaries()
+	if err != nil {
+		log.Printf("⚠️  Failed to list coverage analyses: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list coverage analyses"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"coverages": summaries,
+		"total":     len(summaries),
+	})
+}
+
+func reportsOverviewHandler(c *gin.Context) {
+	windowDays := parseWindowDays(c.Query("window_days"), 30)
+	overview, err := buildReportsOverview(c.Request.Context(), windowDays)
+	if err != nil {
+		log.Printf("❌ Failed to build reports overview: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build reports overview"})
+		return
+	}
+
+	c.JSON(http.StatusOK, overview)
+}
+
+func reportsTrendsHandler(c *gin.Context) {
+	windowDays := parseWindowDays(c.Query("window_days"), 30)
+	trends, err := buildReportsTrends(c.Request.Context(), windowDays)
+	if err != nil {
+		log.Printf("❌ Failed to build reports trends: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build reports trends"})
+		return
+	}
+
+	c.JSON(http.StatusOK, trends)
+}
+
+func reportsInsightsHandler(c *gin.Context) {
+	windowDays := parseWindowDays(c.Query("window_days"), 30)
+	overview, err := buildReportsOverview(c.Request.Context(), windowDays)
+	if err != nil {
+		log.Printf("❌ Failed to build reports overview for insights: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build reports insights"})
+		return
+	}
+
+	insights, err := buildReportsInsights(c.Request.Context(), overview, windowDays)
+	if err != nil {
+		log.Printf("❌ Failed to build reports insights: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build reports insights"})
+		return
+	}
+
+	c.JSON(http.StatusOK, insights)
+}
+
+type scenarioAggregate struct {
+	ExecutionCount    int
+	FailedExecutions  int
+	RunningExecutions int
+	PassedTests       int
+	FailedTests       int
+	SkippedTests      int
+	TotalDuration     float64
+}
+
+type executionSnapshot struct {
+	ExecutionID string
+	Status      string
+	EndedAt     *time.Time
+}
+
+type coverageEntry struct {
+	Value      float64
+	AnalyzedAt time.Time
+}
+
+type failingTestCandidate struct {
+	ScenarioName string
+	TestName     string
+	Failures     int
+	TotalRuns    int
+	AvgDuration  float64
+}
+
+func buildReportsOverview(ctx context.Context, windowDays int) (ReportsOverviewResponse, error) {
+	if windowDays <= 0 {
+		windowDays = 30
+	}
+	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
+
+	windowEnd := time.Now().UTC()
+	windowStart := windowEnd.Add(-time.Duration(windowDays) * 24 * time.Hour)
+
+	scenarioAgg, err := fetchScenarioAggregates(ctx, windowStart)
+	if err != nil {
+		return ReportsOverviewResponse{}, err
+	}
+
+	coverageMap, err := fetchCoverageMap(ctx, windowStart)
+	if err != nil {
+		return ReportsOverviewResponse{}, err
+	}
+
+	latestExecMap, err := fetchLatestExecutions(ctx)
+	if err != nil {
+		return ReportsOverviewResponse{}, err
+	}
+
+	vaultMap, vaultRollup, err := fetchVaultAggregates(ctx, windowStart)
+	if err != nil {
+		return ReportsOverviewResponse{}, err
+	}
+
+	scenarioNames := make(map[string]struct{})
+	for name := range scenarioAgg {
+		scenarioNames[name] = struct{}{}
+	}
+	for name := range coverageMap {
+		scenarioNames[name] = struct{}{}
+	}
+	for name := range vaultMap {
+		scenarioNames[name] = struct{}{}
+	}
+
+	names := make([]string, 0, len(scenarioNames))
+	for name := range scenarioNames {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	summaries := make([]ScenarioReportSummary, 0, len(names))
+	var totalTests, passedTests, failedTests int
+	var totalDuration float64
+	var totalCoverage float64
+	var coverageCount int
+	var activeExecutions int
+	var activeScenarios int
+	var regressions int
+
+	const coverageTarget = 95.0
+
+	for _, name := range names {
+		agg := scenarioAgg[name]
+		covEntry, hasCoverage := coverageMap[name]
+		coverage := 0.0
+		if hasCoverage {
+			coverage = covEntry.Value
+		}
+
+		snapshot := latestExecMap[name]
+		vaultStatus := vaultMap[name]
+		totalScenarioTests := agg.PassedTests + agg.FailedTests + agg.SkippedTests
+		passRatio := safeDivide(float64(agg.PassedTests), float64(agg.PassedTests+agg.FailedTests))
+		avgDuration := safeDivide(agg.TotalDuration, float64(totalScenarioTests))
+		vaultSuccess := 1.0
+		if vaultStatus.HasVault {
+			if vaultStatus.TotalExecutions > 0 {
+				vaultSuccess = safeDivide(float64(vaultStatus.SuccessfulRuns), float64(vaultStatus.TotalExecutions))
+			}
+		} else {
+			vaultSuccess = 1.0
+		}
+
+		health := computeScenarioHealthScore(passRatio, coverage, coverageTarget, vaultSuccess, agg.FailedExecutions)
+
+		summary := ScenarioReportSummary{
+			ScenarioName:        name,
+			HealthScore:         health,
+			PassRate:            roundTo(passRatio*100, 2),
+			Coverage:            roundTo(coverage, 2),
+			TargetCoverage:      coverageTarget,
+			CoverageDelta:       roundTo(coverage-coverageTarget, 2),
+			ExecutionCount:      agg.ExecutionCount,
+			ActiveFailures:      agg.FailedExecutions,
+			RunningExecutions:   agg.RunningExecutions,
+			AverageTestDuration: roundTo(avgDuration, 2),
+			Vault:               vaultStatus,
+		}
+
+		if snapshot.ExecutionID != "" {
+			summary.LastExecutionID = snapshot.ExecutionID
+			summary.LastExecutionStatus = snapshot.Status
+			summary.LastExecutionEnded = snapshot.EndedAt
+		}
+
+		summaries = append(summaries, summary)
+
+		totalTests += totalScenarioTests
+		passedTests += agg.PassedTests
+		failedTests += agg.FailedTests
+		totalDuration += agg.TotalDuration
+		activeExecutions += agg.RunningExecutions
+		if agg.ExecutionCount > 0 {
+			activeScenarios++
+		}
+		if agg.FailedExecutions > 0 {
+			regressions++
+		}
+		if hasCoverage && coverage > 0 {
+			totalCoverage += coverage
+			coverageCount++
+		}
+	}
+
+	global := ReportGlobalMetrics{
+		TotalTests:       totalTests,
+		PassedTests:      passedTests,
+		FailedTests:      failedTests,
+		PassRate:         roundTo(safeDivide(float64(passedTests), float64(passedTests+failedTests))*100, 2),
+		AverageDuration:  roundTo(safeDivide(totalDuration, float64(totalTests)), 2),
+		AverageCoverage:  roundTo(safeDivide(totalCoverage, float64(coverageCount)), 2),
+		ActiveScenarios:  activeScenarios,
+		ActiveExecutions: activeExecutions,
+		ActiveVaults:     vaultRollup.ScenariosWithVault,
+		Regressions:      regressions,
+	}
+
+	response := ReportsOverviewResponse{
+		GeneratedAt: time.Now().UTC(),
+		WindowStart: windowStart,
+		WindowEnd:   windowEnd,
+		Global:      global,
+		Scenarios:   summaries,
+		Vaults:      vaultRollup,
+	}
+
+	return response, nil
+}
+
+func buildReportsTrends(ctx context.Context, windowDays int) (ReportsTrendsResponse, error) {
+	if windowDays <= 0 {
+		windowDays = 30
+	}
+	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
+
+	windowEnd := time.Now().UTC()
+	windowStart := windowEnd.Add(-time.Duration(windowDays) * 24 * time.Hour)
+
+	execAgg, err := fetchExecutionTrends(ctx, windowStart)
+	if err != nil {
+		return ReportsTrendsResponse{}, err
+	}
+
+	coverageTrend, err := fetchCoverageTrends(ctx, windowStart)
+	if err != nil {
+		return ReportsTrendsResponse{}, err
+	}
+
+	series := make([]ReportTrendPoint, 0, windowDays+1)
+	for day := truncateToDay(windowStart); !day.After(windowEnd); day = day.Add(24 * time.Hour) {
+		agg := execAgg[day]
+		point := ReportTrendPoint{
+			Bucket:           day,
+			Executions:       agg.ExecutionCount,
+			FailedExecutions: agg.FailedExecutions,
+			PassedTests:      agg.PassedTests,
+			FailedTests:      agg.FailedTests,
+			AverageDuration:  roundTo(safeDivide(agg.TotalDuration, float64(agg.TestCount)), 2),
+			AverageCoverage:  roundTo(coverageTrend[day], 2),
+		}
+		series = append(series, point)
+	}
+
+	return ReportsTrendsResponse{
+		GeneratedAt: time.Now().UTC(),
+		BucketSize:  "day",
+		WindowStart: windowStart,
+		WindowEnd:   windowEnd,
+		Series:      series,
+	}, nil
+}
+
+func buildReportsInsights(ctx context.Context, overview ReportsOverviewResponse, windowDays int) (ReportsInsightsResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
+
+	insights := make([]ReportInsight, 0, 6)
+
+	if overview.Global.PassRate > 0 && overview.Global.PassRate < 90 {
+		insights = append(insights, ReportInsight{
+			Title:    "Overall pass rate is slipping",
+			Severity: "high",
+			Detail:   fmt.Sprintf("Global pass rate over the last %d days is %.2f%% with %d failures recorded.", windowDays, overview.Global.PassRate, overview.Global.FailedTests),
+			Actions: []string{
+				"Drill into failing scenarios from the overview tab",
+				"Prioritize fixes for suites with repeated regressions",
+			},
+		})
+	}
+
+	for _, scenario := range overview.Scenarios {
+		if scenario.ActiveFailures > 0 {
+			insights = append(insights, ReportInsight{
+				Title:        "Active regressions detected",
+				Severity:     "high",
+				ScenarioName: scenario.ScenarioName,
+				Detail:       fmt.Sprintf("%d execution(s) failed recently while pass rate is %.2f%%.", scenario.ActiveFailures, scenario.PassRate),
+				Actions: []string{
+					"Open the latest failing execution details",
+					"Re-run the suite in an isolated environment after fixes",
+				},
+			})
+		}
+
+		if scenario.Coverage > 0 && scenario.Coverage < scenario.TargetCoverage-5 {
+			insights = append(insights, ReportInsight{
+				Title:        "Coverage below target",
+				Severity:     "medium",
+				ScenarioName: scenario.ScenarioName,
+				Detail:       fmt.Sprintf("Coverage is %.2f%% (target %.0f%%). Add tests for uncovered branches.", scenario.Coverage, scenario.TargetCoverage),
+				Actions: []string{
+					"Use AI generation to extend edge-case coverage",
+					"Prioritize high-risk modules highlighted in coverage gaps",
+				},
+			})
+		}
+
+		if scenario.Vault.HasVault && scenario.Vault.FailedRuns > 0 {
+			insights = append(insights, ReportInsight{
+				Title:        "Vault instability",
+				Severity:     "high",
+				ScenarioName: scenario.ScenarioName,
+				Detail:       fmt.Sprintf("%d vault execution(s) failed recently. Success rate stands at %.2f%%.", scenario.Vault.FailedRuns, scenario.Vault.SuccessRate),
+				Actions: []string{
+					"Inspect the failing phase timeline in the Vaults view",
+					"Recalibrate phase timeouts or dependency setup for vault phases",
+				},
+			})
+		}
+	}
+
+	failingTests, err := fetchFailingTestCandidates(ctx, overview.WindowStart)
+	if err != nil {
+		log.Printf("⚠️  Failed to fetch failing test candidates: %v", err)
+	} else if len(failingTests) > 0 {
+		top := failingTests[0]
+		insights = append(insights, ReportInsight{
+			Title:        "Recurring failing test detected",
+			Severity:     "medium",
+			ScenarioName: top.ScenarioName,
+			Detail:       fmt.Sprintf("Test '%s' failed %d/%d runs (avg %.2fs).", top.TestName, top.Failures, top.TotalRuns, top.AvgDuration),
+			Actions: []string{
+				"Stabilize this test or quarantine until fixed",
+				"Capture logs/artifacts for deterministic reproduction",
+			},
+		})
+	}
+
+	if len(insights) == 0 {
+		insights = append(insights, ReportInsight{
+			Title:    "Quality signals are stable",
+			Severity: "info",
+			Detail:   "No regressions detected in the selected window. Maintain momentum by adding predictive coverage checks.",
+			Actions: []string{
+				"Schedule proactive vault runs to keep baselines fresh",
+				"Leverage AI suggestions to target potential blind spots",
+			},
+		})
+	}
+
+	return ReportsInsightsResponse{
+		GeneratedAt: time.Now().UTC(),
+		WindowStart: overview.WindowStart,
+		WindowEnd:   overview.WindowEnd,
+		Insights:    insights,
+	}, nil
+}
+
+func fetchScenarioAggregates(ctx context.Context, windowStart time.Time) (map[string]scenarioAggregate, error) {
+	query := `
+		SELECT
+			ts.scenario_name,
+			COUNT(DISTINCT te.id) AS execution_count,
+			SUM(CASE WHEN LOWER(COALESCE(te.status, '')) IN ('failed', 'error', 'aborted') THEN 1 ELSE 0 END) AS failed_executions,
+			SUM(CASE WHEN LOWER(COALESCE(te.status, '')) IN ('running', 'queued', 'in_progress') THEN 1 ELSE 0 END) AS running_executions,
+			SUM(CASE WHEN LOWER(COALESCE(tr.status, '')) = 'passed' THEN 1 ELSE 0 END) AS passed_tests,
+			SUM(CASE WHEN LOWER(COALESCE(tr.status, '')) = 'failed' THEN 1 ELSE 0 END) AS failed_tests,
+			SUM(CASE WHEN LOWER(COALESCE(tr.status, '')) = 'skipped' THEN 1 ELSE 0 END) AS skipped_tests,
+			COALESCE(SUM(COALESCE(tr.duration, 0)), 0) AS total_duration
+		FROM test_executions te
+		JOIN test_suites ts ON te.suite_id = ts.id
+		LEFT JOIN test_results tr ON tr.execution_id = te.id
+		WHERE COALESCE(te.end_time, te.start_time, NOW()) >= $1
+		GROUP BY ts.scenario_name`
+
+	rows, err := db.QueryContext(ctx, query, windowStart)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]scenarioAggregate)
+	for rows.Next() {
+		var name string
+		var agg scenarioAggregate
+		if err := rows.Scan(
+			&name,
+			&agg.ExecutionCount,
+			&agg.FailedExecutions,
+			&agg.RunningExecutions,
+			&agg.PassedTests,
+			&agg.FailedTests,
+			&agg.SkippedTests,
+			&agg.TotalDuration,
+		); err != nil {
+			return nil, err
+		}
+		result[name] = agg
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func fetchCoverageMap(ctx context.Context, windowStart time.Time) (map[string]coverageEntry, error) {
+	query := `
+		SELECT scenario_name, overall_coverage, analyzed_at
+		FROM coverage_analysis
+		WHERE analyzed_at >= $1
+		ORDER BY scenario_name, analyzed_at DESC`
+
+	rows, err := db.QueryContext(ctx, query, windowStart)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]coverageEntry)
+	for rows.Next() {
+		var name string
+		var coverage float64
+		var analyzed time.Time
+		if err := rows.Scan(&name, &coverage, &analyzed); err != nil {
+			return nil, err
+		}
+		if existing, ok := result[name]; ok {
+			if analyzed.After(existing.AnalyzedAt) {
+				result[name] = coverageEntry{Value: coverage, AnalyzedAt: analyzed}
+			}
+			continue
+		}
+		result[name] = coverageEntry{Value: coverage, AnalyzedAt: analyzed}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func fetchLatestExecutions(ctx context.Context) (map[string]executionSnapshot, error) {
+	query := `
+		SELECT DISTINCT ON (ts.scenario_name)
+			ts.scenario_name,
+			te.id,
+			COALESCE(te.status, ''),
+			te.end_time,
+			te.start_time
+		FROM test_executions te
+		JOIN test_suites ts ON te.suite_id = ts.id
+		ORDER BY ts.scenario_name, COALESCE(te.end_time, te.start_time) DESC NULLS LAST`
+
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]executionSnapshot)
+	for rows.Next() {
+		var name string
+		var id uuid.UUID
+		var status string
+		var end pq.NullTime
+		var start pq.NullTime
+
+		if err := rows.Scan(&name, &id, &status, &end, &start); err != nil {
+			return nil, err
+		}
+
+		var endedAt *time.Time
+		if end.Valid {
+			value := end.Time.UTC()
+			endedAt = &value
+		} else if start.Valid {
+			value := start.Time.UTC()
+			endedAt = &value
+		}
+
+		result[name] = executionSnapshot{
+			ExecutionID: id.String(),
+			Status:      status,
+			EndedAt:     endedAt,
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func fetchVaultAggregates(ctx context.Context, windowStart time.Time) (map[string]ReportVaultStatus, ReportVaultRollup, error) {
+	vaultCountsQuery := `
+		SELECT scenario_name, COUNT(*)
+		FROM test_vaults
+		GROUP BY scenario_name`
+
+	countRows, err := db.QueryContext(ctx, vaultCountsQuery)
+	if err != nil {
+		return nil, ReportVaultRollup{}, err
+	}
+	defer countRows.Close()
+
+	result := make(map[string]ReportVaultStatus)
+	rollup := ReportVaultRollup{}
+
+	for countRows.Next() {
+		var name string
+		var count int
+		if err := countRows.Scan(&name, &count); err != nil {
+			return nil, ReportVaultRollup{}, err
+		}
+		status := ReportVaultStatus{HasVault: true}
+		result[name] = status
+		if count > 0 {
+			rollup.ScenariosWithVault++
+		}
+		rollup.TotalVaults += count
+	}
+
+	if err := countRows.Err(); err != nil {
+		return nil, ReportVaultRollup{}, err
+	}
+
+	if len(result) == 0 {
+		return result, rollup, nil
+	}
+
+	aggQuery := `
+		SELECT
+			ts.scenario_name,
+			COUNT(ve.id) AS total_exec,
+			SUM(CASE WHEN LOWER(COALESCE(ve.status, '')) IN ('completed', 'success', 'passed', 'finished') THEN 1 ELSE 0 END) AS successful_exec,
+			SUM(CASE WHEN LOWER(COALESCE(ve.status, '')) IN ('failed', 'error', 'aborted') THEN 1 ELSE 0 END) AS failed_exec,
+			MAX(ve.end_time) AS latest_end,
+			MAX(ve.start_time) AS latest_start
+		FROM test_vaults ts
+		LEFT JOIN vault_executions ve ON ve.vault_id = ts.id AND COALESCE(ve.end_time, ve.start_time, NOW()) >= $1
+		GROUP BY ts.scenario_name`
+
+	rows, err := db.QueryContext(ctx, aggQuery, windowStart)
+	if err != nil {
+		return nil, ReportVaultRollup{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var name string
+		var totalExec, successExec, failedExec int
+		var end pq.NullTime
+		var start pq.NullTime
+		if err := rows.Scan(&name, &totalExec, &successExec, &failedExec, &end, &start); err != nil {
+			return nil, ReportVaultRollup{}, err
+		}
+
+		status := result[name]
+		status.TotalExecutions = totalExec
+		status.SuccessfulRuns = successExec
+		status.FailedRuns = failedExec
+		if totalExec > 0 {
+			status.SuccessRate = roundTo(safeDivide(float64(successExec), float64(totalExec))*100, 2)
+		}
+		if end.Valid {
+			value := end.Time.UTC()
+			status.LatestEndedAt = &value
+		} else if start.Valid {
+			value := start.Time.UTC()
+			status.LatestEndedAt = &value
+		}
+		result[name] = status
+
+		rollup.TotalExecutions += totalExec
+		rollup.FailedExecutions += failedExec
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ReportVaultRollup{}, err
+	}
+
+	statusQuery := `
+		SELECT DISTINCT ON (ts.scenario_name)
+			ts.scenario_name,
+			COALESCE(ve.status, ''),
+			COALESCE(ve.end_time, ve.start_time)
+		FROM test_vaults ts
+		JOIN vault_executions ve ON ve.vault_id = ts.id
+		ORDER BY ts.scenario_name, COALESCE(ve.end_time, ve.start_time) DESC NULLS LAST`
+
+	statusRows, err := db.QueryContext(ctx, statusQuery)
+	if err != nil {
+		return nil, ReportVaultRollup{}, err
+	}
+	defer statusRows.Close()
+
+	for statusRows.Next() {
+		var name string
+		var status string
+		var tsTime pq.NullTime
+		if err := statusRows.Scan(&name, &status, &tsTime); err != nil {
+			return nil, ReportVaultRollup{}, err
+		}
+		entry := result[name]
+		entry.LatestStatus = status
+		if !entry.HasVault {
+			entry.HasVault = true
+		}
+		if tsTime.Valid {
+			value := tsTime.Time.UTC()
+			entry.LatestEndedAt = &value
+		}
+		result[name] = entry
+	}
+
+	if err := statusRows.Err(); err != nil {
+		return nil, ReportVaultRollup{}, err
+	}
+
+	if rollup.TotalExecutions > 0 {
+		rollup.SuccessRate = roundTo(safeDivide(float64(rollup.TotalExecutions-rollup.FailedExecutions), float64(rollup.TotalExecutions))*100, 2)
+	}
+
+	return result, rollup, nil
+}
+
+type trendAggregate struct {
+	ExecutionCount   int
+	FailedExecutions int
+	PassedTests      int
+	FailedTests      int
+	TotalDuration    float64
+	TestCount        int
+}
+
+func fetchExecutionTrends(ctx context.Context, windowStart time.Time) (map[time.Time]trendAggregate, error) {
+	query := `
+		WITH execution_buckets AS (
+			SELECT
+				te.id,
+				DATE_TRUNC('day', COALESCE(te.end_time, te.start_time, NOW())) AS bucket
+			FROM test_executions te
+			WHERE COALESCE(te.end_time, te.start_time, NOW()) >= $1
+		)
+		SELECT
+			eb.bucket,
+			COUNT(DISTINCT eb.id) AS executions,
+			SUM(CASE WHEN LOWER(COALESCE(te.status, '')) IN ('failed', 'error', 'aborted') THEN 1 ELSE 0 END) AS failed_executions,
+			SUM(CASE WHEN LOWER(COALESCE(tr.status, '')) = 'passed' THEN 1 ELSE 0 END) AS passed_tests,
+			SUM(CASE WHEN LOWER(COALESCE(tr.status, '')) = 'failed' THEN 1 ELSE 0 END) AS failed_tests,
+			COALESCE(SUM(COALESCE(tr.duration, 0)), 0) AS total_duration,
+			COUNT(tr.id) AS test_count
+		FROM execution_buckets eb
+		JOIN test_executions te ON te.id = eb.id
+		LEFT JOIN test_results tr ON tr.execution_id = eb.id
+		GROUP BY eb.bucket
+		ORDER BY eb.bucket`
+
+	rows, err := db.QueryContext(ctx, query, windowStart)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[time.Time]trendAggregate)
+	for rows.Next() {
+		var bucket time.Time
+		var agg trendAggregate
+		if err := rows.Scan(
+			&bucket,
+			&agg.ExecutionCount,
+			&agg.FailedExecutions,
+			&agg.PassedTests,
+			&agg.FailedTests,
+			&agg.TotalDuration,
+			&agg.TestCount,
+		); err != nil {
+			return nil, err
+		}
+		result[truncateToDay(bucket.UTC())] = agg
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func fetchCoverageTrends(ctx context.Context, windowStart time.Time) (map[time.Time]float64, error) {
+	query := `
+		SELECT DATE_TRUNC('day', analyzed_at) AS bucket, AVG(overall_coverage)
+		FROM coverage_analysis
+		WHERE analyzed_at >= $1
+		GROUP BY bucket
+		ORDER BY bucket`
+
+	rows, err := db.QueryContext(ctx, query, windowStart)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[time.Time]float64)
+	for rows.Next() {
+		var bucket time.Time
+		var avgCoverage float64
+		if err := rows.Scan(&bucket, &avgCoverage); err != nil {
+			return nil, err
+		}
+		result[truncateToDay(bucket.UTC())] = avgCoverage
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func fetchFailingTestCandidates(ctx context.Context, windowStart time.Time) ([]failingTestCandidate, error) {
+	query := `
+		SELECT
+			ts.scenario_name,
+			COALESCE(tc.name, CASE WHEN tr.test_case_id IS NOT NULL THEN tr.test_case_id::text ELSE 'unknown' END) AS test_name,
+			SUM(CASE WHEN LOWER(COALESCE(tr.status, '')) = 'failed' THEN 1 ELSE 0 END) AS failures,
+			COUNT(*) AS total_runs,
+			COALESCE(AVG(COALESCE(tr.duration, 0)), 0) AS avg_duration
+		FROM test_results tr
+		JOIN test_executions te ON te.id = tr.execution_id
+		JOIN test_suites ts ON ts.id = te.suite_id
+		LEFT JOIN test_cases tc ON tc.id = tr.test_case_id
+		WHERE COALESCE(te.end_time, te.start_time, NOW()) >= $1
+		GROUP BY ts.scenario_name, test_name
+		HAVING SUM(CASE WHEN LOWER(COALESCE(tr.status, '')) = 'failed' THEN 1 ELSE 0 END) > 0
+		ORDER BY failures DESC, total_runs DESC
+		LIMIT 5`
+
+	rows, err := db.QueryContext(ctx, query, windowStart)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var candidates []failingTestCandidate
+	for rows.Next() {
+		var candidate failingTestCandidate
+		if err := rows.Scan(
+			&candidate.ScenarioName,
+			&candidate.TestName,
+			&candidate.Failures,
+			&candidate.TotalRuns,
+			&candidate.AvgDuration,
+		); err != nil {
+			return nil, err
+		}
+		candidates = append(candidates, candidate)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return candidates, nil
+}
+
+func computeScenarioHealthScore(passRatio, coverage, coverageTarget, vaultSuccess float64, failedExecutions int) int {
+	passNorm := clamp(passRatio, 0, 1)
+	coverageNorm := 0.0
+	if coverageTarget > 0 {
+		coverageNorm = clamp(coverage/coverageTarget, 0, 1)
+	}
+	vaultNorm := clamp(vaultSuccess, 0, 1)
+
+	score := (0.55 * passNorm) + (0.3 * coverageNorm) + (0.15 * vaultNorm)
+	if failedExecutions > 0 {
+		penalty := math.Min(0.2, float64(failedExecutions)*0.05)
+		score -= penalty
+	}
+
+	score = clamp(score, 0, 1)
+	return int(math.Round(score * 100))
+}
+
+func parseWindowDays(raw string, defaultVal int) int {
+	if raw == "" {
+		return defaultVal
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return defaultVal
+	}
+	if value < 1 {
+		value = 1
+	}
+	if value > 180 {
+		value = 180
+	}
+	return value
+}
+
+func safeDivide(numerator, denominator float64) float64 {
+	if denominator == 0 {
+		return 0
+	}
+	return numerator / denominator
+}
+
+func roundTo(value float64, precision int) float64 {
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0
+	}
+	factor := math.Pow10(precision)
+	return math.Round(value*factor) / factor
+}
+
+func truncateToDay(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+func clamp(value, min, max float64) float64 {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
 }
 
 func systemStatusHandler(c *gin.Context) {
@@ -4181,14 +5793,19 @@ func main() {
 		api.POST("/test-vault/:vault_id/execute", executeTestVaultHandler)
 		api.GET("/vault-execution/:execution_id/results", getVaultExecutionResultsHandler)
 		api.GET("/vault-executions", listVaultExecutionsHandler)
+		api.GET("/scenarios", listScenariosHandler)
 
 		// Coverage analysis
 		api.POST("/test-analysis/coverage", analyzeCoverageHandler)
+		api.GET("/test-analysis/coverage", listCoverageAnalysesHandler)
 		api.GET("/test-analysis/coverage/:scenario_name", getCoverageAnalysisHandler)
 
 		// System information
 		api.GET("/system/status", systemStatusHandler)
 		api.GET("/system/metrics", systemMetricsHandler)
+		api.GET("/reports/overview", reportsOverviewHandler)
+		api.GET("/reports/trends", reportsTrendsHandler)
+		api.GET("/reports/insights", reportsInsightsHandler)
 
 		// Agent management
 		api.GET("/agents", listAgentsHandler)

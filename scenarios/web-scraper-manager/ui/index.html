@@ -6,6 +6,23 @@
     <title>Web Scraper Manager Dashboard</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕷️</text></svg>">
+    <script type="module">
+        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+        if (typeof window !== 'undefined' && window.parent !== window && !window.__webScraperBridgeInitialized) {
+            let parentOrigin;
+            try {
+                if (document.referrer) {
+                    parentOrigin = new URL(document.referrer).origin;
+                }
+            } catch (error) {
+                console.warn('[WebScraperManager] Unable to parse parent origin for iframe bridge', error);
+            }
+
+            initIframeBridgeChild({ parentOrigin, appId: 'web-scraper-manager' });
+            window.__webScraperBridgeInitialized = true;
+        }
+    </script>
 </head>
 <body>
     <!-- Header -->

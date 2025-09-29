@@ -1,4 +1,4 @@
-module API_MODULE_NAME_PLACEHOLDER
+module github.com/vrooli/video-tools
 
 go 1.21
 

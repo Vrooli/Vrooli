@@ -252,17 +252,17 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -f http://localhost:${API_PORT}/health",
+          "run": "API_PORT=$(lsof -i -P -n 2>/dev/null | grep test-genie-api | grep LISTEN | awk '{print $9}' | cut -d: -f2 | head -1); curl -f http://localhost:${API_PORT:-17830}/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-ui-health",
-          "run": "curl -f http://localhost:${UI_PORT}/health",
+          "run": "UI_PORT=$(lsof -i -P -n 2>/dev/null | grep 'node.*test-genie' | grep LISTEN | awk '{print $9}' | cut -d: -f2 | head -1); curl -f http://localhost:${UI_PORT:-35621}/health",
           "description": "Test UI health endpoint"
         },
         {
           "name": "test-database-connection",
-          "run": "curl -f -X POST http://localhost:${API_PORT}/api/v1/test-analysis/coverage -H 'Content-Type: application/json' -d '{\"scenario_name\":\"test\",\"source_code_paths\":[\".\"]}' >/dev/null",
+          "run": "API_PORT=$(lsof -i -P -n 2>/dev/null | grep test-genie-api | grep LISTEN | awk '{print $9}' | cut -d: -f2 | head -1); curl -f -X POST http://localhost:${API_PORT:-17830}/api/v1/test-analysis/coverage -H 'Content-Type: application/json' -d '{\"scenario_name\":\"test\",\"source_code_paths\":[\".\"]}' >/dev/null",
           "description": "Test database connectivity"
         },
         {
@@ -272,7 +272,7 @@
         },
         {
           "name": "test-test-generation",
-          "run": "curl -f -X POST http://localhost:${API_PORT}/api/v1/test-suite/generate -H 'Content-Type: application/json' -d '{\"scenario_name\":\"test-scenario\",\"test_types\":[\"unit\"],\"coverage_target\":80}' >/dev/null",
+          "run": "API_PORT=$(lsof -i -P -n 2>/dev/null | grep test-genie-api | grep LISTEN | awk '{print $9}' | cut -d: -f2 | head -1); curl -f -X POST http://localhost:${API_PORT:-17830}/api/v1/test-suite/generate -H 'Content-Type: application/json' -d '{\"scenario_name\":\"test-scenario\",\"test_types\":[\"unit\"],\"coverage_target\":80}' >/dev/null",
           "description": "Test core test generation functionality"
         },
         {

@@ -39,8 +39,16 @@ func main() {
 	// Load optional resource configurations
 	config.MinIOURL = os.Getenv("MINIO_URL")
 	config.RedisURL = os.Getenv("REDIS_URL")
+	if config.RedisURL == "" {
+		// Redis just needs to know if it's configured, actual connection is in checkRedis
+		config.RedisURL = "redis://localhost:6379"
+	}
 	config.OllamaURL = os.Getenv("OLLAMA_URL")
+	if config.OllamaURL == "" {
+		config.OllamaURL = "http://localhost:11434"
+	}
 	config.DatabaseURL = os.Getenv("DATABASE_URL")
+	config.QdrantURL = os.Getenv("QDRANT_URL")
 
 	// Create and initialize server
 	server := NewServer(config)

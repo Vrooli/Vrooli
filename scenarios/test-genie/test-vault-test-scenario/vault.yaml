@@ -1,0 +1,20 @@
+name: test-scenario
+description: Test vault for comprehensive test-scenario testing
+version: 1.0.0
+created: 2025-09-28T06:42:19Z
+
+phases:  - setup
+
+global_timeout: 1800
+
+configuration:
+  parallel_execution: false
+  stop_on_failure: true
+  generate_artifacts: true
+  notification_on_completion: true
+
+success_criteria:
+  all_phases_completed: true
+  no_critical_failures: true
+  coverage_threshold: 95
+  performance_baseline_met: true

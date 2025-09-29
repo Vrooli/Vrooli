@@ -159,11 +159,23 @@ type AnalyzeOptions struct {
 
 // AnalyzeResponse contains analysis results
 type AnalyzeResponse struct {
-	Entities  []Entity               `json:"entities,omitempty"`
-	Sentiment Sentiment              `json:"sentiment,omitempty"`
-	Summary   string                 `json:"summary,omitempty"`
-	Keywords  []Keyword              `json:"keywords,omitempty"`
-	Language  Language               `json:"language,omitempty"`
+	Entities   []Entity               `json:"entities,omitempty"`
+	Sentiment  Sentiment              `json:"sentiment,omitempty"`
+	Summary    string                 `json:"summary,omitempty"`
+	Keywords   []Keyword              `json:"keywords,omitempty"`
+	Language   Language               `json:"language,omitempty"`
+	Statistics TextStatistics         `json:"statistics,omitempty"`
+}
+
+// TextStatistics represents basic text statistics
+type TextStatistics struct {
+	WordCount      int     `json:"word_count"`
+	CharCount      int     `json:"character_count"`
+	LineCount      int     `json:"line_count"`
+	SentenceCount  int     `json:"sentence_count"`
+	ParagraphCount int     `json:"paragraph_count"`
+	AvgWordLength  float64 `json:"avg_word_length"`
+	ReadingTime    int     `json:"reading_time_seconds"`
 }
 
 // Entity represents an extracted entity

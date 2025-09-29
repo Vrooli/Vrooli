@@ -113,7 +113,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && PORT=${TIME_TOOLS_PORT} ./time-tools-api &",
+          "run": "cd api && VROOLI_LIFECYCLE_MANAGED=true PORT=${TIME_TOOLS_PORT:-18765} ./time-tools-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {

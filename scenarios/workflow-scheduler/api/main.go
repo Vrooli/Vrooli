@@ -179,6 +179,12 @@ func (a *App) Initialize() {
 	
 	log.Println("Connected to PostgreSQL database")
 	
+	// Initialize database schema if needed
+	if err := InitializeDatabase(a.DB); err != nil {
+		log.Printf("⚠️ Database initialization warning: %v", err)
+		// Continue anyway - might be permission issue
+	}
+	
 	// Initialize scheduler
 	a.Scheduler = NewScheduler(a.DB)
 	

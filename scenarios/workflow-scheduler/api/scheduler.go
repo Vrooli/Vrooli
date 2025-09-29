@@ -106,6 +106,21 @@ func (s *Scheduler) Stop() {
 
 // loadSchedules loads all active schedules from the database
 func (s *Scheduler) loadSchedules() error {
+	// First check if the schedules table exists
+	var tableExists bool
+	checkQuery := `
+		SELECT EXISTS (
+			SELECT FROM information_schema.tables 
+			WHERE table_schema = 'public' 
+			AND table_name = 'schedules'
+		)
+	`
+	err := s.db.QueryRow(checkQuery).Scan(&tableExists)
+	if err != nil || !tableExists {
+		log.Println("⚠️ Schedules table does not exist yet - starting with empty scheduler")
+		return nil
+	}
+	
 	query := `
 		SELECT id, name, cron_expression, timezone, target_type, target_url, 
 		       target_workflow_id, target_method, target_headers, target_payload,
@@ -117,7 +132,8 @@ func (s *Scheduler) loadSchedules() error {
 	
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return err
+		log.Printf("⚠️ Error querying schedules: %v - starting with empty scheduler", err)
+		return nil
 	}
 	defer rows.Close()
 	
