@@ -242,12 +242,20 @@ func NewServer() (*Server, error) {
 
 // execResourceQdrant executes a resource-qdrant CLI command
 func (s *Server) execResourceQdrant(args ...string) ([]byte, error) {
-	cmd := exec.Command(s.config.ResourceCLI, args...)
+	// Create command with 5-second timeout to prevent hanging
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctx, s.config.ResourceCLI, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			log.Printf("resource-qdrant command timed out after 5s: %v", args)
+			return nil, fmt.Errorf("resource-qdrant timed out")
+		}
 		log.Printf("resource-qdrant command failed: %v, stderr: %s", err, stderr.String())
 		return nil, fmt.Errorf("resource-qdrant failed: %v", err)
 	}

@@ -20,7 +20,8 @@
     "recharts": "^2.10.3",
     "lucide-react": "^0.294.0",
     "clsx": "^2.0.0",
-    "react-hot-toast": "^2.4.1"
+    "react-hot-toast": "^2.4.1",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

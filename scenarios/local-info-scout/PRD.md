@@ -19,15 +19,16 @@
 - [x] **Lifecycle Compliance**: Works with vrooli scenario start/stop commands (✅ 2025-09-24: Fully compliant)
 
 ### P1 Requirements (Should Have - Enhanced Features)
-- [x] **Smart Filtering**: Filter by rating, price, distance, accessibility (✅ 2025-09-24: Implemented with min_rating, max_price, open_now filters)
+- [x] **Smart Filtering**: Filter by rating, price, distance, accessibility (✅ 2025-09-27: Enhanced with category-aware thresholds, 24-hour detection, relevance scoring)
 - [ ] **Multi-Source**: Aggregate data from maps, reviews, directories
-- [ ] **Caching**: Redis caching for frequently accessed data
-- [x] **Discovery Mode**: Suggest "hidden gems" and "new openings" (✅ 2025-09-24: /api/discover endpoint added)
+- [x] **Caching**: Redis caching for frequently accessed data (✅ 2025-09-27: Redis caching with 5min TTL, cache hit/miss headers)
+- [x] **Discovery Mode**: Suggest "hidden gems" and "new openings" (✅ 2025-09-27: Enhanced with time-based recommendations, trending places, chain detection)
 
 ### P2 Requirements (Nice to Have - Advanced Features)
 - [ ] **Personalization**: Learn user preferences over time
 - [ ] **Route Planning**: Optimize multi-stop journeys
 - [ ] **Social Features**: Share discoveries with friends
+- [x] **Database Persistence**: PostgreSQL for place data and search logs (✅ 2025-09-27: Tables created, search logging, popular searches tracking)
 
 ## Technical Specifications
 
@@ -76,21 +77,25 @@
 
 ## Implementation Progress
 
-### Current Status (2025-09-24)
+### Current Status (2025-09-27)
 - ✅ Full API structure implemented with all P0 endpoints
 - ✅ Health check endpoint working (4ms response time)  
 - ✅ Search with natural language processing (Ollama integration)
-- ✅ Smart filtering (rating, price, distance, open_now)
+- ✅ Enhanced smart filtering with relevance scoring and category-aware thresholds
 - ✅ Categories endpoint available (9 categories)
 - ✅ Place details endpoint (`/api/places/:id`)
-- ✅ Discovery endpoint (`/api/discover`) for hidden gems
+- ✅ Discovery endpoint with time-based recommendations and trending places
 - ✅ CORS enabled for web integration
 - ✅ CLI tool fully implemented with search, categories, help
+- ✅ Redis caching layer with 5-minute TTL and cache headers
+- ✅ PostgreSQL persistence with place storage and search logging
+- ✅ Popular searches tracking and analytics
 - ✅ Integration tests comprehensive and passing
 - ✅ Lifecycle compliance verified (start/stop/test)
 - ✅ Real-time data integration structure (SearXNG ready)
 - ✅ P0 requirements: 100% complete (7/7)
-- ✅ P1 requirements: 50% complete (2/4)
+- ✅ P1 requirements: 75% complete (3/4)
+- ✅ P2 requirements: 25% complete (1/4 - database persistence added)
 
 ### Next Steps
 1. ✅ ~~Integrate Ollama for natural language understanding~~ (Completed)
@@ -106,6 +111,7 @@
 - **Total Annual**: $25K+ recurring revenue potential
 
 ## Change History
+- 2025-09-27: Major enhancements - Added Redis caching with TTL, PostgreSQL persistence with search logging, enhanced smart filtering with relevance scoring, improved discovery with time-based recommendations. P1 now at 75% complete, P2 at 25% complete.
 - 2025-09-24 (20:00): Major improvement - Achieved 100% P0 completion, added natural language parsing with Ollama, smart filtering, discovery endpoint, real-time data integration structure. P1 at 50% complete.
 - 2025-09-24 (15:00): Improved scenario - Added place details endpoint, built functional CLI, created integration tests, achieved 5/7 P0 requirements (71%)
 - 2025-09-24: Created proper PRD format, assessed current implementation

@@ -40,6 +40,12 @@ func main() {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
 	
+	// Initialize database connection (optional - won't fail if not available)
+	if err := initDatabase(); err != nil {
+		log.Printf("⚠️  Database not available (optional): %v", err)
+		log.Println("📝 Running without database - calculations won't be persisted")
+	}
+	
 	setupRoutes()
 	
 	log.Printf("Financial Calculators API starting on port %s", port)
@@ -57,6 +63,10 @@ func setupRoutes() {
 	http.HandleFunc("/api/v1/calculate/emergency-fund", handleEmergencyFund)
 	http.HandleFunc("/api/v1/calculate/budget", handleBudgetAllocation)
 	http.HandleFunc("/api/v1/calculate/debt-payoff", handleDebtPayoff)
+	http.HandleFunc("/api/v1/calculate/net-worth", handleNetWorth)
+	http.HandleFunc("/api/v1/calculate/tax", handleTaxOptimizer)
+	http.HandleFunc("/api/v1/history", handleHistory)
+	http.HandleFunc("/api/v1/batch", handleBatchCalculations)
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -294,18 +304,9 @@ func exportFIRE(w http.ResponseWriter, input lib.FIREInput, result lib.FIREResul
 		csvWriter.Write([]string{"Savings Rate", fmt.Sprintf("%.1f%%", input.SavingsRate)})
 		csvWriter.Flush()
 		
-	case "text", "pdf":
-		// Note: PDF generation requires external library (e.g. github.com/jung-kurt/gofpdf)
-		// Currently returning formatted text for both formats
-		contentType := "text/plain"
-		filename := "fire-calculation.txt"
-		if format == "pdf" {
-			// Return text with PDF headers for now
-			contentType = "text/plain" 
-			filename = "fire-calculation.txt"
-		}
-		w.Header().Set("Content-Type", contentType)
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	case "text":
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Disposition", "attachment; filename=fire-calculation.txt")
 		
 		fmt.Fprintf(w, "FIRE CALCULATION REPORT\n")
 		fmt.Fprintf(w, "=======================\n\n")
@@ -325,6 +326,9 @@ func exportFIRE(w http.ResponseWriter, input lib.FIREInput, result lib.FIREResul
 		for age, amount := range result.ProjectedByAge {
 			fmt.Fprintf(w, "Age %d: $%.2f\n", age, amount)
 		}
+		
+	case "pdf":
+		exportFIREPDF(w, input, result)
 		
 	default:
 		w.WriteHeader(http.StatusBadRequest)
@@ -354,7 +358,7 @@ func exportCompoundInterest(w http.ResponseWriter, input lib.CompoundInterestInp
 		csvWriter.Write([]string{"Total Interest", fmt.Sprintf("%.2f", result.TotalInterest)})
 		csvWriter.Flush()
 		
-	case "text", "pdf":
+	case "text":
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Disposition", "attachment; filename=compound-interest.txt")
 		
@@ -375,6 +379,9 @@ func exportCompoundInterest(w http.ResponseWriter, input lib.CompoundInterestInp
 			fmt.Fprintf(w, "Year %d: Balance=$%.2f, Contribution=$%.2f, Interest=$%.2f\n",
 				year.Year, year.Balance, year.Contribution, year.Interest)
 		}
+		
+	case "pdf":
+		exportCompoundInterestPDF(w, input, result)
 		
 	default:
 		w.WriteHeader(http.StatusBadRequest)
