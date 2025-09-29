@@ -10,6 +10,7 @@ import (
 	"scenario-authenticator/auth"
 	"scenario-authenticator/db"
 	"scenario-authenticator/handlers"
+	apimiddleware "scenario-authenticator/middleware"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -89,8 +90,8 @@ func main() {
 	// User management endpoints
 	router.Get("/api/v1/users", handlers.GetUsersHandler)
 	router.Get("/api/v1/users/{id}", handlers.GetUserHandler)
-	router.Put("/api/v1/users/{id}", handlers.UpdateUserHandler)
-	router.Delete("/api/v1/users/{id}", handlers.DeleteUserHandler)
+	router.Put("/api/v1/users/{id}", apimiddleware.RequireRole("admin", handlers.UpdateUserHandler))
+	router.Delete("/api/v1/users/{id}", apimiddleware.RequireRole("admin", handlers.DeleteUserHandler))
 
 	// Session management
 	router.Get("/api/v1/sessions", handlers.GetSessionsHandler)

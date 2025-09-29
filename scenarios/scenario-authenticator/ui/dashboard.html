@@ -750,6 +750,7 @@
             const token = authData.token || localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
             const refreshTokenValue = authData.refreshToken || localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
             let API_URL = '';
+            let CONTACT_BOOK_URL = '';
 
             const snackbar = document.getElementById('snackbar');
             const snackbarIcon = document.getElementById('snackbar-icon');
@@ -953,6 +954,7 @@
                     const configResponse = await fetch('/config');
                     const config = await configResponse.json();
                     API_URL = config.apiUrl;
+                    CONTACT_BOOK_URL = config.contactBookUrl || '';
 
                     if (authData.user) {
                         displayUserData(authData.user);
@@ -1084,7 +1086,42 @@
             }
 
             function viewProfile() {
-                showSnackbar('Profile management is coming soon.', 'warning');
+                if (!CONTACT_BOOK_URL) {
+                    showSnackbar('Contact Book profile integration is not configured yet. Set CONTACT_BOOK_URL for the authenticator UI service.', 'warning');
+                    return;
+                }
+
+                if (!token) {
+                    showSnackbar('No active authentication token. Please sign in again.', 'error');
+                    return;
+                }
+
+                const userPayload = authData && authData.user ? authData.user : {};
+                const userId =
+                    userPayload.id ||
+                    userPayload.user_id ||
+                    authData.user_id ||
+                    authData.id ||
+                    null;
+
+                if (!userId) {
+                    showSnackbar('Unable to resolve your account identifier for profile linking.', 'error');
+                    return;
+                }
+
+                const email = userPayload.email || authData.email || '';
+                const destinationBase = CONTACT_BOOK_URL.replace(/\/$/, '');
+                const params = new URLSearchParams();
+
+                params.set('authToken', token);
+                params.set('authApi', API_URL);
+                params.set('userId', userId);
+                if (email) {
+                    params.set('userEmail', email);
+                }
+                params.set('returnTo', window.location.href);
+
+                window.location.href = `${destinationBase}/profile?${params.toString()}`;
             }
 
             function viewApiDocs() {

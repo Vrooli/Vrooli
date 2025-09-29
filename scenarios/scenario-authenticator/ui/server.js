@@ -13,6 +13,9 @@ const API_PORT = process.env.API_PORT;
 const distDir = path.join(__dirname, 'dist');
 const indexHtmlPath = path.join(distDir, 'index.html');
 const dashboardPagePath = path.join(__dirname, 'dashboard.html');
+const CONTACT_BOOK_URL =
+  process.env.CONTACT_BOOK_URL ||
+  (process.env.CONTACT_BOOK_API_PORT ? `http://localhost:${process.env.CONTACT_BOOK_API_PORT}` : undefined);
 
 if (!fs.existsSync(indexHtmlPath)) {
   console.error(
@@ -34,6 +37,7 @@ app.get('/config', (_req, res) => {
 
   res.json({
     apiUrl: `http://localhost:${API_PORT}`,
+    contactBookUrl: CONTACT_BOOK_URL || null,
     version: '2.0.0',
     service: 'authentication-ui',
   });

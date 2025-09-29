@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"scenario-authenticator/db"
+	"strings"
 	"time"
 )
 
@@ -33,38 +35,38 @@ func StoreSession(userID, token, refreshToken string, r *http.Request) error {
 		ExpiresAt:    time.Now().Add(7 * 24 * time.Hour),
 		CreatedAt:    time.Now(),
 	}
-	
+
 	sessionData, err := json.Marshal(session)
 	if err != nil {
 		return fmt.Errorf("failed to marshal session: %w", err)
 	}
-	
+
 	// Store in Redis with expiration
-	err = db.RedisClient.Set(db.Ctx, 
-		fmt.Sprintf("session:%s", session.SessionID), 
-		sessionData, 
+	err = db.RedisClient.Set(db.Ctx,
+		fmt.Sprintf("session:%s", session.SessionID),
+		sessionData,
 		7*24*time.Hour).Err()
 	if err != nil {
 		return fmt.Errorf("failed to store session: %w", err)
 	}
-	
+
 	// Also store user->sessions mapping
-	err = db.RedisClient.SAdd(db.Ctx, 
-		fmt.Sprintf("user_sessions:%s", userID), 
+	err = db.RedisClient.SAdd(db.Ctx,
+		fmt.Sprintf("user_sessions:%s", userID),
 		session.SessionID).Err()
 	if err != nil {
 		log.Printf("Warning: Failed to add session to user set: %v", err)
 	}
-	
+
 	return nil
 }
 
 // StoreRefreshToken stores a refresh token in Redis
 func StoreRefreshToken(userID, refreshToken string) {
 	tokenHash := HashToken(refreshToken)
-	err := db.RedisClient.Set(db.Ctx, 
-		fmt.Sprintf("refresh:%s", tokenHash), 
-		userID, 
+	err := db.RedisClient.Set(db.Ctx,
+		fmt.Sprintf("refresh:%s", tokenHash),
+		userID,
 		7*24*time.Hour).Err()
 	if err != nil {
 		log.Printf("Failed to store refresh token: %v", err)
@@ -95,12 +97,12 @@ func ClearUserSessions(userID string) {
 		log.Printf("Failed to get user sessions: %v", err)
 		return
 	}
-	
+
 	// Delete each session
 	for _, sessionID := range sessionIDs {
 		db.RedisClient.Del(db.Ctx, fmt.Sprintf("session:%s", sessionID))
 	}
-	
+
 	// Delete the user sessions set
 	db.RedisClient.Del(db.Ctx, fmt.Sprintf("user_sessions:%s", userID))
 }
@@ -126,15 +128,19 @@ func GetClientIP(r *http.Request) string {
 	// Check X-Forwarded-For header first
 	forwarded := r.Header.Get("X-Forwarded-For")
 	if forwarded != "" {
-		return forwarded
+		parts := strings.Split(forwarded, ",")
+		return strings.TrimSpace(parts[0])
 	}
-	
+
 	// Check X-Real-IP header
 	realIP := r.Header.Get("X-Real-IP")
 	if realIP != "" {
 		return realIP
 	}
-	
+
 	// Fall back to RemoteAddr
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
 	return r.RemoteAddr
 }

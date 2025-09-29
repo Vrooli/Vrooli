@@ -30,6 +30,13 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+// UpdateUserRequest represents the payload for updating a user
+type UpdateUserRequest struct {
+	Username      *string   `json:"username,omitempty"`
+	Roles         *[]string `json:"roles,omitempty"`
+	EmailVerified *bool     `json:"email_verified,omitempty"`
+}
+
 // AuthResponse represents authentication response
 type AuthResponse struct {
 	Success      bool   `json:"success"`
