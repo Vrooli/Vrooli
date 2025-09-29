@@ -40,10 +40,10 @@ Provides a centralized, campaign-based prompt management system that stores, org
   - [x] Tag-based categorization
   
 - **Nice to Have (P2)**
-  - [ ] Export/import functionality
+  - [x] Export/import functionality (PARTIAL: Code complete, testing blocked by database issues)
   - [ ] Collaboration features
   - [ ] Advanced analytics dashboard
-  - [ ] Version history for prompts
+  - [ ] Version history for prompts (stub implementation exists)
 
 ### Performance Criteria
 | Metric | Target | Measurement Method |
@@ -256,12 +256,17 @@ curl -X POST http://localhost:${API_PORT}/api/v1/search/prompts \
 - Direct API integrations for all LLM operations
 - CLI and API fully functional
 - Web UI provides comprehensive management features
+- Export/Import functionality implemented (2025-09-28)
+  - Full export of campaigns, prompts, tags to JSON
+  - Import with ID remapping to preserve relationships
+  - Testing blocked by database schema issues (see PROBLEMS.md)
 
 ### Known Limitations
 - No authentication/authorization yet
 - Limited to single-user operation
-- No backup/restore functionality
+- Database schema mismatch prevents full functionality (icon, parent_id columns missing)
 - Semantic search requires qdrant to be running
+- Export/import testing blocked by database issues
 
 ### Dependencies on Other Scenarios
 - Can enhance **ecosystem-manager** with proven patterns

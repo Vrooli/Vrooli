@@ -1,71 +1,73 @@
-const express = require('express');
-const path = require('path');
+import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.UI_PORT;
+const PORT = Number(process.env.UI_PORT || process.env.PORT || 4173);
 const API_PORT = process.env.API_PORT;
 
-if (!PORT) {
-    console.error('❌ UI_PORT environment variable is required');
-    process.exit(1);
+const distDir = path.join(__dirname, 'dist');
+const indexHtmlPath = path.join(distDir, 'index.html');
+const dashboardPagePath = path.join(__dirname, 'dashboard.html');
+
+if (!fs.existsSync(indexHtmlPath)) {
+  console.error(
+    '[scenario-authenticator-ui] dist/index.html not found. Run `pnpm run build` before starting the UI server.'
+  );
+  process.exit(1);
 }
 
-// Serve static files from current directory
-app.use(express.static(__dirname));
+app.use(express.static(distDir));
 
-// Provide config to frontend
-app.get('/config', (req, res) => {
-    res.json({
-        apiUrl: `http://localhost:${API_PORT}`,
-        version: '1.0.0',
-        service: 'authentication-ui'
+app.get('/config', (_req, res) => {
+  if (!API_PORT) {
+    res.status(500).json({
+      error: 'AUTH_API_PORT_UNDEFINED',
+      message: 'Authentication API port is not configured. Ensure the scenario is started via the lifecycle system.',
     });
+    return;
+  }
+
+  res.json({
+    apiUrl: `http://localhost:${API_PORT}`,
+    version: '2.0.0',
+    service: 'authentication-ui',
+  });
 });
 
-// Serve main page
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+app.get(['/dashboard', '/admin'], (_req, res) => {
+  res.sendFile(dashboardPagePath);
 });
 
-// Serve dashboard page - redirect to admin for now
-app.get('/dashboard', (req, res) => {
-    res.redirect('/admin');
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'healthy',
+    service: 'authentication-ui',
+    version: '2.0.0',
+    timestamp: new Date().toISOString(),
+    assetsBuilt: true,
+  });
 });
 
-// Serve admin dashboard
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'admin.html'));
+
+app.use((req, res) => {
+  if (req.method !== 'GET') {
+    res.status(404).end();
+    return;
+  }
+
+  res.sendFile(indexHtmlPath);
 });
 
-// Health check
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'healthy',
-        service: 'authentication-ui',
-        version: '1.0.0',
-        timestamp: new Date().toISOString()
-    });
-});
-
-const server = app.listen(PORT, () => {
-    console.log(`Authentication UI server running on port ${PORT}`);
-    console.log(`Access at: http://localhost:${PORT}`);
-    console.log(`Health check: http://localhost:${PORT}/health`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('Received SIGTERM, shutting down gracefully');
-    server.close(() => {
-        console.log('Authentication UI server closed');
-        process.exit(0);
-    });
-});
-
-process.on('SIGINT', () => {
-    console.log('Received SIGINT, shutting down gracefully');
-    server.close(() => {
-        console.log('Authentication UI server closed');
-        process.exit(0);
-    });
+app.listen(PORT, () => {
+  console.log(`Scenario Authenticator UI running at http://localhost:${PORT}`);
+  if (!API_PORT) {
+    console.warn('API_PORT not provided. /config will respond with an error until the lifecycle sets it.');
+  } else {
+    console.log(`Proxying API requests to http://localhost:${API_PORT}`);
+  }
 });

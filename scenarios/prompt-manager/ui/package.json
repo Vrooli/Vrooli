@@ -19,6 +19,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "@tanstack/react-query": "^5.17.0",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "framer-motion": "^10.18.0",
     "lucide-react": "^0.307.0",
     "@monaco-editor/react": "^4.6.0",

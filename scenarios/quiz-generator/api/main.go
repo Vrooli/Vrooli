@@ -2,15 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
@@ -369,6 +372,164 @@ func searchQuestions(c *gin.Context) {
 	})
 }
 
+func createQuiz(c *gin.Context) {
+	var quiz Quiz
+	if err := c.ShouldBindJSON(&quiz); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Generate IDs and timestamps
+	quiz.ID = uuid.New().String()
+	quiz.CreatedAt = time.Now()
+	quiz.UpdatedAt = time.Now()
+
+	// Ensure questions have IDs
+	for i := range quiz.Questions {
+		if quiz.Questions[i].ID == "" {
+			quiz.Questions[i].ID = uuid.New().String()
+		}
+		quiz.Questions[i].OrderIndex = i + 1
+	}
+
+	// Save to database
+	ctx := context.Background()
+	if err := quizProcessor.saveQuizToDB(ctx, &quiz); err != nil {
+		logger.Errorf("Failed to save quiz: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save quiz"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, quiz)
+}
+
+func updateQuiz(c *gin.Context) {
+	quizID := c.Param("id")
+	var quiz Quiz
+	if err := c.ShouldBindJSON(&quiz); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	quiz.ID = quizID
+	quiz.UpdatedAt = time.Now()
+
+	ctx := context.Background()
+	
+	// Update quiz metadata
+	_, err := db.Exec(ctx,
+		`UPDATE quiz_generator.quizzes 
+		 SET title = $2, description = $3, time_limit = $4, passing_score = $5, updated_at = $6
+		 WHERE id = $1`,
+		quizID, quiz.Title, quiz.Description, quiz.TimeLimit, quiz.PassingScore, quiz.UpdatedAt,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update quiz"})
+		return
+	}
+
+	// Update questions (delete and re-insert for simplicity)
+	db.Exec(ctx, "DELETE FROM quiz_generator.questions WHERE quiz_id = $1", quizID)
+	
+	for i, q := range quiz.Questions {
+		if q.ID == "" {
+			q.ID = uuid.New().String()
+		}
+		q.OrderIndex = i + 1
+		
+		optionsJSON, _ := json.Marshal(q.Options)
+		answerJSON, _ := json.Marshal(q.CorrectAnswer)
+		
+		db.Exec(ctx,
+			`INSERT INTO quiz_generator.questions (id, quiz_id, type, question_text, options, 
+			 correct_answer, explanation, difficulty, points, order_index)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+			q.ID, quizID, q.Type, q.QuestionText, optionsJSON, answerJSON,
+			q.Explanation, q.Difficulty, q.Points, q.OrderIndex,
+		)
+	}
+
+	c.JSON(http.StatusOK, quiz)
+}
+
+func deleteQuiz(c *gin.Context) {
+	quizID := c.Param("id")
+	ctx := context.Background()
+	
+	// Delete quiz and cascade to questions
+	_, err := db.Exec(ctx, "DELETE FROM quiz_generator.quizzes WHERE id = $1", quizID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete quiz"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Quiz deleted successfully"})
+}
+
+func getQuizForTaking(c *gin.Context) {
+	quizID := c.Param("id")
+	ctx := context.Background()
+	
+	quiz, err := quizProcessor.getQuiz(ctx, quizID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Quiz not found"})
+		return
+	}
+
+	// Remove correct answers for taking mode
+	for i := range quiz.Questions {
+		quiz.Questions[i].CorrectAnswer = nil
+		quiz.Questions[i].Explanation = ""
+	}
+
+	c.JSON(http.StatusOK, quiz)
+}
+
+func submitSingleAnswer(c *gin.Context) {
+	quizID := c.Param("id")
+	questionID := c.Param("questionId")
+	
+	var body struct {
+		Answer interface{} `json:"answer"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := context.Background()
+	quiz, err := quizProcessor.getQuiz(ctx, quizID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Quiz not found"})
+		return
+	}
+
+	// Find the question
+	for _, q := range quiz.Questions {
+		if q.ID == questionID {
+			isCorrect := quizProcessor.checkAnswer(q, body.Answer)
+			
+			response := gin.H{
+				"correct": isCorrect,
+				"points": 0,
+			}
+			
+			if isCorrect {
+				response["points"] = q.Points
+			}
+			
+			// Include explanation for immediate feedback
+			response["explanation"] = q.Explanation
+			response["correct_answer"] = q.CorrectAnswer
+			
+			c.JSON(http.StatusOK, response)
+			return
+		}
+	}
+
+	c.JSON(http.StatusNotFound, gin.H{"error": "Question not found"})
+}
+
 func exportQuiz(c *gin.Context) {
 	quizID := c.Param("id")
 	format := c.Query("format")
@@ -376,24 +537,123 @@ func exportQuiz(c *gin.Context) {
 		format = "json"
 	}
 
-	// Fetch quiz
-	var quiz Quiz
-	quiz.ID = quizID
-	quiz.Title = "Sample Quiz"
-	quiz.Questions = generateMockQuestions(5)
+	ctx := context.Background()
+	quiz, err := quizProcessor.getQuiz(ctx, quizID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Quiz not found"})
+		return
+	}
 
 	switch format {
 	case "json":
 		c.JSON(http.StatusOK, quiz)
 	case "qti":
-		// TODO: Implement QTI format export
-		c.String(http.StatusOK, "<?xml version=\"1.0\"?><qti>...</qti>")
+		qtiXML := generateQTIFormat(quiz)
+		c.Header("Content-Type", "application/xml")
+		c.String(http.StatusOK, qtiXML)
 	case "moodle":
-		// TODO: Implement Moodle format export
-		c.String(http.StatusOK, "<?xml version=\"1.0\"?><quiz>...</quiz>")
+		moodleXML := generateMoodleFormat(quiz)
+		c.Header("Content-Type", "application/xml")
+		c.String(http.StatusOK, moodleXML)
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported format"})
 	}
+}
+
+func generateQTIFormat(quiz *Quiz) string {
+	var xml strings.Builder
+	xml.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
+<questestinterop xmlns="http://www.imsglobal.org/xsd/ims_qtiasiv2p1">
+  <assessment ident="` + quiz.ID + `" title="` + quiz.Title + `">
+`)
+	
+	for _, q := range quiz.Questions {
+		xml.WriteString(`    <item ident="` + q.ID + `" title="Question">
+      <presentation>
+        <material>
+          <mattext>` + q.QuestionText + `</mattext>
+        </material>
+`)
+		
+		if q.Type == "mcq" && len(q.Options) > 0 {
+			xml.WriteString(`        <response_lid ident="response1">
+`)
+			for i, opt := range q.Options {
+				xml.WriteString(`          <render_choice>
+            <response_label ident="` + fmt.Sprintf("opt%d", i) + `">
+              <material>
+                <mattext>` + opt + `</mattext>
+              </material>
+            </response_label>
+          </render_choice>
+`)
+			}
+			xml.WriteString(`        </response_lid>
+`)
+		}
+		
+		xml.WriteString(`      </presentation>
+    </item>
+`)
+	}
+	
+	xml.WriteString(`  </assessment>
+</questestinterop>`)
+	
+	return xml.String()
+}
+
+func generateMoodleFormat(quiz *Quiz) string {
+	var xml strings.Builder
+	xml.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
+<quiz>
+  <question type="category">
+    <category>
+      <text>` + quiz.Title + `</text>
+    </category>
+  </question>
+`)
+	
+	for _, q := range quiz.Questions {
+		qType := "shortanswer"
+		if q.Type == "mcq" {
+			qType = "multichoice"
+		} else if q.Type == "true_false" {
+			qType = "truefalse"
+		}
+		
+		xml.WriteString(`  <question type="` + qType + `">
+    <name>
+      <text>Question ` + q.ID + `</text>
+    </name>
+    <questiontext format="html">
+      <text><![CDATA[` + q.QuestionText + `]]></text>
+    </questiontext>
+`)
+		
+		if q.Type == "mcq" && len(q.Options) > 0 {
+			for i, opt := range q.Options {
+				fraction := "0"
+				if fmt.Sprintf("%c", 'A'+i) == q.CorrectAnswer {
+					fraction = "100"
+				}
+				xml.WriteString(`    <answer fraction="` + fraction + `">
+      <text>` + opt + `</text>
+      <feedback>
+        <text>` + q.Explanation + `</text>
+      </feedback>
+    </answer>
+`)
+			}
+		}
+		
+		xml.WriteString(`  </question>
+`)
+	}
+	
+	xml.WriteString(`</quiz>`)
+	
+	return xml.String()
 }
 
 func getStats(c *gin.Context) {
@@ -510,12 +770,17 @@ func main() {
 	v1 := router.Group("/api/v1")
 	{
 		v1.POST("/quiz/generate", generateQuiz)
+		v1.POST("/quiz", createQuiz)
+		v1.PUT("/quiz/:id", updateQuiz)
+		v1.DELETE("/quiz/:id", deleteQuiz)
 		v1.GET("/quiz/:id", getQuiz)
 		v1.GET("/quizzes", listQuizzes)
 		v1.POST("/quiz/:id/submit", submitQuiz)
 		v1.GET("/quiz/:id/export", exportQuiz)
 		v1.POST("/question-bank/search", searchQuestions)
 		v1.GET("/stats", getStats)
+		v1.GET("/quiz/:id/take", getQuizForTaking)
+		v1.POST("/quiz/:id/answer/:questionId", submitSingleAnswer)
 	}
 
 	// Start server

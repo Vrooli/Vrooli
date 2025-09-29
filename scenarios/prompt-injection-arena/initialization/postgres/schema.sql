@@ -245,3 +245,40 @@ LEFT JOIN test_results tr ON it.id = tr.injection_id
 WHERE it.is_active = true
 GROUP BY it.id, it.name, it.category, it.difficulty_score, it.success_rate, it.updated_at
 ORDER BY it.success_rate DESC, COUNT(tr.id) DESC;
+
+-- Tournament system tables
+CREATE TABLE tournaments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    status VARCHAR(20) CHECK (status IN ('scheduled', 'running', 'completed', 'cancelled')),
+    scheduled_at TIMESTAMP WITH TIME ZONE,
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    configuration JSONB DEFAULT '{}',
+    participant_ids JSONB DEFAULT '[]', -- Array of agent IDs
+    injection_ids JSONB DEFAULT '[]', -- Array of injection technique IDs
+    leaderboard_id UUID,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tournament results table
+CREATE TABLE tournament_results (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE,
+    agent_id UUID REFERENCES agent_configurations(id) ON DELETE CASCADE,
+    injection_id UUID REFERENCES injection_techniques(id) ON DELETE CASCADE,
+    success BOOLEAN NOT NULL,
+    execution_time_ms INTEGER,
+    score FLOAT,
+    details JSONB DEFAULT '{}',
+    tested_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for tournament tables
+CREATE INDEX idx_tournaments_status ON tournaments(status);
+CREATE INDEX idx_tournaments_scheduled_at ON tournaments(scheduled_at);
+CREATE INDEX idx_tournament_results_tournament_id ON tournament_results(tournament_id);
+CREATE INDEX idx_tournament_results_agent_id ON tournament_results(agent_id);
+CREATE INDEX idx_tournament_results_score ON tournament_results(score DESC);

@@ -446,7 +446,7 @@
                         <select id="outputFormat">
                             <option value="markdown">Markdown</option>
                             <option value="html">HTML</option>
-                            <option value="pdf" disabled>PDF (Coming Soon)</option>
+                            <option value="pdf">PDF</option>
                         </select>
                     </div>
                 </div>
@@ -504,8 +504,8 @@
     </footer>
 
     <script>
-        // API endpoint (adjust based on actual implementation)
-        const API_BASE = '/api/v1/legal';
+        // API endpoint
+        const API_BASE = 'http://localhost:15000/api/v1/legal';
         
         function showStatus(message, type = 'info') {
             const statusEl = document.getElementById('statusMessage');
@@ -543,24 +543,20 @@
             };
 
             try {
-                // Simulate API call (replace with actual endpoint)
                 showStatus('Generating document...', 'info');
                 
-                // In production, this would be:
-                // const response = await fetch(`${API_BASE}/generate`, {
-                //     method: 'POST',
-                //     headers: { 'Content-Type': 'application/json' },
-                //     body: JSON.stringify(formData)
-                // });
-                // const result = await response.json();
+                // Call actual API endpoint
+                const response = await fetch(`${API_BASE}/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
                 
-                // Simulated response
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                const result = {
-                    content: `# ${formData.document_type === 'privacy' ? 'Privacy Policy' : 'Terms of Service'} for ${formData.business_name}\n\n**Last Updated:** ${new Date().toLocaleDateString()}\n\n## Introduction\n\nThis document has been generated for ${formData.business_name} as a ${formData.business_type} operating under ${formData.jurisdictions[0]} jurisdiction.\n\n[Document content would be generated here based on templates and AI customization]\n\n## Contact Information\n\nEmail: ${formData.contact_email || 'contact@example.com'}\nWebsite: ${formData.website || 'https://example.com'}`,
-                    generated_at: new Date().toISOString(),
-                    document_id: 'doc_' + Math.random().toString(36).substr(2, 9)
-                };
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
 
                 // Display result
                 document.getElementById('previewContent').textContent = result.content;

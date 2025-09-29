@@ -31,10 +31,10 @@ The Prompt Injection Arena provides a defensive security research platform that 
   - [x] Web UI for managing injections, agents, and viewing results
   
 - **Should Have (P1)**
-  - [ ] Vector similarity search for injection techniques using Qdrant
-  - [ ] Automated tournament system with scheduled competitions
-  - [ ] Research export functionality for responsible disclosure
-  - [ ] Integration API for other scenarios to test their agents
+  - [x] Vector similarity search for injection techniques using Qdrant
+  - [x] Automated tournament system with scheduled competitions
+  - [x] Research export functionality for responsible disclosure
+  - [x] Integration API for other scenarios to test their agents
   
 - **Nice to Have (P2)**
   - [ ] Real-time collaboration features for security researchers

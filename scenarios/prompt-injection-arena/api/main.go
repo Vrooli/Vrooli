@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -622,9 +623,10 @@ func testAgent(c *gin.Context) {
 		
 		testResults = append(testResults, result)
 		
-		// Optional: Save test result to database
-		// This would normally be done to persist results
-		// saveTestResult(db, result)
+		// Save test result to database for persistence
+		if err := saveTestResult(result); err != nil {
+			log.Printf("Warning: Failed to save test result: %v", err)
+		}
 	}
 	
 	// Calculate robustness score
@@ -719,6 +721,450 @@ func getStatistics(c *gin.Context) {
 	c.JSON(http.StatusOK, stats)
 }
 
+// saveTestResult saves a test result to the database
+func saveTestResult(result TestResult) error {
+	// Convert safety violations and metadata to JSON
+	var safetyViolationsJSON, metadataJSON []byte
+	var err error
+	
+	if result.SafetyViolations != nil {
+		safetyViolationsJSON, err = json.Marshal(result.SafetyViolations)
+		if err != nil {
+			return fmt.Errorf("failed to marshal safety violations: %v", err)
+		}
+	} else {
+		safetyViolationsJSON = []byte("[]")
+	}
+	
+	if result.Metadata != nil {
+		metadataJSON, err = json.Marshal(result.Metadata)
+		if err != nil {
+			return fmt.Errorf("failed to marshal metadata: %v", err)
+		}
+	} else {
+		metadataJSON = []byte("{}")
+	}
+	
+	// Insert into database
+	query := `INSERT INTO test_results (id, injection_id, agent_id, success, response_text,
+	          execution_time_ms, safety_violations, confidence_score, error_message,
+	          executed_at, test_session_id, metadata)
+	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+	
+	_, err = db.Exec(query,
+		result.ID, result.InjectionID, result.AgentID, result.Success,
+		result.ResponseText, result.ExecutionTimeMS, safetyViolationsJSON,
+		result.ConfidenceScore, result.ErrorMessage, result.ExecutedAt,
+		result.TestSessionID, metadataJSON,
+	)
+	
+	if err != nil {
+		return fmt.Errorf("failed to insert test result: %v", err)
+	}
+	
+	return nil
+}
+
+// Get similar injection techniques using vector search
+func getSimilarInjections(c *gin.Context) {
+	queryText := c.Query("query")
+	limitStr := c.DefaultQuery("limit", "10")
+	
+	if queryText == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Query text is required"})
+		return
+	}
+	
+	limit := 10
+	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+		limit = l
+	}
+	
+	similar, err := FindSimilarInjections(queryText, limit)
+	if err != nil {
+		log.Printf("Error finding similar injections: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find similar techniques"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"query": queryText,
+		"limit": limit,
+		"results": similar,
+	})
+}
+
+// Vector search endpoint
+func vectorSearch(c *gin.Context) {
+	var request struct {
+		Query string `json:"query"`
+		Limit int    `json:"limit"`
+	}
+	
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	
+	if request.Query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Query is required"})
+		return
+	}
+	
+	if request.Limit <= 0 {
+		request.Limit = 10
+	}
+	
+	results, err := FindSimilarInjections(request.Query, request.Limit)
+	if err != nil {
+		log.Printf("Vector search error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Search failed"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"query": request.Query,
+		"results": results,
+		"count": len(results),
+	})
+}
+
+// Index a new injection technique in the vector database
+func indexInjection(c *gin.Context) {
+	var request struct {
+		InjectionID string `json:"injection_id"`
+	}
+	
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	
+	if request.InjectionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Injection ID is required"})
+		return
+	}
+	
+	// Get injection details from database
+	var name, category, description, examplePrompt string
+	query := `SELECT name, category, description, example_prompt FROM injection_techniques WHERE id = $1`
+	err := db.QueryRow(query, request.InjectionID).Scan(&name, &category, &description, &examplePrompt)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Injection technique not found"})
+		return
+	}
+	
+	// Generate embedding
+	textToEmbed := fmt.Sprintf("%s %s %s %s", name, category, description, examplePrompt)
+	embedding, err := GenerateEmbedding(textToEmbed)
+	if err != nil {
+		log.Printf("Error generating embedding: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate embedding"})
+		return
+	}
+	
+	// Index in Qdrant
+	client := NewQdrantClient()
+	point := VectorPoint{
+		ID:     request.InjectionID,
+		Vector: embedding,
+		Payload: map[string]interface{}{
+			"name":           name,
+			"category":       category,
+			"description":    description,
+			"example_prompt": examplePrompt,
+		},
+	}
+	
+	if err := client.UpsertPoints("injection_techniques", []VectorPoint{point}); err != nil {
+		log.Printf("Error indexing injection: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to index injection"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Injection technique indexed successfully",
+		"id": request.InjectionID,
+	})
+}
+
+// Get tournaments list
+func getTournaments(c *gin.Context) {
+	status := c.Query("status")
+	
+	query := `SELECT id, name, description, status, scheduled_at, started_at, completed_at, created_at
+	         FROM tournaments WHERE 1=1`
+	args := []interface{}{}
+	argCount := 0
+	
+	if status != "" {
+		argCount++
+		query += fmt.Sprintf(" AND status = $%d", argCount)
+		args = append(args, status)
+	}
+	
+	query += " ORDER BY scheduled_at DESC"
+	
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get tournaments"})
+		return
+	}
+	defer rows.Close()
+	
+	tournaments := []map[string]interface{}{}
+	for rows.Next() {
+		var id, name, description, status string
+		var scheduledAt, createdAt time.Time
+		var startedAt, completedAt sql.NullTime
+		
+		err := rows.Scan(&id, &name, &description, &status, &scheduledAt, &startedAt, &completedAt, &createdAt)
+		if err != nil {
+			continue
+		}
+		
+		tournament := map[string]interface{}{
+			"id":           id,
+			"name":         name,
+			"description":  description,
+			"status":       status,
+			"scheduled_at": scheduledAt,
+			"created_at":   createdAt,
+		}
+		
+		if startedAt.Valid {
+			tournament["started_at"] = startedAt.Time
+		}
+		if completedAt.Valid {
+			tournament["completed_at"] = completedAt.Time
+		}
+		
+		tournaments = append(tournaments, tournament)
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"tournaments": tournaments,
+		"count":       len(tournaments),
+	})
+}
+
+// Create a new tournament
+func createTournamentHandler(c *gin.Context) {
+	var request struct {
+		Name        string                 `json:"name"`
+		Description string                 `json:"description"`
+		ScheduledAt time.Time              `json:"scheduled_at"`
+		Config      map[string]interface{} `json:"config"`
+	}
+	
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	
+	if request.Name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Tournament name is required"})
+		return
+	}
+	
+	tournament, err := CreateTournament(request.Name, request.Description, request.ScheduledAt, request.Config)
+	if err != nil {
+		log.Printf("Error creating tournament: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create tournament"})
+		return
+	}
+	
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Tournament created successfully",
+		"tournament": tournament,
+	})
+}
+
+// Run a tournament
+func runTournamentHandler(c *gin.Context) {
+	tournamentID := c.Param("id")
+	
+	if tournamentID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Tournament ID is required"})
+		return
+	}
+	
+	// Run tournament asynchronously
+	go func() {
+		scheduler := NewTournamentScheduler(db)
+		if err := scheduler.RunTournament(tournamentID); err != nil {
+			log.Printf("Error running tournament %s: %v", tournamentID, err)
+		}
+	}()
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Tournament started",
+		"id": tournamentID,
+	})
+}
+
+// Get tournament results
+func getTournamentResults(c *gin.Context) {
+	tournamentID := c.Param("id")
+	
+	if tournamentID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Tournament ID is required"})
+		return
+	}
+	
+	// Get tournament info
+	var name, status string
+	var completedAt sql.NullTime
+	tournamentQuery := `SELECT name, status, completed_at FROM tournaments WHERE id = $1`
+	err := db.QueryRow(tournamentQuery, tournamentID).Scan(&name, &status, &completedAt)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tournament not found"})
+		return
+	}
+	
+	// Get results
+	resultsQuery := `SELECT agent_id, injection_id, success, execution_time_ms, score, details, tested_at
+	                FROM tournament_results WHERE tournament_id = $1 ORDER BY score DESC`
+	
+	rows, err := db.Query(resultsQuery, tournamentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get results"})
+		return
+	}
+	defer rows.Close()
+	
+	results := []map[string]interface{}{}
+	for rows.Next() {
+		var agentID, injectionID string
+		var success bool
+		var executionTimeMS int
+		var score float64
+		var details json.RawMessage
+		var testedAt time.Time
+		
+		err := rows.Scan(&agentID, &injectionID, &success, &executionTimeMS, &score, &details, &testedAt)
+		if err != nil {
+			continue
+		}
+		
+		result := map[string]interface{}{
+			"agent_id":          agentID,
+			"injection_id":      injectionID,
+			"success":           success,
+			"execution_time_ms": executionTimeMS,
+			"score":             score,
+			"tested_at":         testedAt,
+		}
+		
+		var detailsMap map[string]interface{}
+		if json.Unmarshal(details, &detailsMap) == nil {
+			result["details"] = detailsMap
+		}
+		
+		results = append(results, result)
+	}
+	
+	response := gin.H{
+		"tournament_id": tournamentID,
+		"name":          name,
+		"status":        status,
+		"results":       results,
+		"count":         len(results),
+	}
+	
+	if completedAt.Valid {
+		response["completed_at"] = completedAt.Time
+	}
+	
+	c.JSON(http.StatusOK, response)
+}
+
+// Export research data
+func exportResearch(c *gin.Context) {
+	var request struct {
+		Format  string                 `json:"format"`
+		Filters map[string]interface{} `json:"filters"`
+	}
+	
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	
+	// Default format
+	if request.Format == "" {
+		request.Format = "json"
+	}
+	
+	// Convert format string to ExportFormat type
+	var format ExportFormat
+	switch request.Format {
+	case "json":
+		format = FormatJSON
+	case "csv":
+		format = FormatCSV
+	case "markdown", "md":
+		format = FormatMD
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported format. Use: json, csv, or markdown"})
+		return
+	}
+	
+	// Export data
+	data, err := ExportResearchData(format, request.Filters)
+	if err != nil {
+		log.Printf("Export error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Export failed"})
+		return
+	}
+	
+	// Set appropriate content type
+	contentType := "application/json"
+	filename := "research-export.json"
+	
+	switch format {
+	case FormatCSV:
+		contentType = "text/csv"
+		filename = "research-export.csv"
+	case FormatMD:
+		contentType = "text/markdown"
+		filename = "research-export.md"
+	}
+	
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.Data(http.StatusOK, contentType, data)
+}
+
+// Get available export formats
+func getExportFormats(c *gin.Context) {
+	formats := []map[string]string{
+		{
+			"format": "json",
+			"name": "JSON",
+			"description": "Structured JSON format with all data",
+			"content_type": "application/json",
+		},
+		{
+			"format": "csv",
+			"name": "CSV",
+			"description": "Spreadsheet-compatible CSV format",
+			"content_type": "text/csv",
+		},
+		{
+			"format": "markdown",
+			"name": "Markdown",
+			"description": "Human-readable markdown report",
+			"content_type": "text/markdown",
+		},
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"formats": formats,
+		"default": "json",
+	})
+}
+
 func main() {
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
@@ -735,6 +1181,17 @@ func main() {
 	// Initialize database
 	initDB()
 	defer db.Close()
+	
+	// Initialize vector search (non-blocking)
+	go func() {
+		log.Println("Initializing vector search...")
+		if err := InitializeVectorSearch(); err != nil {
+			log.Printf("Warning: Vector search initialization failed: %v", err)
+			log.Println("Vector search features will be limited")
+		} else {
+			log.Println("Vector search initialized successfully")
+		}
+	}()
 	
 	// Initialize Gin router
 	r := gin.Default()
@@ -758,6 +1215,7 @@ func main() {
 		// Injection library
 		api.GET("/injections/library", getInjectionLibrary)
 		api.POST("/injections", addInjectionTechnique)
+		api.GET("/injections/similar", getSimilarInjections)
 		
 		// Leaderboards
 		api.GET("/leaderboards/agents", getAgentLeaderboard)
@@ -768,6 +1226,20 @@ func main() {
 		
 		// Statistics
 		api.GET("/statistics", getStatistics)
+		
+		// Vector search
+		api.POST("/vector/search", vectorSearch)
+		api.POST("/vector/index", indexInjection)
+		
+		// Tournament system
+		api.GET("/tournaments", getTournaments)
+		api.POST("/tournaments", createTournamentHandler)
+		api.POST("/tournaments/:id/run", runTournamentHandler)
+		api.GET("/tournaments/:id/results", getTournamentResults)
+		
+		// Research export
+		api.POST("/export/research", exportResearch)
+		api.GET("/export/formats", getExportFormats)
 	}
 	
 	// Get port from environment

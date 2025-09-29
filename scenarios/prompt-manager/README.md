@@ -71,6 +71,13 @@ AI maintenance task management system for Vrooli, organizing automated code qual
 - `GET /api/prompts/recent` - Recently used prompts
 - `GET /api/prompts/favorites` - Favorite prompts
 
+### Export/Import
+- `GET /api/v1/export` - Export all data to JSON
+  - Query params: `campaign_id` (filter by campaign), `include_archived` (include archived prompts)
+- `POST /api/v1/import` - Import data from JSON
+  - Body: JSON export file content
+  - Returns: Summary of imported items and any errors
+
 ## CLI Commands
 
 ```bash

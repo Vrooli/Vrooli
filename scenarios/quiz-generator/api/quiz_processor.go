@@ -300,6 +300,11 @@ func (qp *QuizProcessor) saveQuizToDB(ctx context.Context, quiz *Quiz) error {
 }
 
 func (qp *QuizProcessor) cacheQuiz(ctx context.Context, quiz *Quiz) error {
+	// Skip caching if Redis is not available
+	if qp.redis == nil {
+		return nil
+	}
+	
 	quizJSON, err := json.Marshal(quiz)
 	if err != nil {
 		return fmt.Errorf("failed to marshal quiz: %w", err)
@@ -444,12 +449,14 @@ func (qp *QuizProcessor) GradeQuiz(ctx context.Context, quizID string, submissio
 }
 
 func (qp *QuizProcessor) getQuiz(ctx context.Context, quizID string) (*Quiz, error) {
-	// Try cache first
-	cached, err := qp.redis.Get(ctx, fmt.Sprintf("quiz:%s", quizID)).Result()
-	if err == nil {
-		var quiz Quiz
-		if err := json.Unmarshal([]byte(cached), &quiz); err == nil {
-			return &quiz, nil
+	// Try cache first if Redis is available
+	if qp.redis != nil {
+		cached, err := qp.redis.Get(ctx, fmt.Sprintf("quiz:%s", quizID)).Result()
+		if err == nil {
+			var quiz Quiz
+			if err := json.Unmarshal([]byte(cached), &quiz); err == nil {
+				return &quiz, nil
+			}
 		}
 	}
 
@@ -457,8 +464,8 @@ func (qp *QuizProcessor) getQuiz(ctx context.Context, quizID string) (*Quiz, err
 	quiz := &Quiz{ID: quizID}
 	
 	query := `SELECT title, description, time_limit, passing_score, created_at, updated_at 
-			  FROM quizzes WHERE id = $1`
-	err = qp.db.QueryRow(ctx, query, quizID).Scan(
+			  FROM quiz_generator.quizzes WHERE id = $1`
+	err := qp.db.QueryRow(ctx, query, quizID).Scan(
 		&quiz.Title, &quiz.Description, &quiz.TimeLimit,
 		&quiz.PassingScore, &quiz.CreatedAt, &quiz.UpdatedAt)
 	if err != nil {
@@ -468,7 +475,7 @@ func (qp *QuizProcessor) getQuiz(ctx context.Context, quizID string) (*Quiz, err
 	// Load questions
 	questionQuery := `SELECT id, type, question_text, options, correct_answer, explanation, 
 					  difficulty, points, order_index
-					  FROM questions WHERE quiz_id = $1 ORDER BY order_index`
+					  FROM quiz_generator.questions WHERE quiz_id = $1 ORDER BY order_index`
 	rows, err := qp.db.Query(ctx, questionQuery, quizID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get questions: %w", err)
@@ -512,7 +519,7 @@ func (qp *QuizProcessor) storeQuizResult(ctx context.Context, quizID string,
 	resultID := uuid.New().String()
 	responsesJSON, _ := json.Marshal(submission.Responses)
 	
-	query := `INSERT INTO quiz_results (id, quiz_id, score, percentage, passed, 
+	query := `INSERT INTO quiz_generator.quiz_results (id, quiz_id, score, percentage, passed, 
 			  responses, time_taken, submitted_at)
 			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 	

@@ -165,8 +165,13 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
+          "run": "cd ui && pnpm install --frozen-lockfile --prod=false",
           "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && pnpm run build",
+          "description": "Build authentication UI bundle"
         },
         {
           "name": "generate-jwt-keys",
@@ -197,7 +202,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
+          "run": "cd ui && pnpm run start",
           "description": "Start authentication UI server",
           "background": true
         },

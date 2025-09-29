@@ -23,6 +23,7 @@
     "recharts": "^2.7.2",
     "framer-motion": "^10.12.16",
     "lucide-react": "^0.263.0",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@radix-ui/react-dialog": "^1.0.4",
     "@radix-ui/react-select": "^1.2.2",
     "@radix-ui/react-tabs": "^1.0.4",

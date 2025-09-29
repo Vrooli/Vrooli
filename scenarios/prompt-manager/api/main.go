@@ -397,7 +397,7 @@ func (s *APIServer) checkOllama() string {
 // Campaign endpoints
 func (s *APIServer) getCampaigns(w http.ResponseWriter, r *http.Request) {
 	query := `
-		SELECT id, name, description, color, icon, parent_id, sort_order, 
+		SELECT id, name, description, color, parent_id, sort_order, 
 		       is_favorite, prompt_count, last_used, created_at, updated_at
 		FROM campaigns 
 		ORDER BY sort_order, name`
@@ -412,9 +412,10 @@ func (s *APIServer) getCampaigns(w http.ResponseWriter, r *http.Request) {
 	var campaigns []Campaign
 	for rows.Next() {
 		var campaign Campaign
+		campaign.Icon = "folder" // Default icon
 		err := rows.Scan(
 			&campaign.ID, &campaign.Name, &campaign.Description, &campaign.Color,
-			&campaign.Icon, &campaign.ParentID, &campaign.SortOrder,
+			&campaign.ParentID, &campaign.SortOrder,
 			&campaign.IsFavorite, &campaign.PromptCount, &campaign.LastUsed,
 			&campaign.CreatedAt, &campaign.UpdatedAt,
 		)
@@ -464,14 +465,14 @@ func (s *APIServer) createCampaign(w http.ResponseWriter, r *http.Request) {
 	campaign.SortOrder = maxOrder + 1
 
 	query := `
-		INSERT INTO campaigns (id, name, description, color, icon, parent_id, 
+		INSERT INTO campaigns (id, name, description, color, parent_id, 
 		                      sort_order, is_favorite, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING prompt_count, last_used`
 
 	err := s.db.QueryRow(query,
 		campaign.ID, campaign.Name, campaign.Description, campaign.Color,
-		campaign.Icon, req.ParentID, campaign.SortOrder, campaign.IsFavorite,
+		req.ParentID, campaign.SortOrder, campaign.IsFavorite,
 		campaign.CreatedAt, campaign.UpdatedAt,
 	).Scan(&campaign.PromptCount, &campaign.LastUsed)
 
@@ -492,15 +493,16 @@ func (s *APIServer) getCampaign(w http.ResponseWriter, r *http.Request) {
 	campaignID := vars["id"]
 
 	query := `
-		SELECT id, name, description, color, icon, parent_id, sort_order,
+		SELECT id, name, description, color, parent_id, sort_order,
 		       is_favorite, prompt_count, last_used, created_at, updated_at
 		FROM campaigns 
 		WHERE id = $1`
 
 	var campaign Campaign
+	campaign.Icon = "folder" // Default icon
 	err := s.db.QueryRow(query, campaignID).Scan(
 		&campaign.ID, &campaign.Name, &campaign.Description, &campaign.Color,
-		&campaign.Icon, &campaign.ParentID, &campaign.SortOrder,
+		&campaign.ParentID, &campaign.SortOrder,
 		&campaign.IsFavorite, &campaign.PromptCount, &campaign.LastUsed,
 		&campaign.CreatedAt, &campaign.UpdatedAt,
 	)
@@ -1472,15 +1474,266 @@ func (s *APIServer) getTemplate(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Export/Import stub implementations
+// Export/Import functionality
+type ExportData struct {
+	Version    string      `json:"version"`
+	ExportedAt time.Time   `json:"exported_at"`
+	Campaigns  []Campaign  `json:"campaigns"`
+	Prompts    []Prompt    `json:"prompts"`
+	Tags       []Tag       `json:"tags"`
+	Templates  []Template  `json:"templates,omitempty"`
+}
+
 func (s *APIServer) exportData(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-	json.NewEncoder(w).Encode(map[string]string{"error": "Export functionality not yet implemented"})
+	// Get filter parameters
+	campaignID := r.URL.Query().Get("campaign_id")
+	includeArchived := r.URL.Query().Get("include_archived") == "true"
+	
+	export := ExportData{
+		Version:    "1.0",
+		ExportedAt: time.Now(),
+		Campaigns:  []Campaign{},
+		Prompts:    []Prompt{},
+		Tags:       []Tag{},
+		Templates:  []Template{},
+	}
+	
+	// Export campaigns
+	// Note: icon column may not exist in older databases, so we handle it gracefully
+	campaignQuery := `SELECT id, name, description, color, parent_id, sort_order, 
+		is_favorite, prompt_count, last_used, created_at, updated_at FROM campaigns`
+	args := []interface{}{}
+	
+	if campaignID != "" {
+		campaignQuery += " WHERE id = $1"
+		args = append(args, campaignID)
+	}
+	
+	rows, err := s.db.Query(campaignQuery, args...)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+	
+	for rows.Next() {
+		var c Campaign
+		c.Icon = "folder" // Default icon value
+		err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.Color,
+			&c.ParentID, &c.SortOrder, &c.IsFavorite, &c.PromptCount, 
+			&c.LastUsed, &c.CreatedAt, &c.UpdatedAt)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		export.Campaigns = append(export.Campaigns, c)
+	}
+	
+	// Export prompts
+	promptQuery := `SELECT id, campaign_id, title, content, description, variables, 
+		usage_count, last_used, is_favorite, is_archived, quick_access_key, 
+		version, parent_version_id, word_count, estimated_tokens, 
+		effectiveness_rating, notes, created_at, updated_at 
+		FROM prompts WHERE 1=1`
+	
+	if campaignID != "" {
+		promptQuery += " AND campaign_id = $1"
+		args = []interface{}{campaignID}
+	} else {
+		args = []interface{}{}
+	}
+	
+	if !includeArchived {
+		promptQuery += " AND is_archived = false"
+	}
+	
+	rows, err = s.db.Query(promptQuery, args...)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+	
+	for rows.Next() {
+		var p Prompt
+		var varsJSON string
+		err := rows.Scan(&p.ID, &p.CampaignID, &p.Title, &p.Content, &p.Description, 
+			&varsJSON, &p.UsageCount, &p.LastUsed, &p.IsFavorite, &p.IsArchived,
+			&p.QuickAccessKey, &p.Version, &p.ParentVersionID, &p.WordCount,
+			&p.EstimatedTokens, &p.EffectivenessRating, &p.Notes, &p.CreatedAt, &p.UpdatedAt)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		
+		// Parse variables JSON
+		if varsJSON != "" {
+			json.Unmarshal([]byte(varsJSON), &p.Variables)
+		}
+		
+		// Get tags for this prompt
+		tagRows, err := s.db.Query(`
+			SELECT t.name FROM tags t 
+			JOIN prompt_tags pt ON t.id = pt.tag_id 
+			WHERE pt.prompt_id = $1`, p.ID)
+		if err == nil {
+			defer tagRows.Close()
+			p.Tags = []string{}
+			for tagRows.Next() {
+				var tagName string
+				if err := tagRows.Scan(&tagName); err == nil {
+					p.Tags = append(p.Tags, tagName)
+				}
+			}
+		}
+		
+		export.Prompts = append(export.Prompts, p)
+	}
+	
+	// Export all tags
+	tagRows, err := s.db.Query(`SELECT id, name, color, description FROM tags`)
+	if err == nil {
+		defer tagRows.Close()
+		for tagRows.Next() {
+			var t Tag
+			if err := tagRows.Scan(&t.ID, &t.Name, &t.Color, &t.Description); err == nil {
+				export.Tags = append(export.Tags, t)
+			}
+		}
+	}
+	
+	// Set response headers for file download
+	fileName := fmt.Sprintf("prompt-manager-export-%s.json", time.Now().Format("2006-01-02"))
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
+	
+	json.NewEncoder(w).Encode(export)
 }
 
 func (s *APIServer) importData(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-	json.NewEncoder(w).Encode(map[string]string{"error": "Import functionality not yet implemented"})
+	var importData ExportData
+	if err := json.NewDecoder(r.Body).Decode(&importData); err != nil {
+		http.Error(w, "Invalid import data format", http.StatusBadRequest)
+		return
+	}
+	
+	// Track what was imported
+	result := map[string]interface{}{
+		"campaigns_imported": 0,
+		"prompts_imported":   0,
+		"tags_imported":      0,
+		"errors":            []string{},
+	}
+	
+	// Start a transaction
+	tx, err := s.db.Begin()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+	
+	// Import campaigns (maintaining parent-child relationships)
+	campaignIDMap := make(map[string]string) // old ID -> new ID mapping
+	
+	for _, campaign := range importData.Campaigns {
+		newID := uuid.New().String()
+		campaignIDMap[campaign.ID] = newID
+		
+		// Handle parent_id mapping
+		var parentID *string
+		if campaign.ParentID != nil && *campaign.ParentID != "" {
+			if newParentID, exists := campaignIDMap[*campaign.ParentID]; exists {
+				parentID = &newParentID
+			}
+		}
+		
+		_, err := tx.Exec(`
+			INSERT INTO campaigns (id, name, description, color, parent_id, 
+				sort_order, is_favorite, created_at, updated_at) 
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			ON CONFLICT (id) DO NOTHING`,
+			newID, campaign.Name, campaign.Description, campaign.Color,
+			parentID, campaign.SortOrder, campaign.IsFavorite, 
+			time.Now(), time.Now())
+		
+		if err != nil {
+			result["errors"] = append(result["errors"].([]string), 
+				fmt.Sprintf("Failed to import campaign %s: %v", campaign.Name, err))
+			continue
+		}
+		result["campaigns_imported"] = result["campaigns_imported"].(int) + 1
+	}
+	
+	// Import tags
+	tagIDMap := make(map[string]string)
+	for _, tag := range importData.Tags {
+		newID := uuid.New().String()
+		tagIDMap[tag.ID] = newID
+		
+		_, err := tx.Exec(`
+			INSERT INTO tags (id, name, color, description) 
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (name) DO NOTHING`,
+			newID, tag.Name, tag.Color, tag.Description)
+		
+		if err != nil {
+			result["errors"] = append(result["errors"].([]string), 
+				fmt.Sprintf("Failed to import tag %s: %v", tag.Name, err))
+			continue
+		}
+		result["tags_imported"] = result["tags_imported"].(int) + 1
+	}
+	
+	// Import prompts
+	for _, prompt := range importData.Prompts {
+		newID := uuid.New().String()
+		
+		// Map campaign ID
+		campaignID := prompt.CampaignID
+		if newCampaignID, exists := campaignIDMap[prompt.CampaignID]; exists {
+			campaignID = newCampaignID
+		}
+		
+		varsJSON, _ := json.Marshal(prompt.Variables)
+		
+		_, err := tx.Exec(`
+			INSERT INTO prompts (id, campaign_id, title, content, description, 
+				variables, usage_count, last_used, is_favorite, is_archived, 
+				quick_access_key, version, word_count, estimated_tokens, 
+				effectiveness_rating, notes, created_at, updated_at) 
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+			newID, campaignID, prompt.Title, prompt.Content, prompt.Description,
+			string(varsJSON), 0, nil, prompt.IsFavorite, prompt.IsArchived,
+			nil, 1, prompt.WordCount, prompt.EstimatedTokens,
+			prompt.EffectivenessRating, prompt.Notes, time.Now(), time.Now())
+		
+		if err != nil {
+			result["errors"] = append(result["errors"].([]string), 
+				fmt.Sprintf("Failed to import prompt %s: %v", prompt.Title, err))
+			continue
+		}
+		
+		// Link tags to prompt
+		for _, tagName := range prompt.Tags {
+			var tagID string
+			err := tx.QueryRow("SELECT id FROM tags WHERE name = $1", tagName).Scan(&tagID)
+			if err == nil {
+				tx.Exec("INSERT INTO prompt_tags (prompt_id, tag_id) VALUES ($1, $2)", newID, tagID)
+			}
+		}
+		
+		result["prompts_imported"] = result["prompts_imported"].(int) + 1
+	}
+	
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Failed to commit import: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }
 
 // Version control stub implementations
