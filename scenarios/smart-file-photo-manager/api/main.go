@@ -97,6 +97,7 @@ type UploadRequest struct {
 	Metadata    map[string]interface{} `json:"metadata"`
 }
 
+
 // App represents the main application
 type App struct {
 	DB              *sql.DB
@@ -510,9 +511,15 @@ func (app *App) uploadFile(c *gin.Context) {
 		RETURNING id
 	`
 
+	// Convert metadata to JSON
+	metadataJSON, err := json.Marshal(req.Metadata)
+	if err != nil {
+		metadataJSON = []byte("{}")
+	}
+	
 	var fileID string
-	err := app.DB.QueryRow(query, req.Filename, req.FileHash, req.SizeBytes,
-		req.MimeType, req.StoragePath, req.FolderPath, req.Metadata).Scan(&fileID)
+	err = app.DB.QueryRow(query, req.Filename, req.FileHash, req.SizeBytes,
+		req.MimeType, req.StoragePath, req.FolderPath, metadataJSON).Scan(&fileID)
 
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to create file record: " + err.Error()})
@@ -549,9 +556,16 @@ func (app *App) previewFile(c *gin.Context) {
 // Search handlers
 func (app *App) searchFiles(c *gin.Context) {
 	var req SearchRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
-		return
+	
+	// Check if request came from GET endpoint
+	if searchReq, exists := c.Get("search_request"); exists {
+		req = searchReq.(SearchRequest)
+	} else {
+		// Handle POST request
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
+			return
+		}
 	}
 
 	startTime := time.Now()

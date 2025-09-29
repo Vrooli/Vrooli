@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -120,14 +121,44 @@ if (typeof window !== 'undefined' && window.parent !== window) {
   <expected-violations>1</expected-violations>
   <expected-message>@vrooli/iframe-bridge</expected-message>
 </test-case>
+
+<test-case id="package-missing-install" should-fail="true" path="testdata/package-missing-install/ui/package.json">
+  <description>Node modules missing iframe bridge bundle triggers violation</description>
+  <input language="json">
+{
+  "name": "demo-ui",
+  "version": "1.0.0",
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  }
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>not found in node_modules</expected-message>
+</test-case>
+
+<test-case id="package-incomplete-install" should-fail="true" path="testdata/package-incomplete-install/ui/package.json">
+  <description>Iframe bridge dependency installed without dist bundle triggers violation</description>
+  <input language="json">
+{
+  "name": "demo-ui",
+  "version": "1.0.0",
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  }
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>installation is incomplete</expected-message>
+</test-case>
 */
 
 var (
-	bridgeCallPattern       = regexp.MustCompile(`initIframeBridgeChild\s*\(`)
-	windowBridgeCallPattern = regexp.MustCompile(`window\.(?:parent\.)?initIframeBridgeChild\s*\(`)
-	bridgeGuardPattern      = regexp.MustCompile(`window\.parent\s*(?:!==|!=|===|==)\s*window`)
-	appIDPattern            = regexp.MustCompile(`appId\s*:\s*['"]`)
-	bridgeImportPattern     = regexp.MustCompile(`(?m)(import\s+[^;]*@vrooli/iframe-bridge[^\n]*|require\([^\n]*@vrooli/iframe-bridge[^\n]*\))`)
+	bridgeCallPattern             = regexp.MustCompile(`initIframeBridgeChild\s*\(`)
+	windowBridgeCallPattern       = regexp.MustCompile(`window\.(?:parent\.)?initIframeBridgeChild\s*\(`)
+	bridgeGuardPattern            = regexp.MustCompile(`window\.parent\s*(?:!==|!=|===|==)\s*window`)
+	appIDPattern                  = regexp.MustCompile(`appId\s*:\s*['"]`)
+	bridgeImportPattern           = regexp.MustCompile(`(?m)(import\s+[^;]*@vrooli/iframe-bridge[^\n]*|require\([^\n]*@vrooli/iframe-bridge[^\n]*\))`)
 	captureLogsDisabledPattern    = regexp.MustCompile(`(?s)captureLogs\s*:\s*(?:false|\{[^}]*enabled\s*:\s*false)`)
 	captureNetworkDisabledPattern = regexp.MustCompile(`(?s)captureNetwork\s*:\s*(?:false|\{[^}]*enabled\s*:\s*false)`)
 )
@@ -237,6 +268,9 @@ func validateBridgePackage(content []byte, path string) []rules.Violation {
 
 	version := extractBridgeDependencyVersion(content)
 	if strings.TrimSpace(version) != "" {
+		if message := validateBridgeDependencyInstallation(path, version); message != "" {
+			return []rules.Violation{newPackageBridgeViolation(relativePackagePath(path), message)}
+		}
 		return nil
 	}
 	relative := relativePackagePath(path)
@@ -245,6 +279,42 @@ func validateBridgePackage(content []byte, path string) []rules.Violation {
 	}
 	message := fmt.Sprintf("Missing %s dependency; UI packages must declare the shared bridge", sharedBridgePackageName)
 	return []rules.Violation{newPackageBridgeViolation(relative, message)}
+}
+
+func validateBridgeDependencyInstallation(manifestPath, version string) string {
+	dir := filepath.Dir(manifestPath)
+
+	if strings.HasPrefix(strings.TrimSpace(version), "file:") {
+		spec := strings.TrimSpace(strings.TrimPrefix(version, "file:"))
+		if spec != "" {
+			resolved := filepath.Clean(filepath.Join(dir, spec))
+			if _, err := os.Stat(resolved); err != nil {
+				return fmt.Sprintf("Local iframe bridge dependency path %q could not be resolved", spec)
+			}
+		}
+	}
+
+	bridgePath := filepath.Join(dir, "node_modules", "@vrooli", "iframe-bridge")
+	info, err := os.Lstat(bridgePath)
+	if err != nil {
+		return "Installed iframe bridge package not found in node_modules; reinstall dependencies"
+	}
+
+	resolved := bridgePath
+	if info.Mode()&os.ModeSymlink != 0 {
+		target, err := filepath.EvalSymlinks(bridgePath)
+		if err != nil {
+			return fmt.Sprintf("Iframe bridge dependency symlink is broken: %v", err)
+		}
+		resolved = target
+	}
+
+	expectedBundle := filepath.Join(resolved, "dist", "iframeBridgeChild.js")
+	if _, err := os.Stat(expectedBundle); err != nil {
+		return "Iframe bridge package installation is incomplete; dist/iframeBridgeChild.js is missing"
+	}
+
+	return ""
 }
 
 func newBridgeViolation(path, message string) rules.Violation {

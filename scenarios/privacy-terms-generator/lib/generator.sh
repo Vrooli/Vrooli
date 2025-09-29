@@ -48,7 +48,7 @@ Instructions:
 4. Do not add any explanatory text outside the document itself
 5. Return only the final document content"
 
-    resource-ollama content prompt "${prompt}" --model "${model}"
+    echo "${prompt}" | resource-ollama content add --model "${model}" --query "Generate the document"
 }
 
 # Function to fetch template from database

@@ -19,6 +19,7 @@ type GenerateRequest struct {
 	CustomClauses  []string `json:"custom_clauses,omitempty"`
 	Email          string   `json:"email,omitempty"`
 	Website        string   `json:"website,omitempty"`
+	Format         string   `json:"format,omitempty"`
 }
 
 type GenerateResponse struct {
@@ -89,12 +90,18 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
+	// Determine format (default to markdown)
+	format := req.Format
+	if format == "" {
+		format = "markdown"
+	}
+	
 	// Generate document using CLI (for now, as a bridge)
 	args := []string{
 		"generate", req.DocumentType,
 		"--business-name", req.BusinessName,
 		"--jurisdiction", req.Jurisdictions[0],
-		"--format", "markdown",
+		"--format", format,
 	}
 	
 	if req.BusinessType != "" {
@@ -105,6 +112,16 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Website != "" {
 		args = append(args, "--website", req.Website)
+	}
+	if len(req.DataTypes) > 0 {
+		dataTypesStr := ""
+		for i, dt := range req.DataTypes {
+			if i > 0 {
+				dataTypesStr += ","
+			}
+			dataTypesStr += dt
+		}
+		args = append(args, "--data-types", dataTypesStr)
 	}
 	
 	cmd := exec.Command("/home/matthalloran8/Vrooli/scenarios/privacy-terms-generator/cli/privacy-terms-generator", args...)
@@ -118,7 +135,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 	response := GenerateResponse{
 		DocumentID:      fmt.Sprintf("doc_%d", time.Now().Unix()),
 		Content:         string(output),
-		Format:          "markdown",
+		Format:          format,
 		GeneratedAt:     time.Now(),
 		TemplateVersion: "1.0.0",
 		PreviewURL:      fmt.Sprintf("/preview/%d", time.Now().Unix()),

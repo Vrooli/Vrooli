@@ -11,6 +11,10 @@ SCENARIO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Source generator functions
 source "${SCENARIO_ROOT}/lib/generator.sh"
+# Source web updater functions  
+source "${SCENARIO_ROOT}/lib/web_updater.sh"
+# Source PDF exporter functions
+source "${SCENARIO_ROOT}/lib/pdf_exporter.sh"
 
 # Colors for output
 RED='\033[0;31m'
@@ -222,7 +226,7 @@ cmd_generate() {
     print_info "Generating ${doc_type} for ${business_name}..."
     
     local content
-    content=$(generate_document "$doc_type" "$business_name" "$business_type" "$jurisdiction" "$format" "$custom_data" 2>/dev/null)
+    content=$(generate_document "$doc_type" "$business_name" "$business_type" "$jurisdiction" "markdown" "$custom_data" 2>/dev/null)
     
     # Fallback to simple generator if database fails
     if [ -z "$content" ] || [ $? -ne 0 ]; then
@@ -230,11 +234,29 @@ cmd_generate() {
     fi
     
     if [ -n "$content" ]; then
-        if [ -n "$output_file" ]; then
-            echo "$content" > "$output_file"
-            print_success "Document saved to ${output_file}"
+        # Handle different output formats
+        if [ "$format" = "pdf" ]; then
+            # Generate PDF
+            local pdf_output="${output_file:-${business_name// /_}_${doc_type}.pdf}"
+            generate_pdf_from_markdown "$content" "$pdf_output" "$business_name" "$doc_type"
+            print_success "PDF document saved to ${pdf_output}"
+        elif [ "$format" = "html" ]; then
+            # Convert to HTML
+            local html_content=$(markdown_to_html "$content" "$business_name" "$doc_type")
+            if [ -n "$output_file" ]; then
+                echo "$html_content" > "$output_file"
+                print_success "HTML document saved to ${output_file}"
+            else
+                echo "$html_content"
+            fi
         else
-            echo "$content"
+            # Default markdown output
+            if [ -n "$output_file" ]; then
+                echo "$content" > "$output_file"
+                print_success "Document saved to ${output_file}"
+            else
+                echo "$content"
+            fi
         fi
     else
         print_error "Failed to generate document"
@@ -321,7 +343,17 @@ cmd_update_templates() {
     done
     
     print_info "Updating templates..."
-    update_templates_from_web "$jurisdiction" "$force"
+    
+    # Use the enhanced web updater
+    if [ "$jurisdiction" = "all" ]; then
+        update_all_templates "$force"
+    else
+        # Update specific jurisdiction templates
+        for doc_type in privacy terms cookie eula; do
+            perform_template_update "$jurisdiction" "$doc_type" "$force"
+        done
+    fi
+    
     print_success "Templates updated successfully"
 }
 

@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -141,6 +143,108 @@ type SavingsOption struct {
 	Action      string  `json:"action_required"`
 }
 
+type AuthUser struct {
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Valid    bool   `json:"valid"`
+}
+
+// authMiddleware validates tokens with scenario-authenticator
+func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get token from Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			// Check for profile_id parameter as fallback (for backward compatibility)
+			profileID := r.URL.Query().Get("profile_id")
+			if profileID == "" {
+				// Try to get from body for POST requests
+				if r.Method == "POST" {
+					bodyBytes, _ := io.ReadAll(r.Body)
+					r.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
+					var reqBody map[string]interface{}
+					json.Unmarshal(bodyBytes, &reqBody)
+					if pid, ok := reqBody["profile_id"].(string); ok && pid != "" {
+						// Allow request to proceed with profile_id
+						ctx := context.WithValue(r.Context(), "user_id", pid)
+						next.ServeHTTP(w, r.WithContext(ctx))
+						return
+					}
+				}
+				// No authentication provided, allow as anonymous for now
+				ctx := context.WithValue(r.Context(), "user_id", "anonymous")
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+			// Use profile_id as user_id
+			ctx := context.WithValue(r.Context(), "user_id", profileID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+		
+		// Extract token (remove "Bearer " prefix)
+		token := strings.Replace(authHeader, "Bearer ", "", 1)
+		
+		// Get scenario-authenticator port from environment
+		authPort := os.Getenv("SCENARIO_AUTHENTICATOR_API_PORT")
+		if authPort == "" {
+			// Try default port range for scenarios
+			authPort = "15797"
+		}
+		
+		// Validate token with scenario-authenticator
+		authURL := fmt.Sprintf("http://localhost:%s/api/v1/auth/validate", authPort)
+		req, err := http.NewRequest("GET", authURL, nil)
+		if err != nil {
+			log.Printf("Error creating auth request: %v", err)
+			// Allow request to proceed as anonymous
+			ctx := context.WithValue(r.Context(), "user_id", "anonymous")
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+		
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Printf("Error validating token: %v", err)
+			// Allow request to proceed as anonymous
+			ctx := context.WithValue(r.Context(), "user_id", "anonymous")
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+		defer resp.Body.Close()
+		
+		if resp.StatusCode != http.StatusOK {
+			// Invalid token, allow as anonymous
+			ctx := context.WithValue(r.Context(), "user_id", "anonymous")
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+		
+		// Parse auth response
+		var authUser AuthUser
+		if err := json.NewDecoder(resp.Body).Decode(&authUser); err != nil {
+			log.Printf("Error parsing auth response: %v", err)
+			ctx := context.WithValue(r.Context(), "user_id", "anonymous")
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+		
+		if !authUser.Valid {
+			ctx := context.WithValue(r.Context(), "user_id", "anonymous")
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+		
+		// Add user info to context
+		ctx := context.WithValue(r.Context(), "user_id", authUser.ID)
+		ctx = context.WithValue(ctx, "user", authUser)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}
+}
+
 func NewServer() *Server {
 	port := os.Getenv("API_PORT")
 	if port == "" {
@@ -167,14 +271,14 @@ func (s *Server) setupRoutes() {
 	// Health check
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 	
-	// Shopping research endpoints
-	s.router.HandleFunc("/api/v1/shopping/research", s.handleShoppingResearch).Methods("POST")
-	s.router.HandleFunc("/api/v1/shopping/tracking/{profile_id}", s.handleGetTracking).Methods("GET")
-	s.router.HandleFunc("/api/v1/shopping/tracking", s.handleCreateTracking).Methods("POST")
-	s.router.HandleFunc("/api/v1/shopping/pattern-analysis", s.handlePatternAnalysis).Methods("POST")
+	// Shopping research endpoints - protected with auth middleware
+	s.router.HandleFunc("/api/v1/shopping/research", s.authMiddleware(s.handleShoppingResearch)).Methods("POST")
+	s.router.HandleFunc("/api/v1/shopping/tracking/{profile_id}", s.authMiddleware(s.handleGetTracking)).Methods("GET")
+	s.router.HandleFunc("/api/v1/shopping/tracking", s.authMiddleware(s.handleCreateTracking)).Methods("POST")
+	s.router.HandleFunc("/api/v1/shopping/pattern-analysis", s.authMiddleware(s.handlePatternAnalysis)).Methods("POST")
 	
-	// Profile management
-	s.router.HandleFunc("/api/v1/profiles", s.handleGetProfiles).Methods("GET")
+	// Profile management - protected with auth middleware
+	s.router.HandleFunc("/api/v1/profiles", s.authMiddleware(s.handleGetProfiles)).Methods("GET")
 	s.router.HandleFunc("/api/v1/profiles", s.handleCreateProfile).Methods("POST")
 	s.router.HandleFunc("/api/v1/profiles/{id}", s.handleGetProfile).Methods("GET")
 	
@@ -208,8 +312,17 @@ func (s *Server) handleShoppingResearch(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	
-	// Use database to search products
+	// Get user ID from context (set by auth middleware)
 	ctx := r.Context()
+	userID := ctx.Value("user_id").(string)
+	
+	// Use user ID as profile ID if not specified
+	if req.ProfileID == "" {
+		req.ProfileID = userID
+	}
+	
+	// Log the authenticated request
+	log.Printf("Shopping research for user %s (profile: %s): %s", userID, req.ProfileID, req.Query)
 	products, err := s.db.SearchProducts(ctx, req.Query, req.BudgetMax)
 	if err != nil {
 		log.Printf("Error searching products: %v", err)
@@ -248,9 +361,11 @@ func (s *Server) handleShoppingResearch(w http.ResponseWriter, r *http.Request) 
 	if req.BudgetMax > 0 {
 		recommendations = append(recommendations, fmt.Sprintf("Found %d products within your $%.2f budget", len(products), req.BudgetMax))
 	}
-	if len(alternatives) > 0 {
+	if len(alternatives) > 0 && len(products) > 0 && products[0].CurrentPrice > 0 {
 		savingsPercent := (alternatives[0].SavingsAmount / products[0].CurrentPrice) * 100
 		recommendations = append(recommendations, fmt.Sprintf("Save %.0f%% with alternative options", savingsPercent))
+	} else if len(alternatives) > 0 {
+		recommendations = append(recommendations, "Alternative options available for additional savings")
 	}
 	if priceAnalysis.CurrentTrend == "declining" {
 		recommendations = append(recommendations, "Prices are trending down - good time to buy")

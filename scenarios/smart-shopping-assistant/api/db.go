@@ -97,6 +97,18 @@ func (db *Database) SearchProducts(ctx context.Context, query string, budgetMax 
 		// For now, return enhanced mock data
 	}
 
+	// Try deep research integration (mock for now since scenario doesn't exist)
+	deepResearchData := db.callDeepResearch(ctx, query, budgetMax)
+	if deepResearchData != nil {
+		// Cache the result
+		if db.redis != nil {
+			cacheKey := fmt.Sprintf("search:%s:%.2f", query, budgetMax)
+			data, _ := json.Marshal(deepResearchData)
+			db.redis.Set(ctx, cacheKey, data, 5*time.Minute)
+		}
+		return deepResearchData, nil
+	}
+
 	// Return enhanced mock data with actual search term
 	products := []Product{
 		{
@@ -208,6 +220,67 @@ func (db *Database) GenerateAffiliateLinks(products []Product) []AffiliateLink {
 	}
 	
 	return links
+}
+
+// callDeepResearch simulates integration with deep-research scenario
+// In production, this would call the actual deep-research API
+func (db *Database) callDeepResearch(ctx context.Context, query string, budgetMax float64) []Product {
+	// Check if deep-research scenario is available
+	deepResearchPort := os.Getenv("DEEP_RESEARCH_API_PORT")
+	if deepResearchPort == "" {
+		// Deep research not available, return nil to fall back to basic search
+		log.Printf("Deep research scenario not available, using basic search")
+		return nil
+	}
+	
+	// In a real implementation, this would make an HTTP call to deep-research
+	// For now, return enhanced mock data that simulates deep research
+	products := []Product{
+		{
+			ID:            uuid.New().String(),
+			Name:          fmt.Sprintf("AI-Researched %s", query),
+			Category:      "Electronics",
+			Description:   fmt.Sprintf("Deep analysis found this %s with best value-to-performance ratio", query),
+			CurrentPrice:  budgetMax * 0.85, // 85% of budget
+			OriginalPrice: budgetMax * 1.1,  // Was 10% over budget
+			AffiliateLink: fmt.Sprintf("https://example.com/deep-research/%s?ref=smartshop", uuid.New().String()),
+			Features: map[string]interface{}{
+				"ai_score":        95,
+				"value_rating":    "Excellent",
+				"research_depth":  "Comprehensive",
+				"sources_checked": 47,
+			},
+			ReviewsSummary: &ReviewsSummary{
+				AverageRating: 4.7,
+				TotalReviews:  3421,
+				Pros:          []string{"Best in class", "AI verified quality", "Excellent value"},
+				Cons:          []string{"High demand, limited stock"},
+			},
+		},
+		{
+			ID:            uuid.New().String(),
+			Name:          fmt.Sprintf("Deep-Research Alternative %s", query),
+			Category:      "Electronics",
+			Description:   "AI found this hidden gem with 90% of features at 60% cost",
+			CurrentPrice:  budgetMax * 0.6,
+			OriginalPrice: budgetMax * 0.75,
+			AffiliateLink: fmt.Sprintf("https://example.com/deep-alt/%s?ref=smartshop", uuid.New().String()),
+			Features: map[string]interface{}{
+				"ai_score":       88,
+				"value_rating":   "Outstanding",
+				"research_depth": "Comprehensive",
+			},
+			ReviewsSummary: &ReviewsSummary{
+				AverageRating: 4.4,
+				TotalReviews:  1876,
+				Pros:          []string{"Incredible value", "Nearly identical performance", "Available now"},
+				Cons:          []string{"Lesser known brand"},
+			},
+		},
+	}
+	
+	log.Printf("Deep research completed for query: %s (simulated)", query)
+	return products
 }
 
 func (db *Database) Close() {

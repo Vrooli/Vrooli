@@ -1163,6 +1163,70 @@
   letter-spacing: 0.04em;
 }
 
+.report-dialog__bridge-inline {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  margin-top: 0.35rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 255, 191, 0.18);
+  background: rgba(0, 28, 24, 0.6);
+}
+
+.report-dialog__bridge-inline--warning {
+  border-color: rgba(255, 196, 0, 0.32);
+  background: rgba(64, 28, 0, 0.62);
+  color: rgba(255, 212, 160, 0.92);
+}
+
+.report-dialog__bridge-inline--success {
+  border-color: rgba(0, 255, 163, 0.32);
+  color: rgba(173, 255, 227, 0.92);
+}
+
+.report-dialog__bridge-inline svg {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.report-dialog__bridge-inline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.report-dialog__bridge-inline-title {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.report-dialog__bridge-inline-meta {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+
+.report-dialog__bridge-inline-note {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+}
+
+.report-dialog__bridge-inline-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+}
+
+.report-dialog__bridge-inline-list li + li {
+  margin-top: 0.3rem;
+}
+
 .report-dialog__bridge-list {
   margin: 0;
   padding-left: 1.1rem;

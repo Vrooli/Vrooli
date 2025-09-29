@@ -101,6 +101,14 @@ const MAX_NETWORK_REQUEST_ID_LENGTH = 128;
 const REPORT_APP_LOGS_PANEL_ID = 'app-report-dialog-logs';
 const REPORT_CONSOLE_LOGS_PANEL_ID = 'app-report-dialog-console';
 const REPORT_NETWORK_PANEL_ID = 'app-report-dialog-network';
+const BRIDGE_FAILURE_LABELS: Record<string, string> = {
+  HELLO: 'Preview never received the HELLO handshake from the iframe.',
+  READY: 'Iframe bridge did not send the READY signal.',
+  'SPA hooks': 'Single-page navigation hook did not respond to a test navigation.',
+  'BACK/FWD': 'History navigation commands were not acknowledged by the iframe.',
+  CHECK_FAILED: 'Runtime bridge check could not complete. Try refreshing the preview.',
+  NO_IFRAME: 'Preview iframe was unavailable when the runtime check executed.',
+};
 
 const normalizeConsoleLevel = (level: string | null | undefined): ConsoleSeverity => {
   const normalized = (level ?? '').toString().toLowerCase();
@@ -961,6 +969,39 @@ const ReportIssueDialog = ({
     }
   }, [reportNetworkFetchedAt]);
 
+  const bridgeComplianceCheckedAt = useMemo(() => {
+    if (!bridgeCompliance) {
+      return null;
+    }
+
+    try {
+      return new Date(bridgeCompliance.checkedAt).toLocaleTimeString();
+    } catch {
+      return null;
+    }
+  }, [bridgeCompliance]);
+
+  const bridgeComplianceFailures = useMemo(() => {
+    if (!bridgeCompliance || bridgeCompliance.ok) {
+      return [] as string[];
+    }
+
+    const normalized = Array.isArray(bridgeCompliance.failures)
+      ? bridgeCompliance.failures
+      : [];
+
+    const seen = new Set<string>();
+    return normalized
+      .map(code => BRIDGE_FAILURE_LABELS[code] ?? code)
+      .filter((message): message is string => {
+        if (!message || seen.has(message)) {
+          return false;
+        }
+        seen.add(message);
+        return true;
+      });
+  }, [bridgeCompliance]);
+
   const diagnosticsState = useMemo(() => {
     if (diagnosticsLoading) {
       return 'loading';
@@ -1165,9 +1206,43 @@ const ReportIssueDialog = ({
                     </div>
                   )}
 
-                  {bridgeCompliance && bridgeCompliance.ok && (
-                    <div className="report-dialog__bridge-inline">
-                      <span>Runtime bridge check passed</span>
+                  {bridgeCompliance && (
+                    <div
+                      className={clsx(
+                        'report-dialog__bridge-inline',
+                        bridgeCompliance.ok
+                          ? 'report-dialog__bridge-inline--success'
+                          : 'report-dialog__bridge-inline--warning',
+                      )}
+                    >
+                      {bridgeCompliance.ok ? (
+                        <CheckCircle2 aria-hidden size={18} />
+                      ) : (
+                        <AlertTriangle aria-hidden size={18} />
+                      )}
+                      <div className="report-dialog__bridge-inline-content">
+                        <p className="report-dialog__bridge-inline-title">
+                          {bridgeCompliance.ok ? 'Runtime bridge check passed' : 'Runtime bridge check failed'}
+                        </p>
+                        {bridgeComplianceCheckedAt && (
+                          <p className="report-dialog__bridge-inline-meta">Checked at {bridgeComplianceCheckedAt}</p>
+                        )}
+                        {bridgeCompliance.ok ? (
+                          <p className="report-dialog__bridge-inline-note">
+                            Iframe handshake signals and navigation hooks responded as expected.
+                          </p>
+                        ) : bridgeComplianceFailures.length > 0 ? (
+                          <ul className="report-dialog__bridge-inline-list">
+                            {bridgeComplianceFailures.map(message => (
+                              <li key={message}>{message}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="report-dialog__bridge-inline-note">
+                            Runtime diagnostics could not identify specific missing signals. Refresh the preview and try again.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

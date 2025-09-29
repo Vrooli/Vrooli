@@ -8,7 +8,7 @@ Generate legally compliant privacy policies, terms of service, and other legal d
 - **Document Types**: Privacy Policy, Terms of Service, Cookie Policy, EULA
 - **Template Freshness Tracking**: Know when templates were last updated
 - **AI-Powered Customization**: Uses Ollama to adapt templates to your specific needs
-- **Multiple Output Formats**: Markdown, HTML, PDF (coming soon)
+- **Multiple Output Formats**: Markdown, HTML, PDF
 - **Programmatic Access**: Full CLI and API for automation
 
 ## Quick Start
@@ -25,11 +25,22 @@ privacy-terms-generator generate privacy \
   --jurisdiction EU \
   --email legal@company.com
 
+# Generate in different formats
+privacy-terms-generator generate terms \
+  --business-name "SaaS Co" \
+  --format pdf \
+  --output terms.pdf
+
 # Check template freshness
 privacy-terms-generator list-templates --stale
 
-# Update templates
+# Update templates from web
 privacy-terms-generator update-templates --force
+
+# Generate cookie policy
+privacy-terms-generator generate cookie \
+  --business-name "Web App" \
+  --jurisdiction US
 ```
 
 ### Using the Web UI

@@ -30,11 +30,11 @@ Every generated business scenario can automatically obtain professional legal do
   - [x] PostgreSQL storage for templates and generated documents *(2025-09-24: Schema created, templates seeded, integration complete)*
   
 - **Should Have (P1)**
-  - [ ] Web search integration to fetch current legal requirements
+  - [x] Web search integration to fetch current legal requirements *(2025-09-28: Implemented web_updater.sh with fetch and update capabilities)*
   - [ ] Version history tracking for generated documents
-  - [ ] Multi-format export (HTML, Markdown, PDF via Browserless)
+  - [x] Multi-format export (HTML, Markdown, PDF via Browserless) *(2025-09-28: Added PDF export module, HTML conversion, format support in CLI)*
   - [ ] Semantic search for relevant clauses via Qdrant
-  - [ ] Cookie policy and EULA generation
+  - [x] Cookie policy and EULA generation *(2025-09-28: Templates support all document types)*
   
 - **Nice to Have (P2)**
   - [ ] Jurisdiction-specific clause recommendations
@@ -509,3 +509,4 @@ tests:
 
 ## Progress History
 - **2025-09-24**: 0% → 100% P0 (Initialized database, seeded templates, implemented freshness tracking, integrated CLI with database)
+- **2025-09-28**: P1 60% complete (Added web search integration, PDF export, HTML conversion, enhanced UI with real API integration)

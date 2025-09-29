@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username VARCHAR(100) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255),
     preferences JSONB DEFAULT '{}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -185,7 +186,7 @@ CREATE TRIGGER calculate_note_stats_trigger
     FOR EACH ROW
     EXECUTE FUNCTION calculate_note_stats();
 
--- Insert default user
-INSERT INTO users (username, email, preferences) VALUES 
-    ('default', 'user@smartnotes.local', '{"theme": "light", "font_size": "medium", "auto_save": true}')
-ON CONFLICT DO NOTHING;
+-- Insert default user with a simple placeholder password_hash
+INSERT INTO users (id, username, email, password_hash, preferences) VALUES 
+    ('00000000-0000-0000-0000-000000000001', 'default', 'user@smartnotes.local', 'placeholder_hash', '{"theme": "light", "font_size": "medium", "auto_save": true}')
+ON CONFLICT (id) DO NOTHING;

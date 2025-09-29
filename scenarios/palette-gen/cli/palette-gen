@@ -14,6 +14,7 @@ Commands:
     generate <theme>    Generate a palette for a theme
     suggest <use_case>  Get palette suggestions for a use case
     export <format>     Export palette in different formats (css, json, scss)
+    check <fg> <bg>    Check WCAG contrast between foreground and background colors
     help               Show this help message
 
 Options:
@@ -97,6 +98,20 @@ export_palette() {
         -d "{\"format\": \"$format\", \"palette\": [$json_array]}" | jq -r '.export'
 }
 
+check_accessibility() {
+    local fg="$1"
+    local bg="$2"
+    
+    if [[ -z "$fg" || -z "$bg" ]]; then
+        echo "Error: Please provide both foreground and background colors"
+        exit 1
+    fi
+    
+    curl -s -X POST "$API_URL/accessibility" \
+        -H "Content-Type: application/json" \
+        -d "{\"foreground\": \"$fg\", \"background\": \"$bg\"}" | jq '.'
+}
+
 case "$1" in
     generate)
         shift
@@ -123,6 +138,10 @@ case "$1" in
             esac
         done
         export_palette "$format" "$palette"
+        ;;
+    check)
+        shift
+        check_accessibility "$@"
         ;;
     help|--help|-h)
         show_help

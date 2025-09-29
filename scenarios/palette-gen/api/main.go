@@ -1,13 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type PaletteRequest struct {
@@ -23,6 +27,31 @@ type PaletteResponse struct {
 	Name    string   `json:"name,omitempty"`
 	Theme   string   `json:"theme,omitempty"`
 	Error   string   `json:"error,omitempty"`
+}
+
+type AccessibilityRequest struct {
+	Foreground string `json:"foreground"`
+	Background string `json:"background"`
+}
+
+type AccessibilityResponse struct {
+	Success      bool    `json:"success"`
+	ContrastRatio float64 `json:"contrast_ratio"`
+	WCAGAA       bool    `json:"wcag_aa"`
+	WCAGAAA      bool    `json:"wcag_aaa"`
+	LargeTextAA  bool    `json:"large_text_aa"`
+	LargeTextAAA bool    `json:"large_text_aaa"`
+	Recommendation string `json:"recommendation,omitempty"`
+}
+
+type OllamaRequest struct {
+	Model  string `json:"model"`
+	Prompt string `json:"prompt"`
+	Stream bool   `json:"stream"`
+}
+
+type OllamaResponse struct {
+	Response string `json:"response"`
 }
 
 func main() {
@@ -43,6 +72,7 @@ func main() {
 	http.HandleFunc("/generate", generateHandler)
 	http.HandleFunc("/suggest", suggestHandler)
 	http.HandleFunc("/export", exportHandler)
+	http.HandleFunc("/accessibility", accessibilityHandler)
 
 	log.Printf("Palette Generator API starting on port %s", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
@@ -108,7 +138,13 @@ func suggestHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Suggest palettes based on use case
 	useCase := req["use_case"]
-	suggestions := getSuggestionsForUseCase(useCase)
+	
+	// Try to get AI-powered suggestions first
+	suggestions := getAISuggestions(useCase)
+	if suggestions == nil {
+		// Fallback to predefined suggestions
+		suggestions = getSuggestionsForUseCase(useCase)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -299,7 +335,7 @@ func generateFromBaseColor(baseColor, style string, numColors int) []string {
 				hue = math.Mod(baseHue + float64(i-1)*60, 360)
 			}
 			saturation = baseSat
-			lightness = baseLightness + float64(i-1)*10
+			lightness = math.Min(100, baseLightness + float64(i-1)*10)
 		case "triadic":
 			// Three colors evenly spaced
 			hue = math.Mod(baseHue + float64(i)*120, 360)
@@ -308,8 +344,8 @@ func generateFromBaseColor(baseColor, style string, numColors int) []string {
 		default:
 			// Monochromatic - variations of the same hue
 			hue = baseHue
-			saturation = baseSat - float64(i)*10
-			lightness = baseLightness + float64(i)*15
+			saturation = math.Max(0, baseSat - float64(i)*10)
+			lightness = math.Min(100, baseLightness + float64(i)*15)
 		}
 		
 		colors[i] = hslToHex(hue, saturation, lightness)
@@ -352,13 +388,210 @@ func hslToHex(h, s, l float64) string {
 }
 
 func hexToHSL(hex string) (float64, float64, float64) {
-	// Simple hex to HSL conversion (simplified)
-	// This is a basic implementation - would need more robust parsing in production
-	if len(hex) < 7 {
-		return 0, 50, 50
+	r, g, b := hexToRGB(hex)
+	rf := float64(r) / 255
+	gf := float64(g) / 255
+	bf := float64(b) / 255
+	
+	max := math.Max(math.Max(rf, gf), bf)
+	min := math.Min(math.Min(rf, gf), bf)
+	
+	l := (max + min) / 2
+	
+	if max == min {
+		return 0, 0, l * 100 // achromatic
 	}
 	
-	// For simplicity, return default values
-	// In production, would properly parse hex and convert
-	return 210, 60, 50
+	d := max - min
+	var s float64
+	if l > 0.5 {
+		s = d / (2 - max - min)
+	} else {
+		s = d / (max + min)
+	}
+	
+	var h float64
+	switch max {
+	case rf:
+		h = (gf - bf) / d
+		if gf < bf {
+			h += 6
+		}
+	case gf:
+		h = (bf - rf) / d + 2
+	case bf:
+		h = (rf - gf) / d + 4
+	}
+	h /= 6
+	
+	return h * 360, s * 100, l * 100
+}
+
+func hexToRGB(hex string) (int, int, int) {
+	// Remove # if present
+	hex = strings.TrimPrefix(hex, "#")
+	
+	if len(hex) != 6 {
+		return 0, 0, 0
+	}
+	
+	r, _ := strconv.ParseInt(hex[0:2], 16, 64)
+	g, _ := strconv.ParseInt(hex[2:4], 16, 64)
+	b, _ := strconv.ParseInt(hex[4:6], 16, 64)
+	
+	return int(r), int(g), int(b)
+}
+
+func accessibilityHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req AccessibilityRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	contrast := calculateContrastRatio(req.Foreground, req.Background)
+	
+	response := AccessibilityResponse{
+		Success:       true,
+		ContrastRatio: contrast,
+		WCAGAA:        contrast >= 4.5,
+		WCAGAAA:       contrast >= 7,
+		LargeTextAA:   contrast >= 3,
+		LargeTextAAA:  contrast >= 4.5,
+	}
+	
+	// Add recommendations
+	if contrast < 3 {
+		response.Recommendation = "Very poor contrast - not suitable for any text"
+	} else if contrast < 4.5 {
+		response.Recommendation = "Only suitable for large text (18pt+ or 14pt+ bold)"
+	} else if contrast < 7 {
+		response.Recommendation = "Meets AA standards for normal text"
+	} else {
+		response.Recommendation = "Excellent contrast - meets AAA standards"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func calculateContrastRatio(fg, bg string) float64 {
+	fgL := getRelativeLuminance(fg)
+	bgL := getRelativeLuminance(bg)
+	
+	// Ensure lighter color is L1
+	if fgL > bgL {
+		return (fgL + 0.05) / (bgL + 0.05)
+	}
+	return (bgL + 0.05) / (fgL + 0.05)
+}
+
+func getRelativeLuminance(hex string) float64 {
+	r, g, b := hexToRGB(hex)
+	
+	// Convert to sRGB
+	rs := float64(r) / 255
+	gs := float64(g) / 255
+	bs := float64(b) / 255
+	
+	// Apply gamma correction
+	if rs <= 0.03928 {
+		rs = rs / 12.92
+	} else {
+		rs = math.Pow((rs+0.055)/1.055, 2.4)
+	}
+	
+	if gs <= 0.03928 {
+		gs = gs / 12.92
+	} else {
+		gs = math.Pow((gs+0.055)/1.055, 2.4)
+	}
+	
+	if bs <= 0.03928 {
+		bs = bs / 12.92
+	} else {
+		bs = math.Pow((bs+0.055)/1.055, 2.4)
+	}
+	
+	// Calculate relative luminance
+	return 0.2126*rs + 0.7152*gs + 0.0722*bs
+}
+
+func getAISuggestions(useCase string) []map[string]interface{} {
+	// Check if Ollama is available
+	ollamaURL := os.Getenv("OLLAMA_API_GENERATE")
+	if ollamaURL == "" {
+		ollamaURL = "http://localhost:11434/api/generate"
+	}
+	
+	prompt := fmt.Sprintf(`Generate 2 color palettes for a %s use case. 
+For each palette provide:
+1. A creative name
+2. Exactly 5 hex colors
+3. A brief description
+
+Respond in this exact JSON format:
+[
+  {
+    "name": "Palette Name",
+    "colors": ["#HEX1", "#HEX2", "#HEX3", "#HEX4", "#HEX5"],
+    "description": "Brief description"
+  }
+]`, useCase)
+	
+	reqBody := OllamaRequest{
+		Model:  "llama3.2",
+		Prompt: prompt,
+		Stream: false,
+	}
+	
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		log.Printf("Failed to marshal Ollama request: %v", err)
+		return nil
+	}
+	
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	
+	resp, err := client.Post(ollamaURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Printf("Failed to contact Ollama: %v", err)
+		return nil
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Ollama returned status %d", resp.StatusCode)
+		return nil
+	}
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Failed to read Ollama response: %v", err)
+		return nil
+	}
+	
+	var ollamaResp OllamaResponse
+	if err := json.Unmarshal(body, &ollamaResp); err != nil {
+		log.Printf("Failed to parse Ollama response: %v", err)
+		return nil
+	}
+	
+	// Try to parse the AI response as JSON
+	var suggestions []map[string]interface{}
+	if err := json.Unmarshal([]byte(ollamaResp.Response), &suggestions); err != nil {
+		// If JSON parsing fails, return nil to use fallback
+		log.Printf("Failed to parse AI suggestions as JSON: %v", err)
+		return nil
+	}
+	
+	return suggestions
 }
