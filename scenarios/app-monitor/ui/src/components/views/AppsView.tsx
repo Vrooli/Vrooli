@@ -776,7 +776,7 @@ const AppsView = memo(() => {
   return (
     <div className="apps-view">
       <div className="panel-header">
-        <h2>APPS</h2>
+        <div className="panel-title-spacer" aria-hidden="true" />
         <div className="panel-controls">
           <SearchInput
             value={search}

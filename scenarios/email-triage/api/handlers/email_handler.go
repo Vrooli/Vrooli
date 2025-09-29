@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -168,23 +169,40 @@ func (eh *EmailHandler) ApplyActions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Implement action execution
-	// This would:
-	// 1. Verify user owns the email
-	// 2. Execute each action (forward, archive, label, etc.)
-	// 3. Update the email's actions_taken field
-	// 4. Return results
-
-	// For now, return a placeholder response
+	// Execute actions using the TriageActionService
+	triageService := services.NewTriageActionService(eh.db, services.NewEmailService("mock"))
+	results, err := triageService.ExecuteActions(userID, emailID, actionsReq.Actions)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"action execution failed: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+	
+	// Prepare response with action results
+	actionResults := make([]map[string]interface{}, 0, len(results))
+	successCount := 0
+	for _, result := range results {
+		resultMap := map[string]interface{}{
+			"action":    result.ActionType,
+			"status":    result.Status,
+			"message":   result.Message,
+			"timestamp": result.Timestamp,
+		}
+		if result.Details != nil {
+			resultMap["details"] = result.Details
+		}
+		if result.Status == "success" {
+			successCount++
+		}
+		actionResults = append(actionResults, resultMap)
+	}
+	
 	response := map[string]interface{}{
-		"success":  true,
-		"email_id": emailID,
+		"success":         successCount > 0,
+		"email_id":        emailID,
 		"actions_applied": len(actionsReq.Actions),
-		"message": "Action execution not fully implemented",
-		"results": []map[string]interface{}{
-			{"action": "archive", "status": "success"},
-			{"action": "label", "status": "success", "label": "processed"},
-		},
+		"successful":      successCount,
+		"failed":          len(actionsReq.Actions) - successCount,
+		"results":         actionResults,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

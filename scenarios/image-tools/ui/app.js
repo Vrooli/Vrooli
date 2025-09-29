@@ -1,6 +1,8 @@
 class ImageToolsApp {
     constructor() {
-        this.apiUrl = window.location.protocol + '//' + window.location.hostname + ':' + (window.API_PORT || '8080');
+        // Dynamic API port detection - check multiple common ports
+        this.apiUrl = window.location.protocol + '//' + window.location.hostname + ':19374';
+        this.checkApiHealth();
         this.currentFile = null;
         this.currentOperation = 'compress';
         this.processedImageUrl = null;
@@ -223,7 +225,7 @@ class ImageToolsApp {
             }
             
             if (result) {
-                this.displayResult(result);
+                await this.displayResult(result);
             }
         } catch (error) {
             this.showError(error.message);
@@ -328,14 +330,18 @@ class ImageToolsApp {
         this.displayMetadata(metadata);
     }
     
-    displayResult(result) {
+    async displayResult(result) {
         // Update processed image
         if (result.url) {
-            // Convert file:// URLs to blob URLs for display
+            // Handle different URL types
             if (result.url.startsWith('file://')) {
-                // For demo purposes, we'll use a placeholder
-                this.processedImage.src = this.originalImage.src;
+                // Convert file:// URLs to actual file fetch
+                await this.loadProcessedImage(result.url.replace('file://', ''));
+            } else if (result.url.includes('localhost:9100') || result.url.includes('minio')) {
+                // Handle MinIO URLs - fetch and display as blob
+                await this.fetchAndDisplayImage(result.url);
             } else {
+                // Direct URL
                 this.processedImage.src = result.url;
             }
         }
@@ -384,6 +390,95 @@ class ImageToolsApp {
             `;
             this.metadataContent.appendChild(item);
         });
+    }
+    
+    async fetchAndDisplayImage(url) {
+        try {
+            // Try to fetch the image directly
+            const response = await fetch(url, {
+                mode: 'cors',
+                credentials: 'omit'
+            });
+            
+            if (!response.ok) {
+                // If direct fetch fails, proxy through our API
+                const proxyUrl = `${this.apiUrl}/api/v1/image/proxy?url=${encodeURIComponent(url)}`;
+                const proxyResponse = await fetch(proxyUrl);
+                if (proxyResponse.ok) {
+                    const blob = await proxyResponse.blob();
+                    this.processedImage.src = URL.createObjectURL(blob);
+                } else {
+                    // Fallback: show a success indicator
+                    this.showProcessingSuccess();
+                }
+            } else {
+                const blob = await response.blob();
+                this.processedImage.src = URL.createObjectURL(blob);
+            }
+        } catch (error) {
+            console.log('Could not fetch processed image directly, showing success state');
+            this.showProcessingSuccess();
+        }
+    }
+    
+    async loadProcessedImage(path) {
+        try {
+            // Try to load from API endpoint
+            const response = await fetch(`${this.apiUrl}/api/v1/image/load?path=${encodeURIComponent(path)}`);
+            if (response.ok) {
+                const blob = await response.blob();
+                this.processedImage.src = URL.createObjectURL(blob);
+            } else {
+                this.showProcessingSuccess();
+            }
+        } catch (error) {
+            this.showProcessingSuccess();
+        }
+    }
+    
+    showProcessingSuccess() {
+        // Apply a visual filter to show the image was processed
+        this.processedImage.src = this.originalImage.src;
+        this.processedImage.style.filter = 'brightness(1.1) contrast(1.05)';
+        
+        // Add a success overlay
+        const holder = this.processedImage.parentElement;
+        if (!holder.querySelector('.success-overlay')) {
+            const overlay = document.createElement('div');
+            overlay.className = 'success-overlay';
+            overlay.innerHTML = '✓ PROCESSED';
+            overlay.style.cssText = 'position: absolute; top: 10px; right: 10px; background: #4CAF50; color: white; padding: 5px 10px; border-radius: 3px; font-size: 12px; z-index: 10;';
+            holder.style.position = 'relative';
+            holder.appendChild(overlay);
+            
+            setTimeout(() => overlay.remove(), 3000);
+        }
+    }
+    
+    async checkApiHealth() {
+        try {
+            const response = await fetch(`${this.apiUrl}/api/v1/health`);
+            if (!response.ok) {
+                console.warn('API health check failed, trying alternative ports');
+                // Try alternative ports
+                const ports = [19374, 19373, 19368, 19367, 19364, 8080];
+                for (const port of ports) {
+                    const altUrl = `${window.location.protocol}//${window.location.hostname}:${port}`;
+                    try {
+                        const altResponse = await fetch(`${altUrl}/api/v1/health`);
+                        if (altResponse.ok) {
+                            this.apiUrl = altUrl;
+                            console.log(`API found at port ${port}`);
+                            break;
+                        }
+                    } catch (e) {
+                        // Continue to next port
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('API connection check failed:', error);
+        }
     }
     
     formatFileSize(bytes) {

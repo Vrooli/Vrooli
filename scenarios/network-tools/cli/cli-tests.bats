@@ -1,9 +1,9 @@
 #!/usr/bin/env bats
-# Tests for CLI_NAME_PLACEHOLDER CLI
+# Tests for network-tools CLI
 
 # Test configuration
-readonly TEST_CLI="./cli.sh"
-readonly TEST_CONFIG_DIR="$HOME/.CLI_NAME_PLACEHOLDER"
+readonly TEST_CLI="./network-tools"
+readonly TEST_CONFIG_DIR="$HOME/.network-tools"
 readonly TEST_CONFIG_FILE="$TEST_CONFIG_DIR/config.json"
 
 # Setup and teardown
@@ -82,4 +82,52 @@ teardown() {
     run $TEST_CLI invalid_command
     [ "$status" -eq 1 ]
     [[ "$output" =~ "Unknown command" ]]
+}
+
+# Test: HTTP command structure
+@test "http command accepts URL parameter" {
+    run $TEST_CLI help
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "http" ]]
+    [[ "$output" =~ "url" ]]
+}
+
+# Test: DNS command structure
+@test "dns command accepts domain parameter" {
+    run $TEST_CLI help
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "dns" ]]
+    [[ "$output" =~ "domain" ]]
+}
+
+# Test: Scan command structure
+@test "scan command accepts target parameter" {
+    run $TEST_CLI help
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "scan" ]]
+    [[ "$output" =~ "target" ]]
+}
+
+# Test: Ping command structure
+@test "ping command accepts target parameter" {
+    run $TEST_CLI help
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "ping" ]]
+    [[ "$output" =~ "target" ]]
+}
+
+# Test: SSL command structure
+@test "ssl command accepts URL parameter" {
+    run $TEST_CLI help
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "ssl" ]]
+    [[ "$output" =~ "url" ]]
+}
+
+# Test: API test command structure
+@test "api-test command accepts base URL parameter" {
+    run $TEST_CLI help
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "api-test" ]]
+    [[ "$output" =~ "base_url" ]]
 }

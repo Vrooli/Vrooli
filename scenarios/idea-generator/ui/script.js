@@ -1,19 +1,18 @@
 // Idea Generator UI JavaScript
 class IdeaGeneratorApp {
     constructor() {
-        this.currentCampaign = 'default';
+        this.currentCampaign = null; // Will be set when campaigns load
         this.ideas = [];
-        this.campaigns = [
-            { id: 'default', name: 'Default Campaign', color: '#6366F1', ideas: 0 }
-        ];
+        this.campaigns = [];
         this.selectedColor = '#6366F1';
         this.currentIdeaId = null;
         
         this.init();
     }
 
-    init() {
+    async init() {
         this.setupEventListeners();
+        await this.loadCampaigns();
         this.updateCampaignTabs();
         this.loadIdeas();
     }
@@ -300,6 +299,37 @@ class IdeaGeneratorApp {
         chatInput.focus();
     }
 
+    async loadCampaigns() {
+        try {
+            const response = await fetch('/campaigns');
+            if (response.ok) {
+                const campaigns = await response.json();
+                this.campaigns = campaigns.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    description: c.description,
+                    color: c.color || '#6366F1',
+                    ideas: 0 // Will be updated when ideas load
+                }));
+                
+                // Set the first campaign as current if we have campaigns
+                if (this.campaigns.length > 0) {
+                    this.currentCampaign = this.campaigns[0].id;
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load campaigns:', error);
+            // Create a default campaign if loading fails
+            this.campaigns = [{
+                id: 'default',
+                name: 'Default Campaign',
+                color: '#6366F1',
+                ideas: 0
+            }];
+            this.currentCampaign = 'default';
+        }
+    }
+
     switchView(viewType) {
         document.querySelectorAll('.view-toggle').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.view === viewType);
@@ -309,28 +339,47 @@ class IdeaGeneratorApp {
         ideasContainer.className = `ideas-container view-${viewType}`;
     }
 
-    createCampaign(e) {
+    async createCampaign(e) {
         e.preventDefault();
         
         const name = document.getElementById('campaign-name').value;
         const description = document.getElementById('campaign-description').value;
         
-        const newCampaign = {
-            id: `campaign-${Date.now()}`,
-            name: name,
-            description: description,
-            color: this.selectedColor,
-            ideas: 0
-        };
-        
-        this.campaigns.push(newCampaign);
-        this.updateCampaignTabs();
-        this.closeCampaignModal();
-        
-        // Switch to new campaign
-        this.switchCampaign(newCampaign.id);
-        
-        this.showSuccessMessage(`Campaign "${name}" created!`);
+        try {
+            const response = await fetch('/campaigns', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    description: description,
+                    color: this.selectedColor
+                })
+            });
+            
+            if (response.ok) {
+                const newCampaign = await response.json();
+                this.campaigns.push({
+                    id: newCampaign.id,
+                    name: newCampaign.name,
+                    description: newCampaign.description,
+                    color: newCampaign.color || this.selectedColor,
+                    ideas: 0
+                });
+                
+                this.updateCampaignTabs();
+                this.closeCampaignModal();
+                
+                // Switch to new campaign
+                this.switchCampaign(newCampaign.id);
+                
+                this.showSuccessMessage(`Campaign "${name}" created!`);
+            }
+        } catch (error) {
+            console.error('Failed to create campaign:', error);
+            this.showErrorMessage('Failed to create campaign');
+        }
     }
 
     updateCampaignTabs() {

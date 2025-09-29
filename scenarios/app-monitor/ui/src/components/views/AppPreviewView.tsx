@@ -807,45 +807,45 @@ const AppPreviewView = () => {
           >
             <RefreshCw aria-hidden size={18} className={clsx({ spinning: loading })} />
           </button>
-          <div className="preview-toolbar__title">
-            <div
-              className={clsx('preview-toolbar__url-wrapper', urlStatusClass)}
-              title={urlStatusTitle}
+        </div>
+        <div className="preview-toolbar__title">
+          <div
+            className={clsx('preview-toolbar__url-wrapper', urlStatusClass)}
+            title={urlStatusTitle}
+          >
+            <button
+              type="button"
+              className="preview-toolbar__url-action-btn"
+              onClick={() => setModalOpen(true)}
+              disabled={!currentApp}
+              aria-label="Application details"
+              title="Application details"
             >
-              <button
-                type="button"
-                className="preview-toolbar__url-action-btn"
-                onClick={() => setModalOpen(true)}
-                disabled={!currentApp}
-                aria-label="Application details"
-                title="Application details"
-              >
-                <Info aria-hidden size={16} />
-              </button>
-              <input
-                type="text"
-                className="preview-toolbar__url-input"
-                value={previewUrlInput}
-                onChange={handleUrlInputChange}
-                onBlur={handleUrlInputBlur}
-                onKeyDown={handleUrlInputKeyDown}
-                placeholder="Enter preview URL"
-                aria-label="Preview URL"
-                autoComplete="off"
-                spellCheck={false}
-                inputMode="url"
-              />
-              <button
-                type="button"
-                className="preview-toolbar__url-action-btn"
-                onClick={handleOpenPreviewInNewTab}
-                disabled={!openPreviewTarget}
-                aria-label={openPreviewTarget ? 'Open preview in new tab' : 'Preview unavailable'}
-                title={openPreviewTarget ? 'Open in new tab' : 'Preview unavailable'}
-              >
-                <ExternalLink aria-hidden size={16} />
-              </button>
-            </div>
+              <Info aria-hidden size={16} />
+            </button>
+            <input
+              type="text"
+              className="preview-toolbar__url-input"
+              value={previewUrlInput}
+              onChange={handleUrlInputChange}
+              onBlur={handleUrlInputBlur}
+              onKeyDown={handleUrlInputKeyDown}
+              placeholder="Enter preview URL"
+              aria-label="Preview URL"
+              autoComplete="off"
+              spellCheck={false}
+              inputMode="url"
+            />
+            <button
+              type="button"
+              className="preview-toolbar__url-action-btn"
+              onClick={handleOpenPreviewInNewTab}
+              disabled={!openPreviewTarget}
+              aria-label={openPreviewTarget ? 'Open preview in new tab' : 'Preview unavailable'}
+              title={openPreviewTarget ? 'Open in new tab' : 'Preview unavailable'}
+            >
+              <ExternalLink aria-hidden size={16} />
+            </button>
           </div>
         </div>
         <div className="preview-toolbar__group preview-toolbar__group--right">

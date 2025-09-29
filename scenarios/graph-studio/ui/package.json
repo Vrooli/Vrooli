@@ -22,7 +22,8 @@
     "d3": "^7.8.0",
     "mermaid": "^10.6.0",
     "cytoscape": "^3.27.0",
-    "cytoscape-react": "^2.0.0"
+    "cytoscape-react": "^2.0.0",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

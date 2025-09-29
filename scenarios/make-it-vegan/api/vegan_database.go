@@ -13,12 +13,13 @@ type VeganDatabase struct {
 
 // Alternative represents a vegan substitute
 type Alternative struct {
-	Name         string `json:"name"`
-	Description  string `json:"description"`
-	BestFor      string `json:"bestFor"`
-	Adjustments  string `json:"adjustments"`
-	Availability string `json:"availability"`
-	Rating       int    `json:"rating"`
+	Name         string  `json:"name"`
+	Description  string  `json:"description"`
+	BestFor      string  `json:"bestFor"`
+	Adjustments  string  `json:"adjustments"`
+	Availability string  `json:"availability"`
+	Rating       float64 `json:"rating"`
+	Notes        string  `json:"notes"`
 }
 
 // InitVeganDatabase creates and populates the vegan database
@@ -76,32 +77,32 @@ func InitVeganDatabase() *VeganDatabase {
 	// Populate vegan alternatives
 	db.VeganAlternatives = map[string][]Alternative{
 		"milk": {
-			{Name: "Oat milk", Description: "Creamy, neutral flavor", BestFor: "Coffee, cereal, baking", Adjustments: "None needed", Availability: "Widely available", Rating: 5},
-			{Name: "Soy milk", Description: "High protein, versatile", BestFor: "All purposes", Adjustments: "None needed", Availability: "Widely available", Rating: 5},
-			{Name: "Almond milk", Description: "Light, nutty flavor", BestFor: "Smoothies, cereal", Adjustments: "Less protein than dairy", Availability: "Widely available", Rating: 4},
-			{Name: "Coconut milk", Description: "Rich and creamy", BestFor: "Curries, desserts", Adjustments: "Strong flavor", Availability: "Widely available", Rating: 4},
+			{Name: "Oat milk", Description: "Creamy, neutral flavor", BestFor: "Coffee, cereal, baking", Adjustments: "None needed", Availability: "Widely available", Rating: 5.0, Notes: "Most versatile dairy milk alternative"},
+			{Name: "Soy milk", Description: "High protein, versatile", BestFor: "All purposes", Adjustments: "None needed", Availability: "Widely available", Rating: 5.0, Notes: "Closest nutritional match to dairy milk"},
+			{Name: "Almond milk", Description: "Light, nutty flavor", BestFor: "Smoothies, cereal", Adjustments: "Less protein than dairy", Availability: "Widely available", Rating: 4.0, Notes: "Lower calorie option"},
+			{Name: "Coconut milk", Description: "Rich and creamy", BestFor: "Curries, desserts", Adjustments: "Strong flavor", Availability: "Widely available", Rating: 4.0, Notes: "Best for rich dishes"},
 		},
 		"eggs": {
-			{Name: "Flax eggs", Description: "1 tbsp ground flax + 3 tbsp water", BestFor: "Baking (binding)", Adjustments: "Let sit 5 minutes", Availability: "Easy to make", Rating: 4},
-			{Name: "Chia eggs", Description: "1 tbsp chia seeds + 3 tbsp water", BestFor: "Baking (binding)", Adjustments: "Let sit 15 minutes", Availability: "Easy to make", Rating: 4},
-			{Name: "Aquafaba", Description: "Chickpea liquid", BestFor: "Meringues, mayo", Adjustments: "Whips like egg whites", Availability: "From canned chickpeas", Rating: 5},
-			{Name: "Tofu scramble", Description: "Crumbled firm tofu", BestFor: "Scrambled eggs", Adjustments: "Season with turmeric, nutritional yeast", Availability: "Widely available", Rating: 5},
-			{Name: "JUST Egg", Description: "Mung bean-based liquid", BestFor: "Scrambles, omelets", Adjustments: "Cooks like eggs", Availability: "Grocery stores", Rating: 5},
+			{Name: "Flax eggs", Description: "1 tbsp ground flax + 3 tbsp water", BestFor: "Baking (binding)", Adjustments: "Let sit 5 minutes", Availability: "Easy to make", Rating: 4.0, Notes: "Great binding agent for baking"},
+			{Name: "Chia eggs", Description: "1 tbsp chia seeds + 3 tbsp water", BestFor: "Baking (binding)", Adjustments: "Let sit 15 minutes", Availability: "Easy to make", Rating: 4.0, Notes: "Similar to flax eggs with added nutrients"},
+			{Name: "Aquafaba", Description: "Chickpea liquid", BestFor: "Meringues, mayo", Adjustments: "Whips like egg whites", Availability: "From canned chickpeas", Rating: 5.0, Notes: "Amazing for foam and whipped textures"},
+			{Name: "Tofu scramble", Description: "Crumbled firm tofu", BestFor: "Scrambled eggs", Adjustments: "Season with turmeric, nutritional yeast", Availability: "Widely available", Rating: 5.0, Notes: "Perfect scrambled egg substitute"},
+			{Name: "JUST Egg", Description: "Mung bean-based liquid", BestFor: "Scrambles, omelets", Adjustments: "Cooks like eggs", Availability: "Grocery stores", Rating: 5.0, Notes: "Most realistic egg substitute"},
 		},
 		"butter": {
-			{Name: "Vegan butter", Description: "Plant-based spread", BestFor: "All purposes", Adjustments: "1:1 replacement", Availability: "Widely available", Rating: 5},
-			{Name: "Coconut oil", Description: "Solid at room temp", BestFor: "Baking, cooking", Adjustments: "1:1 replacement", Availability: "Widely available", Rating: 4},
-			{Name: "Olive oil", Description: "Liquid fat", BestFor: "Cooking, some baking", Adjustments: "Use 3/4 amount", Availability: "Widely available", Rating: 4},
+			{Name: "Vegan butter", Description: "Plant-based spread", BestFor: "All purposes", Adjustments: "1:1 replacement", Availability: "Widely available", Rating: 5.0, Notes: "Identical usage to dairy butter"},
+			{Name: "Coconut oil", Description: "Solid at room temp", BestFor: "Baking, cooking", Adjustments: "1:1 replacement", Availability: "Widely available", Rating: 4.0, Notes: "Great for flaky pastries"},
+			{Name: "Olive oil", Description: "Liquid fat", BestFor: "Cooking, some baking", Adjustments: "Use 3/4 amount", Availability: "Widely available", Rating: 4.0, Notes: "Healthier option with fruity flavor"},
 		},
 		"cheese": {
-			{Name: "Nutritional yeast", Description: "Cheesy, nutty flavor", BestFor: "Seasoning, sauces", Adjustments: "Not a direct substitute", Availability: "Health food stores", Rating: 4},
-			{Name: "Cashew cheese", Description: "Creamy, rich", BestFor: "Spreads, sauces", Adjustments: "Soak cashews first", Availability: "Make at home", Rating: 5},
-			{Name: "Vegan cheese", Description: "Various brands available", BestFor: "Melting, slicing", Adjustments: "1:1 replacement", Availability: "Increasingly common", Rating: 4},
+			{Name: "Nutritional yeast", Description: "Cheesy, nutty flavor", BestFor: "Seasoning, sauces", Adjustments: "Not a direct substitute", Availability: "Health food stores", Rating: 4.0, Notes: "Adds umami and B vitamins"},
+			{Name: "Cashew cheese", Description: "Creamy, rich", BestFor: "Spreads, sauces", Adjustments: "Soak cashews first", Availability: "Make at home", Rating: 5.0, Notes: "Most authentic texture when homemade"},
+			{Name: "Vegan cheese", Description: "Various brands available", BestFor: "Melting, slicing", Adjustments: "1:1 replacement", Availability: "Increasingly common", Rating: 4.0, Notes: "Quality varies by brand"},
 		},
 		"honey": {
-			{Name: "Maple syrup", Description: "Tree sap sweetener", BestFor: "All purposes", Adjustments: "Slightly thinner", Availability: "Widely available", Rating: 5},
-			{Name: "Agave nectar", Description: "Plant-based syrup", BestFor: "Beverages, baking", Adjustments: "Sweeter than honey", Availability: "Widely available", Rating: 4},
-			{Name: "Date syrup", Description: "Made from dates", BestFor: "Baking, drizzling", Adjustments: "Rich flavor", Availability: "Health food stores", Rating: 4},
+			{Name: "Maple syrup", Description: "Tree sap sweetener", BestFor: "All purposes", Adjustments: "Slightly thinner", Availability: "Widely available", Rating: 5.0, Notes: "Natural sweetener with minerals"},
+			{Name: "Agave nectar", Description: "Plant-based syrup", BestFor: "Beverages, baking", Adjustments: "Sweeter than honey", Availability: "Widely available", Rating: 4.0, Notes: "Lower glycemic index"},
+			{Name: "Date syrup", Description: "Made from dates", BestFor: "Baking, drizzling", Adjustments: "Rich flavor", Availability: "Health food stores", Rating: 4.0, Notes: "Whole food sweetener with fiber"},
 		},
 	}
 

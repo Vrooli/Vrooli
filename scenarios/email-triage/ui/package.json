@@ -11,7 +11,8 @@
     "serve": "http-server -p 3201 -c-1"
   },
   "dependencies": {
-    "http-server": "^14.1.1"
+    "http-server": "^14.1.1",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   },
   "devDependencies": {},
   "keywords": [

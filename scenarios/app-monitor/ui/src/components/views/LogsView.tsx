@@ -158,7 +158,7 @@ export default function LogsView() {
   return (
     <div className="logs-view">
       <div className="panel-header">
-        <h2>APPLICATION LOGS</h2>
+        <div className="panel-title-spacer" aria-hidden="true" />
         <div className="panel-controls">
           <select
             className="log-filter"

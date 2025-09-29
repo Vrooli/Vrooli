@@ -4,9 +4,22 @@ const API_BASE = (() => {
     if (window.API_URL) return window.API_URL;
     
     // Otherwise, derive from current location
-    // UI typically runs on port 3xxx, API on port 8xxx
-    const currentPort = window.location.port || '3000';
-    const apiPort = currentPort.replace(/^3/, '8');
+    // The API port is dynamically assigned, typically in the 19xxx range
+    // We need to detect it from the UI port pattern
+    const currentPort = window.location.port || '35393';
+    
+    // Map UI port to API port based on Vrooli's dynamic assignment
+    // UI ports are typically 35xxx, API ports are 19xxx
+    let apiPort;
+    if (currentPort.startsWith('353')) {
+        // Extract last 2 digits and apply to 191xx pattern
+        const suffix = currentPort.slice(-2);
+        apiPort = '191' + suffix;
+    } else {
+        // Fallback to default pattern
+        apiPort = '19124';
+    }
+    
     return `http://localhost:${apiPort}/api`;
 })();
 

@@ -1,291 +1,126 @@
 #!/bin/bash
 # ====================================================================
-# [Scenario Name] Test
+# Network Tools Scenario Integration Test
 # ====================================================================
 #
-# This test validates [what the scenario demonstrates]
+# This test validates the network operations and testing capabilities
+# including HTTP requests, DNS operations, SSL validation, and API testing.
 #
 # ====================================================================
 
 set -euo pipefail
 
-# Source the test framework
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
-SCRIPT_DIR="${SCRIPT_DIR:-${APP_ROOT}/scripts/scenarios}"
-source "$SCRIPT_DIR/framework/helpers/assertions.sh"
-source "$SCRIPT_DIR/framework/helpers/cleanup.sh"
-source "$SCRIPT_DIR/framework/helpers/fixtures.sh"
-source "$SCRIPT_DIR/framework/helpers/metadata.sh"
-source "$SCRIPT_DIR/framework/helpers/secure-config.sh"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-# Load scenario metadata
-SCENARIO_DIR="${APP_ROOT}/scripts/scenarios/templates/full"
-SERVICE_FILE="${SCENARIO_DIR}/service.json"
-
-# Parse service configuration
-REQUIRED_RESOURCES=($(jq -r '.resources | to_entries[] | select(.value.required == true) | .key' "$SERVICE_FILE" 2>/dev/null))
-TEST_TIMEOUT=$(jq -r '.deployment.testing.timeout // "30m"' "$SERVICE_FILE" 2>/dev/null | sed 's/[ms]//g')
-TEST_CLEANUP="${TEST_CLEANUP:-true}"
-
-# Service configuration from secure config
-export_service_urls
-
-# Scenario-specific variables
-TEST_SESSION_ID="scenario_session_$(date +%s)"
-
-# ====================================================================
-# Resource Integration Helpers (Optional)
-# ====================================================================
-# These functions help integrate resource-specific artifacts.
-# Only use the ones relevant to your scenario.
-
-# Import n8n workflow from resources directory
-import_n8n_workflow() {
-    local workflow_file="${1:-}"
-    local workflow_path="${SCENARIO_DIR}/resources/n8n/${workflow_file}"
-    
-    if [[ ! -f "$workflow_path" ]]; then
-        echo "⚠️  Workflow file not found: $workflow_path"
-        return 1
-    fi
-    
-    log_step "n8n" "Importing workflow: $workflow_file"
-    
-    # Import workflow via n8n API
-    local response
-    response=$(curl -s -X POST "${N8N_BASE_URL}/api/v1/workflows" \
-        -H "X-N8N-API-KEY: ${N8N_API_KEY:-}" \
-        -H "Content-Type: application/json" \
-        -d @"$workflow_path")
-    
-    if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-        local workflow_id=$(echo "$response" | jq -r '.id')
-        echo "✅ Workflow imported with ID: $workflow_id"
-        
-        # Activate the workflow
-        curl -s -X PATCH "${N8N_BASE_URL}/api/v1/workflows/${workflow_id}" \
-            -H "X-N8N-API-KEY: ${N8N_API_KEY:-}" \
-            -H "Content-Type: application/json" \
-            -d '{"active": true}' >/dev/null
-        
-        return 0
-    else
-        echo "❌ Failed to import workflow"
-        return 1
-    fi
-}
-
-# Initialize PostgreSQL database with schema and seed data
-init_postgres_database() {
-    local schema_file="${SCENARIO_DIR}/resources/postgres/schema.sql"
-    local seed_file="${SCENARIO_DIR}/resources/postgres/seed.sql"
-    
-    if [[ -f "$schema_file" ]]; then
-        log_step "postgres" "Applying database schema"
-        PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST}" \
-            -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
-            -f "$schema_file" >/dev/null 2>&1 || {
-            echo "❌ Failed to apply schema"
-            return 1
-        }
-    fi
-    
-    if [[ -f "$seed_file" ]]; then
-        log_step "postgres" "Loading seed data"
-        PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST}" \
-            -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
-            -f "$seed_file" >/dev/null 2>&1 || {
-            echo "❌ Failed to load seed data"
-            return 1
-        }
-    fi
-    
-    echo "✅ Database initialized"
-    return 0
-}
-
-# Deploy Windmill scripts
-deploy_windmill_scripts() {
-    local scripts_dir="${SCENARIO_DIR}/resources/windmill"
-    
-    if [[ ! -d "$scripts_dir" ]]; then
-        echo "⚠️  No Windmill scripts found"
-        return 0
-    fi
-    
-    log_step "windmill" "Deploying scripts"
-    
-    # Check if wmill CLI is available
-    if ! command -v wmill >/dev/null 2>&1; then
-        echo "⚠️  Windmill CLI not installed, skipping deployment"
-        return 0
-    fi
-    
-    # Deploy scripts
-    cd "$scripts_dir"
-    wmill sync push --workspace "${WINDMILL_WORKSPACE:-default}" || {
-        echo "❌ Failed to deploy Windmill scripts"
-        return 1
-    }
-    cd - >/dev/null
-    
-    echo "✅ Windmill scripts deployed"
-    return 0
-}
-
-# Load environment configuration
-load_scenario_config() {
-    local env_file="${SCENARIO_DIR}/resources/config/.env"
-    local env_template="${SCENARIO_DIR}/resources/config/.env.template"
-    
-    # Create .env from template if it doesn't exist
-    if [[ ! -f "$env_file" && -f "$env_template" ]]; then
-        log_step "config" "Creating environment configuration"
-        cp "$env_template" "$env_file"
-    fi
-    
-    # Load environment variables if file exists
-    if [[ -f "$env_file" ]]; then
-        set -a
-        source "$env_file"
-        set +a
-        echo "✅ Scenario configuration loaded"
-    fi
-}
-
-# Import all declared artifacts from metadata
-import_all_artifacts() {
-    echo "📦 Importing resource artifacts..."
-    
-    # Check if artifacts are declared in metadata
-    if ! grep -q "^artifacts:" "$METADATA_FILE" 2>/dev/null; then
-        echo "  No artifacts declared in metadata"
-        return 0
-    fi
-    
-    # Import n8n workflows if declared
-    if grep -q "workflows:" "$METADATA_FILE" 2>/dev/null; then
-        local workflows=($(grep -A5 "n8n:" "$METADATA_FILE" | grep -E "^\s*-\s" | sed 's/^[[:space:]]*-[[:space:]]*"*//' | sed 's/"*$//' | tr -d "'"))
-        for workflow in "${workflows[@]}"; do
-            import_n8n_workflow "$workflow"
-        done
-    fi
-    
-    # Initialize database if declared
-    if grep -q "postgres:" "$METADATA_FILE" 2>/dev/null; then
-        init_postgres_database
-    fi
-    
-    # Deploy Windmill scripts if declared
-    if grep -q "windmill:" "$METADATA_FILE" 2>/dev/null; then
-        deploy_windmill_scripts
-    fi
-    
-    echo "✅ All artifacts imported"
-}
-
-# Business scenario setup
-setup_business_scenario() {
-    echo "🚀 Setting up [Scenario Name]..."
-    
-    # Register cleanup handler
-    register_cleanup_handler
-    
-    # Verify all required resources are available
-    require_resources "${REQUIRED_RESOURCES[@]}"
-    
-    # Verify required tools
-    require_tools "curl" "jq"
-    
-    # Setup test environment
-    create_test_env "$TEST_SESSION_ID"
-    
-    # Optional: Load scenario-specific configuration
-    # load_scenario_config
-    
-    # Optional: Import all artifacts declared in metadata
-    # import_all_artifacts
-    
-    # Optional: Or import specific resources manually
-    # import_n8n_workflow "main-workflow.json"
-    # init_postgres_database
-    # deploy_windmill_scripts
-    
-    echo "✅ Scenario setup complete"
-}
-
-# Test 1: [First Test Name]
-test_first_capability() {
-    echo "🧪 Testing [first capability]..."
-    
-    log_step "1/3" "Step description"
-    # Test implementation
-    
-    log_step "2/3" "Step description"
-    # Test implementation
-    
-    log_step "3/3" "Step description"
-    # Test implementation
-    
-    echo "✅ [First capability] test passed"
-}
-
-# Test 2: [Second Test Name]
-test_second_capability() {
-    echo "🧪 Testing [second capability]..."
-    
-    # Test implementation
-    
-    echo "✅ [Second capability] test passed"
-}
-
-# Business value assessment
-assess_business_value() {
-    echo ""
-    echo "💼 Business Value Assessment:"
-    echo "=================================="
-    
-    # Calculate business metrics based on test results
-    local capabilities_met=0
-    local total_capabilities=2
-    
-    # Add business logic to evaluate scenario success
-    
-    echo "📊 Business Readiness Score: $capabilities_met/$total_capabilities"
-}
-
-# Main execution
-main() {
-    export TEST_START_TIME=$(date +%s)
-    
-    echo "Starting [Scenario Name] Test"
-    echo "Required Resources: ${REQUIRED_RESOURCES[*]}"
-    echo "Test Timeout: ${TEST_TIMEOUT}s"
-    echo
-    
-    # Setup
-    setup_business_scenario
-    
-    # Run tests
-    test_first_capability
-    test_second_capability
-    
-    # Business validation
-    assess_business_value
-    
-    echo
-    print_assertion_summary
-    
-    if [[ $FAILED_ASSERTIONS -gt 0 ]]; then
-        echo "❌ [Scenario name] failed"
-        exit 1
-    else
-        echo "✅ [Scenario name] passed"
-        exit 0
-    fi
-}
-
-# Execute if run directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
+# Test configuration
+# Try to detect the actual running port
+if ps aux | grep -q "[n]etwork-tools-api"; then
+    ACTUAL_PORT=$(lsof -i -P -n | grep "network-t.*LISTEN" | head -1 | awk '{print $9}' | cut -d: -f2)
+    API_PORT="${API_PORT:-${ACTUAL_PORT:-17177}}"
+else
+    API_PORT="${API_PORT:-17177}"
 fi
+API_BASE="http://localhost:${API_PORT}"
+TEST_RESULTS=()
+FAILED_TESTS=()
+
+# Helper function to test endpoint
+test_endpoint() {
+    local name="$1"
+    local method="$2"
+    local endpoint="$3"
+    local data="${4:-}"
+    local expected_status="${5:-200}"
+    
+    echo -e "${BLUE}Testing: ${name}...${NC}"
+    
+    if [[ -n "$data" ]]; then
+        response=$(curl -s -w "\n%{http_code}" -X "$method" "${API_BASE}${endpoint}" \
+            -H "Content-Type: application/json" \
+            -d "$data" 2>/dev/null || echo "CURL_ERROR")
+    else
+        response=$(curl -s -w "\n%{http_code}" -X "$method" "${API_BASE}${endpoint}" 2>/dev/null || echo "CURL_ERROR")
+    fi
+    
+    if [[ "$response" == "CURL_ERROR" ]]; then
+        echo -e "${RED}  ✗ Failed to connect to API${NC}"
+        FAILED_TESTS+=("$name")
+        return 1
+    fi
+    
+    status_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | head -n-1)
+    
+    if [[ "$status_code" == "$expected_status" ]]; then
+        echo -e "${GREEN}  ✓ ${name} passed (HTTP ${status_code})${NC}"
+        TEST_RESULTS+=("PASS: $name")
+        return 0
+    else
+        echo -e "${RED}  ✗ ${name} failed (expected ${expected_status}, got ${status_code})${NC}"
+        FAILED_TESTS+=("$name")
+        return 1
+    fi
+}
+
+echo "======================================================================"
+echo "Network Tools Integration Test"
+echo "API Endpoint: ${API_BASE}"
+echo "======================================================================"
+echo ""
+
+# Test health endpoint
+test_endpoint "Health Check" "GET" "/health" "" "200"
+
+# Test HTTP client endpoint
+test_endpoint "HTTP Client - GET" "POST" "/api/v1/network/http" \
+    '{"url":"https://httpbin.org/get","method":"GET"}' "200"
+
+# Test DNS lookup
+test_endpoint "DNS Lookup" "POST" "/api/v1/network/dns" \
+    '{"query":"google.com","record_type":"A"}' "200"
+
+# Test SSL validation
+test_endpoint "SSL Validation" "POST" "/api/v1/network/ssl/validate" \
+    '{"url":"https://google.com"}' "200"
+
+# Test connectivity
+test_endpoint "Connectivity Test" "POST" "/api/v1/network/test/connectivity" \
+    '{"target":"8.8.8.8","test_type":"ping","options":{"count":1}}' "200"
+
+# Test port scanning (simple test)
+test_endpoint "Port Scan" "POST" "/api/v1/network/scan" \
+    '{"target":"google.com","scan_type":"port","ports":[80,443]}' "200"
+
+# Test API testing endpoint
+test_endpoint "API Test" "POST" "/api/v1/network/api/test" \
+    '{"base_url":"https://httpbin.org","test_suite":[{"endpoint":"/get","method":"GET","test_cases":[{"name":"Basic GET","input":{},"expected_status":200}]}]}' "200"
+
+echo ""
+echo "======================================================================"
+echo "Test Summary"
+echo "======================================================================"
+
+total_tests=$((${#TEST_RESULTS[@]} + ${#FAILED_TESTS[@]}))
+passed_tests=${#TEST_RESULTS[@]}
+failed_tests=${#FAILED_TESTS[@]}
+
+echo "Total Tests: ${total_tests}"
+echo -e "${GREEN}Passed: ${passed_tests}${NC}"
+echo -e "${RED}Failed: ${failed_tests}${NC}"
+
+if [[ ${#FAILED_TESTS[@]} -gt 0 ]]; then
+    echo ""
+    echo "Failed Tests:"
+    for test in "${FAILED_TESTS[@]}"; do
+        echo "  - $test"
+    done
+    exit 1
+fi
+
+echo -e "${GREEN}All tests passed!${NC}"
+exit 0

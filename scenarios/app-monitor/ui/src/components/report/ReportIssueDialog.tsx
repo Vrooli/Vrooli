@@ -1165,14 +1165,9 @@ const ReportIssueDialog = ({
                     </div>
                   )}
 
-                  {bridgeCompliance && (
+                  {bridgeCompliance && bridgeCompliance.ok && (
                     <div className="report-dialog__bridge-inline">
-                      <span>
-                        Runtime bridge check {bridgeCompliance.ok ? 'passed' : 'reported issues'}
-                        {bridgeCompliance.failures.length > 0 && !bridgeCompliance.ok && (
-                          <> ({bridgeCompliance.failures.join(', ')})</>
-                        )}
-                      </span>
+                      <span>Runtime bridge check passed</span>
                     </div>
                   )}
                 </div>

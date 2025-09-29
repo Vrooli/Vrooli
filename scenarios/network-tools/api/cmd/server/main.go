@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,15 +11,19 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 )
 
 // Config holds application configuration
@@ -29,10 +34,56 @@ type Config struct {
 
 // Server holds server dependencies
 type Server struct {
-	config *Config
-	db     *sql.DB
-	router *mux.Router
-	client *http.Client
+	config      *Config
+	db          *sql.DB
+	router      *mux.Router
+	client      *http.Client
+	rateLimiter *RateLimiter
+}
+
+// RateLimiter implements a simple rate limiter
+type RateLimiter struct {
+	mu       sync.Mutex
+	requests map[string][]time.Time
+	limit    int
+	window   time.Duration
+}
+
+// NewRateLimiter creates a new rate limiter
+func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
+	return &RateLimiter{
+		requests: make(map[string][]time.Time),
+		limit:    limit,
+		window:   window,
+	}
+}
+
+// Allow checks if a request is allowed
+func (rl *RateLimiter) Allow(key string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	
+	now := time.Now()
+	cutoff := now.Add(-rl.window)
+	
+	// Clean old requests
+	var validRequests []time.Time
+	for _, t := range rl.requests[key] {
+		if t.After(cutoff) {
+			validRequests = append(validRequests, t)
+		}
+	}
+	
+	// Check if under limit
+	if len(validRequests) >= rl.limit {
+		return false
+	}
+	
+	// Add current request
+	validRequests = append(validRequests, now)
+	rl.requests[key] = validRequests
+	
+	return true
 }
 
 // Response is a generic API response
@@ -139,9 +190,32 @@ type ConnectivityStatistics struct {
 
 // NewServer creates a new server instance
 func NewServer() (*Server, error) {
+	// Build database URL from components or use provided URL
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		// Try POSTGRES_URL first (from environment)
+		dbURL = os.Getenv("POSTGRES_URL")
+	}
+	if dbURL == "" {
+		// Fall back to building from components
+		dbHost := getEnv("POSTGRES_HOST", getEnv("DB_HOST", "localhost"))
+		dbPort := getEnv("POSTGRES_PORT", getEnv("DB_PORT", "5433"))
+		dbUser := getEnv("POSTGRES_USER", getEnv("DB_USER", "vrooli"))
+		dbPass := getEnv("POSTGRES_PASSWORD", getEnv("DB_PASSWORD", ""))
+		dbName := getEnv("POSTGRES_DB", getEnv("DB_NAME", "vrooli"))
+		dbSSL := getEnv("POSTGRES_SSLMODE", getEnv("DB_SSL_MODE", "disable"))
+		
+		if dbPass == "" {
+			return nil, fmt.Errorf("database password not configured - set POSTGRES_PASSWORD or DB_PASSWORD environment variable")
+		}
+		
+		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+			dbUser, dbPass, dbHost, dbPort, dbName, dbSSL)
+	}
+	
 	config := &Config{
 		Port:        getEnv("PORT", getEnv("API_PORT", "15000")),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/network_tools"),
+		DatabaseURL: dbURL,
 	}
 
 	// Connect to database
@@ -154,6 +228,12 @@ func NewServer() (*Server, error) {
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
+	
+	// Initialize database schema
+	if err := InitializeDatabase(db); err != nil {
+		log.Printf("Warning: Failed to initialize database schema: %v", err)
+		// Continue anyway - schema might already exist
+	}
 
 	// Create HTTP client with custom settings
 	client := &http.Client{
@@ -165,15 +245,61 @@ func NewServer() (*Server, error) {
 		},
 	}
 
+	// Create rate limiter with configurable limits
+	rateLimit := 100
+	if rl := os.Getenv("RATE_LIMIT_REQUESTS"); rl != "" {
+		if parsed, err := strconv.Atoi(rl); err == nil {
+			rateLimit = parsed
+		}
+	}
+	
+	rateWindow := time.Minute
+	if rw := os.Getenv("RATE_LIMIT_WINDOW"); rw != "" {
+		if parsed, err := time.ParseDuration(rw); err == nil {
+			rateWindow = parsed
+		}
+	}
+	
+	rateLimiter := NewRateLimiter(rateLimit, rateWindow)
+	log.Printf("Rate limiting: %d requests per %v", rateLimit, rateWindow)
+	
 	server := &Server{
-		config: config,
-		db:     db,
-		router: mux.NewRouter(),
-		client: client,
+		config:      config,
+		db:          db,
+		router:      mux.NewRouter(),
+		client:      client,
+		rateLimiter: rateLimiter,
 	}
 
 	server.setupRoutes()
 	return server, nil
+}
+
+// rateLimitMiddleware implements rate limiting per IP
+func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip rate limiting for health checks
+		if strings.HasSuffix(r.URL.Path, "/health") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		
+		// Get client IP
+		clientIP := r.RemoteAddr
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			clientIP = strings.Split(xff, ",")[0]
+		} else if xri := r.Header.Get("X-Real-IP"); xri != "" {
+			clientIP = xri
+		}
+		
+		// Check rate limit
+		if !s.rateLimiter.Allow(clientIP) {
+			sendError(w, "Rate limit exceeded", http.StatusTooManyRequests)
+			return
+		}
+		
+		next.ServeHTTP(w, r)
+	})
 }
 
 // setupRoutes configures all API routes
@@ -181,8 +307,10 @@ func (s *Server) setupRoutes() {
 	// Middleware
 	s.router.Use(loggingMiddleware)
 	s.router.Use(corsMiddleware)
+	s.router.Use(s.rateLimitMiddleware)
+	s.router.Use(authMiddleware)
 
-	// Health check (no auth)
+	// Health check (no auth required due to authMiddleware logic)
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET", "OPTIONS")
 	s.router.HandleFunc("/api/health", s.handleHealth).Methods("GET", "OPTIONS")
 
@@ -195,6 +323,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/network/test/connectivity", s.handleConnectivityTest).Methods("POST", "OPTIONS")
 	api.HandleFunc("/network/scan", s.handleNetworkScan).Methods("POST", "OPTIONS")
 	api.HandleFunc("/network/api/test", s.handleAPITest).Methods("POST", "OPTIONS")
+	api.HandleFunc("/network/ssl/validate", s.handleSSLValidation).Methods("POST", "OPTIONS")
 	
 	// Monitoring endpoints
 	api.HandleFunc("/network/targets", s.handleListTargets).Methods("GET")
@@ -213,16 +342,136 @@ func loggingMiddleware(next http.Handler) http.Handler {
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if origin == "" {
-			origin = "*"
+		
+		// Get allowed origins from environment or use defaults
+		allowedOriginsStr := os.Getenv("ALLOWED_ORIGINS")
+		var allowedOrigins []string
+		
+		if allowedOriginsStr != "" {
+			allowedOrigins = strings.Split(allowedOriginsStr, ",")
+			for i, origin := range allowedOrigins {
+				allowedOrigins[i] = strings.TrimSpace(origin)
+			}
+		} else {
+			// Default allowed origins
+			uiPort := getEnv("UI_PORT", "35000")
+			allowedOrigins = []string{
+				fmt.Sprintf("http://localhost:%s", uiPort),
+				"http://localhost:3000",
+			}
+			
+			// Add dynamic UI port range in development
+			if os.Getenv("VROOLI_ENV") == "development" {
+				for i := 35000; i <= 35005; i++ {
+					allowedOrigins = append(allowedOrigins, fmt.Sprintf("http://localhost:%d", i))
+				}
+			}
 		}
-		w.Header().Set("Access-Control-Allow-Origin", origin)
+		
+		// Check if origin is allowed
+		originAllowed := false
+		for _, allowed := range allowedOrigins {
+			if origin == allowed {
+				originAllowed = true
+				break
+			}
+		}
+		
+		// In development, be more permissive
+		if os.Getenv("VROOLI_ENV") == "development" && origin != "" && strings.HasPrefix(origin, "http://localhost:") {
+			originAllowed = true
+		}
+		
+		if originAllowed && origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		} else if origin == "" && os.Getenv("VROOLI_ENV") == "development" {
+			// Only allow no-origin requests in development (CLI/direct API calls)
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+		
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
+		w.Header().Set("Access-Control-Max-Age", "3600")
 		
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
+		}
+		
+		next.ServeHTTP(w, r)
+	})
+}
+
+func authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip auth for health endpoints
+		if strings.HasSuffix(r.URL.Path, "/health") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		
+		// Skip auth for OPTIONS requests
+		if r.Method == "OPTIONS" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		
+		// Get API key enforcement mode
+		authMode := getEnv("AUTH_MODE", "development")
+		if os.Getenv("VROOLI_ENV") == "production" {
+			authMode = "production"
+		}
+		
+		// Check for API key in header
+		apiKey := r.Header.Get("X-API-Key")
+		if apiKey == "" {
+			// Check Authorization header as fallback
+			auth := r.Header.Get("Authorization")
+			if strings.HasPrefix(auth, "Bearer ") {
+				apiKey = strings.TrimPrefix(auth, "Bearer ")
+			}
+		}
+		
+		// Validate based on auth mode
+		switch authMode {
+		case "production", "strict":
+			// Production mode: require valid API key
+			expectedKey := os.Getenv("NETWORK_TOOLS_API_KEY")
+			if expectedKey == "" {
+				// Generate a secure API key on startup
+				log.Printf("Error: No API key configured in production mode. Set NETWORK_TOOLS_API_KEY environment variable.")
+				sendError(w, "Service misconfigured - API key not set", http.StatusInternalServerError)
+				return
+			}
+			
+			if apiKey == "" {
+				sendError(w, "API key required", http.StatusUnauthorized)
+				return
+			}
+			
+			if apiKey != expectedKey {
+				// Log failed attempts for security monitoring
+				log.Printf("Invalid API key attempt from %s", r.RemoteAddr)
+				sendError(w, "Invalid API key", http.StatusUnauthorized)
+				return
+			}
+			
+		case "optional":
+			// Optional mode: validate if provided, but don't require
+			expectedKey := os.Getenv("NETWORK_TOOLS_API_KEY")
+			if expectedKey != "" && apiKey != "" && apiKey != expectedKey {
+				sendError(w, "Invalid API key", http.StatusUnauthorized)
+				return
+			}
+			
+		case "development", "disabled":
+			// Development mode: no authentication required
+			// This allows easy testing and CLI access
+			
+		default:
+			// Unknown mode, default to development behavior
+			log.Printf("Unknown AUTH_MODE: %s, defaulting to development", authMode)
 		}
 		
 		next.ServeHTTP(w, r)
@@ -261,6 +510,26 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, r *http.Request) {
 		sendError(w, "URL is required", http.StatusBadRequest)
 		return
 	}
+	
+	// Validate URL format
+	parsedURL, err := url.Parse(req.URL)
+	if err != nil {
+		sendError(w, fmt.Sprintf("Invalid URL format: %v", err), http.StatusBadRequest)
+		return
+	}
+	
+	// Ensure URL has a scheme
+	if parsedURL.Scheme == "" {
+		sendError(w, "URL must include a scheme (http:// or https://)", http.StatusBadRequest)
+		return
+	}
+	
+	// Ensure URL has a host
+	if parsedURL.Host == "" {
+		sendError(w, "URL must include a host", http.StatusBadRequest)
+		return
+	}
+	
 	if req.Method == "" {
 		req.Method = "GET"
 	}
@@ -559,9 +828,341 @@ func (s *Server) handleNetworkScan(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAPITest(w http.ResponseWriter, r *http.Request) {
-	sendSuccess(w, map[string]string{
-		"message": "API test endpoint - implementation pending",
+	var req struct {
+		APIDefinitionID string `json:"api_definition_id,omitempty"`
+		BaseURL        string `json:"base_url,omitempty"`
+		SpecURL        string `json:"spec_url,omitempty"`
+		TestSuite      []struct {
+			Endpoint  string `json:"endpoint"`
+			Method    string `json:"method"`
+			TestCases []struct {
+				Name           string      `json:"name"`
+				Input          interface{} `json:"input,omitempty"`
+				ExpectedStatus int         `json:"expected_status"`
+				ExpectedSchema interface{} `json:"expected_schema,omitempty"`
+				Assertions     []string    `json:"assertions,omitempty"`
+			} `json:"test_cases"`
+		} `json:"test_suite"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	// Validate input
+	baseURL := req.BaseURL
+	if baseURL == "" && req.APIDefinitionID != "" {
+		// Look up API definition from database
+		var url string
+		err := s.db.QueryRow("SELECT base_url FROM api_definitions WHERE id = $1", req.APIDefinitionID).Scan(&url)
+		if err != nil {
+			sendError(w, "API definition not found", http.StatusNotFound)
+			return
+		}
+		baseURL = url
+	}
+	
+	if baseURL == "" {
+		sendError(w, "Base URL or API definition ID required", http.StatusBadRequest)
+		return
+	}
+	
+	// Execute test suite
+	results := make([]map[string]interface{}, 0)
+	
+	for _, test := range req.TestSuite {
+		endpoint := test.Endpoint
+		testResults := map[string]interface{}{
+			"endpoint":       endpoint,
+			"total_tests":    len(test.TestCases),
+			"passed_tests":   0,
+			"failed_tests":   0,
+			"execution_time_ms": 0,
+			"failures":       make([]map[string]interface{}, 0),
+		}
+		
+		for _, testCase := range test.TestCases {
+			startTime := time.Now()
+			
+			// Prepare request
+			url := baseURL + endpoint
+			method := test.Method
+			if method == "" {
+				method = "GET"
+			}
+			
+			// Create request with input data
+			var bodyReader io.Reader
+			if testCase.Input != nil {
+				bodyData, _ := json.Marshal(testCase.Input)
+				bodyReader = strings.NewReader(string(bodyData))
+			}
+			
+			req, err := http.NewRequest(method, url, bodyReader)
+			if err != nil {
+				testResults["failed_tests"] = testResults["failed_tests"].(int) + 1
+				failures := testResults["failures"].([]map[string]interface{})
+				testResults["failures"] = append(failures, map[string]interface{}{
+					"test_name": testCase.Name,
+					"error":     fmt.Sprintf("Failed to create request: %v", err),
+				})
+				continue
+			}
+			
+			if bodyReader != nil {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			
+			// Execute request
+			resp, err := s.client.Do(req)
+			if err != nil {
+				testResults["failed_tests"] = testResults["failed_tests"].(int) + 1
+				failures := testResults["failures"].([]map[string]interface{})
+				testResults["failures"] = append(failures, map[string]interface{}{
+					"test_name": testCase.Name,
+					"error":     fmt.Sprintf("Request failed: %v", err),
+				})
+				continue
+			}
+			defer resp.Body.Close()
+			
+			// Check status code
+			if testCase.ExpectedStatus != 0 && resp.StatusCode != testCase.ExpectedStatus {
+				testResults["failed_tests"] = testResults["failed_tests"].(int) + 1
+				failures := testResults["failures"].([]map[string]interface{})
+				testResults["failures"] = append(failures, map[string]interface{}{
+					"test_name": testCase.Name,
+					"error":     fmt.Sprintf("Expected status %d, got %d", testCase.ExpectedStatus, resp.StatusCode),
+				})
+			} else {
+				testResults["passed_tests"] = testResults["passed_tests"].(int) + 1
+			}
+			
+			execTime := time.Since(startTime).Milliseconds()
+			testResults["execution_time_ms"] = testResults["execution_time_ms"].(int) + int(execTime)
+		}
+		
+		results = append(results, testResults)
+	}
+	
+	// Calculate overall success rate
+	totalTests := 0
+	passedTests := 0
+	for _, result := range results {
+		totalTests += result["total_tests"].(int)
+		passedTests += result["passed_tests"].(int)
+	}
+	
+	successRate := 0.0
+	if totalTests > 0 {
+		successRate = float64(passedTests) / float64(totalTests) * 100
+	}
+	
+	sendSuccess(w, map[string]interface{}{
+		"test_results":        results,
+		"overall_success_rate": successRate,
 	})
+}
+
+func (s *Server) handleSSLValidation(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		URL     string `json:"url"`
+		Options struct {
+			CheckExpiry      bool `json:"check_expiry"`
+			CheckChain       bool `json:"check_chain"`
+			CheckHostname    bool `json:"check_hostname"`
+			TimeoutMs        int  `json:"timeout_ms"`
+		} `json:"options"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	// Validate URL
+	if req.URL == "" {
+		sendError(w, "URL is required", http.StatusBadRequest)
+		return
+	}
+	
+	// Parse URL to extract hostname
+	parsedURL, err := url.Parse(req.URL)
+	if err != nil {
+		sendError(w, fmt.Sprintf("Invalid URL: %v", err), http.StatusBadRequest)
+		return
+	}
+	
+	// Default to HTTPS if no scheme
+	if parsedURL.Scheme == "" {
+		parsedURL.Scheme = "https"
+	}
+	
+	// Get port (default to 443 for HTTPS)
+	port := parsedURL.Port()
+	if port == "" {
+		if parsedURL.Scheme == "https" {
+			port = "443"
+		} else {
+			sendError(w, "HTTPS URL required for SSL validation", http.StatusBadRequest)
+			return
+		}
+	}
+	
+	// Build address with port if missing
+	address := parsedURL.Host
+	if !strings.Contains(address, ":") {
+		address = fmt.Sprintf("%s:%s", parsedURL.Hostname(), port)
+	}
+	
+	// Set timeout
+	timeout := time.Duration(req.Options.TimeoutMs) * time.Millisecond
+	if timeout == 0 {
+		timeout = 10 * time.Second
+	}
+	
+	// Connect to server
+	dialer := &net.Dialer{Timeout: timeout}
+	conn, err := tls.DialWithDialer(dialer, "tcp", address, &tls.Config{
+		InsecureSkipVerify: true, // We'll validate manually
+	})
+	if err != nil {
+		sendError(w, fmt.Sprintf("Failed to connect: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer conn.Close()
+	
+	// Get certificate chain
+	certs := conn.ConnectionState().PeerCertificates
+	if len(certs) == 0 {
+		sendError(w, "No certificates found", http.StatusInternalServerError)
+		return
+	}
+	
+	// Primary certificate
+	cert := certs[0]
+	
+	// Build response
+	response := map[string]interface{}{
+		"url":        req.URL,
+		"hostname":   parsedURL.Hostname(),
+		"port":       port,
+		"valid":      true,
+		"issues":     []string{},
+		"warnings":   []string{},
+		"certificate": map[string]interface{}{
+			"subject":     cert.Subject.String(),
+			"issuer":      cert.Issuer.String(),
+			"serial":      cert.SerialNumber.String(),
+			"not_before":  cert.NotBefore,
+			"not_after":   cert.NotAfter,
+			"dns_names":   cert.DNSNames,
+			"ip_addresses": cert.IPAddresses,
+			"key_usage":   cert.KeyUsage,
+			"version":     cert.Version,
+			"signature_algorithm": cert.SignatureAlgorithm.String(),
+		},
+		"chain_length": len(certs),
+		"cipher_suite": tls.CipherSuiteName(conn.ConnectionState().CipherSuite),
+		"tls_version":  tlsVersionString(conn.ConnectionState().Version),
+	}
+	
+	issues := []string{}
+	warnings := []string{}
+	
+	// Check expiry
+	if req.Options.CheckExpiry {
+		now := time.Now()
+		if now.After(cert.NotAfter) {
+			issues = append(issues, fmt.Sprintf("Certificate expired on %s", cert.NotAfter))
+			response["valid"] = false
+		} else if now.Before(cert.NotBefore) {
+			issues = append(issues, fmt.Sprintf("Certificate not yet valid (starts %s)", cert.NotBefore))
+			response["valid"] = false
+		} else {
+			daysUntilExpiry := cert.NotAfter.Sub(now).Hours() / 24
+			if daysUntilExpiry < 30 {
+				warnings = append(warnings, fmt.Sprintf("Certificate expires in %.0f days", daysUntilExpiry))
+			}
+			response["days_remaining"] = int(daysUntilExpiry)
+		}
+	}
+	
+	// Check hostname
+	if req.Options.CheckHostname {
+		if err := cert.VerifyHostname(parsedURL.Hostname()); err != nil {
+			issues = append(issues, fmt.Sprintf("Hostname verification failed: %v", err))
+			response["valid"] = false
+		}
+	}
+	
+	// Check chain
+	if req.Options.CheckChain && len(certs) > 1 {
+		roots := x509.NewCertPool()
+		intermediates := x509.NewCertPool()
+		
+		// Add system roots
+		if systemRoots, err := x509.SystemCertPool(); err == nil {
+			roots = systemRoots
+		}
+		
+		// Add intermediates
+		for i := 1; i < len(certs); i++ {
+			intermediates.AddCert(certs[i])
+		}
+		
+		opts := x509.VerifyOptions{
+			Intermediates: intermediates,
+			Roots:         roots,
+		}
+		
+		if _, err := cert.Verify(opts); err != nil {
+			warnings = append(warnings, fmt.Sprintf("Chain validation warning: %v", err))
+		}
+	}
+	
+	response["issues"] = issues
+	response["warnings"] = warnings
+	
+	// Store in database
+	validationResult, _ := json.Marshal(response)
+	_, err = s.db.Exec(`
+		INSERT INTO scan_results (target_id, scan_type, status, results, severity_score)
+		VALUES (
+			(SELECT id FROM network_targets WHERE address = $1 LIMIT 1),
+			'ssl_check',
+			$2,
+			$3,
+			$4
+		)`,
+		parsedURL.Host,
+		func() string { if response["valid"].(bool) { return "success" } else { return "failed" } }(),
+		string(validationResult),
+		func() float64 { if response["valid"].(bool) { return 0.0 } else { return 8.0 } }(),
+	)
+	
+	if err != nil {
+		log.Printf("Failed to store SSL validation result: %v", err)
+	}
+	
+	sendSuccess(w, response)
+}
+
+// Helper function to get TLS version string
+func tlsVersionString(version uint16) string {
+	switch version {
+	case tls.VersionTLS10:
+		return "TLS 1.0"
+	case tls.VersionTLS11:
+		return "TLS 1.1"
+	case tls.VersionTLS12:
+		return "TLS 1.2"
+	case tls.VersionTLS13:
+		return "TLS 1.3"
+	default:
+		return fmt.Sprintf("Unknown (0x%04x)", version)
+	}
 }
 
 func (s *Server) handleListTargets(w http.ResponseWriter, r *http.Request) {

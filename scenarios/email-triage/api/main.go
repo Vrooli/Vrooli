@@ -23,11 +23,12 @@ import (
 )
 
 type Server struct {
-	db           *sql.DB
-	authService  *services.AuthService
-	emailService *services.EmailService
-	ruleService  *services.RuleService
-	searchService *services.SearchService
+	db                *sql.DB
+	authService       *services.AuthService
+	emailService      *services.EmailService
+	ruleService       *services.RuleService
+	searchService     *services.SearchService
+	realtimeProcessor *services.RealtimeProcessor
 }
 
 func main() {
@@ -128,14 +129,16 @@ func main() {
 	emailService := services.NewEmailService(config.MailServerURL)
 	ruleService := services.NewRuleService(db, config.OllamaURL)
 	searchService := services.NewSearchService(config.QdrantURL)
+	realtimeProcessor := services.NewRealtimeProcessor(db, emailService, ruleService, searchService)
 	
 	// Create server instance
 	server := &Server{
-		db:            db,
-		authService:   authService,
-		emailService:  emailService,
-		ruleService:   ruleService,
-		searchService: searchService,
+		db:                db,
+		authService:       authService,
+		emailService:      emailService,
+		ruleService:       ruleService,
+		searchService:     searchService,
+		realtimeProcessor: realtimeProcessor,
 	}
 	
 	// Setup HTTP router
@@ -166,6 +169,12 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 	
+	// Start real-time processor
+	if err := server.realtimeProcessor.Start(); err != nil {
+		log.Printf("Warning: Real-time processor failed to start: %v", err)
+		// Continue running without real-time processing
+	}
+	
 	// Start server in goroutine
 	go func() {
 		log.Printf("Email Triage API server starting on port %s", port)
@@ -180,6 +189,9 @@ func main() {
 	<-quit
 	
 	log.Println("Shutting down server...")
+	
+	// Stop real-time processor
+	server.realtimeProcessor.Stop()
 	
 	// Gracefully shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -228,6 +240,8 @@ func (s *Server) setupRoutes() *mux.Router {
 	api.HandleFunc("/emails/{id}", emailHandler.GetEmail).Methods("GET")
 	api.HandleFunc("/emails/{id}/actions", emailHandler.ApplyActions).Methods("POST")
 	api.HandleFunc("/emails/sync", emailHandler.ForceSync).Methods("POST")
+	api.HandleFunc("/emails/{id}/priority", s.updateEmailPriority).Methods("PUT")
+	api.HandleFunc("/processor/status", s.getProcessorStatus).Methods("GET")
 	
 	// Analytics and insights
 	analyticsHandler := handlers.NewAnalyticsHandler(s.db)
@@ -243,7 +257,7 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		// Development mode: bypass auth if DEV_MODE is set
 		if os.Getenv("DEV_MODE") == "true" {
 			// Use mock user ID for development
-			ctx := context.WithValue(r.Context(), "user_id", "dev-user-001")
+			ctx := context.WithValue(r.Context(), "user_id", "00000000-0000-0000-0000-000000000001")
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
@@ -322,6 +336,70 @@ type Config struct {
 	MailServerURL    string
 	NotificationURL  string
 	OllamaURL        string
+}
+
+// updateEmailPriority updates the priority score for an email
+func (s *Server) updateEmailPriority(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(string)
+	vars := mux.Vars(r)
+	emailID := vars["id"]
+	
+	// Parse request body
+	var req struct {
+		PriorityScore float64 `json:"priority_score"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+	
+	// Validate priority score
+	if req.PriorityScore < 0 || req.PriorityScore > 1 {
+		http.Error(w, `{"error":"priority_score must be between 0 and 1"}`, http.StatusBadRequest)
+		return
+	}
+	
+	// Update priority score with user authorization check
+	query := `
+		UPDATE processed_emails pe
+		SET priority_score = $3
+		FROM email_accounts ea
+		WHERE pe.account_id = ea.id 
+		AND pe.id = $1 
+		AND ea.user_id = $2`
+	
+	result, err := s.db.Exec(query, emailID, userID, req.PriorityScore)
+	if err != nil {
+		http.Error(w, `{"error":"database update failed"}`, http.StatusInternalServerError)
+		return
+	}
+	
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(w, `{"error":"email not found or access denied"}`, http.StatusNotFound)
+		return
+	}
+	
+	response := map[string]interface{}{
+		"success": true,
+		"email_id": emailID,
+		"priority_score": req.PriorityScore,
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// getProcessorStatus returns the status of the real-time processor
+func (s *Server) getProcessorStatus(w http.ResponseWriter, r *http.Request) {
+	status := map[string]interface{}{
+		"running": s.realtimeProcessor != nil,
+		"sync_interval": "5m",
+		"timestamp": time.Now(),
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
 }
 
 func loadConfig() Config {

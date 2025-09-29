@@ -318,10 +318,18 @@ Date: %s
 	return es.SendEmail(account, forwardTo, subject, body)
 }
 
-// Helper function to generate UUIDs (placeholder implementation)
+// Helper function to generate UUIDs
 func generateUUID() string {
-	// This would typically use github.com/google/uuid
-	return fmt.Sprintf("uuid-%d", time.Now().UnixNano())
+	// Generate a simple UUID-like string that's compatible with PostgreSQL UUID type
+	// Format: 8-4-4-4-12 hexadecimal characters
+	timestamp := time.Now().UnixNano()
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		timestamp&0xFFFFFFFF,        // 8 hex chars
+		(timestamp>>32)&0xFFFF,      // 4 hex chars  
+		(timestamp>>48)&0xFFFF|0x4000, // 4 hex chars with version 4
+		(timestamp>>16)&0xFFFF|0x8000, // 4 hex chars with variant
+		timestamp&0xFFFFFFFFFFFF,    // 12 hex chars
+	)
 }
 
 // getMockEmails returns sample emails for testing

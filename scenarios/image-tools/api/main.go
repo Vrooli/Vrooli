@@ -114,6 +114,7 @@ func (s *Server) SetupRoutes() {
 	image.Post("/metadata", s.handleMetadata)
 	image.Post("/batch", s.handleBatch)
 	image.Post("/info", s.handleInfo)
+	image.Get("/proxy", s.handleImageProxy)
 }
 
 func (s *Server) handleHealth(c *fiber.Ctx) error {
@@ -907,6 +908,53 @@ func getFileFormat(filename string) string {
 	
 	return ext
 }
+
+func (s *Server) handleImageProxy(c *fiber.Ctx) error {
+	imageURL := c.Query("url")
+	if imageURL == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "URL parameter required"})
+	}
+	
+	// Handle MinIO URLs - fetch from storage
+	if strings.Contains(imageURL, "localhost:9100") || strings.Contains(imageURL, "image-tools-processed") {
+		// Extract the key from the URL
+		parts := strings.Split(imageURL, "/image-tools-processed/")
+		if len(parts) < 2 {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid MinIO URL format"})
+		}
+		
+		key := parts[1]
+		data, err := s.storage.Get(key)
+		if err != nil {
+			// Try with "compressed/" prefix
+			data, err = s.storage.Get("compressed/" + key)
+			if err != nil {
+				return c.Status(404).JSON(fiber.Map{"error": "Image not found in storage"})
+			}
+		}
+		
+		// Determine content type from key
+		contentType := getContentType(key)
+		c.Set("Content-Type", contentType)
+		return c.Send(data)
+	}
+	
+	// For file:// URLs, try to read from local filesystem
+	if strings.HasPrefix(imageURL, "file://") {
+		path := strings.TrimPrefix(imageURL, "file://")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "File not found"})
+		}
+		
+		contentType := getContentType(path)
+		c.Set("Content-Type", contentType)
+		return c.Send(data)
+	}
+	
+	return c.Status(400).JSON(fiber.Map{"error": "Unsupported URL format"})
+}
+
 
 func main() {
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {

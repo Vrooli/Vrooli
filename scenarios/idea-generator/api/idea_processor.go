@@ -530,8 +530,9 @@ func (ip *IdeaProcessor) generateWithOllama(ctx context.Context, prompt string, 
 }
 
 func (ip *IdeaProcessor) generateWithOllamaRaw(ctx context.Context, prompt string) (string, error) {
+	// Use mistral model which is available and good for creative tasks
 	payload := map[string]interface{}{
-		"model":  "llama2",
+		"model":  "mistral:latest",
 		"prompt": prompt,
 		"stream": false,
 	}
@@ -571,8 +572,9 @@ func (ip *IdeaProcessor) generateWithOllamaRaw(ctx context.Context, prompt strin
 }
 
 func (ip *IdeaProcessor) generateEmbedding(ctx context.Context, text string) ([]float64, error) {
+	// Use nomic-embed-text for embeddings
 	payload := map[string]interface{}{
-		"model":  "llama2",
+		"model":  "nomic-embed-text:latest",
 		"prompt": text,
 	}
 	

@@ -58,7 +58,18 @@ func checkIngredients(w http.ResponseWriter, r *http.Request) {
     
     if !isVegan {
         response["nonVeganItems"] = nonVeganItems
+        response["nonVeganIngredients"] = nonVeganItems // UI compatibility
         response["reasons"] = reasons
+        
+        // Create explanations map for UI
+        explanations := make(map[string]string)
+        for i, item := range nonVeganItems {
+            if i < len(reasons) {
+                explanations[item] = reasons[i]
+            }
+        }
+        response["explanations"] = explanations
+        
         response["analysis"] = fmt.Sprintf("Found %d non-vegan ingredient(s): %v", len(nonVeganItems), nonVeganItems)
         
         // Add suggestions for alternatives
@@ -94,12 +105,27 @@ func findSubstitute(w http.ResponseWriter, r *http.Request) {
     alternatives := veganDB.GetAlternatives(req.Ingredient)
     quickSub := veganDB.GetQuickSubstitute(req.Ingredient)
     
+    // Format alternatives for UI compatibility
+    formattedAlternatives := make([]map[string]interface{}, len(alternatives))
+    for i, alt := range alternatives {
+        formattedAlternatives[i] = map[string]interface{}{
+            "name":        alt.Name,
+            "description": fmt.Sprintf("Rating: %.1f/5 - %s", alt.Rating, alt.Notes),
+            "tips":        alt.Adjustments,
+        }
+    }
+    
     response := map[string]interface{}{
+        // UI-compatible fields
+        "ingredient":   req.Ingredient,
+        "context":      req.Context,
+        "alternatives": formattedAlternatives,
+        
+        // Additional fields for backward compatibility
         "request": map[string]string{
             "ingredient": req.Ingredient,
             "context":    req.Context,
         },
-        "alternatives": alternatives,
         "quickSubstitute": quickSub,
         "timestamp": time.Now().Format(time.RFC3339),
     }
@@ -136,47 +162,55 @@ func veganizeRecipe(w http.ResponseWriter, r *http.Request) {
 
     // Parse recipe for ingredients and create vegan version
     recipe := strings.ToLower(req.Recipe)
-    substitutions := make([]map[string]string, 0)
+    veganRecipe := req.Recipe
+    substitutionsList := make([]map[string]string, 0)
+    substitutionsMap := make(map[string]string)
     
     // Check for common non-vegan ingredients and suggest replacements
     for nonVegan := range veganDB.NonVeganIngredients {
         if strings.Contains(recipe, nonVegan) {
             if alts := veganDB.GetAlternatives(nonVegan); len(alts) > 0 {
-                substitutions = append(substitutions, map[string]string{
+                substitute := alts[0].Name
+                substitutionsList = append(substitutionsList, map[string]string{
                     "original": nonVegan,
-                    "substitute": alts[0].Name,
+                    "substitute": substitute,
                     "notes": alts[0].Adjustments,
                 })
-                // Replace in recipe text
-                recipe = strings.ReplaceAll(recipe, nonVegan, alts[0].Name)
+                substitutionsMap[nonVegan] = substitute
+                // Replace in recipe text (case-insensitive)
+                veganRecipe = strings.ReplaceAll(veganRecipe, nonVegan, substitute)
+                veganRecipe = strings.ReplaceAll(veganRecipe, strings.Title(nonVegan), strings.Title(substitute))
             }
         }
     }
     
-    veganVersion := map[string]interface{}{
-        "name": "Veganized " + strings.Split(req.Recipe, "\n")[0],
-        "substitutions": substitutions,
-        "fullText": recipe,
-        "cookingTips": []string{
-            "Check liquid ratios when using plant milks",
-            "Add nutritional yeast for cheesy flavor",
-            "Use aquafaba for egg white substitutes in baking",
-        },
-    }
-    
-    if len(substitutions) == 0 {
-        veganVersion["message"] = "This recipe appears to be vegan already!"
-    } else {
-        veganVersion["message"] = fmt.Sprintf("Made %d substitutions to veganize this recipe", len(substitutions))
+    cookingTips := []string{
+        "Check liquid ratios when using plant milks",
+        "Add nutritional yeast for cheesy flavor",
+        "Use aquafaba for egg white substitutes in baking",
     }
     
     response := map[string]interface{}{
+        // UI-compatible fields
+        "veganRecipe": veganRecipe,
+        "substitutions": substitutionsMap,
+        "cookingTips": cookingTips,
+        
+        // Additional fields for backward compatibility
         "originalRecipe": req.Recipe,
-        "veganVersion": veganVersion,
-        "difficulty": "easy",
-        "estimatedTime": "similar to original",
-        "nutritionNotes": "Ensure adequate B12, iron, and protein from other sources",
+        "veganVersion": map[string]interface{}{
+            "name": "Veganized Recipe",
+            "substitutions": substitutionsList,
+            "fullText": veganRecipe,
+        },
+        "nutritionHighlights": "This vegan version maintains protein through plant sources and provides fiber, vitamins, and minerals.",
         "timestamp": time.Now().Format(time.RFC3339),
+    }
+    
+    if len(substitutionsList) == 0 {
+        response["message"] = "This recipe appears to be vegan already!"
+    } else {
+        response["message"] = fmt.Sprintf("Made %d substitutions to veganize this recipe", len(substitutionsList))
     }
 
     w.Header().Set("Content-Type", "application/json")

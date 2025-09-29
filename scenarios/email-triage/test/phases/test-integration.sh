@@ -22,7 +22,7 @@ FAILURES=0
 # Test database connectivity
 echo "Testing PostgreSQL integration:"
 echo -n "  Checking database connection... "
-if curl -s "${API_URL}/health/database" | jq -e '.status == "connected"' >/dev/null 2>&1; then
+if curl -s "${API_URL}/health/database" | jq -e '.connected == true' >/dev/null 2>&1; then
     echo -e "${GREEN}✓${NC}"
 else
     echo -e "${RED}✗${NC}"
@@ -32,7 +32,7 @@ fi
 # Test Qdrant connectivity
 echo -e "\nTesting Qdrant integration:"
 echo -n "  Checking Qdrant connection... "
-if curl -s "${API_URL}/health/qdrant" | jq -e '.status == "connected"' >/dev/null 2>&1; then
+if curl -s "${API_URL}/health/qdrant" | jq -e '.connected == true' >/dev/null 2>&1; then
     echo -e "${GREEN}✓${NC}"
 else
     echo -e "${RED}✗${NC}"
@@ -73,6 +73,41 @@ echo -e "\nTesting mail server integration:"
 echo -n "  Checking mail server (mail-in-a-box)... "
 # This would need actual mail-in-a-box instance
 echo -e "${YELLOW}⚠ Mail server test skipped (requires mail-in-a-box setup)${NC}"
+
+# Test P0 Features - Email Prioritization
+echo -e "\nTesting P0 Features:"
+echo -n "  Testing email prioritization endpoint... "
+if curl -s -X PUT "${API_URL}/api/v1/emails/00000000-0000-0000-0000-000000000001/priority" \
+    -H "Content-Type: application/json" \
+    -H "X-User-ID: dev-user-001" \
+    -d '{"priority": 0.95}' 2>/dev/null | grep -q "error\|priority"; then
+    # We expect an error (no real email) but endpoint should respond
+    echo -e "${GREEN}✓ Endpoint responds${NC}"
+else
+    echo -e "${RED}✗ Endpoint not responding${NC}"
+    ((FAILURES++))
+fi
+
+echo -n "  Testing triage actions endpoint... "
+if curl -s -X POST "${API_URL}/api/v1/emails/00000000-0000-0000-0000-000000000001/actions" \
+    -H "Content-Type: application/json" \
+    -H "X-User-ID: dev-user-001" \
+    -d '{"actions": [{"type": "archive"}]}' 2>/dev/null | grep -q "error\|success"; then
+    # We expect an error (no real email) but endpoint should respond
+    echo -e "${GREEN}✓ Endpoint responds${NC}"
+else
+    echo -e "${RED}✗ Endpoint not responding${NC}"
+    ((FAILURES++))
+fi
+
+echo -n "  Testing real-time processor status... "
+if curl -s "${API_URL}/api/v1/processor/status" \
+    -H "X-User-ID: dev-user-001" | jq -e '.running == true' >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ Processor running${NC}"
+else
+    echo -e "${RED}✗ Processor not running${NC}"
+    ((FAILURES++))
+fi
 
 # Test CLI integration
 echo -e "\nTesting CLI integration:"

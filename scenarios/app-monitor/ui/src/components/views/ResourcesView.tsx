@@ -153,7 +153,7 @@ export default function ResourcesView() {
   return (
     <div className="resources-view">
       <div className="panel-header">
-        <h2>RESOURCE STATUS</h2>
+        <div className="panel-title-spacer" aria-hidden="true" />
         <div className="panel-controls">
           <button className="control-btn" onClick={() => { void loadResources({ force: true }); }} disabled={loading}>
             ⟳ REFRESH

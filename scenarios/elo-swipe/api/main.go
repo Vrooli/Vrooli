@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -537,6 +538,7 @@ func (app *App) DeleteComparison(w http.ResponseWriter, r *http.Request) {
 func (app *App) GetRankings(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	listID := vars["id"]
+	format := r.URL.Query().Get("format")
 	
 	query := `
 		SELECT content, elo_rating, confidence_score
@@ -566,11 +568,38 @@ func (app *App) GetRankings(w http.ResponseWriter, r *http.Request) {
 		rank++
 	}
 	
-	response := Rankings{
-		Rankings: rankings,
+	// Handle different formats
+	switch format {
+	case "csv":
+		w.Header().Set("Content-Type", "text/csv")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"rankings_%s.csv\"", listID))
+		writer := csv.NewWriter(w)
+		defer writer.Flush()
+		
+		// Write header
+		writer.Write([]string{"Rank", "Item", "Elo Rating", "Confidence"})
+		
+		// Write data
+		for _, item := range rankings {
+			itemJSON, _ := json.Marshal(item.Item)
+			writer.Write([]string{
+				fmt.Sprintf("%d", item.Rank),
+				string(itemJSON),
+				fmt.Sprintf("%.2f", item.EloRating),
+				fmt.Sprintf("%.2f", item.Confidence),
+			})
+		}
+		
+	case "json", "":
+		response := Rankings{
+			Rankings: rankings,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		
+	default:
+		http.Error(w, "Unsupported format. Use ?format=json or ?format=csv", http.StatusBadRequest)
 	}
-	
-	json.NewEncoder(w).Encode(response)
 }
 
 // Helper functions

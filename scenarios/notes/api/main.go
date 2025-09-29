@@ -70,9 +70,22 @@ var defaultUserID string
 
 func getDefaultUserID() string {
 	if defaultUserID == "" {
-		// For now, use a fixed UUID for the default user to avoid conflicts with main DB
-		// This will be replaced when proper user management is implemented
-		defaultUserID = "00000000-0000-0000-0000-000000000001"
+		// Fetch the default user from the database
+		err := db.QueryRow("SELECT id FROM users WHERE username = 'default' LIMIT 1").Scan(&defaultUserID)
+		if err != nil {
+			// If no default user exists, create one
+			err = db.QueryRow(`
+				INSERT INTO users (username, email, password_hash, preferences) 
+				VALUES ('default', 'user@smartnotes.local', 'placeholder_hash', '{"theme": "light"}')
+				ON CONFLICT (username) DO UPDATE SET username = EXCLUDED.username
+				RETURNING id
+			`).Scan(&defaultUserID)
+			if err != nil {
+				log.Printf("Warning: Could not get or create default user: %v", err)
+				// Use a fallback UUID
+				defaultUserID = "00000000-0000-0000-0000-000000000001"
+			}
+		}
 	}
 	return defaultUserID
 }
@@ -90,17 +103,19 @@ func main() {
         os.Exit(1)
     }
 	// Database configuration - support both POSTGRES_URL and individual components
-	dbURL := os.Getenv("POSTGRES_URL")
+	// SmartNotes uses its own database named 'notes'
+	dbURL := os.Getenv("NOTES_DB_URL")
 	if dbURL == "" {
 		// Try to build from individual components - REQUIRED, no defaults
 		dbHost := os.Getenv("POSTGRES_HOST")
 		dbPort := os.Getenv("POSTGRES_PORT")
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
+		// Always use 'notes' database for SmartNotes scenario
+		dbName := "notes"
 		
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" {
+			log.Fatal("❌ Database configuration missing. Provide NOTES_DB_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD")
 		}
 		
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",

@@ -45,7 +45,13 @@ show_help() {
 
 list_notes() {
     echo -e "${BLUE}📝 Your Notes:${NC}"
-    response=$(curl -s "${API_URL}/api/notes?user_id=${USER_ID}")
+    response=$(curl -s "${API_URL}/api/notes")
+    
+    # Check if response is valid JSON
+    if ! echo "$response" | jq . >/dev/null 2>&1; then
+        echo -e "${RED}Error connecting to API. Make sure the SmartNotes service is running.${NC}"
+        return 1
+    fi
     
     if [ -z "$response" ] || [ "$response" = "[]" ]; then
         echo "No notes found. Create your first note with: notes new \"My First Note\""
@@ -71,7 +77,7 @@ create_note() {
     
     response=$(curl -s -X POST "${API_URL}/api/notes" \
         -H "Content-Type: application/json" \
-        -d "{\"title\": \"$title\", \"content\": \"$content\", \"user_id\": \"$USER_ID\", \"content_type\": \"markdown\"}")
+        -d "{\"title\": \"$title\", \"content\": \"$content\", \"content_type\": \"markdown\"}")
     
     note_id=$(echo "$response" | jq -r '.id')
     if [ "$note_id" != "null" ] && [ -n "$note_id" ]; then

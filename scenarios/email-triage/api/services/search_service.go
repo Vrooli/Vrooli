@@ -213,6 +213,51 @@ func (ss *SearchService) SearchEmails(userID string, queryEmbedding []float32, l
 	return results, nil
 }
 
+// StoreEmailVector stores an email vector in Qdrant
+func (ss *SearchService) StoreEmailVector(vectorID string, embedding []float32, payload map[string]interface{}) error {
+	if ss.client == nil {
+		return fmt.Errorf("Qdrant client not initialized")
+	}
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
+	// Convert payload to Qdrant format
+	pbPayload := make(map[string]*pb.Value)
+	for key, val := range payload {
+		switch v := val.(type) {
+		case string:
+			pbPayload[key] = &pb.Value{Kind: &pb.Value_StringValue{StringValue: v}}
+		case float64:
+			pbPayload[key] = &pb.Value{Kind: &pb.Value_DoubleValue{DoubleValue: v}}
+		case int64:
+			pbPayload[key] = &pb.Value{Kind: &pb.Value_IntegerValue{IntegerValue: v}}
+		case int:
+			pbPayload[key] = &pb.Value{Kind: &pb.Value_IntegerValue{IntegerValue: int64(v)}}
+		}
+	}
+	
+	// Create point
+	point := &pb.PointStruct{
+		Id:      &pb.PointId{PointIdOptions: &pb.PointId_Uuid{Uuid: vectorID}},
+		Vectors: &pb.Vectors{VectorsOptions: &pb.Vectors_Vector{Vector: &pb.Vector{Data: embedding}}},
+		Payload: pbPayload,
+	}
+	
+	// Upsert point
+	_, err := ss.client.Upsert(ctx, &pb.UpsertPoints{
+		CollectionName: ss.collectionName,
+		Wait:          &[]bool{true}[0], // Wait for indexing to complete
+		Points:        []*pb.PointStruct{point},
+	})
+	
+	if err != nil {
+		return fmt.Errorf("failed to store email vector: %w", err)
+	}
+	
+	return nil
+}
+
 // DeleteEmailVector removes an email vector from Qdrant
 func (ss *SearchService) DeleteEmailVector(emailID string) error {
 	if ss.client == nil {

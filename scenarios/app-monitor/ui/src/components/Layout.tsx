@@ -209,6 +209,11 @@ export default function Layout({ children, isConnected }: LayoutProps) {
     return previewRouteInfo.identifier;
   }, [previewApp, previewRouteInfo.identifier]);
 
+  const pathname = location.pathname;
+  const isAppsListRoute = pathname === '/apps';
+  const isLogsRoute = pathname === '/logs' || pathname.startsWith('/logs/');
+  const isResourcesRoute = pathname === '/resources' || pathname.startsWith('/resources/');
+
   const recentApps = useMemo(() => {
     if (apps.length === 0) {
       return [] as App[];
@@ -251,7 +256,7 @@ export default function Layout({ children, isConnected }: LayoutProps) {
       .slice(0, HISTORY_LIMIT);
   }, [apps, previewAppIdentifiers]);
 
-  const shouldShowHistory = previewRouteInfo.isPreviewRoute && recentApps.length > 0;
+  const shouldShowHistory = (previewRouteInfo.isPreviewRoute || isAppsListRoute) && recentApps.length > 0;
 
   // Fetch counts and system info
   useEffect(() => {
@@ -594,7 +599,25 @@ export default function Layout({ children, isConnected }: LayoutProps) {
     }
   };
 
-  const headerTitle = previewRouteInfo.isPreviewRoute ? (previewAppName ?? 'Loading…') : 'Vrooli';
+  const headerTitle = useMemo(() => {
+    if (previewRouteInfo.isPreviewRoute) {
+      return previewAppName ?? 'Loading…';
+    }
+
+    if (isAppsListRoute) {
+      return 'Apps';
+    }
+
+    if (isLogsRoute) {
+      return 'Logs';
+    }
+
+    if (isResourcesRoute) {
+      return 'Resources';
+    }
+
+    return 'Vrooli';
+  }, [isAppsListRoute, isLogsRoute, isResourcesRoute, previewAppName, previewRouteInfo.isPreviewRoute]);
 
   const menuItems: Array<{ path: string; label: string; Icon: LucideIcon; count?: number }> = useMemo(() => ([
     { path: '/apps', label: 'APPLICATIONS', Icon: LayoutDashboard, count: appCount },
@@ -676,7 +699,7 @@ export default function Layout({ children, isConnected }: LayoutProps) {
               <div className="header-title-wrapper">
                 <div
                   className="header-title"
-                  title={previewRouteInfo.isPreviewRoute ? previewAppName ?? undefined : 'Vrooli'}
+                  title={headerTitle}
                 >
                   {headerTitle}
                 </div>

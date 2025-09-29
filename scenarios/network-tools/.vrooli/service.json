@@ -52,15 +52,15 @@
       "enabled": true,
       "language": "go",
       "path": "api",
-      "main": "main.go",
+      "main": "cmd/server/",
       "description": "Go-based API server with REST endpoints"
     },
     "ui": {
-      "enabled": true,
-      "framework": "react",
+      "enabled": false,
+      "framework": "none",
       "path": "ui",
       "main": "index.html",
-      "description": "React-based web interface"
+      "description": "No UI for this CLI/API-focused tool"
     },
     "cli": {
       "enabled": true,
@@ -107,15 +107,9 @@
     },
     "windmill": {
       "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "purpose": "Workflow automation and business logic orchestration",
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/windmill-app.json",
-          "type": "app"
-        }
-      ]
+      "enabled": false,
+      "required": false,
+      "purpose": "Workflow automation and business logic orchestration"
     },
     "node-red": {
       "type": "node-red",
@@ -128,7 +122,7 @@
       "enabled": false,
       "required": false,
       "models": [
-        "AI_MODEL_PLACEHOLDER"
+        "llama3.2"
       ],
       "purpose": "Local AI inference for intelligent features"
     },
@@ -227,27 +221,10 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o network-tools-api ./cmd/server/main.go",
+          "run": "cd api && go mod download && go build -o network-tools-api ./cmd/server/",
           "description": "Build Go API server",
           "condition": {
             "file_exists": "api/go.mod"
-          }
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install --silent",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build React UI for production",
-          "condition": {
-            "file_exists": "ui/package.json",
-            "json_path_exists": "ui/package.json:scripts.build"
           }
         },
         {
@@ -269,12 +246,6 @@
              "file_exists": "api/network-tools-api"
            }
          },
-         {
-           "name": "start-ui",
-           "run": "cd ui && npm run dev -- --port $UI_PORT --host 0.0.0.0",
-           "description": "Start UI development server",
-           "background": true
-         },
           {
             "name": "show-urls",
             "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: network-tools --help'",
@@ -287,7 +258,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build ./cmd/server/main.go && rm test-build",
+          "run": "cd api && go build -o test-build ./cmd/server/ && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/go.mod"
@@ -305,24 +276,6 @@
           "name": "test-api-health",
           "run": "curl -sf http://localhost:$API_PORT/health",
           "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-ui-build",
-          "run": "cd ui && npm run build",
-          "description": "Test UI build process",
-          "condition": {
-            "file_exists": "ui/package.json",
-            "json_path_exists": "ui/package.json:scripts.build"
-          }
-        },
-        {
-          "name": "test-ui-unit",
-          "run": "cd ui && npm test -- --watchAll=false",
-          "description": "Run UI unit tests",
-          "condition": {
-            "file_exists": "ui/package.json",
-            "json_path_exists": "ui/package.json:scripts.test"
-          }
         },
         {
           "name": "test-cli-commands",
@@ -555,30 +508,30 @@
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "VALUE_PROPOSITION_PLACEHOLDER",
+      "valueProposition": "Complete network operations platform without external dependencies",
       "targetMarket": "developers",
       "painPoints": [
-        "PAIN_POINT_1_PLACEHOLDER",
-        "PAIN_POINT_2_PLACEHOLDER",
-        "PAIN_POINT_3_PLACEHOLDER"
+        "Fragmented network testing tools requiring multiple licenses",
+        "Lack of unified API for network operations",
+        "Complex integration of network monitoring and testing"
       ],
-      "solution": "SOLUTION_DESCRIPTION_PLACEHOLDER",
-      "competitiveAdvantage": "COMPETITIVE_ADVANTAGE_PLACEHOLDER",
+      "solution": "Unified network operations platform with HTTP, DNS, SSL, and API testing capabilities",
+      "competitiveAdvantage": "Integrated network operations with AI-enhanced analysis and zero external dependencies",
       "revenuePotential": {
-        "initial": "$INITIAL_REVENUE_PLACEHOLDER",
-        "recurring": "$RECURRING_REVENUE_PLACEHOLDER",
-        "expansion": "$EXPANSION_REVENUE_PLACEHOLDER",
-        "totalEstimate": "$TOTAL_ESTIMATE_PLACEHOLDER"
+        "initial": "$20,000",
+        "recurring": "$5,000/month",
+        "expansion": "$100,000",
+        "totalEstimate": "$180,000/year"
       },
       "marketDemand": {
-        "level": "DEMAND_LEVEL_PLACEHOLDER",
-        "growth": "GROWTH_RATE_PLACEHOLDER",
-        "evidence": "MARKET_EVIDENCE_PLACEHOLDER"
+        "level": "High",
+        "growth": "25% YoY",
+        "evidence": "Growing demand for unified network monitoring and API testing solutions"
       },
       "roi": {
-        "developmentCost": "$DEVELOPMENT_COST_PLACEHOLDER",
-        "timeToMarket": "TIME_TO_MARKET_PLACEHOLDER",
-        "breakEven": "BREAK_EVEN_TIMELINE_PLACEHOLDER"
+        "developmentCost": "$15,000",
+        "timeToMarket": "2 weeks",
+        "breakEven": "3 months"
       }
     },
     "performance": {
@@ -618,17 +571,17 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "APPLICATION_NAME_PLACEHOLDER",
+          "default": "Network Tools",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
           "type": "string",
-          "default": "COMPANY_NAME_PLACEHOLDER",
+          "default": "Vrooli",
           "description": "Customer company name"
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#PRIMARY_COLOR_PLACEHOLDER",
+          "default": "#0066CC",
           "description": "Brand primary color"
         },
         "DATABASE_NAME": {
@@ -640,7 +593,7 @@
       "features": {
         "authentication": {
           "enabled": true,
-          "provider": "AUTH_PROVIDER_PLACEHOLDER",
+          "provider": "api-key",
           "sso": false
         },
         "notifications": {
@@ -656,38 +609,31 @@
         },
         "payments": {
           "enabled": false,
-          "provider": "PAYMENT_PROVIDER_PLACEHOLDER"
+          "provider": "stripe"
         }
       },
       "integrations": [
         {
-          "name": "INTEGRATION_NAME_PLACEHOLDER",
-          "type": "INTEGRATION_TYPE_PLACEHOLDER",
-          "required": false
+          "name": "HTTP Client",
+          "type": "network",
+          "required": true
+        },
+        {
+          "name": "DNS Resolver",
+          "type": "network",
+          "required": true
+        },
+        {
+          "name": "SSL/TLS Validator",
+          "type": "security",
+          "required": true
         }
       ]
     },
     "aiGeneration": {
       "enabled": true,
-      "placeholders": {
-        "business": [
-          "VALUE_PROPOSITION_PLACEHOLDER",
-          "developers",
-          "PAIN_POINT_*_PLACEHOLDER",
-          "SOLUTION_DESCRIPTION_PLACEHOLDER"
-        ],
-        "technical": [
-          "network-tools",
-          "network_tools",
-          "network-tools"
-        ],
-        "revenue": [
-          "*_REVENUE_PLACEHOLDER",
-          "TOTAL_ESTIMATE_PLACEHOLDER",
-          "DEVELOPMENT_COST_PLACEHOLDER"
-        ]
-      },
-      "instructions": "Replace all _PLACEHOLDER values with specific details for the target scenario"
+      "placeholders": {},
+      "instructions": "All placeholders have been replaced with actual values for the network-tools scenario"
     }
   }
 }

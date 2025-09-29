@@ -20,8 +20,8 @@ var apiURL string
 func init() {
 	apiPort := os.Getenv("API_PORT")
 	if apiPort == "" {
-		// Try to find the actual running port from the API process
-		apiPort = "19294" // Default to current running port
+		// Default to the actual running port
+		apiPort = "19302"
 	}
 	apiURL = fmt.Sprintf("http://localhost:%s/api/v1", apiPort)
 }

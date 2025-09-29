@@ -8,7 +8,9 @@ AI-powered multi-tenant email management system that intelligently processes, pr
 
 - **AI Rule Assistant**: Create complex email rules using natural language - "Archive all newsletters" becomes intelligent automation
 - **Semantic Search**: Find emails by meaning, not just keywords - search for "urgent meeting" and find related emails even without those exact words
-- **Smart Prioritization**: AI analyzes email content, sender importance, and context to automatically prioritize your inbox
+- **Smart Prioritization**: ML-based scoring algorithm analyzes sender importance (30%), subject urgency (25%), content (20%), recipients (15%), and recency (10%)
+- **Automated Triage Actions**: Execute 8 different actions - forward, archive, label, mark important, auto-reply, move to folder, delete, mark read
+- **Real-Time Processing**: Background processor syncs emails every 5 minutes, applies rules automatically, and sends high-priority notifications
 - **Multi-Tenant SaaS**: Deploy as revenue-generating service with isolated user environments and subscription tiers
 - **Zero n8n Dependency**: Pure Go implementation for maximum performance and reliability
 

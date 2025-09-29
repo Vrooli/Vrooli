@@ -10,13 +10,13 @@
 ## Requirements Checklist
 
 ### P0 Requirements (Must Have)
-- [ ] **Health Check**: API responds to /health endpoint with service status
-- [ ] **CRUD Operations**: Create, Read, Update, Delete notes via API and UI
+- [x] **Health Check**: API responds to /health endpoint with service status
+- [x] **CRUD Operations**: Create, Read, Update, Delete notes via API and UI
 - [ ] **Semantic Search**: Vector-based search using Qdrant for finding notes by meaning
 - [ ] **Folder Organization**: Hierarchical folder structure for note organization
-- [ ] **Markdown Support**: Full markdown rendering and editing in UI
-- [ ] **CLI Interface**: Command-line tool for quick note operations
-- [ ] **Cross-Scenario API**: Other scenarios can store/retrieve notes via API
+- [x] **Markdown Support**: Full markdown rendering and editing in UI
+- [x] **CLI Interface**: Command-line tool for quick note operations
+- [x] **Cross-Scenario API**: Other scenarios can store/retrieve notes via API
 
 ### P1 Requirements (Should Have)
 - [ ] **AI Processing**: Automatic summarization, tagging, and linking via n8n workflows

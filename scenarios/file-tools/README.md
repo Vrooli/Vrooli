@@ -23,12 +23,10 @@ File Tools provides a complete file management solution with compression, archiv
 - ✅ **Smart Organization** - Automatic organization by type and date
 - ✅ **File Search** - Fast filename and path searching  
 - ✅ **Batch Metadata Extraction** - Process multiple files simultaneously
-
-### Features In Development (P1)
-- 🔄 File relationship mapping
-- 🔄 Storage optimization recommendations
-- 🔄 Access pattern analysis
-- 🔄 File integrity monitoring
+- ✅ **File Relationship Mapping** - Discover dependencies and connections between files
+- ✅ **Storage Optimization** - Get compression recommendations and cleanup suggestions
+- ✅ **Access Pattern Analysis** - Track file usage and get performance insights
+- ✅ **File Integrity Monitoring** - Detect corruption and verify file integrity
 
 ## 🚀 Quick Start
 
@@ -112,6 +110,10 @@ curl -X POST http://localhost:8080/api/v1/files/checksum \
 | POST | `/api/v1/files/duplicates/detect` | Detect duplicate files |
 | POST | `/api/v1/files/organize` | Organize files intelligently |
 | GET | `/api/v1/files/search` | Search files by name or content |
+| POST | `/api/v1/files/relationships/map` | Map file relationships and dependencies |
+| POST | `/api/v1/files/storage/optimize` | Get storage optimization recommendations |
+| POST | `/api/v1/files/access/analyze` | Analyze file access patterns |
+| POST | `/api/v1/files/integrity/monitor` | Monitor file integrity and detect issues |
 
 ## 📦 Installation
 

@@ -231,3 +231,7 @@ body {
     display: none;
   }
 }
+.panel-title-spacer {
+  flex: 1;
+  min-height: 1.5rem;
+}

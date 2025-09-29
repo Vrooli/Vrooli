@@ -88,7 +88,7 @@ fi
 
 # Test 6: CLI status
 echo -n "Testing CLI status... "
-if ./cli/elo-swipe status &>/dev/null; then
+if API_PORT=$API_PORT VROOLI_LIFECYCLE_MANAGED=true elo-swipe status &>/dev/null; then
     echo "✓"
 else
     echo "✗"

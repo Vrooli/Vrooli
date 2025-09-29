@@ -47,8 +47,11 @@ curl -X POST http://localhost:30400/api/v1/lists \
   -H "Content-Type: application/json" \
   -d '{"name":"My List","items":[{"content":"Item 1"},{"content":"Item 2"}]}'
 
-# Get rankings
+# Get rankings (JSON format - default)
 curl http://localhost:30400/api/v1/lists/<list-id>/rankings
+
+# Export rankings as CSV
+curl http://localhost:30400/api/v1/lists/<list-id>/rankings?format=csv > rankings.csv
 ```
 
 ## 🧮 How It Works
@@ -102,6 +105,9 @@ window.open(`http://localhost:36850?list=${list_id}`);
 - ✅ PostgreSQL persistence
 - ✅ CLI interface
 - ✅ Multi-list support
+- ✅ Export to JSON/CSV
+- ✅ Progress tracking
+- ✅ Confidence scores
 - ⏳ AI-enhanced pairing
 - ⏳ Team consensus features
 - ⏳ Preference learning
