@@ -50,9 +50,9 @@ usage() {
     echo -e "  ${GREEN}create${NC}       Create a new issue with detailed context"
     echo -e "  ${GREEN}list${NC}         List issues with powerful filtering options"
     echo -e "  ${GREEN}show${NC}         Show comprehensive issue details"
-    echo -e "  ${GREEN}investigate${NC}  Trigger AI-powered issue investigation"
+    echo -e "  ${GREEN}investigate${NC}  Run unified AI investigation + fix"
     echo -e "  ${GREEN}search${NC}       Search issues by text or semantic content"
-    echo -e "  ${GREEN}fix${NC}          Generate and apply automated fixes"
+    echo -e "  ${GREEN}fix${NC}          Alias for unified investigation + fix"
     echo -e "  ${GREEN}agents${NC}       Manage AI investigation agents"
     echo -e "  ${GREEN}apps${NC}         View app-specific issue statistics"
     echo -e "  ${GREEN}stats${NC}        View comprehensive issue analytics"
@@ -61,9 +61,9 @@ usage() {
     echo "Examples:"
     echo "  app-issue-tracker create --title \"Auth timeout bug\" --type bug --priority critical"
     echo "  app-issue-tracker list --status open --priority high"
-    echo "  app-issue-tracker investigate issue-abc123 --agent deep-investigator"
+    echo "  app-issue-tracker investigate issue-abc123 --agent unified-resolver"
     echo "  app-issue-tracker search \"authentication timeout\""
-    echo "  app-issue-tracker fix issue-abc123 --auto-apply"
+    echo "  app-issue-tracker fix issue-abc123"
     echo ""
     echo "Options:"
     echo "  --help, -h       Show help for any command"
@@ -336,7 +336,7 @@ cmd_list() {
                 echo "List issues with powerful filtering capabilities"
                 echo ""
                 echo "Options:"
-                echo "  --status <status>     Filter by status (open/investigating/in-progress/fixed/closed/failed)"
+                echo "  --status <status>     Filter by status (open/active/completed/failed)"
                 echo "  --priority <priority> Filter by priority (critical/high/medium/low)"
                 echo "  --type <type>         Filter by type (bug/feature/performance/security)"
                 echo "  --limit <num>         Maximum number of results (default: 20)"
@@ -528,26 +528,140 @@ cmd_investigate() {
     local agent_id=""
     local priority="normal"
     local json_output=false
-    
+    local analysis_only=false
+
     if [[ -z "$issue_id" || "$issue_id" == "--help" || "$issue_id" == "-h" ]]; then
         echo "Usage: app-issue-tracker investigate <issue-id> [OPTIONS]"
         echo ""
-        echo "Trigger AI-powered investigation of an issue"
+        echo "Trigger the unified AI agent run for an issue (investigation + resolution)"
         echo ""
         echo "Arguments:"
         echo "  issue-id    Issue ID to investigate"
         echo ""
         echo "Options:"
-        echo "  --agent <id>        Agent to use (default: deep-investigator)"
+        echo "  --agent <id>        Agent to use (default: unified-resolver)"
         echo "  --priority <level>  Investigation priority (normal/high/urgent)"
+        echo "  --analysis-only     Skip fix generation and only run investigation"
         echo "  --json              Output in JSON format"
         echo ""
         echo "Examples:"
         echo "  app-issue-tracker investigate issue-abc123"
-        echo "  app-issue-tracker investigate issue-def456 --agent auto-fixer --priority high"
+        echo "  app-issue-tracker investigate issue-def456 --agent unified-resolver --priority high"
+        echo "  app-issue-tracker investigate issue-ghi789 --analysis-only"
         return 0
     fi
+
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --agent)
+                agent_id="$2"
+                shift 2
+                ;;
+            --priority)
+                priority="$2"
+                shift 2
+                ;;
+            --analysis-only)
+                analysis_only=true
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
     
+    # Default agent if not specified
+    [[ -z "$agent_id" ]] && agent_id="unified-resolver"
+    
+    # Build request JSON
+    local auto_resolve=$([[ "$analysis_only" == "true" ]] && echo false || echo true)
+
+    local request_body=$(jq -n \
+        --arg issue_id "$issue_id" \
+        --arg agent_id "$agent_id" \
+        --arg priority "$priority" \
+        --argjson auto_resolve "$auto_resolve" \
+        '{
+            issue_id: $issue_id,
+            agent_id: $agent_id,
+            priority: $priority,
+            auto_resolve: $auto_resolve
+        }')
+
+    if [[ "$analysis_only" == "true" ]]; then
+        echo -e "${BLUE}🔍 Starting AI investigation (analysis-only)...${NC}"
+    else
+        echo -e "${BLUE}🤖 Starting unified agent run (investigation + fix)...${NC}"
+    fi
+    echo "   Issue ID: $issue_id"
+    echo "   Agent: $agent_id"
+    echo "   Priority: $priority"
+    if [[ "$analysis_only" == "true" ]]; then
+        echo "   Auto-resolve: No"
+    else
+        echo "   Auto-resolve: Yes"
+    fi
+    echo ""
+
+    local response
+    response=$(api_request "POST" "${API_BASE_PATH}/investigate" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | grep -q "success.*true"; then
+            echo -e "${GREEN}✅ Agent run started successfully${NC}"
+            local run_id
+            local resolution_id
+            run_id=$(echo "$response" | jq -r '.data.run_id // "unknown"' 2>/dev/null)
+            echo "   Run ID: $run_id"
+            resolution_id=$(echo "$response" | jq -r '.data.resolution_id // "unknown"' 2>/dev/null)
+            [[ "$resolution_id" != "unknown" ]] && echo "   Resolution ID: $resolution_id"
+            echo "   Status: $(echo "$response" | jq -r '.data.status // "unknown"' 2>/dev/null)"
+            echo ""
+            echo "   The agent run is executing in the background."
+            echo "   Check the issue with: app-issue-tracker list --status active"
+        else
+            echo -e "${RED}❌ Failed to start investigation${NC}"
+            echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null
+        fi
+    fi
+}
+
+# Generate fix command
+cmd_fix() {
+    local issue_id="$1"
+    local json_output=false
+    local agent_id=""
+    local priority="normal"
+
+    if [[ -z "$issue_id" || "$issue_id" == "--help" || "$issue_id" == "-h" ]]; then
+        echo "Usage: app-issue-tracker fix <issue-id> [OPTIONS]"
+        echo ""
+        echo "Run the unified AI agent to investigate and resolve an issue"
+        echo ""
+        echo "Arguments:"
+        echo "  issue-id    Issue ID to resolve"
+        echo ""
+        echo "Options:"
+        echo "  --agent <id>        Agent to use (default: unified-resolver)"
+        echo "  --priority <level>  Run priority (normal/high/urgent)"
+        echo "  --json              Output in JSON format"
+        echo ""
+        echo "Examples:"
+        echo "  app-issue-tracker fix issue-abc123"
+        echo "  app-issue-tracker fix issue-def456 --agent unified-resolver"
+        echo ""
+        echo "Note: Legacy options like --auto-apply are now handled automatically"
+        return 0
+    fi
+
     shift
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -563,147 +677,23 @@ cmd_investigate() {
                 json_output=true
                 shift
                 ;;
+            --auto-apply|--no-backup)
+                echo -e "${YELLOW}⚠️  Legacy option '$1' is now handled automatically.${NC}"
+                shift
+                ;;
             *)
                 shift
                 ;;
         esac
     done
-    
-    # Default agent if not specified
-    [[ -z "$agent_id" ]] && agent_id="deep-investigator"
-    
-    # Build request JSON
-    local request_body=$(jq -n \
-        --arg issue_id "$issue_id" \
-        --arg agent_id "$agent_id" \
-        --arg priority "$priority" \
-        '{
-            issue_id: $issue_id,
-            agent_id: $agent_id,
-            priority: $priority
-        }')
-    
-    echo -e "${BLUE}🔍 Starting AI investigation...${NC}"
-    echo "   Issue ID: $issue_id"
-    echo "   Agent: $agent_id"
-    echo "   Priority: $priority"
-    echo ""
-    
-    local response
-    response=$(api_request "POST" "${API_BASE_PATH}/investigate" "$request_body")
-    
-    if [[ $json_output == true ]]; then
-        echo "$response" | format_json
-    else
-        if echo "$response" | grep -q "success.*true"; then
-            echo -e "${GREEN}✅ Investigation started successfully${NC}"
-            local run_id
-            local investigation_id
-            run_id=$(echo "$response" | jq -r '.data.run_id // "unknown"' 2>/dev/null)
-            investigation_id=$(echo "$response" | jq -r '.data.investigation_id // "unknown"' 2>/dev/null)
-            echo "   Run ID: $run_id"
-            echo "   Investigation ID: $investigation_id"
-            echo "   Status: $(echo "$response" | jq -r '.data.status // "unknown"' 2>/dev/null)"
-            echo ""
-            echo "   The investigation is running in the background."
-            echo "   Check the issue status with: app-issue-tracker list --status investigating"
-        else
-            echo -e "${RED}❌ Failed to start investigation${NC}"
-            echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null
-        fi
-    fi
-}
 
-# Generate fix command
-cmd_fix() {
-    local issue_id="$1"
-    local auto_apply=false
-    local backup_enabled=true
-    local json_output=false
-    
-    if [[ -z "$issue_id" || "$issue_id" == "--help" || "$issue_id" == "-h" ]]; then
-        echo "Usage: app-issue-tracker fix <issue-id> [OPTIONS]"
-        echo ""
-        echo "Generate and optionally apply automated fixes"
-        echo ""
-        echo "Arguments:"
-        echo "  issue-id    Issue ID to generate fix for"
-        echo ""
-        echo "Options:"
-        echo "  --auto-apply        Automatically apply the generated fix"
-        echo "  --no-backup         Skip backup creation before applying fix"
-        echo "  --json              Output in JSON format"
-        echo ""
-        echo "Examples:"
-        echo "  app-issue-tracker fix issue-abc123"
-        echo "  app-issue-tracker fix issue-def456 --auto-apply"
-        echo "  app-issue-tracker fix issue-ghi789 --auto-apply --no-backup"
-        echo ""
-        echo "Note: Issue must be investigated before fixes can be generated"
-        return 0
-    fi
-    
-    shift
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --auto-apply)
-                auto_apply=true
-                shift
-                ;;
-            --no-backup)
-                backup_enabled=false
-                shift
-                ;;
-            --json)
-                json_output=true
-                shift
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Build request JSON
-    local request_body=$(jq -n \
-        --arg issue_id "$issue_id" \
-        --argjson auto_apply "$auto_apply" \
-        --argjson backup_enabled "$backup_enabled" \
-        '{
-            issue_id: $issue_id,
-            auto_apply: $auto_apply,
-            backup_enabled: $backup_enabled
-        }')
-    
-    echo -e "${BLUE}🔧 Generating fix...${NC}"
-    echo "   Issue ID: $issue_id"
-    echo "   Auto-apply: $([ "$auto_apply" == "true" ] && echo "Yes" || echo "No")"
-    echo "   Backup enabled: $([ "$backup_enabled" == "true" ] && echo "Yes" || echo "No")"
-    echo ""
-    
-    local response
-    response=$(api_request "POST" "${API_BASE_PATH}/generate-fix" "$request_body")
-    
-    if [[ $json_output == true ]]; then
-        echo "$response" | format_json
-    else
-        if echo "$response" | grep -q "success.*true"; then
-            echo -e "${GREEN}✅ Fix generation started successfully${NC}"
-            local run_id
-            local fix_id
-            run_id=$(echo "$response" | jq -r '.data.run_id // "unknown"' 2>/dev/null)
-            fix_id=$(echo "$response" | jq -r '.data.fix_id // "unknown"' 2>/dev/null)
-            echo "   Run ID: $run_id"
-            echo "   Fix ID: $fix_id"
-            echo "   Status: $(echo "$response" | jq -r '.data.status // "unknown"' 2>/dev/null)"
-            echo ""
-            echo "   The fix generation is running in the background."
-            echo "   Check the issue status with: app-issue-tracker list --status in-progress"
-        else
-            echo -e "${RED}❌ Failed to generate fix${NC}"
-            echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null
-        fi
-    fi
+    local args=("$issue_id")
+    [[ -n "$agent_id" ]] && args+=(--agent "$agent_id")
+    [[ "$priority" != "normal" ]] && args+=(--priority "$priority")
+    [[ "$json_output" == true ]] && args+=(--json)
+
+    echo -e "${YELLOW}⚠️  'fix' now proxies to the unified investigation + fix workflow.${NC}"
+    cmd_investigate "${args[@]}"
 }
 
 # Agents command
@@ -859,7 +849,7 @@ cmd_stats() {
                     "📚 Total Issues: \(.total_issues)",
                     "🟢 Open Issues: \(.open_issues)",
                     "🔄 In Progress: \(.in_progress)",
-                    "✅ Fixed Today: \(.fixed_today)",
+                    "✅ Completed Today: \(.completed_today)",
                     "⏱️  Avg Resolution: \(.avg_resolution_hours) hours",
                     ""' 2>/dev/null
                 

@@ -6,7 +6,7 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 CREATE EXTENSION IF NOT EXISTS "vector";
 
 -- Enum types
-CREATE TYPE issue_status AS ENUM ('open', 'investigating', 'in_progress', 'fixed', 'closed', 'wont_fix', 'duplicate');
+CREATE TYPE issue_status AS ENUM ('open', 'active', 'completed', 'failed', 'archived', 'wont_fix', 'duplicate');
 CREATE TYPE issue_priority AS ENUM ('critical', 'high', 'medium', 'low');
 CREATE TYPE issue_type AS ENUM ('bug', 'feature', 'improvement', 'documentation', 'performance', 'security');
 CREATE TYPE agent_status AS ENUM ('idle', 'working', 'failed', 'completed');
@@ -296,7 +296,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     UPDATE apps
     SET total_issues = (SELECT COUNT(*) FROM issues WHERE app_id = COALESCE(NEW.app_id, OLD.app_id)),
-        open_issues = (SELECT COUNT(*) FROM issues WHERE app_id = COALESCE(NEW.app_id, OLD.app_id) AND status IN ('open', 'investigating', 'in_progress'))
+        open_issues = (SELECT COUNT(*) FROM issues WHERE app_id = COALESCE(NEW.app_id, OLD.app_id) AND status IN ('open', 'active'))
     WHERE id = COALESCE(NEW.app_id, OLD.app_id);
     RETURN NEW;
 END;

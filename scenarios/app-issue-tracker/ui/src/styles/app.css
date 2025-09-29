@@ -57,7 +57,9 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
 .sidebar-nav-item:hover {
@@ -149,26 +151,6 @@
 .processor-toggle.off {
   background: rgba(148, 163, 184, 0.12);
   color: #475569;
-}
-
-.active-agent-selector {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: #fff;
-  color: #0f172a;
-}
-
-.active-agent-selector select {
-  border: none;
-  background: transparent;
-  padding-right: 18px;
-  appearance: none;
-  font-size: 14px;
 }
 
 .primary-action {
@@ -412,19 +394,19 @@
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
-.issues-board .kanban-grid[data-columns='1'] {
+.issues-board .kanban-grid[data-columns="1"] {
   grid-template-columns: minmax(320px, 1fr);
 }
 
-.issues-board .kanban-grid[data-columns='2'] {
+.issues-board .kanban-grid[data-columns="2"] {
   grid-template-columns: repeat(2, minmax(280px, 1fr));
 }
 
-.issues-board .kanban-grid[data-columns='3'] {
+.issues-board .kanban-grid[data-columns="3"] {
   grid-template-columns: repeat(3, minmax(260px, 1fr));
 }
 
-.issues-board .kanban-grid[data-columns='4'] {
+.issues-board .kanban-grid[data-columns="4"] {
   grid-template-columns: repeat(4, minmax(240px, 1fr));
 }
 
@@ -451,7 +433,10 @@
   font-weight: 600;
   cursor: pointer;
   color: inherit;
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
 }
 
 .issues-toolbar-trigger:hover,
@@ -545,7 +530,9 @@
   font-size: 14px;
   background: var(--card-bg);
   color: inherit;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .select-wrapper select:focus {
@@ -586,7 +573,10 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .column-toggle:hover {
@@ -628,7 +618,9 @@
   flex-direction: column;
   min-height: 440px;
   box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .kanban-column--drag-over {
@@ -666,7 +658,9 @@
   padding: 6px;
   border-radius: 8px;
   cursor: pointer;
-  transition: color 0.2s ease, background 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
 }
 
 .column-hide-btn:hover {
@@ -722,7 +716,10 @@
   color: #0f172a;
   cursor: grab;
   box-shadow: 0 18px 36px rgba(15, 23, 42, 0.1);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
   outline: none;
 }
 
@@ -814,7 +811,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
   cursor: pointer;
 }
 
@@ -935,6 +935,7 @@
   display: grid;
   grid-template-columns: 220px 1fr;
   gap: 20px;
+  align-items: flex-start;
 }
 
 .settings-tabs {
@@ -944,6 +945,9 @@
   padding: 12px;
   display: grid;
   gap: 8px;
+  align-self: flex-start;
+  position: sticky;
+  top: 24px;
 }
 
 .settings-tab {
@@ -996,6 +1000,106 @@
   gap: 12px;
 }
 
+.slider-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slider-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-weight: 500;
+}
+
+.slider-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.slider-field input[type="range"] {
+  width: 100%;
+  accent-color: #6366f1;
+}
+
+.slider-range {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.toggle-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px 4px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.toggle-switch:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.6);
+  outline-offset: 2px;
+}
+
+.toggle-track {
+  position: relative;
+  width: 44px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.14);
+  transition: transform 0.2s ease;
+}
+
+.toggle-text {
+  font-weight: 600;
+  min-width: 48px;
+  text-align: center;
+}
+
+.toggle-switch.active {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.toggle-switch.active .toggle-track {
+  background: rgba(99, 102, 241, 0.6);
+}
+
+.toggle-switch.active .toggle-thumb {
+  transform: translateX(22px);
+}
+
 .form-section-header {
   display: flex;
   align-items: center;
@@ -1030,7 +1134,9 @@
   gap: 12px;
   cursor: pointer;
   background: #eef2ff;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 
 .attachment-dropzone:hover,
@@ -1166,8 +1272,8 @@ label span {
   color: var(--muted);
 }
 
-input[type='text'],
-input[type='number'],
+input[type="text"],
+input[type="number"],
 select,
 textarea {
   width: 100%;
@@ -1182,8 +1288,8 @@ textarea {
   resize: vertical;
 }
 
-.dark input[type='text'],
-.dark input[type='number'],
+.dark input[type="text"],
+.dark input[type="number"],
 .dark select,
 .dark textarea {
   background: rgba(17, 24, 39, 0.65);
@@ -1215,36 +1321,6 @@ textarea::placeholder {
   margin: 0;
 }
 
-.active-agent-list {
-  margin-top: 24px;
-}
-
-.active-agent-list ul {
-  list-style: none;
-  padding: 0;
-  margin: 12px 0 0;
-  display: grid;
-  gap: 10px;
-}
-
-.active-agent-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(99, 102, 241, 0.08);
-}
-
-.active-agent-list button {
-  border: none;
-  background: rgba(239, 68, 68, 0.12);
-  color: #b91c1c;
-  padding: 6px 10px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
 .prompt-tester {
   display: grid;
   gap: 14px;
@@ -1253,6 +1329,76 @@ textarea::placeholder {
 
 .prompt-tester button {
   justify-content: center;
+}
+
+.prompt-case-details {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: rgba(15, 23, 42, 0.03);
+  display: grid;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.prompt-case-summary {
+  margin: 0;
+  color: var(--muted);
+}
+
+.prompt-case-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.prompt-case-meta span strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.prompt-case-error {
+  font-size: 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #b91c1c;
+}
+
+.prompt-error {
+  margin-top: 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(254, 226, 226, 0.6);
+  color: #b91c1c;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.prompt-template {
+  margin-top: 18px;
+  background: rgba(15, 23, 42, 0.02);
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  padding: 16px;
+}
+
+.prompt-template pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+
+.prompt-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
 }
 
 .prompt-result {
@@ -1285,6 +1431,11 @@ textarea::placeholder {
   .issues-board .kanban-grid,
   .settings-layout {
     grid-template-columns: 1fr;
+  }
+
+  .settings-tabs {
+    position: static;
+    top: auto;
   }
 }
 
@@ -1415,7 +1566,9 @@ textarea::placeholder {
   padding: 8px;
   border-radius: 10px;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
 .modal-close:hover {
@@ -1482,7 +1635,9 @@ textarea::placeholder {
   border-radius: 12px;
   padding: 10px 18px;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .ghost-button:hover {
@@ -1521,7 +1676,9 @@ textarea::placeholder {
   background: rgba(255, 255, 255, 0.92);
   color: #0f172a;
   font-size: 14px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .dark .form-field input,
@@ -1657,8 +1814,9 @@ textarea::placeholder {
 }
 
 .markdown-body code {
-  font-family: 'Fira Code', 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    'Liberation Mono', 'Courier New', monospace;
+  font-family:
+    "Fira Code", "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
   background: rgba(15, 23, 42, 0.08);
   padding: 2px 6px;
   border-radius: 4px;
@@ -1819,8 +1977,9 @@ textarea::placeholder {
 
 .attachment-preview-text {
   margin: 0;
-  font-family: 'Fira Code', 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    'Liberation Mono', 'Courier New', monospace;
+  font-family:
+    "Fira Code", "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 13px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1861,7 +2020,9 @@ textarea::placeholder {
   cursor: pointer;
   padding: 4px 6px;
   border-radius: 8px;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .attachment-toggle:hover,
@@ -1897,7 +2058,9 @@ textarea::placeholder {
   color: #312e81;
   cursor: pointer;
   text-decoration: none;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .attachment-button:hover {

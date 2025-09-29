@@ -45,7 +45,7 @@ The App Issue Tracker is a lightweight, file-based issue tracking system designe
 
 ### Issue Management
 - Create issues with title, description, priority, labels, assignee
-- Update issue status (open, investigating, in-progress, fixed, closed)
+- Update issue status (open, active, completed, failed)
 - Delete or archive issues
 - Bulk operations on multiple issues
 

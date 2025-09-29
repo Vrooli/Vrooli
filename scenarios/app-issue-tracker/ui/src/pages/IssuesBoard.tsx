@@ -1,15 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { DragEvent, ReactNode } from 'react';
-import {
-  AlertTriangle,
-  Archive as ArchiveIcon,
-  ArchiveRestore,
-  CheckCircle2,
-  CircleSlash,
-  Construction,
-  EyeOff,
-  Search,
-} from 'lucide-react';
+import { AlertTriangle, ArchiveRestore, CheckCircle2, CircleSlash, Construction, EyeOff } from 'lucide-react';
 import { Issue, IssueStatus } from '../data/sampleData';
 import { IssueCard } from '../components/IssueCard';
 
@@ -27,10 +18,8 @@ interface IssuesBoardProps {
 
 export const columnMeta: Record<IssueStatus, { title: string; icon: React.ComponentType<{ size?: number }> }> = {
   open: { title: 'Open', icon: AlertTriangle },
-  investigating: { title: 'Investigating', icon: Search },
-  'in-progress': { title: 'In Progress', icon: Construction },
-  fixed: { title: 'Fixed', icon: CheckCircle2 },
-  closed: { title: 'Closed', icon: ArchiveIcon },
+  active: { title: 'Active', icon: Construction },
+  completed: { title: 'Completed', icon: CheckCircle2 },
   failed: { title: 'Failed', icon: CircleSlash },
   archived: { title: 'Archived', icon: ArchiveRestore },
 };
@@ -52,10 +41,8 @@ export function IssuesBoard({
   const grouped = useMemo(() => {
     const base: Record<IssueStatus, Issue[]> = {
       open: [],
-      investigating: [],
-      'in-progress': [],
-      fixed: [],
-      closed: [],
+      active: [],
+      completed: [],
       failed: [],
       archived: [],
     };

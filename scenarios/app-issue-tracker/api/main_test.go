@@ -22,7 +22,7 @@ func newTestServer(t *testing.T) *Server {
 	tempDir := t.TempDir()
 
 	// Ensure folder structure exists for tests
-	for _, folder := range []string{"open", "investigating", "in-progress", "fixed", "closed", "failed", "templates"} {
+	for _, folder := range []string{"open", "active", "completed", "failed", "archived", "templates"} {
 		if err := os.MkdirAll(filepath.Join(tempDir, folder), 0o755); err != nil {
 			t.Fatalf("failed to create test folder %s: %v", folder, err)
 		}
@@ -96,7 +96,7 @@ func TestUpdateIssueHandlerMovesIssueAndUpdatesFields(t *testing.T) {
 
 	payload := map[string]any{
 		"title":    "Search endpoint fails",
-		"status":   "investigating",
+		"status":   "active",
 		"watchers": []string{" dev-team "},
 		"notes":    "Reproduced on staging",
 	}
@@ -119,8 +119,8 @@ func TestUpdateIssueHandlerMovesIssueAndUpdatesFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to locate updated issue: %v", err)
 	}
-	if newFolder != "investigating" {
-		t.Fatalf("expected issue folder 'investigating', got %s", newFolder)
+	if newFolder != "active" {
+		t.Fatalf("expected issue folder 'active', got %s", newFolder)
 	}
 
 	updatedIssue, err := server.loadIssueFromDir(refreshedDir)

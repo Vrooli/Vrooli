@@ -61,7 +61,7 @@ export_issues() {
     log "Exporting issues from PostgreSQL..."
     
     mkdir -p "$BACKUP_DIR"
-    mkdir -p "$ISSUES_DIR"/{open,investigating,in-progress,fixed,closed,failed}
+    mkdir -p "$ISSUES_DIR"/{open,active,completed,failed,archived}
     
     # Export issues query
     local export_query="
@@ -121,10 +121,10 @@ export_issues() {
         local target_folder="$status"
         case "$status" in
             "open") target_folder="open" ;;
-            "investigating") target_folder="investigating" ;;
-            "in_progress") target_folder="in-progress" ;;
-            "fixed") target_folder="fixed" ;;
-            "closed") target_folder="closed" ;;
+            "investigating"|"in_progress") target_folder="active" ;;
+            "fixed"|"closed") target_folder="completed" ;;
+            "failed") target_folder="failed" ;;
+            "archived") target_folder="archived" ;;
             *) target_folder="open" ;;
         esac
         
@@ -175,7 +175,7 @@ error_context:
   affected_files:$(if [[ -n "$affected_files" && "$affected_files" != '""' ]]; then echo "$affected_files" | sed 's/^"//;s/"$//' | tr ',' '\n' | sed 's/^/\n    - "/;s/$/"/'; fi)
 
 investigation:
-  agent_id: "deep-investigator"
+  agent_id: "unified-resolver"
   started_at: ""
   completed_at: "$(echo "$updated_at" | sed 's/^"//;s/"$//')"
   report: "$(echo "$investigation_report" | sed 's/^"//;s/"$//' | sed 's/"/\\"/g')"
@@ -277,13 +277,12 @@ create_migration_report() {
 
 \`\`\`
 issues/
-├── open/           # $(ls "$ISSUES_DIR/open"/*.yaml 2>/dev/null | wc -l) files
-├── investigating/  # $(ls "$ISSUES_DIR/investigating"/*.yaml 2>/dev/null | wc -l) files  
-├── in-progress/    # $(ls "$ISSUES_DIR/in-progress"/*.yaml 2>/dev/null | wc -l) files
-├── fixed/          # $(ls "$ISSUES_DIR/fixed"/*.yaml 2>/dev/null | wc -l) files
-├── closed/         # $(ls "$ISSUES_DIR/closed"/*.yaml 2>/dev/null | wc -l) files
-├── failed/         # $(ls "$ISSUES_DIR/failed"/*.yaml 2>/dev/null | wc -l) files
-└── templates/      # Template files for new issues
+├── open/        # $(ls "$ISSUES_DIR/open"/*.yaml 2>/dev/null | wc -l) files
+├── active/      # $(ls "$ISSUES_DIR/active"/*.yaml 2>/dev/null | wc -l) files
+├── completed/   # $(ls "$ISSUES_DIR/completed"/*.yaml 2>/dev/null | wc -l) files
+├── failed/      # $(ls "$ISSUES_DIR/failed"/*.yaml 2>/dev/null | wc -l) files
+├── archived/    # $(ls "$ISSUES_DIR/archived"/*.yaml 2>/dev/null | wc -l) files
+└── templates/   # Template files for new issues
 \`\`\`
 
 ## Next Steps
@@ -326,10 +325,10 @@ issues/
 ls issues/open/*.yaml
 
 # Move issue to different status
-mv issues/open/001-bug.yaml issues/investigating/
+mv issues/open/001-bug.yaml issues/active/
 
 # Edit issue manually
-vi issues/investigating/001-bug.yaml
+vi issues/active/001-bug.yaml
 
 # Search across all issues
 grep -r "timeout" issues/
@@ -433,7 +432,7 @@ main() {
         export_apps
     else
         warn "No PostgreSQL database found. Creating empty file structure..."
-        mkdir -p "$ISSUES_DIR"/{open,investigating,in-progress,fixed,closed,failed,templates}
+        mkdir -p "$ISSUES_DIR"/{open,active,completed,failed,archived,templates}
         
         # Create sample issues for testing
         log "Creating sample issues for testing..."

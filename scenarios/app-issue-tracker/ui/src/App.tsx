@@ -10,12 +10,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CalendarClock,
   CircleAlert,
-  ChevronDown,
   ExternalLink,
   FileCode,
   FileDown,
   FileText,
   Filter,
+  ChevronDown,
   Hash,
   Eye,
   EyeOff,
@@ -38,7 +38,6 @@ import { SettingsPage } from './pages/Settings';
 import {
   AppSettings,
   DashboardStats,
-  ActiveAgentOption,
   Issue,
   IssueAttachment,
   IssueStatus,
@@ -54,7 +53,7 @@ const API_BASE_INPUT = (import.meta.env.VITE_API_BASE_URL as string | undefined)
 const API_BASE_URL = API_BASE_INPUT.endsWith('/') ? API_BASE_INPUT.slice(0, -1) : API_BASE_INPUT;
 const ISSUE_FETCH_LIMIT = 200;
 const MAX_ATTACHMENT_PREVIEW_CHARS = 8000;
-const VALID_STATUSES: IssueStatus[] = ['open', 'investigating', 'in-progress', 'fixed', 'closed', 'failed', 'archived'];
+const VALID_STATUSES: IssueStatus[] = ['open', 'active', 'completed', 'failed', 'archived'];
 
 interface ApiIssue {
   id: string;
@@ -90,13 +89,7 @@ interface ApiStatsPayload {
   totalIssues?: number;
   openIssues?: number;
   inProgress?: number;
-  fixedToday?: number;
-}
-
-interface ApiAgent {
-  id: string;
-  name?: string;
-  display_name?: string;
+  completedToday?: number;
 }
 
 interface CreateIssueInput {
@@ -447,7 +440,7 @@ const DEFAULT_STATS: DashboardStats = {
   totalIssues: 0,
   openIssues: 0,
   inProgress: 0,
-  fixedToday: 0,
+  completedToday: 0,
   priorityBreakdown: {
     Critical: 0,
     High: 0,
@@ -469,15 +462,15 @@ function buildDashboardStats(issues: Issue[], apiStats?: ApiStatsPayload | null)
     priorityBreakdown[issue.priority] = (priorityBreakdown[issue.priority] ?? 0) + 1;
   });
 
-  const openStatuses: IssueStatus[] = ['open', 'investigating'];
+  const openStatuses: IssueStatus[] = ['open'];
   const todayKey = new Date().toISOString().slice(0, 10);
 
   const totalsFromIssues = {
     total: issues.length,
     open: issues.filter((issue) => openStatuses.includes(issue.status)).length,
-    inProgress: issues.filter((issue) => issue.status === 'in-progress').length,
-    fixedToday: issues.filter(
-      (issue) => issue.status === 'fixed' && getDateKey(issue.resolvedAt) === todayKey,
+    inProgress: issues.filter((issue) => issue.status === 'active').length,
+    completedToday: issues.filter(
+      (issue) => issue.status === 'completed' && getDateKey(issue.resolvedAt) === todayKey,
     ).length,
   };
 
@@ -485,7 +478,7 @@ function buildDashboardStats(issues: Issue[], apiStats?: ApiStatsPayload | null)
     totalIssues: apiStats?.totalIssues ?? totalsFromIssues.total,
     openIssues: apiStats?.openIssues ?? totalsFromIssues.open,
     inProgress: apiStats?.inProgress ?? totalsFromIssues.inProgress,
-    fixedToday: apiStats?.fixedToday ?? totalsFromIssues.fixedToday,
+    completedToday: apiStats?.completedToday ?? totalsFromIssues.completedToday,
     priorityBreakdown,
     statusTrend: buildStatusTrend(issues),
   };
@@ -629,9 +622,6 @@ function App() {
   const [processorSettings, setProcessorSettings] = useState<ProcessorSettings>(SampleData.processor);
   const [agentSettings, setAgentSettings] = useState(AppSettings.agent);
   const [displaySettings, setDisplaySettings] = useState(AppSettings.display);
-  const [rateLimits, setRateLimits] = useState(AppSettings.rateLimits);
-  const [allowedAgents, setAllowedAgents] = useState<ActiveAgentOption[]>([]);
-  const [selectedAgentId, setSelectedAgentId] = useState<string>(SampleData.activeAgents[0]?.id ?? '');
   const [issues, setIssues] = useState<Issue[]>([]);
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilterValue>('all');
   const [appFilter, setAppFilter] = useState<string>('all');
@@ -749,7 +739,8 @@ function App() {
             totalIssues: typeof stats.total_issues === 'number' ? stats.total_issues : undefined,
             openIssues: typeof stats.open_issues === 'number' ? stats.open_issues : undefined,
             inProgress: typeof stats.in_progress === 'number' ? stats.in_progress : undefined,
-            fixedToday: typeof stats.fixed_today === 'number' ? stats.fixed_today : undefined,
+            completedToday:
+              typeof stats.completed_today === 'number' ? stats.completed_today : undefined,
           };
         }
       }
@@ -762,41 +753,10 @@ function App() {
       setDashboardStats(computedStats);
     }
 
-    try {
-      const response = await fetch(buildApiUrl('/agents'));
-      if (response.ok) {
-        const payload = await response.json();
-        const agents: ApiAgent[] = Array.isArray(payload?.data?.agents) ? payload.data.agents : [];
-        if (isMountedRef.current) {
-          if (agents.length > 0) {
-            const options = agents.map((agent) => ({
-              id: agent.id,
-              label: agent.display_name ?? agent.name ?? agent.id,
-            }));
-            setAllowedAgents(options);
-          } else {
-            setAllowedAgents([]);
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to load agents', error);
-    }
-
     if (isMountedRef.current) {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    const activeOptions = allowedAgents.length > 0 ? allowedAgents : SampleData.activeAgents;
-    setSelectedAgentId((prev) => {
-      if (prev && activeOptions.some((option) => option.id === prev)) {
-        return prev;
-      }
-      return activeOptions[0]?.id ?? '';
-    });
-  }, [allowedAgents]);
 
   useEffect(() => {
     void fetchAllData();
@@ -1197,16 +1157,13 @@ function App() {
       case 'settings':
         return (
           <SettingsPage
+            apiBaseUrl={API_BASE_URL}
             processor={processorSettings}
             agent={agentSettings}
             display={displaySettings}
-            rateLimits={rateLimits}
-            activeAgents={allowedAgents.length > 0 ? allowedAgents : SampleData.activeAgents}
             onProcessorChange={processorSetter}
             onAgentChange={setAgentSettings}
             onDisplayChange={setDisplaySettings}
-            onRateLimitChange={setRateLimits}
-            onAgentsUpdate={setAllowedAgents}
           />
         );
       default:
@@ -1219,8 +1176,6 @@ function App() {
     processorSettings,
     agentSettings,
     displaySettings,
-    rateLimits,
-    allowedAgents,
     focusedIssueId,
     handleIssueSelect,
     handleIssueArchive,
@@ -1237,12 +1192,6 @@ function App() {
     handleResetHiddenColumns,
   ]);
 
-  const activeAgentOptions = allowedAgents.length > 0 ? allowedAgents : SampleData.activeAgents;
-  const activeAgentId =
-    selectedAgentId && activeAgentOptions.some((option) => option.id === selectedAgentId)
-      ? selectedAgentId
-      : activeAgentOptions[0]?.id ?? '';
-
   const showIssueDetailModal = issueDetailOpen && selectedIssue;
 
   return (
@@ -1258,11 +1207,8 @@ function App() {
         <div className="main-panel">
           <Header
             processor={processorSettings}
-            agents={activeAgentOptions}
-            selectedAgentId={activeAgentId}
             onToggleActive={handleToggleActive}
             onCreateIssue={handleCreateIssue}
-            onSelectAgent={setSelectedAgentId}
           />
           <main className="page-container">
             {loading && <div className="data-banner loading">Loading latest data…</div>}

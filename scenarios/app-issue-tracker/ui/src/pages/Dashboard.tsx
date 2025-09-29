@@ -125,15 +125,15 @@ export function Dashboard({ stats, issues, processor, agentSettings }: Dashboard
           tone="warning"
         />
         <StatsCard
-          title="In Progress"
+          title="Active"
           value={stats.inProgress}
-          subtitle="Active investigations"
+          subtitle="Agent currently working"
           icon={Clock3}
         />
         <StatsCard
-          title="Fixed Today"
-          value={stats.fixedToday}
-          subtitle="Marked complete in last 24h"
+          title="Completed Today"
+          value={stats.completedToday}
+          subtitle="Resolved in last 24h"
           icon={CheckCircle2}
           tone="success"
         />
@@ -181,7 +181,7 @@ export function Dashboard({ stats, issues, processor, agentSettings }: Dashboard
         <div className="detail-card">
           <header>
             <h3>Automation Configuration</h3>
-            <span className="detail-meta">resource-codex agent</span>
+            <span className="detail-meta">Unified agent</span>
           </header>
           <dl className="settings-summary">
             <div>

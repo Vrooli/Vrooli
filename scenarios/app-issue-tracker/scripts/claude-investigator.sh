@@ -9,6 +9,27 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="${SCRIPT_DIR}/../initialization/configuration"
 CLAUDE_CONFIG="${CONFIG_DIR}/claude-config.json"
 
+STATUSES=(open active completed failed archived investigating "in-progress" fixed closed)
+
+ISSUE_DIR=""
+ISSUE_METADATA_PATH=""
+INVESTIGATION_JSON=""
+INVESTIGATION_REPORT=""
+INVESTIGATION_ROOT_CAUSE=""
+INVESTIGATION_SUGGESTED_FIX=""
+INVESTIGATION_CONFIDENCE=0
+INVESTIGATION_AFFECTED_JSON="[]"
+INVESTIGATION_STARTED_AT=""
+INVESTIGATION_COMPLETED_AT=""
+FIX_JSON=""
+FIX_REPORT=""
+FIX_SUMMARY=""
+FIX_IMPLEMENTATION=""
+FIX_TEST_PLAN=""
+FIX_ROLLBACK=""
+FIX_STATUS="skipped"
+FIX_ERROR=""
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -33,14 +54,166 @@ warn() {
     echo -e "${YELLOW}[WARN]${NC} $*" >&2
 }
 
+ensure_command() {
+    local cmd="$1"
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        error "Required command '$cmd' not found in PATH"
+        return 1
+    fi
+    return 0
+}
+
+find_issue_directory() {
+    local root="$1"
+    local issue_id="$2"
+
+    for status in "${STATUSES[@]}"; do
+        local candidate="${root%/}/${status}/${issue_id}"
+        if [[ -d "$candidate" && -f "$candidate/metadata.yaml" ]]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+store_artifact() {
+    local source_file="$1"
+    local filename="$2"
+
+    if [[ -z "$ISSUE_DIR" || ! -d "$ISSUE_DIR" ]]; then
+        warn "Cannot store artifact because issue directory is unknown"
+        return 0
+    fi
+
+    if [[ ! -f "$source_file" ]]; then
+        warn "Artifact source '$source_file' missing"
+        return 0
+    fi
+
+    local artifacts_dir="${ISSUE_DIR}/artifacts"
+    mkdir -p "$artifacts_dir"
+    cp "$source_file" "${artifacts_dir}/${filename}"
+}
+
+extract_section() {
+    local heading="$1"
+    local content="$2"
+
+    printf '%s\n' "$content" | awk -v heading="$heading" '
+        $0 ~ heading {flag=1; next}
+        /^### / && flag {exit}
+        flag {print}
+    '
+}
+
+resolve_workflow() {
+    local issue_id="$1"
+    local agent_id="$2"
+    local project_path="${3:-}"
+    local prompt_template="${4:-Perform a full investigation and provide code-level remediation guidance.}"
+    local auto_flag="${5:-true}"
+
+    if [[ -z "$issue_id" ]]; then
+        error "Issue ID required"
+        exit 1
+    fi
+
+    ensure_command jq || exit 1
+
+    local issues_root="${ISSUES_DIR:-}"
+    if [[ -z "$issues_root" ]]; then
+        if [[ -n "$project_path" ]]; then
+            issues_root="${project_path%/}/data/issues"
+        else
+            issues_root="${SCRIPT_DIR}/../data/issues"
+        fi
+    fi
+
+    if [[ -d "$issues_root" ]]; then
+        if ISSUE_DIR=$(find_issue_directory "$issues_root" "$issue_id"); then
+            ISSUE_METADATA_PATH="${ISSUE_DIR}/metadata.yaml"
+        else
+            warn "Issue directory not found in $issues_root; artifacts will not be stored"
+            ISSUE_DIR=""
+            ISSUE_METADATA_PATH=""
+        fi
+    else
+        warn "Issues directory '$issues_root' not found; artifacts will not be stored"
+        ISSUE_DIR=""
+        ISSUE_METADATA_PATH=""
+    fi
+
+    if ! investigate_issue "$issue_id" "$agent_id" "$project_path" "$prompt_template" false; then
+        error "Investigation failed"
+        exit 1
+    fi
+
+    local auto_resolve="true"
+    if [[ "$auto_flag" =~ ^(false|0|no|analysis)$ ]]; then
+        auto_resolve="false"
+    fi
+
+    local run_status="analysis_complete"
+    local error_message=""
+
+    if [[ "$auto_resolve" == "true" ]]; then
+        if generate_fix "$issue_id" "$INVESTIGATION_REPORT" "$project_path" false; then
+            run_status="completed"
+        else
+            run_status="failed"
+            error_message="${FIX_ERROR:-Fix generation failed}"
+            if [[ -z "$FIX_JSON" ]]; then
+                FIX_JSON=$(jq -n --arg report "$FIX_REPORT" --arg err "$error_message" '{status: "failed", report: ($report // ""), error: $err}')
+            fi
+        fi
+    else
+        FIX_STATUS="skipped"
+        FIX_JSON=$(jq -n '{status: "skipped"}')
+    fi
+
+    if [[ "$FIX_STATUS" == "generated" ]]; then
+        : # FIX_JSON already populated by generate_fix
+    elif [[ -z "$FIX_JSON" ]]; then
+        FIX_JSON=$(jq -n --arg status "$FIX_STATUS" '{status: $status}')
+    fi
+
+    local investigation_json="${INVESTIGATION_JSON:-"{}"}"
+    local fix_json="${FIX_JSON:-"{}"}"
+
+    local output=$(jq -n \
+        --arg issue_id "$issue_id" \
+        --arg agent_id "$agent_id" \
+        --arg status "$run_status" \
+        --arg error "$error_message" \
+        --arg auto "$auto_resolve" \
+        --argjson investigation "$investigation_json" \
+        --argjson fix "$fix_json" \
+        '{
+            issue_id: $issue_id,
+            agent_id: $agent_id,
+            status: $status,
+            auto_resolve: ($auto == "true"),
+            error: (if ($error | length) > 0 then $error else null end),
+            investigation: $investigation,
+            fix: $fix
+        }')
+
+    echo "$output"
+}
+
 # Main investigation function
 investigate_issue() {
     local issue_id="$1"
     local agent_id="$2"
     local project_path="${3:-}"
     local prompt_template="${4:-}"
-    
+    local emit_json="${5:-true}"
+
     log "Starting investigation for issue: $issue_id"
+
+    local started_at="$(date -Iseconds)"
+    INVESTIGATION_STARTED_AT="$started_at"
     
     # Create investigation workspace
     local workspace_dir="/tmp/claude-investigation-${issue_id}"
@@ -139,6 +312,9 @@ EOF
     fi
     
     cd "$original_dir"
+
+    local completed_at="$(date -Iseconds)"
+    INVESTIGATION_COMPLETED_AT="$completed_at"
     
     # Parse the investigation report
     local report_content
@@ -155,50 +331,69 @@ EOF
     local suggested_fix=""
     local confidence_score=""
     local affected_files=""
-    
-    # Parse root cause (look for specific section)
+
     if echo "$report_content" | grep -q "### Root Cause Analysis"; then
         root_cause=$(echo "$report_content" | sed -n '/### Root Cause Analysis/,/###/p' | head -n -1 | tail -n +2 | tr '\n' ' ')
     fi
-    
-    # Parse suggested fix
+
     if echo "$report_content" | grep -q "### Recommended Solutions"; then
         suggested_fix=$(echo "$report_content" | sed -n '/### Recommended Solutions/,/###/p' | head -n -1 | tail -n +2 | tr '\n' ' ')
     fi
-    
-    # Parse confidence score
+
     if echo "$report_content" | grep -qE "confidence.*[0-9]+"; then
         confidence_score=$(echo "$report_content" | grep -oE "confidence.*([0-9]+)" | grep -oE "[0-9]+" | head -1)
     fi
-    
-    # Parse affected files
+
     if echo "$report_content" | grep -q "### Affected Components"; then
         affected_files=$(echo "$report_content" | sed -n '/### Affected Components/,/###/p' | head -n -1 | tail -n +2 | grep -oE '[a-zA-Z0-9/_.-]+\.(js|ts|py|go|java|cpp|c|h)' | head -10 | tr '\n' ',' | sed 's/,$//')
     fi
-    
-    # Generate JSON output for API response
-    local json_output=$(cat << EOF
-{
-  "issue_id": "$issue_id",
-  "agent_id": "$agent_id",
-  "investigation_report": $(echo "$report_content" | jq -R -s '.'),
-  "root_cause": $(echo "${root_cause:-Unknown}" | jq -R -s '.'),
-  "suggested_fix": $(echo "${suggested_fix:-No specific fix identified}" | jq -R -s '.'),
-  "confidence_score": ${confidence_score:-5},
-  "affected_files": [$(if [[ -n "$affected_files" ]]; then echo "$affected_files" | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/' | sed 's/,"$/"/'; fi)],
-  "investigation_completed_at": "$(date -Iseconds)",
-  "status": "completed",
-  "workspace_path": "$workspace_dir"
-}
-EOF
-)
-    
-    # Output the result
-    echo "$json_output"
-    
-    # Clean up workspace (optional - keep for debugging)
-    # rm -rf "$workspace_dir"
-    
+
+    local affected_json="[]"
+    if [[ -n "$affected_files" ]]; then
+        affected_json="[$(echo "$affected_files" | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/' | sed 's/,"$/"/') ]"
+    fi
+
+    local confidence_value=${confidence_score:-5}
+
+    INVESTIGATION_REPORT="$report_content"
+    INVESTIGATION_ROOT_CAUSE="${root_cause:-Unknown}"
+    INVESTIGATION_SUGGESTED_FIX="${suggested_fix:-No specific fix identified}"
+    INVESTIGATION_CONFIDENCE=$confidence_value
+    INVESTIGATION_AFFECTED_JSON="$affected_json"
+    INVESTIGATION_COMPLETED_AT="${INVESTIGATION_COMPLETED_AT:-$(date -Iseconds)}"
+
+    local json_output=$(jq -n \
+        --arg issue_id "$issue_id" \
+        --arg agent_id "$agent_id" \
+        --arg report "$INVESTIGATION_REPORT" \
+        --arg root "$INVESTIGATION_ROOT_CAUSE" \
+        --arg suggested "$INVESTIGATION_SUGGESTED_FIX" \
+        --arg started "$INVESTIGATION_STARTED_AT" \
+        --arg completed "$INVESTIGATION_COMPLETED_AT" \
+        --arg workspace "$workspace_dir" \
+        --argjson affected "$INVESTIGATION_AFFECTED_JSON" \
+        --argjson confidence "$confidence_value" \
+        '{
+            issue_id: $issue_id,
+            agent_id: $agent_id,
+            investigation_report: $report,
+            root_cause: $root,
+            suggested_fix: $suggested,
+            confidence_score: $confidence,
+            affected_files: $affected,
+            investigation_started_at: $started,
+            investigation_completed_at: $completed,
+            status: "analysis_completed",
+            workspace_path: $workspace
+        }')
+
+    INVESTIGATION_JSON="$json_output"
+    store_artifact "$investigation_output" "investigation-report.md"
+
+    if [[ "$emit_json" == "true" ]]; then
+        echo "$json_output"
+    fi
+
     success "Investigation completed for issue: $issue_id"
     return 0
 }
@@ -208,102 +403,118 @@ generate_fix() {
     local issue_id="$1"
     local investigation_report="$2"
     local project_path="${3:-}"
-    
+    local emit_json="${4:-true}"
+
     log "Generating fix for issue: $issue_id"
-    
-    # Create fix workspace
+
     local workspace_dir="/tmp/claude-fix-${issue_id}"
     mkdir -p "$workspace_dir"
-    
-    # Create fix generation prompt
+
     local fix_prompt="${workspace_dir}/fix-prompt.md"
-    
+
     cat > "$fix_prompt" << EOF
-# Fix Generation Request
+# Unified Fix Generation Request
 
-Based on the investigation report below, please generate actual code fixes for this issue.
+Based on the investigation summary below, deliver concrete remediation steps.
 
-## Investigation Report
+## Investigation Summary
 $investigation_report
 
-## Task
-1. **Analyze the investigation findings**
-2. **Generate specific code changes** to fix the identified issue
-3. **Create test cases** to verify the fix
-4. **Provide implementation steps**
+## Tasks
+1. Summarize the proposed fix in plain language.
+2. Outline implementation steps with key files and functions.
+3. Recommend automated and manual tests to validate the change.
+4. Provide a rollback plan if the change must be reverted.
 
-## Expected Output Format
-Please provide:
+## Output Structure
+Produce markdown sections with the following headings:
+- ### Summary
+- ### Implementation Steps
+- ### Test Plan
+- ### Rollback Plan
+- ### Notes (optional)
 
-### Code Changes
-Specific files and their modifications using diff format or clear before/after examples.
-
-### Test Cases
-Unit tests or integration tests to verify the fix works.
-
-### Implementation Steps
-Step-by-step instructions for applying the fix.
-
-### Rollback Plan
-How to safely revert if the fix causes issues.
-
-### Verification
-How to confirm the fix resolves the original problem.
-
-Please generate the fix now.
+Be precise and reference relevant files and functions where possible.
 EOF
 
-    # Execute Claude Code for fix generation
     local fix_output="${workspace_dir}/fix-report.md"
     local original_dir=$(pwd)
-    
+
     if [[ -n "$project_path" && -d "$project_path" ]]; then
         cd "$project_path"
     fi
-    
-    # Check resource-claude-code is available
+
     if ! command -v resource-claude-code &> /dev/null; then
         error "resource-claude-code CLI not found"
         cd "$original_dir"
         return 1
     fi
-    
-    # Run fix generation using resource-claude-code
-    if cat "$fix_prompt" | resource-claude-code run - > "$fix_output" 2>&1; then
-        success "Fix generation completed successfully"
-    else
-        error "Fix generation failed"
+
+    if ! cat "$fix_prompt" | resource-claude-code run - > "$fix_output" 2>&1; then
+        FIX_STATUS="failed"
+        FIX_ERROR="Claude Code fix generation failed"
         if [[ -f "$fix_output" ]]; then
             warn "Error output: $(head -n 20 "$fix_output")"
         fi
         cd "$original_dir"
         return 1
     fi
-    
+
     cd "$original_dir"
-    
-    # Read the fix content
-    local fix_content
-    if [[ -f "$fix_output" ]]; then
-        fix_content=$(cat "$fix_output")
-    else
-        error "Fix output file not found"
+
+    if [[ ! -f "$fix_output" ]]; then
+        FIX_STATUS="failed"
+        FIX_ERROR="Fix output file not found"
         return 1
     fi
-    
-    # Generate JSON output
-    local fix_json=$(cat << EOF
-{
-  "issue_id": "$issue_id",
-  "fix_report": $(echo "$fix_content" | jq -R -s '.'),
-  "fix_generated_at": "$(date -Iseconds)",
-  "status": "completed",
-  "workspace_path": "$workspace_dir"
-}
-EOF
-)
-    
-    echo "$fix_json"
+
+    local fix_content
+    fix_content=$(cat "$fix_output")
+
+    local summary=$(extract_section '### Summary' "$fix_content")
+    if [[ -z "$summary" ]]; then
+        summary=$(head -n 40 "$fix_output")
+    fi
+
+    local implementation=$(extract_section '### Implementation Steps' "$fix_content")
+    local test_plan=$(extract_section '### Test Plan' "$fix_content")
+    local rollback_plan=$(extract_section '### Rollback Plan' "$fix_content")
+
+    FIX_REPORT="$fix_content"
+    FIX_SUMMARY="${summary:-Proposed fix details not provided.}"
+    FIX_IMPLEMENTATION="${implementation:-Implementation steps not provided.}"
+    FIX_TEST_PLAN="${test_plan:-Test plan not provided.}"
+    FIX_ROLLBACK="${rollback_plan:-Rollback plan not provided.}"
+    FIX_STATUS="generated"
+    FIX_ERROR=""
+
+    local fix_json=$(jq -n \
+        --arg issue_id "$issue_id" \
+        --arg report "$FIX_REPORT" \
+        --arg summary "$FIX_SUMMARY" \
+        --arg implementation "$FIX_IMPLEMENTATION" \
+        --arg test_plan "$FIX_TEST_PLAN" \
+        --arg rollback "$FIX_ROLLBACK" \
+        --arg workspace "$workspace_dir" \
+        '{
+            issue_id: $issue_id,
+            fix_report: $report,
+            summary: $summary,
+            implementation_plan: $implementation,
+            test_plan: $test_plan,
+            rollback_plan: $rollback,
+            status: "generated",
+            workspace_path: $workspace,
+            fix_generated_at: (now | todateiso8601)
+        }')
+
+    FIX_JSON="$fix_json"
+    store_artifact "$fix_output" "fix-report.md"
+
+    if [[ "$emit_json" == "true" ]]; then
+        echo "$fix_json"
+    fi
+
     success "Fix generation completed for issue: $issue_id"
     return 0
 }
@@ -314,6 +525,21 @@ main() {
     shift || true
     
     case "$command" in
+        resolve)
+            local issue_id="${1:-}"
+            local agent_id="${2:-}"
+            local project_path="${3:-}"
+            local prompt_template="${4:-Perform a full investigation and provide code-level remediation guidance.}"
+            local auto_flag="${5:-true}"
+
+            if [[ -z "$issue_id" ]]; then
+                error "Issue ID required"
+                exit 1
+            fi
+
+            resolve_workflow "$issue_id" "$agent_id" "$project_path" "$prompt_template" "$auto_flag"
+            ;;
+
         investigate)
             local issue_id="${1:-}"
             local agent_id="${2:-}"
@@ -348,6 +574,9 @@ Claude Code Investigation Script
 Usage: $0 <command> [options]
 
 Commands:
+  resolve <issue_id> <agent_id> [project_path] [prompt_template] [auto_resolve]
+    Run unified investigation + resolution (auto_resolve defaults to true)
+
   investigate <issue_id> <agent_id> [project_path] [prompt_template]
     Run Claude Code investigation for an issue
     

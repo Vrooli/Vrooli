@@ -58,7 +58,7 @@ app-issue-tracker investigate "Login button not working"
 
 ### Advanced Capabilities
 - **Templates**: Pre-defined YAML templates for bugs, features, etc.
-- **Status Management**: Track issues through open → investigating → fixed → closed
+- **Status Management**: Track issues through open → active → completed → failed
 - **Bulk Operations**: Search, filter, and act on multiple issues
 - **Export/Import**: Generate reports in CSV, Markdown, or JSON
 
@@ -78,8 +78,8 @@ app-issue-tracker/
 ├── data/
 │   └── issues/         # Folder-based issue storage
 │       ├── open/               # Active issue bundles (`metadata.yaml` + artifacts)
-│       ├── investigating/
-│       ├── fixed/
+│       ├── active/
+│       ├── completed/
 │       └── templates/          # YAML metadata templates
 ├── scripts/            # Utility scripts
 │   ├── claude-investigator.sh
@@ -222,11 +222,11 @@ app-issue-tracker create --template bug --title "UI crash on mobile" --priority 
 # Search issues
 app-issue-tracker search "authentication error"
 
-# Move issue to investigating
-app-issue-tracker update 001-auth --status investigating --assignee @john
+# Move issue to active state
+app-issue-tracker update 001-auth --status active --assignee @john
 
-# Generate AI investigation
-app-issue-tracker investigate 001-auth --auto
+# Run unified investigation + fix
+app-issue-tracker investigate 001-auth
 
 # Export report
 app-issue-tracker export --format md --status open > weekly-report.md
@@ -242,14 +242,14 @@ cat data/issues/open/<issue-id>/metadata.yaml
 ls data/issues/open/<issue-id>/artifacts/
 
 # Move status manually (preserves attachments)
-mv data/issues/open/<issue-id> data/issues/fixed/
+mv data/issues/open/<issue-id> data/issues/completed/
 ```
 
 ### AI Workflow
 1. Create issue: `app-issue-tracker create ...`
-2. Trigger investigation: `app-issue-tracker investigate <id>`
-3. Review AI suggestions in `data/issues/investigating/<issue-id>/metadata.yaml`
-4. Apply fixes and close: `app-issue-tracker close <id> --resolution "Fixed per AI suggestion"`
+2. Trigger agent run: `app-issue-tracker investigate <id>`
+3. Review AI suggestions in `data/issues/active/<issue-id>/metadata.yaml`
+4. Agent auto-fixes or mark complete: `app-issue-tracker update <id> --status completed`
 
 ## 🐛 Troubleshooting
 

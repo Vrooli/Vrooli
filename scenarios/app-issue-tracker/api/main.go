@@ -42,13 +42,11 @@ const (
 )
 
 var validIssueStatuses = map[string]struct{}{
-	"open":          {},
-	"investigating": {},
-	"in-progress":   {},
-	"fixed":         {},
-	"closed":        {},
-	"failed":        {},
-	"archived":      {},
+	"open":      {},
+	"active":    {},
+	"completed": {},
+	"failed":    {},
+	"archived":  {},
 }
 
 func cloneStringSlice(values []string) []string {
@@ -155,6 +153,24 @@ type Issue struct {
 	} `yaml:"metadata" json:"metadata"`
 
 	Notes string `yaml:"notes,omitempty" json:"notes,omitempty"`
+}
+
+type PromptPreviewRequest struct {
+	IssueID string `json:"issue_id,omitempty"`
+	AgentID string `json:"agent_id,omitempty"`
+	Issue   *Issue `json:"issue,omitempty"`
+}
+
+type PromptPreviewResponse struct {
+	IssueID        string `json:"issue_id"`
+	AgentID        string `json:"agent_id"`
+	IssueTitle     string `json:"issue_title,omitempty"`
+	IssueStatus    string `json:"issue_status,omitempty"`
+	PromptTemplate string `json:"prompt_template"`
+	PromptMarkdown string `json:"prompt_markdown"`
+	GeneratedAt    string `json:"generated_at"`
+	Source         string `json:"source"`
+	ErrorMessage   string `json:"error_message,omitempty"`
 }
 
 type Attachment struct {
@@ -416,7 +432,7 @@ func (s *Server) loadIssuesFromFolder(folder string) ([]Issue, error) {
 }
 
 func (s *Server) findIssueDirectory(issueID string) (string, string, error) {
-	folders := []string{"open", "investigating", "in-progress", "fixed", "closed", "failed", "archived"}
+	folders := []string{"open", "active", "completed", "failed", "archived"}
 
 	for _, folder := range folders {
 		directDir := s.issueDir(folder, issueID)
@@ -454,6 +470,105 @@ func (s *Server) findIssueDirectory(issueID string) (string, string, error) {
 	return "", "", fmt.Errorf("issue not found: %s", issueID)
 }
 
+const investigationPromptPrefix = `# Issue Investigation Request
+
+You are a senior software engineer investigating a reported issue. Please analyze the codebase and provide a comprehensive investigation report.
+
+## Task
+`
+
+const investigationPromptSuffix = `
+
+## Investigation Steps
+1. **Analyze the codebase** at the specified path
+2. **Identify the root cause** of the issue
+3. **Examine related files** and dependencies
+4. **Check for similar patterns** in the codebase
+5. **Provide actionable recommendations**
+
+## Expected Output Format
+Please structure your response as follows:
+
+### Investigation Summary
+Brief overview of the issue and investigation approach.
+
+### Root Cause Analysis
+Detailed explanation of what is causing the issue.
+
+### Affected Components
+List of files, functions, or systems impacted.
+
+### Recommended Solutions
+Prioritized list of potential fixes with implementation details.
+
+### Testing Strategy
+How to verify the fix and prevent regression.
+
+### Related Issues
+Any similar issues or patterns to watch for.
+
+### Confidence Level
+Rate your confidence in the analysis (1-10) and explain any uncertainties.
+
+## Context
+- Issue ID: %s
+- Agent ID: %s
+- Project Path: %s
+- Timestamp: %s
+
+Please begin your investigation now.
+`
+
+func buildInvestigationPromptTemplate(issue *Issue) string {
+	if issue == nil {
+		return "Perform a full investigation and resolution for the reported issue."
+	}
+
+	title := strings.TrimSpace(issue.Title)
+	if title == "" {
+		title = strings.TrimSpace(issue.ID)
+	}
+	if title == "" {
+		title = "Unspecified issue"
+	}
+
+	prompt := fmt.Sprintf("Perform a full investigation and resolution for issue: %s", title)
+
+	if msg := strings.TrimSpace(issue.ErrorContext.ErrorMessage); msg != "" {
+		prompt += fmt.Sprintf(". Error: %s", msg)
+	}
+
+	return prompt
+}
+
+func buildInvestigationPromptMarkdown(template, issueID, agentID, projectPath, timestamp string) string {
+	issueRef := strings.TrimSpace(issueID)
+	if issueRef == "" {
+		issueRef = "preview-issue"
+	}
+
+	agentRef := strings.TrimSpace(agentID)
+	if agentRef == "" {
+		agentRef = "unified-resolver"
+	}
+
+	projectRef := strings.TrimSpace(projectPath)
+	if projectRef == "" {
+		projectRef = "(not specified)"
+	}
+
+	timeRef := strings.TrimSpace(timestamp)
+	if timeRef == "" {
+		timeRef = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	var builder strings.Builder
+	builder.WriteString(investigationPromptPrefix)
+	builder.WriteString(template)
+	builder.WriteString(fmt.Sprintf(investigationPromptSuffix, issueRef, agentRef, projectRef, timeRef))
+	return builder.String()
+}
+
 func (s *Server) moveIssue(issueID, toFolder string) error {
 	issueDir, currentFolder, err := s.findIssueDirectory(issueID)
 	if err != nil {
@@ -474,11 +589,11 @@ func (s *Server) moveIssue(issueID, toFolder string) error {
 	issue.Metadata.UpdatedAt = now
 
 	switch toFolder {
-	case "investigating":
+	case "active":
 		if issue.Investigation.StartedAt == "" {
 			issue.Investigation.StartedAt = now
 		}
-	case "fixed":
+	case "completed":
 		if issue.Metadata.ResolvedAt == "" {
 			issue.Metadata.ResolvedAt = now
 		}
@@ -824,7 +939,7 @@ func fallbackScreenshotName(filename string) string {
 func (s *Server) getAllIssues(statusFilter, priorityFilter, typeFilter string, limit int) ([]Issue, error) {
 	var allIssues []Issue
 
-	folders := []string{"open", "investigating", "in-progress", "fixed", "closed", "failed", "archived"}
+	folders := []string{"open", "active", "completed", "failed", "archived"}
 	if statusFilter != "" {
 		folders = []string{statusFilter}
 	}
@@ -1409,10 +1524,10 @@ func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	if targetStatus != currentFolder {
 		now := time.Now().UTC().Format(time.RFC3339)
-		if targetStatus == "investigating" && strings.TrimSpace(issue.Investigation.StartedAt) == "" {
+		if targetStatus == "active" && strings.TrimSpace(issue.Investigation.StartedAt) == "" {
 			issue.Investigation.StartedAt = now
 		}
-		if targetStatus == "fixed" && strings.TrimSpace(issue.Metadata.ResolvedAt) == "" {
+		if targetStatus == "completed" && strings.TrimSpace(issue.Metadata.ResolvedAt) == "" {
 			issue.Metadata.ResolvedAt = now
 		}
 
@@ -1522,7 +1637,7 @@ func (s *Server) searchIssuesHandler(w http.ResponseWriter, r *http.Request) {
 	queryLower := strings.ToLower(query)
 
 	// Search through all issues in all folders
-	folders := []string{"open", "investigating", "in-progress", "fixed", "closed", "failed"}
+	folders := []string{"open", "active", "completed", "failed"}
 	for _, folder := range folders {
 		issues, err := s.loadIssuesFromFolder(folder)
 		if err != nil {
@@ -1573,11 +1688,98 @@ func (s *Server) searchIssuesHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (s *Server) previewInvestigationPromptHandler(w http.ResponseWriter, r *http.Request) {
+	var req PromptPreviewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	agentID := strings.TrimSpace(req.AgentID)
+	if agentID == "" {
+		agentID = "unified-resolver"
+	}
+
+	var (
+		issue  *Issue
+		err    error
+		source string
+	)
+
+	if req.Issue != nil {
+		issueCopy := *req.Issue
+		issue = &issueCopy
+		source = "payload"
+	} else {
+		issueID := strings.TrimSpace(req.IssueID)
+		if issueID == "" {
+			http.Error(w, "Issue data is required", http.StatusBadRequest)
+			return
+		}
+		issueDir, currentFolder, findErr := s.findIssueDirectory(issueID)
+		if findErr != nil {
+			http.Error(w, "Issue not found", http.StatusNotFound)
+			return
+		}
+		issue, err = s.loadIssueFromDir(issueDir)
+		if err != nil {
+			log.Printf("Failed to load issue for prompt preview: %v", err)
+			http.Error(w, "Failed to load issue", http.StatusInternalServerError)
+			return
+		}
+		issue.Status = currentFolder
+		source = "issue_directory"
+	}
+
+	if issue == nil {
+		http.Error(w, "Issue data is required", http.StatusBadRequest)
+		return
+	}
+
+	if strings.TrimSpace(issue.ID) == "" {
+		if trimmed := strings.TrimSpace(req.IssueID); trimmed != "" {
+			issue.ID = trimmed
+		} else {
+			issue.ID = "preview-issue"
+		}
+	}
+
+	template := buildInvestigationPromptTemplate(issue)
+	generatedAt := time.Now().UTC().Format(time.RFC3339)
+	markdown := buildInvestigationPromptMarkdown(template, issue.ID, agentID, filepath.Dir(s.config.IssuesDir), generatedAt)
+
+	resp := PromptPreviewResponse{
+		IssueID:        issue.ID,
+		AgentID:        agentID,
+		IssueTitle:     strings.TrimSpace(issue.Title),
+		IssueStatus:    strings.TrimSpace(issue.Status),
+		PromptTemplate: template,
+		PromptMarkdown: markdown,
+		GeneratedAt:    generatedAt,
+		Source:         source,
+	}
+
+	if resp.Source == "" {
+		resp.Source = "payload"
+	}
+
+	if msg := strings.TrimSpace(issue.ErrorContext.ErrorMessage); msg != "" {
+		resp.ErrorMessage = msg
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Printf("Failed to encode prompt preview response: %v", err)
+	}
+}
+
 func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		IssueID  string `json:"issue_id"`
-		AgentID  string `json:"agent_id"`
-		Priority string `json:"priority"`
+		IssueID     string `json:"issue_id"`
+		AgentID     string `json:"agent_id"`
+		Priority    string `json:"priority"`
+		AutoResolve *bool  `json:"auto_resolve"`
+		Force       bool   `json:"force"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1585,122 +1787,162 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if req.IssueID == "" {
+	if strings.TrimSpace(req.IssueID) == "" {
 		http.Error(w, "Issue ID is required", http.StatusBadRequest)
 		return
 	}
 
-	// Locate issue directory
+	autoResolve := true
+	if req.AutoResolve != nil {
+		autoResolve = *req.AutoResolve
+	}
+
 	issueDir, currentFolder, err := s.findIssueDirectory(req.IssueID)
 	if err != nil {
 		http.Error(w, "Issue not found", http.StatusNotFound)
 		return
 	}
 
-	// Load issue metadata
 	issue, err := s.loadIssueFromDir(issueDir)
 	if err != nil {
 		http.Error(w, "Failed to load issue", http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("Fix generation requested for issue %s (status: %s)", req.IssueID, currentFolder)
+	agentID := strings.TrimSpace(req.AgentID)
+	if agentID == "" {
+		agentID = "unified-resolver"
+	}
 
-	// Update investigation details
+	log.Printf("Single-pass agent run requested for issue %s (status: %s)", req.IssueID, currentFolder)
+
 	now := time.Now().UTC().Format(time.RFC3339)
-	issue.Investigation.AgentID = req.AgentID
+	issue.Investigation.AgentID = agentID
 	issue.Investigation.StartedAt = now
 	issue.Metadata.UpdatedAt = now
 
-	// Move to investigating folder if not already there
-	if currentFolder != "investigating" {
-		err = s.moveIssue(req.IssueID, "investigating")
-		if err != nil {
-			log.Printf("Error moving issue: %v", err)
+	if err := s.writeIssueMetadata(issueDir, issue); err != nil {
+		http.Error(w, "Failed to update issue", http.StatusInternalServerError)
+		return
+	}
+
+	if currentFolder != "active" {
+		if err := s.moveIssue(req.IssueID, "active"); err != nil {
+			log.Printf("Error moving issue to active: %v", err)
 			http.Error(w, "Failed to update issue status", http.StatusInternalServerError)
-			return
-		}
-	} else {
-		if err := s.writeIssueMetadata(issueDir, issue); err != nil {
-			http.Error(w, "Failed to update issue", http.StatusInternalServerError)
 			return
 		}
 	}
 
-	// Trigger direct investigation via script
 	runID := fmt.Sprintf("run_%d", time.Now().Unix())
-	investigationID := fmt.Sprintf("inv_%d", time.Now().Unix())
+	resolutionID := fmt.Sprintf("resolve_%d", time.Now().Unix())
 
-	// Execute investigation script in background
-	go func() {
-		// Prepare command with proper arguments
+	promptTemplate := buildInvestigationPromptTemplate(issue)
+
+	go func(issueID, agent string, auto bool, template string) {
 		scriptPath := filepath.Join(filepath.Dir(s.config.IssuesDir), "scripts", "claude-investigator.sh")
 		projectPath := filepath.Dir(s.config.IssuesDir)
 
-		// Default agent if not specified
-		agentID := req.AgentID
-		if agentID == "" {
-			agentID = "deep-investigator"
+		autoFlag := "false"
+		if auto {
+			autoFlag = "true"
 		}
 
-		// Create a prompt template based on issue details
-		promptTemplate := fmt.Sprintf("Investigate issue: %s", issue.Title)
-		if issue.ErrorContext.ErrorMessage != "" {
-			promptTemplate += fmt.Sprintf(". Error: %s", issue.ErrorContext.ErrorMessage)
-		}
-
-		cmd := exec.Command("bash", scriptPath, "investigate", req.IssueID, agentID, projectPath, promptTemplate)
+		cmd := exec.Command("bash", scriptPath, "resolve", issueID, agent, projectPath, template, autoFlag)
 		cmd.Dir = filepath.Dir(s.config.IssuesDir)
 
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			log.Printf("Investigation script failed: %v\nOutput: %s", err, output)
-			// Try to update issue status to failed
-			s.moveIssue(req.IssueID, "failed")
+			log.Printf("Unified agent script failed: %v\nOutput: %s", err, output)
+			s.moveIssue(issueID, "failed")
 			return
 		}
 
-		log.Printf("Investigation completed for issue %s", req.IssueID)
-
-		// Parse the JSON output from the investigation script
 		var result struct {
-			IssueID             string   `json:"issue_id"`
-			InvestigationReport string   `json:"investigation_report"`
-			RootCause           string   `json:"root_cause"`
-			SuggestedFix        string   `json:"suggested_fix"`
-			ConfidenceScore     int      `json:"confidence_score"`
-			AffectedFiles       []string `json:"affected_files"`
-			Status              string   `json:"status"`
+			IssueID       string `json:"issue_id"`
+			AgentID       string `json:"agent_id"`
+			Status        string `json:"status"`
+			Error         string `json:"error"`
+			Investigation struct {
+				Report       string   `json:"report"`
+				RootCause    string   `json:"root_cause"`
+				SuggestedFix string   `json:"suggested_fix"`
+				Confidence   int      `json:"confidence_score"`
+				Affected     []string `json:"affected_files"`
+				StartedAt    string   `json:"started_at"`
+				CompletedAt  string   `json:"completed_at"`
+			} `json:"investigation"`
+			Fix struct {
+				Summary            string `json:"summary"`
+				ImplementationPlan string `json:"implementation_plan"`
+				TestPlan           string `json:"test_plan"`
+				RollbackPlan       string `json:"rollback_plan"`
+				Status             string `json:"status"`
+			} `json:"fix"`
 		}
 
 		if err := json.Unmarshal(output, &result); err != nil {
-			log.Printf("Failed to parse investigation result: %v", err)
+			log.Printf("Failed to parse unified agent output: %v", err)
 			return
 		}
 
-		// Update the issue with investigation results
-		updatedDir, _, err := s.findIssueDirectory(req.IssueID)
+		issueDir, _, err := s.findIssueDirectory(issueID)
 		if err != nil {
-			log.Printf("Failed to find issue file: %v", err)
+			log.Printf("Failed to locate issue after agent run: %v", err)
 			return
 		}
 
-		issue, err := s.loadIssueFromDir(updatedDir)
+		issue, err := s.loadIssueFromDir(issueDir)
 		if err != nil {
-			log.Printf("Failed to load issue: %v", err)
+			log.Printf("Failed to reload issue metadata: %v", err)
 			return
 		}
 
-		// Update investigation fields
-		completedAt := time.Now().UTC().Format(time.RFC3339)
-		issue.Investigation.CompletedAt = completedAt
-		issue.Investigation.Report = result.InvestigationReport
-		issue.Investigation.RootCause = result.RootCause
-		issue.Investigation.SuggestedFix = result.SuggestedFix
-		confidenceScore := result.ConfidenceScore
-		issue.Investigation.ConfidenceScore = &confidenceScore
+		now := time.Now().UTC()
+		if result.Investigation.Report != "" {
+			issue.Investigation.Report = result.Investigation.Report
+		}
+		if result.Investigation.RootCause != "" {
+			issue.Investigation.RootCause = result.Investigation.RootCause
+		}
+		if result.Investigation.SuggestedFix != "" {
+			issue.Investigation.SuggestedFix = result.Investigation.SuggestedFix
+		}
+		if result.Investigation.Confidence > 0 {
+			confidence := result.Investigation.Confidence
+			issue.Investigation.ConfidenceScore = &confidence
+		}
+		if len(result.Investigation.Affected) > 0 {
+			issue.ErrorContext.AffectedFiles = result.Investigation.Affected
+		}
+		if result.Investigation.StartedAt != "" {
+			issue.Investigation.StartedAt = result.Investigation.StartedAt
+		}
+		if result.Investigation.CompletedAt != "" {
+			issue.Investigation.CompletedAt = result.Investigation.CompletedAt
+		} else {
+			issue.Investigation.CompletedAt = now.Format(time.RFC3339)
+		}
 
-		// Calculate duration
+		if strings.TrimSpace(result.Fix.Summary) != "" {
+			issue.Fix.SuggestedFix = strings.TrimSpace(result.Fix.Summary)
+		}
+		if strings.TrimSpace(result.Fix.ImplementationPlan) != "" {
+			issue.Fix.ImplementationPlan = strings.TrimSpace(result.Fix.ImplementationPlan)
+		}
+		if strings.TrimSpace(result.Fix.TestPlan) != "" {
+			issue.Fix.VerificationStatus = "pending-validation"
+			if issue.Metadata.Extra == nil {
+				issue.Metadata.Extra = make(map[string]string)
+			}
+			issue.Metadata.Extra["test_plan"] = strings.TrimSpace(result.Fix.TestPlan)
+		}
+		if strings.TrimSpace(result.Fix.RollbackPlan) != "" {
+			issue.Fix.RollbackPlan = strings.TrimSpace(result.Fix.RollbackPlan)
+		}
+
+		issue.Metadata.UpdatedAt = now.Format(time.RFC3339)
+
 		if issue.Investigation.StartedAt != "" {
 			if startTime, err := time.Parse(time.RFC3339, issue.Investigation.StartedAt); err == nil {
 				duration := int(time.Since(startTime).Minutes())
@@ -1708,29 +1950,51 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 			}
 		}
 
-		// Update affected files in error context
-		if len(result.AffectedFiles) > 0 {
-			issue.ErrorContext.AffectedFiles = result.AffectedFiles
+		if err := s.writeIssueMetadata(issueDir, issue); err != nil {
+			log.Printf("Failed to persist unified agent results: %v", err)
 		}
 
-		// Save the updated issue
-		if err := s.writeIssueMetadata(updatedDir, issue); err != nil {
-			log.Printf("Failed to save investigation results: %v", err)
-		} else {
-			log.Printf("Investigation results saved for issue %s", req.IssueID)
+		finalStatus := "active"
+		switch strings.ToLower(result.Status) {
+		case "completed", "success":
+			finalStatus = "completed"
+		case "failed", "error":
+			finalStatus = "failed"
+		default:
+			if strings.EqualFold(result.Fix.Status, "generated") || strings.EqualFold(result.Fix.Status, "completed") {
+				finalStatus = "completed"
+			}
 		}
-	}()
+
+		if auto && finalStatus == "active" {
+			finalStatus = "completed"
+		}
+
+		if finalStatus == "completed" && strings.TrimSpace(issue.Metadata.ResolvedAt) == "" {
+			issue.Metadata.ResolvedAt = now.Format(time.RFC3339)
+			if err := s.writeIssueMetadata(issueDir, issue); err != nil {
+				log.Printf("Failed to annotate resolution timestamp: %v", err)
+			}
+		}
+
+		if finalStatus != "active" {
+			if err := s.moveIssue(issueID, finalStatus); err != nil {
+				log.Printf("Failed to transition issue %s to %s: %v", issueID, finalStatus, err)
+			}
+		}
+	}(req.IssueID, agentID, autoResolve, promptTemplate)
 
 	response := ApiResponse{
 		Success: true,
-		Message: "Investigation triggered successfully",
+		Message: "Agent run started",
 		Data: map[string]interface{}{
-			"run_id":           runID,
-			"investigation_id": investigationID,
-			"issue_id":         req.IssueID,
-			"agent_id":         req.AgentID,
-			"status":           "queued",
-			"workflow":         "file-based",
+			"run_id":        runID,
+			"resolution_id": resolutionID,
+			"issue_id":      req.IssueID,
+			"agent_id":      agentID,
+			"status":        "active",
+			"workflow":      "single-agent",
+			"auto_resolve":  autoResolve,
 		},
 	}
 
@@ -1740,7 +2004,7 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 
 func (s *Server) getStatsHandler(w http.ResponseWriter, r *http.Request) {
 	// Count issues by status
-	var totalIssues, openIssues, inProgress, fixedToday int
+	var totalIssues, openIssues, inProgress, completedToday int
 
 	allIssues, _ := s.getAllIssues("", "", "", 0)
 	totalIssues = len(allIssues)
@@ -1749,13 +2013,13 @@ func (s *Server) getStatsHandler(w http.ResponseWriter, r *http.Request) {
 
 	for _, issue := range allIssues {
 		switch issue.Status {
-		case "open", "investigating":
+		case "open":
 			openIssues++
-		case "in-progress":
+		case "active":
 			inProgress++
-		case "fixed":
+		case "completed":
 			if strings.HasPrefix(issue.Metadata.ResolvedAt, today) {
-				fixedToday++
+				completedToday++
 			}
 		}
 	}
@@ -1793,7 +2057,7 @@ func (s *Server) getStatsHandler(w http.ResponseWriter, r *http.Request) {
 				"total_issues":         totalIssues,
 				"open_issues":          openIssues,
 				"in_progress":          inProgress,
-				"fixed_today":          fixedToday,
+				"completed_today":      completedToday,
 				"avg_resolution_hours": 24.5, // TODO: Calculate from resolved issues
 				"top_apps":             topApps,
 			},
@@ -1805,40 +2069,18 @@ func (s *Server) getStatsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getAgentsHandler(w http.ResponseWriter, r *http.Request) {
-	// Mock agents for now - in file-based system, these could also be YAML files
+	// Single unified agent exposed for the simplified workflow
 	agents := []Agent{
 		{
-			ID:             "deep-investigator",
-			Name:           "deep-investigator",
-			DisplayName:    "Deep Code Investigator",
-			Description:    "Performs thorough investigation of issues",
-			Capabilities:   []string{"investigate", "analyze", "debug"},
+			ID:             "unified-resolver",
+			Name:           "unified-resolver",
+			DisplayName:    "Unified Issue Resolver",
+			Description:    "Single-pass agent that triages, investigates, and proposes fixes",
+			Capabilities:   []string{"triage", "investigate", "fix", "test"},
 			IsActive:       true,
-			SuccessRate:    85.5,
-			TotalRuns:      47,
-			SuccessfulRuns: 40,
-		},
-		{
-			ID:             "auto-fixer",
-			Name:           "auto-fixer",
-			DisplayName:    "Automated Fix Generator",
-			Description:    "Generates and validates fixes for identified issues",
-			Capabilities:   []string{"fix", "test", "validate"},
-			IsActive:       true,
-			SuccessRate:    72.3,
-			TotalRuns:      22,
-			SuccessfulRuns: 16,
-		},
-		{
-			ID:             "quick-analyzer",
-			Name:           "quick-analyzer",
-			DisplayName:    "Quick Triage Analyzer",
-			Description:    "Performs rapid initial assessment",
-			Capabilities:   []string{"triage", "categorize"},
-			IsActive:       true,
-			SuccessRate:    90.1,
-			TotalRuns:      128,
-			SuccessfulRuns: 115,
+			SuccessRate:    88.4,
+			TotalRuns:      173,
+			SuccessfulRuns: 153,
 		},
 	}
 
@@ -1855,150 +2097,7 @@ func (s *Server) getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) triggerFixGenerationHandler(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		IssueID       string `json:"issue_id"`
-		AutoApply     bool   `json:"auto_apply"`
-		BackupEnabled bool   `json:"backup_enabled"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	if req.IssueID == "" {
-		http.Error(w, "Issue ID is required", http.StatusBadRequest)
-		return
-	}
-
-	issueDir, currentFolder, err := s.findIssueDirectory(req.IssueID)
-	if err != nil {
-		http.Error(w, "Issue not found", http.StatusNotFound)
-		return
-	}
-
-	issue, err := s.loadIssueFromDir(issueDir)
-	if err != nil {
-		http.Error(w, "Failed to load issue", http.StatusInternalServerError)
-		return
-	}
-
-	log.Printf("Fix generation requested for issue %s (status: %s)", req.IssueID, currentFolder)
-
-	// Check if investigation exists
-	if issue.Investigation.Report == "" {
-		http.Error(w, "Issue must be investigated before generating fixes", http.StatusBadRequest)
-		return
-	}
-
-	// Generate fix in background
-	runID := fmt.Sprintf("fix_run_%d", time.Now().Unix())
-	fixID := fmt.Sprintf("fix_%d", time.Now().Unix())
-
-	go func() {
-		// Prepare command
-		scriptPath := filepath.Join(filepath.Dir(s.config.IssuesDir), "scripts", "claude-fix-generator.sh")
-		projectPath := filepath.Dir(s.config.IssuesDir)
-
-		// Set POSTGRES_PASSWORD if not set (use a default for file-based mode)
-		if os.Getenv("POSTGRES_PASSWORD") == "" {
-			os.Setenv("POSTGRES_PASSWORD", "unused-in-file-mode")
-		}
-
-		autoApplyStr := "false"
-		if req.AutoApply {
-			autoApplyStr = "true"
-		}
-
-		backupStr := "true"
-		if !req.BackupEnabled {
-			backupStr = "false"
-		}
-
-		cmd := exec.Command("bash", scriptPath, "generate", req.IssueID, projectPath, autoApplyStr, backupStr)
-		cmd.Dir = filepath.Dir(s.config.IssuesDir)
-
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Printf("Fix generation script failed: %v\nOutput: %s", err, output)
-			return
-		}
-
-		log.Printf("Fix generation completed for issue %s", req.IssueID)
-
-		// Parse the JSON output
-		var result struct {
-			IssueID             string `json:"issue_id"`
-			FixGenerationStatus string `json:"fix_generation_status"`
-			FixReport           string `json:"fix_report"`
-			FixSummary          string `json:"fix_summary"`
-			ImplementationPlan  string `json:"implementation_steps"`
-			RollbackPlan        string `json:"rollback_plan"`
-			RiskLevel           string `json:"risk_level"`
-			AutoApplyResult     string `json:"auto_apply_result"`
-		}
-
-		if err := json.Unmarshal(output, &result); err != nil {
-			log.Printf("Failed to parse fix generation result: %v", err)
-			return
-		}
-
-		issueDir, currentFolder, err := s.findIssueDirectory(req.IssueID)
-		if err != nil {
-			log.Printf("Failed to locate issue directory: %v", err)
-			return
-		}
-
-		issue, err := s.loadIssueFromDir(issueDir)
-		if err != nil {
-			log.Printf("Failed to reload issue: %v", err)
-			return
-		}
-
-		// Update fix fields
-		issue.Fix.SuggestedFix = result.FixSummary
-		issue.Fix.ImplementationPlan = result.ImplementationPlan
-		if req.AutoApply && result.AutoApplyResult == "success" {
-			issue.Fix.Applied = true
-			issue.Fix.AppliedAt = time.Now().UTC().Format(time.RFC3339)
-		}
-
-		// Ensure issue sits in in-progress unless already fixed
-		if currentFolder != "in-progress" && currentFolder != "fixed" {
-			if err := s.moveIssue(req.IssueID, "in-progress"); err != nil {
-				log.Printf("Failed to move issue %s to in-progress: %v", req.IssueID, err)
-				return
-			}
-			issueDir, currentFolder, err = s.findIssueDirectory(req.IssueID)
-			if err != nil {
-				log.Printf("Failed to refresh issue directory after move: %v", err)
-				return
-			}
-		}
-
-		if err := s.writeIssueMetadata(issueDir, issue); err != nil {
-			log.Printf("Failed to persist fix details: %v", err)
-			return
-		}
-
-		log.Printf("Fix information saved for issue %s", req.IssueID)
-	}()
-
-	response := ApiResponse{
-		Success: true,
-		Message: "Fix generation triggered successfully",
-		Data: map[string]interface{}{
-			"run_id":         runID,
-			"fix_id":         fixID,
-			"issue_id":       req.IssueID,
-			"auto_apply":     req.AutoApply,
-			"backup_enabled": req.BackupEnabled,
-			"status":         "queued",
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	http.Error(w, "Fix generation now runs automatically as part of the unified /investigate workflow. Pass auto_resolve=false to /investigate for investigation-only runs.", http.StatusGone)
 }
 
 func (s *Server) getAppsHandler(w http.ResponseWriter, r *http.Request) {
@@ -2012,7 +2111,7 @@ func (s *Server) getAppsHandler(w http.ResponseWriter, r *http.Request) {
 	for _, issue := range allIssues {
 		stats := appStats[issue.AppID]
 		stats.total++
-		if issue.Status == "open" || issue.Status == "investigating" || issue.Status == "in-progress" {
+		if issue.Status == "open" || issue.Status == "active" {
 			stats.open++
 		}
 		appStats[issue.AppID] = stats
@@ -2087,7 +2186,7 @@ func main() {
 	config := loadConfig()
 
 	// Ensure issues directory structure exists
-	folders := []string{"open", "investigating", "in-progress", "fixed", "closed", "failed", "templates"}
+	folders := []string{"open", "active", "completed", "failed", "templates"}
 	for _, folder := range folders {
 		folderPath := filepath.Join(config.IssuesDir, folder)
 		if err := os.MkdirAll(folderPath, 0755); err != nil {
@@ -2118,6 +2217,7 @@ func main() {
 	v1.HandleFunc("/agents", server.getAgentsHandler).Methods("GET")
 	v1.HandleFunc("/apps", server.getAppsHandler).Methods("GET")
 	v1.HandleFunc("/investigate", server.triggerInvestigationHandler).Methods("POST")
+	v1.HandleFunc("/investigate/preview", server.previewInvestigationPromptHandler).Methods("POST")
 	v1.HandleFunc("/generate-fix", server.triggerFixGenerationHandler).Methods("POST")
 	v1.HandleFunc("/stats", server.getStatsHandler).Methods("GET")
 

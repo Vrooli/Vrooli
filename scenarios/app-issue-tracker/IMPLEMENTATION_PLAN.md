@@ -81,10 +81,10 @@ vrooli-tracker create --title "Bug in routine executor" \
 vrooli-tracker list --status open --priority high
 
 # Investigate issue
-vrooli-tracker investigate ISSUE-123 --agent deep-analyzer
+vrooli-tracker investigate ISSUE-123 --agent unified-resolver
 
 # Attempt fix
-vrooli-tracker fix ISSUE-123 --agent auto-fixer
+vrooli-tracker fix ISSUE-123 --agent unified-resolver
 
 # Search issues
 vrooli-tracker search "authentication error"

@@ -50,16 +50,14 @@ tests:
     url: http://localhost:8090/api/v1/agents
     expected:
       status: 200
-      body:
-        agents: []
         
-  - name: Issue Investigation Script
+  - name: Unified Agent Script
     type: command
-    command: bash scripts/claude-investigator.sh "${TEST_ISSUE_ID}" "deep-investigator"
+    command: bash scripts/claude-investigator.sh resolve "${TEST_ISSUE_ID}" "unified-resolver"
     expected:
       exit_code: 0
       output:
-        contains: "Investigation completed"
+        contains: '"status":"completed"'
           
   - name: CLI Issue Creation
     type: command

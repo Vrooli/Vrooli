@@ -6,33 +6,33 @@ The App Issue Tracker uses direct script execution for AI-powered issue investig
 ## How It Works
 
 ### Investigation Flow
-1. **User triggers investigation** via API, CLI, or UI
-2. **API executes investigation script** in background
-3. **Script interfaces with Claude Code** for analysis
-4. **Results are saved to issue file** in YAML format
-5. **Issue moves through status folders** automatically
+1. **User triggers unified agent run** via API, CLI, or UI
+2. **API executes the resolution script** in background
+3. **Script interfaces with Claude Code** for analysis and remediation
+4. **Results are saved to the issue bundle** in YAML/Markdown format
+5. **Issue transitions through simplified status folders** automatically
 
 ### Direct Script Execution
 Instead of complex workflow orchestration, the system now uses simple bash scripts:
 
 ```bash
-# Trigger investigation via API
+# Trigger unified run via API
 curl -X POST http://localhost:8090/api/v1/investigate \
   -H "Content-Type: application/json" \
-  -d '{"issue_id": "issue-123", "agent_id": "deep-investigator"}'
+  -d '{"issue_id": "issue-123", "agent_id": "unified-resolver", "auto_resolve": true}'
 
 # Or directly via script
-bash scripts/claude-investigator.sh "issue-123" "deep-investigator"
+bash scripts/claude-investigator.sh resolve "issue-123" "unified-resolver" \
+  "/path/to/project" "Investigate the failing login flow" true
 ```
 
 ### File-Based Status Management
 Issues automatically move between folders based on their status:
 - `open/` - New issues awaiting triage
-- `investigating/` - Issues being analyzed
-- `in-progress/` - Issues being fixed
-- `fixed/` - Resolved issues
-- `closed/` - Archived issues
-- `failed/` - Issues that couldn't be resolved
+- `active/` - Agent is currently working the issue
+- `completed/` - Agent produced a recommended fix
+- `failed/` - Agent run failed or needs manual attention
+- `archived/` - Historical issues kept for reference
 
 ## Configuration
 
@@ -48,9 +48,7 @@ export QDRANT_URL=http://localhost:6333  # For semantic search
 
 ### Agent Configuration
 Agents are defined in the API with capabilities:
-- `deep-investigator` - Thorough code analysis
-- `auto-fixer` - Automated fix generation
-- `quick-analyzer` - Rapid triage
+- `unified-resolver` - Single-pass agent that triages, investigates, and drafts fixes
 
 ## Benefits of Direct Execution
 

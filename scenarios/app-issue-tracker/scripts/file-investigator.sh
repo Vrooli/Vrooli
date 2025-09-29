@@ -28,7 +28,7 @@ warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
 find_issue_file() {
     local issue_id="$1"
     
-    for folder in open investigating in-progress fixed closed failed; do
+    for folder in open active completed failed archived investigating in-progress fixed closed; do
         for file in "$ISSUES_DIR/$folder"/*.yaml; do
             if [[ -f "$file" ]]; then
                 local file_issue_id=$(grep "^id:" "$file" | sed 's/id: *//')
@@ -46,7 +46,7 @@ find_issue_file() {
 # Main investigation function
 investigate_issue() {
     local issue_id="$1"
-    local agent_id="${2:-deep-investigator}"
+    local agent_id="${2:-unified-resolver}"
     local project_path="${3:-$(pwd)}"
     local custom_prompt="${4:-}"
     
@@ -465,7 +465,7 @@ main() {
     case "$command" in
         investigate)
             local issue_id="${1:-}"
-            local agent_id="${2:-deep-investigator}"
+            local agent_id="${2:-unified-resolver}"
             local project_path="${3:-$(pwd)}"
             local prompt_template="${4:-}"
             
@@ -521,11 +521,11 @@ Commands:
     Show this help message
 
 Examples:
-  $0 investigate "issue-123" "deep-investigator" "/path/to/project"
+  $0 investigate "issue-123" "unified-resolver" "/path/to/project"
   $0 generate-fix "issue-123" "/path/to/project"
-  $0 move "issue-123" "in-progress"
+  $0 move "issue-123" "active"
 
-Folder Options: open, investigating, in-progress, fixed, closed, failed
+Folder Options: open, active, completed, failed, archived
 EOF
             ;;
             
