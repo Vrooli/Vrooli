@@ -46,8 +46,9 @@ scenario::lifecycle::start() {
             log::info "Starting scenario: $scenario_name"
         fi
 
-        if ! scenario::run "$scenario_name" develop "${passthrough_args[@]}"; then
-            local start_exit=$?
+        scenario::run "$scenario_name" develop "${passthrough_args[@]}"
+        local start_exit=$?
+        if [[ $start_exit -ne 0 ]]; then
             if [[ $overall_result -eq 0 ]]; then
                 overall_result=$start_exit
             fi

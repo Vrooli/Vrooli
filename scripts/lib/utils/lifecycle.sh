@@ -93,7 +93,42 @@ EOF_JSON
     
     # Also create simple PID file for quick checks
     echo "$pid" > "$process_dir/${step_name}.pid"
-    
+
+    # Give the process a moment to fail fast (e.g., port conflicts)
+    sleep 0.2
+    if ! kill -0 "$pid" 2>/dev/null; then
+        local wait_status=0
+        if ! wait "$pid" 2>/dev/null; then
+            wait_status=$?
+        fi
+
+        log::error "Process $process_id exited immediately (status: $wait_status)"
+
+        if [[ -n "$port" ]]; then
+            local conflict_info
+            conflict_info=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+            if [[ -n "$conflict_info" ]]; then
+                log::warning "🚨 Port $port is already in use. The following listeners were detected:" \
+                    && while IFS= read -r line; do
+                        [[ -z "$line" ]] && continue
+                        log::warning "    $line"
+                    done <<< "$conflict_info"
+            else
+                log::warning "Port $port appears free; check recent logs for other startup issues."
+            fi
+        fi
+
+        if [[ -s "$log_file" ]]; then
+            log::warning "Last log lines for $process_id:" \
+                && tail -n 20 "$log_file" | while IFS= read -r line; do
+                    log::warning "    $line"
+                done
+        fi
+
+        rm -f "$process_dir/${step_name}.json" "$process_dir/${step_name}.pid"
+        return 1
+    fi
+
     log::info "Started background process: $process_id (PID: $pid)"
     return 0
 }
@@ -246,6 +281,18 @@ lifecycle::stop_scenario_processes() {
         fi
     done
     
+    # Phase 5: Clean up any allocated port locks/state for this scenario
+    local scenario_state_dir="$HOME/.vrooli/state/scenarios"
+    if [[ -d "$scenario_state_dir" ]]; then
+        for lock_file in "$scenario_state_dir"/.port_*.lock; do
+            [[ -f "$lock_file" ]] || continue
+            if [[ "$(cut -d: -f1 "$lock_file" 2>/dev/null)" == "$scenario_name" ]]; then
+                rm -f "$lock_file" 2>/dev/null || true
+            fi
+        done
+        rm -f "$scenario_state_dir/${scenario_name}.json" 2>/dev/null || true
+    fi
+
     log::info "Stopped $stopped_count process groups for scenario: $scenario_name"
     return 0
 }
@@ -343,7 +390,7 @@ lifecycle::execute_phase() {
     local total_steps
     total_steps=$(echo "$steps" | jq 'length')
     
-    echo "$steps" | jq -c '.[]' | while IFS= read -r step; do
+    while IFS= read -r step; do
         step_count=$((step_count + 1))
         
         local name=$(echo "$step" | jq -r '.name // "unnamed"')
@@ -367,7 +414,10 @@ lifecycle::execute_phase() {
         
         # Execute command using new PID tracking system
         if [[ "$is_background" == "true" ]]; then
-            lifecycle::start_tracked_process "$phase" "$name" "$cmd"
+            if ! lifecycle::start_tracked_process "$phase" "$name" "$cmd"; then
+                log::error "Background step failed: $phase.$app_name.$name"
+                return 1
+            fi
         else
             # Foreground execution
             if (cd "$(pwd)" && LIFECYCLE_PHASE="$phase" VROOLI_LIFECYCLE_MANAGED="true" bash -c "$cmd"); then
@@ -385,7 +435,7 @@ lifecycle::execute_phase() {
                 fi
             fi
         fi
-    done
+    done < <(echo "$steps" | jq -c '.[]')
     
     log::success "Phase '$phase' completed"
     return 0
@@ -448,7 +498,7 @@ lifecycle::develop_with_auto_setup() {
     
     # Run develop phase
     log::info "Starting develop phase..."
-    lifecycle::execute_phase "develop"
+    lifecycle::execute_phase "develop" || return 1
 }
 lifecycle::main() {
     # Only run main if executed directly (not sourced)

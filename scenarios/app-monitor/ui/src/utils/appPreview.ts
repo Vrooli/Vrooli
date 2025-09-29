@@ -1,5 +1,55 @@
 import type { App } from '@/types';
 
+const resolveLocalOrigin = (): string => {
+  try {
+    const override =
+      typeof import.meta !== 'undefined' &&
+      import.meta.env &&
+      typeof import.meta.env.VITE_APP_MONITOR_LOCAL_ORIGIN === 'string'
+        ? import.meta.env.VITE_APP_MONITOR_LOCAL_ORIGIN.trim()
+        : '';
+
+    if (override) {
+      const candidate = new URL(override.includes('://') ? override : `http://${override}`);
+      return candidate.origin;
+    }
+  } catch (error) {
+    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+      console.warn('Invalid VITE_APP_MONITOR_LOCAL_ORIGIN environment override', error);
+    }
+  }
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+
+  return 'http://127.0.0.1';
+};
+
+const LOCAL_ORIGIN = resolveLocalOrigin();
+
+const buildFromLocalOrigin = (path: string): string => {
+  try {
+    const base = new URL(LOCAL_ORIGIN);
+    const normalizedPath = path.replace(/^\//, '');
+    const joined = new URL(normalizedPath, base);
+    return joined.toString();
+  } catch {
+    const normalizedPath = path.replace(/^\//, '');
+    return `${LOCAL_ORIGIN.replace(/\/$/, '')}/${normalizedPath}`;
+  }
+};
+
+const buildFromLocalPort = (port: number): string => {
+  try {
+    const base = new URL(LOCAL_ORIGIN);
+    base.port = String(port);
+    return base.toString();
+  } catch {
+    return `${LOCAL_ORIGIN.replace(/:\d+$/, '')}:${port}`;
+  }
+};
+
 export const normalizeStatus = (status?: string | null) => (status ?? '').toLowerCase();
 
 export const isRunningStatus = (status?: string | null) => {
@@ -206,12 +256,7 @@ export const buildPreviewUrl = (app: App): string | null => {
       return trimmed;
     }
 
-    if (typeof window !== 'undefined') {
-      const origin = window.location.origin.replace(/\/$/, '');
-      return `${origin}/${trimmed.replace(/^\//, '')}`;
-    }
-
-    return `http://localhost/${trimmed.replace(/^\//, '')}`;
+    return buildFromLocalOrigin(trimmed);
   }
 
   for (const [label, rawValue] of Object.entries(environment)) {
@@ -234,12 +279,7 @@ export const buildPreviewUrl = (app: App): string | null => {
       return trimmed;
     }
 
-    if (typeof window !== 'undefined') {
-      const origin = window.location.origin.replace(/\/$/, '');
-      return `${origin}/${trimmed.replace(/^\//, '')}`;
-    }
-
-    return `http://localhost/${trimmed.replace(/^\//, '')}`;
+    return buildFromLocalOrigin(trimmed);
   }
 
   const uiPort = computeAppUIPort(app);
@@ -247,13 +287,7 @@ export const buildPreviewUrl = (app: App): string | null => {
     return null;
   }
 
-  if (typeof window === 'undefined') {
-    return `http://localhost:${uiPort}`;
-  }
-
-  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-  const hostname = window.location.hostname || 'localhost';
-  return `${protocol}//${hostname}:${uiPort}`;
+  return buildFromLocalPort(uiPort);
 };
 
 export const locateAppByIdentifier = (apps: App[], identifier: string): App | null => {
