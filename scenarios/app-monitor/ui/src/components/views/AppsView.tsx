@@ -74,8 +74,8 @@ const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
   { value: 'recently-added', label: 'Recently added' },
   { value: 'most-viewed', label: 'Most viewed' },
   { value: 'least-viewed', label: 'Least viewed' },
-  { value: 'name-asc', label: 'Name · A → Z' },
-  { value: 'name-desc', label: 'Name · Z → A' },
+  { value: 'name-asc', label: 'A → Z' },
+  { value: 'name-desc', label: 'Z → A' },
 ];
 
 const SORT_OPTION_SET = new Set<SortOption>(SORT_OPTIONS.map(({ value }) => value));

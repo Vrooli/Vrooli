@@ -71,10 +71,6 @@ POSTGRES_USER=vrooli
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 POSTGRES_DB=test_genie
 
-# OpenCode Model Configuration
-OPENCODE_DEFAULT_MODEL=openrouter/x-ai/grok-code-fast-1
-TEST_GENIE_AGENT_MODEL=${TEST_GENIE_AGENT_MODEL:-openrouter/x-ai/grok-code-fast-1}
-
 # Optional: Redis Configuration
 # REDIS_HOST=localhost
 # REDIS_PORT=6379

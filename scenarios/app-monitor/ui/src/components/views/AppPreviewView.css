@@ -611,14 +611,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.35rem 0.85rem;
-  border-radius: 999px;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
   border: 1px solid rgba(0, 255, 255, 0.25);
   background: rgba(0, 32, 32, 0.45);
   color: var(--matrix-cyan);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -810,19 +808,24 @@
 
 .report-dialog__logs-content--console {
   padding: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .report-dialog__console-line {
-  display: block;
-  padding: 0.25rem 0.35rem 0.25rem 0.6rem;
+  padding: 0.35rem 0.45rem 0.45rem 0.75rem;
   border-left: 3px solid transparent;
   border-radius: 6px;
-  margin: 0;
   word-break: break-word;
+  background: rgba(0, 16, 16, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .report-dialog__console-line + .report-dialog__console-line {
-  margin-top: 0.2rem;
+  margin-top: 0.25rem;
 }
 
 .report-dialog__console-line--error {
@@ -849,6 +852,145 @@
   color: rgba(0, 255, 65, 0.85);
   border-left-color: rgba(0, 255, 65, 0.45);
   background: rgba(0, 64, 32, 0.12);
+}
+
+.report-dialog__console-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(173, 255, 227, 0.75);
+}
+
+.report-dialog__console-timestamp {
+  font-weight: 600;
+  color: rgba(224, 255, 249, 0.85);
+}
+
+.report-dialog__console-source {
+  opacity: 0.7;
+}
+
+.report-dialog__console-level {
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+}
+
+.report-dialog__console-body {
+  font-family: 'Fira Code', 'Source Code Pro', monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  color: rgba(224, 255, 249, 0.92);
+  white-space: pre-wrap;
+}
+
+.report-dialog__logs-content--network {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.65rem;
+}
+
+.report-dialog__network-entry {
+  border: 1px solid rgba(0, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  background: rgba(0, 24, 32, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.report-dialog__network-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(173, 255, 227, 0.8);
+}
+
+.report-dialog__network-timestamp {
+  font-weight: 600;
+  color: rgba(224, 255, 249, 0.85);
+}
+
+.report-dialog__network-method {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 255, 0.35);
+  color: rgba(0, 255, 255, 0.85);
+}
+
+.report-dialog__network-status {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.report-dialog__network-status--ok {
+  color: rgba(0, 255, 163, 0.9);
+  border-color: rgba(0, 255, 163, 0.35);
+}
+
+.report-dialog__network-status--error {
+  color: rgba(255, 156, 176, 0.95);
+  border-color: rgba(255, 98, 128, 0.5);
+  background: rgba(255, 32, 80, 0.12);
+}
+
+.report-dialog__network-duration {
+  opacity: 0.75;
+}
+
+.report-dialog__network-request {
+  opacity: 0.6;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+}
+
+.report-dialog__network-url {
+  font-family: 'Fira Code', 'Source Code Pro', monospace;
+  font-size: 0.76rem;
+  color: rgba(224, 255, 249, 0.92);
+  word-break: break-all;
+}
+
+.report-dialog__network-error {
+  font-size: 0.74rem;
+  color: rgba(255, 156, 176, 0.95);
+}
+
+.report-dialog__bridge-refresh {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 255, 191, 0.35);
+  background: rgba(0, 64, 48, 0.35);
+  color: rgba(173, 255, 227, 0.95);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.report-dialog__bridge-refresh:hover:not(:disabled) {
+  background: rgba(0, 255, 191, 0.25);
+  color: var(--matrix-bg);
+}
+
+.report-dialog__bridge-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .report-dialog__preview {
@@ -962,6 +1104,74 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.report-dialog__preview-meta-item--emphasis {
+  color: var(--matrix-cyan);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.report-dialog__bridge {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 255, 191, 0.2);
+  background: rgba(0, 40, 32, 0.65);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.report-dialog__bridge--warning {
+  border-color: rgba(255, 196, 0, 0.35);
+  background: rgba(64, 32, 0, 0.65);
+}
+
+.report-dialog__bridge--ok {
+  border-color: rgba(0, 255, 163, 0.35);
+}
+
+.report-dialog__bridge-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(173, 255, 227, 0.95);
+}
+
+.report-dialog__bridge--warning .report-dialog__bridge-head {
+  color: rgba(255, 212, 128, 0.95);
+}
+
+.report-dialog__bridge-meta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: rgba(180, 255, 227, 0.7);
+  letter-spacing: 0.05em;
+}
+
+.report-dialog__bridge-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgba(180, 255, 227, 0.75);
+  letter-spacing: 0.04em;
+}
+
+.report-dialog__bridge-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.78rem;
+  color: rgba(255, 212, 160, 0.9);
+  letter-spacing: 0.04em;
+}
+
+.report-dialog__bridge-list li + li {
+  margin-top: 0.3rem;
 }
 
 .report-dialog__preview-buttons {
@@ -1108,4 +1318,166 @@
   .preview-placeholder {
     margin: 0;
   }
+}
+
+.report-dialog__bridge {
+  margin-bottom: 1.4rem;
+}
+
+.report-dialog__bridge-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  background: rgba(0, 24, 24, 0.55);
+  color: rgba(224, 255, 249, 0.9);
+}
+
+.report-dialog__bridge-status svg {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.report-dialog__bridge-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.report-dialog__bridge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.report-dialog__bridge-header p {
+  margin: 0;
+  flex: 1;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.report-dialog__bridge-status--warning {
+  border-color: rgba(255, 193, 7, 0.45);
+  background: rgba(255, 146, 43, 0.12);
+  color: #f97316;
+}
+
+.report-dialog__bridge-status--warning svg {
+  color: #fb923c;
+}
+
+.report-dialog__bridge-status--error {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+}
+
+.report-dialog__bridge-status--error svg {
+  color: #f87171;
+}
+
+.report-dialog__bridge-status--success {
+  border-color: rgba(52, 211, 153, 0.5);
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.report-dialog__bridge-status--success svg {
+  color: #34d399;
+}
+
+.report-dialog__bridge-list {
+  margin: 0.4rem 0 0.25rem;
+  padding-left: 0;
+  font-size: 0.78rem;
+  color: inherit;
+  list-style: none;
+}
+
+.report-dialog__bridge-list li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.65rem;
+  padding-left: 1.4rem;
+}
+
+.report-dialog__bridge-list li::before {
+  content: '';
+  position: absolute;
+  top: 0.55rem;
+  left: 0.35rem;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: rgba(255, 193, 7, 0.8);
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.25);
+}
+
+.report-dialog__bridge-summary {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-size: 0.82rem;
+}
+
+.report-dialog__bridge-location {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 0.1rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(0, 255, 255, 0.18);
+  color: rgba(224, 255, 249, 0.85);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+.report-dialog__bridge-recommendation {
+  margin: 0.1rem 0 0;
+  font-size: 0.72rem;
+  color: rgba(224, 255, 249, 0.7);
+}
+
+.report-dialog__bridge-note {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.report-dialog__bridge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.report-dialog__bridge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  background: rgba(0, 32, 32, 0.45);
+  color: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.report-dialog__bridge-icon:hover:not(:disabled) {
+  background: rgba(0, 255, 255, 0.2);
+  color: var(--matrix-bg);
+}
+
+.report-dialog__bridge-icon:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

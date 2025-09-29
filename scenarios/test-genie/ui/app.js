@@ -1,6 +1,4 @@
 // Test Genie Dashboard JavaScript
-const MODEL_STORAGE_KEY = 'testGenie.selectedModel';
-const AGENT_POLL_INTERVAL = 8000;
 const DEFAULT_VAULT_PHASES = ['setup', 'develop', 'test'];
 const VAULT_PHASE_DEFINITIONS = {
     setup: {
@@ -49,11 +47,6 @@ class TestGenieApp {
         this.suiteDetailsCache = new Map();
         this.refreshInterval = null;
         this.wsConnection = null;
-        this.availableModels = [];
-        this.defaultModel = 'openrouter/x-ai/grok-code-fast-1';
-        this.selectedModel = null;
-        this.agentInterval = null;
-        this.agentMenuOpen = false;
         this.mobileBreakpoint = 768;
         this.sidebarToggleButton = null;
         this.sidebarOverlay = null;
@@ -85,8 +78,11 @@ class TestGenieApp {
         this.executionDetailSubtitle = null;
         this.executionDetailStatus = null;
         this.lastGenerateDialogTrigger = null;
+        this.generateDialogScenarioName = '';
         this.lastCoverageDialogTrigger = null;
         this.lastVaultDialogTrigger = null;
+        this.coverageTargetInput = null;
+        this.coverageTargetDisplay = null;
         this.coverageTableContainer = null;
         this.coverageDetailOverlay = null;
         this.coverageDetailContent = null;
@@ -121,10 +117,8 @@ class TestGenieApp {
         this.setupCoverageDetailDialog();
         this.setupGenerateDialog();
         this.setupVaultDialog();
-        await this.loadModels();
         await this.loadInitialData();
         this.startPeriodicUpdates();
-        this.startAgentPolling();
     }
 
     setupEventListeners() {
@@ -139,12 +133,7 @@ class TestGenieApp {
                         this.closeMobileSidebar();
                     }
                 }
-                this.hideAgentDropdown();
                 return;
-            }
-
-            if (!e.target.closest('.agent-status')) {
-                this.hideAgentDropdown();
             }
         });
 
@@ -173,35 +162,6 @@ class TestGenieApp {
             });
         }
 
-        const agentToggle = document.getElementById('agent-toggle');
-        if (agentToggle) {
-            agentToggle.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.toggleAgentDropdown();
-            });
-        }
-
-        const agentList = document.getElementById('agent-list');
-        if (agentList) {
-            agentList.addEventListener('click', (e) => {
-                const stopButton = e.target.closest('.agent-stop-btn');
-                if (stopButton) {
-                    const agentId = stopButton.dataset.agentId;
-                    if (agentId) {
-                        this.stopAgent(agentId, stopButton);
-                    }
-                }
-            });
-        }
-
-        const modelSelect = document.getElementById('model-select');
-        if (modelSelect) {
-            modelSelect.addEventListener('change', (event) => {
-                this.updateSelectedModel(event.target.value);
-            });
-        }
-
         // Form submissions
         document.getElementById('generate-form')?.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -212,6 +172,23 @@ class TestGenieApp {
             e.preventDefault();
             this.handleVaultSubmit();
         });
+
+        this.coverageTargetInput = document.getElementById('coverage-target');
+        this.coverageTargetDisplay = document.getElementById('coverage-target-display');
+
+        if (this.coverageTargetInput) {
+            const updateCoverageDisplay = () => {
+                const value = parseInt(this.coverageTargetInput.value, 10);
+                const normalized = Number.isFinite(value) ? value : 80;
+                if (this.coverageTargetDisplay) {
+                    this.coverageTargetDisplay.textContent = `${normalized}%`;
+                }
+            };
+
+            updateCoverageDisplay();
+            this.coverageTargetInput.addEventListener('input', updateCoverageDisplay);
+            this.coverageTargetInput.addEventListener('change', updateCoverageDisplay);
+        }
 
         this.runSelectedSuitesButton = document.getElementById('suites-run-selected-btn');
         this.runSelectedSuitesLabel = document.getElementById('suites-run-selected-label');
@@ -566,13 +543,33 @@ class TestGenieApp {
         this.generateDialogOverlay.setAttribute('aria-hidden', 'false');
         this.lockDialogScroll();
 
-        const scenarioInput = document.getElementById('scenario-name');
-        if (scenarioInput) {
-            if (scenarioName) {
-                scenarioInput.value = scenarioName;
+        this.generateDialogScenarioName = typeof scenarioName === 'string' ? scenarioName.trim() : '';
+
+        const scenarioDisplay = document.getElementById('scenario-name-display');
+        if (scenarioDisplay) {
+            if (this.generateDialogScenarioName) {
+                scenarioDisplay.textContent = this.generateDialogScenarioName;
+                scenarioDisplay.classList.remove('placeholder');
+            } else {
+                scenarioDisplay.textContent = 'Select a scenario from the table to generate a test suite.';
+                scenarioDisplay.classList.add('placeholder');
             }
-            this.focusElement(scenarioInput);
-            scenarioInput.select?.();
+        }
+
+        if (this.coverageTargetInput) {
+            const value = parseInt(this.coverageTargetInput.value, 10);
+            const normalized = Number.isFinite(value) ? value : 80;
+            this.coverageTargetInput.value = normalized;
+            if (this.coverageTargetDisplay) {
+                this.coverageTargetDisplay.textContent = `${normalized}%`;
+            }
+        }
+
+        const firstPhaseCheckbox = document.querySelector('#generate-phase-selector input[type="checkbox"]');
+        if (firstPhaseCheckbox) {
+            this.focusElement(firstPhaseCheckbox);
+        } else if (this.coverageTargetInput) {
+            this.focusElement(this.coverageTargetInput);
         }
 
         const resultDiv = document.getElementById('generation-result');
@@ -590,6 +587,13 @@ class TestGenieApp {
         this.generateDialogOverlay.classList.remove('active');
         this.generateDialogOverlay.setAttribute('aria-hidden', 'true');
         this.unlockDialogScrollIfIdle();
+
+        this.generateDialogScenarioName = '';
+        const scenarioDisplay = document.getElementById('scenario-name-display');
+        if (scenarioDisplay) {
+            scenarioDisplay.textContent = 'Select a scenario from the table to generate a test suite.';
+            scenarioDisplay.classList.add('placeholder');
+        }
 
         if (this.lastGenerateDialogTrigger) {
             this.focusElement(this.lastGenerateDialogTrigger);
@@ -1963,17 +1967,31 @@ class TestGenieApp {
         const btn = document.getElementById('generate-btn');
         const resultDiv = document.getElementById('generation-result');
 
-        const formData = new FormData(form);
-        const scenarioName = document.getElementById('scenario-name').value;
-        const testTypes = Array.from(document.getElementById('test-types').selectedOptions).map(option => option.value);
-        const coverageTarget = parseInt(document.getElementById('coverage-target').value);
-        const includePerformance = document.getElementById('include-performance').checked;
-        const includeSecurity = document.getElementById('include-security').checked;
+        if (!form || !btn || !resultDiv) {
+            console.error('Generate dialog elements are missing from the DOM.');
+            return;
+        }
 
-        if (!scenarioName || testTypes.length === 0) {
+        const scenarioName = (this.generateDialogScenarioName || '').trim();
+        const phaseInputs = Array.from(document.querySelectorAll('#generate-phase-selector input[type="checkbox"]'));
+        const selectedPhases = phaseInputs
+            .filter((input) => input.checked)
+            .map((input) => String(input.value || '').trim())
+            .filter(Boolean);
+
+        const coverageRaw = this.coverageTargetInput
+            ? parseInt(this.coverageTargetInput.value, 10)
+            : parseInt(document.getElementById('coverage-target')?.value ?? '80', 10);
+        const coverageTarget = Number.isFinite(coverageRaw) ? coverageRaw : 80;
+        const normalizedCoverage = Math.min(100, Math.max(50, coverageTarget));
+
+        if (!scenarioName || selectedPhases.length === 0) {
             this.showError('Please fill in all required fields');
             return;
         }
+
+        const includePerformance = selectedPhases.includes('performance');
+        const includeSecurity = selectedPhases.includes('security');
 
         btn.disabled = true;
         btn.innerHTML = '<div class="spinner"></div> Generating...';
@@ -1982,9 +2000,8 @@ class TestGenieApp {
         try {
             const requestData = {
                 scenario_name: scenarioName,
-                test_types: testTypes,
-                coverage_target: coverageTarget,
-                model: this.getSelectedModel(),
+                test_types: selectedPhases,
+                coverage_target: normalizedCoverage,
                 options: {
                     include_performance_tests: includePerformance,
                     include_security_tests: includeSecurity,
@@ -2006,23 +2023,42 @@ class TestGenieApp {
             }
 
             const result = await response.json();
-            
-            resultDiv.innerHTML = `✅ Test Suite Generated Successfully!
 
-Suite ID: ${result.suite_id}
-Generated Tests: ${result.generated_tests}
-Estimated Coverage: ${result.estimated_coverage}%
-Generation Time: ${result.generation_time}s
+            let summary = '';
+            const requestId = result.request_id || result.suite_id || 'unknown';
+            const status = (result.status || 'submitted').toUpperCase();
 
-Test Files Generated:
-${Object.entries(result.test_files || {}).map(([type, files]) => 
-    `  ${type}: ${files.length} files`
-).join('\n')}`;
+            if ((result.status || '').toLowerCase() === 'generated_locally') {
+                const filesSummary = Object.entries(result.test_files || {}).map(([type, files]) =>
+                    `  ${type}: ${files.length} files`
+                ).join('\n');
 
+                summary = `✅ Local Test Suite Generated\n\n` +
+                    `Request ID: ${requestId}\n` +
+                    `Status: ${status}\n` +
+                    `Generated Tests: ${result.generated_tests || 0}\n` +
+                    `Estimated Coverage: ${result.estimated_coverage ?? 0}%\n` +
+                    `Generation Time: ${result.generation_time ? `${result.generation_time}s` : 'n/a'}\n\n` +
+                    (filesSummary ? `Test Files Generated:\n${filesSummary}` : '');
+
+                this.showSuccess(`Generated ${result.generated_tests || 0} fallback tests locally.`);
+            } else {
+                const issueLink = result.issue_url
+                    ? `Track progress: ${result.issue_url}`
+                    : 'Track progress in app-issue-tracker.';
+                const issueIdLine = result.issue_id ? `Issue ID: ${result.issue_id}\n` : '';
+                summary = `📝 Test Generation Request Submitted\n\n` +
+                    `Request ID: ${requestId}\n` +
+                    `Status: ${status}\n` +
+                    issueIdLine +
+                    `Message: ${result.message || 'Delegated to app-issue-tracker'}\n\n` +
+                    issueLink;
+
+                this.showSuccess('Delegated test generation request to app-issue-tracker.');
+            }
+
+            resultDiv.textContent = summary;
             resultDiv.style.display = 'block';
-            
-            // Show success notification
-            this.showSuccess(`Test suite generated successfully! ${result.generated_tests} tests created.`);
 
             await Promise.all([
                 this.loadTestSuites(),
@@ -4114,306 +4150,6 @@ ${Object.entries(result.test_files || {}).map(([type, files]) =>
                 document.body.removeChild(notification);
             }, 300);
         }, 5000);
-    }
-
-    // Model selection helpers
-    async loadModels() {
-        try {
-            const response = await this.fetchWithErrorHandling('/models');
-            if (response && Array.isArray(response.models)) {
-                this.availableModels = response.models;
-                if (response.default_model) {
-                    this.defaultModel = response.default_model;
-                }
-            } else {
-                this.availableModels = [];
-            }
-        } catch (error) {
-            console.error('Failed to load model catalog:', error);
-            this.availableModels = [];
-        }
-
-        const stored = localStorage.getItem(MODEL_STORAGE_KEY);
-        if (stored && (this.availableModels.length === 0 || this.availableModels.some(model => model.id === stored))) {
-            this.selectedModel = stored;
-        } else if (this.availableModels.length > 0) {
-            const defaultMatch = this.availableModels.find(model => model.id === this.defaultModel);
-            this.selectedModel = defaultMatch ? defaultMatch.id : this.availableModels[0].id;
-        } else {
-            this.selectedModel = this.defaultModel;
-        }
-
-        if (this.selectedModel) {
-            localStorage.setItem(MODEL_STORAGE_KEY, this.selectedModel);
-        }
-
-        this.updateModelSelector();
-    }
-
-    getSelectedModel() {
-        return this.selectedModel || this.defaultModel;
-    }
-
-    updateSelectedModel(modelId) {
-        if (!modelId) {
-            return;
-        }
-
-        const previous = this.selectedModel;
-        this.selectedModel = modelId;
-        localStorage.setItem(MODEL_STORAGE_KEY, this.selectedModel);
-        this.updateModelSelector();
-
-        if (previous !== this.selectedModel) {
-            this.showSuccess(`Default AI model set to ${this.selectedModel}`);
-        }
-    }
-
-    updateModelSelector() {
-        const select = document.getElementById('model-select');
-        const helper = document.getElementById('model-select-helper');
-        if (!select) {
-            return;
-        }
-
-        select.innerHTML = '';
-        const models = this.availableModels || [];
-        const selected = this.getSelectedModel();
-
-        if (models.length === 0) {
-            const option = document.createElement('option');
-            option.value = selected;
-            option.textContent = selected;
-            select.appendChild(option);
-            select.disabled = true;
-            if (helper) {
-                helper.textContent = 'Using fallback model. Configure resource-opencode to unlock provider models.';
-            }
-            return;
-        }
-
-        models.forEach(model => {
-            const option = document.createElement('option');
-            option.value = model.id;
-            option.textContent = this.formatModelLabel(model);
-            select.appendChild(option);
-        });
-
-        if (!models.some(model => model.id === selected)) {
-            const option = document.createElement('option');
-            option.value = selected;
-            option.textContent = selected;
-            select.appendChild(option);
-        }
-
-        select.value = selected;
-        select.disabled = false;
-
-        if (helper) {
-            const modelMeta = models.find(model => model.id === selected);
-            helper.textContent = modelMeta
-                ? `Selected model: ${modelMeta.id}`
-                : `Selected model: ${selected}`;
-        }
-    }
-
-    formatModelLabel(model) {
-        if (!model) {
-            return '';
-        }
-        const label = model.label && model.label !== model.id
-            ? `${model.label} — ${model.id}`
-            : model.id;
-        const provider = model.provider ? `${model.provider} • ` : '';
-        const suffix = model.free ? ' (free tier)' : '';
-        return `${provider}${label}${suffix}`;
-    }
-
-    // Agent management helpers
-    startAgentPolling() {
-        const toggle = document.getElementById('agent-toggle');
-        if (!toggle) {
-            return;
-        }
-
-        if (this.agentInterval) {
-            clearInterval(this.agentInterval);
-        }
-
-        this.refreshAgentStatus();
-        this.agentInterval = setInterval(() => this.refreshAgentStatus(), AGENT_POLL_INTERVAL);
-    }
-
-    async refreshAgentStatus() {
-        const data = await this.fetchWithErrorHandling('/agents');
-        if (!data) {
-            this.updateAgentIndicator({ count: 0, agents: [] });
-            return;
-        }
-        this.updateAgentIndicator(data);
-    }
-
-    updateAgentIndicator(agentData) {
-        const button = document.getElementById('agent-toggle');
-        const countEl = document.getElementById('agent-count');
-        const listEl = document.getElementById('agent-list');
-        const dropdown = document.getElementById('agent-dropdown');
-
-        if (!button || !countEl || !listEl || !dropdown) {
-            return;
-        }
-
-        const count = agentData?.count || 0;
-        const agents = Array.isArray(agentData?.agents) ? agentData.agents : [];
-
-        button.classList.toggle('inactive', count === 0);
-        button.classList.toggle('active', count > 0);
-        countEl.textContent = count > 0
-            ? `${count} Active Agent${count === 1 ? '' : 's'}`
-            : 'No Active Agents';
-
-        listEl.innerHTML = '';
-
-        if (agents.length === 0) {
-            const empty = document.createElement('div');
-            empty.className = 'agent-empty';
-            empty.textContent = 'No agents currently running';
-            listEl.appendChild(empty);
-            this.hideAgentDropdown();
-            return;
-        }
-
-        agents.forEach(agent => {
-            const item = document.createElement('div');
-            item.className = 'agent-item';
-
-            const title = document.createElement('h4');
-            title.textContent = agent.label || agent.name || agent.id;
-            item.appendChild(title);
-
-            const actionRow = document.createElement('div');
-            actionRow.className = 'agent-meta';
-            const actionSpan = document.createElement('span');
-            actionSpan.textContent = this.describeAgentAction(agent.action);
-            const durationSpan = document.createElement('span');
-            durationSpan.textContent = this.formatAgentDuration(agent);
-            actionRow.appendChild(actionSpan);
-            actionRow.appendChild(durationSpan);
-            item.appendChild(actionRow);
-
-            const modelRow = document.createElement('div');
-            modelRow.className = 'agent-meta';
-            const modelSpan = document.createElement('span');
-            modelSpan.textContent = agent.model || 'Model not specified';
-            const statusSpan = document.createElement('span');
-            statusSpan.textContent = (agent.status || 'running').toUpperCase();
-            modelRow.appendChild(modelSpan);
-            modelRow.appendChild(statusSpan);
-            item.appendChild(modelRow);
-
-            const actions = document.createElement('div');
-            actions.className = 'agent-actions';
-            const stopBtn = document.createElement('button');
-            stopBtn.type = 'button';
-            stopBtn.className = 'agent-stop-btn';
-            stopBtn.dataset.agentId = agent.id;
-            stopBtn.textContent = 'Stop Agent';
-            actions.appendChild(stopBtn);
-            item.appendChild(actions);
-
-            listEl.appendChild(item);
-        });
-    }
-
-    toggleAgentDropdown() {
-        const dropdown = document.getElementById('agent-dropdown');
-        if (!dropdown) {
-            return;
-        }
-        const hasAgents = Boolean(document.querySelector('#agent-list .agent-item'));
-        if (!hasAgents) {
-            this.hideAgentDropdown();
-            return;
-        }
-        this.agentMenuOpen = !this.agentMenuOpen;
-        dropdown.classList.toggle('visible', this.agentMenuOpen);
-    }
-
-    hideAgentDropdown() {
-        const dropdown = document.getElementById('agent-dropdown');
-        if (!dropdown) {
-            return;
-        }
-        if (this.agentMenuOpen) {
-            this.agentMenuOpen = false;
-            dropdown.classList.remove('visible');
-        }
-    }
-
-    async stopAgent(agentId, button) {
-        if (!agentId) {
-            return;
-        }
-
-        if (button) {
-            button.disabled = true;
-            button.textContent = 'Stopping…';
-        }
-
-        try {
-            const response = await fetch(`${this.apiBaseUrl}/agents/${agentId}/stop`, {
-                method: 'POST'
-            });
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            this.showSuccess('Agent stop requested');
-        } catch (error) {
-            console.error('Failed to stop agent', error);
-            this.showError('Failed to stop agent');
-        } finally {
-            if (button) {
-                button.disabled = false;
-                button.textContent = 'Stop Agent';
-            }
-            this.refreshAgentStatus();
-        }
-    }
-
-    describeAgentAction(action) {
-        if (!action) {
-            return 'Running task';
-        }
-        const map = {
-            generate_unit_tests: 'Generating unit tests',
-            generate_integration_tests: 'Generating integration tests',
-            generate_performance_tests: 'Generating performance tests'
-        };
-        if (map[action]) {
-            return map[action];
-        }
-        const formatted = action.replace(/_/g, ' ');
-        return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-    }
-
-    formatAgentDuration(agent) {
-        if (!agent) {
-            return '';
-        }
-        let seconds = agent.duration_seconds;
-        if ((!seconds || seconds <= 0) && agent.started_at) {
-            const start = new Date(agent.started_at);
-            seconds = Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000));
-        }
-        if (!seconds || seconds <= 0) {
-            return '0s';
-        }
-        const minutes = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        if (minutes > 0) {
-            return `${minutes}m ${secs}s`;
-        }
-        return `${secs}s`;
     }
 
     // Utility methods for API calls

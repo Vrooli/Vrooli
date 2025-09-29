@@ -65,10 +65,10 @@ Comprehensive testing infrastructure for the Test Genie scenario, covering core 
 - Test Genie API running with database connectivity
 
 ### 4. Business Logic & AI (`test/phases/test-business.sh`)
-**Purpose**: Tests OpenCode integration, AI generation, and fallback mechanisms
+**Purpose**: Tests App Issue Tracker delegation, AI generation, and fallback mechanisms
 
 **Test Cases**:
-- ✅ OpenCode service health and model availability
+- ✅ App Issue Tracker health and API availability
 - ✅ AI-powered test suite generation
 - ✅ Fallback generation mechanism testing
 - ✅ Performance test type generation
@@ -77,7 +77,7 @@ Comprehensive testing infrastructure for the Test Genie scenario, covering core 
 - ✅ Concurrent AI generation (3 parallel requests)
 
 **Prerequisites**:
-- OpenCode resource running with models available
+- App Issue Tracker scenario running and reachable (`vrooli scenario status app-issue-tracker`)
 - AI service integration configured
 
 ### Master Test Runner (`run-all-tests.sh`)
@@ -120,7 +120,7 @@ Test logs are stored in `/tmp/test-genie-logs-<pid>/`:
 # Custom API port (auto-detected by default)
 API_PORT=8200 ./phases/test-integration.sh
 
-# Custom OpenCode configuration
+# Custom delegation target configuration
 ./phases/test-business.sh
 ```
 
@@ -163,11 +163,11 @@ env | grep POSTGRES
 
 **AI integration failures**
 ```bash
-# Check OpenCode resource
-resource-opencode status
+# Check App Issue Tracker scenario
+vrooli scenario status app-issue-tracker
 
-# Verify available models
-resource-opencode models | head -5
+# Inspect health endpoint
+curl -s http://localhost:8090/health | jq
 ```
 
 ### Performance Issues
@@ -178,7 +178,7 @@ resource-opencode models | head -5
 - Review database logs for bottlenecks
 
 **AI generation timeouts**:
-- Verify OpenCode models are available (`resource-opencode models`)
+- Verify App Issue Tracker is healthy (`curl -s http://localhost:8090/health`)
 - Check available system memory
 - Consider smaller model alternatives
 
@@ -195,7 +195,7 @@ resource-opencode models | head -5
 
 ### Integration Coverage
 - ✅ PostgreSQL database operations
-- ✅ OpenCode AI service integration
+- ✅ App Issue Tracker delegation integration
 - ✅ CLI tool functionality
 - ✅ Concurrent operation handling
 - ✅ Error handling and fallback mechanisms
@@ -263,5 +263,5 @@ For issues with tests:
 
 For Test Genie functionality issues:
 - Review scenario logs: `make logs` or `vrooli scenario logs test-genie`
-- Check resource status: `resource-postgres status`, `resource-opencode status`
+- Check resource status: `resource-postgres status`, `vrooli scenario status app-issue-tracker`
 - Validate configuration: Review `.vrooli/service.json`

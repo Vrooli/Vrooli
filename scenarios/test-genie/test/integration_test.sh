@@ -73,9 +73,9 @@ run_test "Database Connectivity" \
     "curl -s ${BASE_URL}/health | jq -r '.checks.database.status'" \
     "healthy"
 
-# 3. Test AI Service
-run_test "AI Service (OpenCode)" \
-    "curl -s ${BASE_URL}/health | jq -r '.checks.ai_service.status'" \
+# 3. Test Delegation Service
+run_test "Delegation Service (App Issue Tracker)" \
+    "curl -s ${BASE_URL}/health | jq -r '.checks.issue_tracker.status'" \
     "healthy"
 
 # 4. Test Generate Test Suite Endpoint
@@ -84,7 +84,7 @@ run_test "Generate Test Suite" \
         -H 'Content-Type: application/json' \
         -d '{\"scenario_name\":\"test-scenario\",\"test_types\":[\"unit\"],\"coverage_target\":80}' \
         | jq -r '.status' 2>/dev/null || echo 'error'" \
-    "generated\|success\|error"
+    "submitted\|generated_locally\|error"
 
 # 5. Test List Test Suites
 run_test "List Test Suites" \

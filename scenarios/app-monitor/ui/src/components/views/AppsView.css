@@ -331,12 +331,7 @@
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 18px 28px rgba(0, 0, 0, 0.35);
-  table-layout: fixed;
-}
-
-.apps-table tbody {
-  display: table-row-group;
-  width: 100%;
+  table-layout: auto;
 }
 
 .apps-table thead {
@@ -468,6 +463,8 @@
   justify-content: flex-end;
   align-items: center;
   min-width: 160px;
+  white-space: nowrap;
+  width: 1%;
 }
 
 .app-name-cell {
@@ -486,13 +483,6 @@
   font-family: 'Orbitron', monospace;
   letter-spacing: 0.08em;
   line-height: 1.2;
-}
-
-.actions-cell {
-  display: flex;
-  gap: 0.3rem;
-  justify-content: flex-end;
-  align-items: center;
 }
 
 .app-btn {

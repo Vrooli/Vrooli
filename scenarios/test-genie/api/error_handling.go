@@ -303,17 +303,17 @@ func (fh *FallbackHandler) Execute(ctx context.Context) (interface{}, error) {
 
 // Global circuit breakers and configurations
 var (
-	openCodeCircuitBreaker *CircuitBreaker
-	dbCircuitBreaker       *CircuitBreaker
-	circuitBreakerInit     sync.Once
+	issueTrackerCircuitBreaker *CircuitBreaker
+	dbCircuitBreaker           *CircuitBreaker
+	circuitBreakerInit         sync.Once
 )
 
 // InitializeCircuitBreakers sets up global circuit breakers
 func InitializeCircuitBreakers() {
 	circuitBreakerInit.Do(func() {
-		// OpenCode circuit breaker
-		openCodeCircuitBreaker = NewCircuitBreaker(CircuitBreakerConfig{
-			Name:            "opencode",
+		// Issue tracker circuit breaker
+		issueTrackerCircuitBreaker = NewCircuitBreaker(CircuitBreakerConfig{
+			Name:            "issue_tracker",
 			MaxFailures:     5,
 			ResetTimeout:    60 * time.Second,
 			TimeoutDuration: 30 * time.Second,

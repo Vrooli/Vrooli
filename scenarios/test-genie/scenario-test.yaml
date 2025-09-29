@@ -53,35 +53,21 @@ setup:
         port: 5432
         expected: healthy
         
-      - action: check_service
-        service: ollama
-        port: 11434
-        expected: healthy
-        
       - action: verify_database_schema
         service: postgres
         database: test_genie
         tables: [test_suites, test_cases, test_executions, test_results]
         expected: all_exist
 
-  - name: Verify AI integration
-    description: Test OpenCode integration for AI-powered test generation
+  - name: Verify Delegated Generation
+    description: Ensure App Issue Tracker is reachable for AI-backed test generation
     category: ai_integration
     timeout: 120
     steps:
       - action: http_get
-        url: "http://localhost:11434/api/tags"
+        url: "http://localhost:8090/health"
         expected_status: 200
-        description: "Check available AI models"
-        
-      - action: http_post
-        url: "http://localhost:11434/api/generate"
-        json_data:
-          model: "llama3.2"
-          prompt: "Generate a simple test case"
-          stream: false
-        expected_status: 200
-        description: "Test AI generation capability"
+        description: "App Issue Tracker health check"
 
 # Phase 2: Develop Phase
 develop:
@@ -108,12 +94,11 @@ develop:
             include_security_tests: true
             custom_test_patterns: []
             execution_timeout: 300
-        expected_status: 201
-        store_response_as: test_suite_response
+        expected_status: 202
+        store_response_as: test_generation_request
         validate_response:
-          has_field: "suite_id"
-          has_field: "generated_tests"
-          has_field: "estimated_coverage"
+          has_field: "request_id"
+          has_field: "status"
         description: "Test suite generation API"
 
       - action: http_post

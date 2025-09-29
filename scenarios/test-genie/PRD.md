@@ -31,7 +31,7 @@ This capability fundamentally improves the quality and reliability of all Vrooli
 - **Must Have (P0)**
   - [x] Generate comprehensive test suites for any scenario within 60 seconds (2025-09-28: Achieved 30s with concurrent generation)
   - [x] Support multiple test types: unit, integration, performance, vault, regression (2025-09-28: All types working)
-  - [x] AI-powered test case generation using scenario analysis and code inspection (2025-09-28: OpenCode integration working)
+  - [x] AI-powered test case generation using scenario analysis and code inspection (2025-11-03: App Issue Tracker delegation working)
   - [x] Automated test execution with detailed reporting and failure analysis (2025-09-28: Execution and reporting functional)
   - [x] Test vault creation with phase-based testing for complex scenarios (2025-09-28: Vault creation working via CLI)
   - [ ] Integration with existing Vrooli testing infrastructure
@@ -111,7 +111,7 @@ integration_priorities:
   
   3_direct_api:
     - justification: Real-time test execution requires direct API access
-      endpoint: OpenCode agents for code analysis and test generation
+      endpoint: App Issue Tracker issue creation for delegated test generation
 ```
 
 ### Data Models
@@ -478,7 +478,7 @@ custom_commands:
 ### Upstream Dependencies
 **What capabilities must exist before this can function?**
 - **Postgres Resource**: Required for test data storage, result tracking, and analytics
-- **OpenCode Resource**: Required for AI-powered test generation and code analysis
+- **App Issue Tracker Resource**: Required for AI-powered test generation and orchestration
 - **Scenario Framework**: Test generation needs access to scenario source code and configuration
 - **File System Access**: Required for reading source code and writing generated test files
 
@@ -743,7 +743,7 @@ tests:
 ## 📝 Implementation Notes
 
 ### Design Decisions
-**AI-Powered Generation**: Chose OpenCode-based test generation over rule-based approaches
+**AI-Powered Generation**: Delegated test generation to App Issue Tracker agents instead of maintaining bespoke local orchestration
 - Alternative considered: Template-based test generation
 - Decision driver: Need for intelligent, context-aware test creation
 - Trade-offs: More complex but significantly more effective test coverage

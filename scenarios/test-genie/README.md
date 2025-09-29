@@ -18,8 +18,8 @@ Test Genie is a revolutionary AI-powered platform that automatically generates, 
 - Complex scenarios need sophisticated validation
 
 ### **The Test Genie Solution**
-- **60-second test generation** for comprehensive suites
-- **AI-powered intelligence** creates contextually relevant tests
+- **Delegated test generation** requests that stream to App Issue Tracker for execution
+- **AI-assisted coverage** via downstream agents that produce contextually relevant suites
 - **Vault testing** with multi-phase validation
 - **95%+ coverage** with gap analysis and recommendations
 
@@ -27,7 +27,7 @@ Test Genie is a revolutionary AI-powered platform that automatically generates, 
 
 ### Prerequisites
 - **PostgreSQL** (for test data storage)
-- **OpenCode CLI** via `resource-opencode` (for AI-powered test generation)
+- **App Issue Tracker scenario** running through the Vrooli lifecycle (handles delegated test generation)
 - **Node.js 16+** (for the dashboard UI)
 
 ### Installation
@@ -63,19 +63,21 @@ test-genie coverage my-scenario --depth comprehensive --report
 test-genie vault my-scenario --phases setup,develop,test,deploy
 ```
 
+> **Note:** `test-genie generate` now returns a request summary with an App Issue Tracker issue ID. Test suites appear in the dashboard once that issue is completed. If the tracker cannot be reached, Test Genie falls back to shipping deterministic local templates immediately.
+
 ## 🔥 Core Features
 
-### 1. **AI-Powered Test Generation**
+### 1. **Delegated Test Generation**
 ```bash
 test-genie generate document-manager \
   --types unit,integration,performance,vault \
   --coverage 95 \
   --parallel
 ```
-- **Intelligent Analysis**: AI examines your code and generates contextually relevant tests
+- **Asynchronous Requests**: Test Genie files an issue in App Issue Tracker with detailed generation instructions
 - **Multiple Test Types**: Unit, integration, performance, vault, and regression tests
-- **Configurable Coverage**: Set your target coverage percentage
-- **Pattern Recognition**: Learns from your codebase patterns
+- **Coverage Targets**: Capture desired coverage goals inside each request
+- **Fallback Safety**: Deterministic local templates kick in if the tracker is unavailable
 
 ### 2. **Vault Testing System**
 ```bash
@@ -134,7 +136,7 @@ cd ui && npm start
 ### **API Server** (`/api`)
 - **Go-based REST API** with comprehensive test management endpoints
 - **PostgreSQL Integration** for persistent test data storage
-- **OpenCode Integration** for AI-powered test generation and automation
+- **Delegation Engine** that raises work orders in App Issue Tracker for automated generation
 - **Real-time WebSocket** support for live execution monitoring
 
 ### **CLI Tool** (`/cli`)
@@ -531,7 +533,7 @@ Test Genie is released under the MIT License. See [LICENSE](LICENSE) for details
 
 ## 🙏 Acknowledgments
 
-- **OpenCode Team**: For delivering a flexible coding-focused AI platform
+- **App Issue Tracker Team**: For handling delegated test generation and orchestration
 - **PostgreSQL Community**: For the robust database foundation
 - **Vrooli Community**: For feedback and feature requests
 - **Open Source Contributors**: For making Test Genie better every day

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"math"
@@ -14,7 +15,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -87,9 +87,17 @@ type TestResult struct {
 }
 
 type CoverageMetrics struct {
-	CodeCoverage     float64 `json:"code_coverage"`
-	BranchCoverage   float64 `json:"branch_coverage"`
-	FunctionCoverage float64 `json:"function_coverage"`
+	CodeCoverage       float64  `json:"code_coverage"`
+	BranchCoverage     float64  `json:"branch_coverage"`
+	FunctionCoverage   float64  `json:"function_coverage"`
+	IssueID            string   `json:"issue_id,omitempty"`
+	IssueURL           string   `json:"issue_url,omitempty"`
+	RequestID          string   `json:"request_id,omitempty"`
+	RequestStatus      string   `json:"request_status,omitempty"`
+	RequestedAt        string   `json:"requested_at,omitempty"`
+	RequestedBy        string   `json:"requested_by,omitempty"`
+	RequestedTestTypes []string `json:"requested_test_types,omitempty"`
+	Notes              string   `json:"notes,omitempty"`
 }
 
 type PerformanceMetrics struct {
@@ -226,36 +234,15 @@ type TestGenerationOptions struct {
 }
 
 type GenerateTestSuiteResponse struct {
-	SuiteID           uuid.UUID           `json:"suite_id"`
-	GeneratedTests    int                 `json:"generated_tests"`
-	EstimatedCoverage float64             `json:"estimated_coverage"`
-	GenerationTime    float64             `json:"generation_time"`
-	TestFiles         map[string][]string `json:"test_files"`
-}
-
-type ModelInfo struct {
-	ID       string `json:"id"`
-	Label    string `json:"label"`
-	Provider string `json:"provider"`
-	Free     bool   `json:"free"`
-}
-
-type opencodeModelsResponse struct {
-	Models []opencodeModel `json:"models"`
-}
-
-type opencodeModel struct {
-	ID          string                `json:"id"`
-	Model       string                `json:"model"`
-	DisplayName string                `json:"display_name"`
-	Provider    string                `json:"provider"`
-	Backend     string                `json:"backend"`
-	Pricing     *opencodeModelPricing `json:"pricing"`
-}
-
-type opencodeModelPricing struct {
-	Prompt     *float64 `json:"prompt"`
-	Completion *float64 `json:"completion"`
+	RequestID         uuid.UUID           `json:"request_id"`
+	Status            string              `json:"status"`
+	Message           string              `json:"message"`
+	IssueID           string              `json:"issue_id,omitempty"`
+	IssueURL          string              `json:"issue_url,omitempty"`
+	GeneratedTests    int                 `json:"generated_tests,omitempty"`
+	EstimatedCoverage float64             `json:"estimated_coverage,omitempty"`
+	GenerationTime    float64             `json:"generation_time,omitempty"`
+	TestFiles         map[string][]string `json:"test_files,omitempty"`
 }
 
 type ExecuteTestSuiteRequest struct {
@@ -395,29 +382,9 @@ type PhaseResult struct {
 }
 
 // AI Integration Types
-type AIResponse struct {
-	Model     string    `json:"model"`
-	CreatedAt time.Time `json:"created_at"`
-	Response  string    `json:"response"`
-	Done      bool      `json:"done"`
-	Context   []int     `json:"context,omitempty"`
-}
-
-type AIGeneratedTest struct {
-	Name           string   `json:"name"`
-	Description    string   `json:"description"`
-	TestCode       string   `json:"test_code"`
-	ExpectedResult string   `json:"expected_result"`
-	Timeout        int      `json:"timeout"`
-	Dependencies   []string `json:"dependencies"`
-	Tags           []string `json:"tags"`
-	Priority       string   `json:"priority"`
-}
-
 // Global variables
 var db *sql.DB
 var serviceManager *ServiceManager
-var openCodeAgentManager *AgentManager
 
 var (
 	repoRootOnce sync.Once
@@ -632,23 +599,36 @@ func setupHealthCheckers() {
 	}, dbCircuitBreaker)
 	serviceManager.RegisterService("database", dbChecker)
 
-	// OpenCode health checker
-	openCodeChecker := NewHealthChecker("opencode", func() error {
+	// Issue tracker health checker
+	issueTrackerChecker := NewHealthChecker("issue_tracker", func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		cmd := exec.CommandContext(ctx, "resource-opencode", "status")
-		output, err := cmd.CombinedOutput()
+		port, err := resolveScenarioPortViaCLI(ctx, "app-issue-tracker", "API_PORT")
 		if err != nil {
-			trimmed := strings.TrimSpace(string(output))
-			if trimmed != "" {
-				return fmt.Errorf("resource-opencode status failed: %w - %s", err, trimmed)
-			}
-			return fmt.Errorf("resource-opencode status failed: %w", err)
+			return err
 		}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://localhost:%d/health", port), nil)
+		if err != nil {
+			return fmt.Errorf("failed to build app-issue-tracker health request: %w", err)
+		}
+
+		client := &http.Client{Timeout: 10 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			return fmt.Errorf("app-issue-tracker health check failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			body, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("app-issue-tracker unhealthy (status %d): %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		}
+
 		return nil
-	}, openCodeCircuitBreaker)
-	serviceManager.RegisterService("opencode", openCodeChecker)
+	}, issueTrackerCircuitBreaker)
+	serviceManager.RegisterService("issue_tracker", issueTrackerChecker)
 
 	log.Println("🔧 Health checkers initialized successfully")
 }
@@ -746,407 +726,6 @@ func createTables() {
 			log.Printf("Error creating table: %v", err)
 		}
 	}
-}
-
-// Initialize HTTP client for AI services
-
-// generateFallbackTest creates a basic test when AI is unavailable
-func generateFallbackTest(testType string, scenarioName string) (*AIResponse, error) {
-	var testContent string
-
-	switch testType {
-	case "unit":
-		testContent = fmt.Sprintf(`// Unit test for %s scenario
-func Test%sBasic(t *testing.T) {
-	// Arrange
-	input := "test_data"
-	expected := "expected_output"
-	
-	// Act
-	result := ProcessInput(input)
-	
-	// Assert
-	if result != expected {
-		t.Errorf("Expected %%s, got %%s", expected, result)
-	}
-}
-
-func Test%sEdgeCases(t *testing.T) {
-	// Test empty input
-	result := ProcessInput("")
-	if result != "" {
-		t.Error("Expected empty result for empty input")
-	}
-	
-	// Test nil input
-	result = ProcessInput(nil)
-	if result != nil {
-		t.Error("Expected nil result for nil input")
-	}
-}`, scenarioName, scenarioName, scenarioName)
-	case "integration":
-		testContent = fmt.Sprintf(`// Integration test for %s scenario
-func Test%sIntegration(t *testing.T) {
-	// Setup test environment
-	setup := NewTestEnvironment()
-	defer setup.Cleanup()
-	
-	// Test main workflow
-	workflow := NewWorkflow(setup.Config)
-	result, err := workflow.Execute()
-	
-	if err != nil {
-		t.Fatalf("Workflow failed: %%v", err)
-	}
-	
-	if !result.IsValid() {
-		t.Error("Integration test produced invalid result")
-	}
-}`, scenarioName, scenarioName)
-	default:
-		testContent = fmt.Sprintf(`// Generic test for %s scenario
-func Test%sGeneric(t *testing.T) {
-	// Basic functionality test
-	service := NewService()
-	err := service.Initialize()
-	if err != nil {
-		t.Fatalf("Service initialization failed: %%v", err)
-	}
-	
-	// Test service operation
-	result := service.PerformOperation()
-	if !result.Success {
-		t.Error("Service operation failed")
-	}
-}`, scenarioName, scenarioName)
-	}
-
-	return &AIResponse{
-		Model:     "fallback",
-		CreatedAt: time.Now(),
-		Response:  testContent,
-		Done:      true,
-	}, nil
-}
-
-func callOpenCode(prompt string, testType string, model string) (*AIResponse, error) {
-	if openCodeAgentManager == nil {
-		return nil, fmt.Errorf("agent manager not initialized")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	label := fmt.Sprintf("%s test generation", titleCase(testType))
-	action := fmt.Sprintf("generate_%s_tests", testType)
-
-	result, err := openCodeAgentManager.RunAgent(ctx, AgentRunRequest{
-		Prompt:  prompt,
-		Model:   model,
-		Label:   label,
-		Action:  action,
-		Timeout: 110 * time.Second,
-		Metadata: map[string]string{
-			"test_type": testType,
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	jsonPayload, err := extractFirstJSONObject(result.Output)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse OpenCode response: %w", err)
-	}
-
-	return &AIResponse{
-		Model:     model,
-		CreatedAt: time.Now(),
-		Response:  jsonPayload,
-		Done:      true,
-	}, nil
-}
-
-func resolveModel(requested string) string {
-	requested = strings.TrimSpace(requested)
-	if requested != "" {
-		return requested
-	}
-	if env := strings.TrimSpace(os.Getenv("TEST_GENIE_AGENT_MODEL")); env != "" {
-		return env
-	}
-	if env := strings.TrimSpace(os.Getenv("OPENCODE_DEFAULT_MODEL")); env != "" {
-		return env
-	}
-	return "openrouter/x-ai/grok-code-fast-1"
-}
-
-func extractFirstJSONObject(payload string) (string, error) {
-	start := -1
-	depth := 0
-	inString := false
-	escaped := false
-	runes := []rune(payload)
-	for idx, r := range runes {
-		if start == -1 {
-			if r == '{' {
-				start = idx
-				depth = 1
-			}
-			continue
-		}
-
-		if inString {
-			if r == '\\' && !escaped {
-				escaped = true
-				continue
-			}
-			if r == '"' && !escaped {
-				inString = false
-			}
-			escaped = false
-			continue
-		}
-
-		switch r {
-		case '"':
-			inString = true
-		case '{':
-			depth++
-		case '}':
-			depth--
-			if depth == 0 {
-				return string(runes[start : idx+1]), nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("no JSON object found in payload")
-}
-
-func titleCase(value string) string {
-	runes := []rune(strings.TrimSpace(value))
-	if len(runes) == 0 {
-		return value
-	}
-	runes[0] = unicode.ToUpper(runes[0])
-	return string(runes)
-}
-
-func generateTestPrompt(scenarioName string, testType string, options TestGenerationOptions) string {
-	basePrompt := fmt.Sprintf("You are an expert software test engineer. Generate a comprehensive %s test for a scenario named '%s'.", testType, scenarioName)
-
-	switch testType {
-	case "unit":
-		return basePrompt + `
-
-Requirements:
-- Create a bash script that tests individual functions/components
-- Include API health checks and basic functionality tests
-- Use curl for HTTP endpoints, check return codes and responses
-- Include database connection tests if applicable
-- Make tests independent and atomic
-- Use meaningful assertions and error messages
-- Test both success and failure scenarios
-
-Format the response as a JSON object with this structure:
-{
-  "name": "test_name",
-  "description": "Brief test description",
-  "test_code": "#!/bin/bash\n# Your test script here...",
-  "expected_result": "Expected output or behavior",
-  "timeout": 30,
-  "dependencies": ["list", "of", "dependencies"],
-  "tags": ["unit", "api", "health"],
-  "priority": "critical"
-}
-
-Generate 1-2 comprehensive unit tests for this scenario.`
-
-	case "integration":
-		return basePrompt + `
-
-Requirements:
-- Create tests that verify end-to-end workflows
-- Test API endpoints working together
-- Include database integration testing
-- Test service-to-service communication
-- Verify complete user workflows
-- Include error handling and rollback scenarios
-- Test with realistic data volumes
-
-Format the response as a JSON object with the same structure as unit tests.
-Generate 1-2 comprehensive integration tests for this scenario.`
-
-	case "performance":
-		return basePrompt + `
-
-Requirements:
-- Create load and stress tests
-- Test response times under various loads
-- Include concurrent user simulation
-- Test memory and CPU usage
-- Include performance benchmarks
-- Test scalability limits
-- Use tools like curl, ab (Apache Bench), or custom scripts
-
-Format the response as a JSON object with the same structure.
-Generate 1-2 performance tests focusing on scalability and response times.`
-
-	case "vault":
-		return basePrompt + `
-
-Requirements:
-- Create comprehensive phase-based testing
-- Include setup, develop, test, deploy, and monitor phases
-- Test complex dependency scenarios
-- Verify system state at each phase
-- Include rollback and recovery testing
-- Test production-like conditions
-- Multi-stage validation with checkpoints
-
-Format the response as a JSON object with the same structure.
-Generate 1-2 vault tests that cover multiple phases of the scenario lifecycle.`
-
-	case "regression":
-		return basePrompt + `
-
-Requirements:
-- Create tests that verify existing functionality still works
-- Test core features and critical paths
-- Include baseline performance validation
-- Test backwards compatibility
-- Verify no functionality has degraded
-- Include data integrity checks
-- Test previously fixed bugs don't reoccur
-
-Format the response as a JSON object with the same structure.
-Generate 1-2 regression tests that validate core functionality hasn't broken.`
-
-	default:
-		return basePrompt + `
-
-Generate a comprehensive test script for this scenario. Include proper error handling, meaningful assertions, and clear success/failure conditions.
-
-Format the response as a JSON object with:
-{
-  "name": "test_name", 
-  "description": "test description",
-  "test_code": "bash script content",
-  "expected_result": "expected behavior",
-  "timeout": 60,
-  "dependencies": ["dependencies"],
-  "tags": ["relevant", "tags"],
-  "priority": "high"
-}`
-	}
-}
-
-func parseAITestResponse(response string, scenarioName string, testType string) ([]TestCase, error) {
-	// Try to parse as JSON first
-	var aiTest AIGeneratedTest
-	if err := json.Unmarshal([]byte(response), &aiTest); err != nil {
-		// If JSON parsing fails, try to extract JSON from the response
-		jsonRegex := regexp.MustCompile(`\{[\s\S]*\}`)
-		matches := jsonRegex.FindAllString(response, -1)
-
-		if len(matches) == 0 {
-			return nil, fmt.Errorf("no valid JSON found in AI response")
-		}
-
-		// Try the largest JSON object found
-		var largestJSON string
-		for _, match := range matches {
-			if len(match) > len(largestJSON) {
-				largestJSON = match
-			}
-		}
-
-		if err := json.Unmarshal([]byte(largestJSON), &aiTest); err != nil {
-			return nil, fmt.Errorf("failed to parse AI response as JSON: %w", err)
-		}
-	}
-
-	// Validate and create test case
-	testCase := TestCase{
-		ID:             uuid.New(),
-		Name:           aiTest.Name,
-		Description:    aiTest.Description,
-		TestType:       testType,
-		TestCode:       aiTest.TestCode,
-		ExpectedResult: aiTest.ExpectedResult,
-		Timeout:        aiTest.Timeout,
-		Dependencies:   aiTest.Dependencies,
-		Tags:           aiTest.Tags,
-		Priority:       aiTest.Priority,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
-	}
-
-	// Set defaults if missing
-	if testCase.Name == "" {
-		testCase.Name = fmt.Sprintf("%s_%s_test", scenarioName, testType)
-	}
-	if testCase.Description == "" {
-		testCase.Description = fmt.Sprintf("AI-generated %s test for %s", testType, scenarioName)
-	}
-	if testCase.Timeout == 0 {
-		testCase.Timeout = 60
-	}
-	if testCase.Priority == "" {
-		testCase.Priority = "medium"
-	}
-	if testCase.Dependencies == nil {
-		testCase.Dependencies = []string{}
-	}
-	if testCase.Tags == nil {
-		testCase.Tags = []string{testType, "ai-generated"}
-	}
-
-	return []TestCase{testCase}, nil
-}
-
-// AI Test Generation Service with OpenCode integration
-func generateTestsWithAI(scenarioName string, testTypes []string, options TestGenerationOptions, model string) ([]TestCase, error) {
-	log.Printf("🧪 Starting AI test generation for scenario: %s with types: %v", scenarioName, testTypes)
-
-	var allTestCases []TestCase
-
-	for _, testType := range testTypes {
-		log.Printf("🤖 Generating %s tests using OpenCode model %s for scenario: %s", testType, model, scenarioName)
-
-		// Try AI generation first
-		prompt := generateTestPrompt(scenarioName, testType, options)
-		aiResponse, err := callOpenCode(prompt, testType, model)
-
-		if err != nil {
-			log.Printf("⚠️ AI generation failed for %s tests: %v. Falling back to rule-based generation.", testType, err)
-			// Fallback to rule-based generation
-			fallbackTests := generateFallbackTests(scenarioName, testType, options)
-			allTestCases = append(allTestCases, fallbackTests...)
-			continue
-		}
-
-		// Parse AI response
-		aiTestCases, err := parseAITestResponse(aiResponse.Response, scenarioName, testType)
-		if err != nil {
-			log.Printf("⚠️ Failed to parse AI response for %s tests: %v. Falling back to rule-based generation.", testType, err)
-			// Fallback to rule-based generation
-			fallbackTests := generateFallbackTests(scenarioName, testType, options)
-			allTestCases = append(allTestCases, fallbackTests...)
-			continue
-		}
-
-		log.Printf("✅ Successfully generated %d %s test(s) using AI", len(aiTestCases), testType)
-		allTestCases = append(allTestCases, aiTestCases...)
-	}
-
-	if len(allTestCases) == 0 {
-		return nil, fmt.Errorf("no tests could be generated for scenario %s", scenarioName)
-	}
-
-	log.Printf("🎉 Total tests generated: %d", len(allTestCases))
-	return allTestCases, nil
 }
 
 // Fallback test generation when AI is unavailable
@@ -1500,70 +1079,116 @@ func generateTestSuiteHandler(c *gin.Context) {
 		return
 	}
 
-	startTime := time.Now()
+	suiteID := uuid.New()
+	requestedAt := time.Now().UTC()
 
-	// Generate tests using AI
-	model := resolveModel(req.Model)
-	testCases, err := generateTestsWithAI(req.ScenarioName, req.TestTypes, req.Options, model)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	issueResult, issueErr := submitTestGenerationIssue(c.Request.Context(), suiteID, req)
+	if issueErr == nil {
+		metrics := CoverageMetrics{
+			CodeCoverage:       req.CoverageTarget,
+			BranchCoverage:     math.Max(req.CoverageTarget*0.9, 0),
+			FunctionCoverage:   math.Max(req.CoverageTarget*0.95, 0),
+			IssueID:            issueResult.IssueID,
+			IssueURL:           issueResult.IssueURL,
+			RequestID:          suiteID.String(),
+			RequestStatus:      "submitted",
+			RequestedAt:        requestedAt.Format(time.RFC3339),
+			RequestedBy:        "test-genie",
+			RequestedTestTypes: append([]string(nil), req.TestTypes...),
+			Notes:              "Awaiting automated test generation via app-issue-tracker",
+		}
+
+		coverageJSON, _ := json.Marshal(metrics)
+		suiteType := fmt.Sprintf("pending-%s", suiteID.String()[:8])
+
+		if _, err := db.Exec(`
+			INSERT INTO test_suites (id, scenario_name, suite_type, coverage_metrics, generated_at, status)
+			VALUES ($1, $2, $3, $4, $5, $6)
+		`, suiteID, req.ScenarioName, suiteType, coverageJSON, requestedAt, "maintenance_required"); err != nil {
+			log.Printf("⚠️  Failed to record delegated test generation request: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record test generation request"})
+			return
+		}
+
+		response := GenerateTestSuiteResponse{
+			RequestID:         suiteID,
+			Status:            "submitted",
+			Message:           issueResult.Message,
+			IssueID:           issueResult.IssueID,
+			IssueURL:          issueResult.IssueURL,
+			EstimatedCoverage: req.CoverageTarget,
+		}
+
+		c.JSON(http.StatusAccepted, response)
 		return
 	}
 
-	// Create test suite
-	suiteID := uuid.New()
-	testSuite := TestSuite{
-		ID:           suiteID,
-		ScenarioName: req.ScenarioName,
-		SuiteType:    strings.Join(req.TestTypes, ","),
-		TestCases:    testCases,
-		CoverageMetrics: CoverageMetrics{
-			CodeCoverage:     req.CoverageTarget,
-			BranchCoverage:   req.CoverageTarget * 0.9,
-			FunctionCoverage: req.CoverageTarget * 0.95,
-		},
-		GeneratedAt: time.Now(),
-		Status:      "active",
+	log.Printf("⚠️  Delegating test generation failed (falling back to local templates): %v", issueErr)
+
+	startTime := time.Now()
+	var testCases []TestCase
+	for _, testType := range req.TestTypes {
+		cases := generateFallbackTests(req.ScenarioName, testType, req.Options)
+		for idx := range cases {
+			cases[idx].SuiteID = suiteID
+		}
+		testCases = append(testCases, cases...)
 	}
 
-	// Save to database
-	coverageJSON, _ := json.Marshal(testSuite.CoverageMetrics)
-	_, err = db.Exec(`
+	if len(testCases) == 0 {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to generate fallback tests"})
+		return
+	}
+
+	metrics := CoverageMetrics{
+		CodeCoverage:       req.CoverageTarget,
+		BranchCoverage:     math.Max(req.CoverageTarget*0.9, 0),
+		FunctionCoverage:   math.Max(req.CoverageTarget*0.95, 0),
+		RequestID:          suiteID.String(),
+		RequestStatus:      "generated_locally",
+		RequestedAt:        requestedAt.Format(time.RFC3339),
+		RequestedBy:        "test-genie",
+		RequestedTestTypes: append([]string(nil), req.TestTypes...),
+		Notes:              "Issue tracker unavailable; generated default templates locally.",
+	}
+
+	coverageJSON, _ := json.Marshal(metrics)
+	suiteType := strings.Join(req.TestTypes, ",")
+	if suiteType == "" {
+		suiteType = "fallback"
+	}
+
+	if _, err := db.Exec(`
 		INSERT INTO test_suites (id, scenario_name, suite_type, coverage_metrics, generated_at, status)
 		VALUES ($1, $2, $3, $4, $5, $6)
-	`, testSuite.ID, testSuite.ScenarioName, testSuite.SuiteType, coverageJSON, testSuite.GeneratedAt, testSuite.Status)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save test suite"})
+	`, suiteID, req.ScenarioName, suiteType, coverageJSON, time.Now(), "active"); err != nil {
+		log.Printf("⚠️  Failed to save fallback test suite: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save fallback test suite"})
 		return
 	}
 
-	// Save test cases
 	for _, testCase := range testCases {
-		testCase.SuiteID = suiteID
 		tagsJSON, _ := json.Marshal(testCase.Tags)
 		depsJSON, _ := json.Marshal(testCase.Dependencies)
 
-		_, err = db.Exec(`
+		if _, err := db.Exec(`
 			INSERT INTO test_cases (id, suite_id, name, description, test_type, test_code, expected_result, execution_timeout, dependencies, tags, priority, created_at, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-		`, testCase.ID, testCase.SuiteID, testCase.Name, testCase.Description, testCase.TestType, testCase.TestCode, testCase.ExpectedResult, testCase.Timeout, depsJSON, tagsJSON, testCase.Priority, testCase.CreatedAt, testCase.UpdatedAt)
-
-		if err != nil {
-			log.Printf("Failed to save test case %s: %v", testCase.Name, err)
+		`, testCase.ID, suiteID, testCase.Name, testCase.Description, testCase.TestType, testCase.TestCode, testCase.ExpectedResult, testCase.Timeout, depsJSON, tagsJSON, testCase.Priority, testCase.CreatedAt, testCase.UpdatedAt); err != nil {
+			log.Printf("⚠️  Failed to save fallback test case %s: %v", testCase.Name, err)
 		}
 	}
 
 	generationTime := time.Since(startTime).Seconds()
-
-	// Organize test files by type
 	testFiles := make(map[string][]string)
 	for _, testCase := range testCases {
 		testFiles[testCase.TestType] = append(testFiles[testCase.TestType], testCase.Name)
 	}
 
 	response := GenerateTestSuiteResponse{
-		SuiteID:           suiteID,
+		RequestID:         suiteID,
+		Status:            "generated_locally",
+		Message:           fmt.Sprintf("Delegated submission failed: %s. Generated %d fallback tests locally.", strings.TrimSpace(issueErr.Error()), len(testCases)),
 		GeneratedTests:    len(testCases),
 		EstimatedCoverage: req.CoverageTarget,
 		GenerationTime:    generationTime,
@@ -1627,8 +1252,6 @@ func executeTestCase(testCase TestCase, environment string) TestResult {
 		fmt.Sprintf("POSTGRES_USER=%s", os.Getenv("POSTGRES_USER")),
 		fmt.Sprintf("POSTGRES_PASSWORD=%s", os.Getenv("POSTGRES_PASSWORD")),
 		fmt.Sprintf("POSTGRES_DB=%s", os.Getenv("POSTGRES_DB")),
-		fmt.Sprintf("TEST_GENIE_AGENT_MODEL=%s", resolveModel("")),
-		fmt.Sprintf("OPENCODE_DEFAULT_MODEL=%s", resolveModel("")),
 	)
 
 	// Capture stdout and stderr
@@ -3334,20 +2957,20 @@ func healthHandler(c *gin.Context) {
 		}
 	}
 
-	// Check OpenCode AI service
-	if checker, ok := serviceManager.services["opencode"]; ok {
+	// Check issue tracker integration
+	if checker, ok := serviceManager.services["issue_tracker"]; ok {
 		if err := checker.Check(ctx); err != nil {
-			serviceChecks["ai_service"] = map[string]interface{}{
+			serviceChecks["issue_tracker"] = map[string]interface{}{
 				"status": "unhealthy",
 				"error":  err.Error(),
 			}
 		} else {
-			serviceChecks["ai_service"] = map[string]interface{}{
+			serviceChecks["issue_tracker"] = map[string]interface{}{
 				"status": "healthy",
 			}
 		}
 	} else {
-		serviceChecks["ai_service"] = map[string]interface{}{
+		serviceChecks["issue_tracker"] = map[string]interface{}{
 			"status": "unknown",
 		}
 	}
@@ -3358,9 +2981,17 @@ func healthHandler(c *gin.Context) {
 		"state":    stateToString(dbCircuitBreaker.state),
 		"failures": dbCircuitBreaker.failures,
 	}
-	circuitBreakers["opencode"] = map[string]interface{}{
-		"state":    stateToString(openCodeCircuitBreaker.state),
-		"failures": openCodeCircuitBreaker.failures,
+
+	if issueTrackerCircuitBreaker != nil {
+		circuitBreakers["issue_tracker"] = map[string]interface{}{
+			"state":    stateToString(issueTrackerCircuitBreaker.state),
+			"failures": issueTrackerCircuitBreaker.failures,
+		}
+	} else {
+		circuitBreakers["issue_tracker"] = map[string]interface{}{
+			"state":    "UNKNOWN",
+			"failures": 0,
+		}
 	}
 
 	// System capabilities based on service level
@@ -3389,7 +3020,7 @@ func getSystemCapabilities(level DegradationLevel) []string {
 	switch level {
 	case FullService:
 		return []string{
-			"ai_test_generation",
+			"delegated_test_generation",
 			"test_execution",
 			"coverage_analysis",
 			"vault_testing",
@@ -3397,7 +3028,7 @@ func getSystemCapabilities(level DegradationLevel) []string {
 		}
 	case PartialService:
 		return []string{
-			"basic_test_generation",
+			"queued_test_requests",
 			"test_execution",
 			"coverage_analysis",
 		}
@@ -3421,241 +3052,6 @@ func getHTTPStatusForServiceLevel(level DegradationLevel) int {
 		return http.StatusPartialContent
 	default:
 		return http.StatusServiceUnavailable
-	}
-}
-
-func listAgentsHandler(c *gin.Context) {
-	if openCodeAgentManager == nil {
-		c.JSON(http.StatusOK, gin.H{"count": 0, "agents": []AgentInfo{}})
-		return
-	}
-
-	agents := openCodeAgentManager.ListAgents()
-	c.JSON(http.StatusOK, gin.H{"count": len(agents), "agents": agents})
-}
-
-func stopAgentHandler(c *gin.Context) {
-	if openCodeAgentManager == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "agent manager unavailable"})
-		return
-	}
-
-	agentID := strings.TrimSpace(c.Param("agent_id"))
-	if agentID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "agent_id is required"})
-		return
-	}
-
-	if err := openCodeAgentManager.StopAgent(agentID); err != nil {
-		if errors.Is(err, ErrAgentNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("agent %s stopping", agentID)})
-}
-
-func getAgentLogsHandler(c *gin.Context) {
-	if openCodeAgentManager == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "agent manager unavailable"})
-		return
-	}
-
-	agentID := strings.TrimSpace(c.Param("agent_id"))
-	if agentID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "agent_id is required"})
-		return
-	}
-
-	logPath := openCodeAgentManager.AgentLogPath(agentID)
-	if logPath == "" {
-		c.JSON(http.StatusNotFound, gin.H{"error": "log not found for agent"})
-		return
-	}
-
-	data, err := os.ReadFile(logPath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to read agent logs: %v", err)})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"agent_id": agentID, "logs": string(data)})
-}
-
-func listModelsHandler(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 20*time.Second)
-	defer cancel()
-
-	models, err := listOpenCodeModels(ctx)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"models":        models,
-		"count":         len(models),
-		"default_model": resolveModel(""),
-	})
-}
-
-func listOpenCodeModels(ctx context.Context) ([]ModelInfo, error) {
-	models, err := collectOpenCodeModels(ctx)
-	if err != nil {
-		log.Printf("⚠️  resource-opencode models --json failed: %v", err)
-	}
-
-	if len(models) == 0 {
-		fallback, fallbackErr := fallbackModelsFromStatus(ctx)
-		if fallbackErr != nil {
-			log.Printf("⚠️  resource-opencode status fallback failed: %v", fallbackErr)
-		} else {
-			models = append(models, fallback...)
-		}
-	}
-
-	if len(models) == 0 {
-		defaultModel := resolveModel("")
-		models = append(models, buildModelInfo(defaultModel, false))
-	}
-
-	sort.Slice(models, func(i, j int) bool {
-		if models[i].Provider == models[j].Provider {
-			return models[i].ID < models[j].ID
-		}
-		return models[i].Provider < models[j].Provider
-	})
-
-	return models, nil
-}
-
-func collectOpenCodeModels(ctx context.Context) ([]ModelInfo, error) {
-	cmd := exec.CommandContext(ctx, "bash", "-lc", "resource-opencode models --json")
-	output, err := cmd.CombinedOutput()
-	parsed := parseOpenCodeModelsJSON(output)
-	if err != nil {
-		trimmed := strings.TrimSpace(string(output))
-		if trimmed != "" {
-			return parsed, fmt.Errorf("resource-opencode models --json failed: %w - %s", err, trimmed)
-		}
-		return parsed, fmt.Errorf("resource-opencode models --json failed: %w", err)
-	}
-	return parsed, nil
-}
-
-func parseOpenCodeModelsJSON(raw []byte) []ModelInfo {
-	if len(raw) == 0 {
-		return nil
-	}
-
-	var payload opencodeModelsResponse
-	if err := json.Unmarshal(raw, &payload); err != nil {
-		log.Printf("⚠️  failed to parse OpenCode model payload: %v", err)
-		return nil
-	}
-
-	models := make([]ModelInfo, 0, len(payload.Models))
-	seen := make(map[string]struct{})
-
-	for _, model := range payload.Models {
-		id := strings.TrimSpace(model.ID)
-		if id == "" {
-			continue
-		}
-
-		if _, exists := seen[id]; exists {
-			continue
-		}
-		seen[id] = struct{}{}
-
-		label := strings.TrimSpace(model.DisplayName)
-		if label == "" {
-			label = id
-		}
-
-		provider := strings.TrimSpace(model.Provider)
-		if provider == "" {
-			provider = "opencode"
-		}
-
-		free := true
-		if model.Pricing != nil {
-			if model.Pricing.Prompt != nil && *model.Pricing.Prompt > 0 {
-				free = false
-			}
-			if model.Pricing.Completion != nil && *model.Pricing.Completion > 0 {
-				free = false
-			}
-		}
-
-		models = append(models, ModelInfo{
-			ID:       id,
-			Label:    label,
-			Provider: provider,
-			Free:     free,
-		})
-	}
-
-	return models
-}
-
-func fallbackModelsFromStatus(ctx context.Context) ([]ModelInfo, error) {
-	cmd := exec.CommandContext(ctx, "bash", "-lc", "resource-opencode status")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		trimmed := strings.TrimSpace(string(output))
-		if trimmed != "" {
-			return nil, fmt.Errorf("resource-opencode status failed: %w - %s", err, trimmed)
-		}
-		return nil, fmt.Errorf("resource-opencode status failed: %w", err)
-	}
-
-	lines := strings.Split(string(output), "\n")
-	seen := make(map[string]struct{})
-	models := make([]ModelInfo, 0, 2)
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		if !strings.HasPrefix(strings.ToLower(line), "model") {
-			continue
-		}
-
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		id := strings.TrimSpace(parts[1])
-		if id == "" {
-			continue
-		}
-
-		if _, exists := seen[id]; exists {
-			continue
-		}
-		seen[id] = struct{}{}
-		models = append(models, buildModelInfo(id, false))
-	}
-
-	return models, nil
-}
-
-func buildModelInfo(id string, free bool) ModelInfo {
-	provider := id
-	if slash := strings.Index(provider, "/"); slash != -1 {
-		provider = provider[:slash]
-	}
-
-	return ModelInfo{
-		ID:       id,
-		Label:    id,
-		Provider: provider,
-		Free:     free,
 	}
 }
 
@@ -5742,12 +5138,6 @@ func main() {
 	// Initialize service manager
 	serviceManager = NewServiceManager()
 
-	var agentErr error
-	openCodeAgentManager, agentErr = NewAgentManager()
-	if agentErr != nil {
-		log.Fatalf("failed to initialize agent manager: %v", agentErr)
-	}
-
 	// Initialize database
 	initDB()
 	defer db.Close()
@@ -5807,13 +5197,6 @@ func main() {
 		api.GET("/reports/trends", reportsTrendsHandler)
 		api.GET("/reports/insights", reportsInsightsHandler)
 
-		// Agent management
-		api.GET("/agents", listAgentsHandler)
-		api.POST("/agents/:agent_id/stop", stopAgentHandler)
-		api.GET("/agents/:agent_id/logs", getAgentLogsHandler)
-
-		// Model catalog
-		api.GET("/models", listModelsHandler)
 	}
 
 	// Get port from environment - REQUIRED, no defaults

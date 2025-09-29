@@ -30,7 +30,7 @@ initialization/
 ## Dependencies
 
 - PostgreSQL 12+ (required)
-- OpenCode (required for AI features)
+- App Issue Tracker (required for delegated test generation)
 - Redis (optional, for caching)
 - Node.js 16+ (for UI)
 
