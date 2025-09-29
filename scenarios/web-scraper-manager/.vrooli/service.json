@@ -17,7 +17,6 @@
       "export",
       "monitoring",
       "go-api",
-      "n8n-workflows",
       "node-ui",
       "postgres-storage",
       "redis-cache",
@@ -39,18 +38,6 @@
     }
   },
   "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "purpose": "Workflow orchestration for coordinated scraping across platforms",
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/scraper-orchestrator.json",
-          "type": "workflow"
-        }
-      ]
-    },
     "postgres": {
       "type": "postgres",
       "enabled": true,
@@ -206,7 +193,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Web Scraper Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: web-scraper-manager --help'",
+          "run": "echo '🚀 Web Scraper Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: web-scraper-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -234,12 +221,12 @@
         },
         {
           "name": "initialize-redis-queues",
-          "run": "redis-cli -h localhost -p ${RESOURCE_PORTS[redis]} LPUSH scraper:queue:init \"ready\" > /dev/null",
+          "run": "bash scripts/lib/initialize-redis-queues.sh",
           "description": "Initialize Redis job queues"
         },
          {
            "name": "show-urls",
-           "run": "echo '🚀 Web Scraper Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
+           "run": "echo '🚀 Web Scraper Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
            "description": "Display all running service URLs"
          }
       ]

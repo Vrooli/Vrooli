@@ -13,6 +13,8 @@ const API_PORT = process.env.API_PORT;
 const distDir = path.join(__dirname, 'dist');
 const indexHtmlPath = path.join(distDir, 'index.html');
 const dashboardPagePath = path.join(__dirname, 'dashboard.html');
+const adminPagePath = path.join(__dirname, 'admin.html');
+const userCardScriptPath = path.join(__dirname, 'user-card.js');
 const CONTACT_BOOK_URL =
   process.env.CONTACT_BOOK_URL ||
   (process.env.CONTACT_BOOK_API_PORT ? `http://localhost:${process.env.CONTACT_BOOK_API_PORT}` : undefined);
@@ -25,6 +27,10 @@ if (!fs.existsSync(indexHtmlPath)) {
 }
 
 app.use(express.static(distDir));
+
+app.get('/user-card.js', (_req, res) => {
+  res.sendFile(userCardScriptPath);
+});
 
 app.get('/config', (_req, res) => {
   if (!API_PORT) {
@@ -43,8 +49,12 @@ app.get('/config', (_req, res) => {
   });
 });
 
-app.get(['/dashboard', '/admin'], (_req, res) => {
+app.get('/dashboard', (_req, res) => {
   res.sendFile(dashboardPagePath);
+});
+
+app.get('/admin', (_req, res) => {
+  res.sendFile(adminPagePath);
 });
 
 app.get('/health', (_req, res) => {

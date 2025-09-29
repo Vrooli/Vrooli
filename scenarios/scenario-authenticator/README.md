@@ -41,6 +41,16 @@ cd scenarios/scenario-authenticator && make run
 ```bash
 # Via CLI
 scenario-authenticator user create admin@example.com SecurePass123! admin
+scenario-authenticator user get <user-id>
+
+# Admin actions require AUTH_TOKEN exported from an admin login
+export AUTH_TOKEN=$(curl -s -X POST \
+  http://localhost:$(vrooli scenario port scenario-authenticator AUTH_API_PORT)/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"SecurePass123!"}' | jq -r '.token')
+
+scenario-authenticator user update <user-id> roles admin,moderator
+scenario-authenticator user delete <user-id>
 
 # Via API (replace port with actual API port)
 curl -X POST http://localhost:$(vrooli scenario port scenario-authenticator AUTH_API_PORT)/api/v1/auth/register \
@@ -309,6 +319,9 @@ scenario-authenticator status --verbose
 | `REDIS_URL` | auto | Redis connection |
 | `JWT_EXPIRY` | 1h | Token expiration time |
 | `REFRESH_EXPIRY` | 7d | Refresh token expiry |
+| `CONTACT_BOOK_URL` | none | Base URL for the Contact Book UI (used by the Manage Profile action) |
+
+If `CONTACT_BOOK_URL` is unset but the lifecycle exposes `CONTACT_BOOK_API_PORT`, the UI falls back to `http://localhost:${CONTACT_BOOK_API_PORT}`.
 
 ### Database Configuration
 

@@ -1,26 +1,47 @@
 #!/usr/bin/env bash
-# Load platform configurations into database
+# Load platform configurations into postgres using managed resource tooling
 
 set -euo pipefail
 
 echo "📋 Loading platform configurations..."
 
-# Wait for PostgreSQL to be ready
-echo "Waiting for PostgreSQL to be ready..."
-timeout 60 bash -c 'until pg_isready -h localhost -p ${RESOURCE_PORTS[postgres]} > /dev/null 2>&1; do sleep 1; done'
+if ! command -v resource-postgres >/dev/null 2>&1; then
+    echo "⚠️  resource-postgres CLI not available; skipping platform configuration load"
+    exit 0
+fi
 
-# Load platform configurations from JSON file
+# Ensure the postgres resource is reachable before attempting inserts
+if ! resource-postgres status >/dev/null 2>&1; then
+    echo "⚠️  PostgreSQL resource is not running; skipping platform configuration load"
+    exit 0
+fi
+
 CONFIG_FILE="initialization/configuration/platform-configs.json"
 
-if [[ -f "$CONFIG_FILE" ]]; then
-    echo "Loading platform configurations from $CONFIG_FILE..."
-    
-    # Insert or update platform configurations
-    psql -h localhost -p "${RESOURCE_PORTS[postgres]}" -U postgres -d scraper_manager \
-        -c "INSERT INTO platform_configs (data) VALUES ('$(cat "$CONFIG_FILE" | tr -d '\n' | sed "s/'/''/'g")') 
-            ON CONFLICT ((md5(data::text))) DO NOTHING;" || echo "Configuration already loaded"
-    
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "⚠️  Platform configuration file not found: $CONFIG_FILE"
+    exit 0
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+    echo "⚠️  jq is required to process configuration payload; skipping"
+    exit 0
+fi
+
+CONFIG_PAYLOAD=$(jq -c '.' "$CONFIG_FILE" 2>/dev/null || true)
+
+if [[ -z "$CONFIG_PAYLOAD" || "$CONFIG_PAYLOAD" == "null" ]]; then
+    echo "⚠️  Platform configuration file is empty; skipping"
+    exit 0
+fi
+
+# Escape single quotes for SQL literal
+SQL_PAYLOAD=$(printf "%s" "$CONFIG_PAYLOAD" | sed "s/'/''/g")
+
+SQL_STATEMENT="INSERT INTO platform_configs (data) VALUES ('$SQL_PAYLOAD') ON CONFLICT ((md5((data)::text))) DO NOTHING;"
+
+if POSTGRES_DEFAULT_DB="scraper_manager" resource-postgres content execute "$SQL_STATEMENT" >/dev/null 2>&1; then
     echo "✅ Platform configurations loaded successfully"
 else
-    echo "⚠️  Platform configuration file not found: $CONFIG_FILE"
+    echo "⚠️  Failed to load platform configurations via resource-postgres"
 fi

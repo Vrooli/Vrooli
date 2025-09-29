@@ -213,13 +213,11 @@ validation:
   
   resources:
     postgres: 
-      check: "pg_isready -h localhost -p ${RESOURCE_PORTS[postgres]}"
+      check: "resource-postgres status >/dev/null"
     redis: 
-      check: "redis-cli -h localhost -p ${RESOURCE_PORTS[redis]} ping"
+      check: "resource-redis status >/dev/null"
     minio: 
       check: "curl -sf http://localhost:${RESOURCE_PORTS[minio]}/minio/health/ready"
-    n8n: 
-      check: "curl -sf http://localhost:${RESOURCE_PORTS[n8n]}/healthz"
     windmill: 
       check: "curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version"
     api:

@@ -109,47 +109,6 @@
             color: var(--text-muted);
         }
 
-        .user-summary {
-            margin-left: auto;
-            display: flex;
-            align-items: center;
-            gap: 18px;
-            padding: 18px 22px;
-            background: var(--surface-subtle);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-        }
-
-        .user-summary__meta {
-            display: flex;
-            flex-direction: column;
-            text-align: right;
-            gap: 6px;
-        }
-
-        .user-summary__name {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text-strong);
-        }
-
-        .user-summary__roles {
-            font-size: 13px;
-            color: var(--muted-accent);
-        }
-
-        .user-summary__avatar {
-            width: 56px;
-            height: 56px;
-            border-radius: 18px;
-            display: grid;
-            place-items: center;
-            font-size: 20px;
-            font-weight: 600;
-            color: #ffffff;
-            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
-        }
-
         .session-panel {
             background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%);
             border-radius: 24px;
@@ -566,13 +525,7 @@
                 <h1>Authentication Control Center</h1>
                 <p>Monitor credential health, verify sessions, and keep your access layer resilient.</p>
             </div>
-            <div class="user-summary">
-                <div class="user-summary__meta">
-                    <span class="user-summary__name" id="userEmail">Loading...</span>
-                    <span class="user-summary__roles" id="userRole">...</span>
-                </div>
-                <div class="user-summary__avatar" id="userAvatar">?</div>
-            </div>
+            <div id="userCardContainer" aria-live="polite"></div>
         </header>
 
         <section class="session-panel" aria-labelledby="session-heading">
@@ -735,6 +688,7 @@
         </button>
     </div>
 
+    <script src="/user-card.js"></script>
     <script>
         (function () {
             'use strict';
@@ -751,6 +705,20 @@
             const refreshTokenValue = authData.refreshToken || localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
             let API_URL = '';
             let CONTACT_BOOK_URL = '';
+
+            const userCardContainer = document.getElementById('userCardContainer');
+            const userCard = window.AuthUserCard && userCardContainer
+                ? window.AuthUserCard.mount(userCardContainer, {
+                      onProfile: viewProfile,
+                      onAdmin: () => {
+                          window.location.href = '/admin';
+                      },
+                  })
+                : null;
+
+            if (userCard) {
+                userCard.setAdminVisible(false);
+            }
 
             const snackbar = document.getElementById('snackbar');
             const snackbarIcon = document.getElementById('snackbar-icon');
@@ -855,20 +823,50 @@
                 }
             }
 
+            function extractRoleList(value) {
+                if (!value) {
+                    return [];
+                }
+
+                if (Array.isArray(value)) {
+                    return value.map((role) => String(role));
+                }
+
+                if (typeof value === 'string') {
+                    return value
+                        .split(',')
+                        .map((role) => role.trim())
+                        .filter((role) => role.length > 0)
+                        .map((role) => String(role));
+                }
+
+                if (typeof value === 'object' && Array.isArray(value.roles)) {
+                    return extractRoleList(value.roles);
+                }
+
+                return [];
+            }
+
+            function hasAdminRole(roles) {
+                return roles.some((role) => role.toLowerCase() === 'admin');
+            }
+
             function displayUserData(user) {
-                const emailElement = document.getElementById('userEmail');
-                const roleElement = document.getElementById('userRole');
-                const avatarElement = document.getElementById('userAvatar');
+                if (!user) {
+                    return;
+                }
 
-                const email = user && user.email ? user.email : 'Unknown user';
-                const roles = user && Array.isArray(user.roles) && user.roles.length ? user.roles.join(', ') : 'User';
+                const email = user.email || user.userEmail || 'Unknown user';
+                const displayName = user.name || user.username || user.displayName || email;
+                const roles = extractRoleList(user.roles || user.userRoles);
 
-                if (emailElement) emailElement.textContent = email;
-                if (roleElement) roleElement.textContent = roles;
-
-                if (avatarElement) {
-                    const initial = email ? email.charAt(0).toUpperCase() : '?';
-                    avatarElement.textContent = initial;
+                if (userCard) {
+                    userCard.update({
+                        email,
+                        displayName,
+                        roles,
+                    });
+                    userCard.setAdminVisible(hasAdminRole(roles));
                 }
 
                 const sessionSpan = document.getElementById('sessionId');
@@ -878,7 +876,12 @@
 
                 const loginTimeElement = document.getElementById('loginTime');
                 if (loginTimeElement) {
-                    const loginTime = user && (user.loginTime || user.lastLoginAt || user.last_login_at || user.loggedInAt);
+                    const loginTime =
+                        user.loginTime ||
+                        user.loggedInAt ||
+                        user.lastLoginAt ||
+                        user.last_login_at ||
+                        null;
                     loginTimeElement.textContent = formatDateFromValue(loginTime);
                 }
 

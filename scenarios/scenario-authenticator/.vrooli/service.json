@@ -150,7 +150,7 @@
         },
         {
           "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
+          "run": "POSTGRES_DEFAULT_DB=scenario_authenticator ../../scripts/resources/populate/populate.sh .",
           "description": "Initialize auth data in resources"
         },
         {

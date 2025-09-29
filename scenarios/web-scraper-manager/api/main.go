@@ -16,28 +16,27 @@ import (
 )
 
 type Config struct {
-	Port         string
-	PostgresURL  string
-	RedisURL     string
-	MinioURL     string
-	QdrantURL    string
-	N8nURL       string
-	WindmillURL  string
+	Port        string
+	PostgresURL string
+	RedisURL    string
+	MinioURL    string
+	QdrantURL   string
+	WindmillURL string
 }
 
 type ScrapingAgent struct {
-	ID           string                 `json:"id"`
-	Name         string                 `json:"name"`
-	Platform     string                 `json:"platform"`
-	AgentType    string                 `json:"agent_type"`
+	ID            string                 `json:"id"`
+	Name          string                 `json:"name"`
+	Platform      string                 `json:"platform"`
+	AgentType     string                 `json:"agent_type"`
 	Configuration map[string]interface{} `json:"configuration"`
-	ScheduleCron *string                `json:"schedule_cron"`
-	Enabled      bool                   `json:"enabled"`
-	CreatedAt    time.Time              `json:"created_at"`
-	UpdatedAt    time.Time              `json:"updated_at"`
-	LastRun      *time.Time             `json:"last_run"`
-	NextRun      *time.Time             `json:"next_run"`
-	Tags         []string               `json:"tags"`
+	ScheduleCron  *string                `json:"schedule_cron"`
+	Enabled       bool                   `json:"enabled"`
+	CreatedAt     time.Time              `json:"created_at"`
+	UpdatedAt     time.Time              `json:"updated_at"`
+	LastRun       *time.Time             `json:"last_run"`
+	NextRun       *time.Time             `json:"next_run"`
+	Tags          []string               `json:"tags"`
 }
 
 type ScrapingTarget struct {
@@ -100,7 +99,7 @@ func main() {
 	}
 
 	config = loadConfig()
-	
+
 	// Initialize database connection
 	var err error
 	db, err = sql.Open("postgres", config.PostgresURL)
@@ -118,90 +117,92 @@ func main() {
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("🕸️ Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add progressive jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	// Setup routes
 	router := mux.NewRouter()
-	
+
 	// Health endpoint
 	router.HandleFunc("/health", healthHandler).Methods("GET")
-	
+
 	// API routes
 	api := router.PathPrefix("/api").Subrouter()
-	
+
 	// Agents endpoints
 	api.HandleFunc("/agents", getAgentsHandler).Methods("GET")
 	api.HandleFunc("/agents", createAgentHandler).Methods("POST")
 	api.HandleFunc("/agents/{id}", getAgentHandler).Methods("GET")
 	api.HandleFunc("/agents/{id}", updateAgentHandler).Methods("PUT")
 	api.HandleFunc("/agents/{id}", deleteAgentHandler).Methods("DELETE")
-	
+
 	// Targets endpoints
 	api.HandleFunc("/targets", getTargetsHandler).Methods("GET")
 	api.HandleFunc("/targets", createTargetHandler).Methods("POST")
 	api.HandleFunc("/agents/{agentId}/targets", getAgentTargetsHandler).Methods("GET")
-	
+
 	// Results endpoints
 	api.HandleFunc("/results", getResultsHandler).Methods("GET")
 	api.HandleFunc("/agents/{agentId}/results", getAgentResultsHandler).Methods("GET")
-	
+
 	// Platform capabilities
 	api.HandleFunc("/platforms", getPlatformsHandler).Methods("GET")
-	
+
 	// Execution endpoints
 	api.HandleFunc("/agents/{id}/execute", executeAgentHandler).Methods("POST")
 	api.HandleFunc("/workflows/{id}/execute", executeWorkflowHandler).Methods("POST")
-	
+
 	// Export endpoints
 	api.HandleFunc("/export", exportDataHandler).Methods("POST")
-	
+
 	// Monitoring endpoints
 	api.HandleFunc("/metrics", getMetricsHandler).Methods("GET")
 	api.HandleFunc("/status", getStatusHandler).Methods("GET")
 
 	// Enable CORS
 	router.Use(corsMiddleware)
+
+	startAgentScheduler()
 
 	log.Printf("Web Scraper Manager API starting on port %s", config.Port)
 	log.Fatal(http.ListenAndServe(":"+config.Port, router))
@@ -217,15 +218,15 @@ func loadConfig() Config {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
-	
+
 	// Port configuration - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
@@ -234,14 +235,13 @@ func loadConfig() Config {
 	if port == "" {
 		log.Fatal("❌ API_PORT or PORT environment variable is required")
 	}
-	
+
 	return Config{
 		Port:        port,
 		PostgresURL: postgresURL,
 		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 		MinioURL:    getEnv("MINIO_URL", "http://localhost:9000"),
 		QdrantURL:   getEnv("QDRANT_URL", "http://localhost:6333"),
-		N8nURL:      getEnv("N8N_BASE_URL", "http://localhost:5678"),
 		WindmillURL: getEnv("WINDMILL_BASE_URL", "http://localhost:8000"),
 	}
 }
@@ -258,12 +258,12 @@ func corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -283,7 +283,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Message: "Web Scraper Manager API is healthy",
@@ -298,7 +298,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 	platform := r.URL.Query().Get("platform")
 	enabled := r.URL.Query().Get("enabled")
-	
+
 	query := `
 		SELECT id, name, platform, agent_type, configuration, schedule_cron, 
 		       enabled, created_at, updated_at, last_run, next_run, tags
@@ -307,13 +307,13 @@ func getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 	`
 	args := []interface{}{}
 	argIndex := 1
-	
+
 	if platform != "" {
 		query += fmt.Sprintf(" AND platform = $%d", argIndex)
 		args = append(args, platform)
 		argIndex++
 	}
-	
+
 	if enabled != "" {
 		if enabledBool, err := strconv.ParseBool(enabled); err == nil {
 			query += fmt.Sprintf(" AND enabled = $%d", argIndex)
@@ -321,9 +321,9 @@ func getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 			argIndex++
 		}
 	}
-	
+
 	query += " ORDER BY created_at DESC"
-	
+
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
@@ -333,13 +333,13 @@ func getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var agents []ScrapingAgent
 	for rows.Next() {
 		var agent ScrapingAgent
 		var configJSON []byte
 		var tagsJSON []byte
-		
+
 		err := rows.Scan(
 			&agent.ID, &agent.Name, &agent.Platform, &agent.AgentType,
 			&configJSON, &agent.ScheduleCron, &agent.Enabled,
@@ -350,7 +350,7 @@ func getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error scanning agent row: %v", err)
 			continue
 		}
-		
+
 		// Parse JSON fields
 		if len(configJSON) > 0 {
 			json.Unmarshal(configJSON, &agent.Configuration)
@@ -358,14 +358,14 @@ func getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 		if len(tagsJSON) > 0 {
 			json.Unmarshal(tagsJSON, &agent.Tags)
 		}
-		
+
 		agents = append(agents, agent)
 	}
-	
+
 	if agents == nil {
 		agents = []ScrapingAgent{}
 	}
-	
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Data:    agents,
@@ -381,7 +381,7 @@ func createAgentHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	// Validate required fields
 	if agent.Name == "" || agent.Platform == "" {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
@@ -390,21 +390,21 @@ func createAgentHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	configJSON, _ := json.Marshal(agent.Configuration)
 	tagsJSON, _ := json.Marshal(agent.Tags)
-	
+
 	query := `
 		INSERT INTO scraping_agents (name, platform, agent_type, configuration, 
 		                           schedule_cron, enabled, tags)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
 	`
-	
+
 	err := db.QueryRow(query, agent.Name, agent.Platform, agent.AgentType,
 		configJSON, agent.ScheduleCron, agent.Enabled, tagsJSON).Scan(
 		&agent.ID, &agent.CreatedAt, &agent.UpdatedAt)
-	
+
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
@@ -412,7 +412,7 @@ func createAgentHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	respondJSON(w, http.StatusCreated, APIResponse{
 		Success: true,
 		Data:    agent,
@@ -423,24 +423,24 @@ func createAgentHandler(w http.ResponseWriter, r *http.Request) {
 func getAgentHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	agentID := vars["id"]
-	
+
 	var agent ScrapingAgent
 	var configJSON []byte
 	var tagsJSON []byte
-	
+
 	query := `
 		SELECT id, name, platform, agent_type, configuration, schedule_cron,
 		       enabled, created_at, updated_at, last_run, next_run, tags
 		FROM scraping_agents WHERE id = $1
 	`
-	
+
 	err := db.QueryRow(query, agentID).Scan(
 		&agent.ID, &agent.Name, &agent.Platform, &agent.AgentType,
 		&configJSON, &agent.ScheduleCron, &agent.Enabled,
 		&agent.CreatedAt, &agent.UpdatedAt, &agent.LastRun,
 		&agent.NextRun, &tagsJSON,
 	)
-	
+
 	if err == sql.ErrNoRows {
 		respondJSON(w, http.StatusNotFound, APIResponse{
 			Success: false,
@@ -454,7 +454,7 @@ func getAgentHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	// Parse JSON fields
 	if len(configJSON) > 0 {
 		json.Unmarshal(configJSON, &agent.Configuration)
@@ -462,7 +462,7 @@ func getAgentHandler(w http.ResponseWriter, r *http.Request) {
 	if len(tagsJSON) > 0 {
 		json.Unmarshal(tagsJSON, &agent.Tags)
 	}
-	
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Data:    agent,
@@ -472,7 +472,7 @@ func getAgentHandler(w http.ResponseWriter, r *http.Request) {
 func updateAgentHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	agentID := vars["id"]
-	
+
 	var agent ScrapingAgent
 	if err := json.NewDecoder(r.Body).Decode(&agent); err != nil {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
@@ -481,10 +481,10 @@ func updateAgentHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	configJSON, _ := json.Marshal(agent.Configuration)
 	tagsJSON, _ := json.Marshal(agent.Tags)
-	
+
 	query := `
 		UPDATE scraping_agents 
 		SET name = $1, platform = $2, agent_type = $3, configuration = $4,
@@ -492,10 +492,10 @@ func updateAgentHandler(w http.ResponseWriter, r *http.Request) {
 		WHERE id = $8
 		RETURNING updated_at
 	`
-	
+
 	err := db.QueryRow(query, agent.Name, agent.Platform, agent.AgentType,
 		configJSON, agent.ScheduleCron, agent.Enabled, tagsJSON, agentID).Scan(&agent.UpdatedAt)
-	
+
 	if err == sql.ErrNoRows {
 		respondJSON(w, http.StatusNotFound, APIResponse{
 			Success: false,
@@ -509,7 +509,7 @@ func updateAgentHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	agent.ID = agentID
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
@@ -521,7 +521,7 @@ func updateAgentHandler(w http.ResponseWriter, r *http.Request) {
 func deleteAgentHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	agentID := vars["id"]
-	
+
 	result, err := db.Exec("DELETE FROM scraping_agents WHERE id = $1", agentID)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
@@ -530,7 +530,7 @@ func deleteAgentHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		respondJSON(w, http.StatusNotFound, APIResponse{
@@ -539,7 +539,7 @@ func deleteAgentHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Message: "Agent deleted successfully",
@@ -553,7 +553,7 @@ func getTargetsHandler(w http.ResponseWriter, r *http.Request) {
 		FROM scraping_targets 
 		ORDER BY created_at DESC
 	`
-	
+
 	rows, err := db.Query(query)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
@@ -563,12 +563,12 @@ func getTargetsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var targets []ScrapingTarget
 	for rows.Next() {
 		var target ScrapingTarget
 		var selectorJSON, authJSON, headersJSON, proxyJSON []byte
-		
+
 		err := rows.Scan(
 			&target.ID, &target.AgentID, &target.URL,
 			&selectorJSON, &authJSON, &headersJSON, &proxyJSON,
@@ -578,7 +578,7 @@ func getTargetsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error scanning target row: %v", err)
 			continue
 		}
-		
+
 		// Parse JSON fields
 		if len(selectorJSON) > 0 {
 			json.Unmarshal(selectorJSON, &target.SelectorConfig)
@@ -592,14 +592,14 @@ func getTargetsHandler(w http.ResponseWriter, r *http.Request) {
 		if len(proxyJSON) > 0 {
 			json.Unmarshal(proxyJSON, &target.ProxyConfig)
 		}
-		
+
 		targets = append(targets, target)
 	}
-	
+
 	if targets == nil {
 		targets = []ScrapingTarget{}
 	}
-	
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Data:    targets,
@@ -615,7 +615,7 @@ func createTargetHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	// Validate required fields
 	if target.AgentID == "" || target.URL == "" {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
@@ -624,23 +624,23 @@ func createTargetHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	selectorJSON, _ := json.Marshal(target.SelectorConfig)
 	authJSON, _ := json.Marshal(target.Authentication)
 	headersJSON, _ := json.Marshal(target.Headers)
 	proxyJSON, _ := json.Marshal(target.ProxyConfig)
-	
+
 	query := `
 		INSERT INTO scraping_targets (agent_id, url, selector_config, authentication,
 		                            headers, proxy_config, rate_limit_ms, max_retries)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, created_at
 	`
-	
+
 	err := db.QueryRow(query, target.AgentID, target.URL, selectorJSON,
 		authJSON, headersJSON, proxyJSON, target.RateLimitMs, target.MaxRetries).Scan(
 		&target.ID, &target.CreatedAt)
-	
+
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
@@ -648,7 +648,7 @@ func createTargetHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	respondJSON(w, http.StatusCreated, APIResponse{
 		Success: true,
 		Data:    target,
@@ -659,7 +659,7 @@ func createTargetHandler(w http.ResponseWriter, r *http.Request) {
 func getAgentTargetsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	agentID := vars["agentId"]
-	
+
 	query := `
 		SELECT id, agent_id, url, selector_config, authentication,
 		       headers, proxy_config, rate_limit_ms, max_retries, created_at
@@ -667,7 +667,7 @@ func getAgentTargetsHandler(w http.ResponseWriter, r *http.Request) {
 		WHERE agent_id = $1
 		ORDER BY created_at DESC
 	`
-	
+
 	rows, err := db.Query(query, agentID)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
@@ -677,12 +677,12 @@ func getAgentTargetsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var targets []ScrapingTarget
 	for rows.Next() {
 		var target ScrapingTarget
 		var selectorJSON, authJSON, headersJSON, proxyJSON []byte
-		
+
 		err := rows.Scan(
 			&target.ID, &target.AgentID, &target.URL,
 			&selectorJSON, &authJSON, &headersJSON, &proxyJSON,
@@ -692,7 +692,7 @@ func getAgentTargetsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error scanning target row: %v", err)
 			continue
 		}
-		
+
 		// Parse JSON fields
 		if len(selectorJSON) > 0 {
 			json.Unmarshal(selectorJSON, &target.SelectorConfig)
@@ -706,14 +706,14 @@ func getAgentTargetsHandler(w http.ResponseWriter, r *http.Request) {
 		if len(proxyJSON) > 0 {
 			json.Unmarshal(proxyJSON, &target.ProxyConfig)
 		}
-		
+
 		targets = append(targets, target)
 	}
-	
+
 	if targets == nil {
 		targets = []ScrapingTarget{}
 	}
-	
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Data:    targets,
@@ -723,7 +723,7 @@ func getAgentTargetsHandler(w http.ResponseWriter, r *http.Request) {
 func getResultsHandler(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	limit := r.URL.Query().Get("limit")
-	
+
 	query := `
 		SELECT id, agent_id, target_id, run_id, status, data, screenshots,
 		       extracted_count, error_message, started_at, completed_at, execution_time_ms
@@ -732,22 +732,22 @@ func getResultsHandler(w http.ResponseWriter, r *http.Request) {
 	`
 	args := []interface{}{}
 	argIndex := 1
-	
+
 	if status != "" {
 		query += fmt.Sprintf(" AND status = $%d", argIndex)
 		args = append(args, status)
 		argIndex++
 	}
-	
+
 	query += " ORDER BY started_at DESC"
-	
+
 	if limit != "" {
 		if limitInt, err := strconv.Atoi(limit); err == nil && limitInt > 0 {
 			query += fmt.Sprintf(" LIMIT $%d", argIndex)
 			args = append(args, limitInt)
 		}
 	}
-	
+
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
@@ -757,12 +757,12 @@ func getResultsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var results []ScrapingResult
 	for rows.Next() {
 		var result ScrapingResult
 		var dataJSON, screenshotsJSON []byte
-		
+
 		err := rows.Scan(
 			&result.ID, &result.AgentID, &result.TargetID, &result.RunID,
 			&result.Status, &dataJSON, &screenshotsJSON, &result.ExtractedCount,
@@ -773,7 +773,7 @@ func getResultsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error scanning result row: %v", err)
 			continue
 		}
-		
+
 		// Parse JSON fields
 		if len(dataJSON) > 0 {
 			json.Unmarshal(dataJSON, &result.Data)
@@ -781,14 +781,14 @@ func getResultsHandler(w http.ResponseWriter, r *http.Request) {
 		if len(screenshotsJSON) > 0 {
 			json.Unmarshal(screenshotsJSON, &result.Screenshots)
 		}
-		
+
 		results = append(results, result)
 	}
-	
+
 	if results == nil {
 		results = []ScrapingResult{}
 	}
-	
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Data:    results,
@@ -798,7 +798,7 @@ func getResultsHandler(w http.ResponseWriter, r *http.Request) {
 func getAgentResultsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	agentID := vars["agentId"]
-	
+
 	query := `
 		SELECT id, agent_id, target_id, run_id, status, data, screenshots,
 		       extracted_count, error_message, started_at, completed_at, execution_time_ms
@@ -806,7 +806,7 @@ func getAgentResultsHandler(w http.ResponseWriter, r *http.Request) {
 		WHERE agent_id = $1
 		ORDER BY started_at DESC
 	`
-	
+
 	rows, err := db.Query(query, agentID)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
@@ -816,12 +816,12 @@ func getAgentResultsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var results []ScrapingResult
 	for rows.Next() {
 		var result ScrapingResult
 		var dataJSON, screenshotsJSON []byte
-		
+
 		err := rows.Scan(
 			&result.ID, &result.AgentID, &result.TargetID, &result.RunID,
 			&result.Status, &dataJSON, &screenshotsJSON, &result.ExtractedCount,
@@ -832,7 +832,7 @@ func getAgentResultsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error scanning result row: %v", err)
 			continue
 		}
-		
+
 		// Parse JSON fields
 		if len(dataJSON) > 0 {
 			json.Unmarshal(dataJSON, &result.Data)
@@ -840,14 +840,14 @@ func getAgentResultsHandler(w http.ResponseWriter, r *http.Request) {
 		if len(screenshotsJSON) > 0 {
 			json.Unmarshal(screenshotsJSON, &result.Screenshots)
 		}
-		
+
 		results = append(results, result)
 	}
-	
+
 	if results == nil {
 		results = []ScrapingResult{}
 	}
-	
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Data:    results,
@@ -859,10 +859,10 @@ func getPlatformsHandler(w http.ResponseWriter, r *http.Request) {
 	// In a real implementation, this could be loaded from the database or config
 	platforms := []PlatformCapabilities{
 		{
-			Platform:     "huginn",
-			AgentTypes:   []string{"WebsiteAgent", "RssAgent", "TwitterStreamAgent", "EmailAgent", "JsonAgent", "DataOutputAgent"},
-			Features:     map[string]interface{}{"scheduling": true, "chaining": true, "filtering": true, "templating": true, "webhooks": true},
-			BestFor:      "RSS feeds, social media monitoring, scheduled scraping",
+			Platform:   "huginn",
+			AgentTypes: []string{"WebsiteAgent", "RssAgent", "TwitterStreamAgent", "EmailAgent", "JsonAgent", "DataOutputAgent"},
+			Features:   map[string]interface{}{"scheduling": true, "chaining": true, "filtering": true, "templating": true, "webhooks": true},
+			BestFor:    "RSS feeds, social media monitoring, scheduled scraping",
 		},
 		{
 			Platform:     "browserless",
@@ -877,7 +877,7 @@ func getPlatformsHandler(w http.ResponseWriter, r *http.Request) {
 			BestFor:      "Complex interactions, dynamic content, AI-guided scraping",
 		},
 	}
-	
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Data:    platforms,
@@ -887,17 +887,16 @@ func getPlatformsHandler(w http.ResponseWriter, r *http.Request) {
 func executeAgentHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	agentID := vars["id"]
-	
-	// This would trigger execution via n8n workflow
-	// For now, return a simple response
+
+	// The scheduler will pick up eligible agents; respond with queued status
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Message: fmt.Sprintf("Agent %s execution triggered", agentID),
 		Data: map[string]interface{}{
-			"agent_id":    agentID,
-			"run_id":      fmt.Sprintf("run_%d", time.Now().Unix()),
-			"status":      "queued",
-			"started_at":  time.Now().UTC(),
+			"agent_id":   agentID,
+			"run_id":     fmt.Sprintf("run_%d", time.Now().Unix()),
+			"status":     "queued",
+			"started_at": time.Now().UTC(),
 		},
 	})
 }
@@ -905,8 +904,8 @@ func executeAgentHandler(w http.ResponseWriter, r *http.Request) {
 func executeWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	workflowID := vars["id"]
-	
-	// This would trigger execution via n8n workflow
+
+	// Placeholder until dedicated workflow execution is implemented
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Message: fmt.Sprintf("Workflow %s execution triggered", workflowID),
@@ -921,11 +920,11 @@ func executeWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 
 func exportDataHandler(w http.ResponseWriter, r *http.Request) {
 	var exportRequest struct {
-		AgentIDs []string `json:"agent_ids"`
-		Format   string   `json:"format"`
+		AgentIDs []string               `json:"agent_ids"`
+		Format   string                 `json:"format"`
 		Filters  map[string]interface{} `json:"filters"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&exportRequest); err != nil {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
 			Success: false,
@@ -933,7 +932,7 @@ func exportDataHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	// This would trigger export workflow
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
@@ -951,11 +950,11 @@ func exportDataHandler(w http.ResponseWriter, r *http.Request) {
 func getMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	// Return basic metrics
 	var totalAgents, activeAgents, totalResults int
-	
+
 	db.QueryRow("SELECT COUNT(*) FROM scraping_agents").Scan(&totalAgents)
 	db.QueryRow("SELECT COUNT(*) FROM scraping_agents WHERE enabled = true").Scan(&activeAgents)
 	db.QueryRow("SELECT COUNT(*) FROM scraping_results").Scan(&totalResults)
-	
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Data: map[string]interface{}{
@@ -969,19 +968,19 @@ func getMetricsHandler(w http.ResponseWriter, r *http.Request) {
 
 func getStatusHandler(w http.ResponseWriter, r *http.Request) {
 	status := map[string]interface{}{
-		"api":         "healthy",
-		"database":    "connected",
-		"timestamp":   time.Now().UTC(),
-		"version":     "1.0.0",
-		"uptime":      "running",
+		"api":       "healthy",
+		"database":  "connected",
+		"timestamp": time.Now().UTC(),
+		"version":   "1.0.0",
+		"uptime":    "running",
 	}
-	
+
 	// Check database
 	if err := db.Ping(); err != nil {
 		status["database"] = "disconnected"
 		status["api"] = "degraded"
 	}
-	
+
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
 		Data:    status,

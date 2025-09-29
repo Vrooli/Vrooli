@@ -53,6 +53,40 @@ declare global {
 
 const PASSWORD_MIN_LENGTH = 8;
 
+type RedirectContext = {
+  user?: unknown;
+  roles?: unknown;
+};
+
+function normalizeRoles(input: unknown): string[] {
+  if (!input) return [];
+  if (Array.isArray(input)) {
+    return input
+      .map((role) => String(role).trim().toLowerCase())
+      .filter((role) => role !== '');
+  }
+
+  if (typeof input === 'object') {
+    const rolesFromObject = (input as { roles?: unknown }).roles;
+    if (Array.isArray(rolesFromObject)) {
+      return normalizeRoles(rolesFromObject);
+    }
+  }
+
+  return [];
+}
+
+function getDefaultDestination(context?: RedirectContext): string {
+  const storedUser = getStoredUser();
+  const combinedRoles = new Set<string>();
+
+  normalizeRoles(context?.roles).forEach((role) => combinedRoles.add(role));
+  normalizeRoles(context?.user).forEach((role) => combinedRoles.add(role));
+  normalizeRoles(storedUser).forEach((role) => combinedRoles.add(role));
+
+  return combinedRoles.has('admin') ? '/admin' : '/dashboard';
+}
+
 function evaluatePasswordStrength(password: string): '' | 'weak' | 'medium' | 'strong' {
   if (!password) return '';
   if (password.length < PASSWORD_MIN_LENGTH) return 'weak';
@@ -124,9 +158,27 @@ function getStoredUser(): unknown {
   }
 }
 
-const redirectAfterAuth = (redirectUrl: string | null) => {
+const redirectAfterAuth = (redirectUrl: string | null, context?: RedirectContext) => {
+  const destination = (() => {
+    const defaultDestination = getDefaultDestination(context);
+    if (!redirectUrl) {
+      return defaultDestination;
+    }
+
+    const normalized = redirectUrl.trim();
+    if (!normalized) {
+      return defaultDestination;
+    }
+
+    if (normalized === '/dashboard' && defaultDestination !== '/dashboard') {
+      return defaultDestination;
+    }
+
+    return normalized;
+  })();
+
   window.setTimeout(() => {
-    window.location.href = redirectUrl ?? '/dashboard';
+    window.location.href = destination;
   }, 1000);
 };
 
@@ -395,7 +447,7 @@ export default function App() {
         });
         const data = await response.json();
         if (data.valid) {
-          redirectAfterAuth(redirectUrl);
+          redirectAfterAuth(redirectUrl, { roles: data.roles });
         }
       } catch (error) {
         console.error('Token validation error', error);
@@ -492,7 +544,7 @@ export default function App() {
             loginState.remember
           );
           showSuccess('Login successful! Redirecting...');
-          redirectAfterAuth(redirectUrl);
+          redirectAfterAuth(redirectUrl, { user: data.user, roles: data.user?.roles });
         } else {
           const message = data.error || 'Invalid email or password';
           setError('loginEmail', message);
@@ -574,7 +626,7 @@ export default function App() {
             agree: false,
             loading: false,
           });
-          redirectAfterAuth(redirectUrl);
+          redirectAfterAuth(redirectUrl, { user: data.user, roles: data.user?.roles });
         } else {
           const message = data.error || 'Registration failed';
           if (data.error?.includes('email')) {

@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Auth Service Admin - Scenario Authenticator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script type="module">
         import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
 
@@ -22,90 +26,272 @@
         }
     </script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
+        :root {
+            --surface: #ffffff;
+            --surface-subtle: #f8fafc;
+            --surface-strong: #eef2ff;
+            --border: #e2e8f0;
+            --primary: #2563eb;
+            --primary-soft: #dbeafe;
+            --primary-gradient: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            --text-strong: #0f172a;
+            --text-muted: #64748b;
+            --muted-accent: #94a3b8;
+            --shadow: 0 30px 60px rgba(15, 23, 42, 0.12);
+            --success: #16a34a;
+            --danger: #ef4444;
+            --warning: #f97316;
+            --info: #0ea5e9;
+        }
+
+        *, *::before, *::after {
             box-sizing: border-box;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: #f5f5f5;
+            margin: 0;
             min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 48px 24px;
+            background: radial-gradient(circle at top, #1e293b 0%, #0f172a 55%, #0b1120 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            color: var(--text-strong);
         }
 
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 40px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        .admin-shell {
+            width: min(1120px, 100%);
+            background: var(--surface);
+            border-radius: 28px;
+            box-shadow: var(--shadow);
+            padding: 40px 48px;
+            display: flex;
+            flex-direction: column;
+            gap: 36px;
+            position: relative;
         }
 
-        .header-content {
-            max-width: 1400px;
-            margin: 0 auto;
+        .app-header {
             display: flex;
             justify-content: space-between;
+            align-items: flex-start;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+
+        .title-group {
+            max-width: 560px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .app-badge {
+            display: inline-flex;
             align-items: center;
-        }
-
-        .header h1 {
-            font-size: 24px;
+            gap: 8px;
+            background: var(--primary-soft);
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 12px;
             font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--primary);
         }
 
-        .header-subtitle {
-            font-size: 14px;
-            opacity: 0.9;
-            margin-top: 4px;
+        .app-badge svg {
+            width: 14px;
+            height: 14px;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 30px 40px;
+        .title-group h1 {
+            margin: 0;
+            font-size: clamp(28px, 4vw, 36px);
+            font-weight: 700;
+            color: var(--text-strong);
         }
 
-        .stats-grid {
+        .title-group p {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.6;
+            color: var(--text-muted);
+        }
+
+        .header-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 14px;
+        }
+
+        .header-actions .user-summary[data-auth-user-card] {
+            margin: 0;
+        }
+
+        .ghost-button {
+            border: 1px solid rgba(37, 99, 235, 0.28);
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--primary);
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .ghost-button:hover {
+            background: rgba(37, 99, 235, 0.14);
+            transform: translateY(-1px);
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
+        }
+
+        .icon-inline {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon-inline svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        @media (max-width: 720px) {
+            .header-actions {
+                align-items: stretch;
+                gap: 12px;
+            }
+
+            .header-actions .ghost-button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .metrics-section {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .metrics-section h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-strong);
+        }
+
+        .stat-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 24px;
         }
 
         .stat-card {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 22px 24px;
+            background: var(--surface-subtle);
+            border-radius: 22px;
+            border: 1px solid var(--border);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        .stat-card__icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 18px;
+            display: grid;
+            place-items: center;
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--primary);
+        }
+
+        .stat-card__icon svg {
+            width: 26px;
+            height: 26px;
+        }
+
+        .stat-card__meta {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stat-card__value {
+            font-size: 30px;
+            font-weight: 700;
+            color: var(--text-strong);
+        }
+
+        .stat-card__label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted-accent);
+        }
+
+        .stat-card__change {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .stat-card__change--positive {
+            color: var(--success);
+        }
+
+        .panel-card {
+            background: var(--surface-subtle);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            padding: 28px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .stat-card {
+            background: var(--surface-subtle);
+            border-radius: 22px;
+            border: 1px solid var(--border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .stat-label {
-            color: #666;
             font-size: 12px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
         }
 
         .stat-value {
             font-size: 32px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .stat-change {
-            font-size: 12px;
-            color: #4CAF50;
-            margin-top: 4px;
+            font-weight: 700;
+            color: var(--text-strong);
         }
 
         .section {
-            background: white;
-            border-radius: 8px;
-            padding: 24px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
+            background: var(--surface-subtle);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 28px 32px;
+            box-shadow: none;
         }
 
         .section-header {
@@ -124,41 +310,50 @@
         .btn {
             padding: 10px 20px;
             border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
             text-decoration: none;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: var(--primary-gradient);
+            color: #ffffff;
+            box-shadow: 0 14px 30px rgba(37, 99, 235, 0.25);
         }
 
         .btn-primary:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 18px 35px rgba(37, 99, 235, 0.28);
         }
 
         .btn-secondary {
-            background: #f0f0f0;
-            color: #333;
+            background: rgba(37, 99, 235, 0.12);
+            color: var(--primary);
         }
 
         .btn-secondary:hover {
-            background: #e0e0e0;
+            background: rgba(37, 99, 235, 0.18);
         }
 
         .btn-danger {
-            background: #ff4757;
-            color: white;
+            background: var(--danger);
+            color: #ffffff;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 24px rgba(239, 68, 68, 0.25);
         }
 
         .btn-small {
-            padding: 6px 12px;
+            padding: 6px 14px;
             font-size: 12px;
         }
 
@@ -169,67 +364,73 @@
 
         .table th {
             text-align: left;
-            padding: 12px;
-            border-bottom: 2px solid #f0f0f0;
-            color: #666;
+            padding: 14px 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-muted);
             font-size: 12px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.08em;
         }
 
         .table td {
-            padding: 12px;
-            border-bottom: 1px solid #f0f0f0;
-            color: #333;
+            padding: 14px 12px;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+            color: var(--text-strong);
         }
 
         .table tr:hover {
-            background: #f9f9f9;
+            background: rgba(37, 99, 235, 0.04);
         }
 
         .status-badge {
             display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
+            padding: 4px 10px;
+            border-radius: 999px;
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         .status-active {
-            background: #d4edda;
-            color: #155724;
+            background: rgba(22, 163, 74, 0.14);
+            color: var(--success);
         }
 
         .status-inactive {
-            background: #f8d7da;
-            color: #721c24;
+            background: rgba(239, 68, 68, 0.14);
+            color: var(--danger);
         }
 
         .tabs {
             display: flex;
-            gap: 20px;
-            border-bottom: 2px solid #f0f0f0;
-            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
         .tab {
-            padding: 12px 0;
-            color: #666;
-            font-weight: 500;
+            border: none;
+            background: transparent;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-radius: 999px;
             cursor: pointer;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-            transition: all 0.3s ease;
+            transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
         }
 
-        .tab:hover {
-            color: #333;
+        .tab:hover,
+        .tab:focus-visible {
+            color: var(--text-strong);
+            background: rgba(148, 163, 184, 0.12);
+            outline: none;
         }
 
         .tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
+            color: var(--primary);
+            background: rgba(37, 99, 235, 0.14);
+            transform: translateY(-1px);
         }
 
         .tab-content {
@@ -238,6 +439,10 @@
 
         .tab-content.active {
             display: block;
+        }
+
+        .tab-content[hidden] {
+            display: none !important;
         }
 
         .modal {
@@ -276,28 +481,6 @@
         .modal-close:hover {
             background: #f0f0f0;
             color: #333;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-
-        .stat-number {
-            font-size: 28px;
-            font-weight: 700;
-            color: #667eea;
-            margin-bottom: 5px;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
         .modal-content {
@@ -347,27 +530,74 @@
         }
 
         .code-block {
-            background: #f5f5f5;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            padding: 15px;
-            font-family: 'Courier New', monospace;
+            position: relative;
+            background: var(--surface-subtle);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 18px 20px 18px 20px;
+            font-family: 'Fira Code', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
             font-size: 13px;
+            margin: 18px 0;
+        }
+
+        .code-block pre {
+            margin: 0;
             overflow-x: auto;
-            margin: 15px 0;
+        }
+
+        .code-block code {
+            display: block;
         }
 
         .copy-btn {
-            float: right;
-            margin-top: -10px;
-            margin-right: -10px;
-            background: #667eea;
-            color: white;
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(37, 99, 235, 0.12);
+            color: var(--primary);
             border: none;
-            padding: 4px 8px;
-            border-radius: 4px;
+            padding: 6px 12px;
+            border-radius: 999px;
             font-size: 11px;
+            font-weight: 600;
             cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: rgba(37, 99, 235, 0.18);
+            transform: translateY(-1px);
+        }
+
+        .integration-callout {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            background: rgba(37, 99, 235, 0.08);
+            border: 1px solid rgba(37, 99, 235, 0.18);
+            border-radius: 18px;
+            padding: 20px 24px;
+            margin-top: 32px;
+        }
+
+        .integration-callout__icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: rgba(37, 99, 235, 0.18);
+            color: var(--primary);
+        }
+
+        .integration-callout__icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .integration-callout__content {
+            flex: 1;
         }
 
         .empty-state {
@@ -377,9 +607,19 @@
         }
 
         .empty-state-icon {
-            font-size: 48px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
             margin-bottom: 20px;
-            opacity: 0.5;
+            color: var(--primary);
+            opacity: 0.8;
+        }
+
+        .empty-state-icon svg {
+            width: 42px;
+            height: 42px;
         }
 
         .empty-state-title {
@@ -465,52 +705,105 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-content">
-            <div>
-                <h1>🔐 Scenario Authenticator Admin</h1>
-                <div class="header-subtitle">Central authentication service for all Vrooli scenarios</div>
-            </div>
-            <div>
-                <span id="adminEmail" style="margin-right: 20px;">admin@vrooli.local</span>
-                <button class="btn btn-secondary" onclick="logout()">Logout</button>
-            </div>
+    <main class="admin-shell">
+    <header class="app-header">
+        <div class="title-group">
+            <span class="app-badge">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M12 22c6.5-3 8-5.5 8-10V5l-8-3-8 3v7c0 4.5 1.5 7 8 10Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Scenario Authenticator
+            </span>
+            <h1>Admin Control Hub</h1>
+            <p>Monitor registrations, review user activity, and manage every authentication surface in one place.</p>
         </div>
-    </div>
+        <div class="header-actions">
+            <div id="userCardContainer" aria-live="polite"></div>
+            <button class="ghost-button" type="button" onclick="logout()">
+                <span class="icon-inline" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 12H7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="m11 16 4-4-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M7 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </span>
+                Sign Out
+            </button>
+        </div>
+    </header>
 
-    <div class="container">
-        <!-- Statistics -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Registered Applications</div>
-                <div class="stat-value" id="totalApps">0</div>
-                <div class="stat-change">↑ 2 this week</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Total Users</div>
-                <div class="stat-value" id="totalUsers">1</div>
-                <div class="stat-change">↑ 12 today</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Active Sessions</div>
-                <div class="stat-value" id="activeSessions">0</div>
-                <div class="stat-change">Across all scenarios</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Auth Requests Today</div>
-                <div class="stat-value" id="authRequests">0</div>
-                <div class="stat-change">↑ 18% from yesterday</div>
-            </div>
+    <section class="metrics-section" aria-label="Authentication metrics">
+        <div class="stat-cards">
+            <article class="stat-card">
+                <div class="stat-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <polyline points="10 17 15 12 10 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <line x1="15" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div class="stat-card__meta">
+                    <span class="stat-card__value" id="totalApps">0</span>
+                    <span class="stat-card__label">Registered Applications</span>
+                    <span class="stat-card__change stat-card__change--positive">2 new this week</span>
+                </div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M3 21a6 6 0 0 1 12 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <circle cx="18" cy="10" r="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M17.75 21v-1.5a4.5 4.5 0 0 0-3-4.24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div class="stat-card__meta">
+                    <span class="stat-card__value" id="totalUsers">1</span>
+                    <span class="stat-card__label">Total Users</span>
+                    <span class="stat-card__change stat-card__change--positive">12 onboarded today</span>
+                </div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div class="stat-card__meta">
+                    <span class="stat-card__value" id="activeSessions">0</span>
+                    <span class="stat-card__label">Active Sessions</span>
+                    <span class="stat-card__change">Across all scenarios</span>
+                </div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M3 3v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M16 16h5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div class="stat-card__meta">
+                    <span class="stat-card__value" id="authRequests">0</span>
+                    <span class="stat-card__label">Auth Requests Today</span>
+                    <span class="stat-card__change">Up 18% from yesterday</span>
+                </div>
+            </article>
         </div>
+    </section>
 
-        <!-- Tabs -->
-        <div class="tabs">
-            <div class="tab active" data-tab="applications">Applications</div>
-            <div class="tab" data-tab="users">Users</div>
-            <div class="tab" data-tab="sessions">Sessions</div>
-            <div class="tab" data-tab="audit">Audit Logs</div>
-            <div class="tab" data-tab="integration">Integration Guide</div>
-        </div>
+    <section class="panel-card">
+        <nav class="tabs" role="tablist" aria-label="Administration views">
+            <button class="tab active" data-tab="applications" role="tab" id="tab-applications" aria-selected="true" tabindex="0">Applications</button>
+            <button class="tab" data-tab="users" role="tab" id="tab-users" aria-selected="false" tabindex="-1">Users</button>
+            <button class="tab" data-tab="sessions" role="tab" id="tab-sessions" aria-selected="false" tabindex="-1">Sessions</button>
+            <button class="tab" data-tab="audit" role="tab" id="tab-audit" aria-selected="false" tabindex="-1">Audit Logs</button>
+            <button class="tab" data-tab="integration" role="tab" id="tab-integration" aria-selected="false" tabindex="-1">Integration Guide</button>
+        </nav>
 
         <!-- Applications Tab -->
         <div class="tab-content active" id="applications-tab">
@@ -522,7 +815,13 @@
                 
                 <div id="appsTable">
                     <div class="empty-state">
-                        <div class="empty-state-icon">📦</div>
+                        <div class="empty-state-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 7.5 12 12l9-4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M3 7.5v9l9 4.5 9-4.5v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M12 12v9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </div>
                         <div class="empty-state-title">No Applications Yet</div>
                         <div class="empty-state-text">Register your first scenario to start using authentication</div>
                         <button class="btn btn-primary" onclick="showRegisterModal()">Register First Application</button>
@@ -532,7 +831,7 @@
         </div>
 
         <!-- Users Tab -->
-        <div class="tab-content" id="users-tab">
+        <div class="tab-content" id="users-tab" hidden>
             <div class="section">
                 <div class="section-header">
                     <h2 class="section-title">All Users</h2>
@@ -558,8 +857,25 @@
                             <td>All</td>
                             <td>Today</td>
                             <td class="actions-cell">
-                                <button class="btn btn-secondary btn-small">View</button>
-                                <button class="btn btn-danger btn-small">Disable</button>
+                                <button class="btn btn-secondary btn-small">
+                                    <span class="icon-inline" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </span>
+                                    View
+                                </button>
+                                <button class="btn btn-danger btn-small">
+                                    <span class="icon-inline" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="m15 9-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="m9 9 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </span>
+                                    Disable
+                                </button>
                             </td>
                         </tr>
                     </tbody>
@@ -568,29 +884,37 @@
         </div>
 
         <!-- Sessions Tab -->
-        <div class="tab-content" id="sessions-tab">
+        <div class="tab-content" id="sessions-tab" hidden>
             <div class="section">
                 <div class="section-header">
                     <h2 class="section-title">Active Sessions</h2>
-                    <button class="btn btn-secondary" onclick="refreshSessions()">🔄 Refresh</button>
+                    <button class="btn btn-secondary" onclick="refreshSessions()">
+                        <span class="icon-inline" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M3 3v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M16 16h5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </span>
+                        Refresh
+                    </button>
                 </div>
                 
                 <table class="table">
                     <thead>
                         <tr>
                             <th>User</th>
-                            <th>Application</th>
                             <th>IP Address</th>
                             <th>Started</th>
-                            <th>Last Activity</th>
+                            <th>Expires</th>
+                            <th>User Agent</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="sessionsTableBody">
                         <tr>
-                            <td colspan="6" style="text-align: center; padding: 40px; color: #666;">
-                                No active sessions
-                            </td>
+                            <td colspan="6" style="text-align: center; padding: 40px; color: #666;">No active sessions</td>
                         </tr>
                     </tbody>
                 </table>
@@ -598,7 +922,7 @@
         </div>
 
         <!-- Audit Logs Tab -->
-        <div class="tab-content" id="audit-tab">
+        <div class="tab-content" id="audit-tab" hidden>
             <div class="section">
                 <div class="section-header">
                     <h2 class="section-title">Authentication Events</h2>
@@ -635,103 +959,170 @@
         </div>
 
         <!-- Integration Guide Tab -->
-        <div class="tab-content" id="integration-tab">
+        <div class="tab-content" id="integration-tab" hidden>
             <div class="section">
                 <h2 class="section-title">Quick Integration Guide</h2>
-                
-                <h3 style="margin-top: 30px; margin-bottom: 15px;">1. Register Your Application</h3>
-                <p style="color: #666; margin-bottom: 15px;">First, register your scenario using the admin dashboard "+ Register New Application" button above, or generate integration code directly:</p>
+
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">1. Discover Service Endpoints</h3>
+                <p style="color: #666; margin-bottom: 15px;">Use the lifecycle utilities to fetch the dynamic ports allocated to the authenticator. Export the URLs so your services do not need to hard-code ports.</p>
                 <div class="code-block">
                     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    scenario-authenticator protect my-scenario api
+                    <pre><code class="language-bash"># From the Vrooli workspace root
+AUTH_API_PORT=$(vrooli scenario port scenario-authenticator API_PORT)
+AUTH_UI_PORT=$(vrooli scenario port scenario-authenticator UI_PORT)
+
+export SCENARIO_AUTHENTICATOR_API_URL="http://localhost:${AUTH_API_PORT}"
+export SCENARIO_AUTHENTICATOR_UI_URL="http://localhost:${AUTH_UI_PORT}"
+</code></pre>
+                </div>
+                <p style="color: #666; margin-bottom: 20px;">Add these environment variables to your scenario’s runtime (for example via <code>.env</code> files or Makefile exports) so every service can reach the authenticator consistently.</p>
+
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">2. Secure Your API Middleware</h3>
+                <p style="color: #666; margin-bottom: 12px;">Express middleware example:</p>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre><code class="language-javascript">const authApiUrl = process.env.SCENARIO_AUTHENTICATOR_API_URL ?? 'http://localhost:15837';
+
+export async function validateAuth(req, res, next) {
+  const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+  if (!token) {
+    return res.status(401).json({ error: 'Missing bearer token' });
+  }
+
+  try {
+    const response = await fetch(`${authApiUrl}/api/v1/auth/validate`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const payload = await response.json();
+    if (!payload.valid) {
+      return res.status(401).json({ error: 'Token rejected by authenticator' });
+    }
+
+    req.user = {
+      id: payload.user_id,
+      email: payload.email,
+      roles: payload.roles || []
+    };
+    return next();
+  } catch (error) {
+    console.error('[auth] validation failed', error);
+    return res.status(503).json({ error: 'Authenticator unavailable' });
+  }
+}
+</code></pre>
                 </div>
 
-                <h3 style="margin-top: 30px; margin-bottom: 15px;">2. Add Authentication to Your API</h3>
-                <p style="color: #666; margin-bottom: 15px;">For Go APIs, add this validation middleware:</p>
+                <p style="color: #666; margin: 12px 0;">Go validation helper:</p>
                 <div class="code-block">
                     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-// Add to your protected routes
-func validateAuth(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        authHeader := r.Header.Get("Authorization")
-        if authHeader == "" {
-            http.Error(w, "Authorization required", 401)
-            return
-        }
-        
-        // Get current API port dynamically
-        apiPort := os.Getenv("AUTH_API_PORT") // Set this in your scenario
-        if apiPort == "" {
-            apiPort = "15837" // fallback to current port
-        }
-        
-        resp, err := http.Get(fmt.Sprintf("http://localhost:%s/api/v1/auth/validate", apiPort))
-        if err != nil || resp.StatusCode != 200 {
-            http.Error(w, "Invalid token", 401)
-            return
-        }
-        
-        next.ServeHTTP(w, r)
-    })
-}
+                    <pre><code class="language-go">func ValidateRequest(ctx context.Context, token string) error {
+    authAPI := os.Getenv("SCENARIO_AUTHENTICATOR_API_URL")
+    if authAPI == "" {
+        authAPI = "http://localhost:15837"
+    }
 
-// Use middleware: router.Use(validateAuth)
+    req, err := http.NewRequestWithContext(ctx, http.MethodGet, authAPI+"/api/v1/auth/validate", nil)
+    if err != nil {
+        return err
+    }
+    req.Header.Set("Authorization", "Bearer "+token)
+
+    resp, err := http.DefaultClient.Do(req)
+    if err != nil {
+        return err
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return fmt.Errorf("token rejected: %s", resp.Status)
+    }
+
+    var payload struct {
+        Valid  bool     `json:"valid"`
+        UserID string   `json:"user_id"`
+        Roles  []string `json:"roles"`
+    }
+    if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+        return err
+    }
+    if !payload.Valid {
+        return errors.New("token invalid")
+    }
+
+    // Attach payload metadata to the request context here.
+    return nil
+}
+</code></pre>
                 </div>
 
                 <h3 style="margin-top: 30px; margin-bottom: 15px;">3. Protect Your UI Routes</h3>
-                <p style="color: #666; margin-bottom: 15px;">For JavaScript UIs, add this check (replace ports with your scenario's dynamic ports):</p>
+                <p style="color: #666; margin-bottom: 12px;">Fetch the authenticator configuration (or reuse the exported environment variables) and redirect unauthenticated users to the hosted login screen.</p>
                 <div class="code-block">
                     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-// Check authentication with dynamic ports
-async function requireAuth() {
-    const token = localStorage.getItem('authToken');
-    
-    // Get auth service port from your scenario's environment
-    const authApiPort = window.AUTH_API_PORT || '15837'; // Replace with your scenario's port
-    const authUiPort = window.AUTH_UI_PORT || '37578'; // Replace with your scenario's port
-    
-    const response = await fetch(`http://localhost:${authApiPort}/api/v1/auth/validate`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    if (!response.ok) {
-        window.location.href = `http://localhost:${authUiPort}/login?redirect=` + 
-            encodeURIComponent(window.location.href);
-    }
-    
-    return await response.json(); // Returns user data
+                    <pre><code class="language-javascript">async function requireAuth() {
+  const token = localStorage.getItem('authToken');
+  const config = window.__authConfig || (await fetch('/config').then((res) => res.json()).catch(() => ({ })));
+
+  const authApiUrl = window.SCENARIO_AUTHENTICATOR_API_URL || config.apiUrl || 'http://localhost:15837';
+  const authUiUrl = window.SCENARIO_AUTHENTICATOR_UI_URL || config.uiUrl || 'http://localhost:37578';
+
+  if (!token || !authApiUrl) {
+    window.location.href = `${authUiUrl}/login?redirect=${encodeURIComponent(window.location.href)}`;
+    return false;
+  }
+
+  const response = await fetch(`${authApiUrl}/api/v1/auth/validate`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const validation = await response.json();
+
+  if (!validation.valid) {
+    localStorage.removeItem('authToken');
+    window.location.href = `${authUiUrl}/login?redirect=${encodeURIComponent(window.location.href)}`;
+    return false;
+  }
+
+  window.currentUser = validation;
+  return true;
 }
+
+document.addEventListener('DOMContentLoaded', requireAuth);
+</code></pre>
                 </div>
 
-                <h3 style="margin-top: 30px; margin-bottom: 15px;">4. Handle User Context</h3>
-                <p style="color: #666; margin-bottom: 15px;">The token validation API returns this user information:</p>
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">4. Inspect the Validation Payload</h3>
+                <p style="color: #666; margin-bottom: 12px;">Successful validation returns the enriched principal object:</p>
                 <div class="code-block">
                     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-// GET /api/v1/auth/validate response:
-{
-    "valid": true,
-    "user_id": "uuid-string",
-    "email": "user@example.com",
-    "roles": ["user"],
-    "expires_at": "2025-01-01T12:00:00Z"
+                    <pre><code class="language-json">{
+  "valid": true,
+  "user_id": "c8d9a8b8-4c5c-4b7d-a531-2f7bb3189c70",
+  "email": "admin@demo.app",
+  "roles": ["admin", "user"],
+  "expires_at": "2025-01-01T12:00:00Z"
 }
-
-// Invalid token response:
-{
-    "valid": false
-}
+</code></pre>
                 </div>
 
-                <div style="margin-top: 40px; padding: 20px; background: #f0f8ff; border-left: 4px solid #667eea; border-radius: 4px;">
-                    <h4 style="margin-bottom: 10px;">🚀 Need Help?</h4>
-                    <p style="color: #666;">Generate complete integration code for your scenario:</p>
-                    <code style="background: white; padding: 4px 8px; border-radius: 4px;">scenario-authenticator protect your-scenario-name api</code>
-                    <br><br>
-                    <p style="color: #666; margin-bottom: 10px;"><strong>Current Service URLs:</strong></p>
-                    <code style="background: white; padding: 4px 8px; border-radius: 4px; margin-right: 10px;">API: http://localhost:15837</code>
-                    <code style="background: white; padding: 4px 8px; border-radius: 4px;">UI: http://localhost:37578</code>
-                    <br><br>
-                    <p style="color: #666; font-size: 12px;"><em>Note: Ports are allocated dynamically. Use 'vrooli scenario status scenario-authenticator' to get current ports.</em></p>
+                <div class="integration-callout">
+                    <div class="integration-callout__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M12 8v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <div class="integration-callout__content">
+                        <p>Need boilerplate? The CLI can scaffold both API and UI integrations that match the snippets above:</p>
+                        <div class="code-block" style="margin: 12px 0 0;">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                            <pre><code class="language-bash">scenario-authenticator protect your-scenario api
+scenario-authenticator protect your-scenario ui
+</code></pre>
+                        </div>
+                        <p style="color: #666; font-size: 12px; margin-top: 12px;">Run these commands inside your scenario to generate ready-to-use middleware and UI guards.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -774,7 +1165,9 @@ async function requireAuth() {
                     <label class="form-label">Rate Limit (requests/hour)</label>
                     <input type="number" class="form-input" id="appRateLimit" value="1000">
                 </div>
-                
+
+                <div id="registerAppError" style="display: none; color: #ef4444; font-size: 13px;" role="alert"></div>
+
                 <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary">Register Application</button>
@@ -782,6 +1175,8 @@ async function requireAuth() {
             </form>
         </div>
     </div>
+
+    </section>
 
     <!-- Application Details Modal -->
     <div class="modal" id="appDetailsModal" style="z-index: 1001;">
@@ -838,18 +1233,271 @@ async function requireAuth() {
         </div>
     </div>
 
+    <!-- Create User Modal -->
+    <div class="modal" id="createUserModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Create User Account</h2>
+            </div>
+
+            <form id="createUserForm">
+                <div class="form-group">
+                    <label class="form-label" for="newUserEmail">Email Address</label>
+                    <input type="email" class="form-input" id="newUserEmail" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="newUserPassword">Temporary Password</label>
+                    <input type="password" class="form-input" id="newUserPassword" minlength="8" required>
+                    <p style="color: #666; font-size: 12px; margin-top: 6px;">Share this password with the new user or reset it after creation.</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="newUserUsername">Username (optional)</label>
+                    <input type="text" class="form-input" id="newUserUsername" placeholder="Display name">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="newUserRoles">Roles (optional)</label>
+                    <input type="text" class="form-input" id="newUserRoles" placeholder="e.g. admin, moderator">
+                    <p style="color: #666; font-size: 12px; margin-top: 6px;">Leave blank for default access. Separate multiple roles with commas.</p>
+                </div>
+
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="newUserEmailVerified">
+                    <label for="newUserEmailVerified" style="margin: 0; color: #333;">Mark email as verified</label>
+                </div>
+
+                <div id="createUserError" style="display: none; color: #ef4444; font-size: 13px; margin-top: 10px;" role="alert"></div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateUserModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="createUserSubmit">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Manage User Modal -->
+    <div class="modal" id="manageUserModal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="manageUserTitle">Manage User</h2>
+                <button class="modal-close" onclick="closeManageUserModal()">×</button>
+            </div>
+
+            <form id="manageUserForm">
+                <input type="hidden" id="manageUserId">
+
+                <div class="form-group">
+                    <label class="form-label" for="manageUserEmail">Email</label>
+                    <input type="email" class="form-input" id="manageUserEmail" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="manageUserUsername">Username</label>
+                    <input type="text" class="form-input" id="manageUserUsername" placeholder="Optional display name">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="manageUserRoles">Roles</label>
+                    <input type="text" class="form-input" id="manageUserRoles" placeholder="e.g. admin, moderator">
+                    <p style="color: #666; font-size: 12px; margin-top: 6px;">All users keep baseline <code>user</code> access. Separate additional roles with commas.</p>
+                </div>
+
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="manageUserEmailVerified">
+                    <label for="manageUserEmailVerified" style="margin: 0; color: #333;">Email verified</label>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Created</label>
+                    <p id="manageUserCreated" style="margin: 4px 0 0; color: #555;">–</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Last Login</label>
+                    <p id="manageUserLastLogin" style="margin: 4px 0 0; color: #555;">–</p>
+                </div>
+
+                <div id="manageUserError" style="display: none; color: #ef4444; font-size: 13px; margin-top: 4px;" role="alert"></div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeManageUserModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="manageUserSubmit">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    </main>
+
     <div id="snackbar" class="snackbar">
         <span id="snackbar-message"></span>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" defer crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js" defer crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js" defer crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js" defer crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js" defer crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="/user-card.js"></script>
     <script>
         let API_URL = '';
+        let CONTACT_BOOK_URL = '';
         let authToken = '';
+        let authContext = {};
+        const usersCache = new Map();
+        let selectedUserId = null;
+        let selectedUserDetails = null;
+        const userCardContainer = document.getElementById('userCardContainer');
+        let userCard = null;
+
+        function normalizeRoleList(rawRoles) {
+            if (!rawRoles) {
+                return [];
+            }
+            if (Array.isArray(rawRoles)) {
+                return rawRoles
+                    .map(role => String(role).trim().toLowerCase())
+                    .filter(role => role.length > 0);
+            }
+            if (typeof rawRoles === 'string') {
+                return rawRoles
+                    .split(',')
+                    .map(role => role.trim().toLowerCase())
+                    .filter(role => role.length > 0);
+            }
+            return [];
+        }
+
+        function parseRolesInput(value) {
+            if (!value) {
+                return [];
+            }
+            return value
+                .split(',')
+                .map(role => role.trim().toLowerCase())
+                .filter(role => role.length > 0);
+        }
+
+        function mergeRolesWithBaseline(roles) {
+            const merged = new Set(roles.map(role => role.toLowerCase()));
+            merged.add('user');
+            return Array.from(merged);
+        }
+
+        function rolesEqual(first, second) {
+            if (first.length !== second.length) {
+                return false;
+            }
+            for (let index = 0; index < first.length; index += 1) {
+                if (first[index] !== second[index]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function escapeHtml(value) {
+            if (value === undefined || value === null) {
+                return '';
+            }
+            return String(value).replace(/[&<>"']/g, (char) => {
+                switch (char) {
+                    case '&':
+                        return '&amp;';
+                    case '<':
+                        return '&lt;';
+                    case '>':
+                        return '&gt;';
+                    case '"':
+                        return '&quot;';
+                    case '\'':
+                        return '&#39;';
+                    default:
+                        return char;
+                }
+            });
+        }
+
+        function formatTimestamp(value) {
+            if (!value) {
+                return '—';
+            }
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return '—';
+            }
+            return date.toLocaleString();
+        }
+
+        function formatDateOnly(value) {
+            if (!value) {
+                return '—';
+            }
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return '—';
+            }
+            return date.toLocaleDateString();
+        }
+
+        function summarizeUserAgent(agent) {
+            if (!agent) {
+                return '—';
+            }
+            if (agent.length <= 48) {
+                return agent;
+            }
+            return `${agent.slice(0, 45)}…`;
+        }
+
+        function resetCreateUserForm() {
+            const form = document.getElementById('createUserForm');
+            if (form) {
+                form.reset();
+            }
+            const errorEl = document.getElementById('createUserError');
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
+        }
+
+        function closeCreateUserModal() {
+            document.getElementById('createUserModal')?.classList.remove('show');
+            resetCreateUserForm();
+        }
+
+        function closeManageUserModal() {
+            document.getElementById('manageUserModal')?.classList.remove('show');
+            selectedUserId = null;
+            selectedUserDetails = null;
+            const form = document.getElementById('manageUserForm');
+            if (form) {
+                form.reset();
+            }
+            const errorEl = document.getElementById('manageUserError');
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
+            const createdEl = document.getElementById('manageUserCreated');
+            if (createdEl) {
+                createdEl.textContent = '—';
+            }
+            const lastLoginEl = document.getElementById('manageUserLastLogin');
+            if (lastLoginEl) {
+                lastLoginEl.textContent = '—';
+            }
+        }
 
         // Initialize
         async function init() {
             // Get auth data
             const authData = JSON.parse(localStorage.getItem('authData') || sessionStorage.getItem('authData') || '{}');
+            authContext = authData;
             authToken = authData.token || localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
             
             if (!authToken) {
@@ -857,20 +1505,52 @@ async function requireAuth() {
                 return;
             }
 
+            const roleList = normalizeRoleList(authData.user?.roles);
+            if (!roleList.includes('admin')) {
+                showSnackbar('Admin access required. Redirecting…', 'warning');
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 1400);
+                return;
+            }
+
+            if (!userCard && userCardContainer && window.AuthUserCard) {
+                userCard = window.AuthUserCard.mount(userCardContainer, {
+                    onProfile: viewProfile,
+                    onAdmin: () => {
+                        window.location.href = '/dashboard';
+                    },
+                    labels: {
+                        admin: 'Dashboard',
+                    },
+                });
+                userCard.setAdminVisible(false);
+            }
+
+            if (userCard && authData.user) {
+                userCard.update(authData.user);
+            }
+
             // Get API URL from config
             try {
                 const configResponse = await fetch('/config');
                 const config = await configResponse.json();
                 API_URL = config.apiUrl;
-                
-                // Load initial data
-                loadApplications();
-                loadStatistics();
-                
-                // Set admin email
-                if (authData.user) {
-                    document.getElementById('adminEmail').textContent = authData.user.email || 'Admin';
+                if (!API_URL) {
+                    throw new Error('Authentication API port not provided');
                 }
+
+                CONTACT_BOOK_URL = config.contactBookUrl || '';
+                if (userCard) {
+                    userCard.setAdminVisible(roleList.includes('admin'));
+                }
+
+                document.getElementById('createUserForm')?.addEventListener('submit', handleCreateUserSubmit);
+                document.getElementById('manageUserForm')?.addEventListener('submit', handleManageUserSubmit);
+                document.getElementById('registerAppForm')?.addEventListener('submit', handleRegisterApplication);
+
+                await Promise.all([loadApplications(), loadUsers(), loadStatistics()]);
+                updateIntegrationGuideUrls();
             } catch (error) {
                 console.error('Failed to initialize:', error);
                 showSnackbar('Failed to load configuration', 'error');
@@ -878,22 +1558,34 @@ async function requireAuth() {
         }
 
         // Tab switching
-        document.querySelectorAll('.tab').forEach(tab => {
+        document.querySelectorAll('.tab').forEach((tab) => {
             tab.addEventListener('click', () => {
                 const tabName = tab.dataset.tab;
-                
-                // Update active tab
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                
-                // Show corresponding content
-                document.querySelectorAll('.tab-content').forEach(content => {
-                    content.classList.remove('active');
+
+                // Update active tab button state
+                document.querySelectorAll('.tab').forEach((t) => {
+                    t.classList.remove('active');
+                    t.setAttribute('aria-selected', 'false');
+                    t.setAttribute('tabindex', '-1');
                 });
-                document.getElementById(`${tabName}-tab`).classList.add('active');
-                
+                tab.classList.add('active');
+                tab.setAttribute('aria-selected', 'true');
+                tab.setAttribute('tabindex', '0');
+
+                // Toggle panels
+                document.querySelectorAll('.tab-content').forEach((content) => {
+                    content.classList.remove('active');
+                    content.setAttribute('hidden', 'true');
+                });
+
+                const targetPanel = document.getElementById(`${tabName}-tab`);
+                if (targetPanel) {
+                    targetPanel.classList.add('active');
+                    targetPanel.removeAttribute('hidden');
+                }
+
                 // Load tab-specific data
-                switch(tabName) {
+                switch (tabName) {
                     case 'applications':
                         loadApplications();
                         break;
@@ -954,7 +1646,13 @@ async function requireAuth() {
             if (apps.length === 0) {
                 appsDiv.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">📦</div>
+                        <div class="empty-state-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 7.5 12 12l9-4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M3 7.5v9l9 4.5 9-4.5v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M12 12v9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </div>
                         <div class="empty-state-title">No Applications Yet</div>
                         <div class="empty-state-text">Register your first scenario to start using authentication</div>
                         <button class="btn btn-primary" onclick="showRegisterModal()">Register First Application</button>
@@ -987,9 +1685,35 @@ async function requireAuth() {
                                     <td>${app.active_sessions || 0}</td>
                                     <td>${app.total_events_today || 0}</td>
                                     <td class="actions-cell">
-                                        <button class="btn btn-secondary btn-small" onclick="viewApp('${app.id}', '${app.name}')">View</button>
-                                        <button class="btn btn-secondary btn-small" onclick="generateCode('${app.id}', '${app.name}')">Code</button>
-                                        <button class="btn btn-danger btn-small" onclick="revokeApp('${app.id}', '${app.name}')">Revoke</button>
+                                        <button class="btn btn-secondary btn-small" onclick="viewApp('${app.id}', '${app.name}')">
+                                            <span class="icon-inline" aria-hidden="true">
+                                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                </svg>
+                                            </span>
+                                            View
+                                        </button>
+                                        <button class="btn btn-secondary btn-small" onclick="generateCode('${app.id}', '${app.name}')">
+                                            <span class="icon-inline" aria-hidden="true">
+                                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <polyline points="8 7 3 12 8 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                    <polyline points="16 7 21 12 16 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                    <line x1="10" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                </svg>
+                                            </span>
+                                            Code
+                                        </button>
+                                        <button class="btn btn-danger btn-small" onclick="revokeApp('${app.id}', '${app.name}')">
+                                            <span class="icon-inline" aria-hidden="true">
+                                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                    <path d="m15 9-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                    <path d="m9 9 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                                </svg>
+                                            </span>
+                                            Revoke
+                                        </button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -1002,7 +1726,13 @@ async function requireAuth() {
                 showSnackbar('Failed to load applications', 'error');
                 document.getElementById('appsTable').innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">⚠️</div>
+                        <div class="empty-state-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M12 9v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M12 17h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </div>
                         <div class="empty-state-title">Error Loading Applications</div>
                         <div class="empty-state-text">Please try refreshing the page</div>
                     </div>
@@ -1012,94 +1742,715 @@ async function requireAuth() {
 
         // Load statistics
         async function loadStatistics() {
-            // Update with real data when endpoints are ready
-            document.getElementById('totalApps').textContent = '1';
-            document.getElementById('totalUsers').textContent = '1';
-            document.getElementById('activeSessions').textContent = '0';
-            document.getElementById('authRequests').textContent = '0';
+            const totalAppsEl = document.getElementById('totalApps');
+            const totalUsersEl = document.getElementById('totalUsers');
+            const activeSessionsEl = document.getElementById('activeSessions');
+            const authRequestsEl = document.getElementById('authRequests');
+
+            if (!API_URL) {
+                return;
+            }
+
+            try {
+                const [appsResponse, usersResponse, sessionsResponse] = await Promise.all([
+                    fetch(`${API_URL}/api/v1/applications?stats=true`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    }),
+                    fetch(`${API_URL}/api/v1/users?limit=1`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    }),
+                    fetch(`${API_URL}/api/v1/sessions?scope=all&limit=1`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    })
+                ]);
+
+                const appsData = await appsResponse.json().catch(() => ({}));
+                const usersData = await usersResponse.json().catch(() => ({}));
+                const sessionsData = await sessionsResponse.json().catch(() => ({}));
+
+                totalAppsEl.textContent = String(appsData.total ?? (appsData.applications?.length || 0));
+                totalUsersEl.textContent = String(usersData.total ?? (usersData.users?.length || 0));
+                activeSessionsEl.textContent = String(sessionsData.total ?? (sessionsData.sessions?.length || 0));
+
+                const authRequests = Array.isArray(appsData.applications)
+                    ? appsData.applications.reduce((sum, app) => sum + (app.total_events_today || 0), 0)
+                    : 0;
+                authRequestsEl.textContent = String(authRequests);
+            } catch (error) {
+                console.error('Failed to load statistics:', error);
+            }
         }
 
         // Load users
         async function loadUsers() {
-            // Will be implemented with real endpoint
-        }
+            const tableBody = document.getElementById('usersTableBody');
+            if (!tableBody || !API_URL) {
+                return;
+            }
 
-        // Load sessions
-        async function loadSessions() {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="padding: 24px; text-align: center; color: #666;">Loading users…</td>
+                </tr>
+            `;
+
             try {
-                const response = await fetch(`${API_URL}/api/v1/sessions`, {
+                const response = await fetch(`${API_URL}/api/v1/users?limit=200`, {
                     headers: {
                         'Authorization': `Bearer ${authToken}`
                     }
                 });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    // Display sessions
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch users');
                 }
+
+                const data = await response.json();
+                const users = Array.isArray(data.users) ? data.users : [];
+                usersCache.clear();
+
+                users.forEach((user) => {
+                    usersCache.set(user.id, user);
+                });
+
+                if (users.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" style="padding: 24px; text-align: center; color: #666;">
+                                No users found. Create the first account to get started.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tableBody.innerHTML = users.map((user) => {
+                    const email = escapeHtml(user.email || user.id);
+                    const username = escapeHtml(user.username || '—');
+                    const roles = normalizeRoleList(user.roles);
+                    const roleBadges = roles
+                        .map((role) => {
+                            const roleClass = role === 'admin' ? 'status-badge status-active' : 'status-badge';
+                            return `<span class="${roleClass}">${escapeHtml(role)}</span>`;
+                        })
+                        .join(' ');
+                    const created = formatDateOnly(user.created_at);
+
+                    return `
+                        <tr data-user-id="${user.id}">
+                            <td>${email}</td>
+                            <td>${username}</td>
+                            <td>${roleBadges}</td>
+                            <td>—</td>
+                            <td>${created}</td>
+                            <td class="actions-cell">
+                                <button class="btn btn-secondary btn-small" data-action="manage-user" data-user-id="${user.id}">
+                                    <span class="icon-inline" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </span>
+                                    Manage
+                                </button>
+                                <button class="btn btn-danger btn-small" data-action="disable-user" data-user-id="${user.id}">
+                                    <span class="icon-inline" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="m15 9-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="m9 9 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </span>
+                                    Disable
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                tableBody.querySelectorAll('[data-action="manage-user"]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const { userId } = button.dataset;
+                        if (userId) {
+                            openUserManagement(userId);
+                        }
+                    });
+                });
+
+                tableBody.querySelectorAll('[data-action="disable-user"]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const { userId } = button.dataset;
+                        if (userId) {
+                            disableUserAccount(userId);
+                        }
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading users:', error);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="padding: 24px; text-align: center; color: #ef4444;">
+                            Failed to load users. Try refreshing the page.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        async function fetchUserDetails(userId) {
+            if (usersCache.has(userId)) {
+                return usersCache.get(userId);
+            }
+
+            const response = await fetch(`${API_URL}/api/v1/users/${userId}`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch user details');
+            }
+
+            const user = await response.json();
+            usersCache.set(userId, user);
+            return user;
+        }
+
+        async function openUserManagement(userId) {
+            try {
+                const user = await fetchUserDetails(userId);
+                if (!user) {
+                    return;
+                }
+
+                selectedUserId = user.id;
+                selectedUserDetails = user;
+
+                const modal = document.getElementById('manageUserModal');
+                if (!modal) {
+                    return;
+                }
+
+                const idField = document.getElementById('manageUserId');
+                if (idField) {
+                    idField.value = user.id;
+                }
+
+                document.getElementById('manageUserEmail').value = user.email || '';
+                document.getElementById('manageUserUsername').value = user.username || '';
+
+                const roles = normalizeRoleList(user.roles).filter(role => role !== 'user');
+                document.getElementById('manageUserRoles').value = roles.join(', ');
+
+                document.getElementById('manageUserEmailVerified').checked = Boolean(user.email_verified);
+                const createdEl = document.getElementById('manageUserCreated');
+                if (createdEl) {
+                    createdEl.textContent = formatTimestamp(user.created_at);
+                }
+                const lastLoginEl = document.getElementById('manageUserLastLogin');
+                if (lastLoginEl) {
+                    lastLoginEl.textContent = formatTimestamp(user.last_login);
+                }
+
+                const errorEl = document.getElementById('manageUserError');
+                if (errorEl) {
+                    errorEl.style.display = 'none';
+                    errorEl.textContent = '';
+                }
+                modal.classList.add('show');
+            } catch (error) {
+                console.error('Failed to load user details:', error);
+                showSnackbar('Unable to load user details', 'error');
+            }
+        }
+
+        async function disableUserAccount(userId) {
+            if (!userId) {
+                return;
+            }
+
+            const cachedUser = usersCache.get(userId);
+            const email = cachedUser?.email || userId;
+            const confirmed = window.confirm(`Disable account for ${email}? This will revoke access and sessions.`);
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.json().catch(() => ({}));
+                    throw new Error(errorBody.error || 'Failed to disable user');
+                }
+
+                showSnackbar('User disabled successfully', 'success');
+                usersCache.delete(userId);
+                if (selectedUserId === userId) {
+                    closeManageUserModal();
+                }
+                await loadUsers();
+                await loadStatistics();
+            } catch (error) {
+                console.error('Failed to disable user:', error);
+                showSnackbar(error.message || 'Failed to disable user', 'error');
+            }
+        }
+
+        async function handleCreateUserSubmit(event) {
+            event.preventDefault();
+
+            const emailField = document.getElementById('newUserEmail');
+            const passwordField = document.getElementById('newUserPassword');
+            const usernameField = document.getElementById('newUserUsername');
+            const rolesField = document.getElementById('newUserRoles');
+            const verifyField = document.getElementById('newUserEmailVerified');
+            const errorEl = document.getElementById('createUserError');
+            const submitButton = document.getElementById('createUserSubmit');
+
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
+
+            const email = emailField?.value?.trim();
+            const password = passwordField?.value || '';
+
+            if (!email || !password) {
+                if (errorEl) {
+                    errorEl.textContent = 'Email and password are required.';
+                    errorEl.style.display = 'block';
+                }
+                return;
+            }
+
+            const username = usernameField?.value?.trim();
+            const additionalRoles = parseRolesInput(rolesField?.value || '');
+            const markVerified = Boolean(verifyField?.checked);
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Creating…';
+            }
+
+            try {
+                const registerPayload = {
+                    email,
+                    password
+                };
+                if (username) {
+                    registerPayload.username = username;
+                }
+
+                const registerResponse = await fetch(`${API_URL}/api/v1/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(registerPayload)
+                });
+
+                const registerData = await registerResponse.json().catch(() => ({}));
+                if (!registerResponse.ok || !registerData.success) {
+                    throw new Error(registerData.error || 'Failed to create user');
+                }
+
+                let createdUser = registerData.user;
+                if ((!createdUser || !createdUser.id) && registerData.User) {
+                    createdUser = registerData.User;
+                }
+
+                if (createdUser && createdUser.id && (additionalRoles.length > 0 || markVerified)) {
+                    const updatePayload = {};
+                    if (additionalRoles.length > 0) {
+                        updatePayload.roles = mergeRolesWithBaseline(additionalRoles);
+                    }
+                    if (markVerified) {
+                        updatePayload.email_verified = true;
+                    }
+
+                    const updateResponse = await fetch(`${API_URL}/api/v1/users/${createdUser.id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify(updatePayload)
+                    });
+
+                    const updateData = await updateResponse.json().catch(() => ({}));
+                    if (!updateResponse.ok) {
+                        throw new Error(updateData.error || 'User created, but role update failed');
+                    }
+                }
+
+                showSnackbar('User created successfully', 'success');
+                closeCreateUserModal();
+                await loadUsers();
+                await loadStatistics();
+            } catch (error) {
+                console.error('Failed to create user:', error);
+                if (errorEl) {
+                    errorEl.textContent = error.message || 'Failed to create user';
+                    errorEl.style.display = 'block';
+                } else {
+                    showSnackbar(error.message || 'Failed to create user', 'error');
+                }
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Create User';
+                }
+            }
+        }
+
+        async function handleManageUserSubmit(event) {
+            event.preventDefault();
+
+            if (!selectedUserId || !selectedUserDetails) {
+                return;
+            }
+
+            const usernameField = document.getElementById('manageUserUsername');
+            const rolesField = document.getElementById('manageUserRoles');
+            const verifiedField = document.getElementById('manageUserEmailVerified');
+            const errorEl = document.getElementById('manageUserError');
+            const submitButton = document.getElementById('manageUserSubmit');
+
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
+
+            const desiredUsername = usernameField?.value?.trim() ?? '';
+            const desiredRoles = mergeRolesWithBaseline(parseRolesInput(rolesField?.value || ''));
+            const desiredVerified = Boolean(verifiedField?.checked);
+
+            const currentRoles = mergeRolesWithBaseline(normalizeRoleList(selectedUserDetails.roles));
+            currentRoles.sort();
+            desiredRoles.sort();
+
+            const payload = {};
+
+            if ((selectedUserDetails.username || '') !== desiredUsername) {
+                payload.username = desiredUsername;
+            }
+
+            if (!rolesEqual(currentRoles, desiredRoles)) {
+                payload.roles = desiredRoles;
+            }
+
+            if (Boolean(selectedUserDetails.email_verified) !== desiredVerified) {
+                payload.email_verified = desiredVerified;
+            }
+
+            if (Object.keys(payload).length === 0) {
+                showSnackbar('No changes to apply', 'info');
+                return;
+            }
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Saving…';
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/users/${selectedUserId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const responseData = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(responseData.error || 'Failed to update user');
+                }
+
+                const updatedUser = responseData.user || selectedUserDetails;
+                usersCache.set(selectedUserId, updatedUser);
+                selectedUserDetails = updatedUser;
+
+                if (authContext?.user && selectedUserId === authContext.user.id) {
+                    authContext = {
+                        ...authContext,
+                        user: updatedUser,
+                    };
+                    if (userCard) {
+                        const updatedRoles = normalizeRoleList(updatedUser.roles);
+                        userCard.update(updatedUser);
+                        userCard.setAdminVisible(updatedRoles.includes('admin'));
+                    }
+                }
+
+                showSnackbar('User updated successfully', 'success');
+                closeManageUserModal();
+                await loadUsers();
+            } catch (error) {
+                console.error('Failed to update user:', error);
+                if (errorEl) {
+                    errorEl.textContent = error.message || 'Failed to update user';
+                    errorEl.style.display = 'block';
+                } else {
+                    showSnackbar(error.message || 'Failed to update user', 'error');
+                }
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Save Changes';
+                }
+            }
+        }
+
+        async function handleRegisterApplication(event) {
+            event.preventDefault();
+
+            const form = event.target;
+            const nameField = document.getElementById('appName');
+            const displayNameField = document.getElementById('appDisplayName');
+            const typeField = document.getElementById('appType');
+            const originsField = document.getElementById('appOrigins');
+            const rateLimitField = document.getElementById('appRateLimit');
+            const errorEl = document.getElementById('registerAppError');
+            const submitButton = form.querySelector('button[type="submit"]');
+
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
+
+            const name = nameField?.value?.trim();
+            const displayName = displayNameField?.value?.trim();
+            const scenarioType = typeField?.value || 'api';
+            const origins = originsField?.value
+                ?.split(',')
+                .map((origin) => origin.trim())
+                .filter((origin) => origin.length > 0) || [];
+            const rateLimitValue = rateLimitField?.value;
+
+            if (!name || !displayName) {
+                if (errorEl) {
+                    errorEl.textContent = 'Scenario name and display name are required.';
+                    errorEl.style.display = 'block';
+                }
+                return;
+            }
+
+            const payload = {
+                name,
+                display_name: displayName,
+                scenario_type: scenarioType,
+                allowed_origins: origins
+            };
+
+            const parsedRateLimit = Number(rateLimitValue);
+            if (!Number.isNaN(parsedRateLimit) && parsedRateLimit > 0) {
+                payload.rate_limit = parsedRateLimit;
+            }
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Registering…';
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/applications`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to register application');
+                }
+
+                closeModal();
+
+                document.getElementById('apiKeyValue').textContent = data.api_key || '—';
+                document.getElementById('apiSecretValue').textContent = data.api_secret || '—';
+                document.getElementById('endpointValue').textContent = `${API_URL}/api/v1/auth`;
+                document.getElementById('credentialsModal').classList.add('show');
+
+                showSnackbar('Application registered successfully!', 'success');
+                await loadApplications();
+                await loadStatistics();
+            } catch (error) {
+                console.error('Failed to register application:', error);
+                if (errorEl) {
+                    errorEl.textContent = error.message || 'Failed to register application';
+                    errorEl.style.display = 'block';
+                } else {
+                    showSnackbar(error.message || 'Failed to register application', 'error');
+                }
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Register Application';
+                }
+            }
+        }
+
+        // Load sessions
+        async function loadSessions() {
+            const tableBody = document.getElementById('sessionsTableBody');
+            if (!tableBody || !API_URL) {
+                return;
+            }
+
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="padding: 24px; text-align: center; color: #666;">Loading sessions…</td>
+                </tr>
+            `;
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/sessions?scope=all&limit=200`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch sessions');
+                }
+
+                const data = await response.json();
+                const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+
+                if (sessions.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" style="padding: 24px; text-align: center; color: #666;">
+                                No active sessions
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tableBody.innerHTML = sessions.map((session) => {
+                    const cachedUser = usersCache.get(session.user_id);
+                    const email = escapeHtml(cachedUser?.email || session.user_id);
+                    const username = cachedUser?.username ? `<br><small style="color: #666;">${escapeHtml(cachedUser.username)}</small>` : '';
+
+                    return `
+                        <tr data-session-id="${session.session_id}">
+                            <td>${email}${username}</td>
+                            <td>${escapeHtml(session.ip_address || '—')}</td>
+                            <td>${formatTimestamp(session.created_at)}</td>
+                            <td>${formatTimestamp(session.expires_at)}</td>
+                            <td title="${escapeHtml(session.user_agent || '')}">${escapeHtml(summarizeUserAgent(session.user_agent))}</td>
+                            <td class="actions-cell">
+                                <button class="btn btn-danger btn-small" data-action="revoke-session" data-session-id="${session.session_id}">
+                                    <span class="icon-inline" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="m15 9-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="m9 9 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </span>
+                                    Revoke
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                tableBody.querySelectorAll('[data-action="revoke-session"]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const { sessionId } = button.dataset;
+                        if (sessionId) {
+                            revokeSession(sessionId);
+                        }
+                    });
+                });
             } catch (error) {
                 console.error('Failed to load sessions:', error);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="padding: 24px; text-align: center; color: #ef4444;">
+                            Unable to load sessions. Try again shortly.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        async function revokeSession(sessionId) {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/sessions/${sessionId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to revoke session');
+                }
+
+                showSnackbar('Session revoked', 'success');
+                await loadSessions();
+                await loadStatistics();
+            } catch (error) {
+                console.error('Failed to revoke session:', error);
+                showSnackbar(error.message || 'Failed to revoke session', 'error');
             }
         }
 
         // Load audit logs
         async function loadAuditLogs() {
-            // Will be implemented with real endpoint
+            showSnackbar('Audit log viewer is coming soon.', 'info');
         }
 
         // Show register modal
         function showRegisterModal() {
             document.getElementById('registerModal').classList.add('show');
+            document.getElementById('registerAppForm')?.reset();
+            const errorEl = document.getElementById('registerAppError');
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
         }
 
         // Close modal
         function closeModal() {
             document.getElementById('registerModal').classList.remove('show');
+            document.getElementById('registerAppForm')?.reset();
+            const errorEl = document.getElementById('registerAppError');
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+            }
         }
-
-        // Register application form
-        document.getElementById('registerAppForm')?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const appData = {
-                name: document.getElementById('appName').value,
-                display_name: document.getElementById('appDisplayName').value,
-                scenario_type: document.getElementById('appType').value,
-                allowed_origins: document.getElementById('appOrigins').value.split(',').map(o => o.trim()),
-                rate_limit: parseInt(document.getElementById('appRateLimit').value)
-            };
-            
-            // For now, show mock credentials
-            document.getElementById('apiKeyValue').textContent = 'ak_' + generateRandomString(32);
-            document.getElementById('apiSecretValue').textContent = 'as_' + generateRandomString(32);
-            
-            closeModal();
-            document.getElementById('credentialsModal').classList.add('show');
-            
-            showSnackbar('Application registered successfully!', 'success');
-            loadApplications();
-        });
 
         // Close credentials modal
         function closeCredentialsModal() {
             document.getElementById('credentialsModal').classList.remove('show');
         }
 
-        // Generate random string
-        function generateRandomString(length) {
-            const chars = 'abcdef0123456789';
-            let result = '';
-            for (let i = 0; i < length; i++) {
-                result += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return result;
-        }
-
         // Copy code
         function copyCode(button) {
-            const codeBlock = button.parentElement;
-            const text = codeBlock.textContent.replace('Copy', '').trim();
-            
+            const codeBlock = button.closest('.code-block');
+            if (!codeBlock) {
+                return;
+            }
+
+            const codeElement = codeBlock.querySelector('code');
+            const text = codeElement ? codeElement.textContent.trim() : codeBlock.textContent.replace(button.textContent, '').trim();
+
             navigator.clipboard.writeText(text).then(() => {
                 button.textContent = 'Copied!';
                 setTimeout(() => {
@@ -1270,9 +2621,35 @@ async function requireAuth() {
                     <section>
                         <h3 style="margin-bottom: 15px; color: #333;">Actions</h3>
                         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <button class="btn btn-primary" onclick="generateCode('${app.id}', '${app.name}')">📋 Integration Code</button>
-                            <button class="btn btn-secondary" onclick="editApp('${app.id}')">✏️ Edit Settings</button>
-                            <button class="btn btn-danger" onclick="revokeApp('${app.id}', '${app.name}')">🚫 Revoke Access</button>
+                            <button class="btn btn-primary" onclick="generateCode('${app.id}', '${app.name}')">
+                                <span class="icon-inline" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <polyline points="8 7 3 12 8 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        <polyline points="16 7 21 12 16 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        <line x1="10" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </span>
+                                Integration Code
+                            </button>
+                            <button class="btn btn-secondary" onclick="editApp('${app.id}')">
+                                <span class="icon-inline" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M3 21v-3.75L16.19 4.06a1.8 1.8 0 0 1 2.55 0l2.2 2.2a1.8 1.8 0 0 1 0 2.55L7.75 21H3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        <path d="m13.5 6.5 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </span>
+                                Edit Settings
+                            </button>
+                            <button class="btn btn-danger" onclick="revokeApp('${app.id}', '${app.name}')">
+                                <span class="icon-inline" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        <path d="m15 9-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                        <path d="m9 9 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </span>
+                                Revoke Access
+                            </button>
                         </div>
                     </section>
                 </div>
@@ -1328,16 +2705,63 @@ async function requireAuth() {
 
         // Create user
         function createUser() {
-            showSnackbar('User creation dialog coming soon', 'info');
+            resetCreateUserForm();
+            document.getElementById('createUserModal')?.classList.add('show');
         }
 
         // Refresh sessions
-        function refreshSessions() {
-            loadSessions();
+        async function refreshSessions() {
+            await loadSessions();
+            await loadStatistics();
             showSnackbar('Sessions refreshed', 'success');
         }
 
-        // Logout
+        // View profile shortcut
+        function viewProfile() {
+            if (!CONTACT_BOOK_URL) {
+                showSnackbar('Contact Book profile integration is not configured for this environment yet.', 'warning');
+                return;
+            }
+
+            if (!authToken) {
+                showSnackbar('No active session token found. Please sign in again.', 'error');
+                return;
+            }
+
+            if (!API_URL) {
+                showSnackbar('Authentication service configuration is not ready yet.', 'warning');
+                return;
+            }
+
+            const authData = authContext || {};
+            const userPayload = authData.user || {};
+            const userId =
+                userPayload.id ||
+                userPayload.user_id ||
+                authData.user_id ||
+                authData.id ||
+                null;
+
+            if (!userId) {
+                showSnackbar('Unable to determine your account identifier for profile linking.', 'error');
+                return;
+            }
+
+            const email = userPayload.email || authData.email || '';
+            const destinationBase = CONTACT_BOOK_URL.replace(/\/$/, '');
+            const params = new URLSearchParams();
+
+            params.set('authToken', authToken);
+            params.set('authApi', API_URL);
+            params.set('userId', userId);
+            if (email) {
+                params.set('userEmail', email);
+            }
+            params.set('returnTo', window.location.href);
+
+            window.location.href = `${destinationBase}/profile?${params.toString()}`;
+        }
+
         async function logout() {
             try {
                 await fetch(`${API_URL}/api/v1/auth/logout`, {

@@ -88,22 +88,22 @@ func main() {
 	router.Post("/api/v1/auth/complete-reset", handlers.CompleteResetHandler)
 
 	// User management endpoints
-	router.Get("/api/v1/users", handlers.GetUsersHandler)
-	router.Get("/api/v1/users/{id}", handlers.GetUserHandler)
+	router.Get("/api/v1/users", apimiddleware.RequireRole("admin", handlers.GetUsersHandler))
+	router.Get("/api/v1/users/{id}", apimiddleware.AuthMiddleware(handlers.GetUserHandler))
 	router.Put("/api/v1/users/{id}", apimiddleware.RequireRole("admin", handlers.UpdateUserHandler))
 	router.Delete("/api/v1/users/{id}", apimiddleware.RequireRole("admin", handlers.DeleteUserHandler))
 
 	// Session management
-	router.Get("/api/v1/sessions", handlers.GetSessionsHandler)
-	router.Delete("/api/v1/sessions/{id}", handlers.RevokeSessionHandler)
+	router.Get("/api/v1/sessions", apimiddleware.AuthMiddleware(handlers.GetSessionsHandler))
+	router.Delete("/api/v1/sessions/{id}", apimiddleware.AuthMiddleware(handlers.RevokeSessionHandler))
 
 	// Application management
-	router.Get("/api/v1/applications", handlers.GetApplicationsHandler)
-	router.Post("/api/v1/applications", handlers.RegisterApplicationHandler)
-	router.Get("/api/v1/applications/{id}", handlers.GetApplicationHandler)
-	router.Put("/api/v1/applications/{id}", handlers.UpdateApplicationHandler)
-	router.Delete("/api/v1/applications/{id}", handlers.DeleteApplicationHandler)
-	router.Get("/api/v1/applications/{id}/integration-code", handlers.GenerateIntegrationCodeHandler)
+	router.Get("/api/v1/applications", apimiddleware.RequireRole("admin", handlers.GetApplicationsHandler))
+	router.Post("/api/v1/applications", apimiddleware.RequireRole("admin", handlers.RegisterApplicationHandler))
+	router.Get("/api/v1/applications/{id}", apimiddleware.RequireRole("admin", handlers.GetApplicationHandler))
+	router.Put("/api/v1/applications/{id}", apimiddleware.RequireRole("admin", handlers.UpdateApplicationHandler))
+	router.Delete("/api/v1/applications/{id}", apimiddleware.RequireRole("admin", handlers.DeleteApplicationHandler))
+	router.Get("/api/v1/applications/{id}/integration-code", apimiddleware.RequireRole("admin", handlers.GenerateIntegrationCodeHandler))
 
 	// Start server
 	log.Printf("[scenario-authenticator/api] 🚀 Authentication API server starting on port %s", port)

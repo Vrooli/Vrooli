@@ -28,6 +28,9 @@ const VAULT_PHASE_DEFINITIONS = {
     }
 };
 
+const DEFAULT_GENERATION_PHASES = ['dependencies', 'structure', 'unit', 'integration', 'business', 'performance'];
+const DEFAULT_SETTINGS_STORAGE_KEY = 'testGenie.defaultSettings';
+
 class TestGenieApp {
     constructor() {
         this.apiBaseUrl = '/api/v1';
@@ -83,6 +86,16 @@ class TestGenieApp {
         this.lastVaultDialogTrigger = null;
         this.coverageTargetInput = null;
         this.coverageTargetDisplay = null;
+        this.generateForm = null;
+        this.generateResultCard = null;
+        this.generateResultIcon = null;
+        this.generateResultTitle = null;
+        this.generateResultMessage = null;
+        this.generateResultMetadata = null;
+        this.generateResultLinks = null;
+        this.generateResultIssueButton = null;
+        this.generateResultAgainButton = null;
+        this.generateResultCloseButton = null;
         this.coverageTableContainer = null;
         this.coverageDetailOverlay = null;
         this.coverageDetailContent = null;
@@ -100,10 +113,40 @@ class TestGenieApp {
         this.vaultScenarioOptionsLoaded = false;
         this.vaultIndexById = new Map();
         this.renderedSuiteIds = [];
+        this.availableSuiteIds = [];
+        this.renderedExecutionIds = [];
+        this.currentSuiteRows = [];
+        this.currentExecutionRows = [];
         this.reportsWindowDays = 30;
         this.reportsTrendCanvas = null;
         this.reportsTrendCtx = null;
         this.reportsIsLoading = false;
+        this.suiteFilters = { search: '', status: 'all' };
+        this.executionFilters = { search: '', status: 'all' };
+        this.healthStatusData = null;
+        this.healthStatusUpdatedAt = null;
+        this.systemStatusChip = null;
+        this.healthDialogOverlay = null;
+        this.healthDialogCloseButton = null;
+        this.healthDialogContent = null;
+        this.healthStatusSubtitle = null;
+        this.lastHealthDialogTrigger = null;
+        this.defaultSettings = {
+            coverageTarget: 80,
+            phases: new Set(DEFAULT_GENERATION_PHASES)
+        };
+        this.pendingSettings = {
+            coverageTarget: 80,
+            phases: new Set(DEFAULT_GENERATION_PHASES)
+        };
+        this.settingsCoverageSlider = null;
+        this.settingsCoverageDisplay = null;
+        this.settingsPhaseCheckboxes = [];
+        this.settingsSaveButton = null;
+        this.suitesSearchInput = null;
+        this.suitesStatusFilter = null;
+        this.executionsSearchInput = null;
+        this.executionsStatusFilter = null;
         this.handleWindowResize = this.handleWindowResize.bind(this);
 
         this.init();
@@ -117,6 +160,9 @@ class TestGenieApp {
         this.setupCoverageDetailDialog();
         this.setupGenerateDialog();
         this.setupVaultDialog();
+        this.setupHealthDialog();
+        this.initializeDefaultSettings();
+        this.initializeScrollableContainers();
         await this.loadInitialData();
         this.startPeriodicUpdates();
     }
@@ -141,11 +187,25 @@ class TestGenieApp {
         this.sidebarOverlay = document.getElementById('sidebar-overlay');
         this.sidebarCloseButton = document.getElementById('sidebar-close');
         this.sidebarElement = document.getElementById('sidebar');
+        this.systemStatusChip = document.getElementById('system-status-chip');
 
         if (this.sidebarToggleButton) {
             this.sidebarToggleButton.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.toggleSidebar();
+            });
+        }
+
+        if (this.systemStatusChip) {
+            this.systemStatusChip.addEventListener('click', (event) => {
+                event.preventDefault();
+                this.handleSystemStatusChipActivate();
+            });
+            this.systemStatusChip.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    this.handleSystemStatusChipActivate();
+                }
             });
         }
 
@@ -177,17 +237,45 @@ class TestGenieApp {
         this.coverageTargetDisplay = document.getElementById('coverage-target-display');
 
         if (this.coverageTargetInput) {
-            const updateCoverageDisplay = () => {
-                const value = parseInt(this.coverageTargetInput.value, 10);
-                const normalized = Number.isFinite(value) ? value : 80;
-                if (this.coverageTargetDisplay) {
-                    this.coverageTargetDisplay.textContent = `${normalized}%`;
-                }
-            };
+            this.updateCoverageTargetDisplay();
+            this.coverageTargetInput.addEventListener('input', () => this.updateCoverageTargetDisplay());
+            this.coverageTargetInput.addEventListener('change', () => this.updateCoverageTargetDisplay());
+        }
 
-            updateCoverageDisplay();
-            this.coverageTargetInput.addEventListener('input', updateCoverageDisplay);
-            this.coverageTargetInput.addEventListener('change', updateCoverageDisplay);
+        this.suitesSearchInput = document.getElementById('suites-search-input');
+        if (this.suitesSearchInput) {
+            this.suitesSearchInput.value = this.suiteFilters.search;
+            this.suitesSearchInput.addEventListener('input', (event) => {
+                this.suiteFilters.search = event.target.value;
+                this.renderSuitesTableWithCurrentData();
+            });
+        }
+
+        this.suitesStatusFilter = document.getElementById('suites-status-filter');
+        if (this.suitesStatusFilter) {
+            this.suitesStatusFilter.value = this.suiteFilters.status;
+            this.suitesStatusFilter.addEventListener('change', (event) => {
+                this.suiteFilters.status = event.target.value;
+                this.renderSuitesTableWithCurrentData();
+            });
+        }
+
+        this.executionsSearchInput = document.getElementById('executions-search-input');
+        if (this.executionsSearchInput) {
+            this.executionsSearchInput.value = this.executionFilters.search;
+            this.executionsSearchInput.addEventListener('input', (event) => {
+                this.executionFilters.search = event.target.value;
+                this.renderExecutionsTableWithCurrentData();
+            });
+        }
+
+        this.executionsStatusFilter = document.getElementById('executions-status-filter');
+        if (this.executionsStatusFilter) {
+            this.executionsStatusFilter.value = this.executionFilters.status;
+            this.executionsStatusFilter.addEventListener('change', (event) => {
+                this.executionFilters.status = event.target.value;
+                this.renderExecutionsTableWithCurrentData();
+            });
         }
 
         this.runSelectedSuitesButton = document.getElementById('suites-run-selected-btn');
@@ -464,6 +552,16 @@ class TestGenieApp {
         }
 
         this.generateDialogCloseButton = document.getElementById('generate-dialog-close');
+        this.generateForm = document.getElementById('generate-form');
+        this.generateResultCard = document.getElementById('generation-result');
+        this.generateResultIcon = document.getElementById('generate-result-icon');
+        this.generateResultTitle = document.getElementById('generate-result-title');
+        this.generateResultMessage = document.getElementById('generate-result-message');
+        this.generateResultMetadata = document.getElementById('generate-result-metadata');
+        this.generateResultLinks = document.getElementById('generate-result-links');
+        this.generateResultIssueButton = document.getElementById('generate-open-issue-btn');
+        this.generateResultAgainButton = document.getElementById('generate-another-btn');
+        this.generateResultCloseButton = document.getElementById('generate-close-btn');
 
         this.generateDialogOverlay.addEventListener('click', (event) => {
             if (event.target === this.generateDialogOverlay) {
@@ -474,6 +572,30 @@ class TestGenieApp {
         if (this.generateDialogCloseButton) {
             this.generateDialogCloseButton.addEventListener('click', () => this.closeGenerateDialog());
         }
+
+        if (this.generateResultIssueButton) {
+            this.generateResultIssueButton.addEventListener('click', () => {
+                const url = this.generateResultIssueButton?.dataset.issueUrl;
+                if (!url) {
+                    return;
+                }
+                window.open(url, '_blank', 'noopener,noreferrer');
+            });
+        }
+
+        if (this.generateResultAgainButton) {
+            this.generateResultAgainButton.addEventListener('click', () => {
+                this.showGenerateForm(false, true);
+            });
+        }
+
+        if (this.generateResultCloseButton) {
+            this.generateResultCloseButton.addEventListener('click', () => {
+                this.closeGenerateDialog();
+            });
+        }
+
+        this.showGenerateForm(true, false);
     }
 
     setupVaultDialog() {
@@ -501,6 +623,283 @@ class TestGenieApp {
                 this.openVaultDialog(openButton);
             });
         }
+    }
+
+    setupHealthDialog() {
+        this.healthDialogOverlay = document.getElementById('health-status-overlay');
+        if (!this.healthDialogOverlay) {
+            return;
+        }
+
+        this.healthDialogCloseButton = document.getElementById('health-status-close');
+        this.healthDialogContent = document.getElementById('health-status-content');
+        this.healthStatusSubtitle = document.getElementById('health-status-subtitle');
+
+        this.healthDialogOverlay.addEventListener('click', (event) => {
+            if (event.target === this.healthDialogOverlay) {
+                this.closeHealthDialog();
+            }
+        });
+
+        if (this.healthDialogCloseButton) {
+            this.healthDialogCloseButton.addEventListener('click', () => this.closeHealthDialog());
+        }
+    }
+
+    initializeDefaultSettings() {
+        const stored = this.loadStoredDefaultSettings();
+        this.defaultSettings.coverageTarget = stored.coverageTarget;
+        this.defaultSettings.phases = new Set(stored.phases);
+        this.pendingSettings.coverageTarget = stored.coverageTarget;
+        this.pendingSettings.phases = new Set(stored.phases);
+
+        this.settingsCoverageSlider = document.getElementById('settings-default-coverage');
+        this.settingsCoverageDisplay = document.getElementById('settings-default-coverage-display');
+        this.settingsPhaseCheckboxes = Array.from(document.querySelectorAll('#settings-default-phases input[type="checkbox"][data-phase]'));
+        this.settingsSaveButton = document.getElementById('settings-save-btn');
+
+        this.applyDefaultSettingsToSettingsControls();
+
+        if (this.settingsCoverageSlider) {
+            const handleSliderInput = () => {
+                const value = this.normalizeCoverageTarget(this.settingsCoverageSlider.value, this.pendingSettings.coverageTarget);
+                this.pendingSettings.coverageTarget = value;
+                if (this.settingsCoverageSlider.value !== String(value)) {
+                    this.settingsCoverageSlider.value = String(value);
+                }
+                this.updateSettingsCoverageDisplay(value);
+            };
+            this.settingsCoverageSlider.addEventListener('input', handleSliderInput);
+            this.settingsCoverageSlider.addEventListener('change', handleSliderInput);
+        }
+
+        if (this.settingsPhaseCheckboxes.length) {
+            this.settingsPhaseCheckboxes.forEach((checkbox) => {
+                checkbox.addEventListener('change', () => {
+                    const phase = checkbox.dataset.phase;
+                    if (!phase) {
+                        return;
+                    }
+                    if (checkbox.checked) {
+                        this.pendingSettings.phases.add(phase);
+                    } else {
+                        this.pendingSettings.phases.delete(phase);
+                    }
+                });
+            });
+        }
+
+        if (this.settingsSaveButton) {
+            this.settingsSaveButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                this.saveDefaultSettings();
+            });
+        }
+
+        this.applyDefaultSettingsToGenerateDialog(true);
+    }
+
+    initializeScrollableContainers() {
+        const selectors = [
+            '#suites-table',
+            '#executions-table',
+            '#coverage-table',
+            '#recent-executions',
+            '.vault-activity-panel .panel-body'
+        ];
+
+        selectors.forEach((selector) => {
+            document.querySelectorAll(selector).forEach((container) => {
+                this.enableDragScroll(container);
+            });
+        });
+    }
+
+    enableDragScroll(container) {
+        if (!container) {
+            return;
+        }
+
+        container.classList.add('table-scroll');
+
+        if (container.dataset.dragScrollBound === 'true') {
+            return;
+        }
+
+        container.dataset.dragScrollBound = 'true';
+        container.scrollLeft = 0;
+
+        let isDragging = false;
+        let startX = 0;
+        let initialScrollLeft = 0;
+        const skipSelector = 'button, a, input, textarea, select, label';
+
+        const onPointerDown = (event) => {
+            if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') {
+                return;
+            }
+            if (event.button !== 0) {
+                return;
+            }
+            if (event.target.closest(skipSelector)) {
+                return;
+            }
+
+            isDragging = true;
+            startX = event.clientX;
+            initialScrollLeft = container.scrollLeft;
+            container.classList.add('is-dragging');
+            container.setPointerCapture?.(event.pointerId);
+        };
+
+        const onPointerMove = (event) => {
+            if (!isDragging) {
+                return;
+            }
+            const delta = event.clientX - startX;
+            container.scrollLeft = initialScrollLeft - delta;
+            event.preventDefault();
+        };
+
+        const onPointerUp = (event) => {
+            if (!isDragging) {
+                return;
+            }
+            isDragging = false;
+            container.classList.remove('is-dragging');
+            container.releasePointerCapture?.(event.pointerId);
+        };
+
+        container.addEventListener('pointerdown', onPointerDown);
+        container.addEventListener('pointermove', onPointerMove);
+        container.addEventListener('pointerup', onPointerUp);
+        container.addEventListener('pointerleave', onPointerUp);
+        container.addEventListener('pointercancel', onPointerUp);
+    }
+
+    applyDefaultSettingsToSettingsControls() {
+        const coverageValue = this.pendingSettings.coverageTarget;
+        if (this.settingsCoverageSlider) {
+            this.settingsCoverageSlider.value = String(coverageValue);
+        }
+        this.updateSettingsCoverageDisplay(coverageValue);
+
+        if (this.settingsPhaseCheckboxes.length) {
+            this.settingsPhaseCheckboxes.forEach((checkbox) => {
+                const phase = checkbox.dataset.phase;
+                checkbox.checked = phase ? this.pendingSettings.phases.has(phase) : false;
+            });
+        }
+    }
+
+    updateSettingsCoverageDisplay(value) {
+        if (this.settingsCoverageDisplay) {
+            this.settingsCoverageDisplay.textContent = `${value}%`;
+        }
+    }
+
+    loadStoredDefaultSettings() {
+        try {
+            const raw = localStorage.getItem(DEFAULT_SETTINGS_STORAGE_KEY);
+            if (!raw) {
+                return {
+                    coverageTarget: 80,
+                    phases: DEFAULT_GENERATION_PHASES.slice()
+                };
+            }
+
+            const parsed = JSON.parse(raw);
+            const coverageTarget = this.normalizeCoverageTarget(parsed?.coverageTarget, 80);
+            const phases = this.normalizePhaseList(parsed?.phases);
+            return {
+                coverageTarget,
+                phases
+            };
+        } catch (error) {
+            console.warn('Failed to parse stored default settings:', error);
+            return {
+                coverageTarget: 80,
+                phases: DEFAULT_GENERATION_PHASES.slice()
+            };
+        }
+    }
+
+    normalizeCoverageTarget(value, fallback = 80) {
+        const numeric = Number.parseInt(value, 10);
+        const base = Number.isFinite(numeric) ? numeric : Number.parseInt(fallback, 10);
+        const valid = Number.isFinite(base) ? base : 80;
+        return Math.min(100, Math.max(50, valid));
+    }
+
+    normalizePhaseList(phases) {
+        const allowList = new Set(DEFAULT_GENERATION_PHASES);
+        if (!Array.isArray(phases)) {
+            return DEFAULT_GENERATION_PHASES.slice();
+        }
+        const normalized = phases
+            .map(phase => String(phase || '').trim().toLowerCase())
+            .filter(phase => allowList.has(phase));
+        if (!normalized.length) {
+            return DEFAULT_GENERATION_PHASES.slice();
+        }
+        return Array.from(new Set(normalized));
+    }
+
+    isHealthPayloadHealthy(payload) {
+        if (!payload || typeof payload !== 'object') {
+            return false;
+        }
+        if (typeof payload.healthy === 'boolean') {
+            return payload.healthy;
+        }
+        const status = (payload.status || '').toString().toLowerCase();
+        return status === 'healthy' || status === 'ok' || status === 'up';
+    }
+
+    saveDefaultSettings() {
+        if (this.pendingSettings.phases.size === 0) {
+            this.showError('Select at least one default phase.');
+            return;
+        }
+
+        this.defaultSettings.coverageTarget = this.pendingSettings.coverageTarget;
+        this.defaultSettings.phases = new Set(this.pendingSettings.phases);
+        this.persistDefaultSettings();
+        this.applyDefaultSettingsToSettingsControls();
+        this.applyDefaultSettingsToGenerateDialog(true);
+        this.showSuccess('Default settings updated');
+    }
+
+    persistDefaultSettings() {
+        try {
+            const payload = {
+                coverageTarget: this.defaultSettings.coverageTarget,
+                phases: Array.from(this.defaultSettings.phases)
+            };
+            localStorage.setItem(DEFAULT_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
+        } catch (error) {
+            console.warn('Failed to persist default settings:', error);
+        }
+    }
+
+    applyDefaultSettingsToGenerateDialog(updateAttribute = false) {
+        if (this.coverageTargetInput) {
+            const coverage = this.defaultSettings.coverageTarget;
+            this.coverageTargetInput.value = String(coverage);
+            if (updateAttribute) {
+                this.coverageTargetInput.setAttribute('value', String(coverage));
+            }
+        }
+
+        const checkboxes = document.querySelectorAll('#generate-phase-selector input[type="checkbox"]');
+        if (checkboxes.length) {
+            checkboxes.forEach((checkbox) => {
+                const phase = String(checkbox.value || '').trim().toLowerCase();
+                checkbox.checked = this.defaultSettings.phases.has(phase);
+            });
+        }
+
+        this.updateCoverageTargetDisplay();
     }
 
     openCoverageDetailDialog(triggerElement = null, scenarioName = '') {
@@ -533,6 +932,126 @@ class TestGenieApp {
         }
     }
 
+    handleSystemStatusChipActivate() {
+        this.openHealthDialog();
+    }
+
+    async openHealthDialog() {
+        if (!this.healthDialogOverlay) {
+            return;
+        }
+
+        this.lastHealthDialogTrigger = this.systemStatusChip || document.activeElement;
+        this.healthDialogOverlay.classList.add('active');
+        this.healthDialogOverlay.setAttribute('aria-hidden', 'false');
+        if (this.systemStatusChip) {
+            this.systemStatusChip.setAttribute('aria-expanded', 'true');
+        }
+        this.lockDialogScroll();
+        this.renderHealthDialogContent({ loading: true });
+
+        await this.ensureHealthDataFresh();
+        this.renderHealthDialogContent();
+    }
+
+    closeHealthDialog() {
+        if (!this.healthDialogOverlay) {
+            return;
+        }
+
+        this.healthDialogOverlay.classList.remove('active');
+        this.healthDialogOverlay.setAttribute('aria-hidden', 'true');
+        if (this.systemStatusChip) {
+            this.systemStatusChip.setAttribute('aria-expanded', 'false');
+        }
+        this.unlockDialogScrollIfIdle();
+
+        if (this.lastHealthDialogTrigger && typeof this.lastHealthDialogTrigger.focus === 'function') {
+            this.focusElement(this.lastHealthDialogTrigger);
+        }
+        this.lastHealthDialogTrigger = null;
+    }
+
+    renderHealthDialogContent({ loading = false } = {}) {
+        if (!this.healthDialogContent) {
+            return;
+        }
+
+        if (loading) {
+            this.healthDialogContent.innerHTML = `
+                <div class="loading" style="padding: var(--spacing-md);">
+                    <div class="spinner"></div>
+                    Loading health details…
+                </div>
+            `;
+            return;
+        }
+
+        const data = this.healthStatusData;
+        if (!data) {
+            this.healthDialogContent.innerHTML = '<p style="padding: var(--spacing-lg); color: var(--text-muted);">No health data available.</p>';
+            if (this.healthStatusSubtitle) {
+                this.healthStatusSubtitle.textContent = 'Health data unavailable.';
+            }
+            return;
+        }
+
+        const pre = document.createElement('pre');
+        pre.textContent = JSON.stringify(data, null, 2);
+
+        this.healthDialogContent.innerHTML = '';
+        this.healthDialogContent.appendChild(pre);
+
+        if (this.healthStatusSubtitle) {
+            const healthy = this.isHealthPayloadHealthy(data);
+            const statusLabel = healthy ? 'Healthy' : 'Degraded';
+            const updatedLabel = this.healthStatusUpdatedAt
+                ? this.formatDetailedTimestamp(this.healthStatusUpdatedAt)
+                : 'unknown';
+            this.healthStatusSubtitle.textContent = `${statusLabel} • Updated ${updatedLabel}`;
+        }
+    }
+
+    async ensureHealthDataFresh() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/health`);
+            const data = await response.json();
+            this.updateSystemStatus(data);
+        } catch (error) {
+            this.updateSystemStatus({
+                healthy: false,
+                status: 'error',
+                message: 'Connection failed',
+                error: error instanceof Error ? error.message : String(error)
+            });
+        }
+    }
+
+    updateCoverageTargetDisplay() {
+        if (!this.coverageTargetInput || !this.coverageTargetDisplay) {
+            return;
+        }
+
+        const value = parseInt(this.coverageTargetInput.value, 10);
+        const normalized = Number.isFinite(value) ? value : 80;
+        this.coverageTargetDisplay.textContent = `${normalized}%`;
+    }
+
+    updateGenerateScenarioDisplay() {
+        const scenarioDisplay = document.getElementById('scenario-name-display');
+        if (!scenarioDisplay) {
+            return;
+        }
+
+        if (this.generateDialogScenarioName) {
+            scenarioDisplay.textContent = this.generateDialogScenarioName;
+            scenarioDisplay.classList.remove('placeholder');
+        } else {
+            scenarioDisplay.textContent = 'Select a scenario from the table to generate a test suite.';
+            scenarioDisplay.classList.add('placeholder');
+        }
+    }
+
     openGenerateDialog(triggerElement = null, scenarioName = '') {
         if (!this.generateDialogOverlay) {
             return;
@@ -543,39 +1062,17 @@ class TestGenieApp {
         this.generateDialogOverlay.setAttribute('aria-hidden', 'false');
         this.lockDialogScroll();
 
+        this.showGenerateForm(true, false);
+
         this.generateDialogScenarioName = typeof scenarioName === 'string' ? scenarioName.trim() : '';
+        this.updateGenerateScenarioDisplay();
 
-        const scenarioDisplay = document.getElementById('scenario-name-display');
-        if (scenarioDisplay) {
-            if (this.generateDialogScenarioName) {
-                scenarioDisplay.textContent = this.generateDialogScenarioName;
-                scenarioDisplay.classList.remove('placeholder');
-            } else {
-                scenarioDisplay.textContent = 'Select a scenario from the table to generate a test suite.';
-                scenarioDisplay.classList.add('placeholder');
-            }
-        }
-
-        if (this.coverageTargetInput) {
-            const value = parseInt(this.coverageTargetInput.value, 10);
-            const normalized = Number.isFinite(value) ? value : 80;
-            this.coverageTargetInput.value = normalized;
-            if (this.coverageTargetDisplay) {
-                this.coverageTargetDisplay.textContent = `${normalized}%`;
-            }
-        }
-
-        const firstPhaseCheckbox = document.querySelector('#generate-phase-selector input[type="checkbox"]');
+        const firstPhaseCheckbox = this.generateForm?.querySelector('#generate-phase-selector input[type="checkbox"]')
+            || document.querySelector('#generate-phase-selector input[type="checkbox"]');
         if (firstPhaseCheckbox) {
             this.focusElement(firstPhaseCheckbox);
         } else if (this.coverageTargetInput) {
             this.focusElement(this.coverageTargetInput);
-        }
-
-        const resultDiv = document.getElementById('generation-result');
-        if (resultDiv) {
-            resultDiv.style.display = 'none';
-            resultDiv.textContent = '';
         }
     }
 
@@ -588,16 +1085,140 @@ class TestGenieApp {
         this.generateDialogOverlay.setAttribute('aria-hidden', 'true');
         this.unlockDialogScrollIfIdle();
 
+        this.showGenerateForm(true, false);
         this.generateDialogScenarioName = '';
-        const scenarioDisplay = document.getElementById('scenario-name-display');
-        if (scenarioDisplay) {
-            scenarioDisplay.textContent = 'Select a scenario from the table to generate a test suite.';
-            scenarioDisplay.classList.add('placeholder');
-        }
+        this.updateGenerateScenarioDisplay();
 
         if (this.lastGenerateDialogTrigger) {
             this.focusElement(this.lastGenerateDialogTrigger);
             this.lastGenerateDialogTrigger = null;
+        }
+    }
+
+    showGenerateForm(resetSelections = false, shouldFocus = false) {
+        const form = this.generateForm || document.getElementById('generate-form');
+        if (form) {
+            form.classList.remove('generate-form--hidden');
+            if (resetSelections && typeof form.reset === 'function') {
+                form.reset();
+            }
+        }
+
+        if (resetSelections) {
+            this.applyDefaultSettingsToGenerateDialog(false);
+        }
+
+        this.updateCoverageTargetDisplay();
+
+        if (this.generateResultCard) {
+            this.generateResultCard.hidden = true;
+        }
+
+        if (this.generateResultMetadata) {
+            this.generateResultMetadata.innerHTML = '';
+            this.generateResultMetadata.setAttribute('hidden', 'true');
+        }
+
+        if (this.generateResultMessage) {
+            this.generateResultMessage.textContent = '';
+        }
+
+        if (this.generateResultTitle) {
+            this.generateResultTitle.textContent = '';
+        }
+
+        if (this.generateResultLinks) {
+            this.generateResultLinks.hidden = true;
+        }
+
+        if (this.generateResultIssueButton) {
+            this.generateResultIssueButton.dataset.issueUrl = '';
+            this.generateResultIssueButton.setAttribute('hidden', 'true');
+        }
+
+        if (this.generateResultIcon) {
+            this.generateResultIcon.innerHTML = '<i data-lucide="check-circle"></i>';
+            this.generateResultIcon.classList.remove('info', 'success');
+            this.generateResultIcon.classList.add('success');
+        }
+
+        this.refreshIcons();
+
+        if (shouldFocus) {
+            const focusTarget = form?.querySelector('#generate-phase-selector input[type="checkbox"]')
+                || this.coverageTargetInput
+                || form?.querySelector('button, input, select, textarea');
+            if (focusTarget) {
+                this.focusElement(focusTarget);
+            }
+        }
+    }
+
+    showGenerateResultCard({ icon = 'check-circle', tone = 'success', title = '', message = '', metadata = [], issueUrl = '' } = {}) {
+        if (this.generateForm) {
+            this.generateForm.classList.add('generate-form--hidden');
+        }
+
+        if (this.generateResultCard) {
+            this.generateResultCard.hidden = false;
+        }
+
+        if (this.generateResultIcon) {
+            this.generateResultIcon.innerHTML = `<i data-lucide="${this.escapeHtml(icon)}"></i>`;
+            this.generateResultIcon.classList.remove('success', 'info');
+            const toneClass = tone === 'info' ? 'info' : 'success';
+            this.generateResultIcon.classList.add(toneClass);
+        }
+
+        if (this.generateResultTitle) {
+            this.generateResultTitle.textContent = title || '';
+        }
+
+        if (this.generateResultMessage) {
+            this.generateResultMessage.textContent = message || '';
+        }
+
+        const preparedMetadata = Array.isArray(metadata)
+            ? metadata.filter((item) => item && item.label && item.value !== undefined && item.value !== null && String(item.value).trim() !== '')
+            : [];
+
+        if (this.generateResultMetadata) {
+            if (preparedMetadata.length) {
+                this.generateResultMetadata.innerHTML = preparedMetadata.map(({ label, value }) => {
+                    const labelHtml = this.escapeHtml(label);
+                    const valueHtml = this.escapeHtml(String(value));
+                    return `<dt>${labelHtml}</dt><dd>${valueHtml}</dd>`;
+                }).join('');
+                this.generateResultMetadata.removeAttribute('hidden');
+            } else {
+                this.generateResultMetadata.innerHTML = '';
+                this.generateResultMetadata.setAttribute('hidden', 'true');
+            }
+        }
+
+        if (this.generateResultLinks) {
+            this.generateResultLinks.hidden = !issueUrl;
+        }
+
+        if (this.generateResultIssueButton) {
+            if (issueUrl) {
+                const issueUrlString = String(issueUrl);
+                this.generateResultIssueButton.dataset.issueUrl = issueUrlString;
+                this.generateResultIssueButton.removeAttribute('hidden');
+            } else {
+                this.generateResultIssueButton.dataset.issueUrl = '';
+                this.generateResultIssueButton.setAttribute('hidden', 'true');
+            }
+        }
+
+        this.refreshIcons();
+
+        if (issueUrl && this.generateResultIssueButton) {
+            this.focusElement(this.generateResultIssueButton);
+        } else if (this.generateResultAgainButton) {
+            this.focusElement(this.generateResultAgainButton);
+        } else if (this.generateResultCloseButton) {
+            this.focusElement(this.generateResultCloseButton);
         }
     }
 
@@ -753,30 +1374,50 @@ class TestGenieApp {
         try {
             const response = await fetch(`${this.apiBaseUrl}/health`);
             const data = await response.json();
-            
-            if (data.status === 'healthy') {
-                this.updateSystemStatus(true);
-            } else {
-                this.updateSystemStatus(false);
-            }
+            this.updateSystemStatus(data);
         } catch (error) {
             console.error('Health check failed:', error);
-            this.updateSystemStatus(false);
+            this.updateSystemStatus({
+                healthy: false,
+                status: 'error',
+                message: 'Connection failed',
+                error: error instanceof Error ? error.message : String(error)
+            });
         }
     }
 
-    updateSystemStatus(healthy) {
+    updateSystemStatus(payload) {
+        const resolvedPayload = typeof payload === 'boolean' ? { healthy: payload } : payload;
         const statusDot = document.querySelector('.status-dot');
         const statusText = document.querySelector('.system-status span');
-        
-        if (healthy) {
-            statusDot.style.background = '#39ff14';
-            statusDot.style.boxShadow = '0 0 10px #39ff14';
-            statusText.textContent = 'System Healthy';
-        } else {
-            statusDot.style.background = '#ff0040';
-            statusDot.style.boxShadow = '0 0 10px #ff0040';
-            statusText.textContent = 'System Offline';
+        const healthy = this.isHealthPayloadHealthy(resolvedPayload);
+        const statusLabel = (resolvedPayload && typeof resolvedPayload.message === 'string' && resolvedPayload.message.trim())
+            ? resolvedPayload.message.trim()
+            : (healthy ? 'System Healthy' : 'System Offline');
+
+        if (statusDot) {
+            let color = healthy ? '#39ff14' : '#ff0040';
+            const normalizedStatus = (resolvedPayload?.status || '').toString().toLowerCase();
+            if (!healthy && ['degraded', 'warning', 'attention', 'partial'].includes(normalizedStatus)) {
+                color = '#ff6b35';
+            }
+            statusDot.style.background = color;
+            statusDot.style.boxShadow = `0 0 10px ${color}`;
+        }
+
+        if (statusText) {
+            statusText.textContent = statusLabel;
+        }
+
+        if (this.systemStatusChip) {
+            this.systemStatusChip.setAttribute('aria-label', `System status: ${statusLabel}`);
+        }
+
+        this.healthStatusData = resolvedPayload || null;
+        this.healthStatusUpdatedAt = new Date();
+
+        if (this.isOverlayActive(this.healthDialogOverlay)) {
+            this.renderHealthDialogContent();
         }
     }
 
@@ -870,6 +1511,7 @@ class TestGenieApp {
                     id: exec.id,
                     suiteName: this.lookupSuiteName(exec.suite_id) || exec.suite_name || 'Unknown Suite',
                     status: exec.status,
+                    statusClass: this.getStatusClass(exec.status),
                     duration: this.calculateDuration(exec.start_time, exec.end_time),
                     passed: exec.passed_tests || 0,
                     failed: exec.failed_tests || 0,
@@ -877,14 +1519,23 @@ class TestGenieApp {
                 }));
                 
                 container.innerHTML = this.renderExecutionsTable(formattedExecutions, { selectable: false });
+                container.scrollLeft = 0;
+                this.enableDragScroll(container);
                 this.bindExecutionsTableActions(container);
                 this.refreshIcons();
             } else {
                 container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No recent executions found</p>';
+                container.scrollLeft = 0;
+                this.enableDragScroll(container);
             }
         } catch (error) {
             console.error('Failed to load recent executions:', error);
             container.innerHTML = '<p style="color: var(--accent-error); text-align: center; padding: 2rem;">Failed to load recent executions</p>';
+            container.scrollLeft = 0;
+            this.enableDragScroll(container);
+        }
+        finally {
+            container.classList.remove('loading');
         }
     }
 
@@ -918,6 +1569,7 @@ class TestGenieApp {
                         const isChecked = selectable && executionId && this.selectedExecutionIds.has(executionId);
                         const failedClass = exec.failed > 0 ? 'text-error' : 'text-muted';
                         const durationLabel = Number.isFinite(exec.duration) ? `${exec.duration}s` : '—';
+                        const statusClass = exec.statusClass || this.getStatusClass(exec.status);
                         const selectionCell = selectable
                             ? `<td class="cell-select"><input type="checkbox" data-execution-id="${executionId}" ${isChecked ? 'checked' : ''} aria-label="Select execution ${this.escapeHtml(exec.suiteName || executionId || '')}"></td>`
                             : '';
@@ -925,7 +1577,7 @@ class TestGenieApp {
                         <tr>
                             ${selectionCell}
                             <td class="cell-scenario"><strong>${exec.suiteName}</strong></td>
-                            <td class="cell-status"><span class="status ${this.getStatusClass(exec.status)}">${exec.status}</span></td>
+                            <td class="cell-status"><span class="status ${statusClass}">${exec.status}</span></td>
                             <td>${durationLabel}</td>
                             <td class="text-success">${exec.passed}</td>
                             <td class="${failedClass}">${exec.failed}</td>
@@ -1375,6 +2027,11 @@ class TestGenieApp {
         });
 
         this.vaultListContainer.innerHTML = fragments.join('');
+        const vaultPanelBody = this.vaultListContainer.parentElement;
+        if (vaultPanelBody) {
+            vaultPanelBody.scrollLeft = 0;
+            this.enableDragScroll(vaultPanelBody);
+        }
         this.refreshIcons();
 
         this.vaultListContainer.querySelectorAll('.vault-item').forEach((item) => {
@@ -1769,6 +2426,7 @@ class TestGenieApp {
                     })();
 
                 const phases = Array.from(typeSet).map((type) => this.formatLabel(type));
+                const statusClass = this.getStatusClass(latestStatus);
 
                 const row = {
                     scenarioName,
@@ -1776,6 +2434,7 @@ class TestGenieApp {
                     testsCount: testCaseCount,
                     coverage: latestCoverage,
                     status: latestStatus,
+                    statusClass,
                     createdAt: latestGeneratedAt || null,
                     latestSuiteId: this.normalizeId(latestSuiteId),
                     suiteCount,
@@ -1818,27 +2477,88 @@ class TestGenieApp {
             });
 
             const renderedIds = Array.from(seenIds);
+            this.availableSuiteIds = renderedIds;
             this.pruneSuiteSelection(renderedIds);
-            this.renderedSuiteIds = renderedIds;
 
-            if (scenarioRows.length > 0) {
-                scenarioRows.sort((a, b) => a.scenarioName.localeCompare(b.scenarioName));
-                container.innerHTML = this.renderSuitesTable(scenarioRows);
-                this.bindSuitesTableActions(container);
-                this.refreshIcons();
-                this.updateSuiteSelectionUI();
-            } else {
+            if (scenarioRows.length === 0) {
+                this.currentSuiteRows = [];
+                this.renderedSuiteIds = [];
                 container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No scenarios found</p>';
                 this.selectedSuiteIds.clear();
                 this.updateSuiteSelectionUI();
-                this.renderedSuiteIds = [];
+                return;
             }
+
+            scenarioRows.sort((a, b) => a.scenarioName.localeCompare(b.scenarioName));
+            this.currentSuiteRows = scenarioRows;
+            this.renderSuitesTableWithCurrentData(container);
         } catch (error) {
             console.error('Failed to load test suites:', error);
             container.innerHTML = '<p style="color: var(--accent-error); text-align: center; padding: 2rem;">Failed to load test suites</p>';
+            this.currentSuiteRows = [];
             this.renderedSuiteIds = [];
+            this.availableSuiteIds = [];
             this.updateSuiteSelectionUI();
         }
+    }
+
+    applySuiteFilters(rows) {
+        if (!Array.isArray(rows)) {
+            return [];
+        }
+
+        let filtered = rows;
+        const search = (this.suiteFilters.search || '').trim().toLowerCase();
+        if (search) {
+            filtered = filtered.filter((row) => {
+                const nameMatch = (row.scenarioName || '').toLowerCase().includes(search);
+                const phaseMatch = Array.isArray(row.phases) && row.phases.some((phase) => phase.toLowerCase().includes(search));
+                const statusMatch = (row.status || '').toLowerCase().includes(search);
+                const idMatch = row.latestSuiteId && this.normalizeId(row.latestSuiteId).includes(search);
+                return nameMatch || phaseMatch || statusMatch || idMatch;
+            });
+        }
+
+        const statusFilter = this.suiteFilters.status;
+        if (statusFilter && statusFilter !== 'all') {
+            filtered = filtered.filter((row) => (row.statusClass || this.getStatusClass(row.status)) === statusFilter);
+        }
+
+        return filtered;
+    }
+
+    renderSuitesTableWithCurrentData(container = document.getElementById('suites-table')) {
+        if (!container) {
+            return;
+        }
+
+        if (!Array.isArray(this.currentSuiteRows) || this.currentSuiteRows.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No scenarios found</p>';
+            this.renderedSuiteIds = [];
+            this.suiteSelectAllCheckbox = null;
+            this.updateSuiteSelectionUI();
+            return;
+        }
+
+        const filtered = this.applySuiteFilters(this.currentSuiteRows);
+
+        if (!filtered.length) {
+            container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No suites match the current filters.</p>';
+            this.renderedSuiteIds = [];
+            this.suiteSelectAllCheckbox = null;
+            this.updateSuiteSelectionUI();
+            return;
+        }
+
+        container.innerHTML = this.renderSuitesTable(filtered);
+        container.scrollLeft = 0;
+        this.renderedSuiteIds = filtered
+            .map((row) => this.normalizeId(row.latestSuiteId))
+            .filter(Boolean);
+        this.enableDragScroll(container);
+        this.bindSuitesTableActions(container);
+        this.refreshIcons();
+        this.updateSuiteSelectionUI();
     }
 
     renderSuitesTable(scenarios) {
@@ -1874,7 +2594,7 @@ class TestGenieApp {
                             : (hasSuite ? '—' : 'None yet');
                         const statusRaw = isMissing ? 'missing' : (scenario.status || 'unknown');
                         const statusLabel = this.formatLabel(statusRaw);
-                        const statusClass = this.getStatusClass(statusRaw);
+                        const statusClass = scenario.statusClass || this.getStatusClass(statusRaw);
                         const rowClass = isMissing ? 'scenario-row missing-scenario' : 'scenario-row has-suite';
                         const createdLabel = scenario.createdAt ? this.formatTimestamp(scenario.createdAt) : '—';
 
@@ -1940,17 +2660,18 @@ class TestGenieApp {
                     id: this.normalizeId(exec.id),
                     suiteName: this.lookupSuiteName(exec.suite_id) || exec.suite_name || 'Unknown Suite',
                     status: exec.status,
+                    statusClass: this.getStatusClass(exec.status),
                     duration: this.calculateDuration(exec.start_time, exec.end_time),
                     passed: exec.passed_tests || 0,
                     failed: exec.failed_tests || 0,
                     timestamp: exec.start_time
                 }));
-                
-                container.innerHTML = this.renderExecutionsTable(formattedExecutions);
-                this.bindExecutionsTableActions(container);
-                this.refreshIcons();
-                this.updateExecutionSelectionUI();
+
+                this.currentExecutionRows = formattedExecutions;
+                this.renderExecutionsTableWithCurrentData(container);
             } else {
+                this.currentExecutionRows = [];
+                this.renderedExecutionIds = [];
                 container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No test executions found</p>';
                 this.selectedExecutionIds.clear();
                 this.updateExecutionSelectionUI();
@@ -1958,22 +2679,84 @@ class TestGenieApp {
         } catch (error) {
             console.error('Failed to load test executions:', error);
             container.innerHTML = '<p style="color: var(--accent-error); text-align: center; padding: 2rem;">Failed to load test executions</p>';
+            this.currentExecutionRows = [];
+            this.renderedExecutionIds = [];
             this.updateExecutionSelectionUI();
         }
     }
 
-    async handleGenerateSubmit() {
-        const form = document.getElementById('generate-form');
-        const btn = document.getElementById('generate-btn');
-        const resultDiv = document.getElementById('generation-result');
+    applyExecutionFilters(rows) {
+        if (!Array.isArray(rows)) {
+            return [];
+        }
 
-        if (!form || !btn || !resultDiv) {
+        let filtered = rows;
+        const search = (this.executionFilters.search || '').trim().toLowerCase();
+        if (search) {
+            filtered = filtered.filter((row) => {
+                const nameMatch = (row.suiteName || '').toLowerCase().includes(search);
+                const statusMatch = (row.status || '').toLowerCase().includes(search);
+                const idMatch = row.id && this.normalizeId(row.id).includes(search);
+                return nameMatch || statusMatch || idMatch;
+            });
+        }
+
+        const statusFilter = this.executionFilters.status;
+        if (statusFilter && statusFilter !== 'all') {
+            filtered = filtered.filter((row) => (row.statusClass || this.getStatusClass(row.status)) === statusFilter);
+        }
+
+        return filtered;
+    }
+
+    renderExecutionsTableWithCurrentData(container = document.getElementById('executions-table')) {
+        if (!container) {
+            return;
+        }
+
+        if (!Array.isArray(this.currentExecutionRows) || this.currentExecutionRows.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No test executions found</p>';
+            this.renderedExecutionIds = [];
+            this.executionSelectAllCheckbox = null;
+            this.updateExecutionSelectionUI();
+            return;
+        }
+
+        const filtered = this.applyExecutionFilters(this.currentExecutionRows);
+
+        if (!filtered.length) {
+            container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No executions match the current filters.</p>';
+            this.renderedExecutionIds = [];
+            this.executionSelectAllCheckbox = null;
+            this.updateExecutionSelectionUI();
+            return;
+        }
+
+        container.innerHTML = this.renderExecutionsTable(filtered);
+        container.scrollLeft = 0;
+        this.renderedExecutionIds = filtered
+            .map((row) => this.normalizeId(row.id))
+            .filter(Boolean);
+        this.enableDragScroll(container);
+        this.bindExecutionsTableActions(container);
+        this.refreshIcons();
+        this.updateExecutionSelectionUI();
+    }
+
+    async handleGenerateSubmit() {
+        const form = this.generateForm || document.getElementById('generate-form');
+        const btn = document.getElementById('generate-btn');
+
+        if (!form || !btn) {
             console.error('Generate dialog elements are missing from the DOM.');
             return;
         }
 
         const scenarioName = (this.generateDialogScenarioName || '').trim();
-        const phaseInputs = Array.from(document.querySelectorAll('#generate-phase-selector input[type="checkbox"]'));
+        let phaseInputs = Array.from(form.querySelectorAll('#generate-phase-selector input[type="checkbox"]'));
+        if (!phaseInputs.length) {
+            phaseInputs = Array.from(document.querySelectorAll('#generate-phase-selector input[type="checkbox"]'));
+        }
         const selectedPhases = phaseInputs
             .filter((input) => input.checked)
             .map((input) => String(input.value || '').trim())
@@ -1993,9 +2776,9 @@ class TestGenieApp {
         const includePerformance = selectedPhases.includes('performance');
         const includeSecurity = selectedPhases.includes('security');
 
+        this.showGenerateForm(false, false);
         btn.disabled = true;
         btn.innerHTML = '<div class="spinner"></div> Generating...';
-        resultDiv.style.display = 'none';
 
         try {
             const requestData = {
@@ -2024,41 +2807,73 @@ class TestGenieApp {
 
             const result = await response.json();
 
-            let summary = '';
             const requestId = result.request_id || result.suite_id || 'unknown';
             const status = (result.status || 'submitted').toUpperCase();
+            const baseMetadata = [
+                { label: 'Request ID', value: requestId },
+                { label: 'Status', value: status }
+            ];
 
             if ((result.status || '').toLowerCase() === 'generated_locally') {
-                const filesSummary = Object.entries(result.test_files || {}).map(([type, files]) =>
-                    `  ${type}: ${files.length} files`
-                ).join('\n');
+                const metadata = [...baseMetadata];
 
-                summary = `✅ Local Test Suite Generated\n\n` +
-                    `Request ID: ${requestId}\n` +
-                    `Status: ${status}\n` +
-                    `Generated Tests: ${result.generated_tests || 0}\n` +
-                    `Estimated Coverage: ${result.estimated_coverage ?? 0}%\n` +
-                    `Generation Time: ${result.generation_time ? `${result.generation_time}s` : 'n/a'}\n\n` +
-                    (filesSummary ? `Test Files Generated:\n${filesSummary}` : '');
+                if (Number.isFinite(Number(result.generated_tests))) {
+                    metadata.push({ label: 'Generated Tests', value: String(result.generated_tests) });
+                }
 
-                this.showSuccess(`Generated ${result.generated_tests || 0} fallback tests locally.`);
+                if (Number.isFinite(Number(result.estimated_coverage))) {
+                    metadata.push({ label: 'Estimated Coverage', value: `${result.estimated_coverage}%` });
+                }
+
+                if (Number.isFinite(Number(result.generation_time))) {
+                    metadata.push({ label: 'Generation Time', value: `${result.generation_time}s` });
+                }
+
+                if (result.test_files && typeof result.test_files === 'object') {
+                    Object.entries(result.test_files).forEach(([type, files]) => {
+                        const count = Array.isArray(files) ? files.length : 0;
+                        metadata.push({
+                            label: `${this.formatLabel(type)} Files`,
+                            value: `${count} ${count === 1 ? 'file' : 'files'}`
+                        });
+                    });
+                }
+
+                const generatedTests = Number.isFinite(Number(result.generated_tests)) ? Number(result.generated_tests) : 0;
+                const successMessage = generatedTests > 0
+                    ? `Generated ${generatedTests} fallback ${generatedTests === 1 ? 'test' : 'tests'} locally.`
+                    : 'Local test suite created without detected test cases.';
+
+                this.showGenerateResultCard({
+                    icon: 'check-circle',
+                    tone: 'success',
+                    title: 'Local Test Suite Generated',
+                    message: successMessage,
+                    metadata,
+                    issueUrl: ''
+                });
+
+                this.showSuccess(successMessage);
             } else {
-                const issueLink = result.issue_url
-                    ? `Track progress: ${result.issue_url}`
-                    : 'Track progress in app-issue-tracker.';
-                const issueIdLine = result.issue_id ? `Issue ID: ${result.issue_id}\n` : '';
-                summary = `📝 Test Generation Request Submitted\n\n` +
-                    `Request ID: ${requestId}\n` +
-                    `Status: ${status}\n` +
-                    issueIdLine +
-                    `Message: ${result.message || 'Delegated to app-issue-tracker'}\n\n` +
-                    issueLink;
+                const metadata = [...baseMetadata];
+                if (result.issue_id) {
+                    metadata.push({ label: 'Issue ID', value: String(result.issue_id) });
+                }
+                if (!result.issue_url) {
+                    metadata.push({ label: 'Follow-up', value: 'Track progress in app-issue-tracker.' });
+                }
+
+                this.showGenerateResultCard({
+                    icon: 'send',
+                    tone: 'info',
+                    title: 'Test Generation Request Submitted',
+                    message: result.message || 'Delegated to app-issue-tracker.',
+                    metadata,
+                    issueUrl: result.issue_url || ''
+                });
 
                 this.showSuccess('Delegated test generation request to app-issue-tracker.');
             }
-
-            resultDiv.textContent = summary;
-            resultDiv.style.display = 'block';
 
             await Promise.all([
                 this.loadTestSuites(),
@@ -2088,14 +2903,20 @@ class TestGenieApp {
 
             if (!coverages || coverages.length === 0) {
                 this.coverageTableContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No coverage analyses found. Run a scenario\'s unit tests to generate coverage data.</p>';
+                this.coverageTableContainer.scrollLeft = 0;
+                this.enableDragScroll(this.coverageTableContainer);
                 return;
             }
 
             this.coverageTableContainer.innerHTML = this.renderCoverageTable(coverages);
+            this.coverageTableContainer.scrollLeft = 0;
+            this.enableDragScroll(this.coverageTableContainer);
             this.bindCoverageTableActions();
         } catch (error) {
             console.error('Failed to load coverage summaries:', error);
             this.coverageTableContainer.innerHTML = '<p style="color: var(--accent-error); text-align: center; padding: 2rem;">Failed to load coverage summaries.</p>';
+            this.coverageTableContainer.scrollLeft = 0;
+            this.enableDragScroll(this.coverageTableContainer);
         }
     }
 
@@ -3990,9 +4811,11 @@ class TestGenieApp {
     }
 
     updateSuiteSelectionUI() {
-        const suiteIdsSource = Array.isArray(this.renderedSuiteIds) && this.renderedSuiteIds.length
+        const suiteIdsSource = (Array.isArray(this.renderedSuiteIds) && this.renderedSuiteIds.length)
             ? this.renderedSuiteIds
-            : (this.currentData.suites || []).map(suite => this.normalizeId(suite.id)).filter(Boolean);
+            : (Array.isArray(this.availableSuiteIds) && this.availableSuiteIds.length
+                ? this.availableSuiteIds
+                : (this.currentData.suites || []).map(suite => this.normalizeId(suite.id)).filter(Boolean));
         const suiteIds = suiteIdsSource.filter(Boolean);
         const selectedCount = suiteIds.filter(id => this.selectedSuiteIds.has(id)).length;
         const hasSelection = selectedCount > 0;
@@ -4015,9 +4838,9 @@ class TestGenieApp {
         this.toggleElementVisibility(this.deleteSelectedExecutionsButton, hasSelection);
 
         if (this.executionSelectAllCheckbox) {
-            const executionIds = (this.currentData.executions || [])
-                .map(execution => this.normalizeId(execution.id))
-                .filter(Boolean);
+            const executionIds = (Array.isArray(this.renderedExecutionIds) && this.renderedExecutionIds.length)
+                ? this.renderedExecutionIds
+                : (this.currentData.executions || []).map(execution => this.normalizeId(execution.id)).filter(Boolean);
             const selectedCount = executionIds.filter(id => this.selectedExecutionIds.has(id)).length;
             const allSelected = executionIds.length > 0 && selectedCount === executionIds.length;
             this.executionSelectAllCheckbox.checked = allSelected;
@@ -4095,7 +4918,8 @@ class TestGenieApp {
     unlockDialogScrollIfIdle() {
         const dialogsOpen = this.isOverlayActive(this.coverageDetailOverlay)
             || this.isOverlayActive(this.generateDialogOverlay)
-            || this.isOverlayActive(this.vaultDialogOverlay);
+            || this.isOverlayActive(this.vaultDialogOverlay)
+            || this.isOverlayActive(this.healthDialogOverlay);
 
         if (!dialogsOpen) {
             document.body.classList.remove('dialog-open');
@@ -4416,7 +5240,7 @@ class TestGenieApp {
                 this.handleTestCompletion(data.payload);
                 break;
             case 'system_status':
-                this.updateSystemStatus(data.payload.healthy);
+                this.updateSystemStatus(data.payload);
                 break;
             default:
                 console.log('Unknown WebSocket message type:', data.type);

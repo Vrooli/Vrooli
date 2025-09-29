@@ -14,6 +14,11 @@ import { useIframeBridge } from '@/hooks/useIframeBridge';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import './AppPreviewView.css';
 
+const PREVIEW_LOAD_TIMEOUT_MS = 6000;
+const PREVIEW_CONNECTING_LABEL = 'Connecting to preview...';
+const PREVIEW_TIMEOUT_MESSAGE = 'Preview did not respond. Ensure the application UI is running and reachable from App Monitor.';
+const PREVIEW_MIXED_CONTENT_MESSAGE = 'Preview blocked: browser refused to load HTTP content inside an HTTPS dashboard. Expose the UI through the tunnel hostname or enable HTTPS for the scenario.';
+
 const AppPreviewView = () => {
   const apps = useAppsStore(state => state.apps);
   const setAppsState = useAppsStore(state => state.setAppsState);
@@ -37,6 +42,8 @@ const AppPreviewView = () => {
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [previewReloadToken, setPreviewReloadToken] = useState(0);
   const [previewOverlay, setPreviewOverlay] = useState<null | { type: 'restart' | 'waiting' | 'error'; message: string }>(null);
+  const [iframeLoadedAt, setIframeLoadedAt] = useState<number | null>(null);
+  const [iframeLoadError, setIframeLoadError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
@@ -121,6 +128,8 @@ const AppPreviewView = () => {
     setHistory([]);
     setHistoryIndex(-1);
     initialPreviewUrlRef.current = null;
+    setIframeLoadedAt(null);
+    setIframeLoadError(null);
   }, [hasCustomPreviewUrl]);
 
   const applyDefaultPreviewUrl = useCallback((url: string) => {
@@ -174,6 +183,8 @@ const AppPreviewView = () => {
 
   const reloadPreview = useCallback(() => {
     resetState();
+    setIframeLoadedAt(null);
+    setIframeLoadError(null);
     setPreviewReloadToken(prev => prev + 1);
   }, [resetState]);
 
@@ -259,6 +270,92 @@ const AppPreviewView = () => {
     () => bridgeState.isSupported && bridgeState.caps.includes('screenshot'),
     [bridgeState.caps, bridgeState.isSupported],
   );
+
+  useEffect(() => {
+    setIframeLoadedAt(null);
+    setIframeLoadError(null);
+  }, [previewUrl, previewReloadToken]);
+
+  useEffect(() => {
+    if (!previewUrl) {
+      setPreviewOverlay(prev => {
+        if (!prev) {
+          return prev;
+        }
+        if (
+          prev.type === 'waiting' && prev.message === PREVIEW_CONNECTING_LABEL
+        ) {
+          return null;
+        }
+        if (
+          prev.type === 'error' &&
+          (prev.message === PREVIEW_TIMEOUT_MESSAGE || prev.message === PREVIEW_MIXED_CONTENT_MESSAGE)
+        ) {
+          return null;
+        }
+        return prev;
+      });
+      return;
+    }
+
+    if (bridgeState.isReady || iframeLoadedAt) {
+      setPreviewOverlay(prev => {
+        if (prev && prev.type === 'waiting' && prev.message === PREVIEW_CONNECTING_LABEL) {
+          return null;
+        }
+        return prev;
+      });
+      return;
+    }
+
+    let cancelled = false;
+    let waitingApplied = false;
+
+    setPreviewOverlay(prev => {
+      if (prev && prev.type === 'restart') {
+        return prev;
+      }
+      waitingApplied = true;
+      return { type: 'waiting', message: PREVIEW_CONNECTING_LABEL };
+    });
+
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled || bridgeState.isReady || iframeLoadedAt) {
+        return;
+      }
+
+      const isMixedContent =
+        typeof window !== 'undefined' &&
+        window.location.protocol === 'https:' &&
+        previewUrl.startsWith('http://');
+
+      const message = iframeLoadError
+        ? iframeLoadError
+        : isMixedContent
+          ? PREVIEW_MIXED_CONTENT_MESSAGE
+          : PREVIEW_TIMEOUT_MESSAGE;
+
+      setPreviewOverlay(current => {
+        if (current && current.type === 'restart') {
+          return current;
+        }
+        return { type: 'error', message };
+      });
+    }, PREVIEW_LOAD_TIMEOUT_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      if (waitingApplied) {
+        setPreviewOverlay(prev => {
+          if (prev && prev.type === 'waiting' && prev.message === PREVIEW_CONNECTING_LABEL) {
+            return null;
+          }
+          return prev;
+        });
+      }
+    };
+  }, [previewUrl, previewReloadToken, bridgeState.isReady, iframeLoadedAt, iframeLoadError]);
 
   const urlStatusClass = useMemo(() => {
     if (!currentApp) {
@@ -763,6 +860,37 @@ const AppPreviewView = () => {
     }
   }, [currentApp, navigate]);
 
+  const handleIframeLoad = useCallback(() => {
+    setIframeLoadError(null);
+    setIframeLoadedAt(Date.now());
+    setPreviewOverlay(prev => {
+      if (prev && prev.type === 'waiting' && prev.message === PREVIEW_CONNECTING_LABEL) {
+        return null;
+      }
+      return prev;
+    });
+  }, []);
+
+  const handleIframeError = useCallback(() => {
+    const isMixedContent =
+      typeof window !== 'undefined' &&
+      window.location.protocol === 'https:' &&
+      previewUrl?.startsWith('http://');
+
+    const message = isMixedContent
+      ? PREVIEW_MIXED_CONTENT_MESSAGE
+      : 'Preview failed to load. Verify the application UI is reachable from the App Monitor host.';
+
+    setIframeLoadedAt(null);
+    setIframeLoadError(message);
+    setPreviewOverlay(current => {
+      if (current && current.type === 'restart') {
+        return current;
+      }
+      return { type: 'error', message };
+    });
+  }, [previewUrl]);
+
   const handleOpenReportDialog = useCallback(() => {
     setReportDialogOpen(true);
   }, []);
@@ -923,6 +1051,8 @@ const AppPreviewView = () => {
             className="preview-iframe"
             loading="lazy"
             ref={iframeRef}
+            onLoad={handleIframeLoad}
+            onError={handleIframeError}
           />
           {previewOverlay && (
             <div

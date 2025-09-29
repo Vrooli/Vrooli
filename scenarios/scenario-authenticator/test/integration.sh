@@ -59,12 +59,40 @@ main() {
     response=$(curl -s "${API_URL}/health")
     status=$(echo "$response" | jq -r '.status')
     if [[ "$status" == "healthy" ]] || [[ "$status" == "degraded" ]]; then
-        print_success "Health check passed"
-    else
-        print_error "Health check failed"
+    print_success "Health check passed"
+else
+    print_error "Health check failed"
+fi
+
+# Test 2: Applications endpoint (admin access)
+    print_test "List applications as admin"
+    admin_login=$(curl -s -X POST "${API_URL}/api/v1/auth/login" \
+        -H "Content-Type: application/json" \
+        -d '{"email":"admin@vrooli.local","password":"Admin123!"}')
+
+    admin_token=$(echo "$admin_login" | jq -r '.token')
+    if [[ -z "$admin_token" || "$admin_token" == "null" ]]; then
+        print_error "Failed to authenticate seeded admin user"
     fi
-    
-    # Test 2: User registration
+
+    apps_response=$(curl -s -w "\n%{http_code}" "${API_URL}/api/v1/applications?stats=true" \
+        -H "Authorization: Bearer ${admin_token}")
+
+    apps_body=$(echo "$apps_response" | head -n 1)
+    apps_status=$(echo "$apps_response" | tail -n 1)
+
+    if [[ "$apps_status" != "200" ]]; then
+        print_error "Applications endpoint returned status ${apps_status}: ${apps_body}"
+    fi
+
+    total=$(echo "$apps_body" | jq -r '.total // -1')
+    if [[ "$total" -lt 0 ]]; then
+        print_error "Applications endpoint response malformed: ${apps_body}"
+    fi
+
+    print_success "Applications endpoint reachable"
+
+    # Test 3: User registration
     print_test "User registration"
     response=$(curl -s -X POST "${API_URL}/api/v1/auth/register" \
         -H "Content-Type: application/json" \
@@ -79,7 +107,7 @@ main() {
         print_error "User registration failed: $response"
     fi
     
-    # Test 3: Token validation
+    # Test 4: Token validation
     print_test "Token validation"
     response=$(curl -s -X GET "${API_URL}/api/v1/auth/validate" \
         -H "Authorization: Bearer ${TOKEN}")
@@ -91,7 +119,7 @@ main() {
         print_error "Token validation failed"
     fi
     
-    # Test 4: User login
+    # Test 5: User login
     print_test "User login"
     response=$(curl -s -X POST "${API_URL}/api/v1/auth/login" \
         -H "Content-Type: application/json" \
@@ -106,7 +134,7 @@ main() {
         print_error "User login failed"
     fi
     
-    # Test 5: Token refresh
+    # Test 6: Token refresh
     print_test "Token refresh"
     response=$(curl -s -X POST "${API_URL}/api/v1/auth/refresh" \
         -H "Content-Type: application/json" \
@@ -120,7 +148,7 @@ main() {
         print_error "Token refresh failed"
     fi
     
-    # Test 6: Get user
+    # Test 7: Get user
     print_test "Get user by ID"
     response=$(curl -s -X GET "${API_URL}/api/v1/users/${USER_ID}" \
         -H "Authorization: Bearer ${NEW_TOKEN}")
@@ -132,7 +160,7 @@ main() {
         print_error "Get user failed"
     fi
     
-    # Test 7: List sessions
+    # Test 8: List sessions
     print_test "List user sessions"
     response=$(curl -s -X GET "${API_URL}/api/v1/sessions?user_id=${USER_ID}" \
         -H "Authorization: Bearer ${NEW_TOKEN}")
@@ -144,7 +172,7 @@ main() {
         print_error "List sessions failed"
     fi
     
-    # Test 8: Logout
+    # Test 9: Logout
     print_test "User logout"
     response=$(curl -s -X POST "${API_URL}/api/v1/auth/logout" \
         -H "Authorization: Bearer ${NEW_TOKEN}")
@@ -156,7 +184,7 @@ main() {
         print_error "Logout failed"
     fi
     
-    # Test 9: Validate logged out token (should fail)
+    # Test 10: Validate logged out token (should fail)
     print_test "Token validation after logout (should fail)"
     response=$(curl -s -X GET "${API_URL}/api/v1/auth/validate" \
         -H "Authorization: Bearer ${NEW_TOKEN}")

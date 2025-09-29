@@ -188,6 +188,15 @@
             border: 1px solid var(--border);
             border-radius: 20px;
             font-size: 0.875rem;
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .system-status:focus-visible,
+        .system-status:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 12px var(--glow-primary);
+            outline: none;
         }
 
         .status-dot {
@@ -376,6 +385,47 @@
             gap: var(--spacing-sm);
         }
 
+        .page-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+
+        .page-controls {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+
+        .toolbar-input,
+        .toolbar-select {
+            padding: 0.6rem 0.9rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font: inherit;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .toolbar-input:focus,
+        .toolbar-select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px var(--glow-primary);
+        }
+
+        .page-controls .toolbar-input {
+            min-width: 220px;
+        }
+
+        .page-controls .toolbar-select {
+            min-width: 180px;
+        }
+
         .page-title {
             font-size: 2rem;
             font-weight: 600;
@@ -507,6 +557,23 @@
         .panel-body {
             padding: var(--spacing-lg);
             overflow-x: auto;
+        }
+
+        .panel--flush,
+        .panel.panel--flush {
+            padding: 0;
+        }
+
+        .panel--flush .panel-body {
+            padding: 0;
+        }
+
+        .panel-body--flush {
+            padding: 0 !important;
+        }
+
+        .coverage-hint .panel-body {
+            padding: var(--spacing-lg) !important;
         }
 
         .panel-subtext {
@@ -810,6 +877,14 @@
             padding: 0;
         }
 
+        #recent-executions {
+            padding: 0;
+        }
+
+        #recent-executions.loading {
+            padding: 0;
+        }
+
         /* Forms */
         .form-group {
             margin-bottom: var(--spacing-md);
@@ -897,6 +972,117 @@
 
             .form-range-value {
                 text-align: left;
+            }
+        }
+
+        .generate-form--hidden {
+            display: none;
+        }
+
+        .generate-result {
+            display: grid;
+            gap: var(--spacing-md);
+            padding: var(--spacing-lg);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+        }
+
+        .generate-result[hidden] {
+            display: none;
+        }
+
+        .generate-result-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 212, 255, 0.12);
+            color: var(--accent-secondary);
+        }
+
+        .generate-result-icon i {
+            width: 26px;
+            height: 26px;
+        }
+
+        .generate-result-icon.success {
+            background: rgba(0, 255, 149, 0.12);
+            color: var(--accent-success);
+        }
+
+        .generate-result-icon.info {
+            background: rgba(0, 212, 255, 0.12);
+            color: var(--accent-secondary);
+        }
+
+        .generate-result-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .generate-result-message {
+            margin: 0;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .generate-result-metadata {
+            display: grid;
+            gap: 0.35rem 1.5rem;
+            grid-template-columns: minmax(120px, auto) 1fr;
+            margin: 0;
+        }
+
+        .generate-result-metadata[hidden] {
+            display: none;
+        }
+
+        .generate-result-metadata dt {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .generate-result-metadata dd {
+            margin: 0;
+            color: var(--text-secondary);
+        }
+
+        .generate-result-links {
+            display: flex;
+            gap: var(--spacing-sm);
+            align-items: center;
+        }
+
+        .generate-result-links[hidden] {
+            display: none;
+        }
+
+        .generate-result-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+        }
+
+        @media (max-width: 640px) {
+            .generate-result-metadata {
+                grid-template-columns: 1fr;
+            }
+
+            .generate-result-links,
+            .generate-result-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .generate-result-links .btn,
+            .generate-result-actions .btn {
+                width: 100%;
+                justify-content: center;
             }
         }
 
@@ -1004,6 +1190,31 @@
             line-height: 1.4;
         }
 
+        .table-scroll {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            overscroll-behavior-x: contain;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y;
+            cursor: grab;
+        }
+
+        .table-scroll.is-dragging,
+        .table-scroll:active {
+            cursor: grabbing;
+        }
+
+        .table-scroll::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .table-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
         .table th,
         .table td {
             padding: 0.5rem 0.75rem;
@@ -1078,28 +1289,32 @@
             flex-wrap: wrap;
         }
 
-        #suites-table {
+        #suites-table,
+        #executions-table,
+        #coverage-table {
+            padding: 0;
+            overflow-x: auto;
+        }
+
+        #coverage-table .loading {
             padding: 0;
         }
 
-        .suites-table {
+        .suites-table,
+        .executions-table {
             border-collapse: collapse;
             margin: 0;
-            padding: 0;
+            width: 100%;
+            min-width: 960px;
         }
 
-        .suites-table thead th {
-            padding: 0.75rem 1rem;
+        .coverage-table {
+            min-width: 960px;
         }
 
-        .suites-table tbody td {
-            padding: 0.75rem 1rem;
-        }
-
-        .executions-table thead th {
-            padding: 0.75rem 1rem;
-        }
-
+        .suites-table thead th,
+        .executions-table thead th,
+        .suites-table tbody td,
         .executions-table tbody td {
             padding: 0.75rem 1rem;
         }
@@ -1122,14 +1337,6 @@
             width: 1rem;
             height: 1rem;
             cursor: pointer;
-        }
-
-        #executions-table {
-            padding: 0;
-        }
-
-        #executions .panel-body {
-            padding: 0;
         }
 
         .text-success {
@@ -1243,6 +1450,24 @@
 
         #coverage-detail-overlay .suite-detail-panel {
             max-width: 960px;
+        }
+
+        #health-status-overlay .suite-detail-panel {
+            max-width: 560px;
+        }
+
+        .health-status-content {
+            padding: var(--spacing-lg);
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            overflow-x: auto;
+        }
+
+        .health-status-content pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0;
         }
 
         .suite-detail-header {
@@ -1683,8 +1908,26 @@
                 --sidebar-width: 100%;
             }
 
+            .suites-table,
+            .executions-table,
+            .coverage-table {
+                min-width: 720px;
+            }
+
+            #suites .panel-body {
+                padding: var(--spacing-sm);
+            }
+
+            #suites-table {
+                background: transparent;
+            }
+
             .header {
                 padding: 0 var(--spacing-md);
+            }
+
+            .content {
+                padding: var(--spacing-md);
             }
 
             .header-stats {
@@ -1816,6 +2059,14 @@
 
         .vault-inline-list li {
             margin-bottom: 0.35rem;
+        }
+
+        .vault-activity-panel {
+            overflow: hidden;
+        }
+
+        .vault-activity-panel .panel-body {
+            overflow-x: auto;
         }
 
         .vault-main-layout {
@@ -1953,6 +2204,24 @@
             gap: var(--spacing-sm);
             color: var(--text-secondary);
             font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            #vault-list {
+                min-width: 560px;
+            }
+
+            .vault-item-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--spacing-xs);
+            }
+
+            .vault-item-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.4rem;
+            }
         }
 
         .vault-timeline {
@@ -2152,7 +2421,7 @@
                 <i data-lucide="flask-conical"></i>
                 <span>TEST GENIE</span>
             </div>
-            <div class="system-status">
+            <div class="system-status" id="system-status-chip" role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false">
                 <div class="status-dot"></div>
                 <span>System Healthy</span>
             </div>
@@ -2299,7 +2568,7 @@
                 </div>
 
                 <!-- Recent Activity Panel -->
-                <div class="panel">
+                <div class="panel panel--flush">
                     <div class="panel-header">
                         <h2 class="panel-title">Recent Test Executions</h2>
                         <button class="btn" onclick="refreshDashboard()">
@@ -2307,7 +2576,7 @@
                             Refresh
                         </button>
                     </div>
-                    <div class="panel-body">
+                    <div class="panel-body panel-body--flush">
                         <div id="recent-executions" class="loading">
                             <div class="spinner"></div>
                             Loading recent executions...
@@ -2323,15 +2592,27 @@
                         <h1 class="page-title">Test Suites</h1>
                         <p class="page-subtitle">Inspect every scenario, generate suites, and monitor readiness</p>
                     </div>
-                    <div class="page-actions">
-                        <button class="btn is-hidden" type="button" id="suites-run-selected-btn">
-                            <i data-lucide="play"></i>
-                            <span id="suites-run-selected-label">Run Selected</span>
-                        </button>
-                        <button class="btn" type="button" id="suites-refresh-btn">
-                            <i data-lucide="refresh-cw"></i>
-                            Refresh
-                        </button>
+                    <div class="page-toolbar">
+                        <div class="page-controls">
+                            <input type="search" id="suites-search-input" class="toolbar-input" placeholder="Search suites" aria-label="Search suites">
+                            <select id="suites-status-filter" class="toolbar-select" aria-label="Filter suites by status">
+                                <option value="all">All statuses</option>
+                                <option value="success">Ready</option>
+                                <option value="info">Running</option>
+                                <option value="warning">Needs attention</option>
+                                <option value="error">Failed</option>
+                            </select>
+                        </div>
+                        <div class="page-actions">
+                            <button class="btn is-hidden" type="button" id="suites-run-selected-btn">
+                                <i data-lucide="play"></i>
+                                <span id="suites-run-selected-label">Run Selected</span>
+                            </button>
+                            <button class="btn" type="button" id="suites-refresh-btn">
+                                <i data-lucide="refresh-cw"></i>
+                                Refresh
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -2352,19 +2633,31 @@
                         <h1 class="page-title">Test Executions</h1>
                         <p class="page-subtitle">Monitor active and completed test runs</p>
                     </div>
-                    <div class="page-actions">
-                        <button class="btn secondary" type="button" id="executions-clear-btn">
-                            <i data-lucide="trash-2"></i>
-                            Clear All
-                        </button>
-                        <button class="btn warning is-hidden" type="button" id="executions-delete-selected-btn">
-                            <i data-lucide="trash-2"></i>
-                            Delete Selected
-                        </button>
-                        <button class="btn" type="button" id="executions-refresh-btn">
-                            <i data-lucide="refresh-cw"></i>
-                            Refresh
-                        </button>
+                    <div class="page-toolbar">
+                        <div class="page-controls">
+                            <input type="search" id="executions-search-input" class="toolbar-input" placeholder="Search executions" aria-label="Search executions">
+                            <select id="executions-status-filter" class="toolbar-select" aria-label="Filter executions by status">
+                                <option value="all">All statuses</option>
+                                <option value="success">Ready</option>
+                                <option value="info">Running</option>
+                                <option value="warning">Needs attention</option>
+                                <option value="error">Failed</option>
+                            </select>
+                        </div>
+                        <div class="page-actions">
+                            <button class="btn secondary" type="button" id="executions-clear-btn">
+                                <i data-lucide="trash-2"></i>
+                                Clear All
+                            </button>
+                            <button class="btn warning is-hidden" type="button" id="executions-delete-selected-btn">
+                                <i data-lucide="trash-2"></i>
+                                Delete Selected
+                            </button>
+                            <button class="btn" type="button" id="executions-refresh-btn">
+                                <i data-lucide="refresh-cw"></i>
+                                Refresh
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -2393,8 +2686,8 @@
                     </div>
                 </div>
 
-                <div class="panel">
-                    <div class="panel-body">
+                <div class="panel panel--flush">
+                    <div class="panel-body panel-body--flush">
                         <div id="coverage-table" class="loading">
                             <div class="spinner"></div>
                             Loading coverage summaries...
@@ -2402,8 +2695,8 @@
                     </div>
                 </div>
 
-                <div class="panel coverage-hint">
-                    <div class="panel-body">
+                <div class="panel coverage-hint panel--flush">
+                    <div class="panel-body panel-body--flush">
                         <p class="panel-subtext">Select <strong>View</strong> to open coverage details in a dialog, or trigger a new analysis without leaving the summary grid.</p>
                     </div>
                 </div>
@@ -2574,41 +2867,67 @@
 
                 <div class="panel">
                     <div class="panel-header">
-                        <h2 class="panel-title">API Configuration</h2>
-                    </div>
-                    <div class="panel-body">
-                        <div class="form-group">
-                            <label class="form-label">API Base URL</label>
-                            <input type="text" class="form-input" value="http://localhost:8200" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Database</label>
-                            <input type="text" class="form-input" value="PostgreSQL (localhost:5432)" readonly>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="panel">
-                    <div class="panel-header">
                         <h2 class="panel-title">Default Settings</h2>
                     </div>
                     <div class="panel-body">
                         <div class="form-group">
-                            <label class="form-label">Default Coverage Target (%)</label>
-                            <input type="number" class="form-input" value="95" min="50" max="100">
+                            <label class="form-label" for="settings-default-coverage">Default Coverage Target</label>
+                            <div class="form-range-group">
+                                <input type="range" id="settings-default-coverage" class="form-range" min="50" max="100" value="80" step="5">
+                                <div class="form-range-value" id="settings-default-coverage-display">80%</div>
+                            </div>
+                            <span class="form-helper">Set the baseline coverage goal applied to new generation runs.</span>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Default Test Types</label>
-                            <select class="form-select" multiple>
-                                <option value="unit" selected>Unit Tests</option>
-                                <option value="integration" selected>Integration Tests</option>
-                                <option value="performance">Performance Tests</option>
-                                <option value="vault">Vault Tests</option>
-                                <option value="regression">Regression Tests</option>
-                            </select>
+                            <span class="form-label">Default Phases</span>
+                            <div class="vault-phase-selector" id="settings-default-phases">
+                                <label class="phase-option">
+                                    <input type="checkbox" value="dependencies" data-phase="dependencies">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Dependencies</span>
+                                        <span class="phase-description">Verify resources, secrets, and supporting services are wired.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="structure" data-phase="structure">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Structure</span>
+                                        <span class="phase-description">Validate project scaffolding, file layout, and naming discipline.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="unit" data-phase="unit">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Unit</span>
+                                        <span class="phase-description">Target isolated logic with deterministic, fast tests.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="integration" data-phase="integration">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Integration</span>
+                                        <span class="phase-description">Exercise resource orchestration and multi-service flows.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="business" data-phase="business">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Business</span>
+                                        <span class="phase-description">Assert revenue-critical scenarios and success metrics.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="performance" data-phase="performance">
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Performance</span>
+                                        <span class="phase-description">Stress test throughput, latency, and scaling guardrails.</span>
+                                    </div>
+                                </label>
+                            </div>
+                            <span class="form-helper">Checked phases appear pre-selected in the test generation dialog.</span>
                         </div>
                         <div class="form-group">
-                            <button class="btn">
+                            <button class="btn" type="button" id="settings-save-btn">
                                 <i data-lucide="save"></i>
                                 Save Settings
                             </button>
@@ -2649,7 +2968,7 @@
                     <div class="panel-header">
                         <h2 class="panel-title">CLI Commands</h2>
                     </div>
-                    <div class="panel-body">
+                    <div class="panel-body panel-body--flush">
                         <div class="code-block">
 # Generate test suite
 test-genie generate my-scenario --types unit,integration --coverage 95
@@ -2688,6 +3007,26 @@ test-genie help
             </div>
             <div class="suite-detail-content" id="coverage-detail-content">
                 <div class="coverage-detail-empty">Select a scenario to view coverage breakdown.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="health-status-overlay" class="suite-detail-overlay" aria-hidden="true">
+        <div class="suite-detail-panel health-status-panel" role="dialog" aria-modal="true" aria-labelledby="health-status-title">
+            <button class="suite-detail-close" type="button" id="health-status-close" aria-label="Close system health details">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="suite-detail-header">
+                <div class="suite-detail-meta">
+                    <h2 id="health-status-title">System Health</h2>
+                    <p class="suite-detail-subtitle" id="health-status-subtitle">Latest heartbeat from the Test Genie API.</p>
+                </div>
+            </div>
+            <div class="health-status-content" id="health-status-content">
+                <div class="loading" style="padding: var(--spacing-md);">
+                    <div class="spinner"></div>
+                    Loading health details…
+                </div>
             </div>
         </div>
     </div>
@@ -2776,7 +3115,30 @@ test-genie help
                     </div>
                 </form>
 
-                <div id="generation-result" class="code-block" style="display: none;"></div>
+                <div id="generation-result" class="generate-result" hidden>
+                    <div class="generate-result-icon success" id="generate-result-icon" aria-hidden="true">
+                        <i data-lucide="check-circle"></i>
+                    </div>
+                    <h3 class="generate-result-title" id="generate-result-title"></h3>
+                    <p class="generate-result-message" id="generate-result-message"></p>
+                    <dl class="generate-result-metadata" id="generate-result-metadata" hidden></dl>
+                    <div class="generate-result-links" id="generate-result-links" hidden>
+                        <button type="button" class="btn" id="generate-open-issue-btn" hidden>
+                            <i data-lucide="external-link"></i>
+                            <span>Open Issue Tracker</span>
+                        </button>
+                    </div>
+                    <div class="generate-result-actions">
+                        <button type="button" class="btn" id="generate-another-btn">
+                            <i data-lucide="refresh-ccw"></i>
+                            <span>Generate Another Suite</span>
+                        </button>
+                        <button type="button" class="btn" id="generate-close-btn">
+                            <i data-lucide="x"></i>
+                            <span>Close</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

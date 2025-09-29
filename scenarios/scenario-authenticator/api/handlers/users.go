@@ -97,6 +97,17 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	userID := chi.URLParam(r, "id")
 
+	claims, ok := r.Context().Value("claims").(*models.Claims)
+	if !ok {
+		utils.SendError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if claims.UserID != userID && !hasRole(claims.Roles, "admin") {
+		utils.SendError(w, "Insufficient permissions", http.StatusForbidden)
+		return
+	}
+
 	var user models.User
 	var rolesJSON string
 	var usernameNullable sql.NullString

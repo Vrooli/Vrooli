@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"scenario-authenticator/auth"
 	"scenario-authenticator/db"
+	"scenario-authenticator/models"
 	"scenario-authenticator/utils"
 	"strconv"
 	"strings"
@@ -18,36 +20,36 @@ import (
 
 // Application represents a scenario/app that uses this auth service
 type Application struct {
-	ID             string    `json:"id"`
-	Name           string    `json:"name"`
-	DisplayName    string    `json:"display_name"`
-	Description    string    `json:"description,omitempty"`
-	ScenarioType   string    `json:"scenario_type"`
-	AllowedOrigins []string  `json:"allowed_origins"`
-	RedirectURIs   []string  `json:"redirect_uris"`
-	Permissions    []string  `json:"permissions"`
-	RateLimit      int       `json:"rate_limit"`
-	MaxUsers       *int      `json:"max_users,omitempty"`
-	IsActive       bool      `json:"is_active"`
+	ID             string     `json:"id"`
+	Name           string     `json:"name"`
+	DisplayName    string     `json:"display_name"`
+	Description    string     `json:"description,omitempty"`
+	ScenarioType   string     `json:"scenario_type"`
+	AllowedOrigins []string   `json:"allowed_origins"`
+	RedirectURIs   []string   `json:"redirect_uris"`
+	Permissions    []string   `json:"permissions"`
+	RateLimit      int        `json:"rate_limit"`
+	MaxUsers       *int       `json:"max_users,omitempty"`
+	IsActive       bool       `json:"is_active"`
 	LastAccessed   *time.Time `json:"last_accessed,omitempty"`
-	TotalUsers     int       `json:"total_users"`
-	TotalAuths     int       `json:"total_authentications"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	TotalUsers     int        `json:"total_users"`
+	TotalAuths     int        `json:"total_authentications"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 // ApplicationStats represents application statistics
 type ApplicationStats struct {
-	ID            string     `json:"id"`
-	Name          string     `json:"name"`
-	DisplayName   string     `json:"display_name"`
-	IsActive      bool       `json:"is_active"`
-	TotalUsers    int        `json:"total_users"`
-	ActiveSessions int       `json:"active_sessions"`
-	TotalEventsToday int     `json:"total_events_today"`
-	RateLimit     int        `json:"rate_limit"`
-	LastAccessed  *time.Time `json:"last_accessed"`
-	CreatedAt     time.Time  `json:"created_at"`
+	ID               string     `json:"id"`
+	Name             string     `json:"name"`
+	DisplayName      string     `json:"display_name"`
+	IsActive         bool       `json:"is_active"`
+	TotalUsers       int        `json:"total_users"`
+	ActiveSessions   int        `json:"active_sessions"`
+	TotalEventsToday int        `json:"total_events_today"`
+	RateLimit        int        `json:"rate_limit"`
+	LastAccessed     *time.Time `json:"last_accessed"`
+	CreatedAt        time.Time  `json:"created_at"`
 }
 
 // RegisterAppRequest represents app registration payload
@@ -72,10 +74,10 @@ type AppCredentials struct {
 // GetApplicationsHandler lists all registered applications
 func GetApplicationsHandler(w http.ResponseWriter, r *http.Request) {
 	showStats := r.URL.Query().Get("stats") == "true"
-	
+
 	var rows *sql.Rows
 	var err error
-	
+
 	if showStats {
 		// Get application statistics
 		rows, err = db.DB.Query(`
@@ -104,7 +106,7 @@ func GetApplicationsHandler(w http.ResponseWriter, r *http.Request) {
 			ORDER BY created_at DESC
 		`)
 	}
-	
+
 	if err != nil {
 		log.Printf("Failed to fetch applications: %v", err)
 		utils.SendError(w, "Failed to fetch applications", http.StatusInternalServerError)
@@ -117,7 +119,7 @@ func GetApplicationsHandler(w http.ResponseWriter, r *http.Request) {
 		for rows.Next() {
 			var app ApplicationStats
 			var lastAccessed sql.NullString
-			
+
 			err := rows.Scan(
 				&app.ID, &app.Name, &app.DisplayName, &app.IsActive,
 				&app.TotalUsers, &app.ActiveSessions, &app.TotalEventsToday,
@@ -127,17 +129,17 @@ func GetApplicationsHandler(w http.ResponseWriter, r *http.Request) {
 				log.Printf("Failed to scan application stats: %v", err)
 				continue
 			}
-			
+
 			if lastAccessed.Valid {
 				parsed, err := time.Parse("2006-01-02 15:04:05", lastAccessed.String)
 				if err == nil {
 					app.LastAccessed = &parsed
 				}
 			}
-			
+
 			apps = append(apps, app)
 		}
-		
+
 		utils.SendJSON(w, map[string]interface{}{
 			"applications": apps,
 			"total":        len(apps),
@@ -148,7 +150,7 @@ func GetApplicationsHandler(w http.ResponseWriter, r *http.Request) {
 			var app Application
 			var originsJSON, urisJSON, permsJSON, description, maxUsers sql.NullString
 			var lastAccessed sql.NullString
-			
+
 			err := rows.Scan(
 				&app.ID, &app.Name, &app.DisplayName, &description, &app.ScenarioType,
 				&originsJSON, &urisJSON, &permsJSON, &app.RateLimit,
@@ -159,24 +161,24 @@ func GetApplicationsHandler(w http.ResponseWriter, r *http.Request) {
 				log.Printf("Failed to scan application: %v", err)
 				continue
 			}
-			
+
 			if description.Valid {
 				app.Description = description.String
 			}
-			
+
 			if maxUsers.Valid {
 				if val, err := strconv.Atoi(maxUsers.String); err == nil {
 					app.MaxUsers = &val
 				}
 			}
-			
+
 			if lastAccessed.Valid {
 				parsed, err := time.Parse("2006-01-02 15:04:05", lastAccessed.String)
 				if err == nil {
 					app.LastAccessed = &parsed
 				}
 			}
-			
+
 			// Parse JSON arrays
 			if originsJSON.Valid && originsJSON.String != "" {
 				json.Unmarshal([]byte(originsJSON.String), &app.AllowedOrigins)
@@ -187,10 +189,10 @@ func GetApplicationsHandler(w http.ResponseWriter, r *http.Request) {
 			if permsJSON.Valid && permsJSON.String != "" {
 				json.Unmarshal([]byte(permsJSON.String), &app.Permissions)
 			}
-			
+
 			apps = append(apps, app)
 		}
-		
+
 		utils.SendJSON(w, map[string]interface{}{
 			"applications": apps,
 			"total":        len(apps),
@@ -205,37 +207,37 @@ func RegisterApplicationHandler(w http.ResponseWriter, r *http.Request) {
 		utils.SendError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validate required fields
 	if req.Name == "" || req.DisplayName == "" {
 		utils.SendError(w, "Name and display name are required", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validate scenario name format (should be kebab-case)
 	if !strings.HasPrefix(req.Name, "scenario-") {
 		utils.SendError(w, "Application name should start with 'scenario-'", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Set defaults
 	if req.RateLimit == nil {
 		defaultRate := 1000
 		req.RateLimit = &defaultRate
 	}
-	
+
 	if req.ScenarioType == "" {
 		req.ScenarioType = "api"
 	}
-	
+
 	if req.AllowedOrigins == nil {
 		req.AllowedOrigins = []string{}
 	}
-	
+
 	if req.RedirectURIs == nil {
 		req.RedirectURIs = []string{}
 	}
-	
+
 	// Check if application name already exists
 	var existingID string
 	err := db.DB.QueryRow("SELECT id FROM applications WHERE name = $1", req.Name).Scan(&existingID)
@@ -247,11 +249,11 @@ func RegisterApplicationHandler(w http.ResponseWriter, r *http.Request) {
 		utils.SendError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Generate API credentials
 	apiKey := "ak_" + utils.GenerateSecureToken(32)
 	apiSecret := "as_" + utils.GenerateSecureToken(32)
-	
+
 	// Hash the credentials
 	apiKeyHash, err := bcrypt.GenerateFromPassword([]byte(apiKey), bcrypt.DefaultCost)
 	if err != nil {
@@ -259,23 +261,25 @@ func RegisterApplicationHandler(w http.ResponseWriter, r *http.Request) {
 		utils.SendError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	
+
 	apiSecretHash, err := bcrypt.GenerateFromPassword([]byte(apiSecret), bcrypt.DefaultCost)
 	if err != nil {
 		log.Printf("Failed to hash API secret: %v", err)
 		utils.SendError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Marshal JSON fields
 	originsJSON, _ := json.Marshal(req.AllowedOrigins)
 	urisJSON, _ := json.Marshal(req.RedirectURIs)
 	permsJSON, _ := json.Marshal([]string{"auth:validate", "user:read"})
-	
+
 	// Get current user ID from token (for created_by)
 	var createdBy *string
-	// TODO: Extract user ID from JWT token in Authorization header
-	
+	if claims, ok := r.Context().Value("claims").(*models.Claims); ok {
+		createdBy = &claims.UserID
+	}
+
 	// Insert application
 	appID := uuid.New().String()
 	_, err = db.DB.Exec(`
@@ -287,38 +291,42 @@ func RegisterApplicationHandler(w http.ResponseWriter, r *http.Request) {
 	`, appID, req.Name, req.DisplayName, req.Description, req.ScenarioType,
 		string(apiKeyHash), string(apiSecretHash), string(originsJSON),
 		string(urisJSON), string(permsJSON), *req.RateLimit, req.MaxUsers, createdBy)
-	
+
 	if err != nil {
 		log.Printf("Failed to insert application: %v", err)
 		utils.SendError(w, "Failed to register application", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Return credentials
 	credentials := AppCredentials{
 		ApplicationID: appID,
 		APIKey:        apiKey,
 		APISecret:     apiSecret,
 	}
-	
+
 	// Log the registration
-	logAuthEvent("", "application.registered", "", r.Header.Get("User-Agent"), true,
+	actorID := ""
+	if createdBy != nil {
+		actorID = *createdBy
+	}
+	logAuthEvent(actorID, "application.registered", auth.GetClientIP(r), r.Header.Get("User-Agent"), true,
 		map[string]interface{}{
-			"application_id": appID,
+			"application_id":   appID,
 			"application_name": req.Name,
 		})
-	
+
 	utils.SendJSON(w, credentials, http.StatusCreated)
 }
 
 // GetApplicationHandler gets a specific application
 func GetApplicationHandler(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "id")
-	
+
 	var app Application
 	var originsJSON, urisJSON, permsJSON, description, maxUsers sql.NullString
 	var lastAccessed sql.NullString
-	
+
 	err := db.DB.QueryRow(`
 		SELECT 
 			id, name, display_name, description, scenario_type,
@@ -333,7 +341,7 @@ func GetApplicationHandler(w http.ResponseWriter, r *http.Request) {
 		&maxUsers, &app.IsActive, &lastAccessed, &app.TotalUsers,
 		&app.TotalAuths, &app.CreatedAt, &app.UpdatedAt,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			utils.SendError(w, "Application not found", http.StatusNotFound)
@@ -343,25 +351,25 @@ func GetApplicationHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	
+
 	// Parse optional fields
 	if description.Valid {
 		app.Description = description.String
 	}
-	
+
 	if maxUsers.Valid {
 		if val, err := strconv.Atoi(maxUsers.String); err == nil {
 			app.MaxUsers = &val
 		}
 	}
-	
+
 	if lastAccessed.Valid {
 		parsed, err := time.Parse("2006-01-02 15:04:05", lastAccessed.String)
 		if err == nil {
 			app.LastAccessed = &parsed
 		}
 	}
-	
+
 	// Parse JSON arrays
 	if originsJSON.Valid && originsJSON.String != "" {
 		json.Unmarshal([]byte(originsJSON.String), &app.AllowedOrigins)
@@ -372,24 +380,24 @@ func GetApplicationHandler(w http.ResponseWriter, r *http.Request) {
 	if permsJSON.Valid && permsJSON.String != "" {
 		json.Unmarshal([]byte(permsJSON.String), &app.Permissions)
 	}
-	
+
 	utils.SendJSON(w, app, http.StatusOK)
 }
 
 // UpdateApplicationHandler updates an application
 func UpdateApplicationHandler(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "id")
-	
+
 	var req RegisterAppRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.SendError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Marshal JSON fields
 	originsJSON, _ := json.Marshal(req.AllowedOrigins)
 	urisJSON, _ := json.Marshal(req.RedirectURIs)
-	
+
 	// Update application
 	_, err := db.DB.Exec(`
 		UPDATE applications 
@@ -399,13 +407,13 @@ func UpdateApplicationHandler(w http.ResponseWriter, r *http.Request) {
 		WHERE id = $8
 	`, req.DisplayName, req.Description, req.ScenarioType,
 		string(originsJSON), string(urisJSON), req.RateLimit, req.MaxUsers, appID)
-	
+
 	if err != nil {
 		log.Printf("Failed to update application: %v", err)
 		utils.SendError(w, "Failed to update application", http.StatusInternalServerError)
 		return
 	}
-	
+
 	utils.SendJSON(w, map[string]interface{}{
 		"success": true,
 		"message": "Application updated successfully",
@@ -415,26 +423,26 @@ func UpdateApplicationHandler(w http.ResponseWriter, r *http.Request) {
 // DeleteApplicationHandler deactivates an application
 func DeleteApplicationHandler(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "id")
-	
+
 	// Deactivate instead of delete to preserve audit trail
 	_, err := db.DB.Exec(`
 		UPDATE applications 
 		SET is_active = false, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 	`, appID)
-	
+
 	if err != nil {
 		log.Printf("Failed to deactivate application: %v", err)
 		utils.SendError(w, "Failed to deactivate application", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Log the deactivation
 	logAuthEvent("", "application.deactivated", "", r.Header.Get("User-Agent"), true,
 		map[string]interface{}{
 			"application_id": appID,
 		})
-	
+
 	utils.SendJSON(w, map[string]interface{}{
 		"success": true,
 		"message": "Application deactivated successfully",
@@ -445,11 +453,11 @@ func DeleteApplicationHandler(w http.ResponseWriter, r *http.Request) {
 func GenerateIntegrationCodeHandler(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "id")
 	integrationType := r.URL.Query().Get("type") // 'api', 'ui', 'workflow'
-	
+
 	if integrationType == "" {
 		integrationType = "api"
 	}
-	
+
 	// Get application details
 	var app Application
 	err := db.DB.QueryRow(`
@@ -457,7 +465,7 @@ func GenerateIntegrationCodeHandler(w http.ResponseWriter, r *http.Request) {
 		FROM applications 
 		WHERE id = $1 AND is_active = true
 	`, appID).Scan(&app.Name, &app.DisplayName, &app.ScenarioType)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			utils.SendError(w, "Application not found", http.StatusNotFound)
@@ -466,7 +474,7 @@ func GenerateIntegrationCodeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	
+
 	// Generate integration code based on type
 	var code string
 	switch integrationType {
@@ -480,7 +488,7 @@ func GenerateIntegrationCodeHandler(w http.ResponseWriter, r *http.Request) {
 		utils.SendError(w, "Invalid integration type", http.StatusBadRequest)
 		return
 	}
-	
+
 	utils.SendJSON(w, map[string]interface{}{
 		"application_name": app.Name,
 		"integration_type": integrationType,

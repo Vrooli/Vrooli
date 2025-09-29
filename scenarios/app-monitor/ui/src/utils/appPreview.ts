@@ -1,6 +1,8 @@
 import type { App } from '@/types';
 
 const resolveLocalOrigin = (): string => {
+  const fallback = 'http://127.0.0.1';
+
   try {
     const override =
       typeof import.meta !== 'undefined' &&
@@ -9,24 +11,22 @@ const resolveLocalOrigin = (): string => {
         ? import.meta.env.VITE_APP_MONITOR_LOCAL_ORIGIN.trim()
         : '';
 
-    if (override) {
-      const candidate = new URL(override.includes('://') ? override : `http://${override}`);
-      return candidate.origin;
+    if (!override) {
+      return fallback;
     }
+
+    const candidate = new URL(override.includes('://') ? override : `http://${override}`);
+    return candidate.origin;
   } catch (error) {
     if (typeof console !== 'undefined' && typeof console.warn === 'function') {
-      console.warn('Invalid VITE_APP_MONITOR_LOCAL_ORIGIN environment override', error);
+      console.warn('Invalid VITE_APP_MONITOR_LOCAL_ORIGIN override; falling back to 127.0.0.1', error);
     }
+    return fallback;
   }
-
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return window.location.origin;
-  }
-
-  return 'http://127.0.0.1';
 };
 
 const LOCAL_ORIGIN = resolveLocalOrigin();
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 
 const buildFromLocalOrigin = (path: string): string => {
   try {
@@ -43,10 +43,39 @@ const buildFromLocalOrigin = (path: string): string => {
 const buildFromLocalPort = (port: number): string => {
   try {
     const base = new URL(LOCAL_ORIGIN);
-    base.port = String(port);
+    if (port) {
+      base.port = String(port);
+    }
     return base.toString();
   } catch {
     return `${LOCAL_ORIGIN.replace(/:\d+$/, '')}:${port}`;
+  }
+};
+
+const coerceAbsoluteToLocal = (absoluteUrl: string, fallbackPort?: number | null): string => {
+  try {
+    const parsed = new URL(absoluteUrl);
+    if (LOOPBACK_HOSTS.has(parsed.hostname)) {
+      return parsed.toString();
+    }
+
+    const localBase = new URL(LOCAL_ORIGIN);
+    localBase.pathname = parsed.pathname;
+    localBase.search = parsed.search;
+    localBase.hash = parsed.hash;
+
+    if (parsed.port) {
+      localBase.port = parsed.port;
+    } else if (fallbackPort) {
+      localBase.port = String(fallbackPort);
+    }
+
+    return localBase.toString();
+  } catch {
+    if (fallbackPort) {
+      return buildFromLocalPort(fallbackPort);
+    }
+    return buildFromLocalOrigin(absoluteUrl);
   }
 };
 
@@ -249,14 +278,23 @@ const computeAppUIPort = (app: App): number | null => {
 export const buildPreviewUrl = (app: App): string | null => {
   const config = app.config ?? {};
   const environment = (app.environment ?? {}) as Record<string, unknown>;
+  const uiPort = computeAppUIPort(app);
 
-  if (typeof config.ui_url === 'string' && config.ui_url.trim()) {
-    const trimmed = config.ui_url.trim();
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+  const resolveCandidate = (value: string): string => {
+    const trimmed = value.trim();
+    if (!trimmed) {
       return trimmed;
     }
 
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return coerceAbsoluteToLocal(trimmed, uiPort);
+    }
+
     return buildFromLocalOrigin(trimmed);
+  };
+
+  if (typeof config.ui_url === 'string' && config.ui_url.trim()) {
+    return resolveCandidate(config.ui_url);
   }
 
   for (const [label, rawValue] of Object.entries(environment)) {
@@ -270,19 +308,12 @@ export const buildPreviewUrl = (app: App): string | null => {
       continue;
     }
 
-    const trimmed = candidate.trim();
-    if (!trimmed) {
-      continue;
+    const resolved = resolveCandidate(candidate);
+    if (resolved) {
+      return resolved;
     }
-
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      return trimmed;
-    }
-
-    return buildFromLocalOrigin(trimmed);
   }
 
-  const uiPort = computeAppUIPort(app);
   if (uiPort === null) {
     return null;
   }

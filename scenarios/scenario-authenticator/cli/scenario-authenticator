@@ -10,6 +10,49 @@ SCENARIO_NAME="scenario-authenticator"
 AUTH_TOKEN="${AUTH_TOKEN:-}"
 OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
 
+# Role normalization helpers
+NORMALIZED_ROLES_JSON=""
+NORMALIZED_ROLES_DISPLAY=""
+NORMALIZED_ROLES_IS_DEFAULT="true"
+
+normalize_roles_input() {
+    local roles_input="$1"
+
+    declare -A role_map=()
+    local role_parts=()
+    IFS=',' read -r -a role_parts <<< "$roles_input"
+    for part in "${role_parts[@]}"; do
+        local trimmed
+        trimmed=$(echo "$part" | awk '{gsub(/^ +| +$/,"" ); print tolower($0)}')
+        if [[ -n "$trimmed" ]]; then
+            role_map["$trimmed"]=1
+        fi
+    done
+
+    # Always ensure baseline access role is present
+    role_map["user"]=1
+
+    local tmp_roles=()
+    for key in "${!role_map[@]}"; do
+        tmp_roles+=("$key")
+    done
+
+    if [[ ${#tmp_roles[@]} -eq 0 ]]; then
+        tmp_roles=("user")
+    fi
+
+    IFS=$'\n' tmp_roles=($(printf '%s\n' "${tmp_roles[@]}" | sort))
+
+    NORMALIZED_ROLES_JSON=$(printf '%s\n' "${tmp_roles[@]}" | jq -R . | jq -c -s .)
+    NORMALIZED_ROLES_DISPLAY=$(printf '%s\n' "${tmp_roles[@]}" | awk 'BEGIN{ORS=""}{if(NR>1)printf(", "); printf("%s", $0)}')
+
+    if [[ ${#tmp_roles[@]} -eq 1 && "${tmp_roles[0]}" == "user" ]]; then
+        NORMALIZED_ROLES_IS_DEFAULT="true"
+    else
+        NORMALIZED_ROLES_IS_DEFAULT="false"
+    fi
+}
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -80,25 +123,19 @@ api_request() {
     local method="$1"
     local endpoint="$2"
     local data="$3"
-    local auth_header=""
     local api_url=$(get_api_url_cached)
     
+    local curl_args=(-s -X "$method" -H "Content-Type: application/json")
+
     if [ -n "$AUTH_TOKEN" ]; then
-        auth_header="-H \"Authorization: Bearer $AUTH_TOKEN\""
+        curl_args+=(-H "Authorization: Bearer $AUTH_TOKEN")
     fi
-    
+
     if [ -n "$data" ]; then
-        curl -s -X "$method" \
-             -H "Content-Type: application/json" \
-             $auth_header \
-             -d "$data" \
-             "${api_url}${endpoint}"
-    else
-        curl -s -X "$method" \
-             -H "Content-Type: application/json" \
-             $auth_header \
-             "${api_url}${endpoint}"
+        curl_args+=(-d "$data")
     fi
+
+    curl "${curl_args[@]}" "${api_url}${endpoint}"
 }
 
 # Commands
@@ -135,54 +172,80 @@ cmd_status() {
     fi
 }
 
+
 cmd_user_create() {
     local email="$1"
     local password="$2"
     local username="$3"
     local roles="${4:-user}"
-    
-    if [ -z "$email" ] || [ -z "$password" ]; then
-        print_error "Email and password are required"
-        echo "Usage: $0 user create <email> <password> [username] [roles]"
-        exit 1
+
+    # Normalize requested roles for follow-up update (if provided)
+    if [[ -n "$roles" ]]; then
+        normalize_roles_input "$roles"
     fi
+
+	if [ -z "$email" ] || [ -z "$password" ]; then
+		print_error "Email and password are required"
+		echo "Usage: $0 user create <email> <password> [username] [roles]"
+		exit 1
+	fi
+
+	if [ ${#password} -lt 8 ]; then
+		print_error "Password must be at least 8 characters"
+		exit 1
+	fi
+
+	print_info "Creating user account..."
+
+	if [[ "$username" == "-" ]]; then
+		username=""
+	fi
+
+	data="{\"email\":\"$email\",\"password\":\"$password\""
+	if [[ -n "$username" ]]; then
+		data="${data},\"username\":\"$username\""
+	fi
+	data="${data}}"
+
+	response=$(api_request POST "/api/v1/auth/register" "$data")
+	success=$(echo "$response" | jq -r '.success')
     
-    if [ ${#password} -lt 8 ]; then
-        print_error "Password must be at least 8 characters"
-        exit 1
-    fi
-    
-    print_info "Creating user account..."
-    
-    data="{\"email\":\"$email\",\"password\":\"$password\""
-    if [ -n "$username" ]; then
-        data="${data},\"username\":\"$username\""
-    fi
-    data="${data}}"
-    
-    response=$(api_request POST "/api/v1/auth/register" "$data")
-    success=$(echo "$response" | jq -r '.success')
-    
-    if [ "$success" == "true" ]; then
-        if [ "$OUTPUT_FORMAT" == "json" ]; then
-            echo "$response"
-        else
-            user_id=$(echo "$response" | jq -r '.user.id')
-            user_email=$(echo "$response" | jq -r '.user.email')
-            token=$(echo "$response" | jq -r '.token')
-            
-            print_success "User created successfully"
-            echo "ID: $user_id"
-            echo "Email: $user_email"
-            echo "Initial Token: ${token:0:20}..."
-            echo ""
-            echo "Use this token for authenticated requests:"
-            echo "export AUTH_TOKEN=\"$token\""
-        fi
-    else
-        error=$(echo "$response" | jq -r '.error // .message')
-        print_error "Failed to create user: $error"
-        exit 1
+	if [ "$success" == "true" ]; then
+		if [ "$OUTPUT_FORMAT" == "json" ]; then
+			echo "$response"
+		else
+			user_id=$(echo "$response" | jq -r '.user.id')
+			user_email=$(echo "$response" | jq -r '.user.email')
+			token=$(echo "$response" | jq -r '.token')
+
+			print_success "User created successfully"
+			echo "ID: $user_id"
+			echo "Email: $user_email"
+			echo "Initial Token: ${token:0:20}..."
+			echo ""
+			echo "Use this token for authenticated requests:"
+			echo "export AUTH_TOKEN=\"$token\""
+
+        if [[ "$NORMALIZED_ROLES_IS_DEFAULT" == "false" ]]; then
+            if [[ -z "$AUTH_TOKEN" ]]; then
+                print_warning "Requested roles (${NORMALIZED_ROLES_DISPLAY}) require an admin AUTH_TOKEN. User currently has default 'user' role."
+            else
+                update_payload=$(jq -n --argjson roles "$NORMALIZED_ROLES_JSON" '{roles: $roles}')
+                update_response=$(api_request PUT "/api/v1/users/${user_id}" "$update_payload")
+                update_success=$(echo "$update_response" | jq -r '.success // empty')
+                if [[ "$update_success" == "true" ]]; then
+                    print_success "Assigned roles: ${NORMALIZED_ROLES_DISPLAY}"
+                else
+                    update_error=$(echo "$update_response" | jq -r '.error // .message // "unknown error"')
+                    print_warning "User created but role update failed: ${update_error}"
+					fi
+				fi
+			fi
+		fi
+	else
+		error=$(echo "$response" | jq -r '.error // .message')
+		print_error "Failed to create user: $error"
+		exit 1
     fi
 }
 
@@ -213,6 +276,172 @@ cmd_user_list() {
             echo "Users (showing up to $limit of $total):"
             echo "$response" | jq -r '.users[] | "  - \(.email) (\(.id)) - Roles: \(.roles | join(", "))"'
         fi
+    fi
+}
+
+cmd_user_delete() {
+    local user_id="$1"
+
+    if [ -z "$user_id" ]; then
+        print_error "User ID is required"
+        echo "Usage: $0 user delete <user_id>"
+        exit 1
+    fi
+
+    if [ -z "$AUTH_TOKEN" ]; then
+        print_error "AUTH_TOKEN is required to delete users"
+        echo "Export an admin token first, e.g. AUTH_TOKEN=\"$(echo 'login_response' | jq -r '.token')\""
+        exit 1
+    fi
+
+    print_info "Deleting user $user_id..."
+
+    local response
+    response=$(api_request DELETE "/api/v1/users/${user_id}")
+    local success
+    success=$(echo "$response" | jq -r '.success // empty')
+
+    if [[ "$success" == "true" ]]; then
+        print_success "User deleted"
+    else
+        local error_message
+        error_message=$(echo "$response" | jq -r '.error // .message // "unknown error"')
+        print_error "Failed to delete user: ${error_message}"
+        exit 1
+    fi
+}
+
+cmd_user_get() {
+    local user_id="$1"
+
+    if [ -z "$user_id" ]; then
+        print_error "User ID is required"
+        echo "Usage: $0 user get <user_id>"
+        exit 1
+    fi
+
+    local response
+    response=$(api_request GET "/api/v1/users/${user_id}")
+
+    if echo "$response" | jq -e '.error?' >/dev/null 2>&1; then
+        local error_message
+        error_message=$(echo "$response" | jq -r '.error // .message // "unknown error"')
+        print_error "Failed to fetch user: ${error_message}"
+        exit 1
+    fi
+
+    if [ "$OUTPUT_FORMAT" == "json" ]; then
+        echo "$response"
+    else
+        local email roles verified created last_login
+        email=$(echo "$response" | jq -r '.email')
+        roles=$(echo "$response" | jq -r '.roles | join(", ")')
+        verified=$(echo "$response" | jq -r '.email_verified')
+        created=$(echo "$response" | jq -r '.created_at')
+        last_login=$(echo "$response" | jq -r '.last_login // "never"')
+
+        echo "User: $email"
+        echo "Roles: ${roles:-user}"
+        echo "Email Verified: $verified"
+        echo "Created: $created"
+        echo "Last Login: $last_login"
+    fi
+}
+
+cmd_user_update() {
+    local user_id="$1"
+    local field="$2"
+    local value="$3"
+
+    if [ -z "$user_id" ] || [ -z "$field" ]; then
+        print_error "User ID and field are required"
+        echo "Usage: $0 user update <user_id> <field> <value>"
+        echo "Fields: roles, username, email_verified"
+        exit 1
+    fi
+
+    if [ -z "$AUTH_TOKEN" ]; then
+        print_error "AUTH_TOKEN is required to update users"
+        echo "Export an admin token first, e.g. AUTH_TOKEN=\"$(echo 'login_response' | jq -r '.token')\""
+        exit 1
+    fi
+
+    local payload=""
+    case "$field" in
+        roles)
+            if [ -z "$value" ]; then
+                print_error "Roles value is required"
+                exit 1
+            fi
+            normalize_roles_input "$value"
+            payload=$(jq -n --argjson roles "$NORMALIZED_ROLES_JSON" '{roles: $roles}')
+            ;;
+        username)
+            if [ -z "$value" ]; then
+                print_error "Username value is required"
+                exit 1
+            fi
+            if [[ "$value" == "-" ]]; then
+                payload=$(jq -n '{username: ""}')
+            else
+                payload=$(jq -n --arg username "$value" '{username: $username}')
+            fi
+            ;;
+        email_verified)
+            if [ -z "$value" ]; then
+                print_error "email_verified value is required (true/false)"
+                exit 1
+            fi
+            local bool_value
+            case "${value,,}" in
+                true|1|yes)
+                    bool_value=true
+                    ;;
+                false|0|no)
+                    bool_value=false
+                    ;;
+                *)
+                    print_error "Invalid email_verified value. Use true/false"
+                    exit 1
+                    ;;
+            esac
+            payload=$(jq -n --argjson email_verified "$bool_value" '{email_verified: $email_verified}')
+            ;;
+        *)
+            print_error "Unsupported field: $field"
+            echo "Supported fields: roles, username, email_verified"
+            exit 1
+            ;;
+    esac
+
+    print_info "Updating user $user_id..."
+
+    local response
+    response=$(api_request PUT "/api/v1/users/${user_id}" "$payload")
+    local success
+    success=$(echo "$response" | jq -r '.success // empty')
+
+    if [[ "$success" == "true" ]]; then
+        print_success "User updated"
+        if [ "$OUTPUT_FORMAT" == "json" ]; then
+            echo "$response"
+        else
+            local updated_roles updated_username updated_verified
+            updated_roles=$(echo "$response" | jq -r '.user.roles | join(", ")')
+            updated_username=$(echo "$response" | jq -r '.user.username // ""')
+            updated_verified=$(echo "$response" | jq -r '.user.email_verified')
+
+            echo "Roles: ${updated_roles:-user}"
+            if [ -n "$updated_username" ]; then
+                echo "Username: $updated_username"
+            fi
+            echo "Email Verified: $updated_verified"
+        fi
+    else
+        local error_message
+        error_message=$(echo "$response" | jq -r '.error // .message // "unknown error"')
+        print_error "Failed to update user: ${error_message}"
+        exit 1
     fi
 }
 
@@ -412,8 +641,8 @@ USER MANAGEMENT:
     user create <email> <pass> [username]   Create new user account
     user list [role] [limit]               List users with optional filters
     user get <id>                          Get user details by ID
-    user update <id> <field> <value>       Update user field
-    user delete <id>                       Delete user (soft delete)
+    user update <id> <field> <value>       Update user field (admin token)
+    user delete <id>                       Delete user (soft delete, admin token)
 
 TOKEN OPERATIONS:
     token validate <token>                  Validate JWT token and show info
@@ -441,6 +670,9 @@ EXAMPLES:
     $0 user create admin@company.com "Secure123!" admin
     $0 user list                           # List all users
     $0 user list admin 5                   # List 5 admin users
+    export AUTH_TOKEN=\"...\"             # Admin login token required below
+    $0 user update \$USER_ID roles admin,moderator
+    $0 user delete \$USER_ID
     
     # Token Operations
     $0 token validate "\$AUTH_TOKEN"        # Validate current token
@@ -483,20 +715,23 @@ case "${1:-}" in
             list)
                 cmd_user_list "$3" "$4"
                 ;;
-            get|update|delete)
-                print_warning "Command '$2' not yet implemented"
-                echo "Available user commands: create, list"
-                echo "Use: $0 help for full command reference"
-                exit 1
+            get)
+                cmd_user_get "$3"
+                ;;
+            delete)
+                cmd_user_delete "$3"
+                ;;
+            update)
+                cmd_user_update "$3" "$4" "$5"
                 ;;
             *)
                 print_error "Unknown user command: $2"
                 echo "Available user commands:"
                 echo "  - create <email> <password> [username]  Create new user"
                 echo "  - list [role] [limit]                   List users"
-                echo "  - get <id>                              Get user by ID (coming soon)"
-                echo "  - update <id> <field> <value>           Update user (coming soon)"
-                echo "  - delete <id>                           Delete user (coming soon)"
+                echo "  - get <id>                              Get user by ID"
+                echo "  - update <id> <field> <value>           Update user (admin token required)"
+                echo "  - delete <id>                           Delete user (admin token required)"
                 echo ""
                 echo "Use: $0 help for complete documentation"
                 exit 1
