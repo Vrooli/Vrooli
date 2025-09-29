@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -245,6 +246,12 @@ func (s *Server) handleDataValidate(w http.ResponseWriter, r *http.Request) {
 	// Check for anomalies
 	anomalies := detectAnomalies(data)
 	
+	// Calculate accuracy (based on schema validation)
+	accuracy := calculateAccuracy(data, req.Schema)
+	
+	// Calculate consistency (based on data patterns)
+	consistency := calculateConsistency(data)
+	
 	// Apply custom quality rules
 	for _, rule := range req.QualityRules {
 		ruleViolations := applyQualityRule(data, rule)
@@ -253,13 +260,25 @@ func (s *Server) handleDataValidate(w http.ResponseWriter, r *http.Request) {
 			isValid = false
 		}
 	}
+	
+	// Calculate overall quality score
+	qualityScore := (completeness + accuracy + consistency) / 3.0
+	if duplicateCount > 0 {
+		qualityScore *= (1.0 - float64(duplicateCount)/float64(len(data)))
+	}
+	if len(anomalies) > 0 {
+		qualityScore *= (1.0 - float64(len(anomalies))/float64(len(data)*len(data[0])))
+	}
 
 	qualityReport := map[string]interface{}{
-		"completeness": completeness,
-		"accuracy":     0.95, // Placeholder
-		"consistency":  0.90, // Placeholder
-		"anomalies":    anomalies,
-		"duplicates":   duplicateCount,
+		"completeness":  completeness,
+		"accuracy":      accuracy,
+		"consistency":   consistency,
+		"quality_score": qualityScore,
+		"anomalies":     anomalies,
+		"duplicates":    duplicateCount,
+		"total_rows":    len(data),
+		"total_columns": len(data[0]),
 	}
 
 	// Store quality report in database
@@ -473,10 +492,281 @@ func countDuplicates(data []map[string]interface{}) int {
 func detectAnomalies(data []map[string]interface{}) []map[string]interface{} {
 	anomalies := []map[string]interface{}{}
 	
-	// Simple anomaly detection - in production use statistical methods
-	// For now, just return empty
+	// Statistical anomaly detection for numeric fields
+	numericStats := make(map[string][]float64)
+	
+	// Collect numeric values
+	for _, row := range data {
+		for key, value := range row {
+			if numVal, ok := toFloat64(value); ok {
+				if numericStats[key] == nil {
+					numericStats[key] = []float64{}
+				}
+				numericStats[key] = append(numericStats[key], numVal)
+			}
+		}
+	}
+	
+	// Calculate statistics and detect outliers
+	for field, values := range numericStats {
+		if len(values) < 4 {
+			continue
+		}
+		
+		mean, stdDev := calculateStats(values)
+		
+		// Find outliers (values beyond 3 standard deviations)
+		for i, row := range data {
+			if val, ok := toFloat64(row[field]); ok {
+				if stdDev > 0 && (val > mean+3*stdDev || val < mean-3*stdDev) {
+					anomalies = append(anomalies, map[string]interface{}{
+						"row_index": i,
+						"field":     field,
+						"value":     val,
+						"type":      "statistical_outlier",
+						"severity":  "warning",
+						"details":   fmt.Sprintf("Value %.2f is %.2f std devs from mean %.2f", val, (val-mean)/stdDev, mean),
+					})
+				}
+			}
+		}
+	}
+	
+	// Detect pattern anomalies in string fields
+	for i, row := range data {
+		for field, value := range row {
+			if strVal, ok := value.(string); ok {
+				// Check for suspicious patterns
+				if strings.Contains(strVal, "<script") || strings.Contains(strVal, "DROP TABLE") {
+					anomalies = append(anomalies, map[string]interface{}{
+						"row_index": i,
+						"field":     field,
+						"value":     strVal[:min(50, len(strVal))],
+						"type":      "suspicious_content",
+						"severity":  "critical",
+						"details":   "Potentially malicious content detected",
+					})
+				}
+				
+				// Check for unexpected format
+				if field == "email" && !strings.Contains(strVal, "@") {
+					anomalies = append(anomalies, map[string]interface{}{
+						"row_index": i,
+						"field":     field,
+						"value":     strVal,
+						"type":      "format_violation",
+						"severity":  "warning",
+						"details":   "Email field missing @ symbol",
+					})
+				}
+			}
+		}
+	}
 	
 	return anomalies
+}
+
+// Helper functions for anomaly detection
+func toFloat64(v interface{}) (float64, bool) {
+	switch val := v.(type) {
+	case float64:
+		return val, true
+	case float32:
+		return float64(val), true
+	case int:
+		return float64(val), true
+	case int64:
+		return float64(val), true
+	default:
+		return 0, false
+	}
+}
+
+func calculateStats(values []float64) (mean, stdDev float64) {
+	if len(values) == 0 {
+		return 0, 0
+	}
+	
+	// Calculate mean
+	sum := 0.0
+	for _, v := range values {
+		sum += v
+	}
+	mean = sum / float64(len(values))
+	
+	// Calculate standard deviation
+	varSum := 0.0
+	for _, v := range values {
+		diff := v - mean
+		varSum += diff * diff
+	}
+	variance := varSum / float64(len(values))
+	stdDev = math.Sqrt(variance)
+	
+	return mean, stdDev
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func calculateAccuracy(data []map[string]interface{}, schema dataprocessor.Schema) float64 {
+	if len(data) == 0 || len(schema.Columns) == 0 {
+		return 0.0
+	}
+	
+	totalChecks := 0
+	passedChecks := 0
+	
+	// Check each row against schema
+	for _, row := range data {
+		for _, col := range schema.Columns {
+			totalChecks++
+			value, exists := row[col.Name]
+			
+			// Check existence
+			if !exists {
+				if !col.Nullable {
+					continue // Failed check
+				}
+			}
+			
+			// Check type
+			if value != nil && isCorrectType(value, col.Type) {
+				passedChecks++
+			} else if value == nil && col.Nullable {
+				passedChecks++
+			}
+		}
+	}
+	
+	if totalChecks == 0 {
+		return 1.0
+	}
+	
+	return float64(passedChecks) / float64(totalChecks)
+}
+
+func calculateConsistency(data []map[string]interface{}) float64 {
+	if len(data) == 0 {
+		return 1.0
+	}
+	
+	consistencyScore := 1.0
+	
+	// Check field consistency (all rows have same fields)
+	fieldCounts := make(map[string]int)
+	for _, row := range data {
+		for field := range row {
+			fieldCounts[field]++
+		}
+	}
+	
+	// Calculate field consistency
+	for _, count := range fieldCounts {
+		fieldConsistency := float64(count) / float64(len(data))
+		consistencyScore *= fieldConsistency
+	}
+	
+	// Check format consistency for string fields
+	patternConsistency := checkPatternConsistency(data)
+	consistencyScore = (consistencyScore + patternConsistency) / 2.0
+	
+	return consistencyScore
+}
+
+func isCorrectType(value interface{}, expectedType string) bool {
+	switch expectedType {
+	case "string":
+		_, ok := value.(string)
+		return ok
+	case "integer":
+		switch value.(type) {
+		case int, int32, int64, float64:
+			return true
+		}
+	case "float", "number":
+		_, ok1 := value.(float64)
+		_, ok2 := value.(float32)
+		_, ok3 := value.(int)
+		return ok1 || ok2 || ok3
+	case "boolean":
+		_, ok := value.(bool)
+		return ok
+	default:
+		return true // Unknown type, assume correct
+	}
+	return false
+}
+
+func checkPatternConsistency(data []map[string]interface{}) float64 {
+	if len(data) == 0 {
+		return 1.0
+	}
+	
+	// Check date format consistency
+	datePatterns := make(map[string]map[string]int) // field -> pattern -> count
+	
+	for _, row := range data {
+		for field, value := range row {
+			if strVal, ok := value.(string); ok {
+				pattern := detectPattern(strVal)
+				if pattern != "" {
+					if datePatterns[field] == nil {
+						datePatterns[field] = make(map[string]int)
+					}
+					datePatterns[field][pattern]++
+				}
+			}
+		}
+	}
+	
+	// Calculate consistency score based on pattern uniformity
+	totalScore := 0.0
+	fieldCount := 0
+	
+	for _, patterns := range datePatterns {
+		fieldCount++
+		total := 0
+		maxCount := 0
+		
+		for _, count := range patterns {
+			total += count
+			if count > maxCount {
+				maxCount = count
+			}
+		}
+		
+		if total > 0 {
+			totalScore += float64(maxCount) / float64(total)
+		}
+	}
+	
+	if fieldCount == 0 {
+		return 1.0
+	}
+	
+	return totalScore / float64(fieldCount)
+}
+
+func detectPattern(str string) string {
+	// Simple pattern detection
+	if strings.Contains(str, "@") && strings.Contains(str, ".") {
+		return "email"
+	}
+	if strings.Contains(str, "-") && len(str) >= 8 && len(str) <= 10 {
+		return "date-dashed"
+	}
+	if strings.Contains(str, "/") && len(str) >= 8 && len(str) <= 10 {
+		return "date-slash"
+	}
+	if strings.HasPrefix(str, "http") {
+		return "url"
+	}
+	return ""
 }
 
 func applyQualityRule(data []map[string]interface{}, rule QualityRule) []map[string]interface{} {

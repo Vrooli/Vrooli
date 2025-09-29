@@ -1,11 +1,16 @@
 import EventEmitter from "./EventEmitter.js";
 
+const MAX_PIXEL_RATIO = 1.0;
+
 export default class Sizes extends EventEmitter {
   constructor({ target }) {
     super();
 
     this.target = target;
-    this.pixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
+    this.pixelRatio = Math.min(
+      Math.max(window.devicePixelRatio || 1, 1),
+      MAX_PIXEL_RATIO,
+    );
     this._onResize = this._onResize.bind(this);
 
     this._measure();
@@ -17,7 +22,10 @@ export default class Sizes extends EventEmitter {
 
     this.width = bounds?.width || window.innerWidth;
     this.height = bounds?.height || window.innerHeight;
-    this.pixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
+    this.pixelRatio = Math.min(
+      Math.max(window.devicePixelRatio || 1, 1),
+      MAX_PIXEL_RATIO,
+    );
   }
 
   _onResize() {

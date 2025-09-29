@@ -6,8 +6,8 @@ set -uo pipefail
 # Test environment
 export SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 export TEST_DIR="$SCENARIO_DIR/test"
-export API_PORT="${API_PORT:-17564}"
-export UI_PORT="${UI_PORT:-37181}"
+export API_PORT="${API_PORT:-17808}"
+export UI_PORT="${UI_PORT:-37197}"
 
 # Colors
 RED='\033[0;31m'

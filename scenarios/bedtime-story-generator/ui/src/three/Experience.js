@@ -68,10 +68,9 @@ export default class Experience {
 
     // Initialize post-processing and physics
     this.postProcessing = new PostProcessing(this);
+    this.postProcessing.enabled = false;
     this.physicsSimulation = new PhysicsSimulation(this);
-    
-    // Enable physics for interactive experience
-    this.physicsSimulation.enable();
+    this.physicsSimulation.disable();
     
     // Subscribe to asset reload events for key assets
     this._setupHotReloadSubscriptions();
@@ -90,6 +89,7 @@ export default class Experience {
         cameraFocus: state.cameraFocus,
         activeRoom: state.activeRoom,
         cameraAutopilot: state.cameraAutopilot,
+        developerMode: state.developerMode,
       }),
       this._handleStoreChange,
     );
@@ -106,6 +106,7 @@ export default class Experience {
   _handleResize() {
     this.camera.resize();
     this.renderer.resize();
+    this.postProcessing?.resize?.();
   }
 
   _handleTick(frame) {
@@ -141,6 +142,13 @@ export default class Experience {
       this.postProcessing.setTimeOfDay(snapshot.timeOfDay);
     }
     this.world.setStoreSnapshot(snapshot);
+    if (this.physicsSimulation) {
+      if (snapshot.developerMode) {
+        this.physicsSimulation.enable();
+      } else {
+        this.physicsSimulation.disable();
+      }
+    }
     if (snapshot.activeRoom && snapshot.activeRoom !== this.currentRoom) {
       this.currentRoom = snapshot.activeRoom;
       this.cameraRig.updateRoom(this.currentRoom);
@@ -160,7 +168,17 @@ export default class Experience {
     if (this.audioAmbience && snapshot.selectedStory && snapshot.selectedStory.theme) {
       this.audioAmbience.setStoryMood(snapshot.selectedStory.theme.toLowerCase());
     }
-    
+
+    if (typeof snapshot.developerMode === "boolean") {
+      if (snapshot.developerMode) {
+        this.postProcessing.enabled = true;
+        this.physicsSimulation?.enable();
+      } else {
+        this.postProcessing.enabled = false;
+        this.physicsSimulation?.disable();
+      }
+    }
+
     // Play camera intro rail on first load
     if (this.cameraRailSystem && !this.hasPlayedIntro) {
       this.cameraRailSystem.playRail("intro");

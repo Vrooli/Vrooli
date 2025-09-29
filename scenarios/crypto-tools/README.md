@@ -1,6 +1,6 @@
-# {{ scenario.name }} - Full Scenario Template with API & CLI
+# Crypto-Tools - Enterprise Cryptographic Operations Platform
 
-> **Enterprise-grade scenario template with Go API server, CLI tool, and complete deployment orchestration**
+> **Comprehensive cryptographic toolkit providing hashing, encryption, digital signatures, and key management via RESTful API and CLI**
 
 <!-- 
 🔄 TEMPLATE ENHANCED WITH API & CLI PATTERNS:
@@ -30,24 +30,23 @@ This template includes the **modern scenario architecture** based on agent-metar
 ## 🎯 **Business Overview**
 
 ### **Value Proposition**
-{{ business.value_proposition }}
-<!-- AI: Replace with VALUE_PROPOSITION_PLACEHOLDER - include specific metrics/outcomes -->
+Provides enterprise-grade cryptographic operations without requiring custom implementation, enabling secure-by-default applications across the Vrooli ecosystem.
 
 ### **Target Markets**
-{% for market in business.target_markets %}
-- {{ market }}
-{% endfor %}
-<!-- AI: Replace with PRIMARY_MARKET_PLACEHOLDER, SECONDARY_MARKET_PLACEHOLDER -->
+- Financial services requiring secure transaction signing
+- Healthcare systems needing HIPAA-compliant encryption
+- Enterprise software with compliance requirements
+- Blockchain and cryptocurrency applications
 
 ### **Pain Points Addressed**
-{% for pain_point in business.pain_points %}
-- {{ pain_point }}
-{% endfor %}
-<!-- AI: Replace with PAIN_POINT_1_PLACEHOLDER, PAIN_POINT_2_PLACEHOLDER -->
+- Complex cryptographic implementation requirements
+- Security vulnerabilities from incorrect crypto usage
+- Compliance certification requirements (FIPS, SOC2, GDPR)
+- Key management lifecycle complexity
 
 ### **Revenue Potential**
-- **Range**: ${{ business.revenue_potential.min | number_format }} - ${{ business.revenue_potential.max | number_format }}
-- **Market Demand**: {{ business.market_demand }}
+- **Range**: $10K - $50K per deployment
+- **Market Demand**: High - Every enterprise application needs cryptography
 - **Pricing Model**: {{ business.revenue_potential.pricing_model }}
 <!-- AI: Adjust min/max based on scenario complexity and business value -->
 
@@ -88,58 +87,68 @@ This template includes the **modern scenario architecture** based on agent-metar
 
 ## 🚀 **Quick Start**
 
-### **1. Setup and Build**
+### **1. Start the Scenario**
 ```bash
 # Navigate to scenario directory
-cd {{ scenario.id }}
+cd scenarios/crypto-tools
 
-# Run setup lifecycle (builds API, installs CLI)
-../../manage.sh setup --target native-linux
-
-# This automatically:
-# - Builds Go API server
-# - Installs CLI globally
-# - Initializes database
-# - Imports workflows
+# Use Make commands for lifecycle management
+make run     # Start crypto-tools scenario
+make status  # Check if running
+make logs    # View logs
+make stop    # Stop scenario
 ```
 
-### **2. Start Development Environment**
+### **2. Find API Port**
+The API uses dynamic port assignment. Find the current port:
 ```bash
-# Start all services
-../../manage.sh develop --target native-linux
-
-# Services will be available at:
-# - API Server: http://localhost:${API_PORT}
-# - API Docs: http://localhost:${API_PORT}/docs
-# - Windmill UI: http://localhost:5681
-# - n8n Workflows: http://localhost:5678
+vrooli scenario logs crypto-tools --step start-api | tail -5
+# Look for "Server starting on port XXXXX"
 ```
 
 ### **3. Use the CLI**
 ```bash
-# After setup, CLI is available globally
-CLI_NAME_PLACEHOLDER health                          # Check system health
-CLI_NAME_PLACEHOLDER list resources                  # List all resources
-CLI_NAME_PLACEHOLDER get resources <id>              # Get specific resource
-CLI_NAME_PLACEHOLDER create resources name "Test"    # Create resource
-CLI_NAME_PLACEHOLDER execute workflow-1 "Input data" # Execute workflow
+# Set API port (replace PORT with actual port from step 2)
+API_BASE="http://localhost:PORT"
+
+# Hash operations
+./cli/crypto-tools --api-base $API_BASE hash "Hello World" --algorithm sha256
+./cli/crypto-tools --api-base $API_BASE hash file.txt --algorithm sha512
+
+# Encryption/Decryption
+./cli/crypto-tools --api-base $API_BASE encrypt "Secret data" --algorithm aes256
+./cli/crypto-tools --api-base $API_BASE decrypt "encrypted_string" --key "key"
+
+# Key generation
+./cli/crypto-tools --api-base $API_BASE keygen rsa --size 2048 --name mykey
+./cli/crypto-tools --api-base $API_BASE keygen symmetric --size 256
+./cli/crypto-tools --api-base $API_BASE keys  # List all keys
+
+# Digital signatures
+./cli/crypto-tools --api-base $API_BASE sign "document.txt" KEY_ID --algorithm rsa_pss
+./cli/crypto-tools --api-base $API_BASE verify "document.txt" "signature" --public-key "key"
+
+# Management
+./cli/crypto-tools --api-base $API_BASE status  # Check API health
+./cli/crypto-tools help                         # Show all commands
 ```
 
 ### **4. Access API Directly**
 ```bash
 # Health check
-curl http://localhost:${API_PORT}/health
+curl http://localhost:PORT/health | jq
 
-# List resources (with authentication)
-curl -H "Authorization: Bearer API_TOKEN_PLACEHOLDER" \
-     http://localhost:${API_PORT}/api/v1/resources
+# Hash operation
+curl -X POST http://localhost:PORT/api/v1/crypto/hash \
+  -H "Authorization: Bearer crypto-tools-api-key-2024" \
+  -H "Content-Type: application/json" \
+  -d '{"data": "Hello", "algorithm": "sha256"}' | jq
 
-# Create resource
-curl -X POST \
-     -H "Authorization: Bearer API_TOKEN_PLACEHOLDER" \
-     -H "Content-Type: application/json" \
-     -d '{"name": "Test", "description": "Example"}' \
-     http://localhost:${API_PORT}/api/v1/resources
+# Generate key
+curl -X POST http://localhost:PORT/api/v1/crypto/keys/generate \
+  -H "Authorization: Bearer crypto-tools-api-key-2024" \
+  -H "Content-Type: application/json" \
+  -d '{"key_type": "rsa", "key_size": 2048}' | jq
 ```
 
 ## 📁 **File Structure**

@@ -95,14 +95,14 @@ const SceneControls = ({ experience }) => {
     try {
       const zipBlob = await BlenderAssetKit.createAssetPackage();
       const url = URL.createObjectURL(zipBlob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.download = 'bedtime-story-asset-kit.zip';
+      link.download = "bedtime-story-asset-kit.zip";
       link.click();
       URL.revokeObjectURL(url);
-      console.log('Asset kit exported successfully');
+      console.log("Asset kit exported successfully");
     } catch (error) {
-      console.error('Failed to export asset kit:', error);
+      console.error("Failed to export asset kit:", error);
     }
   };
 

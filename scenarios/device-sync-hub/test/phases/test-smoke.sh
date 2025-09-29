@@ -5,8 +5,8 @@
 set -uo pipefail
 
 # Test environment
-export API_URL="${API_URL:-http://localhost:17564}"
-export UI_URL="${UI_URL:-http://localhost:37181}"
+export API_URL="${API_URL:-http://localhost:17808}"
+export UI_URL="${UI_URL:-http://localhost:37197}"
 
 # Colors
 GREEN='\033[0;32m'

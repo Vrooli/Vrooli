@@ -86,15 +86,50 @@ This template includes the **modern scenario architecture** based on agent-metar
 - **MinIO**: Object storage for files
 <!-- AI: Add optional resources that enhance functionality -->
 
+## 📄 **API Endpoints**
+
+### **Health Check**
+```bash
+curl http://localhost:19914/health
+```
+
+### **Data Parsing**
+```bash
+curl -X POST http://localhost:19914/api/v1/data/parse \
+  -H "Authorization: Bearer data-tools-secret-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": "name,age,city\nJohn,30,NYC\nJane,25,LA",
+    "format": "csv",
+    "options": {"headers": true, "infer_types": true}
+  }'
+```
+
+### **Data Validation**
+```bash
+curl -X POST http://localhost:19914/api/v1/data/validate \
+  -H "Authorization: Bearer data-tools-secret-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": [{"name": "John", "age": 30}],
+    "schema": {
+      "columns": [
+        {"name": "name", "type": "string", "nullable": false},
+        {"name": "age", "type": "integer", "nullable": false}
+      ]
+    }
+  }'
+```
+
 ## 🚀 **Quick Start**
 
 ### **1. Setup and Build**
 ```bash
 # Navigate to scenario directory
-cd {{ scenario.id }}
+cd scenarios/data-tools
 
-# Run setup lifecycle (builds API, installs CLI)
-../../manage.sh setup --target native-linux
+# Start the scenario
+make run
 
 # This automatically:
 # - Builds Go API server

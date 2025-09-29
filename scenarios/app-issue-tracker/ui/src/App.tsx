@@ -1,4 +1,11 @@
-import type { FormEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import type {
+  ChangeEvent,
+  DragEvent,
+  FormEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+} from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CalendarClock,
@@ -8,13 +15,17 @@ import {
   FileCode,
   FileDown,
   FileText,
+  Filter,
   Hash,
+  Eye,
+  EyeOff,
   Image as ImageIcon,
   KanbanSquare,
   LayoutDashboard,
   Loader2,
   Mail,
   Paperclip,
+  UploadCloud,
   Tag,
   User,
   X,
@@ -22,7 +33,7 @@ import {
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { Dashboard } from './pages/Dashboard';
-import { IssuesBoard } from './pages/IssuesBoard';
+import { IssuesBoard, columnMeta as issueColumnMeta } from './pages/IssuesBoard';
 import { SettingsPage } from './pages/Settings';
 import {
   AppSettings,
@@ -43,7 +54,7 @@ const API_BASE_INPUT = (import.meta.env.VITE_API_BASE_URL as string | undefined)
 const API_BASE_URL = API_BASE_INPUT.endsWith('/') ? API_BASE_INPUT.slice(0, -1) : API_BASE_INPUT;
 const ISSUE_FETCH_LIMIT = 200;
 const MAX_ATTACHMENT_PREVIEW_CHARS = 8000;
-const VALID_STATUSES: IssueStatus[] = ['open', 'investigating', 'in-progress', 'fixed', 'closed', 'failed'];
+const VALID_STATUSES: IssueStatus[] = ['open', 'investigating', 'in-progress', 'fixed', 'closed', 'failed', 'archived'];
 
 interface ApiIssue {
   id: string;
@@ -97,6 +108,17 @@ interface CreateIssueInput {
   tags: string[];
   reporterName?: string;
   reporterEmail?: string;
+  attachments: CreateIssueAttachmentPayload[];
+}
+
+type PriorityFilterValue = Priority | 'all';
+
+interface CreateIssueAttachmentPayload {
+  name: string;
+  content: string;
+  encoding: 'base64' | 'plain';
+  contentType: string;
+  category?: string;
 }
 
 function buildApiUrl(path: string): string {
@@ -611,6 +633,9 @@ function App() {
   const [allowedAgents, setAllowedAgents] = useState<ActiveAgentOption[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>(SampleData.activeAgents[0]?.id ?? '');
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilterValue>('all');
+  const [appFilter, setAppFilter] = useState<string>('all');
+  const [hiddenColumns, setHiddenColumns] = useState<IssueStatus[]>([]);
   const [createIssueOpen, setCreateIssueOpen] = useState(false);
   const [issueDetailOpen, setIssueDetailOpen] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>(DEFAULT_STATS);
@@ -621,6 +646,37 @@ function App() {
   const selectedIssue = useMemo(() => {
     return issues.find((issue) => issue.id === focusedIssueId) ?? null;
   }, [issues, focusedIssueId]);
+
+  const updateStatsFromIssues = useCallback(
+    (nextIssues: Issue[]) => {
+      setDashboardStats(buildDashboardStats(nextIssues, null));
+    },
+    [],
+  );
+
+  const availableApps = useMemo(() => {
+    const apps = new Set<string>();
+    issues.forEach((issue) => {
+      if (issue.app) {
+        apps.add(issue.app);
+      }
+    });
+    return Array.from(apps).sort((first, second) => first.localeCompare(second));
+  }, [issues]);
+
+  const filteredIssues = useMemo(() => {
+    return issues.filter((issue) => {
+      const matchesPriority = priorityFilter === 'all' || issue.priority === priorityFilter;
+      const matchesApp = appFilter === 'all' || issue.app === appFilter;
+      return matchesPriority && matchesApp;
+    });
+  }, [issues, priorityFilter, appFilter]);
+
+  useEffect(() => {
+    if (appFilter !== 'all' && !availableApps.includes(appFilter)) {
+      setAppFilter('all');
+    }
+  }, [appFilter, availableApps]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -863,6 +919,13 @@ function App() {
         tags: input.tags,
         reporter_name: input.reporterName?.trim(),
         reporter_email: input.reporterEmail?.trim(),
+        artifacts: input.attachments.map((attachment) => ({
+          name: attachment.name,
+          category: attachment.category ?? 'attachment',
+          content: attachment.content,
+          encoding: attachment.encoding,
+          content_type: attachment.contentType,
+        })),
       };
 
       const response = await fetch(buildApiUrl('/issues'), {
@@ -883,6 +946,54 @@ function App() {
       return issueId;
     },
     [fetchAllData],
+  );
+
+  const deleteIssue = useCallback(async (issueId: string) => {
+    const response = await fetch(buildApiUrl(`/issues/${encodeURIComponent(issueId)}`), {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error(`Issue deletion failed with status ${response.status}`);
+    }
+  }, []);
+
+  const updateIssueStatus = useCallback(
+    async (issueId: string, nextStatus: IssueStatus) => {
+      const response = await fetch(buildApiUrl(`/issues/${encodeURIComponent(issueId)}`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Issue update failed with status ${response.status}`);
+      }
+
+      const responseBody = await response.json();
+      const updatedIssue: ApiIssue | null = responseBody?.data?.issue ?? null;
+
+      setIssues((prev) => {
+        let nextIssues: Issue[];
+        if (updatedIssue) {
+          const transformed = transformIssue(updatedIssue);
+          nextIssues = prev.map((issue) => (issue.id === issueId ? transformed : issue));
+        } else {
+          nextIssues = prev.map((issue) =>
+            issue.id === issueId
+              ? {
+                  ...issue,
+                  status: nextStatus,
+                }
+              : issue,
+          );
+        }
+        updateStatsFromIssues(nextIssues);
+        return nextIssues;
+      });
+    },
+    [updateStatsFromIssues],
   );
 
   const handleCreateIssue = useCallback(() => {
@@ -915,6 +1026,85 @@ function App() {
     },
     [createIssue],
   );
+
+  const handlePriorityFilterChange = useCallback((value: PriorityFilterValue) => {
+    setPriorityFilter(value);
+  }, []);
+
+  const handleAppFilterChange = useCallback((value: string) => {
+    setAppFilter(value);
+  }, []);
+
+  const handleIssueArchive = useCallback(
+    async (issue: Issue) => {
+      try {
+        await updateIssueStatus(issue.id, 'archived');
+      } catch (error) {
+        console.error('Failed to archive issue', error);
+        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+          window.alert('Failed to archive issue. Please try again.');
+        }
+      }
+    },
+    [updateIssueStatus],
+  );
+
+  const handleIssueDelete = useCallback(
+    async (issue: Issue) => {
+      const issueId = issue.id;
+      try {
+        await deleteIssue(issueId);
+        setIssues((prev) => {
+          const nextIssues = prev.filter((item) => item.id !== issueId);
+          updateStatsFromIssues(nextIssues);
+          return nextIssues;
+        });
+        if (focusedIssueId === issueId) {
+          setIssueDetailOpen(false);
+          setFocusedIssueId(null);
+        }
+      } catch (error) {
+        console.error('Failed to delete issue', error);
+        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+          window.alert('Failed to delete issue. Please try again.');
+        }
+      }
+    },
+    [deleteIssue, focusedIssueId, updateStatsFromIssues],
+  );
+
+  const handleIssueStatusChange = useCallback(
+    async (issueId: string, _fromStatus: IssueStatus, targetStatus: IssueStatus) => {
+      if (_fromStatus === targetStatus) {
+        return;
+      }
+      try {
+        await updateIssueStatus(issueId, targetStatus);
+      } catch (error) {
+        console.error('Failed to update issue status', error);
+        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+          window.alert('Failed to move issue. Please try again.');
+        }
+      }
+    },
+    [updateIssueStatus],
+  );
+
+  const handleHideColumn = useCallback((status: IssueStatus) => {
+    setHiddenColumns((current) => (current.includes(status) ? current : [...current, status]));
+  }, []);
+
+  const handleToggleColumn = useCallback((status: IssueStatus) => {
+    setHiddenColumns((current) =>
+      current.includes(status)
+        ? current.filter((value) => value !== status)
+        : [...current, status],
+    );
+  }, []);
+
+  const handleResetHiddenColumns = useCallback(() => {
+    setHiddenColumns([]);
+  }, []);
 
   const handleIssueDetailClose = useCallback(() => {
     setIssueDetailOpen(false);
@@ -982,9 +1172,26 @@ function App() {
       case 'issues':
         return (
           <IssuesBoard
-            issues={issues}
+            issues={filteredIssues}
             focusedIssueId={focusedIssueId}
             onIssueSelect={handleIssueSelect}
+            onIssueDelete={handleIssueDelete}
+            onIssueArchive={handleIssueArchive}
+            onIssueDrop={handleIssueStatusChange}
+            hiddenColumns={hiddenColumns}
+            onHideColumn={handleHideColumn}
+            toolbar={
+              <IssueBoardToolbar
+                priorityFilter={priorityFilter}
+                onPriorityFilterChange={handlePriorityFilterChange}
+                appFilter={appFilter}
+                onAppFilterChange={handleAppFilterChange}
+                appOptions={availableApps}
+                hiddenColumns={hiddenColumns}
+                onToggleColumn={handleToggleColumn}
+                onResetColumns={handleResetHiddenColumns}
+              />
+            }
           />
         );
       case 'settings':
@@ -1008,7 +1215,7 @@ function App() {
   }, [
     activeNav,
     dashboardStats,
-    issues,
+    filteredIssues,
     processorSettings,
     agentSettings,
     displaySettings,
@@ -1016,6 +1223,18 @@ function App() {
     allowedAgents,
     focusedIssueId,
     handleIssueSelect,
+    handleIssueArchive,
+    handleIssueDelete,
+    handleIssueStatusChange,
+    hiddenColumns,
+    priorityFilter,
+    handlePriorityFilterChange,
+    appFilter,
+    handleAppFilterChange,
+    availableApps,
+    handleHideColumn,
+    handleToggleColumn,
+    handleResetHiddenColumns,
   ]);
 
   const activeAgentOptions = allowedAgents.length > 0 ? allowedAgents : SampleData.activeAgents;
@@ -1443,6 +1662,177 @@ function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
   );
 }
 
+interface IssueBoardToolbarProps {
+  priorityFilter: PriorityFilterValue;
+  onPriorityFilterChange: (value: PriorityFilterValue) => void;
+  appFilter: string;
+  onAppFilterChange: (value: string) => void;
+  appOptions: string[];
+  hiddenColumns: IssueStatus[];
+  onToggleColumn: (status: IssueStatus) => void;
+  onResetColumns: () => void;
+}
+
+function IssueBoardToolbar({
+  priorityFilter,
+  onPriorityFilterChange,
+  appFilter,
+  onAppFilterChange,
+  appOptions,
+  hiddenColumns,
+  onToggleColumn,
+  onResetColumns,
+}: IssueBoardToolbarProps) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const hiddenSet = useMemo(() => new Set(hiddenColumns), [hiddenColumns]);
+  const statusOrder = useMemo(() => Object.keys(issueColumnMeta) as IssueStatus[], []);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (popoverRef.current && popoverRef.current.contains(target)) {
+        return;
+      }
+      if (triggerRef.current && triggerRef.current.contains(target)) {
+        return;
+      }
+      setOpen(false);
+    };
+
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKeydown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKeydown);
+    };
+  }, [open]);
+
+  const handleClearFilters = () => {
+    onPriorityFilterChange('all');
+    onAppFilterChange('all');
+  };
+
+  return (
+    <div className="issues-toolbar">
+      <button
+        type="button"
+        ref={triggerRef}
+        className={`issues-toolbar-trigger ${open ? 'is-open' : ''}`}
+        onClick={() => setOpen((state) => !state)}
+        aria-expanded={open}
+        aria-haspopup="true"
+      >
+        <Filter size={16} />
+        <span>Filters & Columns</span>
+        <ChevronDown size={14} className={open ? 'rotated' : ''} />
+      </button>
+
+      {open && (
+        <div className="issues-toolbar-popover" ref={popoverRef}>
+          <div className="issues-toolbar-section">
+            <div className="issues-toolbar-heading">
+              <Filter size={16} />
+              <span>Filters</span>
+            </div>
+            <div className="issues-toolbar-fields">
+              <label className="issues-toolbar-field">
+                <span>Priority</span>
+                <div className="select-wrapper">
+                  <select
+                    value={priorityFilter}
+                    onChange={(event) => onPriorityFilterChange(event.target.value as PriorityFilterValue)}
+                  >
+                    <option value="all">All priorities</option>
+                    {(['Critical', 'High', 'Medium', 'Low'] as Priority[]).map((priority) => (
+                      <option key={priority} value={priority}>
+                        {priority}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} />
+                </div>
+              </label>
+
+              <label className="issues-toolbar-field">
+                <span>Application</span>
+                <div className="select-wrapper">
+                  <select value={appFilter} onChange={(event) => onAppFilterChange(event.target.value)}>
+                    <option value="all">All applications</option>
+                    {appOptions.map((app) => (
+                      <option key={app} value={app}>
+                        {app}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} />
+                </div>
+              </label>
+            </div>
+            <button type="button" className="ghost-button issues-toolbar-clear" onClick={handleClearFilters}>
+              Reset filters
+            </button>
+          </div>
+
+          <div className="issues-toolbar-section">
+            <div className="issues-toolbar-heading">
+              <Eye size={16} />
+              <span>Columns</span>
+            </div>
+            <div className="column-toggle-row">
+              {statusOrder.map((status) => {
+                const meta = issueColumnMeta[status];
+                const hidden = hiddenSet.has(status);
+                return (
+                  <button
+                    key={status}
+                    type="button"
+                    className={`column-toggle ${hidden ? 'column-toggle--inactive' : ''}`}
+                    onClick={() => onToggleColumn(status)}
+                    aria-pressed={!hidden}
+                  >
+                    <span>{meta.title}</span>
+                    {hidden ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                );
+              })}
+            </div>
+            {hiddenColumns.length > 0 && (
+              <button type="button" className="link-button" onClick={onResetColumns}>
+                Show all columns
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface AttachmentDraft {
+  id: string;
+  file: File;
+  name: string;
+  size: number;
+  contentType: string;
+  content: string | null;
+  encoding: 'base64';
+  status: 'pending' | 'ready' | 'error';
+  errorMessage?: string;
+}
+
 interface IssueMetaTileProps {
   label: string;
   value: string;
@@ -1468,6 +1858,7 @@ interface CreateIssueModalProps {
   onSubmit: (input: CreateIssueInput) => Promise<void>;
 }
 
+
 function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -1479,6 +1870,128 @@ function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
   const [reporterEmail, setReporterEmail] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleFileSelection = useCallback(
+    (fileSource: FileList | File[]) => {
+      const fileArray = Array.from(fileSource instanceof FileList ? Array.from(fileSource) : fileSource);
+      if (fileArray.length === 0) {
+        return;
+      }
+      fileArray.forEach((file) => {
+        const duplicate = attachments.some(
+          (item) =>
+            item.file.name === file.name &&
+            item.file.size === file.size &&
+            item.file.lastModified === file.lastModified,
+        );
+        if (duplicate) {
+          return;
+        }
+
+        const id = `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(16).slice(2)}`;
+        const draft: AttachmentDraft = {
+          id,
+          file,
+          name: file.name,
+          size: file.size,
+          contentType: file.type || 'application/octet-stream',
+          content: null,
+          encoding: 'base64',
+          status: 'pending',
+        };
+
+        setAttachments((prev) => [...prev, draft]);
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result;
+          if (typeof result !== 'string') {
+            setAttachments((prev) =>
+              prev.map((item) =>
+                item.id === id
+                  ? { ...item, status: 'error', errorMessage: 'Unsupported attachment format.' }
+                  : item,
+              ),
+            );
+            return;
+          }
+
+          const base64 = result.includes(',') ? result.split(',')[1] ?? '' : result;
+          setAttachments((prev) =>
+            prev.map((item) =>
+              item.id === id
+                ? { ...item, content: base64, status: 'ready', errorMessage: undefined }
+                : item,
+            ),
+          );
+        };
+        reader.onerror = () => {
+          const message = reader.error?.message ?? 'Failed to read file.';
+          setAttachments((prev) =>
+            prev.map((item) =>
+              item.id === id ? { ...item, status: 'error', errorMessage: message } : item,
+            ),
+          );
+        };
+        reader.readAsDataURL(file);
+      });
+    },
+    [attachments],
+  );
+
+  const handleFileInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      handleFileSelection(event.target.files);
+      event.target.value = '';
+    }
+  };
+
+  const handleDropzoneClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleDropzoneKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleDragEnter = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragActive(true);
+  };
+
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.effectAllowed = 'copy';
+    event.dataTransfer.dropEffect = 'copy';
+    setIsDragActive(true);
+  };
+
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    const nextTarget = event.relatedTarget as Node | null;
+    if (nextTarget && event.currentTarget.contains(nextTarget)) {
+      return;
+    }
+    setIsDragActive(false);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragActive(false);
+    const fileList = event.dataTransfer?.files;
+    if (fileList && fileList.length > 0) {
+      handleFileSelection(fileList);
+    }
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((attachment) => attachment.id !== id));
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1486,6 +1999,21 @@ function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
       setErrorMessage('Title is required.');
       return;
     }
+
+    if (attachments.some((attachment) => attachment.status === 'pending')) {
+      setErrorMessage('Please wait for attachments to finish processing.');
+      return;
+    }
+
+    const preparedAttachments = attachments
+      .filter((attachment) => attachment.status === 'ready' && attachment.content)
+      .map((attachment) => ({
+        name: attachment.name,
+        content: attachment.content as string,
+        encoding: attachment.encoding,
+        contentType: attachment.contentType,
+        category: 'attachment',
+      }));
 
     setSubmitting(true);
     setErrorMessage(null);
@@ -1503,6 +2031,7 @@ function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
           .filter(Boolean),
         reporterName: reporterName.trim() || undefined,
         reporterEmail: reporterEmail.trim() || undefined,
+        attachments: preparedAttachments,
       });
       onClose();
     } catch (error) {
@@ -1512,6 +2041,9 @@ function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
       setSubmitting(false);
     }
   };
+
+  const attachmentCountLabel = attachments.length === 1 ? 'file' : 'files';
+  const hasErroredAttachments = attachments.some((attachment) => attachment.status === 'error');
 
   return (
     <Modal onClose={onClose} labelledBy="create-issue-title">
@@ -1605,6 +2137,99 @@ function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
                 rows={5}
               />
             </label>
+          </div>
+
+          <div className="form-section attachments-section">
+            <div className="form-section-header">
+              <span className="form-section-title">Attachments</span>
+              {attachments.length > 0 && (
+                <span className="form-section-meta">
+                  {attachments.length} {attachmentCountLabel}
+                </span>
+              )}
+            </div>
+            <p className="form-section-description">
+              Drag and drop logs, screenshots, or other helpful context.
+            </p>
+            <div
+              className={`attachment-dropzone${isDragActive ? ' is-active' : ''}`}
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={handleDropzoneClick}
+              role="button"
+              tabIndex={0}
+              onKeyDown={handleDropzoneKeyDown}
+            >
+              <UploadCloud size={20} />
+              <div className="attachment-dropzone-copy">
+                <strong>Drag & drop files</strong>
+                <span>or click to upload</span>
+              </div>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileInputChange}
+              className="hidden-input"
+            />
+
+            {attachments.length > 0 && (
+              <ul className="attachment-pending-list">
+                {attachments.map((attachment) => {
+                  const sizeLabel = formatFileSize(attachment.size);
+                  return (
+                    <li
+                      key={attachment.id}
+                      className={`attachment-pending-item attachment-pending-item--${attachment.status}`}
+                    >
+                      <div className="attachment-pending-details">
+                        <span className="attachment-pending-icon">
+                          <Paperclip size={14} />
+                        </span>
+                        <div className="attachment-pending-meta">
+                          <span className="attachment-file-name">{attachment.name}</span>
+                          <span className="attachment-file-subtext">{sizeLabel ?? 'Unknown size'}</span>
+                          {attachment.status === 'error' && attachment.errorMessage && (
+                            <span className="attachment-file-error">{attachment.errorMessage}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="attachment-pending-actions">
+                        {attachment.status === 'pending' && (
+                          <span className="attachment-status-chip attachment-status-chip--pending">
+                            <Loader2 size={14} className="attachment-spinner" />
+                            Processing…
+                          </span>
+                        )}
+                        {attachment.status === 'error' && (
+                          <span className="attachment-status-chip attachment-status-chip--error">
+                            <CircleAlert size={14} />
+                            Failed
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          className="link-button attachment-remove"
+                          onClick={() => handleRemoveAttachment(attachment.id)}
+                          aria-label={`Remove ${attachment.name}`}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            {hasErroredAttachments && (
+              <p className="attachment-warning">
+                Files marked as failed will be skipped. Remove them and try again.
+              </p>
+            )}
           </div>
         </div>
 

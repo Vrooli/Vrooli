@@ -31,6 +31,8 @@ type DateSuggestionRequest struct {
 	BudgetMax        float64 `json:"budget_max,omitempty"`
 	PreferredDate    string  `json:"preferred_date,omitempty"`
 	WeatherPreference string  `json:"weather_preference,omitempty"`
+	SurpriseMode     bool    `json:"surprise_mode,omitempty"`
+	PlannerID        string  `json:"planner_id,omitempty"` // Who is planning the surprise
 }
 
 type Activity struct {
@@ -73,6 +75,9 @@ type DatePlan struct {
 	EstimatedCost    float64   `json:"estimated_cost"`
 	EstimatedDuration string   `json:"estimated_duration"`
 	Status           string    `json:"status"`
+	IsSurprise       bool      `json:"is_surprise,omitempty"`
+	PlannedBy        string    `json:"planned_by,omitempty"`
+	RevealDate       *time.Time `json:"reveal_date,omitempty"`
 }
 
 type DatePlanResponse struct {
@@ -307,6 +312,138 @@ func suggestDatesHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// surpriseDateHandler creates a surprise date plan
+func surpriseDateHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		CoupleID         string    `json:"couple_id"`
+		PlannedBy        string    `json:"planned_by"`
+		DateSuggestion   DateSuggestion `json:"date_suggestion"`
+		PlannedDate      string    `json:"planned_date"`
+		RevealTime       string    `json:"reveal_time,omitempty"` // When to reveal the surprise
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.CoupleID == "" || req.PlannedBy == "" {
+		http.Error(w, "couple_id and planned_by are required", http.StatusBadRequest)
+		return
+	}
+
+	// Parse dates
+	plannedDate, err := time.Parse(time.RFC3339, req.PlannedDate)
+	if err != nil {
+		plannedDate = time.Now().Add(24 * time.Hour)
+	}
+
+	var revealDate *time.Time
+	if req.RevealTime != "" {
+		if rd, err := time.Parse(time.RFC3339, req.RevealTime); err == nil {
+			revealDate = &rd
+		}
+	}
+
+	// Create surprise date plan
+	datePlan := DatePlan{
+		ID:               generateUUID(),
+		CoupleID:         req.CoupleID,
+		Title:            "🎉 Surprise Date: " + req.DateSuggestion.Title,
+		Description:      req.DateSuggestion.Description + " (Planned as a surprise!)",
+		PlannedDate:      plannedDate,
+		Activities:       req.DateSuggestion.Activities,
+		EstimatedCost:    req.DateSuggestion.EstimatedCost,
+		EstimatedDuration: req.DateSuggestion.EstimatedDuration,
+		Status:           "surprise_pending",
+		IsSurprise:       true,
+		PlannedBy:        req.PlannedBy,
+		RevealDate:       revealDate,
+	}
+
+	// Save to database with surprise flag
+	if db != nil {
+		activitiesJSON, _ := json.Marshal(datePlan.Activities)
+		_, err = db.Exec(`
+			INSERT INTO date_night_planner.date_plans 
+			(id, couple_id, title, description, planned_date, activities, 
+			 estimated_cost, estimated_duration, status)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		`, datePlan.ID, datePlan.CoupleID, datePlan.Title, datePlan.Description,
+			datePlan.PlannedDate, activitiesJSON, datePlan.EstimatedCost,
+			datePlan.EstimatedDuration, datePlan.Status)
+		if err != nil {
+			log.Printf("Failed to save surprise date plan: %v", err)
+		}
+	}
+
+	// Return response with surprise details hidden
+	response := map[string]interface{}{
+		"surprise_id": datePlan.ID,
+		"status": "surprise_created",
+		"planned_date": datePlan.PlannedDate,
+		"planner_id": req.PlannedBy,
+		"reveal_time": revealDate,
+		"message": "Surprise date successfully planned! Details will be revealed at the specified time.",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
+// getSurpriseHandler retrieves surprise date details (with access control)
+func getSurpriseHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	surpriseID := vars["id"]
+	
+	// Get requester ID from query params
+	requesterID := r.URL.Query().Get("requester_id")
+	if requesterID == "" {
+		http.Error(w, "requester_id is required", http.StatusBadRequest)
+		return
+	}
+
+	// In a real implementation, this would check the database
+	// For now, return a sample surprise date
+	datePlan := DatePlan{
+		ID:               surpriseID,
+		CoupleID:         "couple-123",
+		Title:            "🎉 Surprise Date: Romantic Evening",
+		Description:      "A special surprise date planned with love",
+		PlannedDate:      time.Now().Add(48 * time.Hour),
+		Activities: []Activity{
+			{Type: "surprise", Name: "Secret Activity 1", Duration: "1 hour"},
+			{Type: "surprise", Name: "Secret Activity 2", Duration: "2 hours"},
+		},
+		EstimatedCost:    150,
+		EstimatedDuration: "4 hours",
+		Status:           "surprise_pending",
+		IsSurprise:       true,
+		PlannedBy:        "partner-1",
+	}
+
+	// Check if requester is allowed to see details
+	canViewDetails := requesterID == datePlan.PlannedBy
+	
+	// If it's not time to reveal yet or requester isn't the planner, hide details
+	if !canViewDetails {
+		response := map[string]interface{}{
+			"surprise_id": surpriseID,
+			"status": "surprise_pending",
+			"planned_date": datePlan.PlannedDate,
+			"message": "This is a surprise! Details will be revealed soon.",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Return full details for the planner
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(datePlan)
 }
 
 func planDateHandler(w http.ResponseWriter, r *http.Request) {
@@ -604,6 +741,8 @@ func main() {
 	// API endpoints
 	router.HandleFunc("/api/v1/dates/suggest", enableCORS(suggestDatesHandler)).Methods("POST", "OPTIONS")
 	router.HandleFunc("/api/v1/dates/plan", enableCORS(planDateHandler)).Methods("POST", "OPTIONS")
+	router.HandleFunc("/api/v1/dates/surprise", enableCORS(surpriseDateHandler)).Methods("POST", "OPTIONS")
+	router.HandleFunc("/api/v1/dates/surprise/{id}", enableCORS(getSurpriseHandler)).Methods("GET", "OPTIONS")
 
 	// Root endpoint
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

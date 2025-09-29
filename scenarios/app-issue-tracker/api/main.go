@@ -48,6 +48,7 @@ var validIssueStatuses = map[string]struct{}{
 	"fixed":         {},
 	"closed":        {},
 	"failed":        {},
+	"archived":      {},
 }
 
 func cloneStringSlice(values []string) []string {
@@ -415,7 +416,7 @@ func (s *Server) loadIssuesFromFolder(folder string) ([]Issue, error) {
 }
 
 func (s *Server) findIssueDirectory(issueID string) (string, string, error) {
-	folders := []string{"open", "investigating", "in-progress", "fixed", "closed", "failed"}
+	folders := []string{"open", "investigating", "in-progress", "fixed", "closed", "failed", "archived"}
 
 	for _, folder := range folders {
 		directDir := s.issueDir(folder, issueID)
@@ -823,7 +824,7 @@ func fallbackScreenshotName(filename string) string {
 func (s *Server) getAllIssues(statusFilter, priorityFilter, typeFilter string, limit int) ([]Issue, error) {
 	var allIssues []Issue
 
-	folders := []string{"open", "investigating", "in-progress", "fixed", "closed", "failed"}
+	folders := []string{"open", "investigating", "in-progress", "fixed", "closed", "failed", "archived"}
 	if statusFilter != "" {
 		folders = []string{statusFilter}
 	}

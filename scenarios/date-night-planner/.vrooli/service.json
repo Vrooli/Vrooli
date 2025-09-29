@@ -238,7 +238,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "./api/date-night-planner-api",
+          "run": "cd api && ./date-night-planner-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {

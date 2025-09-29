@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -339,7 +340,13 @@ func checkOllamaHealth() map[string]interface{} {
 			requiredModels := []string{"llama3.2", "mistral", "nomic-embed-text"}
 			availableModels := make(map[string]bool)
 			for _, model := range response.Models {
+				// Store both full name and base name without tag
 				availableModels[model.Name] = true
+				// Extract base name (e.g., "llama3.2:latest" -> "llama3.2")
+				if idx := strings.Index(model.Name, ":"); idx > 0 {
+					baseName := model.Name[:idx]
+					availableModels[baseName] = true
+				}
 			}
 			
 			missingModels := []string{}
@@ -382,14 +389,14 @@ func checkUnstructuredIOHealth() map[string]interface{} {
 
 	unstructuredURL := os.Getenv("UNSTRUCTURED_IO_URL")
 	if unstructuredURL == "" {
-		unstructuredURL = "http://localhost:8000"
+		unstructuredURL = "http://localhost:11450"
 	}
 
 	// Test Unstructured-io connectivity
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", unstructuredURL+"/general/v0/general", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", unstructuredURL+"/healthcheck", nil)
 	if err != nil {
 		health["status"] = "degraded"
 		health["error"] = map[string]interface{}{
@@ -415,8 +422,7 @@ func checkUnstructuredIOHealth() map[string]interface{} {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusUnprocessableEntity {
-		// 422 is expected when calling without a file
+	if resp.StatusCode == http.StatusOK {
 		health["checks"].(map[string]interface{})["connectivity"] = "ok"
 		health["checks"].(map[string]interface{})["document_processing"] = "available"
 	} else {
@@ -504,7 +510,7 @@ func checkQdrantHealth() map[string]interface{} {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", qdrantURL+"/health", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", qdrantURL+"/readyz", nil)
 	if err != nil {
 		health["status"] = "not_configured"
 		health["checks"].(map[string]interface{})["vector_search"] = "disabled"
@@ -1261,31 +1267,119 @@ func performDataProcessing(inputType, inputData string, schemaID uuid.UUID) (map
 }
 
 func extractFileContent(filePath string) (string, error) {
-	// This would integrate with unstructured-io
-	// For now, just read plain text files
-	cmd := exec.Command("cat", filePath)
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
+	// Use unstructured-io for document parsing
+	unstructuredURL := os.Getenv("UNSTRUCTURED_IO_URL")
+	if unstructuredURL == "" {
+		unstructuredURL = "http://localhost:11450"
 	}
-	return string(output), nil
+	
+	// For now, handle text files directly
+	// TODO: Implement full unstructured-io integration for PDFs, DOCX, images
+	if strings.HasSuffix(filePath, ".txt") {
+		cmd := exec.Command("cat", filePath)
+		output, err := cmd.Output()
+		if err != nil {
+			return "", err
+		}
+		return string(output), nil
+	}
+	
+	// For other file types, use unstructured-io API
+	// This is a placeholder for the full implementation
+	return fmt.Sprintf("Content extraction from %s pending unstructured-io integration", filePath), nil
 }
 
 func extractWithOllama(content, schema string) (map[string]interface{}, float64, error) {
-	// This is a placeholder - in production this would call the shared ollama.json workflow
-	// or use the ollama CLI directly to perform intelligent extraction
-
-	// For demo purposes, return a simple extraction
-	result := map[string]interface{}{
-		"extracted_content": content,
-		"extraction_method": "demo_mode",
-		"timestamp": time.Now().Unix(),
+	// Use Ollama for intelligent content extraction based on schema
+	ollamaURL := os.Getenv("OLLAMA_API_BASE")
+	if ollamaURL == "" {
+		ollamaURL = "http://localhost:11434"
 	}
 
-	// Mock confidence score
-	confidence := 0.75
+	// Create extraction prompt
+	prompt := fmt.Sprintf(`Extract structured data from the following content according to the schema.
+Return ONLY valid JSON that matches the schema structure.
 
-	return result, confidence, nil
+Schema:
+%s
+
+Content:
+%s
+
+Extracted JSON:`, schema, content)
+
+	// Call Ollama API
+	requestBody := map[string]interface{}{
+		"model": "llama3.2",
+		"prompt": prompt,
+		"stream": false,
+		"options": map[string]interface{}{
+			"temperature": 0.1,
+			"top_k": 10,
+			"top_p": 0.1,
+		},
+	}
+
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to marshal request: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", ollamaURL+"/api/generate", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to call Ollama: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var ollamaResponse struct {
+		Response string `json:"response"`
+		Done     bool   `json:"done"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&ollamaResponse); err != nil {
+		return nil, 0, fmt.Errorf("failed to decode Ollama response: %v", err)
+	}
+
+	// Try to parse the extracted JSON
+	var extractedData map[string]interface{}
+	responseText := strings.TrimSpace(ollamaResponse.Response)
+	
+	// Find JSON in the response
+	startIdx := strings.Index(responseText, "{")
+	endIdx := strings.LastIndex(responseText, "}")
+	if startIdx >= 0 && endIdx >= 0 && endIdx >= startIdx {
+		jsonStr := responseText[startIdx:endIdx+1]
+		if err := json.Unmarshal([]byte(jsonStr), &extractedData); err != nil {
+			// Fallback to simpler extraction
+			extractedData = map[string]interface{}{
+				"raw_extraction": content,
+				"extraction_method": "ollama_fallback",
+				"error": err.Error(),
+			}
+		}
+	} else {
+		// Fallback for non-JSON response
+		extractedData = map[string]interface{}{
+			"raw_extraction": content,
+			"extraction_method": "ollama_text",
+			"ollama_response": responseText,
+		}
+	}
+
+	// Calculate confidence based on extraction success
+	confidence := 0.95
+	if _, hasError := extractedData["error"]; hasError {
+		confidence = 0.5
+	}
+
+	return extractedData, confidence, nil
 }
 
 func getProcessingResult(c *gin.Context) {

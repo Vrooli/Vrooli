@@ -16,6 +16,7 @@ export default class PostProcessing {
         this.renderer = experience.renderer.instance;
         this.camera = experience.camera.instance;
         this.scene = experience.scene;
+        this.sizes = experience.sizes;
         
         this.enabled = true;
         this.composer = null;
@@ -50,9 +51,13 @@ export default class PostProcessing {
     }
     
     init() {
+        const width = this.sizes.width;
+        const height = this.sizes.height;
+        const pixelRatio = this.sizes.pixelRatio;
+
         const renderTarget = new THREE.WebGLRenderTarget(
-            window.innerWidth,
-            window.innerHeight,
+            width,
+            height,
             {
                 minFilter: THREE.LinearFilter,
                 magFilter: THREE.LinearFilter,
@@ -60,8 +65,9 @@ export default class PostProcessing {
                 colorSpace: THREE.SRGBColorSpace
             }
         );
-        
+
         this.composer = new EffectComposer(this.renderer, renderTarget);
+        this.composer.setPixelRatio(pixelRatio);
         
         // Render pass
         const renderPass = new RenderPass(this.scene, this.camera);
@@ -69,7 +75,7 @@ export default class PostProcessing {
         
         // Bloom pass
         this.bloomPass = new UnrealBloomPass(
-            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            new THREE.Vector2(width, height),
             this.params.bloom.strength,
             this.params.bloom.radius,
             this.params.bloom.threshold
@@ -83,8 +89,8 @@ export default class PostProcessing {
         // FXAA anti-aliasing
         const fxaaPass = new ShaderPass(FXAAShader);
         fxaaPass.uniforms['resolution'].value.set(
-            1 / window.innerWidth,
-            1 / window.innerHeight
+            1 / (width * pixelRatio),
+            1 / (height * pixelRatio)
         );
         this.composer.addPass(fxaaPass);
         
@@ -226,17 +232,20 @@ export default class PostProcessing {
     resize() {
         if (!this.composer) return;
         
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        
+        const { width, height, pixelRatio } = this.sizes;
+
         this.composer.setSize(width, height);
-        
+        this.composer.setPixelRatio(pixelRatio);
+
         // Update FXAA resolution
         const fxaaPass = this.composer.passes.find(pass => 
             pass.uniforms && pass.uniforms.resolution
         );
         if (fxaaPass) {
-            fxaaPass.uniforms.resolution.value.set(1 / width, 1 / height);
+            fxaaPass.uniforms.resolution.value.set(
+                1 / (width * pixelRatio),
+                1 / (height * pixelRatio)
+            );
         }
     }
     

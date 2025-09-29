@@ -52,7 +52,6 @@ export default class World {
     };
 
     this.environmentMaps = {};
-    this.bedroomFallback = null;
 
     this.roomGroups.studio.visible = this.activeRoom === "studio";
     this.roomGroups.bedroom.visible = this.activeRoom === "bedroom";
@@ -63,7 +62,6 @@ export default class World {
     this._createLighting();
     this._setupFog();
     this._buildStudioFallbacks();
-    this._buildBedroomFallbacks();
 
     if (initialState) {
       this.setStoreSnapshot(initialState);
@@ -221,13 +219,6 @@ export default class World {
     this._createVolumetricLighting();
   }
 
-  _buildBedroomFallbacks() {
-    if (this.bedroomFallback) {
-      return;
-    }
-    this._createBedroomFallback();
-  }
-
   _applyStudioAssets(assets) {
     if (this.studioRoom) {
       this.roomGroups.studio.remove(this.studioRoom);
@@ -288,22 +279,49 @@ export default class World {
       const heightOffset = -bbox.min.y;
       this.bedroomRoom.position.y += heightOffset - 1.1;
 
+      const convertMaterial = (material) => {
+        if (!material) {
+          return material;
+        }
+
+        const map = material.map || null;
+        if (map) {
+          map.colorSpace = THREE.SRGBColorSpace;
+        }
+
+        const basic = new THREE.MeshBasicMaterial({
+          map,
+          color:
+            (material.color && material.color.clone()) ||
+            new THREE.Color(0xffffff),
+          transparent: material.transparent || false,
+          opacity: material.opacity ?? 1,
+        });
+        basic.toneMapped = true;
+        basic.side = material.side ?? THREE.FrontSide;
+
+        if (material.map) {
+          material.map = null;
+        }
+        material.dispose?.();
+
+        return basic;
+      };
+
       this.bedroomRoom.traverse((child) => {
         if (child.isMesh) {
-          child.castShadow = true;
+          child.castShadow = false;
           child.receiveShadow = true;
+
+          if (Array.isArray(child.material)) {
+            child.material = child.material.map((mat) => convertMaterial(mat));
+          } else {
+            child.material = convertMaterial(child.material);
+          }
         }
       });
 
       this.roomGroups.bedroom.add(this.bedroomRoom);
-
-      if (this.bedroomFallback) {
-        this.roomGroups.bedroom.remove(this.bedroomFallback);
-        this._disposeObject(this.bedroomFallback);
-        this.bedroomFallback = null;
-      }
-    } else {
-      this._buildBedroomFallbacks();
     }
   }
 
@@ -850,6 +868,10 @@ export default class World {
   }
 
   _updateStudio({ elapsed, delta }) {
+    if (this.activeRoom !== "studio") {
+      return;
+    }
+
     if (this.placeholder) {
       this.placeholder.rotation.y += this.rotationSpeed * delta;
       this.placeholder.rotation.x = Math.sin(elapsed * 0.0002) * 0.3;
@@ -978,7 +1000,7 @@ export default class World {
   }
 
   _updateBedroom({ elapsed }) {
-    if (!this.bedroomRoom) {
+    if (this.activeRoom !== "bedroom" || !this.bedroomRoom) {
       return;
     }
 
@@ -1013,122 +1035,6 @@ export default class World {
     }
   }
 
-  _createBedroomFallback() {
-    const bedroomGroup = new THREE.Group();
-    
-    // Cinematic bed with soft materials
-    const bedGeometry = new THREE.BoxGeometry(3, 0.8, 4);
-    const bedMaterial = new THREE.MeshStandardMaterial({
-      color: "#3a5f7d",
-      roughness: 0.9,
-      metalness: 0,
-    });
-    const bed = new THREE.Mesh(bedGeometry, bedMaterial);
-    bed.position.set(0, -0.6, -1);
-    bed.castShadow = true;
-    bed.receiveShadow = true;
-    bedroomGroup.add(bed);
-    
-    // Pillows with soft lighting interaction
-    const pillowGeometry = new THREE.BoxGeometry(1.2, 0.3, 0.8);
-    const pillowMaterial = new THREE.MeshStandardMaterial({
-      color: "#f0e6d2",
-      roughness: 0.95,
-      metalness: 0,
-    });
-    
-    const pillow1 = new THREE.Mesh(pillowGeometry, pillowMaterial);
-    pillow1.position.set(-0.8, -0.1, -2.5);
-    pillow1.rotation.y = 0.1;
-    pillow1.castShadow = true;
-    bedroomGroup.add(pillow1);
-    
-    const pillow2 = new THREE.Mesh(pillowGeometry, pillowMaterial);
-    pillow2.position.set(0.8, -0.1, -2.5);
-    pillow2.rotation.y = -0.1;
-    pillow2.castShadow = true;
-    bedroomGroup.add(pillow2);
-    
-    // Night stand with lamp base
-    const nightStandGeometry = new THREE.BoxGeometry(0.8, 0.6, 0.8);
-    const nightStandMaterial = new THREE.MeshStandardMaterial({
-      color: "#5a4a3a",
-      roughness: 0.7,
-      metalness: 0.1,
-    });
-    const nightStand = new THREE.Mesh(nightStandGeometry, nightStandMaterial);
-    nightStand.position.set(2.2, -0.7, -2);
-    nightStand.castShadow = true;
-    nightStand.receiveShadow = true;
-    bedroomGroup.add(nightStand);
-    
-    // Dream catcher decoration
-    const dreamCatcherGeometry = new THREE.TorusGeometry(0.4, 0.02, 8, 32);
-    const dreamCatcherMaterial = new THREE.MeshStandardMaterial({
-      color: "#d4a574",
-      roughness: 0.8,
-      metalness: 0.1,
-    });
-    const dreamCatcher = new THREE.Mesh(dreamCatcherGeometry, dreamCatcherMaterial);
-    dreamCatcher.position.set(-2.5, 3, -3.8);
-    dreamCatcher.rotation.x = 0.1;
-    bedroomGroup.add(dreamCatcher);
-    
-    // Curtains for window (translucent)
-    const curtainGeometry = new THREE.PlaneGeometry(1.5, 3);
-    const curtainMaterial = new THREE.MeshStandardMaterial({
-      color: "#e8dcc6",
-      transparent: true,
-      opacity: 0.7,
-      roughness: 0.9,
-      metalness: 0,
-      side: THREE.DoubleSide,
-    });
-    
-    const curtainLeft = new THREE.Mesh(curtainGeometry, curtainMaterial);
-    curtainLeft.position.set(3, 2.5, -2.85);
-    curtainLeft.rotation.y = 0.2;
-    bedroomGroup.add(curtainLeft);
-    
-    const curtainRight = new THREE.Mesh(curtainGeometry, curtainMaterial);
-    curtainRight.position.set(5, 2.5, -2.85);
-    curtainRight.rotation.y = -0.2;
-    bedroomGroup.add(curtainRight);
-    
-    // Rug with texture pattern
-    const rugGeometry = new THREE.CircleGeometry(2.5, 32);
-    const rugMaterial = new THREE.MeshStandardMaterial({
-      color: "#8b6b47",
-      roughness: 0.95,
-      metalness: 0,
-    });
-    const rug = new THREE.Mesh(rugGeometry, rugMaterial);
-    rug.rotation.x = -Math.PI / 2;
-    rug.position.set(0, -0.99, 1);
-    rug.receiveShadow = true;
-    bedroomGroup.add(rug);
-    
-    // Wall art/posters
-    const posterGeometry = new THREE.PlaneGeometry(1, 1.4);
-    const posterMaterial1 = new THREE.MeshBasicMaterial({
-      color: "#4ecdc4",
-    });
-    const poster1 = new THREE.Mesh(posterGeometry, posterMaterial1);
-    poster1.position.set(-3.9, 2, -1);
-    poster1.rotation.y = Math.PI / 2;
-    bedroomGroup.add(poster1);
-    
-    const posterMaterial2 = new THREE.MeshBasicMaterial({
-      color: "#f9ca24",
-    });
-    const poster2 = new THREE.Mesh(posterGeometry, posterMaterial2);
-    poster2.position.set(-3.9, 2, 1);
-    poster2.rotation.y = Math.PI / 2;
-    bedroomGroup.add(poster2);
-    
-    this.bedroomFallback = bedroomGroup;
-    this.roomGroups.bedroom.add(this.bedroomFallback);
-  }
   
   _createVolumetricLighting() {
     // Add volumetric fog for cinematic depth
@@ -1211,12 +1117,6 @@ export default class World {
       this.roomGroups.studio.remove(object);
       this._disposeObject(object);
     });
-
-    if (this.bedroomFallback) {
-      this.roomGroups.bedroom.remove(this.bedroomFallback);
-      this._disposeObject(this.bedroomFallback);
-      this.bedroomFallback = null;
-    }
 
     Object.values(this.roomGroups).forEach((group) => {
       this.scene.remove(group);

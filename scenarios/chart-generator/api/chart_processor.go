@@ -8,7 +8,7 @@ import (
 	"log"
 	"math"
 	"os"
-	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,31 +28,76 @@ type ChartGenerationProcessorRequest struct {
 	Width         int                      `json:"width,omitempty"`
 	Height        int                      `json:"height,omitempty"`
 	Title         string                   `json:"title,omitempty"`
-	Config        *ChartConfig             `json:"config,omitempty"`
+	Config        interface{}              `json:"config,omitempty"`
+	Composition   *ChartComposition        `json:"composition,omitempty"`
+	Transform     *DataTransform           `json:"transform,omitempty"`
+}
+
+// ChartComposition allows multiple charts in a single canvas (P1 feature)
+type ChartComposition struct {
+	Layout string                            `json:"layout"` // grid, horizontal, vertical, custom
+	Charts []ChartGenerationProcessorRequest `json:"charts"`
+	Grid   *GridLayout                       `json:"grid,omitempty"`
+}
+
+type GridLayout struct {
+	Rows    int `json:"rows"`
+	Columns int `json:"columns"`
+	Spacing int `json:"spacing"`
+}
+
+// DataTransform defines transformation operations (P1 feature)
+type DataTransform struct {
+	Aggregate *AggregateConfig `json:"aggregate,omitempty"`
+	Filter    *FilterConfig    `json:"filter,omitempty"`
+	Sort      *SortConfig      `json:"sort,omitempty"`
+	Group     *GroupConfig     `json:"group,omitempty"`
+}
+
+type AggregateConfig struct {
+	Method  string `json:"method"` // sum, avg, min, max, count
+	Field   string `json:"field"`
+	GroupBy string `json:"group_by,omitempty"`
+}
+
+type FilterConfig struct {
+	Field    string      `json:"field"`
+	Operator string      `json:"operator"` // eq, ne, gt, lt, gte, lte, contains
+	Value    interface{} `json:"value"`
+}
+
+type SortConfig struct {
+	Field     string `json:"field"`
+	Direction string `json:"direction"` // asc, desc
+}
+
+type GroupConfig struct {
+	Field string `json:"field"`
+	Bins  int    `json:"bins,omitempty"` // for numeric grouping
 }
 
 type ChartConfig struct {
-	Title         string `json:"title,omitempty"`
-	XAxisLabel    string `json:"x_axis_label,omitempty"`
-	YAxisLabel    string `json:"y_axis_label,omitempty"`
-	ShowLegend    *bool  `json:"show_legend,omitempty"`
-	ShowGrid      *bool  `json:"show_grid,omitempty"`
-	Animation     *bool  `json:"animation,omitempty"`
+	Title      string `json:"title,omitempty"`
+	XAxisLabel string `json:"x_axis_label,omitempty"`
+	YAxisLabel string `json:"y_axis_label,omitempty"`
+	ShowLegend *bool  `json:"show_legend,omitempty"`
+	ShowGrid   *bool  `json:"show_grid,omitempty"`
+	Animation  *bool  `json:"animation,omitempty"`
 }
 
 type ChartGenerationProcessorResponse struct {
-	Success  bool                      `json:"success"`
-	ChartID  string                    `json:"chart_id"`
-	Files    map[string]string         `json:"files"`
-	Metadata ChartGenerationMetadata   `json:"metadata"`
-	Config   ChartConfig               `json:"config"`
-	Error    *ChartProcessorError      `json:"error,omitempty"`
+	Success  bool                    `json:"success"`
+	ChartID  string                  `json:"chart_id"`
+	Files    map[string]string       `json:"files"`
+	Metadata ChartGenerationMetadata `json:"metadata"`
+	Config   ChartConfig             `json:"config"`
+	Error    *ChartProcessorError    `json:"error,omitempty"`
 }
 
 type ChartGenerationMetadata struct {
-	GenerationTimeMs int      `json:"generation_time_ms"`
-	DataPointCount   int      `json:"data_point_count"`
-	StyleApplied     string   `json:"style_applied"`
+	GenerationTimeMs int    `json:"generation_time_ms"`
+	DataPointCount   int    `json:"data_point_count"`
+	StyleApplied     string `json:"style_applied"`
 	Dimensions       struct {
 		Width  int `json:"width"`
 		Height int `json:"height"`
@@ -108,6 +153,28 @@ func NewChartProcessor(db *sql.DB) *ChartProcessor {
 func (cp *ChartProcessor) GenerateChart(ctx context.Context, req ChartGenerationProcessorRequest) (*ChartGenerationProcessorResponse, error) {
 	startTime := time.Now()
 	chartID := fmt.Sprintf("chart_%d_%s", startTime.Unix(), generateRandomID(6))
+
+	// Handle composite charts (P1 feature)
+	if req.Composition != nil {
+		return cp.GenerateCompositeChart(ctx, req)
+	}
+
+	// Apply data transformations if specified (P1 feature)
+	if req.Transform != nil {
+		transformedData, err := cp.ApplyTransformations(req.Data, req.Transform)
+		if err != nil {
+			return &ChartGenerationProcessorResponse{
+				Success: false,
+				ChartID: chartID,
+				Error: &ChartProcessorError{
+					Message:   fmt.Sprintf("Data transformation failed: %s", err.Error()),
+					Type:      "transformation_error",
+					Timestamp: time.Now().Format(time.RFC3339),
+				},
+			}, nil
+		}
+		req.Data = transformedData
+	}
 
 	// Validate input
 	validation := cp.validateChartData(req.Data, req.ChartType)
@@ -300,18 +367,18 @@ func (cp *ChartProcessor) validateChartData(data []map[string]interface{}, chart
 		}
 
 		if chartType == "pie" {
-			// Pie charts need label/x and value/y
-			hasLabel := point["x"] != nil || point["label"] != nil
+			// Pie charts need label/x/name and value/y
+			hasLabel := point["x"] != nil || point["label"] != nil || point["name"] != nil
 			hasValue := point["y"] != nil || point["value"] != nil
 			if !hasLabel || !hasValue {
 				validation.Valid = false
 				validation.Errors = append(validation.Errors, fmt.Sprintf("Pie chart point %d must have label/x and value/y properties", i))
 			}
 		} else if chartType == "gantt" {
-			// Gantt charts need task, start, and end
-			if point["task"] == nil || point["start"] == nil || point["end"] == nil {
+			// Gantt charts need task, start, and either end or duration
+			if point["task"] == nil || point["start"] == nil || (point["end"] == nil && point["duration"] == nil) {
 				validation.Valid = false
-				validation.Errors = append(validation.Errors, fmt.Sprintf("Gantt chart point %d must have task, start, and end properties", i))
+				validation.Errors = append(validation.Errors, fmt.Sprintf("Gantt chart point %d must have task, start, and either end or duration properties", i))
 			}
 		} else if chartType == "heatmap" {
 			// Heatmap needs x, y, and value
@@ -393,14 +460,35 @@ func (cp *ChartProcessor) setDefaults(req ChartGenerationProcessorRequest) Chart
 
 func (cp *ChartProcessor) buildChartConfig(req ChartGenerationProcessorRequest) ChartConfig {
 	config := ChartConfig{}
-	
+
 	if req.Config != nil {
-		config.Title = req.Config.Title
-		config.XAxisLabel = req.Config.XAxisLabel
-		config.YAxisLabel = req.Config.YAxisLabel
-		config.ShowLegend = req.Config.ShowLegend
-		config.ShowGrid = req.Config.ShowGrid
-		config.Animation = req.Config.Animation
+		// Handle both ChartConfig struct and map[string]interface{} from custom styles
+		switch cfg := req.Config.(type) {
+		case *ChartConfig:
+			config = *cfg
+		case ChartConfig:
+			config = cfg
+		case map[string]interface{}:
+			// Handle custom style config
+			if title, ok := cfg["title"].(string); ok {
+				config.Title = title
+			}
+			if xAxisLabel, ok := cfg["x_axis_label"].(string); ok {
+				config.XAxisLabel = xAxisLabel
+			}
+			if yAxisLabel, ok := cfg["y_axis_label"].(string); ok {
+				config.YAxisLabel = yAxisLabel
+			}
+			if showLegend, ok := cfg["show_legend"].(bool); ok {
+				config.ShowLegend = &showLegend
+			}
+			if showGrid, ok := cfg["show_grid"].(bool); ok {
+				config.ShowGrid = &showGrid
+			}
+			if animation, ok := cfg["animation"].(bool); ok {
+				config.Animation = &animation
+			}
+		}
 	}
 
 	// Set defaults if not provided
@@ -432,10 +520,10 @@ func (cp *ChartProcessor) storeChartData(ctx context.Context, chartID string, re
 
 	dataJSON, _ := json.Marshal(req.Data)
 	configJSON, _ := json.Marshal(req.Config)
-	
+
 	metadata := map[string]interface{}{
-		"data_points": len(req.Data),
-		"timestamp":   time.Now().Format(time.RFC3339),
+		"data_points":   len(req.Data),
+		"timestamp":     time.Now().Format(time.RFC3339),
 		"processing_id": chartID,
 	}
 	metadataJSON, _ := json.Marshal(metadata)
@@ -445,7 +533,7 @@ func (cp *ChartProcessor) storeChartData(ctx context.Context, chartID string, re
 			id, chart_type, data_source, config_overrides, 
 			generation_metadata, created_at, expires_at
 		) VALUES ($1, $2, $3, $4, $5, NOW(), NOW() + INTERVAL '7 days')`
-	
+
 	_, err := cp.db.ExecContext(ctx, query,
 		chartID,
 		req.ChartType,
@@ -453,82 +541,50 @@ func (cp *ChartProcessor) storeChartData(ctx context.Context, chartID string, re
 		string(configJSON),
 		string(metadataJSON),
 	)
-	
+
 	if err != nil {
 		log.Printf("Database storage failed (continuing anyway): %v", err)
 		// Don't fail the entire operation if database storage fails
 		return nil
 	}
-	
+
 	return nil
 }
 
 func (cp *ChartProcessor) generateChartFiles(ctx context.Context, chartID string, req ChartGenerationProcessorRequest) (map[string]string, error) {
-	// Create temporary directory for chart generation
-	tempDir := filepath.Join("/tmp", chartID+"_output")
-	err := os.MkdirAll(tempDir, 0755)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temp directory: %w", err)
-	}
-
-	// Create data file
-	dataFile := filepath.Join("/tmp", chartID+"_data.json")
-	dataJSON, _ := json.Marshal(req.Data)
-	err = os.WriteFile(dataFile, dataJSON, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write data file: %w", err)
-	}
-	defer os.Remove(dataFile)
-
-	// Build chart generation command
-	// This simulates calling an external chart generation tool
-	// In a real implementation, this might call Chart.js, D3.js, or a Go charting library
-	files := make(map[string]string)
-	
-	for _, format := range req.ExportFormats {
-		filename := fmt.Sprintf("%s.%s", chartID, format)
-		filepath := filepath.Join(tempDir, filename)
-		
-		// Simulate chart generation by creating mock files
-		err = cp.generateMockChartFile(filepath, format, req)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate %s file: %w", format, err)
-		}
-		
-		files[format] = filepath
-	}
-
-	return files, nil
+	// Use the real chart renderer
+	renderer := NewChartRenderer("/tmp")
+	return renderer.RenderChart(chartID, req)
 }
 
 func (cp *ChartProcessor) generateMockChartFile(filepath, format string, req ChartGenerationProcessorRequest) error {
 	// In a real implementation, this would call actual chart generation libraries
 	// For now, create mock files with some basic content
-	
+
 	var content string
-	
+
 	switch format {
 	case "svg":
 		content = cp.generateMockSVG(req)
 	case "png", "jpg":
 		// For binary formats, we'd use actual chart generation libraries
 		// For demo purposes, create a simple text file
-		content = fmt.Sprintf("Mock %s chart: %s with %d data points", 
+		content = fmt.Sprintf("Mock %s chart: %s with %d data points",
 			strings.ToUpper(format), req.ChartType, len(req.Data))
 	case "pdf":
-		content = fmt.Sprintf("%%PDF-1.4\n%% Mock PDF chart: %s with %d data points", 
+		content = fmt.Sprintf("%%PDF-1.4\n%% Mock PDF chart: %s with %d data points",
 			req.ChartType, len(req.Data))
 	default:
 		content = fmt.Sprintf("Mock chart file: %s", format)
 	}
-	
+
 	return os.WriteFile(filepath, []byte(content), 0644)
 }
 
 func (cp *ChartProcessor) generateMockSVG(req ChartGenerationProcessorRequest) string {
 	// Generate a simple SVG based on the request
 	// In production, this would use a real chart rendering library
-	
+
 	switch req.ChartType {
 	case "gantt":
 		return cp.generateGanttSVG(req)
@@ -571,18 +627,18 @@ func (cp *ChartProcessor) generateHeatmapSVG(req ChartGenerationProcessorRequest
 	<text x="50%%" y="30" text-anchor="middle" font-family="Arial" font-size="16" fill="black">%s</text>
 	<text x="50%%" y="50" text-anchor="middle" font-family="Arial" font-size="14" fill="gray">Heatmap</text>
 	<!-- Heatmap cells would be rendered here based on data -->`, req.Width, req.Height, req.Title)
-	
+
 	// Generate grid cells for heatmap
 	cellSize := 30
 	for i := 0; i < int(math.Min(10, float64(len(req.Data)))); i++ {
 		x := 50 + (i%5)*cellSize
 		y := 80 + (i/5)*cellSize
-		intensity := (i+1)*25
+		intensity := (i + 1) * 25
 		color := fmt.Sprintf("rgb(%d, 50, 50)", intensity)
-		svg += fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" fill="%s" opacity="0.8"/>`, 
+		svg += fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" fill="%s" opacity="0.8"/>`,
 			x, y, cellSize-2, cellSize-2, color)
 	}
-	
+
 	svg += fmt.Sprintf(`<text x="50%%" y="%d" text-anchor="middle" font-family="Arial" font-size="12" fill="gray">%d Data Points</text>
 </svg>`, req.Height-20, len(req.Data))
 	return svg
@@ -616,20 +672,20 @@ func (cp *ChartProcessor) updateGeneratedFiles(ctx context.Context, chartID stri
 			"filepath": filepath,
 			"filename": fmt.Sprintf("%s.%s", chartID, format),
 		}
-		
+
 		// Get file size if possible
 		if stat, err := os.Stat(filepath); err == nil {
 			info["size_bytes"] = stat.Size()
 		}
-		
+
 		fileInfo = append(fileInfo, info)
 	}
 
 	filesJSON, _ := json.Marshal(fileInfo)
-	
+
 	query := `UPDATE chart_instances SET generated_files = $1 WHERE id = $2`
 	_, err := cp.db.ExecContext(ctx, query, string(filesJSON), chartID)
-	
+
 	return err
 }
 
@@ -650,4 +706,297 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
+}
+
+// GenerateCompositeChart handles multiple charts in a single canvas (P1 feature)
+func (cp *ChartProcessor) GenerateCompositeChart(ctx context.Context, req ChartGenerationProcessorRequest) (*ChartGenerationProcessorResponse, error) {
+	startTime := time.Now()
+	compositeID := fmt.Sprintf("composite_%d_%s", startTime.Unix(), generateRandomID(6))
+
+	if req.Composition == nil || len(req.Composition.Charts) == 0 {
+		return &ChartGenerationProcessorResponse{
+			Success: false,
+			ChartID: compositeID,
+			Error: &ChartProcessorError{
+				Message:   "Composition requires at least one chart",
+				Type:      "composition_error",
+				Timestamp: time.Now().Format(time.RFC3339),
+			},
+		}, nil
+	}
+
+	// Calculate layout dimensions
+	layout := req.Composition.Layout
+	if layout == "" {
+		layout = "grid"
+	}
+
+	// Generate individual charts
+	chartFiles := make([]map[string]string, 0)
+	for _, chartReq := range req.Composition.Charts {
+		// Apply transformations if needed
+		if chartReq.Transform != nil {
+			transformedData, err := cp.ApplyTransformations(chartReq.Data, chartReq.Transform)
+			if err != nil {
+				continue // Skip failed charts in composition
+			}
+			chartReq.Data = transformedData
+		}
+
+		// Set defaults for individual charts
+		chartReq = cp.setDefaults(chartReq)
+
+		// Generate the individual chart
+		files, err := cp.generateChartFiles(ctx, fmt.Sprintf("%s_part_%d", compositeID, len(chartFiles)), chartReq)
+		if err == nil {
+			chartFiles = append(chartFiles, files)
+		}
+	}
+
+	// Combine charts based on layout
+	combinedFiles := cp.combineCharts(compositeID, chartFiles, layout, req.Composition.Grid)
+
+	endTime := time.Now()
+	executionTimeMs := int(endTime.Sub(startTime).Milliseconds())
+
+	return &ChartGenerationProcessorResponse{
+		Success: true,
+		ChartID: compositeID,
+		Files:   combinedFiles,
+		Metadata: ChartGenerationMetadata{
+			GenerationTimeMs: executionTimeMs,
+			DataPointCount:   len(req.Composition.Charts),
+			StyleApplied:     req.Style,
+			Dimensions: struct {
+				Width  int `json:"width"`
+				Height int `json:"height"`
+			}{
+				Width:  req.Width,
+				Height: req.Height,
+			},
+			FormatsGenerated: req.ExportFormats,
+			CreatedAt:        startTime.Format(time.RFC3339),
+			CompletedAt:      endTime.Format(time.RFC3339),
+		},
+	}, nil
+}
+
+// ApplyTransformations applies data transformation pipeline (P1 feature)
+func (cp *ChartProcessor) ApplyTransformations(data []map[string]interface{}, transform *DataTransform) ([]map[string]interface{}, error) {
+	result := data
+
+	// Apply filter
+	if transform.Filter != nil {
+		result = cp.filterData(result, transform.Filter)
+	}
+
+	// Apply aggregation
+	if transform.Aggregate != nil {
+		result = cp.aggregateData(result, transform.Aggregate)
+	}
+
+	// Apply sorting
+	if transform.Sort != nil {
+		result = cp.sortData(result, transform.Sort)
+	}
+
+	// Apply grouping
+	if transform.Group != nil {
+		result = cp.groupData(result, transform.Group)
+	}
+
+	return result, nil
+}
+
+func (cp *ChartProcessor) filterData(data []map[string]interface{}, filter *FilterConfig) []map[string]interface{} {
+	result := make([]map[string]interface{}, 0)
+
+	for _, item := range data {
+		value, exists := item[filter.Field]
+		if !exists {
+			continue
+		}
+
+		match := false
+		switch filter.Operator {
+		case "eq":
+			match = fmt.Sprintf("%v", value) == fmt.Sprintf("%v", filter.Value)
+		case "ne":
+			match = fmt.Sprintf("%v", value) != fmt.Sprintf("%v", filter.Value)
+		case "gt":
+			match = toFloat64(value) > toFloat64(filter.Value)
+		case "lt":
+			match = toFloat64(value) < toFloat64(filter.Value)
+		case "gte":
+			match = toFloat64(value) >= toFloat64(filter.Value)
+		case "lte":
+			match = toFloat64(value) <= toFloat64(filter.Value)
+		case "contains":
+			match = strings.Contains(fmt.Sprintf("%v", value), fmt.Sprintf("%v", filter.Value))
+		}
+
+		if match {
+			result = append(result, item)
+		}
+	}
+
+	return result
+}
+
+func (cp *ChartProcessor) aggregateData(data []map[string]interface{}, aggregate *AggregateConfig) []map[string]interface{} {
+	if aggregate.GroupBy == "" {
+		// Simple aggregation without grouping
+		aggValue := cp.calculateAggregation(data, aggregate.Field, aggregate.Method)
+		return []map[string]interface{}{
+			{
+				"value": aggValue,
+				"label": fmt.Sprintf("%s of %s", aggregate.Method, aggregate.Field),
+			},
+		}
+	}
+
+	// Group-based aggregation
+	groups := make(map[string][]map[string]interface{})
+	for _, item := range data {
+		groupKey := fmt.Sprintf("%v", item[aggregate.GroupBy])
+		groups[groupKey] = append(groups[groupKey], item)
+	}
+
+	result := make([]map[string]interface{}, 0)
+	for groupKey, groupData := range groups {
+		aggValue := cp.calculateAggregation(groupData, aggregate.Field, aggregate.Method)
+		result = append(result, map[string]interface{}{
+			"x": groupKey,
+			"y": aggValue,
+		})
+	}
+
+	return result
+}
+
+func (cp *ChartProcessor) calculateAggregation(data []map[string]interface{}, field, method string) float64 {
+	values := make([]float64, 0)
+	for _, item := range data {
+		if val, exists := item[field]; exists {
+			values = append(values, toFloat64(val))
+		}
+	}
+
+	if len(values) == 0 {
+		return 0
+	}
+
+	switch method {
+	case "sum":
+		sum := 0.0
+		for _, v := range values {
+			sum += v
+		}
+		return sum
+	case "avg":
+		sum := 0.0
+		for _, v := range values {
+			sum += v
+		}
+		return sum / float64(len(values))
+	case "min":
+		min := values[0]
+		for _, v := range values {
+			if v < min {
+				min = v
+			}
+		}
+		return min
+	case "max":
+		max := values[0]
+		for _, v := range values {
+			if v > max {
+				max = v
+			}
+		}
+		return max
+	case "count":
+		return float64(len(values))
+	default:
+		return 0
+	}
+}
+
+func (cp *ChartProcessor) sortData(data []map[string]interface{}, sort *SortConfig) []map[string]interface{} {
+	// Simple bubble sort for demonstration - in production, use more efficient sorting
+	result := make([]map[string]interface{}, len(data))
+	copy(result, data)
+
+	for i := 0; i < len(result)-1; i++ {
+		for j := 0; j < len(result)-i-1; j++ {
+			val1 := toFloat64(result[j][sort.Field])
+			val2 := toFloat64(result[j+1][sort.Field])
+
+			shouldSwap := false
+			if sort.Direction == "asc" {
+				shouldSwap = val1 > val2
+			} else {
+				shouldSwap = val1 < val2
+			}
+
+			if shouldSwap {
+				result[j], result[j+1] = result[j+1], result[j]
+			}
+		}
+	}
+
+	return result
+}
+
+func (cp *ChartProcessor) groupData(data []map[string]interface{}, group *GroupConfig) []map[string]interface{} {
+	// Group data by field values or bins
+	groups := make(map[string][]map[string]interface{})
+
+	for _, item := range data {
+		groupKey := fmt.Sprintf("%v", item[group.Field])
+		groups[groupKey] = append(groups[groupKey], item)
+	}
+
+	result := make([]map[string]interface{}, 0)
+	for groupKey, groupData := range groups {
+		result = append(result, map[string]interface{}{
+			"group": groupKey,
+			"data":  groupData,
+			"count": len(groupData),
+		})
+	}
+
+	return result
+}
+
+func (cp *ChartProcessor) combineCharts(compositeID string, chartFiles []map[string]string, layout string, grid *GridLayout) map[string]string {
+	// In a real implementation, this would combine the individual chart files
+	// For now, return a mock combined file reference
+	combinedFiles := make(map[string]string)
+
+	for _, format := range []string{"png", "svg", "html"} {
+		combinedFiles[format] = fmt.Sprintf("/tmp/%s_composite.%s", compositeID, format)
+	}
+
+	return combinedFiles
+}
+
+func toFloat64(val interface{}) float64 {
+	switch v := val.(type) {
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int32:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case string:
+		f, _ := strconv.ParseFloat(v, 64)
+		return f
+	default:
+		return 0
+	}
 }

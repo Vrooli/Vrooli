@@ -13,6 +13,7 @@ Date Night Planner transforms the often stressful task of planning memorable dat
 - **Preference Learning** - Improves suggestions over time based on feedback
 - **Date Memory Storage** - Save photos, notes, and ratings from completed dates
 - **Weather-Aware Planning** - Backup indoor alternatives for outdoor activities
+- **Surprise Date Mode** - Plan surprise dates with privacy controls and timed reveals
 
 ### Integrations
 - **scenario-authenticator** - Multi-tenant authentication for couple privacy
@@ -59,18 +60,39 @@ date-night-planner status
 ### API Endpoints
 - `POST /api/v1/dates/suggest` - Generate personalized date suggestions
 - `POST /api/v1/dates/plan` - Create and save a complete date plan
+- `POST /api/v1/dates/surprise` - Create a surprise date plan with privacy controls
+- `GET /api/v1/dates/surprise/{id}` - Retrieve surprise date (with access control)
 - `GET /health` - Service health check
 - `GET /health/database` - Database connectivity check
 - `GET /health/workflows` - n8n workflow status
 
-### Request Example
+### Request Examples
 ```json
+// Get date suggestions
 POST /api/v1/dates/suggest
 {
   "couple_id": "test-couple-123",
   "date_type": "romantic",
   "budget_max": 100,
   "weather_preference": "flexible"
+}
+
+// Create surprise date
+POST /api/v1/dates/surprise
+{
+  "couple_id": "couple-123",
+  "planned_by": "partner-1",
+  "date_suggestion": {
+    "title": "Romantic Sunset Dinner",
+    "description": "Special surprise evening",
+    "activities": [
+      {"type": "romantic", "name": "Secret Restaurant", "duration": "2 hours"}
+    ],
+    "estimated_cost": 200,
+    "estimated_duration": "3 hours"
+  },
+  "planned_date": "2025-02-14T19:00:00Z",
+  "reveal_time": "2025-02-14T17:00:00Z"
 }
 ```
 

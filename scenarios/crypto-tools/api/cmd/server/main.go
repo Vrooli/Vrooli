@@ -44,7 +44,7 @@ type Response struct {
 func NewServer() (*Server, error) {
 	config := &Config{
 		Port:        getEnv("API_PORT", "15001"),
-		DatabaseURL: getEnv("DATABASE_URL", "host=localhost port=5433 dbname=crypto_tools sslmode=disable"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:password@localhost:5433/crypto_tools?sslmode=disable"),
 		N8NURL:      getEnv("N8N_BASE_URL", "http://localhost:5678"),
 		WindmillURL: getEnv("WINDMILL_BASE_URL", "http://localhost:5681"),
 		APIToken:    getEnv("API_TOKEN", "crypto-tools-api-key-2024"),
@@ -121,9 +121,36 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Configure allowed origins based on environment
+		allowedOrigins := []string{
+			"http://localhost:3000",
+			"http://localhost:5173",
+			"http://localhost:15001",
+			"https://vrooli.com",
+		}
+		
+		// Check if the request origin is in the allowed list
+		origin := r.Header.Get("Origin")
+		allowed := false
+		for _, allowedOrigin := range allowedOrigins {
+			if origin == allowedOrigin {
+				allowed = true
+				break
+			}
+		}
+		
+		// Set CORS headers only for allowed origins
+		if allowed {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else if origin == "" {
+			// Allow requests with no origin (e.g., same-origin requests, CLI tools)
+			w.Header().Set("Access-Control-Allow-Origin", "http://localhost:15001")
+		}
+		
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "3600")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
