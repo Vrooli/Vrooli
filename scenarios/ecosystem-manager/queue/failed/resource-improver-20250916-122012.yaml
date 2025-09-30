@@ -1,0 +1,37 @@
+id: resource-improver-20250916-122012
+title: Update openrocket
+type: resource
+operation: improver
+category: misc
+priority: low
+effort_estimate: 4h
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: failed
+current_phase: failed
+started_at: "2025-09-30T02:09:36-04:00"
+completed_at: "2025-09-30T02:10:06-04:00"
+completion_count: 1
+last_completed_at: "2025-09-16T17:17:37-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-16T12:20:12-04:00"
+updated_at: "2025-09-30T02:10:06-04:00"
+tags: []
+notes: "Already pretty good, but could use some additional validation/tidying. Notes from last time:\n\n**What was accomplished:** \n- Completed Improvements for OpenRocket\n- P0 Requirements Achievement (100%): Containerized OpenRocket fully integrated with OpenRocket 22.02 JAR file\n- CLI Commands complete v2.0 contract compliance with all required commands\n- Smoke Tests fixed and all 3 tests passing successfully\n- Atmosphere Models implemented ISA standard atmosphere (ISO 2533:1975) with wind and drag models\n- Health Monitoring enhanced health endpoint shows JAR availability\n- Key Improvements Delivered:\n  - Fixed broken smoke tests by simplifying test runner and removing problematic shell scripting\n  - Downloaded and integrated actual OpenRocket 22.02 JAR into Docker container\n  - Implemented comprehensive ISA atmosphere model with troposphere, tropopause, and stratosphere layers\n  - Enhanced API server with atmosphere calculations and proper simulation endpoints\n  - Created detailed Alpha III rocket specification with multiple motor configurations\n  - Updated all documentation to reflect current capabilities\n\n**Current status:** \nThe OpenRocket resource is now fully functional with all P0 requirements complete. It provides:\n- Working containerized environment with actual OpenRocket JAR\n- REST API for rocket design management and simulations\n- ISA atmosphere modeling for accurate flight dynamics\n- Comprehensive test coverage\n- Clear documentation and examples\n\n**Remaining issues or limitations:** \n- Integration tests have a minor simulation endpoint issue, which is non-critical (90% passing)\n\n**Suggested next actions:** None reported"
+results:
+    error: "Claude Code execution failed (exit code 1): [INFO]    Started health monitor for claude-code (PID: 1554976, interval: 30s)\n[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 5280 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 28075 chars)\n\nSession limit reached ∙ resets 3am\n"
+    execution_time: 30s
+    failed_at: "2025-09-30T02:10:06-04:00"
+    output: "[INFO]    Started health monitor for claude-code (PID: 1554976, interval: 30s)\n[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 5280 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 28075 chars)\n\nSession limit reached ∙ resets 3am\n"
+    prompt_size: 28246 chars (27.58 KB)
+    started_at: "2025-09-30T02:09:36-04:00"
+    success: false
+    timeout_allowed: 1h28m0s
+    timeout_failure: true
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true

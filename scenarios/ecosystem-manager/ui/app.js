@@ -533,6 +533,10 @@ class EcosystemManager {
         this.init = this.init.bind(this);
         this.refreshAll = this.refreshAll.bind(this);
         this.handlePopState = this.handlePopState.bind(this);
+        this.toggleFilterPanel = this.toggleFilterPanel.bind(this);
+        this.syncFilterPanelForViewport = this.syncFilterPanelForViewport.bind(this);
+
+        this.horizontalScrollLockUntil = 0;
     }
 
     async init() {
@@ -582,6 +586,8 @@ class EcosystemManager {
         this.setupModals();
         this.initializeTargetSelector();
         this.initializeFilterControls();
+        this.syncFilterPanelForViewport();
+        this.updateFilterSummaryUI(this.filterState);
         this.initializeRecyclerTestbed();
 
         // Initialize tabs if they exist
@@ -635,6 +641,8 @@ class EcosystemManager {
         if (searchInput && typeof state.search === 'string') {
             searchInput.value = state.search;
         }
+
+        this.updateFilterSummaryUI(state);
     }
 
     collectFilterStateFromUI() {
@@ -644,6 +652,101 @@ class EcosystemManager {
             priority: document.getElementById('filter-priority')?.value || '',
             search: document.getElementById('search-input')?.value?.trim() || ''
         };
+    }
+
+    syncFilterPanelForViewport() {
+        const filtersSection = document.getElementById('filters');
+        const filterPanel = document.getElementById('filter-panel');
+        const toggleBtn = document.getElementById('filter-toggle-btn');
+
+        if (!filtersSection || !filterPanel || !toggleBtn) {
+            return;
+        }
+
+        const isMobile = window.matchMedia ? window.matchMedia('(max-width: 768px)').matches : window.innerWidth <= 768;
+
+        if (isMobile) {
+            const expanded = filtersSection.classList.contains('filters-expanded');
+            filterPanel.setAttribute('aria-hidden', (!expanded).toString());
+            toggleBtn.setAttribute('aria-expanded', expanded.toString());
+        } else {
+            filtersSection.classList.remove('filters-expanded');
+            filterPanel.setAttribute('aria-hidden', 'false');
+            toggleBtn.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    updateFilterSummaryUI(state = this.filterState || {}) {
+        const toggleBtn = document.getElementById('filter-toggle-btn');
+        const badge = document.getElementById('filter-active-count');
+        const filtersSection = document.getElementById('filters');
+
+        const activeCount = ['type', 'operation', 'priority']
+            .map(key => (state[key] || '').trim())
+            .filter(Boolean)
+            .length;
+
+        if (badge) {
+            if (activeCount > 0) {
+                badge.textContent = String(activeCount);
+                badge.hidden = false;
+            } else {
+                badge.hidden = true;
+            }
+        }
+
+        if (toggleBtn) {
+            const baseLabel = 'Filters';
+            if (activeCount > 0) {
+                const suffix = activeCount === 1 ? 'filter' : 'filters';
+                toggleBtn.setAttribute('aria-label', `${baseLabel}, ${activeCount} ${suffix} active`);
+                toggleBtn.title = `${activeCount} ${suffix} active`;
+            } else {
+                toggleBtn.setAttribute('aria-label', baseLabel);
+                toggleBtn.title = baseLabel;
+            }
+        }
+
+        if (filtersSection) {
+            filtersSection.classList.toggle('filters-have-active', activeCount > 0);
+        }
+    }
+
+    toggleFilterPanel(forceState) {
+        const filtersSection = document.getElementById('filters');
+        const filterPanel = document.getElementById('filter-panel');
+        const toggleBtn = document.getElementById('filter-toggle-btn');
+
+        if (!filtersSection || !filterPanel || !toggleBtn) {
+            return;
+        }
+
+        const isMobile = window.matchMedia ? window.matchMedia('(max-width: 768px)').matches : window.innerWidth <= 768;
+
+        if (!isMobile) {
+            return;
+        }
+
+        const currentlyExpanded = filtersSection.classList.contains('filters-expanded');
+        const shouldExpand = typeof forceState === 'boolean' ? forceState : !currentlyExpanded;
+        const stateChanged = shouldExpand !== currentlyExpanded;
+
+        if (stateChanged) {
+            filtersSection.classList.toggle('filters-expanded', shouldExpand);
+        }
+        filterPanel.setAttribute('aria-hidden', (!shouldExpand).toString());
+        toggleBtn.setAttribute('aria-expanded', shouldExpand.toString());
+
+        if (stateChanged) {
+            if (shouldExpand) {
+                const firstInput = filterPanel.querySelector('select, button, input');
+                if (firstInput) {
+                    firstInput.focus({ preventScroll: true });
+                }
+            } else {
+                toggleBtn.focus({ preventScroll: true });
+            }
+        }
     }
 
     hasFilterStateChanged(newState = {}) {
@@ -678,6 +781,7 @@ class EcosystemManager {
         this.applyFilterStateToUI(stateFromUrl);
         this.filterState = this.collectFilterStateFromUI();
         this.filterTasks(this.filterState);
+        this.syncFilterPanelForViewport();
     }
 
     getSelectedTargets() {
@@ -1068,6 +1172,45 @@ class EcosystemManager {
     }
 
     setupEventListeners() {
+        window.addEventListener('resize', this.syncFilterPanelForViewport);
+
+        const kanbanBoard = document.querySelector('.kanban-board');
+        if (kanbanBoard) {
+            kanbanBoard.addEventListener('wheel', (event) => {
+                if (event.defaultPrevented) {
+                    return;
+                }
+
+                const prefersCoarse = window.matchMedia ? window.matchMedia('(pointer: coarse)').matches : false;
+                if (prefersCoarse) {
+                    return;
+                }
+
+                const now = Date.now();
+                const horizontalLockActive = now < this.horizontalScrollLockUntil;
+
+                const columnContent = event.target.closest('.column-content');
+                if (columnContent && !horizontalLockActive) {
+                    const canScrollVertically = columnContent.scrollHeight > columnContent.clientHeight;
+                    if (canScrollVertically) {
+                        const scrollTop = columnContent.scrollTop;
+                        const atTop = scrollTop <= 0;
+                        const atBottom = (columnContent.scrollHeight - columnContent.clientHeight - scrollTop) <= 1;
+
+                        if ((event.deltaY < 0 && !atTop) || (event.deltaY > 0 && !atBottom)) {
+                            return; // allow default vertical scrolling within the column
+                        }
+                    }
+                }
+
+                if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+                    kanbanBoard.scrollLeft += event.deltaY;
+                    this.horizontalScrollLockUntil = Date.now() + 250;
+                    event.preventDefault();
+                }
+            }, { passive: false });
+        }
+
         // Refresh button
         // Create task button
         const createTaskBtn = document.getElementById('create-task-btn');
@@ -1100,6 +1243,16 @@ class EcosystemManager {
             settingsForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 await this.saveSettingsFromForm();
+            });
+        }
+        
+        const settingsMobileSelect = document.getElementById('settings-mobile-tab');
+        if (settingsMobileSelect) {
+            settingsMobileSelect.addEventListener('change', (event) => {
+                const tabName = (event.target.value || '').trim();
+                if (tabName) {
+                    this.switchSettingsTab(tabName);
+                }
             });
         }
         
@@ -2012,19 +2165,19 @@ class EcosystemManager {
                 
                 <!-- Action Buttons -->
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeModal('task-details-modal')">
-                        <i class="fas fa-times"></i>
-                        Cancel
+                    <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeModal('task-details-modal')" aria-label="Cancel">
+                        <i class="fas fa-times" aria-hidden="true"></i>
+                        <span class="btn-label">Cancel</span>
                     </button>
                     
-                    <button type="button" class="btn btn-info" onclick="ecosystemManager.viewTaskPrompt('${task.id}')" title="View the prompt that was/will be sent to Claude">
-                        <i class="fas fa-file-alt"></i>
-                        View Prompt
+                    <button type="button" class="btn btn-info" onclick="ecosystemManager.viewTaskPrompt('${task.id}')" title="View the prompt that was/will be sent to Claude" aria-label="View Prompt">
+                        <i class="fas fa-file-alt" aria-hidden="true"></i>
+                        <span class="btn-label">View Prompt</span>
                     </button>
                     
-                    <button type="button" class="btn btn-primary" onclick="ecosystemManager.saveTaskChanges('${task.id}')">
-                        <i class="fas fa-save"></i>
-                        Save Changes
+                    <button type="button" class="btn btn-primary" onclick="ecosystemManager.saveTaskChanges('${task.id}')" aria-label="Save Changes">
+                        <i class="fas fa-save" aria-hidden="true"></i>
+                        <span class="btn-label">Save Changes</span>
                     </button>
                 </div>
             </form>
@@ -2987,6 +3140,11 @@ class EcosystemManager {
         document.querySelectorAll('.settings-tab-content').forEach(content => {
             content.classList.toggle('active', content.dataset.tab === tabName);
         });
+
+        const mobileSelect = document.getElementById('settings-mobile-tab');
+        if (mobileSelect && mobileSelect.value !== tabName) {
+            mobileSelect.value = tabName;
+        }
     }
 
     closeModal(modalId) {
@@ -3260,6 +3418,9 @@ class EcosystemManager {
                 this.updatePromptOperationOptions();
                 this.updatePromptOperationSummary();
                 this.setPromptPreviewStatus('');
+
+                const activeSettingsButton = document.querySelector('.settings-tab-btn.active');
+                this.switchSettingsTab(activeSettingsButton?.dataset.tab || 'processor');
             });
         }
     }
@@ -3962,6 +4123,7 @@ class EcosystemManager {
 
         this.filterState = newState;
         this.filterTasks(newState);
+        this.updateFilterSummaryUI(newState);
 
         if (!skipUrlUpdate && stateChanged) {
             this.updateUrlWithFilters(newState);
@@ -3980,6 +4142,7 @@ class EcosystemManager {
         if (searchInput) searchInput.value = '';
 
         this.applyFilters();
+        this.toggleFilterPanel(false);
     }
 
     async updateFormForType() {

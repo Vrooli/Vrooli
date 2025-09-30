@@ -11,7 +11,8 @@
     "test:unit": "jest",
     "test:integration": "npm run start:test",
     "start:test": "electron . --test",
-    "electron:test": "electron . --test-mode"
+    "electron:test": "electron . --test-mode",
+    "test:hotkey": "electron . --test-hotkey"
   },
   "keywords": [
     "vrooli",

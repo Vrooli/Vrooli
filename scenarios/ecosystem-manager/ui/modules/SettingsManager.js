@@ -140,7 +140,14 @@ export class SettingsManager {
         if (statusIcon) {
             statusIcon.className = isActive ? 'fas fa-play' : 'fas fa-pause';
         }
-        
+
+        const toggleButton = document.getElementById('processor-toggle-btn');
+        if (toggleButton) {
+            const stateLabel = isActive ? 'active' : 'paused';
+            toggleButton.setAttribute('aria-label', `Queue processor ${stateLabel}. Tap to ${isActive ? 'pause' : 'activate'}.`);
+            toggleButton.title = `Processor ${stateLabel}`;
+        }
+
         // Show/hide additional indicators based on processor state
         const queueTimer = document.querySelector('.queue-timer');
         if (queueTimer) {

@@ -340,7 +340,23 @@ app.whenReady().then(() => {
       app.quit();
     }, 2000);
   }
-  
+
+  // Handle test-hotkey mode
+  if (process.argv.includes('--test-hotkey')) {
+    console.log('Testing global hotkey registration...');
+    // Hotkey should be registered at this point by registerHotkey()
+    setTimeout(() => {
+      const registered = globalShortcut.isRegistered(HOTKEY);
+      if (registered) {
+        console.log('Hotkey registered successfully');
+        console.log(`Hotkey: ${HOTKEY}`);
+      } else {
+        console.error('Failed to register hotkey');
+      }
+      app.quit();
+    }, 500);
+  }
+
   // Handle daemon mode
   if (process.argv.includes('--daemon')) {
     console.log('Running in daemon mode');

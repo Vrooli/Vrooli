@@ -52,9 +52,9 @@
         <header class="header">
             <div class="header-content">
                 <div class="header-left">
-                    <h1 class="header-title">
-                        <i class="fas fa-cogs"></i>
-                        Ecosystem Manager
+                    <h1 class="header-title" aria-label="Ecosystem Manager">
+                        <i class="fas fa-cogs" aria-hidden="true"></i>
+                        <span class="header-title-text">Ecosystem Manager</span>
                     </h1>
                     <div class="header-subtitle">Unified Resource & Scenario Management</div>
                 </div>
@@ -62,7 +62,7 @@
                 <!-- Queue Status Indicators -->
                 <div class="queue-status">
                     <div class="queue-info">
-                        <button class="queue-processor-status btn-processor-toggle" id="processor-toggle-btn" onclick="ecosystemManager.toggleProcessor()" title="Click to toggle processor">
+                        <button class="queue-processor-status btn-processor-toggle" id="processor-toggle-btn" onclick="ecosystemManager.toggleProcessor()" title="Click to toggle processor" aria-live="polite">
                             <i class="fas fa-play" id="processor-status-icon"></i>
                             <span id="processor-status">Active</span>
                         </button>
@@ -87,9 +87,9 @@
                         <button class="btn-icon settings-btn" onclick="ecosystemManager.openSettingsModal()" title="Settings">
                             <i class="fas fa-cog"></i>
                         </button>
-                        <button class="btn btn-primary" onclick="ecosystemManager.showCreateTaskModal()">
-                            <i class="fas fa-plus"></i>
-                            New Task
+                        <button class="btn btn-primary new-task-btn" onclick="ecosystemManager.showCreateTaskModal()" aria-label="Create new task">
+                            <i class="fas fa-plus" aria-hidden="true"></i>
+                            <span class="btn-label">New Task</span>
                         </button>
                     </div>
                 </div>
@@ -101,51 +101,63 @@
         </header>
 
         <!-- Filters -->
-        <section class="filters">
-        <div class="filter-group">
-            <select id="filter-type" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Type">
-                <option value="">All Types</option>
-                <option value="resource">Resources</option>
-                <option value="scenario">Scenarios</option>
-            </select>
-        </div>
-        
-        <div class="filter-group">
-            <select id="filter-operation" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Operation">
-                <option value="">All Operations</option>
-                <option value="generator">Generators</option>
-                <option value="improver">Improvers</option>
-            </select>
-        </div>
-        
-        <div class="filter-group">
-            <select id="filter-priority" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Priority">
-                <option value="">All Priorities</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-            </select>
-        </div>
-        
-        <div class="filter-group">
-            <button class="btn btn-secondary" onclick="ecosystemManager.clearFilters()">
-                <i class="fas fa-times"></i>
-                Clear Filters
-            </button>
-        </div>
-        
-        <div class="filter-group filter-search">
-            <input 
-                type="text" 
-                id="search-input" 
-                class="search-input" 
-                placeholder="Search tasks..."
-                oninput="ecosystemManager.applyFilters()"
-            >
-            <i class="fas fa-search search-icon"></i>
-        </div>
-    </section>
+        <section class="filters" id="filters">
+            <div class="filter-panel" id="filter-panel" aria-hidden="false">
+                <div class="filter-group">
+                    <label class="sr-only" for="filter-type">Filter by type</label>
+                    <select id="filter-type" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Type">
+                        <option value="">All Types</option>
+                        <option value="resource">Resources</option>
+                        <option value="scenario">Scenarios</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="sr-only" for="filter-operation">Filter by operation</label>
+                    <select id="filter-operation" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Operation">
+                        <option value="">All Operations</option>
+                        <option value="generator">Generators</option>
+                        <option value="improver">Improvers</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="sr-only" for="filter-priority">Filter by priority</label>
+                    <select id="filter-priority" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Priority">
+                        <option value="">All Priorities</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group filter-clear-group">
+                    <button class="btn btn-secondary" onclick="ecosystemManager.clearFilters()">
+                        <i class="fas fa-times"></i>
+                        <span class="btn-label">Clear</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="filters-bar">
+                <div class="filter-group filter-search">
+                    <input 
+                        type="text" 
+                        id="search-input" 
+                        class="search-input" 
+                        placeholder="Search tasks..."
+                        oninput="ecosystemManager.applyFilters()"
+                    >
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+                <button type="button" class="btn btn-secondary filter-toggle-btn" id="filter-toggle-btn" onclick="ecosystemManager.toggleFilterPanel()" aria-controls="filter-panel" aria-expanded="false">
+                    <i class="fas fa-sliders-h" aria-hidden="true"></i>
+                    <span class="btn-label">Filters</span>
+                    <span class="filter-active-count" id="filter-active-count" hidden>0</span>
+                </button>
+            </div>
+        </section>
     </div><!-- End Fixed Top Container -->
 
     <!-- Kanban Board -->
@@ -361,11 +373,12 @@
             
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeModal('create-task-modal')">
-                    Cancel
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                    <span class="btn-label">Cancel</span>
                 </button>
-                <button type="submit" class="btn btn-primary" form="create-task-form">
-                    <i class="fas fa-plus"></i>
-                    Create Task
+                <button type="submit" class="btn btn-primary" form="create-task-form" aria-label="Create Task">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                    <span class="btn-label">Create Task</span>
                 </button>
             </div>
         </div>
@@ -422,6 +435,19 @@
                     <i class="fas fa-recycle"></i>
                     <span>Recycler</span>
                 </button>
+            </div>
+
+            <!-- Settings Mobile Selector -->
+            <div class="settings-mobile-tab-selector">
+                <label class="sr-only" for="settings-mobile-tab">Select settings section</label>
+                <select id="settings-mobile-tab">
+                    <option value="processor">Processor</option>
+                    <option value="agent">Agent</option>
+                    <option value="display">Display</option>
+                    <option value="prompt">Prompt Tester</option>
+                    <option value="limits">Rate Limits</option>
+                    <option value="recycler">Recycler</option>
+                </select>
             </div>
             
             <form id="settings-form">
@@ -863,19 +889,19 @@ The calendar scenario is now production-ready with all P0 requirements verified.
                     
                     <!-- Action Buttons -->
                     <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeModal('settings-modal')">
-                            <i class="fas fa-times"></i>
-                            Cancel
+                        <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeModal('settings-modal')" aria-label="Cancel">
+                            <i class="fas fa-times" aria-hidden="true"></i>
+                            <span class="btn-label">Cancel</span>
                         </button>
                         
-                        <button type="button" class="btn btn-outline" onclick="ecosystemManager.resetSettingsToDefault()">
-                            <i class="fas fa-undo"></i>
-                            Reset to Defaults
+                        <button type="button" class="btn btn-outline" onclick="ecosystemManager.resetSettingsToDefault()" aria-label="Reset to Defaults">
+                            <i class="fas fa-undo" aria-hidden="true"></i>
+                            <span class="btn-label">Reset to Defaults</span>
                         </button>
                         
-                        <button type="button" class="btn btn-primary" onclick="ecosystemManager.saveSettingsFromForm()">
-                            <i class="fas fa-save"></i>
-                            Save Settings
+                        <button type="button" class="btn btn-primary" onclick="ecosystemManager.saveSettingsFromForm()" aria-label="Save Settings">
+                            <i class="fas fa-save" aria-hidden="true"></i>
+                            <span class="btn-label">Save Settings</span>
                         </button>
                     </div>
                 </div>

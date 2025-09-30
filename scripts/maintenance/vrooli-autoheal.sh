@@ -10,6 +10,7 @@ LOCK_FILE="${VROOLI_AUTOHEAL_LOCK_FILE:-/tmp/vrooli-autoheal.lock}"
 LOG_FILE="${VROOLI_AUTOHEAL_LOG_FILE:-/var/log/vrooli-autoheal.log}"
 RESOURCE_LIST="${VROOLI_AUTOHEAL_RESOURCES:-postgres,redis,qdrant}"
 SCENARIO_LIST="${VROOLI_AUTOHEAL_SCENARIOS:-app-monitor,system-monitor,ecosystem-manager,maintenance-orchestrator,app-issue-tracker,vrooli-orchestrator}"
+VERIFY_DELAY="${VROOLI_AUTOHEAL_VERIFY_DELAY:-30}"
 
 log() {
     local level="$1"
@@ -113,29 +114,48 @@ check_resource() {
     fi
 }
 
+scenario_status_fields() {
+    local info="$1"
+    local __state_var="$2"
+    local __api_var="$3"
+    local __ui_var="$4"
+
+    local parsed_state parsed_api parsed_ui
+    parsed_state=$(jq -r '.scenario_data.status // "unknown"' <<<"$info")
+    parsed_api=$(jq -r '.diagnostics.responsiveness.api.available // empty' <<<"$info")
+    parsed_ui=$(jq -r '.diagnostics.responsiveness.ui.available // empty' <<<"$info")
+
+    printf -v "$__state_var" '%s' "$parsed_state"
+    printf -v "$__api_var" '%s' "$parsed_api"
+    printf -v "$__ui_var" '%s' "$parsed_ui"
+}
+
+scenario_requires_restart() {
+    local state="$1" api_ok="$2" ui_ok="$3"
+
+    if [[ "$state" != "running" ]]; then
+        return 0
+    fi
+    if [[ -n "$api_ok" && "$api_ok" != "true" ]]; then
+        return 0
+    fi
+    if [[ -n "$ui_ok" && "$ui_ok" != "true" ]]; then
+        return 0
+    fi
+    return 1
+}
+
 check_scenario() {
     local name="$1"
-    local info state api_ok ui_ok
+    local info state="" api_ok="" ui_ok=""
     if ! info=$(vrooli scenario status "$name" --json 2>/dev/null); then
         log "WARN" "Failed to read status for scenario '$name'"
         return
     fi
-    state=$(jq -r '.scenario_data.status // "unknown"' <<<"$info")
-    api_ok=$(jq -r '.diagnostics.responsiveness.api.available // empty' <<<"$info")
-    ui_ok=$(jq -r '.diagnostics.responsiveness.ui.available // empty' <<<"$info")
+    scenario_status_fields "$info" state api_ok ui_ok
+    log "DEBUG" "Scenario '$name' status check: state=$state api=$api_ok ui=$ui_ok"
 
-    local restart_required="false"
-    if [[ "$state" != "running" ]]; then
-        restart_required="true"
-    fi
-    if [[ -n "$api_ok" && "$api_ok" != "true" ]]; then
-        restart_required="true"
-    fi
-    if [[ -n "$ui_ok" && "$ui_ok" != "true" ]]; then
-        restart_required="true"
-    fi
-
-    if [[ "$restart_required" == "true" ]]; then
+    if scenario_requires_restart "$state" "$api_ok" "$ui_ok"; then
         log "INFO" "Restarting scenario '$name' (state=$state api=$api_ok ui=$ui_ok)"
         if ! vrooli scenario stop "$name" >/dev/null 2>&1; then
             log "DEBUG" "Stop command for '$name' returned non-zero, continuing"
@@ -144,6 +164,21 @@ check_scenario() {
             log "ERROR" "Failed to start scenario '$name'"
         else
             log "INFO" "Scenario '$name' restart requested"
+            if [[ "$VERIFY_DELAY" =~ ^[0-9]+$ && "$VERIFY_DELAY" -gt 0 ]]; then
+                log "INFO" "Waiting ${VERIFY_DELAY}s before verification for '$name'"
+                sleep "$VERIFY_DELAY"
+                local verify_info verify_state="" verify_api="" verify_ui=""
+                if verify_info=$(vrooli scenario status "$name" --json 2>/dev/null); then
+                    scenario_status_fields "$verify_info" verify_state verify_api verify_ui
+                    if scenario_requires_restart "$verify_state" "$verify_api" "$verify_ui"; then
+                        log "ERROR" "Scenario '$name' still failing after restart (state=$verify_state api=$verify_api ui=$verify_ui)"
+                    else
+                        log "INFO" "Scenario '$name' reported healthy after restart"
+                    fi
+                else
+                    log "WARN" "Unable to verify scenario '$name' after restart"
+                fi
+            fi
         fi
     fi
 }
