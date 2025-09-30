@@ -185,7 +185,7 @@
         },
         {
           "name": "test-screenshot",
-          "run": "./cli/vrooli-assistant capture --test",
+          "run": "API_PORT=${API_PORT} ./cli/vrooli-assistant capture \"Test screenshot capture\"",
           "description": "Test screenshot capture"
         },
         {

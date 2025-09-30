@@ -140,6 +140,9 @@ capture_issue() {
         gnome-screenshot -f "$screenshot"
     elif command -v import &> /dev/null; then
         import "$screenshot"
+    elif command -v xwd &> /dev/null; then
+        # Use xwd to capture screenshot and convert to PNG
+        xwd -root -silent | convert xwd:- "$screenshot" 2>/dev/null || echo -e "${YELLOW}Warning: Could not capture screenshot${NC}"
     else
         echo -e "${YELLOW}Warning: Could not capture screenshot${NC}"
     fi

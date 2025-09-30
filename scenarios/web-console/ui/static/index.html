@@ -16,11 +16,51 @@
         </div>
         <div class="header-actions">
           <span id="statusBadge" class="status-badge">IDLE · DISCONNECTED</span>
+          <button
+            id="drawerToggle"
+            class="drawer-toggle"
+            type="button"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="detailsDrawer"
+            aria-label="Open session details"
+          >
+            <span class="sr-only">Open session details</span>
+            <span aria-hidden="true" class="drawer-icon-lines">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+            <span id="drawerIndicator" class="drawer-indicator hidden" aria-hidden="true"></span>
+          </button>
         </div>
       </header>
 
-      <section class="layout">
-        <aside class="sidebar">
+      <section id="mainLayout" class="layout">
+        <div class="layout-main">
+          <section class="console">
+            <div class="console-header">
+              <div id="tabList" class="tab-list" role="tablist">
+                <div id="tabAddSlot" class="tab-add-slot" role="presentation">
+                  <button id="addTabBtn" type="button" class="tab-add" aria-label="Open new terminal">
+                    <span class="sr-only">Open new terminal</span>
+                    <span aria-hidden="true">+</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div id="terminalHost" class="terminal-host"></div>
+            <div id="errorBanner" class="error-banner hidden"></div>
+          </section>
+        </div>
+
+        <aside
+          id="detailsDrawer"
+          class="details-drawer"
+          aria-labelledby="drawerToggle"
+          aria-hidden="true"
+          tabindex="-1"
+        >
           <section class="panel">
             <h2>Session</h2>
             <ul class="info-list">
@@ -63,14 +103,7 @@
           </section>
         </aside>
 
-        <section class="console">
-          <div class="console-header">
-            <div id="tabList" class="tab-list" role="tablist"></div>
-            <button id="addTabBtn" type="button" class="tab-add" aria-label="Open new terminal">+ New Terminal</button>
-          </div>
-          <div id="terminalHost" class="terminal-host"></div>
-          <div id="errorBanner" class="error-banner hidden"></div>
-        </section>
+        <div id="drawerBackdrop" class="drawer-backdrop" aria-hidden="true"></div>
       </section>
     </main>
 

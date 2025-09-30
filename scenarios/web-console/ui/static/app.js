@@ -10,7 +10,13 @@ const elements = {
   errorBanner: document.getElementById('errorBanner'),
   tabList: document.getElementById('tabList'),
   addTabBtn: document.getElementById('addTabBtn'),
-  terminalHost: document.getElementById('terminalHost')
+  tabAddSlot: document.getElementById('tabAddSlot'),
+  terminalHost: document.getElementById('terminalHost'),
+  layout: document.getElementById('mainLayout'),
+  drawerToggle: document.getElementById('drawerToggle'),
+  drawerIndicator: document.getElementById('drawerIndicator'),
+  detailsDrawer: document.getElementById('detailsDrawer'),
+  drawerBackdrop: document.getElementById('drawerBackdrop')
 }
 
 const shortcutButtons = Array.from(document.querySelectorAll('[data-shortcut-id]'))
@@ -51,7 +57,12 @@ const textDecoder = new TextDecoder()
 const state = {
   tabs: [],
   activeTabId: null,
-  bridge: null
+  bridge: null,
+  drawer: {
+    open: false,
+    unreadCount: 0,
+    previousFocus: null
+  }
 }
 
 let tabSequence = 0
@@ -80,6 +91,21 @@ shortcutButtons.forEach((button) => {
   button.addEventListener('click', () => handleShortcutButton(button))
 })
 
+if (elements.drawerToggle) {
+  elements.drawerToggle.addEventListener('click', () => toggleDrawer())
+}
+
+if (elements.drawerBackdrop) {
+  elements.drawerBackdrop.addEventListener('click', () => closeDrawer())
+}
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && state.drawer.open) {
+    event.preventDefault()
+    closeDrawer()
+  }
+})
+
 window.addEventListener('resize', () => {
   const active = getActiveTab()
   if (!active) return
@@ -89,6 +115,82 @@ window.addEventListener('resize', () => {
 })
 
 updateUI()
+updateDrawerIndicator()
+applyDrawerState()
+
+function toggleDrawer(forceState) {
+  if (typeof forceState === 'boolean') {
+    return forceState ? openDrawer() : closeDrawer()
+  }
+  if (state.drawer.open) {
+    closeDrawer()
+  } else {
+    openDrawer()
+  }
+}
+
+function openDrawer() {
+  if (state.drawer.open) return
+  state.drawer.open = true
+  state.drawer.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  applyDrawerState()
+  resetUnreadEvents()
+  requestAnimationFrame(() => {
+    elements.detailsDrawer?.focus()
+  })
+}
+
+function closeDrawer() {
+  if (!state.drawer.open) return
+  state.drawer.open = false
+  applyDrawerState()
+  updateDrawerIndicator()
+  const fallback = state.drawer.previousFocus && state.drawer.previousFocus.isConnected ? state.drawer.previousFocus : elements.drawerToggle
+  requestAnimationFrame(() => {
+    fallback?.focus?.()
+    state.drawer.previousFocus = null
+  })
+}
+
+function applyDrawerState() {
+  if (!elements.layout || !elements.detailsDrawer || !elements.drawerToggle) return
+  elements.layout.classList.toggle('drawer-open', state.drawer.open)
+  elements.detailsDrawer.setAttribute('aria-hidden', state.drawer.open ? 'false' : 'true')
+  if (state.drawer.open) {
+    elements.detailsDrawer.removeAttribute('inert')
+  } else {
+    elements.detailsDrawer.setAttribute('inert', '')
+  }
+  elements.drawerToggle.setAttribute('aria-expanded', state.drawer.open ? 'true' : 'false')
+  if (elements.drawerBackdrop) {
+    elements.drawerBackdrop.setAttribute('aria-hidden', state.drawer.open ? 'false' : 'true')
+  }
+}
+
+function resetUnreadEvents() {
+  if (!state.drawer) return
+  if (state.drawer.unreadCount !== 0) {
+    state.drawer.unreadCount = 0
+  }
+  updateDrawerIndicator()
+}
+
+function updateDrawerIndicator() {
+  if (!elements.drawerIndicator) return
+  const count = state.drawer?.unreadCount || 0
+  const hasUnread = count > 0
+  if (elements.drawerToggle) {
+    elements.drawerToggle.setAttribute('aria-label', hasUnread ? 'Open session details (new activity)' : 'Open session details')
+    elements.drawerToggle.classList.toggle('has-unread', hasUnread)
+  }
+  if (hasUnread) {
+    elements.drawerIndicator.classList.remove('hidden')
+    elements.drawerIndicator.setAttribute('aria-hidden', 'false')
+  } else {
+    elements.drawerIndicator.classList.add('hidden')
+    elements.drawerIndicator.setAttribute('aria-hidden', 'true')
+  }
+}
 
 function createTerminalTab({ focus = false } = {}) {
   if (!elements.terminalHost) return null
@@ -122,7 +224,8 @@ function createTerminalTab({ focus = false } = {}) {
     suppressed: initialSuppressedState(),
     pendingWrites: [],
     errorMessage: '',
-    lastSentSize: { cols: 0, rows: 0 }
+    lastSentSize: { cols: 0, rows: 0 },
+    domLabel: null
   }
 
   term.onResize(({ cols, rows }) => {
@@ -167,6 +270,10 @@ function destroyTerminalTab(tab) {
   if (tab.domItem?.parentElement) {
     tab.domItem.parentElement.removeChild(tab.domItem)
   }
+  tab.domItem = null
+  tab.domButton = null
+  tab.domClose = null
+  tab.domLabel = null
 }
 
 function getActiveTab() {
@@ -193,6 +300,7 @@ function setActiveTab(tabId) {
     }
     updateTabButtonState(entry)
   })
+  resetUnreadEvents()
   focusTerminal(tab)
   updateUI()
 }
@@ -240,7 +348,11 @@ function renderTabs() {
       selectBtn.className = 'tab-button'
       selectBtn.dataset.tabId = tab.id
       selectBtn.setAttribute('role', 'tab')
-      selectBtn.textContent = tab.label
+      selectBtn.title = tab.label
+      const labelSpan = document.createElement('span')
+      labelSpan.className = 'tab-label'
+      labelSpan.textContent = tab.label
+      selectBtn.appendChild(labelSpan)
       selectBtn.addEventListener('click', () => setActiveTab(tab.id))
 
       const closeBtn = document.createElement('button')
@@ -257,16 +369,32 @@ function renderTabs() {
       item.appendChild(selectBtn)
       item.appendChild(closeBtn)
 
-      elements.tabList.appendChild(item)
+      const insertionPoint = elements.tabAddSlot || elements.addTabBtn || null
+      if (insertionPoint && elements.tabList.contains(insertionPoint)) {
+        elements.tabList.insertBefore(item, insertionPoint)
+      } else {
+        elements.tabList.appendChild(item)
+      }
 
       tab.domItem = item
       tab.domButton = selectBtn
       tab.domClose = closeBtn
+      tab.domLabel = labelSpan
     } else {
-      elements.tabList.appendChild(tab.domItem)
+      const insertionPoint = elements.tabAddSlot || elements.addTabBtn || null
+      if (insertionPoint && elements.tabList.contains(insertionPoint)) {
+        elements.tabList.insertBefore(tab.domItem, insertionPoint)
+      } else {
+        elements.tabList.appendChild(tab.domItem)
+      }
     }
 
-    tab.domButton.textContent = tab.label
+    if (tab.domLabel) {
+      tab.domLabel.textContent = tab.label
+    } else {
+      tab.domButton.textContent = tab.label
+    }
+    tab.domButton.title = tab.label
     updateTabButtonState(tab)
   })
 }
@@ -439,6 +567,7 @@ function updateUI() {
     renderEvents(null)
     renderError(null)
     emitSessionUpdate(null)
+    resetUnreadEvents()
     return
   }
 
@@ -471,6 +600,7 @@ function updateUI() {
   renderEvents(tab)
   renderError(tab)
   emitSessionUpdate(tab)
+  updateDrawerIndicator()
 }
 
 function renderError(tab) {
@@ -539,6 +669,10 @@ function appendEvent(tab, type, payload) {
   tab.events.push({ type, payload: normalized, timestamp: Date.now() })
   if (tab.events.length > 500) {
     tab.events.splice(0, tab.events.length - 500)
+  }
+  if (!state.drawer.open && tab.id === state.activeTabId) {
+    const nextCount = (state.drawer.unreadCount || 0) + 1
+    state.drawer.unreadCount = nextCount > 999 ? 999 : nextCount
   }
   if (tab.id === state.activeTabId) {
     updateUI()

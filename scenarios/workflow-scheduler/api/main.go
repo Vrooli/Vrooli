@@ -480,7 +480,18 @@ func (a *App) updateSchedule(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "Invalid cron expression")
 		return
 	}
-	
+
+	// Set defaults for empty values
+	if s.Timezone == "" {
+		s.Timezone = "UTC"
+	}
+	if s.TargetMethod == "" {
+		s.TargetMethod = "POST"
+	}
+	if s.Status == "" {
+		s.Status = "active"
+	}
+
 	// Update in database
 	_, err := a.DB.Exec(`
 		UPDATE schedules SET

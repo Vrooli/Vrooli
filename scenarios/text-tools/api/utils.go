@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -194,12 +197,47 @@ func performSemanticSearch(text interface{}, pattern string, config *Config) []S
 // Transform operations
 func applyTransformation(text string, transform Transformation) string {
 	switch transform.Type {
+	case "case":
+		// Handle case transformation with parameters
+		if to, ok := transform.Parameters["to"].(string); ok {
+			switch to {
+			case "upper":
+				return strings.ToUpper(text)
+			case "lower":
+				return strings.ToLower(text)
+			case "title":
+				return strings.Title(text)
+			}
+		}
+		return text
 	case "upper":
 		return strings.ToUpper(text)
 	case "lower":
 		return strings.ToLower(text)
 	case "title":
 		return strings.Title(text)
+	case "encode":
+		// Handle encoding transformations
+		if encoding, ok := transform.Parameters["type"].(string); ok {
+			switch encoding {
+			case "base64":
+				return base64.StdEncoding.EncodeToString([]byte(text))
+			case "url":
+				return url.QueryEscape(text)
+			}
+		}
+		return text
+	case "format":
+		// Handle format transformations
+		if format, ok := transform.Parameters["type"].(string); ok {
+			switch format {
+			case "json":
+				// Pretty print as JSON string
+				quoted, _ := json.Marshal(text)
+				return string(quoted)
+			}
+		}
+		return text
 	case "sanitize":
 		// Basic HTML tag removal
 		re := regexp.MustCompile(`<[^>]*>`)
@@ -244,11 +282,12 @@ func extractContent(source interface{}, options ExtractOptions) (string, map[str
 			metadata["source"] = url
 			return fmt.Sprintf("Content extracted from URL: %s", url), metadata
 		}
-		if file, ok := v["file"].(string); ok {
+		if fileData, ok := v["file"].(string); ok {
 			// TODO: Implement file content extraction (base64 decoding)
 			metadata["type"] = "file"
 			metadata["encoding"] = "base64"
-			return "Content extracted from file", metadata
+			metadata["file_length"] = len(fileData)
+			return fmt.Sprintf("Content extracted from file (length: %d)", len(fileData)), metadata
 		}
 		if docId, ok := v["document_id"].(string); ok {
 			// TODO: Implement document retrieval from database

@@ -10,6 +10,7 @@ SCENARIOS="${VROOLI_AUTOHEAL_SCENARIOS:-app-monitor,system-monitor,ecosystem-man
 GRACE="${VROOLI_AUTOHEAL_GRACE_SECONDS:-60}"
 LOG_FILE="${VROOLI_AUTOHEAL_LOG_FILE:-/var/log/vrooli-autoheal.log}"
 LOCK_FILE="${VROOLI_AUTOHEAL_LOCK_FILE:-/tmp/vrooli-autoheal.lock}"
+LOGROTATE_FILE="${VROOLI_AUTOHEAL_LOGROTATE_PATH:-/etc/logrotate.d/vrooli-autoheal}"
 
 usage() {
     cat <<USAGE
@@ -25,7 +26,35 @@ Environment variables:
   VROOLI_AUTOHEAL_GRACE_SECONDS  Seconds to wait before checks begin (default: $GRACE)
   VROOLI_AUTOHEAL_LOG_FILE       Log file path (default: $LOG_FILE)
   VROOLI_AUTOHEAL_LOCK_FILE      Lock file path (default: $LOCK_FILE)
+  VROOLI_AUTOHEAL_LOGROTATE_PATH Logrotate config path (default: $LOGROTATE_FILE)
 USAGE
+}
+
+install_logrotate() {
+    local config_dir
+    config_dir="$(dirname "$LOGROTATE_FILE")"
+
+    if [[ ! -d "$config_dir" ]]; then
+        echo "Skipping logrotate install (directory $config_dir not found)"
+        return
+    fi
+
+    if [[ $EUID -ne 0 && ! -w "$LOGROTATE_FILE" && ! -w "$config_dir" ]]; then
+        echo "Insufficient permissions to create $LOGROTATE_FILE; skipping logrotate config"
+        return
+    fi
+
+    cat >"$LOGROTATE_FILE" <<EOF
+$LOG_FILE {
+    weekly
+    rotate 6
+    compress
+    missingok
+    notifempty
+    copytruncate
+}
+EOF
+    echo "Logrotate configuration installed at $LOGROTATE_FILE"
 }
 
 remove_job() {
@@ -39,6 +68,14 @@ remove_job() {
     if [[ -f "$TARGET_PATH" ]]; then
         echo "Removing $TARGET_PATH"
         rm -f "$TARGET_PATH"
+    fi
+    if [[ -f "$LOGROTATE_FILE" ]]; then
+        if [[ $EUID -ne 0 && ! -w "$LOGROTATE_FILE" ]]; then
+            echo "Logrotate config present at $LOGROTATE_FILE (insufficient permissions to remove)"
+        else
+            rm -f "$LOGROTATE_FILE"
+            echo "Removed $LOGROTATE_FILE"
+        fi
     fi
     echo "Autoheal cron job removed"
 }
@@ -71,6 +108,7 @@ install_job() {
     } | crontab -
 
     rm -f "$tmp"
+    install_logrotate
     echo "Autoheal installed: schedule $CRON_SCHEDULE"
 }
 

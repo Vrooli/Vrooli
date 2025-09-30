@@ -9,7 +9,7 @@ GRACE_SECONDS="${VROOLI_AUTOHEAL_GRACE_SECONDS:-60}"
 LOCK_FILE="${VROOLI_AUTOHEAL_LOCK_FILE:-/tmp/vrooli-autoheal.lock}"
 LOG_FILE="${VROOLI_AUTOHEAL_LOG_FILE:-/var/log/vrooli-autoheal.log}"
 RESOURCE_LIST="${VROOLI_AUTOHEAL_RESOURCES:-postgres,redis,qdrant}"
-SCENARIO_LIST="${VROOLI_AUTOHEAL_SCENARIOS:-app-monitor,system-monitor,ecosystem-manager,maintenance-orchestrator,app-issue-tracker,vrooli-orchestrator}"
+SCENARIO_LIST="${VROOLI_AUTOHEAL_SCENARIOS:-app-monitor,system-monitor,ecosystem-manager,maintenance-orchestrator,app-issue-tracker,vrooli-orchestrator,scenario-auditor,scenario-authenticator,web-console}"
 VERIFY_DELAY="${VROOLI_AUTOHEAL_VERIFY_DELAY:-30}"
 
 log() {
