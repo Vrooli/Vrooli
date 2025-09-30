@@ -5,7 +5,18 @@
 set -euo pipefail
 
 # Configuration
-API_BASE_URL="${DOCUMENT_MANAGER_API_URL:-http://localhost:8090}"
+# Check if API is running and auto-detect port
+API_PORT=""
+for port in 17810 17789 17787 17785 8090; do
+    if curl -sf "http://localhost:$port/health" >/dev/null 2>&1; then
+        API_PORT="$port"
+        break
+    fi
+done
+
+# Fallback to environment or default if not detected
+API_PORT="${API_PORT:-${DOCUMENT_MANAGER_API_PORT:-8090}}"
+API_BASE_URL="${DOCUMENT_MANAGER_API_URL:-http://localhost:${API_PORT}}"
 VERSION="2.0.0"
 
 # Colors for output

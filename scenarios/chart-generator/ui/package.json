@@ -1,0 +1,12 @@
+{
+  "name": "chart-generator-ui",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  }
+}

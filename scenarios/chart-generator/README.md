@@ -422,3 +422,90 @@ POSTGRES_DB=chart_generator # Database name
 ---
 
 **Chart Generator** - Transforming data into insight, one chart at a time. 📊✨
+## API Endpoints
+
+### Search Endpoint (Enhanced)
+```bash
+# Advanced search with filters
+curl -X POST http://localhost:PORT/api/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "artificial intelligence research",
+    "limit": 10,
+    "language": "en",
+    "safe_search": 1,
+    "file_type": "pdf",
+    "site": "arxiv.org",
+    "exclude_sites": ["wikipedia.org"],
+    "time_range": "month",
+    "sort_by": "date",
+    "region": "us",
+    "min_date": "2024-01-01",
+    "engines": ["google", "bing", "duckduckgo"]
+  }'
+```
+
+### Report Management
+```bash
+# Create a new research report
+curl -X POST http://localhost:PORT/api/reports \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "Quantum computing advances",
+    "depth": "deep",
+    "target_length": 10,
+    "language": "en",
+    "tags": ["quantum", "computing", "research"],
+    "category": "technology"
+  }'
+
+# Get all reports
+curl http://localhost:PORT/api/reports
+
+# Get specific report
+curl http://localhost:PORT/api/reports/{id}
+```
+
+### Dashboard Statistics
+```bash
+curl http://localhost:PORT/api/dashboard/stats
+```
+
+## CLI Usage
+```bash
+# Check status
+research-assistant status
+
+# Get help
+research-assistant help
+
+# Note: Additional CLI commands for report creation and chat are planned
+```
+
+## Quick Start
+1. Ensure required resources are running:
+   ```bash
+   vrooli resource status ollama
+   vrooli resource status qdrant
+   vrooli resource status searxng
+   ```
+
+2. Start the scenario:
+   ```bash
+   vrooli scenario run research-assistant
+   ```
+
+3. Access the services:
+   - API: http://localhost:PORT (check output for actual port)
+   - UI: http://localhost:PORT (check output for actual port)
+
+## Known Limitations
+- Windmill resource integration pending (optional)
+- n8n workflows require manual import
+- Some P1 features in development (contradiction detection, report templates)
+
+## Recent Updates (2025-09-30)
+- Implemented advanced search filters with comprehensive filtering options
+- Fixed SearXNG integration for reliable multi-source searching
+- Enhanced CLI port detection for better reliability
+- Added sorting capabilities for search results

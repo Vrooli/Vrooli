@@ -281,13 +281,32 @@ func initializeDatabase() error {
 	
 	// Create default company if none exists
 	var count int
-	db.QueryRow("SELECT COUNT(*) FROM companies").Scan(&count)
+	db.QueryRow("SELECT COUNT(*) FROM companies WHERE id = '00000000-0000-0000-0000-000000000001'").Scan(&count)
 	if count == 0 {
 		_, err = db.Exec(`
-			INSERT INTO companies (id, name, default_currency, invoice_prefix)
-			VALUES ('default', 'Your Company', 'USD', 'INV')`)
+			INSERT INTO companies (id, name, email, phone, address_line1, city, state_province, postal_code, country, default_currency, invoice_prefix, next_invoice_number, default_payment_terms)
+			VALUES ('00000000-0000-0000-0000-000000000001', 'Default Company', 'billing@company.com', '+1 555-0100', '123 Business St', 'New York', 'NY', '10001', 'USA', 'USD', 'INV', 1001, 30)`)
 		if err != nil {
 			log.Printf("Warning: Could not create default company: %v", err)
+		} else {
+			log.Println("✓ Created default company")
+		}
+	}
+	
+	// Create test clients if none exist
+	var clientCount int
+	db.QueryRow("SELECT COUNT(*) FROM clients WHERE id IN ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222')").Scan(&clientCount)
+	if clientCount == 0 {
+		_, err = db.Exec(`
+			INSERT INTO clients (id, company_id, name, email, phone, address_line1, city, state_province, postal_code, country)
+			VALUES 
+				('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001', 'Acme Corp', 'billing@acme.com', '+1 555-0101', '456 Main St', 'San Francisco', 'CA', '94105', 'USA'),
+				('22222222-2222-2222-2222-222222222222', '00000000-0000-0000-0000-000000000001', 'Tech Solutions Inc', 'accounts@techsolutions.com', '+1 555-0102', '789 Tech Way', 'Austin', 'TX', '78701', 'USA')
+			ON CONFLICT (id) DO NOTHING`)
+		if err != nil {
+			log.Printf("Warning: Could not create test clients: %v", err)
+		} else {
+			log.Println("✓ Created test clients")
 		}
 	}
 	

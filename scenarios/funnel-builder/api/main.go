@@ -187,6 +187,9 @@ func (s *Server) setupRoutes() {
 		MaxAge:           12 * time.Hour,
 	}))
 
+	// Health endpoint at root for lifecycle system
+	s.router.GET("/health", s.handleHealth)
+
 	api := s.router.Group("/api/v1")
 	{
 		api.GET("/health", s.handleHealth)
@@ -198,9 +201,9 @@ func (s *Server) setupRoutes() {
 		api.PUT("/funnels/:id", s.handleUpdateFunnel)
 		api.DELETE("/funnels/:id", s.handleDeleteFunnel)
 		
-		// Funnel execution endpoints
-		api.GET("/funnels/:slug/execute", s.handleExecuteFunnel)
-		api.POST("/funnels/:slug/submit", s.handleSubmitStep)
+		// Funnel execution endpoints (use different path to avoid conflict)
+		api.GET("/execute/:slug", s.handleExecuteFunnel)
+		api.POST("/execute/:slug/submit", s.handleSubmitStep)
 		
 		// Analytics endpoints
 		api.GET("/funnels/:id/analytics", s.handleGetAnalytics)

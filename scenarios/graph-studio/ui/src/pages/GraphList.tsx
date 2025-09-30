@@ -15,7 +15,7 @@ function GraphList() {
   
   const { data: plugins } = useQuery({
     queryKey: ['plugins'],
-    queryFn: api.getPlugins,
+    queryFn: () => api.getPlugins(),
   })
   
   if (isLoading) {

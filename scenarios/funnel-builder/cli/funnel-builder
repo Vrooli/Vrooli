@@ -6,7 +6,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-API_URL="${FUNNEL_API_URL:-http://localhost:${FUNNEL_API_PORT:-15000}}"
+API_URL="${FUNNEL_API_URL:-http://localhost:${API_PORT:-15000}}"
 API_BASE="${API_URL}/api/v1"
 
 # Colors for output

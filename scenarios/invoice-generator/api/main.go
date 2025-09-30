@@ -184,80 +184,129 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func createInvoiceHandler(w http.ResponseWriter, r *http.Request) {
-    var invoice Invoice
-    if err := json.NewDecoder(r.Body).Decode(&invoice); err != nil {
-        http.Error(w, err.Error(), http.StatusBadRequest)
+    // Parse request body with proper line_items support
+    var reqBody struct {
+        ClientID   string `json:"client_id"`
+        LineItems  []struct {
+            Description string  `json:"description"`
+            Quantity    float64 `json:"quantity"`
+            UnitPrice   float64 `json:"unit_price"`
+        } `json:"line_items"`
+        DueDate  string `json:"due_date,omitempty"`
+        Notes    string `json:"notes,omitempty"`
+        Currency string `json:"currency,omitempty"`
+        TaxRate  float64 `json:"tax_rate,omitempty"`
+    }
+    
+    if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+        http.Error(w, "Invalid request: " + err.Error(), http.StatusBadRequest)
         return
     }
 
-    // Generate invoice ID
-    invoice.ID = uuid.New().String()
+    // Use default company if not provided
+    companyID := "00000000-0000-0000-0000-000000000001"
+    
+    // Generate invoice number
+    invoiceNumber := ""
+    err := db.QueryRow("SELECT get_next_invoice_number($1)", companyID).Scan(&invoiceNumber)
+    if err != nil {
+        // Fallback to timestamp-based number if function fails
+        invoiceNumber = fmt.Sprintf("INV-%d", time.Now().Unix())
+    }
+    
+    // Create invoice object
+    invoice := Invoice{
+        ID:            uuid.New().String(),
+        CompanyID:     companyID,
+        ClientID:      reqBody.ClientID,
+        InvoiceNumber: invoiceNumber,
+        Status:        "draft",
+        IssueDate:     time.Now().Format("2006-01-02"),
+        DueDate:       reqBody.DueDate,
+        Currency:      reqBody.Currency,
+        TaxRate:       reqBody.TaxRate,
+        Notes:         reqBody.Notes,
+    }
     
     // Set defaults
-    if invoice.Status == "" {
-        invoice.Status = "draft"
-    }
     if invoice.Currency == "" {
         invoice.Currency = "USD"
     }
-    if invoice.IssueDate == "" {
-        invoice.IssueDate = time.Now().Format("2006-01-02")
+    if invoice.DueDate == "" {
+        invoice.DueDate = time.Now().AddDate(0, 0, 30).Format("2006-01-02")
     }
+    
+    // Calculate totals
+    subtotal := 0.0
+    for _, item := range reqBody.LineItems {
+        subtotal += item.Quantity * item.UnitPrice
+    }
+    invoice.Subtotal = subtotal
+    invoice.TaxAmount = subtotal * invoice.TaxRate / 100
+    invoice.TotalAmount = subtotal + invoice.TaxAmount
+    invoice.BalanceDue = invoice.TotalAmount
 
     // Start transaction
     tx, err := db.Begin()
     if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
+        http.Error(w, "Database error: " + err.Error(), http.StatusInternalServerError)
         return
     }
     defer tx.Rollback()
 
-    // Insert invoice
+    // Insert invoice with balance_due
     query := `
         INSERT INTO invoices (id, company_id, client_id, invoice_number, status, 
             issue_date, due_date, currency, tax_rate, tax_name, notes, terms,
-            subtotal, tax_amount, discount_amount, total_amount)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            subtotal, tax_amount, discount_amount, total_amount, balance_due)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         RETURNING created_at, updated_at`
     
     err = tx.QueryRow(query, invoice.ID, invoice.CompanyID, invoice.ClientID,
         invoice.InvoiceNumber, invoice.Status, invoice.IssueDate, invoice.DueDate,
         invoice.Currency, invoice.TaxRate, invoice.TaxName, invoice.Notes, invoice.Terms,
-        invoice.Subtotal, invoice.TaxAmount, invoice.DiscountAmount, invoice.TotalAmount).
+        invoice.Subtotal, invoice.TaxAmount, invoice.DiscountAmount, invoice.TotalAmount, invoice.BalanceDue).
         Scan(&invoice.CreatedAt, &invoice.UpdatedAt)
     
     if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
+        http.Error(w, "Failed to create invoice: " + err.Error(), http.StatusInternalServerError)
         return
     }
 
-    // Insert invoice items
-    for i, item := range invoice.Items {
-        item.ID = uuid.New().String()
-        item.InvoiceID = invoice.ID
-        item.ItemOrder = i
-        item.LineTotal = item.Quantity * item.UnitPrice
+    // Insert invoice items from line_items
+    for i, item := range reqBody.LineItems {
+        itemID := uuid.New().String()
+        lineTotal := item.Quantity * item.UnitPrice
 
         _, err = tx.Exec(`
             INSERT INTO invoice_items (id, invoice_id, item_order, description, 
-                quantity, unit_price, unit, tax_rate, line_total)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            item.ID, item.InvoiceID, item.ItemOrder, item.Description,
-            item.Quantity, item.UnitPrice, item.Unit, item.TaxRate, item.LineTotal)
+                quantity, unit_price, line_total)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            itemID, invoice.ID, i, item.Description,
+            item.Quantity, item.UnitPrice, lineTotal)
         
         if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
+            http.Error(w, "Failed to add item: " + err.Error(), http.StatusInternalServerError)
             return
         }
     }
 
     if err = tx.Commit(); err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
+        http.Error(w, "Failed to save: " + err.Error(), http.StatusInternalServerError)
         return
     }
 
+    // Return structured response
+    response := map[string]interface{}{
+        "invoice_id": invoice.ID,
+        "invoice_number": invoice.InvoiceNumber,
+        "total_amount": invoice.TotalAmount,
+        "pdf_url": fmt.Sprintf("/api/invoices/%s/pdf", invoice.ID),
+        "status": invoice.Status,
+    }
+
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(invoice)
+    json.NewEncoder(w).Encode(response)
 }
 
 func getInvoicesHandler(w http.ResponseWriter, r *http.Request) {
@@ -268,7 +317,7 @@ func getInvoicesHandler(w http.ResponseWriter, r *http.Request) {
                i.created_at, i.updated_at,
                c.name as client_name, c.email as client_email
         FROM invoices i
-        LEFT JOIN clients c ON i.client_id = c.id
+        LEFT JOIN clients c ON i.client_id::text = c.id::text
         ORDER BY i.created_at DESC
         LIMIT 100`
 

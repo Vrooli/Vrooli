@@ -502,7 +502,8 @@ class EcosystemManager {
             completed: [],
             'completed-finalized': [],
             failed: [],
-            'failed-blocked': []
+            'failed-blocked': [],
+            archived: []
         };
         this.pendingTargetRefresh = null;
         this.filterState = {
@@ -1710,7 +1711,7 @@ class EcosystemManager {
 
     // Task Management Methods
     async loadAllTasks() {
-        const statuses = ['pending', 'in-progress', 'review', 'completed', 'completed-finalized', 'failed', 'failed-blocked'];
+        const statuses = ['pending', 'in-progress', 'review', 'completed', 'completed-finalized', 'failed', 'failed-blocked', 'archived'];
         const promises = statuses.map(status => this.loadTasksForStatus(status));
         await Promise.all(promises);
     }
@@ -1761,9 +1762,27 @@ class EcosystemManager {
                     const taskId = deleteBtn.dataset.taskId;
                     const taskStatus = deleteBtn.dataset.taskStatus;
                     this.deleteTask(taskId, taskStatus);
-                } else {
-                    this.showTaskDetails(task.id);
+                    return;
                 }
+
+                const archiveBtn = e.target.closest('.task-archive-btn');
+                if (archiveBtn) {
+                    e.stopPropagation();
+                    const taskId = archiveBtn.dataset.taskId;
+                    const taskStatus = archiveBtn.dataset.taskStatus || task.status;
+                    this.archiveTask(taskId, taskStatus);
+                    return;
+                }
+
+                const restoreBtn = e.target.closest('.task-restore-btn');
+                if (restoreBtn) {
+                    e.stopPropagation();
+                    const taskId = restoreBtn.dataset.taskId;
+                    this.restoreTask(taskId);
+                    return;
+                }
+
+                this.showTaskDetails(task.id);
             });
             
             container.appendChild(card);
@@ -1877,7 +1896,10 @@ class EcosystemManager {
         
         // Use the enhanced two-column layout
         contentElement.innerHTML = this.getTaskDetailsHTML(task);
-        
+
+        // Initialize custom interactions
+        this.initializeAutoRequeueToggle(task);
+
         modal.classList.add('show');
         // Disable body scroll when showing modal
         document.body.style.overflow = 'hidden';
@@ -1909,6 +1931,7 @@ class EcosystemManager {
                                     <option value="completed-finalized" ${task.status === 'completed-finalized' ? 'selected' : ''}>Finished</option>
                                     <option value="failed" ${task.status === 'failed' ? 'selected' : ''}>Failed</option>
                                     <option value="failed-blocked" ${task.status === 'failed-blocked' ? 'selected' : ''}>Blocked</option>
+                                    <option value="archived" ${task.status === 'archived' ? 'selected' : ''}>Archived</option>
                                 </select>
                             </div>
                             
@@ -1922,7 +1945,25 @@ class EcosystemManager {
                                 </select>
                             </div>
                         </div>
-                        
+
+                        <!-- Auto-Requeue Toggle -->
+                        <div class="form-group">
+                            <label id="auto-requeue-label">Queue Automation</label>
+                            <div class="auto-requeue-toggle toggle-group" role="radiogroup" aria-labelledby="auto-requeue-label">
+                                <input type="radio" class="toggle-input" id="auto-requeue-on" name="auto_requeue_mode" value="true" ${task.processor_auto_requeue === false ? '' : 'checked'}>
+                                <label class="toggle-btn" for="auto-requeue-on">
+                                    <i class="fas fa-play"></i>
+                                    Auto
+                                </label>
+                                <input type="radio" class="toggle-input" id="auto-requeue-off" name="auto_requeue_mode" value="false" ${task.processor_auto_requeue === false ? 'checked' : ''}>
+                                <label class="toggle-btn" for="auto-requeue-off">
+                                    <i class="fas fa-hand-paper"></i>
+                                    Manual
+                                </label>
+                            </div>
+                            <div class="auto-requeue-hint">Keep this enabled so the queue processor can pick the task automatically. Disable it only when you want to hold the task for manual review.</div>
+                        </div>
+
                         <!-- Current Phase and Operation Type -->
                         <div class="form-row">
                             <div class="form-group">
@@ -1957,6 +1998,14 @@ class EcosystemManager {
                     
                     <!-- Right Column: Execution Results and Task Information -->
                     <div class="task-info-column">
+                        <div id="auto-requeue-alert" class="auto-requeue-alert ${task.processor_auto_requeue === false ? 'disabled' : 'enabled'}">
+                            <i class="fas ${task.processor_auto_requeue === false ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i>
+                            <div>
+                                <div class="alert-title">${task.processor_auto_requeue === false ? 'Auto requeue disabled' : 'Auto requeue enabled'}</div>
+                                <div class="alert-body">${task.processor_auto_requeue === false ? 'The queue processor will skip this task until you re-enable auto requeue or launch it manually.' : 'This task is eligible for automated execution whenever a processing slot opens.'}</div>
+                            </div>
+                        </div>
+
                         ${this.getTaskExecutionInfoHTML(task, isRunning, runningProcess)}
                     </div>
                 </div>
@@ -2005,7 +2054,7 @@ class EcosystemManager {
         }
         
         // Task Results
-        if (task.results && ['completed', 'failed', 'completed-finalized', 'failed-blocked'].includes(task.status)) {
+        if (task.results && ['completed', 'failed', 'completed-finalized', 'failed-blocked', 'archived'].includes(task.status)) {
             html += this.getTaskResultsHTML(task.results);
         }
         
@@ -2020,13 +2069,51 @@ class EcosystemManager {
                     ${Number.isInteger(task.completion_count) ? `<div><strong>Runs Completed:</strong> ${task.completion_count}</div>` : ''}
                     ${Number.isInteger(task.consecutive_completion_claims) ? `<div><strong>Completion Streak:</strong> ${task.consecutive_completion_claims}</div>` : ''}
                     ${Number.isInteger(task.consecutive_failures) ? `<div><strong>Failure Streak:</strong> ${task.consecutive_failures}</div>` : ''}
-                    ${typeof task.processor_auto_requeue === 'boolean' ? `<div><strong>Auto Recycle:</strong> ${task.processor_auto_requeue ? 'Enabled' : 'Disabled'}</div>` : ''}
+                    ${typeof task.processor_auto_requeue === 'boolean' ? `<div><strong>Auto Requeue:</strong> ${task.processor_auto_requeue ? 'Enabled' : 'Disabled'}</div>` : ''}
                     ${task.last_completed_at ? `<div><strong>Last Completed:</strong> ${new Date(task.last_completed_at).toLocaleString()}</div>` : (!task.last_completed_at && task.completed_at ? `<div><strong>Last Completed:</strong> ${new Date(task.completed_at).toLocaleString()}</div>` : '')}
                 </div>
             </div>
         `;
         
         return html;
+    }
+
+    initializeAutoRequeueToggle() {
+        const alert = document.getElementById('auto-requeue-alert');
+        const enableInput = document.getElementById('auto-requeue-on');
+        const disableInput = document.getElementById('auto-requeue-off');
+
+        if (!alert || !enableInput || !disableInput) {
+            return;
+        }
+
+        const updateAlert = () => {
+            const isEnabled = enableInput.checked;
+            alert.classList.toggle('enabled', isEnabled);
+            alert.classList.toggle('disabled', !isEnabled);
+
+            const icon = alert.querySelector('i');
+            if (icon) {
+                icon.className = `fas ${isEnabled ? 'fa-check-circle' : 'fa-exclamation-triangle'}`;
+            }
+
+            const title = alert.querySelector('.alert-title');
+            if (title) {
+                title.textContent = isEnabled ? 'Auto requeue enabled' : 'Auto requeue disabled';
+            }
+
+            const body = alert.querySelector('.alert-body');
+            if (body) {
+                body.textContent = isEnabled
+                    ? 'This task is eligible for automated execution whenever a processing slot opens.'
+                    : 'The queue processor will skip this task until you re-enable auto requeue or launch it manually.';
+            }
+        };
+
+        enableInput.addEventListener('change', updateAlert);
+        disableInput.addEventListener('change', updateAlert);
+
+        updateAlert();
     }
 
     getTaskResultsHTML(results) {
@@ -2101,7 +2188,16 @@ class EcosystemManager {
             operation: formData.get('operation'),
             notes: formData.get('notes')
         };
-        
+
+        const autoRequeueInputs = form.querySelectorAll('input[name="auto_requeue_mode"]');
+        let autoRequeueEnabled = true;
+        autoRequeueInputs.forEach(input => {
+            if (input.checked) {
+                autoRequeueEnabled = input.value === 'true';
+            }
+        });
+        updates.processor_auto_requeue = autoRequeueEnabled;
+
         this.showLoading(true);
         
         try {
@@ -2141,6 +2237,64 @@ class EcosystemManager {
         } catch (error) {
             console.error('Error deleting task:', error);
             this.showToast(`Failed to delete task: ${error.message}`, 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    async archiveTask(taskId, fromStatus) {
+        this.showLoading(true);
+
+        try {
+            const result = await this.taskManager.updateTask(taskId, {
+                status: 'archived',
+                current_phase: 'archived',
+                processor_auto_requeue: false
+            });
+
+            if (result.success) {
+                this.showToast('Task archived', 'info');
+                await Promise.all([
+                    fromStatus && fromStatus !== 'archived' ? this.loadTasksForStatus(fromStatus) : Promise.resolve(),
+                    this.loadTasksForStatus('archived')
+                ]);
+            } else {
+                throw new Error(result.error || 'Failed to archive task');
+            }
+        } catch (error) {
+            console.error('Error archiving task:', error);
+            this.showToast(`Failed to archive task: ${error.message}`, 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    async restoreTask(taskId) {
+        if (!confirm('Restore this task to Pending?')) {
+            return;
+        }
+
+        this.showLoading(true);
+
+        try {
+            const result = await this.taskManager.updateTask(taskId, {
+                status: 'pending',
+                current_phase: '',
+                processor_auto_requeue: true
+            });
+
+            if (result.success) {
+                this.showToast('Task restored to Pending', 'success');
+                await Promise.all([
+                    this.loadTasksForStatus('archived'),
+                    this.loadTasksForStatus('pending')
+                ]);
+            } else {
+                throw new Error(result.error || 'Failed to restore task');
+            }
+        } catch (error) {
+            console.error('Error restoring task:', error);
+            this.showToast(`Failed to restore task: ${error.message}`, 'error');
         } finally {
             this.showLoading(false);
         }
@@ -2243,6 +2397,11 @@ class EcosystemManager {
             // Clear task state when moving to specific columns
             const updates = { status: toStatus };
 
+            const autoRequeueHoldStatuses = ['completed-finalized', 'failed-blocked', 'archived'];
+            const targetDisablesAuto = autoRequeueHoldStatuses.includes(toStatus);
+            const sourceDisablesAuto = autoRequeueHoldStatuses.includes(fromStatus);
+            const autoRequeueChange = targetDisablesAuto ? false : (sourceDisablesAuto && !targetDisablesAuto ? true : null);
+
             // Set appropriate current_phase based on the target status
             // Use empty string to clear, as the backend preserves non-empty values
             switch (toStatus) {
@@ -2264,6 +2423,9 @@ class EcosystemManager {
                 case 'failed-blocked':
                     updates.current_phase = 'blocked';
                     break;
+                case 'archived':
+                    updates.current_phase = 'archived';
+                    break;
                 default:
                     updates.current_phase = '';
             }
@@ -2271,6 +2433,18 @@ class EcosystemManager {
             const result = await this.taskManager.updateTask(taskId, updates);
             
             if (result.success) {
+                if (autoRequeueChange !== null) {
+                    try {
+                        await this.taskManager.updateTask(taskId, {
+                            status: toStatus,
+                            processor_auto_requeue: autoRequeueChange,
+                        });
+                    } catch (autoError) {
+                        console.warn('Failed to update auto requeue state during drag-drop:', autoError);
+                        this.showToast('Status moved, but auto requeue toggle could not be updated.', 'warning');
+                    }
+                }
+
                 const friendlyStatus = toStatus.replace(/-/g, ' ');
                 this.showToast(`Task moved to ${friendlyStatus}`, 'success');
                 
@@ -2659,9 +2833,27 @@ class EcosystemManager {
                         const taskId = deleteBtn.dataset.taskId;
                         const taskStatus = deleteBtn.dataset.taskStatus;
                         this.deleteTask(taskId, taskStatus);
-                    } else {
-                        this.showTaskDetails(task.id);
+                        return;
                     }
+
+                    const archiveBtn = e.target.closest('.task-archive-btn');
+                    if (archiveBtn) {
+                        e.stopPropagation();
+                        const taskId = archiveBtn.dataset.taskId;
+                        const taskStatus = archiveBtn.dataset.taskStatus || task.status;
+                        this.archiveTask(taskId, taskStatus);
+                        return;
+                    }
+
+                    const restoreBtn = e.target.closest('.task-restore-btn');
+                    if (restoreBtn) {
+                        e.stopPropagation();
+                        const taskId = restoreBtn.dataset.taskId;
+                        this.restoreTask(taskId);
+                        return;
+                    }
+
+                    this.showTaskDetails(task.id);
                 });
                 
                 card.replaceWith(newCard);
@@ -4154,7 +4346,7 @@ class EcosystemManager {
         const visibleColumns = board.querySelectorAll('.kanban-column:not(.hidden)').length;
         
         // Remove all column classes
-        board.classList.remove('columns-1', 'columns-2', 'columns-3', 'columns-4', 'columns-5', 'columns-6');
+        board.classList.remove('columns-1', 'columns-2', 'columns-3', 'columns-4', 'columns-5', 'columns-6', 'columns-7');
         
         // Add appropriate class based on visible columns
         if (visibleColumns > 0) {

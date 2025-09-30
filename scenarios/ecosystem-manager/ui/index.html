@@ -252,6 +252,23 @@
                 <!-- Blocked tasks will be loaded here -->
             </div>
         </div>
+
+        <!-- Archived Column -->
+        <div class="kanban-column archived" data-status="archived">
+            <div class="column-header archived">
+                <div class="column-title">
+                    <i class="fas fa-box-archive" title="Tasks you want to keep but hide from active workflows."></i>
+                    <span title="Tasks you want to keep but hide from active workflows.">Archived</span>
+                    <span class="task-count" id="archived-count">0</span>
+                </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('archived')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
+            </div>
+            <div class="column-content" id="archived-tasks">
+                <!-- Archived tasks will be loaded here -->
+            </div>
+        </div>
     </main>
 
     <!-- Create Task Modal -->

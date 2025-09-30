@@ -7,7 +7,7 @@ import './Dashboard.css'
 function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['stats'],
-    queryFn: api.getStats,
+    queryFn: () => api.getStats(),
   })
   
   const { data: recentGraphs, isLoading: graphsLoading } = useQuery({
@@ -17,7 +17,7 @@ function Dashboard() {
   
   const { data: plugins } = useQuery({
     queryKey: ['plugins'],
-    queryFn: api.getPlugins,
+    queryFn: () => api.getPlugins(),
   })
   
   if (statsLoading || graphsLoading) {
@@ -43,7 +43,7 @@ function Dashboard() {
         <div className="stat-card">
           <div className="stat-icon">🔌</div>
           <div className="stat-content">
-            <div className="stat-value">{plugins?.data?.length || 0}</div>
+            <div className="stat-value">{(plugins as any)?.data?.length || (plugins as any)?.total || 0}</div>
             <div className="stat-label">Active Plugins</div>
           </div>
         </div>

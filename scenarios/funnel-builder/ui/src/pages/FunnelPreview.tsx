@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { ChevronRight, ChevronLeft } from 'lucide-react'
-import { Funnel, FunnelStep } from '../types'
+import { ChevronLeft } from 'lucide-react'
+import { Funnel } from '../types'
 
 const FunnelPreview = () => {
   const { id } = useParams()
@@ -37,9 +37,9 @@ const FunnelPreview = () => {
           title: 'Let\'s get started!',
           content: {
             fields: [
-              { id: 'field-1', type: 'text', label: 'Full Name', required: true },
-              { id: 'field-2', type: 'email', label: 'Email', required: true },
-              { id: 'field-3', type: 'tel', label: 'Phone', required: false },
+              { id: 'field-1', type: 'text' as const, label: 'Full Name', required: true },
+              { id: 'field-2', type: 'email' as const, label: 'Email', required: true },
+              { id: 'field-3', type: 'tel' as const, label: 'Phone', required: false },
             ],
             submitText: 'Get My Free Guide'
           }

@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Book · Manage Profile</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --surface: #ffffff;
+            --surface-muted: #f8fafc;
+            --border: #e2e8f0;
+            --text-strong: #0f172a;
+            --text-muted: #64748b;
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --warning: #d97706;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--surface-muted);
+            color: var(--text-strong);
+            min-height: 100vh;
+        }
+
+        .app-header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-weight: 600;
+            font-size: 1.1rem;
+            letter-spacing: 0.02em;
+        }
+
+        .user-summary {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+
+        main {
+            max-width: 940px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 3rem;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+            padding: 2rem;
+        }
+
+        .card h1 {
+            margin-top: 0;
+            margin-bottom: 0.35rem;
+            font-size: 1.75rem;
+        }
+
+        .card p.lead {
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            color: var(--text-muted);
+        }
+
+        .status-banner {
+            border-radius: 12px;
+            padding: 0.85rem 1rem;
+            font-size: 0.95rem;
+            display: none;
+            margin-bottom: 1.25rem;
+        }
+
+        .status-banner.info {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            display: block;
+        }
+
+        .status-banner.success {
+            background: #ecfdf5;
+            color: var(--success);
+            border: 1px solid #bbf7d0;
+            display: block;
+        }
+
+        .status-banner.error {
+            background: #fef2f2;
+            color: var(--danger);
+            border: 1px solid #fecaca;
+            display: block;
+        }
+
+        form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.3rem 1.5rem;
+        }
+
+        .wide {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        textarea {
+            width: 100%;
+            padding: 0.7rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            transition: border 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        textarea {
+            min-height: 110px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .helper {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.35rem;
+        }
+
+        .actions {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            border: none;
+            border-radius: 999px;
+            padding: 0.65rem 1.35rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        button.primary {
+            background: var(--primary);
+            color: #ffffff;
+        }
+
+        button.primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 16px rgba(37, 99, 235, 0.25);
+        }
+
+        button.secondary {
+            background: rgba(148, 163, 184, 0.18);
+            color: var(--text-strong);
+        }
+
+        button.secondary:hover {
+            background: rgba(148, 163, 184, 0.28);
+        }
+
+        button.link {
+            background: transparent;
+            color: var(--primary);
+            padding: 0.65rem 0;
+        }
+
+        button:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .empty-state {
+            padding: 2rem;
+            background: var(--surface-muted);
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            text-align: center;
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 640px) {
+            .card {
+                padding: 1.3rem 1rem;
+            }
+
+            form {
+                grid-template-columns: 1fr;
+            }
+
+            .app-header {
+                flex-direction: column;
+                gap: 0.35rem;
+                align-items: flex-start;
+            }
+
+            .actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="logo">Contact Book</div>
+        <div class="user-summary" id="userSummary">Authenticating…</div>
+    </header>
+    <main>
+        <section class="card" aria-live="polite">
+            <h1>Manage Your Profile</h1>
+            <p class="lead">Update the identity and contact information linked to your Scenario Authenticator account.</p>
+            <div class="status-banner info" id="statusBanner">Loading profile…</div>
+            <form id="profileForm" style="display: none;" novalidate>
+                <div class="wide empty-state" id="creationNotice" style="display: none;">
+                    Creating a contact profile linked to your Scenario Authenticator identity…
+                </div>
+                <div>
+                    <label for="fullName">Full name</label>
+                    <input type="text" id="fullName" name="fullName" autocomplete="name" required />
+                </div>
+                <div>
+                    <label for="displayName">Display name</label>
+                    <input type="text" id="displayName" name="displayName" placeholder="Optional" />
+                </div>
+                <div>
+                    <label for="pronouns">Pronouns</label>
+                    <input type="text" id="pronouns" name="pronouns" placeholder="e.g. she/her, they/them" />
+                </div>
+                <div>
+                    <label for="emails">Email addresses</label>
+                    <input type="text" id="emails" name="emails" autocomplete="email" />
+                    <p class="helper">Separate multiple emails with commas.</p>
+                </div>
+                <div>
+                    <label for="phones">Phone numbers</label>
+                    <input type="text" id="phones" name="phones" autocomplete="tel" />
+                    <p class="helper">Add multiple numbers using commas.</p>
+                </div>
+                <div>
+                    <label for="tags">Tags</label>
+                    <input type="text" id="tags" name="tags" placeholder="friend, founder" />
+                </div>
+                <div>
+                    <label for="title">Title</label>
+                    <input type="text" id="title" name="title" placeholder="Role or headline" />
+                </div>
+                <div>
+                    <label for="timezone">Timezone</label>
+                    <input type="text" id="timezone" name="timezone" placeholder="e.g. America/Chicago" />
+                </div>
+                <div>
+                    <label for="location">Location</label>
+                    <input type="text" id="location" name="location" placeholder="City, Country" />
+                </div>
+                <div>
+                    <label for="preferredChannel">Preferred contact channel</label>
+                    <input type="text" id="preferredChannel" name="preferredChannel" placeholder="Email, Signal, etc." />
+                </div>
+                <div>
+                    <label for="linkedin">LinkedIn</label>
+                    <input type="text" id="linkedin" name="linkedin" placeholder="https://www.linkedin.com/in/..." />
+                </div>
+                <div>
+                    <label for="website">Website</label>
+                    <input type="text" id="website" name="website" placeholder="https://" />
+                </div>
+                <div class="wide">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" name="notes" placeholder="Context you want other scenarios to understand about you"></textarea>
+                </div>
+                <div class="actions" id="actionsBar">
+                    <button type="submit" class="primary" id="saveButton">Save changes</button>
+                    <button type="button" class="secondary" id="resetButton">Reset</button>
+                    <button type="button" class="link" id="returnButton">Return to authenticator</button>
+                </div>
+            </form>
+        </section>
+    </main>
+    <script>
+        (function () {
+            const stateKey = 'contactBookProfileState';
+            const params = new URLSearchParams(window.location.search);
+            const storedState = (() => {
+                try {
+                    return JSON.parse(sessionStorage.getItem(stateKey) || '{}');
+                } catch (error) {
+                    console.warn('Unable to parse stored profile state', error);
+                    return {};
+                }
+            })();
+
+            const nextState = { ...storedState };
+            ['authToken', 'authApi', 'userId', 'userEmail', 'returnTo'].forEach((key) => {
+                if (params.has(key)) {
+                    nextState[key] = params.get(key);
+                }
+            });
+
+            sessionStorage.setItem(stateKey, JSON.stringify(nextState));
+            if (params.toString()) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            const statusBanner = document.getElementById('statusBanner');
+            const profileForm = document.getElementById('profileForm');
+            const creationNotice = document.getElementById('creationNotice');
+            const userSummary = document.getElementById('userSummary');
+            const saveButton = document.getElementById('saveButton');
+            const resetButton = document.getElementById('resetButton');
+            const returnButton = document.getElementById('returnButton');
+
+            const fieldRefs = {
+                fullName: document.getElementById('fullName'),
+                displayName: document.getElementById('displayName'),
+                pronouns: document.getElementById('pronouns'),
+                emails: document.getElementById('emails'),
+                phones: document.getElementById('phones'),
+                tags: document.getElementById('tags'),
+                title: document.getElementById('title'),
+                timezone: document.getElementById('timezone'),
+                location: document.getElementById('location'),
+                preferredChannel: document.getElementById('preferredChannel'),
+                linkedin: document.getElementById('linkedin'),
+                website: document.getElementById('website'),
+                notes: document.getElementById('notes'),
+            };
+
+            const defaultMetadataKeys = ['title', 'timezone', 'location', 'preferred_contact_channel'];
+            const defaultSocialKeys = ['linkedin', 'website'];
+
+            let currentPerson = null;
+            let loading = false;
+
+            const contactBookApi = window.location.origin;
+
+            function setStatus(message, tone = 'info') {
+                statusBanner.textContent = message;
+                statusBanner.className = `status-banner ${tone}`;
+            }
+
+            function setLoading(isLoading) {
+                loading = isLoading;
+                saveButton.disabled = isLoading;
+                resetButton.disabled = isLoading;
+                if (isLoading) {
+                    setStatus('Saving profile…', 'info');
+                }
+            }
+
+            function stringifyList(values) {
+                return Array.isArray(values) ? values.join(', ') : '';
+            }
+
+            function metadataValue(person, key) {
+                if (!person || !person.metadata) return '';
+                const value = person.metadata[key];
+                return value == null ? '' : String(value);
+            }
+
+            function socialValue(person, key) {
+                if (!person || !person.social_profiles) return '';
+                const value = person.social_profiles[key];
+                return value == null ? '' : String(value);
+            }
+
+            function populateForm(person) {
+                if (!person) return;
+                fieldRefs.fullName.value = person.full_name || '';
+                fieldRefs.displayName.value = person.display_name || '';
+                fieldRefs.pronouns.value = person.pronouns || '';
+                fieldRefs.emails.value = stringifyList(person.emails);
+                fieldRefs.phones.value = stringifyList(person.phones);
+                fieldRefs.tags.value = stringifyList(person.tags);
+                fieldRefs.notes.value = person.notes || '';
+
+                fieldRefs.title.value = metadataValue(person, 'title');
+                fieldRefs.timezone.value = metadataValue(person, 'timezone');
+                fieldRefs.location.value = metadataValue(person, 'location');
+                fieldRefs.preferredChannel.value = metadataValue(person, 'preferred_contact_channel');
+
+                fieldRefs.linkedin.value = socialValue(person, 'linkedin');
+                fieldRefs.website.value = socialValue(person, 'website');
+
+                profileForm.style.display = '';
+                creationNotice.style.display = 'none';
+            }
+
+            function ensureArrayFromInput(rawValue) {
+                if (!rawValue) return [];
+                return rawValue
+                    .split(',')
+                    .map((entry) => entry.trim())
+                    .filter(Boolean);
+            }
+
+            function ensureMetadata(person) {
+                return { ...(person && person.metadata ? person.metadata : {}) };
+            }
+
+            function ensureSocialProfiles(person) {
+                return { ...(person && person.social_profiles ? person.social_profiles : {}) };
+            }
+
+            async function fetchAuthContext() {
+                if (nextState.authToken && nextState.authApi && (!nextState.userId || !nextState.userEmail)) {
+                    try {
+                        const response = await fetch(`${nextState.authApi}/api/v1/auth/validate`, {
+                            headers: {
+                                Authorization: `Bearer ${nextState.authToken}`,
+                                'Content-Type': 'application/json',
+                            },
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`Token validation failed with status ${response.status}`);
+                        }
+
+                        const data = await response.json();
+                        nextState.userId = nextState.userId || data.user_id || (data.user && data.user.id) || null;
+                        nextState.userEmail = nextState.userEmail || data.email || (data.user && data.user.email) || null;
+                        sessionStorage.setItem(stateKey, JSON.stringify(nextState));
+                        return data;
+                    } catch (error) {
+                        console.error('Failed to validate auth token', error);
+                        setStatus('Unable to validate authentication token. Please return to the authenticator and sign in again.', 'error');
+                        throw error;
+                    }
+                }
+                return null;
+            }
+
+            async function fetchOrCreateProfile() {
+                if (!nextState.userId) {
+                    setStatus('Missing Scenario Authenticator user context. Please open this page from the authenticator dashboard.', 'error');
+                    throw new Error('missing userId');
+                }
+
+                try {
+                    const response = await fetch(`${contactBookApi}/api/v1/contacts/by-auth/${nextState.userId}`);
+                    if (response.status === 404) {
+                        return null;
+                    }
+                    if (!response.ok) {
+                        throw new Error(`Failed to load profile with status ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error('Failed to load profile', error);
+                    setStatus('Failed to load your contact profile. Please try again.', 'error');
+                    throw error;
+                }
+            }
+
+            async function createShellProfile() {
+                const defaultName = nextState.userEmail ? nextState.userEmail.split('@')[0] : 'New Contact';
+                const payload = {
+                    full_name: defaultName,
+                    display_name: nextState.userEmail || defaultName,
+                    emails: nextState.userEmail ? [nextState.userEmail] : [],
+                    phones: [],
+                    tags: ['self'],
+                    metadata: {
+                        source: 'scenario-authenticator',
+                        owner: true,
+                    },
+                    social_profiles: {},
+                    scenario_authenticator_id: nextState.userId,
+                };
+
+                creationNotice.style.display = '';
+
+                try {
+                    const response = await fetch(`${contactBookApi}/api/v1/contacts`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Create profile failed with status ${response.status}`);
+                    }
+
+                    const created = await response.json();
+                    const personResponse = await fetch(`${contactBookApi}/api/v1/contacts/${created.id}`);
+                    if (!personResponse.ok) {
+                        throw new Error('Failed to read profile after creation');
+                    }
+                    setStatus('Profile initialized from Scenario Authenticator.', 'success');
+                    return await personResponse.json();
+                } catch (error) {
+                    console.error('Failed to create shell profile', error);
+                    setStatus('Unable to create a contact profile. Please retry later.', 'error');
+                    throw error;
+                } finally {
+                    creationNotice.style.display = 'none';
+                }
+            }
+
+            function updateSummary() {
+                if (nextState.userEmail) {
+                    userSummary.textContent = nextState.userEmail;
+                } else if (nextState.userId) {
+                    userSummary.textContent = `Authenticated user: ${nextState.userId}`;
+                } else {
+                    userSummary.textContent = 'Authentication required';
+                }
+            }
+
+            function resetForm() {
+                populateForm(currentPerson);
+                setStatus('Reverted unsaved changes.', 'info');
+            }
+
+            async function bootstrap() {
+                updateSummary();
+                try {
+                    await fetchAuthContext();
+
+                    let person = await fetchOrCreateProfile();
+                    if (!person) {
+                        person = await createShellProfile();
+                    }
+
+                    currentPerson = person;
+                    populateForm(person);
+                    setStatus('Profile loaded. Update any details that have changed.', 'info');
+                } catch (error) {
+                    console.warn('Bootstrap failed', error);
+                }
+            }
+
+            profileForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                if (!currentPerson) {
+                    setStatus('Profile data is not available yet.', 'error');
+                    return;
+                }
+
+                const fullName = fieldRefs.fullName.value.trim();
+                if (!fullName) {
+                    setStatus('Full name is required to keep the contact profile synced.', 'error');
+                    fieldRefs.fullName.focus();
+                    return;
+                }
+
+                const payload = {
+                    full_name: fullName,
+                    display_name: fieldRefs.displayName.value.trim(),
+                    pronouns: fieldRefs.pronouns.value.trim(),
+                    emails: ensureArrayFromInput(fieldRefs.emails.value),
+                    phones: ensureArrayFromInput(fieldRefs.phones.value),
+                    tags: ensureArrayFromInput(fieldRefs.tags.value.toLowerCase()),
+                    notes: fieldRefs.notes.value.trim(),
+                    scenario_authenticator_id: nextState.userId || null,
+                };
+
+                if (payload.display_name === '') payload.display_name = '';
+                if (payload.pronouns === '') payload.pronouns = '';
+                if (payload.notes === '') payload.notes = '';
+
+                const metadata = ensureMetadata(currentPerson);
+                metadata.title = fieldRefs.title.value.trim();
+                metadata.timezone = fieldRefs.timezone.value.trim();
+                metadata.location = fieldRefs.location.value.trim();
+                metadata.preferred_contact_channel = fieldRefs.preferredChannel.value.trim();
+                defaultMetadataKeys.forEach((key) => {
+                    if (!metadata[key] || String(metadata[key]).trim() === '') {
+                        delete metadata[key];
+                    }
+                });
+                payload.metadata = metadata;
+
+                const socialProfiles = ensureSocialProfiles(currentPerson);
+                socialProfiles.linkedin = fieldRefs.linkedin.value.trim();
+                socialProfiles.website = fieldRefs.website.value.trim();
+                defaultSocialKeys.forEach((key) => {
+                    if (!socialProfiles[key] || String(socialProfiles[key]).trim() === '') {
+                        delete socialProfiles[key];
+                    }
+                });
+                payload.social_profiles = socialProfiles;
+
+                setLoading(true);
+                try {
+                    const response = await fetch(`${contactBookApi}/api/v1/contacts/${currentPerson.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (!response.ok) {
+                        const body = await response.json().catch(() => ({}));
+                        const message = body.error || `Failed to update profile (status ${response.status})`;
+                        throw new Error(message);
+                    }
+
+                    const data = await response.json();
+                    currentPerson = data.person || currentPerson;
+                    populateForm(currentPerson);
+                    setStatus('Profile updated successfully. Linked scenarios will now use your latest details.', 'success');
+                } catch (error) {
+                    console.error('Profile update failed', error);
+                    setStatus(error.message || 'Failed to update profile. Please try again.', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            });
+
+            resetButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                resetForm();
+            });
+
+            returnButton.addEventListener('click', () => {
+                if (nextState.returnTo) {
+                    window.location.href = nextState.returnTo;
+                } else {
+                    window.history.back();
+                }
+            });
+
+            bootstrap();
+        })();
+    </script>
+</body>
+</html>

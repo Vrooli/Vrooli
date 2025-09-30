@@ -54,9 +54,9 @@ const FunnelBuilder = () => {
             title: 'Get Started',
             content: {
               fields: [
-                { id: 'field-1', type: 'text', label: 'Full Name', required: true },
-                { id: 'field-2', type: 'email', label: 'Email', required: true },
-                { id: 'field-3', type: 'tel', label: 'Phone', required: false },
+                { id: 'field-1', type: 'text' as const, label: 'Full Name', required: true },
+                { id: 'field-2', type: 'email' as const, label: 'Email', required: true },
+                { id: 'field-3', type: 'tel' as const, label: 'Phone', required: false },
               ],
               submitText: 'Get Free Access'
             }

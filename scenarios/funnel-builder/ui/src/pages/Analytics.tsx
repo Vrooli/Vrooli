@@ -1,9 +1,9 @@
-import { useParams } from 'react-router-dom'
+// import { useParams } from 'react-router-dom' // TODO: Use when fetching specific funnel analytics
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { TrendingUp, Users, Target, Clock, ArrowUp, ArrowDown } from 'lucide-react'
 
 const Analytics = () => {
-  const { id } = useParams()
+  // const { id } = useParams() // TODO: Use when fetching specific funnel analytics
 
   // Mock data for demonstration
   const dailyData = [

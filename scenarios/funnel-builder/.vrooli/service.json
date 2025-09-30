@@ -77,7 +77,7 @@
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${FUNNEL_API_PORT}/health",
+          "target": "http://localhost:${API_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
@@ -85,7 +85,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${FUNNEL_UI_PORT}/",
+          "target": "http://localhost:${UI_PORT}/",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
@@ -145,7 +145,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Funnel Builder initialized\\n  UI: http://localhost:${FUNNEL_UI_PORT}\\n  API: http://localhost:${FUNNEL_API_PORT}\\n  CLI: funnel-builder --help'",
+          "run": "echo '🚀 Funnel Builder initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: funnel-builder --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -164,7 +164,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev -- --port ${FUNNEL_UI_PORT}",
+          "run": "cd ui && npm run dev -- --port ${UI_PORT}",
           "description": "Start React UI with hot reload",
           "background": true,
           "condition": {
@@ -173,7 +173,7 @@
         },
          {
            "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  UI: http://localhost:${FUNNEL_UI_PORT}\\n  API: http://localhost:${FUNNEL_API_PORT}\\n  CLI: funnel-builder --help'",
+           "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: funnel-builder --help'",
            "description": "Display all running service URLs"
          }
       ]
@@ -191,7 +191,7 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:${FUNNEL_API_PORT}/health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
           "description": "Test API health endpoint"
         },
         {

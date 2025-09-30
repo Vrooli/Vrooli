@@ -5,7 +5,7 @@ import LoadingSpinner from '../components/LoadingSpinner'
 function PluginGallery() {
   const { data: plugins, isLoading } = useQuery({
     queryKey: ['plugins'],
-    queryFn: api.getPlugins,
+    queryFn: () => api.getPlugins(),
   })
   
   if (isLoading) {

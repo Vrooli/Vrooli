@@ -23,9 +23,9 @@ Every scenario becomes socially intelligent:
 ## 🚀 Quick Start
 
 ### Prerequisites
-- PostgreSQL (primary data storage)
-- Qdrant (semantic search and embeddings)
-- Go 1.21+ (for API compilation)
+- PostgreSQL (primary data storage) - automatically managed by Vrooli
+- Qdrant (semantic search and embeddings) - optional, falls back to SQL search
+- Go 1.21+ (for API compilation) - required for building
 
 ### Installation
 
@@ -60,6 +60,10 @@ contact-book analytics
 # Find contacts needing attention
 contact-book maintenance --limit 5
 ```
+
+### Web Profile UI
+
+When this service runs alongside **scenario-authenticator**, it serves a lightweight profile manager at `http://localhost:${API_PORT}/profile`. Point the authenticator UI at this URL (set `CONTACT_BOOK_URL` on the auth UI) so end users can edit the contact record linked to their login.
 
 ### For Other Scenarios
 

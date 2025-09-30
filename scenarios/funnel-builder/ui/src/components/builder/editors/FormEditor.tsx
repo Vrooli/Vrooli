@@ -1,5 +1,5 @@
 import { FormContent, FormField } from '../../../types'
-import { Plus, Trash2, ChevronDown } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 
 interface FormEditorProps {
   content: FormContent

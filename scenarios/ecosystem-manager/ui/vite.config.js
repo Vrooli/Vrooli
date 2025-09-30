@@ -63,6 +63,7 @@ export default defineConfig({
   server: {
     port: UI_PORT,
     host: true,
+    allowedHosts: ['ecosystem-manager.itsagitime.com'],
     proxy: {
       '/api': {
         target: API_BASE_URL,

@@ -210,7 +210,7 @@ func vectorStatusHandler(w http.ResponseWriter, r *http.Request) {
 	
 	status := SystemStatus{Service: "qdrant", Status: "healthy"}
 	
-	resp, err := http.Get(config.QdrantURL + "/health")
+	resp, err := http.Get(config.QdrantURL + "/readyz")
 	if err != nil {
 		status.Status = "unhealthy"
 		status.Details = err.Error()

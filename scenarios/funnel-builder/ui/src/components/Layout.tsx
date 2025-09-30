@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Layers, BarChart3, FileText, Settings } from 'lucide-react'
+import { LayoutDashboard, Layers, BarChart3, FileText } from 'lucide-react'
 
 const Layout = () => {
   const navItems = [

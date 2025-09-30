@@ -101,6 +101,8 @@ CREATE TABLE IF NOT EXISTS invoices (
     viewed_date TIMESTAMP,
     reminder_count INTEGER DEFAULT 0,
     last_reminder_date TIMESTAMP,
+    last_reminder_sent DATE,
+    recurring_invoice_id UUID,
     
     -- Metadata
     metadata JSONB DEFAULT '{}'::jsonb,
@@ -207,6 +209,13 @@ CREATE TABLE IF NOT EXISTS invoice_activities (
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Add foreign key constraint for recurring_invoice_id after recurring_invoices table is created
+ALTER TABLE invoices 
+    ADD CONSTRAINT fk_invoices_recurring 
+    FOREIGN KEY (recurring_invoice_id) 
+    REFERENCES recurring_invoices(id) 
+    ON DELETE SET NULL;
 
 -- Indexes for performance
 CREATE INDEX idx_invoices_company ON invoices(company_id);

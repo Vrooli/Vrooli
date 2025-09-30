@@ -408,7 +408,7 @@ func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
 
 // GetTaskByID finds a task by ID across all queue statuses
 func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
-	statuses := []string{"pending", "in-progress", "review", "completed", "failed", "completed-finalized", "failed-blocked"}
+	statuses := []string{"pending", "in-progress", "review", "completed", "failed", "completed-finalized", "failed-blocked", "archived"}
 
 	// Strategy 1: Try exact filename match
 	for _, status := range statuses {
@@ -519,7 +519,7 @@ func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 
 // DeleteTask removes a task file from the appropriate status directory
 func (s *Storage) DeleteTask(taskID string) (string, error) {
-	statuses := []string{"pending", "in-progress", "review", "completed", "failed"}
+	statuses := []string{"pending", "in-progress", "review", "completed", "failed", "completed-finalized", "failed-blocked", "archived"}
 
 	for _, status := range statuses {
 		filePath := filepath.Join(s.QueueDir, status, fmt.Sprintf("%s.yaml", taskID))

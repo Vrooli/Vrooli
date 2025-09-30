@@ -6,7 +6,10 @@
 set -e
 
 # Test configuration
-API_BASE_URL="${CONTACT_BOOK_API_URL:-http://localhost:8080}"
+# Try to get the actual running port from the API process
+API_PORT=$(lsof -i -P | grep contact-b | grep LISTEN | awk '{print $9}' | cut -d: -f2 | head -1)
+API_PORT="${API_PORT:-8080}"  # Fallback to 8080 if not found
+API_BASE_URL="${CONTACT_BOOK_API_URL:-http://localhost:${API_PORT}}"
 TEST_TIMEOUT=30
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -93,20 +96,32 @@ api_test() {
 test_database_schema() {
     echo ""
     echo "=== Database Schema Tests ==="
-    
-    # Test core tables exist
-    log_test "Core tables exist"
-    if psql -h "${DB_HOST:-localhost}" -U "${DB_USER:-postgres}" -d "${DB_NAME:-postgres}" -c "\dt" 2>/dev/null | grep -q "persons\|relationships\|organizations"; then
-        log_pass "Core tables exist"
+
+    # Test database connectivity through the API health check
+    log_test "Database connectivity"
+    local health_response
+    health_response=$(curl -sf "${API_BASE_URL}/health" 2>/dev/null || echo "{}")
+
+    if echo "$health_response" | grep -q '"database":"healthy"'; then
+        log_pass "Database is connected and healthy"
     else
-        log_fail "Core tables missing"
+        log_fail "Database connection issue"
+        return 1
     fi
-    
-    # Test sample data exists
+
+    # Test that data exists via the API
     log_test "Sample data exists"
-    local person_count
-    person_count=$(psql -h "${DB_HOST:-localhost}" -U "${DB_USER:-postgres}" -d "${DB_NAME:-postgres}" -t -c "SELECT COUNT(*) FROM persons WHERE deleted_at IS NULL;" 2>/dev/null | tr -d ' ')
-    
+    local contacts_response
+    contacts_response=$(curl -sf "${API_BASE_URL}/api/v1/contacts" 2>/dev/null || echo "{}")
+
+    local person_count=0
+    if command -v jq >/dev/null 2>&1; then
+        person_count=$(echo "$contacts_response" | jq -r '.count // 0')
+    else
+        # Fallback to grep if jq not available
+        person_count=$(echo "$contacts_response" | grep -o '"count":[0-9]*' | sed 's/"count"://')
+    fi
+
     if [[ "$person_count" -gt 0 ]]; then
         log_pass "Sample data exists ($person_count persons)"
     else

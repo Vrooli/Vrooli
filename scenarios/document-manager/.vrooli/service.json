@@ -209,6 +209,11 @@
       "description": "Start document manager with coordination API and monitoring",
       "steps": [
          {
+           "name": "ensure-resources",
+           "run": "bash lib/ensure-resources.sh",
+           "description": "Ensure all required resources are running"
+         },
+         {
            "name": "start-api",
            "run": "cd api && POSTGRES_URL=\"postgresql://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/document_manager?sslmode=disable\" QDRANT_URL=\"http://localhost:6333\" OLLAMA_URL=\"http://localhost:11434\" REDIS_URL=\"redis://localhost:6379\" N8N_URL=\"http://localhost:5678\" ./document-manager-api",
            "description": "Start Go API server in background",

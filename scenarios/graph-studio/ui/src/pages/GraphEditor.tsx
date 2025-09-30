@@ -28,7 +28,7 @@ function GraphEditor() {
   return (
     <div className="graph-editor">
       <div className="editor-header">
-        <h1>{graph.name}</h1>
+        <h1>{(graph as any).name}</h1>
         <div className="editor-actions">
           <button className="btn btn-outline">Save</button>
           <button className="btn btn-outline">Export</button>
@@ -42,20 +42,20 @@ function GraphEditor() {
           <h3>Properties</h3>
           <div className="property-group">
             <label>Type</label>
-            <p>{graph.type}</p>
+            <p>{(graph as any).type}</p>
           </div>
           <div className="property-group">
             <label>Version</label>
-            <p>{graph.version}</p>
+            <p>{(graph as any).version || '1.0'}</p>
           </div>
           <div className="property-group">
             <label>Created</label>
-            <p>{new Date(graph.created_at).toLocaleDateString()}</p>
+            <p>{new Date((graph as any).created_at).toLocaleDateString()}</p>
           </div>
           <div className="property-group">
             <label>Tags</label>
             <div className="tags">
-              {graph.tags?.map((tag: string) => (
+              {(graph as any).tags?.map((tag: string) => (
                 <span key={tag} className="tag">{tag}</span>
               ))}
             </div>

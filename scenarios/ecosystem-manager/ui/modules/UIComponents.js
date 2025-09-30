@@ -7,13 +7,17 @@ export class UIComponents {
         
         const card = document.createElement('div');
         const statusClass = this.getStatusClass(task.status);
+        const autoRequeueDisabled = task.processor_auto_requeue === false;
+        const isArchived = task.status === 'archived';
         const cardClasses = [
             'task-card',
             task.priority,
             isRunning ? 'task-executing' : '',
             task.type || 'resource',
             task.operation || 'generator',
-            statusClass
+            statusClass,
+            autoRequeueDisabled ? 'auto-requeue-disabled' : '',
+            isArchived ? 'task-archived' : ''
         ].filter(Boolean);
         card.className = cardClasses.join(' ');
         card.id = `task-${task.id}`;
@@ -31,6 +35,12 @@ export class UIComponents {
         const typeInfo = this.getTaskTypeInfo(task);
 
         card.innerHTML = `
+            ${autoRequeueDisabled ? `
+                <div class="task-warning-banner" title="This task will not be picked up automatically by the queue processor.">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Auto Requeue Disabled
+                </div>
+            ` : ''}
             <div class="task-header">
                 <span class="task-type ${task.type}">
                     <i class="${typeInfo.icon}"></i> ${typeInfo.label}
@@ -67,6 +77,15 @@ export class UIComponents {
                     </button>
                 </div>
             ` : ''}
+            ${isArchived ? `
+                <button class="btn-icon task-restore-btn" data-task-id="${task.id}" data-task-status="${task.status}" title="Restore Task to Pending">
+                    <i class="fas fa-box-open"></i>
+                </button>
+            ` : `
+                <button class="btn-icon task-archive-btn" data-task-id="${task.id}" data-task-status="${task.status}" title="Archive Task">
+                    <i class="fas fa-box-archive"></i>
+                </button>
+            `}
             <button class="btn-icon task-delete-btn" data-task-id="${task.id}" data-task-status="${task.status}" title="Delete Task">
                 <i class="fas fa-trash"></i>
             </button>

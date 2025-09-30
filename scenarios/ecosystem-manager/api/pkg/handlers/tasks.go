@@ -668,6 +668,10 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Handle status changes - if status changed, may need to move file
+	if newStatus == "archived" && strings.TrimSpace(updatedTask.CurrentPhase) == "" {
+		updatedTask.CurrentPhase = "archived"
+	}
+
 	if newStatus != currentStatus {
 		// Set timestamps for status changes
 		now := time.Now().Format(time.RFC3339)
@@ -687,6 +691,9 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		}
 		if newStatus == "failed" && updatedTask.CompletedAt == "" {
 			updatedTask.CompletedAt = now
+		}
+		if newStatus == "archived" {
+			updatedTask.ProcessorAutoRequeue = false
 		}
 
 		// CRITICAL: If task is moved OUT of in-progress, terminate any running process
@@ -902,6 +909,9 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 		if update.Status == "failed" {
 			task.CompletedAt = now
 		}
+		if update.Status == "archived" && strings.TrimSpace(task.CurrentPhase) == "" {
+			task.CurrentPhase = "archived"
+		}
 		if update.Status == "pending" {
 			task.ConsecutiveCompletionClaims = 0
 			task.ConsecutiveFailures = 0
@@ -911,6 +921,9 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 			task.ProcessorAutoRequeue = false
 		}
 		if update.Status == "failed-blocked" {
+			task.ProcessorAutoRequeue = false
+		}
+		if update.Status == "archived" {
 			task.ProcessorAutoRequeue = false
 		}
 

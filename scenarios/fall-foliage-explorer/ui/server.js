@@ -2,20 +2,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = process.env.UI_PORT || process.env.PORT;
+const PORT = process.env.UI_PORT || process.env.PORT || 3000;
 
 const mimeTypes = {
-
-// Health check endpoint for orchestrator
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy',
-        scenario: 'fall-foliage-explorer',
-        port: PORT,
-        timestamp: new Date().toISOString()
-    });
-});
-
     '.html': 'text/html',
     '.js': 'text/javascript',
     '.css': 'text/css',
@@ -29,6 +18,18 @@ app.get('/health', (req, res) => {
 
 const server = http.createServer((req, res) => {
     console.log(`${req.method} ${req.url}`);
+
+    // Health check endpoint for orchestrator
+    if (req.url === '/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            status: 'healthy',
+            scenario: 'fall-foliage-explorer',
+            port: PORT,
+            timestamp: new Date().toISOString()
+        }));
+        return;
+    }
 
     let filePath = '.' + req.url;
     if (filePath === './') {

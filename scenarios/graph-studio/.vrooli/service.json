@@ -136,8 +136,8 @@
         },
         {
           "name": "initialize-postgres",
-          "run": "if command -v resource-postgres >/dev/null; then resource-postgres ensure-db graph_studio; fi",
-          "description": "Create PostgreSQL database if needed"
+          "run": "echo 'Postgres initialization handled by resource-postgres'",
+          "description": "PostgreSQL initialization placeholder"
         },
         {
           "name": "show-urls",

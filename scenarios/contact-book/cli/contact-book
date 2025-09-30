@@ -9,13 +9,16 @@ set -e
 # Try to detect the API port dynamically
 if [ -z "${CONTACT_BOOK_API_URL}" ]; then
     # First try to get port from running process
-    API_PORT=$(ps aux | grep -E "contact-book-api" | grep -v grep | head -1 | xargs -I {} sh -c 'cat /proc/$(echo {} | awk "{print \$2}")/environ 2>/dev/null' | tr '\0' '\n' | grep "^API_PORT=" | cut -d= -f2)
-    
+    PID=$(ps aux | grep -E "contact-book-api" | grep -v grep | head -1 | awk '{print $2}')
+    if [ -n "$PID" ]; then
+        API_PORT=$(cat /proc/$PID/environ 2>/dev/null | tr '\0' '\n' | grep "^API_PORT=" | cut -d= -f2)
+    fi
+
     # Fall back to default if not found
     if [ -z "$API_PORT" ]; then
         API_PORT="8080"
     fi
-    
+
     API_BASE_URL="http://localhost:${API_PORT}"
 else
     API_BASE_URL="${CONTACT_BOOK_API_URL}"
@@ -160,12 +163,13 @@ EOF
 
 show_version() {
     echo "Contact Book CLI v1.0.0"
-    
+
     # Try to get API version, but don't fail if API is not available
+    # Use || true to prevent script exit on failure with set -e
     if curl -sf "${API_BASE_URL}/health" >/dev/null 2>&1; then
         local api_version
-        api_version=$(api_request GET "/health" 2>/dev/null | parse_json "version" 2>/dev/null)
-        if [[ -n "$api_version" && "$api_version" != "null" ]]; then
+        api_version=$(api_request GET "/health" 2>/dev/null | parse_json "version" 2>/dev/null || echo "")
+        if [[ -n "$api_version" && "$api_version" != "null" && "$api_version" != "" ]]; then
             echo "API Version: $api_version"
         else
             echo "API Version: Available but version unknown"
@@ -173,6 +177,9 @@ show_version() {
     else
         echo "API Version: Not available (API not running)"
     fi
+
+    # Ensure we exit with code 0
+    exit 0
 }
 
 show_status() {
@@ -474,7 +481,7 @@ show_analytics() {
 show_maintenance() {
     local limit=10
     local json_output=false
-    
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --json) json_output=true ;;
@@ -482,31 +489,54 @@ show_maintenance() {
         esac
         shift
     done
-    
+
     local response
     response=$(api_request GET "/api/v1/analytics")
-    
+
     if $json_output; then
+        # Return structured JSON output for maintenance contacts
         if command -v jq >/dev/null 2>&1; then
-            echo "$response" | jq --argjson limit "$limit" '
-                .analytics 
-                | sort_by(-.maintenance_priority_score) 
-                | limit($limit; .[])
-                | select(.maintenance_priority_score > 0.5)
-            '
+            # Check if analytics field exists and has content
+            if echo "$response" | jq -e '.analytics' >/dev/null 2>&1; then
+                echo "$response" | jq --argjson limit "$limit" '{
+                    contacts: [
+                        .analytics[]
+                        | select(.maintenance_priority_score > 0.3)
+                        | {
+                            person_id: .person_id,
+                            priority_score: .maintenance_priority_score,
+                            closeness_score: .overall_closeness_score,
+                            last_interaction_days: .last_interaction_days
+                        }
+                    ] | sort_by(-.priority_score) | limit($limit; .[])
+                }'
+            else
+                # Return empty array if no analytics data
+                echo '{"contacts": []}'
+            fi
         else
             echo "$response"
         fi
     else
         log_info "Contacts needing relationship maintenance:"
         if command -v jq >/dev/null 2>&1; then
-            echo "$response" | jq -r --argjson limit "$limit" '
-                .analytics 
-                | sort_by(-.maintenance_priority_score) 
-                | limit($limit; .[])
-                | select(.maintenance_priority_score > 0.5)
-                | "  \(.person_id): Priority \(.maintenance_priority_score) (last interaction: \(.last_interaction_days) days ago)"
-            '
+            # Check if analytics exists before processing
+            if echo "$response" | jq -e '.analytics' >/dev/null 2>&1; then
+                echo "$response" | jq -r --argjson limit "$limit" '
+                    .analytics[]
+                    | select(.maintenance_priority_score > 0.3)
+                    | {person_id, priority: .maintenance_priority_score, last_days: .last_interaction_days}
+                ' | head -n "$limit" | while IFS= read -r line; do
+                    if [ -n "$line" ]; then
+                        person_id=$(echo "$line" | jq -r '.person_id')
+                        priority=$(echo "$line" | jq -r '.priority')
+                        days=$(echo "$line" | jq -r '.last_days // "unknown"')
+                        echo "  $person_id: Priority $priority (last interaction: $days days ago)"
+                    fi
+                done
+            else
+                echo "  No contacts currently need maintenance"
+            fi
         else
             echo "$response"
         fi
