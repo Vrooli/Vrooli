@@ -7,9 +7,17 @@ interface InvestigationScriptsPanelProps {
   onOpenScriptEditor: (script?: InvestigationScript, content?: string, mode?: 'create' | 'edit' | 'view') => void;
   embedded?: boolean;
   searchFilter?: string;
+  maxVisible?: number;
+  onShowAll?: () => void;
 }
 
-export const InvestigationScriptsPanel = ({ onOpenScriptEditor, embedded = false, searchFilter = '' }: InvestigationScriptsPanelProps) => {
+export const InvestigationScriptsPanel = ({
+  onOpenScriptEditor,
+  embedded = false,
+  searchFilter = '',
+  maxVisible,
+  onShowAll
+}: InvestigationScriptsPanelProps) => {
   const [scripts, setScripts] = useState<InvestigationScript[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -25,6 +33,11 @@ export const InvestigationScriptsPanel = ({ onOpenScriptEditor, embedded = false
            script.category.toLowerCase().includes(searchLower) ||
            script.id.toLowerCase().includes(searchLower);
   });
+
+  const scriptsToDisplay = typeof maxVisible === 'number' && maxVisible >= 0
+    ? filteredScripts.slice(0, maxVisible)
+    : filteredScripts;
+  const hasMoreScripts = typeof maxVisible === 'number' && filteredScripts.length > maxVisible;
 
   const loadScripts = async () => {
     setLoading(true);
@@ -101,7 +114,7 @@ export const InvestigationScriptsPanel = ({ onOpenScriptEditor, embedded = false
           </div>
         ) : (
           <div className="scripts-list">
-            {filteredScripts.map(script => (
+            {scriptsToDisplay.map(script => (
               <div 
                 key={script.id} 
                 className="script-item" 
@@ -166,6 +179,22 @@ export const InvestigationScriptsPanel = ({ onOpenScriptEditor, embedded = false
                 </div>
               </div>
             ))}
+            {hasMoreScripts && onShowAll && (
+              <div style={{
+                padding: 'var(--spacing-md)',
+                display: 'flex',
+                justifyContent: 'center'
+              }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={onShowAll}
+                  style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}
+                >
+                  Show More Scripts
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -202,9 +231,18 @@ export const InvestigationScriptsPanel = ({ onOpenScriptEditor, embedded = false
             <RefreshCw size={16} />
             REFRESH
           </button>
+          {hasMoreScripts && onShowAll && (
+            <button
+              type="button"
+              className="btn btn-action"
+              onClick={onShowAll}
+            >
+              SHOW ALL
+            </button>
+          )}
         </div>
       </div>
-      
+
       <div className="investigation-scripts-list">
         {loading ? (
           <LoadingSkeleton variant="list" count={3} />
@@ -230,7 +268,7 @@ export const InvestigationScriptsPanel = ({ onOpenScriptEditor, embedded = false
           </div>
         ) : (
           <div className="scripts-list">
-            {filteredScripts.map(script => (
+            {scriptsToDisplay.map(script => (
               <div 
                 key={script.id} 
                 className="script-item" 
@@ -295,6 +333,22 @@ export const InvestigationScriptsPanel = ({ onOpenScriptEditor, embedded = false
                 </div>
               </div>
             ))}
+            {hasMoreScripts && onShowAll && (
+              <div style={{
+                padding: 'var(--spacing-md)',
+                display: 'flex',
+                justifyContent: 'flex-end'
+              }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={onShowAll}
+                  style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}
+                >
+                  Show More Scripts
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

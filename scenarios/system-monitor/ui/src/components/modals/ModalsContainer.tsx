@@ -1,13 +1,13 @@
 import { ScriptEditorModal } from './ScriptEditorModal';
 import { ScriptResultsModal } from './ScriptResultsModal';
-import type { ModalState } from '../../types';
+import type { ModalState, InvestigationScript } from '../../types';
 
 interface ModalsContainerProps {
   modalState: ModalState;
   onCloseScriptEditor: () => void;
   onCloseScriptResults: () => void;
   onExecuteScript: (scriptId: string, content: string) => Promise<void>;
-  onSaveScript?: (script: any, content: string) => Promise<void>;
+  onSaveScript?: (script: InvestigationScript, content: string) => Promise<void>;
 }
 
 export const ModalsContainer = ({ 

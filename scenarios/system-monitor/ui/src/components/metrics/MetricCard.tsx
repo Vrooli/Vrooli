@@ -8,6 +8,7 @@ import type {
   DiskCardDetails,
   GPUCardDetails
 } from '../../types';
+/* eslint-disable no-case-declarations */
 import { MetricSparkline } from './MetricSparkline';
 
 const formatBytes = (value?: number) => {

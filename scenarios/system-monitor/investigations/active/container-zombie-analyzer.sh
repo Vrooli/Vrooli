@@ -12,6 +12,17 @@
 
 set -euo pipefail
 
+# Ensure numeric strings are sanitized before arithmetic comparisons
+sanitize_int() {
+    local value="${1:-}"
+    value=$(echo "${value}" | tr -cd '0-9')
+    if [[ -z "${value}" ]]; then
+        printf '0'
+    else
+        printf '%s' "${value}"
+    fi
+}
+
 # Configuration
 SCRIPT_NAME="container-zombie-analyzer"
 OUTPUT_DIR="../results/$(date +%Y%m%d_%H%M%S)_${SCRIPT_NAME}"
@@ -60,11 +71,12 @@ ZOMBIE_DATA=$(ps aux | grep "<defunct>" | grep -v grep | while read line; do
             fi
         fi
         
-        echo "{\"zombie_pid\":${PID},\"user\":\"${USER}\",\"command\":\"${CMD}\",\"parent_pid\":${PARENT_PID},\"parent_cmd\":\"${PARENT_CMD}\",\"parent_args\":\"${PARENT_ARGS//\"/\\\"}\",\"in_container\":${IS_CONTAINER}},"
+        echo "{\"zombie_pid\":${PID},\"user\":\"${USER}\",\"command\":\"${CMD}\",\"parent_pid\":${PARENT_PID},\"parent_cmd\":\"${PARENT_CMD}\",\"parent_args\":\"${PARENT_ARGS//\"/\\\"}\",\"in_container\":${IS_CONTAINER}}"
     fi
-done | sed 's/,$//')
+done | paste -sd',' -)
 
 ZOMBIE_COUNT=$(ps aux | grep -c "<defunct>" || echo "0")
+ZOMBIE_COUNT=$(sanitize_int "${ZOMBIE_COUNT}")
 
 # Analyze container-specific issues
 echo "🐳 Analyzing container processes..."
@@ -74,11 +86,17 @@ CONTAINER_DATA="{"
 if command -v docker &> /dev/null; then
     CONTAINERS_WITH_ISSUES=$(docker ps --format "{{.ID}} {{.Names}}" | while read cid cname; do
         # Check for zombies in container
-        CONTAINER_ZOMBIES=$(docker exec ${cid} ps aux 2>/dev/null | grep -c "<defunct>" || echo "0")
-        if [[ ${CONTAINER_ZOMBIES} -gt 0 ]]; then
-            echo "\"${cname}\":${CONTAINER_ZOMBIES},"
+        CONTAINER_PS=$(docker exec ${cid} ps aux 2>/dev/null || true)
+        if [[ -n "${CONTAINER_PS}" ]]; then
+            CONTAINER_ZOMBIES=$(echo "${CONTAINER_PS}" | grep -c "<defunct>" || echo "0")
+        else
+            CONTAINER_ZOMBIES="0"
         fi
-    done | sed 's/,$//')
+        CONTAINER_ZOMBIES=$(sanitize_int "${CONTAINER_ZOMBIES}")
+        if [[ ${CONTAINER_ZOMBIES} -gt 0 ]]; then
+            echo "\"${cname}\":${CONTAINER_ZOMBIES}"
+        fi
+    done | paste -sd',' -)
     
     if [[ -n "${CONTAINERS_WITH_ISSUES}" ]]; then
         CONTAINER_DATA="${CONTAINER_DATA}\"containers_with_zombies\":{${CONTAINERS_WITH_ISSUES}},"
@@ -89,10 +107,11 @@ fi
 JUPYTER_PARENT=$(ps aux | grep -E "(jupyter|notebook)" | grep -v grep | head -1 | awk '{print $2}' || echo "")
 if [[ -n "${JUPYTER_PARENT}" ]]; then
     JUPYTER_ZOMBIES=$(ps --ppid ${JUPYTER_PARENT} | grep -c "<defunct>" || echo "0")
+    JUPYTER_ZOMBIES=$(sanitize_int "${JUPYTER_ZOMBIES}")
     CONTAINER_DATA="${CONTAINER_DATA}\"jupyter_parent_pid\":${JUPYTER_PARENT},\"jupyter_zombies\":${JUPYTER_ZOMBIES},"
 fi
 
-CONTAINER_DATA=$(echo "${CONTAINER_DATA}" | sed 's/,$//')
+CONTAINER_DATA="${CONTAINER_DATA%,}"
 CONTAINER_DATA="${CONTAINER_DATA}}"
 
 # Build parent process tree for zombies
@@ -120,7 +139,7 @@ for zombie_pid in $(ps aux | grep "<defunct>" | awk '{print $2}'); do
     
     PROCESS_TREE="${PROCESS_TREE}\"${TREE_PATH}\","
 done
-PROCESS_TREE=$(echo "${PROCESS_TREE}" | sed 's/,$//')
+PROCESS_TREE="${PROCESS_TREE%,}"
 
 # Root cause analysis
 echo "🔍 Performing root cause analysis..."
@@ -128,8 +147,11 @@ ROOT_CAUSE_DATA="{"
 
 # Analyze patterns
 PYTHON_ZOMBIES=$(ps aux | grep "<defunct>" | grep -c "python" || echo "0")
+PYTHON_ZOMBIES=$(sanitize_int "${PYTHON_ZOMBIES}")
 NODE_ZOMBIES=$(ps aux | grep "<defunct>" | grep -c "node" || echo "0")
+NODE_ZOMBIES=$(sanitize_int "${NODE_ZOMBIES}")
 SHELL_ZOMBIES=$(ps aux | grep "<defunct>" | grep -c -E "sh|bash" || echo "0")
+SHELL_ZOMBIES=$(sanitize_int "${SHELL_ZOMBIES}")
 
 ROOT_CAUSE_DATA="${ROOT_CAUSE_DATA}\"python_zombies\":${PYTHON_ZOMBIES},"
 ROOT_CAUSE_DATA="${ROOT_CAUSE_DATA}\"node_zombies\":${NODE_ZOMBIES},"
@@ -150,7 +172,7 @@ else
     ROOT_CAUSE_DATA="${ROOT_CAUSE_DATA}\"severity\":\"low\","
 fi
 
-ROOT_CAUSE_DATA=$(echo "${ROOT_CAUSE_DATA}" | sed 's/,$//')
+ROOT_CAUSE_DATA="${ROOT_CAUSE_DATA%,}"
 ROOT_CAUSE_DATA="${ROOT_CAUSE_DATA}}"
 
 # Generate targeted recommendations
@@ -183,7 +205,7 @@ RECOMMENDATIONS="${RECOMMENDATIONS}\"Monitor with: watch 'ps aux | grep defunct 
 RECOMMENDATIONS="${RECOMMENDATIONS}\"Investigate parent processes that aren't reaping children properly\","
 RECOMMENDATIONS="${RECOMMENDATIONS}\"Consider implementing a zombie reaper service if issue persists\""
 
-RECOMMENDATIONS=$(echo "${RECOMMENDATIONS}" | sed 's/,$//')
+RECOMMENDATIONS="${RECOMMENDATIONS%,}"
 
 # Build final JSON
 jq ".zombie_summary = {

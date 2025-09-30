@@ -123,8 +123,27 @@ export interface MetricThresholds {
 
 export interface WebSocketMessage {
   type: 'metrics' | 'alert' | 'investigation' | 'system_status';
-  data: any;
+  data: unknown;
   timestamp: string;
+}
+
+export interface InvestigationAgentState {
+  id: string;
+  status: string;
+  startTime: string;
+  autoFix: boolean;
+  operationMode?: string;
+  model?: string;
+  resource?: string;
+  progress?: number;
+  riskLevel?: string;
+  note?: string;
+  label?: string;
+  anomalyId?: string;
+  details?: Record<string, unknown>;
+  lastUpdated?: string;
+  completedAt?: string;
+  error?: string;
 }
 
 // Theme-related types for Matrix/Cyberpunk styling

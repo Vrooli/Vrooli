@@ -12,6 +12,16 @@
 
 set -euo pipefail
 
+sanitize_int() {
+  local value="${1:-}"
+  value=$(echo "${value}" | tr -cd '0-9')
+  if [[ -z "${value}" ]]; then
+    printf '0'
+  else
+    printf '%s' "${value}"
+  fi
+}
+
 # Configuration
 SCRIPT_NAME="test-spawn-detector"
 OUTPUT_DIR="../results/$(date +%Y%m%d_%H%M%S)_${SCRIPT_NAME}"
@@ -42,44 +52,75 @@ echo "🧪 Starting Test Spawn Detection..."
 
 # Find test-related processes
 echo "🔍 Searching for test processes..."
-TEST_PROCS=$(ps aux | grep -E "(test|Test|TEST|spec|Spec)" | grep -v -E "(grep|kernel|kworker|protest)" | head -20 | \
-  awk '{printf "{\"pid\":%s,\"user\":\"%s\",\"cpu\":%.1f,\"mem\":%.1f,\"command\":\"%s\"},", $2, $1, $3, $4, substr($0, index($0,$11))}' | sed 's/,$//')
-
-if [[ -n "${TEST_PROCS}" ]]; then
-  jq ".test_processes = [${TEST_PROCS}]" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
-fi
+TEST_PROCS_COUNT=0
+ps aux | awk '
+  NR>1 && $0 ~ /(test|Test|TEST|spec|Spec)/ && $0 !~ /(grep|kernel|kworker|protest)/ {
+    printf "%s|%s|%s|%s|%s\n", $1, $2, $3, $4, substr($0, index($0,$11));
+    if (++count >= 20) exit;
+  }
+' | while IFS='|' read -r user pid cpu mem command; do
+  [[ -z "$pid" ]] && continue
+  trimmed_cmd=$(printf '%.4096s' "$command")
+  jq --arg pid "$pid" --arg user "$user" --arg cpu "$cpu" --arg mem "$mem" --arg cmd "$trimmed_cmd" \
+    '.test_processes += [{
+      "pid": ($pid|tonumber),
+      "user": $user,
+      "cpu": ($cpu|tonumber),
+      "mem": ($mem|tonumber),
+      "command": $cmd
+    }]' "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
+  ((++TEST_PROCS_COUNT))
+done
 
 # Find spawn-related processes
 echo "🔄 Detecting spawn and fork activity..."
-SPAWN_PROCS=$(ps aux | grep -E "(spawn|fork|multiprocessing)" | grep -v -E "(grep|kernel|kworker)" | head -20 | \
-  awk '{printf "{\"pid\":%s,\"user\":\"%s\",\"cpu\":%.1f,\"mem\":%.1f,\"command\":\"%s\"},", $2, $1, $3, $4, substr($0, index($0,$11))}' | sed 's/,$//')
-
-if [[ -n "${SPAWN_PROCS}" ]]; then
-  jq ".spawn_processes = [${SPAWN_PROCS}]" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
-fi
+SPAWN_PROCS_COUNT=0
+ps aux | awk '
+  NR>1 && $0 ~ /(spawn|fork|multiprocessing)/ && $0 !~ /(grep|kernel|kworker)/ {
+    printf "%s|%s|%s|%s|%s\n", $1, $2, $3, $4, substr($0, index($0,$11));
+    if (++count >= 20) exit;
+  }
+' | while IFS='|' read -r user pid cpu mem command; do
+  [[ -z "$pid" ]] && continue
+  trimmed_cmd=$(printf '%.4096s' "$command")
+  jq --arg pid "$pid" --arg user "$user" --arg cpu "$cpu" --arg mem "$mem" --arg cmd "$trimmed_cmd" \
+    '.spawn_processes += [{
+      "pid": ($pid|tonumber),
+      "user": $user,
+      "cpu": ($cpu|tonumber),
+      "mem": ($mem|tonumber),
+      "command": $cmd
+    }]' "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
+  ((++SPAWN_PROCS_COUNT))
+done
 
 # Analyze fork activity
 echo "📊 Analyzing fork/spawn patterns..."
-FORK_COUNT=$(ps aux | grep -c "fork" || echo "0")
-SPAWN_COUNT=$(ps aux | grep -c "spawn" || echo "0")
-MULTIPROC_COUNT=$(ps aux | grep -c "multiprocessing" || echo "0")
+FORK_COUNT=$(sanitize_int "$(ps aux | grep -c "fork" || echo "0")")
+SPAWN_COUNT=$(sanitize_int "$(ps aux | grep -c "spawn" || echo "0")")
+MULTIPROC_COUNT=$(sanitize_int "$(ps aux | grep -c "multiprocessing" || echo "0")")
 
-jq ".fork_activity = {
-  \"fork_processes\": ${FORK_COUNT},
-  \"spawn_processes\": ${SPAWN_COUNT},
-  \"multiprocessing_processes\": ${MULTIPROC_COUNT}
-}" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
+jq --argjson fork "${FORK_COUNT}" --argjson spawn "${SPAWN_COUNT}" --argjson multi "${MULTIPROC_COUNT}" '.fork_activity = {
+  "fork_processes": $fork,
+  "spawn_processes": $spawn,
+  "multiprocessing_processes": $multi
+}' "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
 
 # Check Python multiprocessing health
 echo "🐍 Checking Python multiprocessing status..."
-PYTHON_MP_PROCS=$(ps aux | grep "multiprocessing" | grep -v grep | wc -l || echo "0")
-PYTHON_MP_TRACKERS=$(ps aux | grep "resource_tracker" | grep -v grep | wc -l || echo "0")
+PYTHON_MP_PROCS=$(sanitize_int "$(ps aux | grep "multiprocessing" | grep -v grep | wc -l || echo "0")")
+PYTHON_MP_TRACKERS=$(sanitize_int "$(ps aux | grep "resource_tracker" | grep -v grep | wc -l || echo "0")")
 
-jq ".multiprocessing_status = {
-  \"multiprocessing_workers\": ${PYTHON_MP_PROCS},
-  \"resource_trackers\": ${PYTHON_MP_TRACKERS},
-  \"healthy\": $([ ${PYTHON_MP_TRACKERS} -gt 0 ] && [ ${PYTHON_MP_PROCS} -gt 0 ] && echo "true" || echo "false")
-}" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
+MP_HEALTHY="false"
+if [[ ${PYTHON_MP_TRACKERS} -gt 0 && ${PYTHON_MP_PROCS} -gt 0 ]]; then
+  MP_HEALTHY="true"
+fi
+
+jq --argjson procs "${PYTHON_MP_PROCS}" --argjson trackers "${PYTHON_MP_TRACKERS}" --argjson healthy "${MP_HEALTHY}" '.multiprocessing_status = {
+  "multiprocessing_workers": $procs,
+  "resource_trackers": $trackers,
+  "healthy": $healthy
+}' "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
 
 # Special check for Jupyter zombies
 echo "📓 Checking Jupyter zombie situation..."
@@ -88,7 +129,7 @@ JUPYTER_ZOMBIES=0
 JUPYTER_PARENT=""
 
 if [[ -n "${JUPYTER_PID}" ]]; then
-  JUPYTER_ZOMBIES=$(ps --ppid ${JUPYTER_PID} 2>/dev/null | grep -c "<defunct>" || echo "0")
+  JUPYTER_ZOMBIES=$(sanitize_int "$(ps --ppid ${JUPYTER_PID} 2>/dev/null | grep -c "<defunct>" || echo "0")")
   JUPYTER_PARENT=$(ps -p ${JUPYTER_PID} -o comm= 2>/dev/null || echo "unknown")
 fi
 
@@ -103,7 +144,7 @@ echo "💡 Generating recommendations..."
 RECOMMENDATIONS=""
 
 # Test process recommendations
-if [[ $(echo "${TEST_PROCS}" | grep -c "pid") -gt 5 ]]; then
+if [[ ${TEST_PROCS_COUNT} -gt 5 ]]; then
   RECOMMENDATIONS="${RECOMMENDATIONS}\"Multiple test processes detected - ensure tests are cleaning up properly\","
 fi
 

@@ -287,7 +287,7 @@ export interface Investigation {
   start_time?: string;
   end_time?: string;
   progress?: number;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   steps?: InvestigationStep[];
 }
 

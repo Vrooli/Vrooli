@@ -40,7 +40,7 @@ echo "🔍 Starting API Infinite Loop Detection..."
 
 # Find high CPU Go processes
 echo "🎯 Finding high CPU Go processes..."
-HIGH_CPU_APIS=$(ps aux --sort=-%cpu | head -20 | grep -E "\.(api|server|monitor)" | grep -v grep | head -5)
+HIGH_CPU_APIS=$(ps aux --sort=-%cpu | head -20 | grep -E "\.(api|server|monitor)" | grep -v grep | head -5 || true)
 
 if [[ -z "${HIGH_CPU_APIS}" ]]; then
   echo "✅ No high CPU API processes found"

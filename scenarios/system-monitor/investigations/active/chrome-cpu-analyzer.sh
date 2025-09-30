@@ -40,10 +40,24 @@ jq ".timestamp = \"$(date -Iseconds)\"" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp
 
 echo "🔍 Starting Chrome CPU Analysis..."
 
-# Count Chrome processes
-CHROME_COUNT=$(ps aux | grep -E "chrome|chromium" | grep -v grep | wc -l)
-CHROME_CPU_TOTAL=$(ps aux | grep -E "chrome|chromium" | grep -v grep | awk '{sum+=$3} END {printf "%.1f", sum}')
-CHROME_MEM_TOTAL=$(ps aux | grep -E "chrome|chromium" | grep -v grep | awk '{sum+=$4} END {printf "%.1f", sum}')
+# Count Chrome processes and aggregate stats safely (works even when none found)
+CHROME_STATS=$(ps aux | awk '
+  {
+    line = tolower($0);
+    if ((index(line, "chrome") || index(line, "chromium")) && index(line, "grep") == 0 && index(line, "awk") == 0) {
+      count++;
+      cpu+=$3;
+      mem+=$4;
+    }
+  }
+  END {
+    if (count == 0) {
+      printf "0 0.0 0.0";
+    } else {
+      printf "%d %.1f %.1f", count, cpu, mem;
+    }
+  }')
+read -r CHROME_COUNT CHROME_CPU_TOTAL CHROME_MEM_TOTAL <<< "${CHROME_STATS:-"0 0.0 0.0"}"
 
 jq ".chrome_summary = {
   \"total_processes\": ${CHROME_COUNT},
@@ -52,16 +66,34 @@ jq ".chrome_summary = {
   \"detection_time\": \"$(date -Iseconds)\"
 }" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
 
-# Find high CPU Chrome processes
+# Find high CPU Chrome processes using AWK (works with mawk and gawk)
 echo "🔥 Analyzing high CPU Chrome processes..."
-HIGH_CPU_CHROME=$(ps aux | grep -E "chrome|chromium" | grep -v grep | awk -v threshold="${CPU_THRESHOLD}" '
-  $3+0 >= threshold { 
-    gsub(/"/,"\\\"", $0)
-    match($0, /--type=([^ ]+)/, type_arr)
-    type = (type_arr[1] ? type_arr[1] : "main")
-    printf "{\"pid\":%s,\"cpu\":%.1f,\"mem\":%.1f,\"type\":\"%s\",\"full_cmd\":\"%s\"},", 
-    $2, $3, $4, type, substr($0, index($0,$11))
-  }' | sed 's/,$//')
+HIGH_CPU_CHROME=$(ps aux | awk -v threshold="${CPU_THRESHOLD}" '
+  {
+    line = tolower($0);
+    if ((index(line, "chrome") || index(line, "chromium")) && index(line, "grep") == 0 && index(line, "awk") == 0 && ($3+0) >= threshold) {
+      pid = $2;
+      cpu = $3;
+      mem = $4;
+      cmd_field = (NF >= 11 ? $11 : $NF);
+      cmd_start = index($0, cmd_field);
+      if (cmd_start == 0) {
+        cmd_start = index($0, $NF);
+      }
+      if (cmd_start == 0) {
+        cmd_start = 1;
+      }
+      cmd_str = substr($0, cmd_start);
+      if (match(cmd_str, /--type=[^ ]+/)) {
+        type = substr(cmd_str, RSTART+7, RLENGTH-7);
+      } else {
+        type = "main";
+      }
+      gsub(/"/, "\\\"", cmd_str);
+      printf "{\"pid\":%s,\"cpu\":%.1f,\"mem\":%.1f,\"type\":\"%s\",\"full_cmd\":\"%s\"},", pid, cpu, mem, type, cmd_str;
+    }
+  }
+' | sed 's/,$//')
 
 if [[ -n "${HIGH_CPU_CHROME}" ]]; then
   jq ".high_cpu_processes = [${HIGH_CPU_CHROME}]" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
@@ -84,7 +116,7 @@ RECOMMENDATIONS=""
 AUTO_FIX=false
 
 # Check for runaway renderer processes (>100% CPU)
-if ps aux | grep -E "chrome.*--type=renderer" | grep -v grep | awk '$3 > 100 {exit 0} END {exit 1}'; then
+if ps aux | awk 'tolower($0) ~ /chrome/ && $0 ~ /--type=renderer/ && $0 !~ /grep/ && $3 > 100 {exit 0} END {exit 1}'; then
   RECOMMENDATIONS="${RECOMMENDATIONS}\"Found Chrome renderer process(s) consuming >100% CPU - likely JavaScript infinite loop\","
   RECOMMENDATIONS="${RECOMMENDATIONS}\"Consider closing affected tabs or restarting Chrome\","
   
@@ -93,9 +125,12 @@ if ps aux | grep -E "chrome.*--type=renderer" | grep -v grep | awk '$3 > 100 {ex
   while read -r pid cpu; do
     if (( $(echo "$cpu > 200" | bc -l 2>/dev/null || echo "0") )); then
       echo "🔧 Auto-fixing: Killing runaway Chrome renderer PID $pid (${cpu}% CPU)"
-      kill -9 "$pid" 2>/dev/null && KILLED_PIDS="${KILLED_PIDS}${pid}," && AUTO_FIX=true || true
+      if kill -9 "$pid" 2>/dev/null; then
+        KILLED_PIDS="${KILLED_PIDS}${pid},"
+        AUTO_FIX=true
+      fi
     fi
-  done < <(ps aux | grep -E "chrome.*--type=renderer" | grep -v grep | awk '{print $2, $3}')
+  done < <(ps aux | awk 'tolower($0) ~ /chrome/ && $0 !~ /grep/ && $0 ~ /--type=renderer/ {printf "%s %s\n", $2, $3}')
   
   if [[ -n "${KILLED_PIDS}" ]]; then
     RECOMMENDATIONS="${RECOMMENDATIONS}\"Auto-fix applied: Killed Chrome renderer PIDs [${KILLED_PIDS%,}] due to extreme CPU usage\","
@@ -108,7 +143,7 @@ if (( $(echo "${CHROME_CPU_TOTAL} > 100" | bc -l 2>/dev/null || echo "0") )); th
 fi
 
 # Check for GPU process issues
-if ps aux | grep "chrome.*--type=gpu-process" | grep -v grep | awk '$3 > 50 {exit 0} END {exit 1}'; then
+if ps aux | awk 'tolower($0) ~ /chrome/ && $0 !~ /grep/ && $0 ~ /--type=gpu-process/ && $3 > 50 {exit 0} END {exit 1}'; then
   RECOMMENDATIONS="${RECOMMENDATIONS}\"Chrome GPU process consuming high CPU - check hardware acceleration settings\","
 fi
 

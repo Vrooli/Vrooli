@@ -82,7 +82,12 @@ fi
 echo "🔎 Checking for container errors..."
 CONTAINERS_WITH_ERRORS=()
 for container in $(docker ps --format "{{.Names}}" | head -10); do
-  ERROR_COUNT=$(timeout 2 docker logs "$container" 2>&1 | tail -100 | grep -ciE "(error|exception|fatal|panic)" || echo "0")
+  ERROR_COUNT=$(timeout 2 docker logs "$container" 2>&1 | tail -100 | grep -ciE "(error|exception|fatal|panic)" || true)
+  ERROR_COUNT=$(echo "${ERROR_COUNT:-0}" | tr -d '[:space:]')
+  if [[ -z "${ERROR_COUNT}" || ! ${ERROR_COUNT} =~ ^[0-9]+$ ]]; then
+    ERROR_COUNT=0
+  fi
+
   if [[ ${ERROR_COUNT} -gt 0 ]]; then
     CONTAINERS_WITH_ERRORS+=("$container:$ERROR_COUNT")
   fi

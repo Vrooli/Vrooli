@@ -552,6 +552,14 @@ p {
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
 .grid-5 { grid-template-columns: repeat(5, 1fr); }
 
+.metrics-grid {
+  display: grid;
+  gap: var(--spacing-lg);
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: stretch;
+  width: 100%;
+}
+
 /* Responsive grid */
 @media (max-width: 1200px) {
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
@@ -566,7 +574,10 @@ p {
   .grid-5 { 
     grid-template-columns: 1fr; 
   }
-  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
   .terminal {
     width: 100%;
     height: 50vh;
@@ -645,6 +656,82 @@ p {
 .matrix-text-glow {
   text-shadow: var(--text-shadow-glow);
   color: var(--color-text-bright);
+}
+
+.system-monitor-title {
+  gap: 0.5rem;
+}
+
+.system-monitor-title-text {
+  white-space: nowrap;
+}
+
+.automatic-triggers-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-lg);
+}
+
+.automatic-triggers-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.cooldown-slider-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  min-width: 220px;
+}
+
+.cooldown-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding-left: var(--spacing-md);
+  border-left: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+@media (max-width: 768px) {
+  .system-monitor-title {
+    gap: 0.25rem;
+  }
+
+  .system-monitor-title-text {
+    display: none;
+  }
+
+  .automatic-triggers-layout {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .automatic-triggers-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-md);
+  }
+
+  .cooldown-slider-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+    width: 100%;
+  }
+
+  .cooldown-slider-group input[type="range"] {
+    width: 100%;
+  }
+
+  .cooldown-actions {
+    padding-left: 0;
+    border-left: none;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
 }
 
 .matrix-pulse {

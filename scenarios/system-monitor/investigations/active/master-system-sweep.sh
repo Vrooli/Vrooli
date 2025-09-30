@@ -150,8 +150,10 @@ run_script() {
 
   if [[ ${QUIET_MODE} -ne 0 ]]; then
     mapfile -t after_dirs < <(list_results_dirs)
-    comm -13 <(printf '%s\n' "${before_dirs[@]}" | sort) <(printf '%s\n' "${after_dirs[@]}" | sort) | while read -r new_dir; do
-      [[ -n "${new_dir}" ]] && rm -rf "${RESULTS_ROOT}/${new_dir}" 2>/dev/null || true
+    mapfile -t newly_created < <(comm -13 <(printf '%s\n' "${before_dirs[@]}" | sort) <(printf '%s\n' "${after_dirs[@]}" | sort))
+    for new_dir in "${newly_created[@]}"; do
+      [[ -z "${new_dir}" || "${new_dir}" == "${SWEEP_ID}" ]] && continue
+      rm -rf "${RESULTS_ROOT}/${new_dir}" 2>/dev/null || true
     done
   fi
 

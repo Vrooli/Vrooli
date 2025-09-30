@@ -91,7 +91,7 @@ fi
 
 # Pattern Analysis
 echo "🔍 Analyzing patterns..."
-DUPLICATE_COMMANDS=$(timeout 20 ps aux | awk '{print $11}' | sort | uniq -c | sort -rn | head -10 | awk '$1 > 5 {printf "{\"command\":\"%s\",\"count\":%d},", $2, $1}' | sed 's/,$//')
+DUPLICATE_COMMANDS=$(timeout 20 ps aux | awk '{print $11}' | sort | uniq -c | sort -rn | head -10 | awk '$1 > 5 {printf "{\"command\":\"%s\",\"count\":%d},", $2, $1}' | sed 's/,$//' || true)
 
 PATTERN_DATA="{"
 if [[ -n "${DUPLICATE_COMMANDS}" ]]; then

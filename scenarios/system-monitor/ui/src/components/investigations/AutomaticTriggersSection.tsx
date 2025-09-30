@@ -299,7 +299,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
       padding: 'var(--spacing-lg)',
       marginBottom: 'var(--spacing-xl)'
     }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--spacing-lg)' }}>
+      <div className="automatic-triggers-layout">
         <Settings size={48} style={{ 
           color: 'var(--color-accent)', 
           flexShrink: 0,
@@ -326,16 +326,16 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
           </p>
 
           {/* Cooldown Controls */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--spacing-lg)',
-            marginBottom: 'var(--spacing-lg)',
-            padding: 'var(--spacing-md)',
-            background: 'rgba(0, 0, 0, 0.3)',
-            borderRadius: 'var(--border-radius-sm)',
-            border: '1px solid rgba(0, 255, 0, 0.1)'
-          }}>
+          <div
+            className="automatic-triggers-controls"
+            style={{
+              marginBottom: 'var(--spacing-lg)',
+              padding: 'var(--spacing-md)',
+              background: 'rgba(0, 0, 0, 0.3)',
+              borderRadius: 'var(--border-radius-sm)',
+              border: '1px solid rgba(0, 255, 0, 0.1)'
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
               <Clock size={16} style={{ color: 'var(--color-accent)' }} />
               <span style={{ 
@@ -347,7 +347,10 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
               </span>
             </div>
 
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+            <div
+              className="cooldown-slider-group"
+              style={{ flex: 1 }}
+            >
               <input
                 type="range"
                 min="60"
@@ -387,13 +390,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
               </span>
             </div>
 
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-md)',
-              paddingLeft: 'var(--spacing-md)',
-              borderLeft: '1px solid rgba(0, 255, 0, 0.2)'
-            }}>
+            <div className="cooldown-actions">
               {cooldownStatus.remainingSeconds > 0 ? (
                 <>
                   <span style={{

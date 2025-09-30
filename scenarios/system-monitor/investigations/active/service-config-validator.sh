@@ -77,7 +77,7 @@ FAILED_SERVICES=()
 while IFS= read -r line; do
     if [[ -n "$line" ]]; then
         SERVICE=$(echo "$line" | awk '{print $2}')
-        STATUS=$(systemctl status "$SERVICE" 2>&1 | head -5 | grep -E "(Loaded:|Active:)" | tr '\n' ' ')
+        STATUS=$(systemctl status "$SERVICE" 2>&1 | head -5 | grep -E "(Loaded:|Active:)" | tr '\n' ' ' || true)
         
         # Check if it has config errors
         if systemctl status "$SERVICE" 2>&1 | grep -q "Failed to parse.*specifier"; then

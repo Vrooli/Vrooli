@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import type {
   MetricsResponse,
   DetailedMetrics,
@@ -32,17 +32,6 @@ export const MetricsGrid = ({
   onOpenDetail,
   diskLastUpdated
 }: MetricsGridProps) => {
-  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
-  
-  useEffect(() => {
-    const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 1024);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   const diskIOHistory = useMemo(() => {
     const readSeries = metricHistory?.diskRead ?? [];
     const writeSeries = metricHistory?.diskWrite ?? [];
@@ -86,35 +75,8 @@ export const MetricsGrid = ({
     };
   }, [detailedMetrics]);
   
-  const handleCardToggle = (cardType: CardType) => {
-    if (isDesktop) {
-      // On desktop, toggle all metric cards together
-      const allMetricCards: CardType[] = ['cpu', 'memory', 'gpu', 'disk', 'network'];
-      const isAnyExpanded = allMetricCards.some(card => expandedCards.has(card));
-      
-      // If any card is expanded, collapse all. If none are expanded, expand all.
-      if (isAnyExpanded) {
-        // Collapse all metric cards
-        allMetricCards.forEach(card => {
-          if (expandedCards.has(card)) {
-            onToggleCard(card);
-          }
-        });
-      } else {
-        // Expand all metric cards
-        allMetricCards.forEach(card => {
-          if (!expandedCards.has(card)) {
-            onToggleCard(card);
-          }
-        });
-      }
-    } else {
-      // On mobile/tablet, toggle individual cards
-      onToggleCard(cardType);
-    }
-  };
   return (
-    <div className="grid grid-5" style={{ gap: 'var(--spacing-lg)' }}>
+    <div className="metrics-grid">
       
       {/* CPU Usage Card */}
       <MetricCard
@@ -123,7 +85,7 @@ export const MetricsGrid = ({
         unit="%"
         value={metrics?.cpu_usage ?? 0}
         isExpanded={expandedCards.has('cpu')}
-        onToggle={() => handleCardToggle('cpu')}
+        onToggle={() => onToggleCard('cpu')}
         details={detailedMetrics?.cpu_details}
         alertCount={0} // TODO: Calculate based on thresholds
         history={metricHistory?.cpu}
@@ -140,7 +102,7 @@ export const MetricsGrid = ({
         unit="%"
         value={metrics?.memory_usage ?? 0}
         isExpanded={expandedCards.has('memory')}
-        onToggle={() => handleCardToggle('memory')}
+        onToggle={() => onToggleCard('memory')}
         details={detailedMetrics?.memory_details}
         alertCount={0} // TODO: Calculate based on thresholds
         history={metricHistory?.memory}
@@ -157,7 +119,7 @@ export const MetricsGrid = ({
         unit="%"
         value={metrics?.gpu_usage ?? null}
         isExpanded={expandedCards.has('gpu')}
-        onToggle={() => handleCardToggle('gpu')}
+        onToggle={() => onToggleCard('gpu')}
         details={gpuDetails}
         alertCount={0}
         history={metricHistory?.gpu}
@@ -175,7 +137,7 @@ export const MetricsGrid = ({
         unit="%"
         value={diskDetails?.diskUsage.percent ?? 0}
         isExpanded={expandedCards.has('disk')}
-        onToggle={() => handleCardToggle('disk')}
+        onToggle={() => onToggleCard('disk')}
         details={diskDetails}
         alertCount={0}
         history={diskIOHistory}
@@ -192,7 +154,7 @@ export const MetricsGrid = ({
         unit="#"
         value={metrics?.tcp_connections ?? 0}
         isExpanded={expandedCards.has('network')}
-        onToggle={() => handleCardToggle('network')}
+        onToggle={() => onToggleCard('network')}
         details={detailedMetrics?.network_details}
         alertCount={0} // TODO: Calculate based on thresholds
         history={metricHistory?.network}

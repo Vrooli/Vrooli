@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import type { TerminalLine } from '../../types';
 
@@ -34,6 +34,8 @@ export const Terminal = ({ isVisible, onClose }: TerminalProps) => {
     setLines(prev => [...prev.slice(-49), newLine]); // Keep last 50 lines
   };
 
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
   // Simulate some system messages
   useEffect(() => {
     const interval = setInterval(() => {
@@ -51,6 +53,25 @@ export const Terminal = ({ isVisible, onClose }: TerminalProps) => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!isVisible) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isVisible, onClose]);
+
+  useEffect(() => {
+    if (isVisible && dialogRef.current) {
+      dialogRef.current.focus();
+    }
+  }, [isVisible]);
+
   const getLineColor = (type: TerminalLine['type']): string => {
     switch (type) {
       case 'success': return 'var(--color-success)';
@@ -60,88 +81,90 @@ export const Terminal = ({ isVisible, onClose }: TerminalProps) => {
     }
   };
 
+  if (!isVisible) {
+    return null;
+  }
+
   return (
-    <div 
-      className={`terminal ${isVisible ? 'visible' : ''}`}
-      style={{
-        position: 'fixed',
-        bottom: 0,
-        right: 0,
-        width: '600px',
-        height: '400px',
-        background: 'rgba(0, 0, 0, 0.95)',
-        border: '1px solid var(--color-accent)',
-        borderBottom: 'none',
-        borderRight: 'none',
-        borderRadius: 'var(--border-radius-lg) 0 0 0',
-        display: 'flex',
-        flexDirection: 'column',
-        transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
-        transition: 'transform var(--transition-normal)',
-        zIndex: 1000
-      }}
+    <div
+      className="modal-overlay"
+      style={{ cursor: 'auto' }}
+      onClick={onClose}
     >
-      <div 
-        className="terminal-header"
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="terminal-heading"
+        ref={dialogRef}
+        tabIndex={-1}
+        onClick={(event) => event.stopPropagation()}
         style={{
+          width: 'min(900px, calc(100vw - 3rem))',
+          maxHeight: 'min(80vh, 720px)',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: 'var(--spacing-sm) var(--spacing-md)',
-          background: 'rgba(0, 255, 0, 0.1)',
-          borderBottom: '1px solid var(--color-accent)',
-          fontSize: 'var(--font-size-sm)',
-          color: 'var(--color-text-bright)'
+          flexDirection: 'column',
+          background: 'rgba(0, 0, 0, 0.95)',
+          border: '1px solid var(--color-accent)',
+          borderRadius: 'var(--border-radius-lg)',
+          boxShadow: 'var(--shadow-bright-glow)'
         }}
       >
-        <span>SYSTEM OUTPUT</span>
-        <button 
-          className="terminal-close"
-          onClick={onClose}
+        <div
           style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--color-text)',
-            fontSize: 'var(--font-size-lg)',
-            cursor: 'pointer',
-            padding: 0,
-            width: '24px',
-            height: '24px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'space-between',
+            padding: 'var(--spacing-md) var(--spacing-lg)',
+            borderBottom: '1px solid var(--color-accent)',
+            background: 'rgba(0, 255, 0, 0.08)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            fontSize: 'var(--font-size-sm)'
           }}
         >
-          <X size={16} />
-        </button>
-      </div>
-      
-      <div 
-        className="terminal-content"
-        style={{
-          flex: 1,
-          padding: 'var(--spacing-md)',
-          overflowY: 'auto',
-          fontSize: 'var(--font-size-sm)',
-          lineHeight: 1.4
-        }}
-      >
-        {lines.map((line) => (
-          <div 
-            key={line.id}
-            className={`terminal-line ${line.type}`}
+          <span id="terminal-heading">System Output</span>
+          <button
+            type="button"
+            onClick={onClose}
             style={{
-              marginBottom: 'var(--spacing-xs)',
-              wordWrap: 'break-word',
-              color: getLineColor(line.type)
+              background: 'none',
+              border: 'none',
+              color: 'var(--color-text)',
+              fontSize: 'var(--font-size-lg)',
+              cursor: 'pointer'
             }}
+            aria-label="Close system output"
           >
-            <span style={{ color: 'var(--color-text-dim)' }}>
-              [{new Date(line.timestamp).toLocaleTimeString()}]
-            </span>{' '}
-            {line.message}
-          </div>
-        ))}
+            <X size={18} />
+          </button>
+        </div>
+
+        <div
+          style={{
+            flex: 1,
+            padding: 'var(--spacing-lg)',
+            overflowY: 'auto',
+            fontSize: 'var(--font-size-sm)',
+            lineHeight: 1.45
+          }}
+        >
+          {lines.map((line) => (
+            <div
+              key={line.id}
+              className={`terminal-line ${line.type}`}
+              style={{
+                marginBottom: 'var(--spacing-xs)',
+                wordBreak: 'break-word',
+                color: getLineColor(line.type)
+              }}
+            >
+              <span style={{ color: 'var(--color-text-dim)' }}>
+                [{new Date(line.timestamp).toLocaleTimeString()}]
+              </span>{' '}
+              {line.message}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

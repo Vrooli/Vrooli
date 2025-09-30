@@ -12,6 +12,42 @@
 
 set -euo pipefail
 
+# Convert elapsed time (ps etime format) to seconds
+elapsed_to_seconds() {
+    local etime="$1"
+    local days_part rest hours minutes seconds
+
+    if [[ -z "${etime}" || "${etime}" == "-" ]]; then
+        printf '0'
+        return
+    fi
+
+    if [[ "${etime}" == *-* ]]; then
+        days_part=${etime%%-*}
+        rest=${etime#*-}
+    else
+        days_part=0
+        rest=${etime}
+    fi
+
+    IFS=':' read -r first second third <<< "${rest}"
+
+    if [[ -n "${third}" ]]; then
+        hours=${first:-0}
+        minutes=${second:-0}
+        seconds=${third:-0}
+    else
+        hours=0
+        minutes=${first:-0}
+        seconds=${second:-0}
+    fi
+
+    days_part=${days_part:-0}
+
+    # Use 10# to avoid octal interpretation for values with leading zeros
+    printf '%d' $((10#${days_part} * 86400 + 10#${hours} * 3600 + 10#${minutes} * 60 + 10#${seconds}))
+}
+
 # Configuration
 SCRIPT_NAME="enhanced-zombie-analyzer"
 OUTPUT_DIR="../results/$(date +%Y%m%d_%H%M%S)_${SCRIPT_NAME}"
@@ -39,19 +75,32 @@ get_process_info() {
 # Collect zombie data
 echo "💀 Detecting zombie processes..."
 ZOMBIES=$(ps -eo pid,ppid,etime,state,cmd | grep " Z " | grep -v grep || true)
-ZOMBIE_COUNT=$(echo "${ZOMBIES}" | grep -c "defunct" || echo "0")
+ZOMBIE_COUNT=0
 
 # Build JSON array of zombies with detailed info
 ZOMBIE_ARRAY="[]"
-if [[ ${ZOMBIE_COUNT} -gt 0 ]]; then
+JUPYTER_COUNT=0
+PYTHON_COUNT=0
+LONG_RUNNING_COUNT=0
+if [[ -n "${ZOMBIES}" ]]; then
     echo "🔍 Analyzing ${ZOMBIE_COUNT} zombie processes..."
     while IFS= read -r line; do
         if [[ -z "$line" ]]; then continue; fi
+        ((++ZOMBIE_COUNT))
         
         PID=$(echo "$line" | awk '{print $1}')
         PARENT_PID=$(echo "$line" | awk '{print $2}')
         ETIME=$(echo "$line" | awk '{print $3}')
-        CMD=$(echo "$line" | awk '{for(i=5;i<=NF;i++) printf "%s ", $i; print ""}' | sed 's/["\]/\\&/g')
+        CMD_RAW=$(echo "$line" | awk '{for(i=5;i<=NF;i++) printf "%s ", $i; print ""}')
+        CMD=$(echo "${CMD_RAW}" | sed 's/["\\]/\\&/g')
+        CMD_LOWER=$(echo "${CMD_RAW}" | tr 'A-Z' 'a-z')
+        ETIME_SECONDS=$(elapsed_to_seconds "${ETIME}")
+        if (( ETIME_SECONDS >= 3600 )); then
+            ((++LONG_RUNNING_COUNT))
+        fi
+        if [[ "${CMD_LOWER}" == *python* ]]; then
+            ((++PYTHON_COUNT))
+        fi
         
         # Get parent process info
         PARENT_CMD="unknown"
@@ -61,6 +110,10 @@ if [[ ${ZOMBIE_COUNT} -gt 0 ]]; then
             PARENT_CMD=$(ps -p ${PARENT_PID} -o comm= 2>/dev/null || echo "unknown")
             PARENT_USER=$(ps -p ${PARENT_PID} -o user= 2>/dev/null || echo "unknown")
             PARENT_ETIME=$(ps -p ${PARENT_PID} -o etime= 2>/dev/null || echo "unknown")
+        fi
+        PARENT_CMD_LOWER=$(echo "${PARENT_CMD}" | tr 'A-Z' 'a-z')
+        if [[ "${PARENT_CMD_LOWER}" == *jupyter* || "${PARENT_CMD_LOWER}" == *notebook* ]]; then
+            ((++JUPYTER_COUNT))
         fi
         
         # Create JSON object for this zombie
@@ -101,54 +154,64 @@ PARENT_ANALYSIS=$(echo "$ZOMBIE_ARRAY" | jq '. as $zombies | [
 
 # Check for specific problematic patterns
 echo "🔍 Detecting patterns..."
-JUPYTER_ZOMBIES=$(echo "$ZOMBIE_ARRAY" | jq '[.[] | select(.parent.command | contains("jupyter") or contains("notebook"))] | length')
-PYTHON_ZOMBIES=$(echo "$ZOMBIE_ARRAY" | jq '[.[] | select(.command | contains("python"))] | length')
-LONG_RUNNING=$(echo "$ZOMBIE_ARRAY" | jq '[.[] | select(.elapsed_time | split(":") | if length == 3 then (.[0] | tonumber) > 0 else false end)] | length')
+JUPYTER_ZOMBIES=${JUPYTER_COUNT}
+PYTHON_ZOMBIES=${PYTHON_COUNT}
+LONG_RUNNING=${LONG_RUNNING_COUNT}
 
 # Generate recommendations
 echo "💡 Building recommendations..."
-RECOMMENDATIONS="[]"
+RECOMMENDATIONS_LIST=()
 
 if [[ ${ZOMBIE_COUNT} -gt 0 ]]; then
-    RECOMMENDATIONS=$(echo "$RECOMMENDATIONS" | jq '. += ["Found ' ${ZOMBIE_COUNT} ' zombie processes that need parent process attention"]')
+    RECOMMENDATIONS_LIST+=("Found ${ZOMBIE_COUNT} zombie processes that need parent process attention")
 fi
 
 if [[ ${ZOMBIE_COUNT} -gt 20 ]]; then
-    RECOMMENDATIONS=$(echo "$RECOMMENDATIONS" | jq '. += ["Critical: High zombie count indicates serious subprocess management issue"]')
-    RECOMMENDATIONS=$(echo "$RECOMMENDATIONS" | jq '. += ["Parent process PID ' $(echo "$PARENT_ANALYSIS" | jq -r '.[0].ppid') ' has ' $(echo "$PARENT_ANALYSIS" | jq -r '.[0].zombie_count') ' zombie children"]')
+    RECOMMENDATIONS_LIST+=("Critical: High zombie count indicates serious subprocess management issue")
+    TOP_PARENT_PID=$(echo "$PARENT_ANALYSIS" | jq -r '.[0].ppid // empty')
+    TOP_PARENT_COUNT=$(echo "$PARENT_ANALYSIS" | jq -r '.[0].zombie_count // empty')
+    if [[ -n "${TOP_PARENT_PID}" && -n "${TOP_PARENT_COUNT}" ]]; then
+        RECOMMENDATIONS_LIST+=("Parent process PID ${TOP_PARENT_PID} has ${TOP_PARENT_COUNT} zombie children")
+    fi
 fi
 
 if [[ ${JUPYTER_ZOMBIES} -gt 0 ]]; then
-    RECOMMENDATIONS=$(echo "$RECOMMENDATIONS" | jq '. += ["Jupyter/notebook server has zombie processes - kernel management issue detected"]')
-    RECOMMENDATIONS=$(echo "$RECOMMENDATIONS" | jq '. += ["Restart Jupyter server: systemctl restart jupyter or kill -HUP <jupyter_pid>"]')
+    RECOMMENDATIONS_LIST+=("Jupyter/notebook server has zombie processes - kernel management issue detected")
+    RECOMMENDATIONS_LIST+=("Restart Jupyter server: systemctl restart jupyter or kill -HUP <jupyter_pid>")
 fi
 
 if [[ ${PYTHON_ZOMBIES} -gt 10 ]]; then
-    RECOMMENDATIONS=$(echo "$RECOMMENDATIONS" | jq '. += ["Python subprocess.Popen() calls not being properly waited/communicated"]')
-    RECOMMENDATIONS=$(echo "$RECOMMENDATIONS" | jq '. += ["Add signal.signal(signal.SIGCHLD, signal.SIG_IGN) to parent Python script"]')
+    RECOMMENDATIONS_LIST+=("Python subprocess.Popen() calls not being properly waited/communicated")
+    RECOMMENDATIONS_LIST+=("Add signal.signal(signal.SIGCHLD, signal.SIG_IGN) to parent Python script")
 fi
 
 if [[ ${LONG_RUNNING} -gt 5 ]]; then
-    RECOMMENDATIONS=$(echo "$RECOMMENDATIONS" | jq '. += ["Zombies running for hours - parent process not handling SIGCHLD signals"]')
-    RECOMMENDATIONS=$(echo "$RECOMMENDATIONS" | jq '. += ["Parent process needs wait() or waitpid() implementation"]')
+    RECOMMENDATIONS_LIST+=("Zombies running for hours - parent process not handling SIGCHLD signals")
+    RECOMMENDATIONS_LIST+=("Parent process needs wait() or waitpid() implementation")
 fi
 
 # Add specific fix for Jupyter
 if echo "$PARENT_ANALYSIS" | jq -e '.[0].parent_command | contains("sage-notebook")' > /dev/null 2>&1; then
-    RECOMMENDATIONS=$(echo "$RECOMMENDATIONS" | jq '. += ["SageMath Jupyter notebook detected - known issue with subprocess handling"]')
-    RECOMMENDATIONS=$(echo "$RECOMMENDATIONS" | jq '. += ["Fix: Restart sage-notebook or implement SIGCHLD handler in sage wrapper"]')
+    RECOMMENDATIONS_LIST+=("SageMath Jupyter notebook detected - known issue with subprocess handling")
+    RECOMMENDATIONS_LIST+=("Fix: Restart sage-notebook or implement SIGCHLD handler in sage wrapper")
 fi
 
 # Build final JSON result
+if (( ${#RECOMMENDATIONS_LIST[@]} > 0 )); then
+    RECOMMENDATIONS_JSON=$(printf '%s\n' "${RECOMMENDATIONS_LIST[@]}" | jq -R -s 'split("\n")[:-1]')
+else
+    RECOMMENDATIONS_JSON='[]'
+fi
+
 RESULT=$(jq -n \
     --argjson zombies "$ZOMBIE_ARRAY" \
     --argjson parents "$PARENT_ANALYSIS" \
-    --argjson recommendations "$RECOMMENDATIONS" \
+    --argjson recommendations "$RECOMMENDATIONS_JSON" \
     --arg timestamp "$(date -Iseconds)" \
-    --argjson zombie_count "$ZOMBIE_COUNT" \
-    --argjson jupyter_zombies "$JUPYTER_ZOMBIES" \
-    --argjson python_zombies "$PYTHON_ZOMBIES" \
-    --argjson long_running "$LONG_RUNNING" \
+    --argjson zombie_count "${ZOMBIE_COUNT}" \
+    --argjson jupyter_zombies "${JUPYTER_ZOMBIES}" \
+    --argjson python_zombies "${PYTHON_ZOMBIES}" \
+    --argjson long_running "${LONG_RUNNING}" \
     '{
         investigation: "enhanced-zombie-analyzer",
         timestamp: $timestamp,
