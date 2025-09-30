@@ -16,19 +16,11 @@
         </div>
         <div class="header-actions">
           <span id="statusBadge" class="status-badge">IDLE · DISCONNECTED</span>
-          <button id="startBtn" class="btn btn-primary">Start Terminal</button>
-          <button id="stopBtn" class="btn btn-danger" disabled>Stop Session</button>
         </div>
       </header>
 
       <section class="layout">
         <aside class="sidebar">
-          <section class="panel">
-            <h2>Operator</h2>
-            <input id="operatorInput" type="text" placeholder="Operator codename" />
-            <p class="panel-note">Name is recorded in transcripts and surfaced to the parent scenario.</p>
-          </section>
-
           <section class="panel">
             <h2>Session</h2>
             <ul class="info-list">
@@ -72,11 +64,11 @@
         </aside>
 
         <section class="console">
-          <div id="terminal" class="terminal"></div>
-          <form id="inputForm" class="input-bar">
-            <textarea id="inputBox" rows="2" placeholder="Enter terminal input. Press Enter to send, Shift+Enter for newline"></textarea>
-            <button id="sendBtn" type="submit" class="btn btn-accent">Send</button>
-          </form>
+          <div class="console-header">
+            <div id="tabList" class="tab-list" role="tablist"></div>
+            <button id="addTabBtn" type="button" class="tab-add" aria-label="Open new terminal">+ New Terminal</button>
+          </div>
+          <div id="terminalHost" class="terminal-host"></div>
           <div id="errorBanner" class="error-banner hidden"></div>
         </section>
       </section>

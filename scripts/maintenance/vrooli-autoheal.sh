@@ -25,8 +25,20 @@ fatal() {
 ensure_prereqs() {
     command -v vrooli >/dev/null 2>&1 || fatal "vrooli CLI not found in PATH"
     command -v jq >/dev/null 2>&1 || fatal "jq is required but not found in PATH"
-    mkdir -p "$(dirname "$LOG_FILE")"
-    touch "$LOG_FILE" || fatal "Cannot write to log file $LOG_FILE"
+    local target_log="$LOG_FILE"
+    local fallback_log="${HOME}/.vrooli/logs/vrooli-autoheal.log"
+
+    if ! mkdir -p "$(dirname "$target_log")" 2>/dev/null || ! touch "$target_log" 2>/dev/null; then
+        LOG_FILE="$fallback_log"
+        mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
+        if ! touch "$LOG_FILE" 2>/dev/null; then
+            printf '%s\n' "ERROR: Unable to create log file at '$target_log' or fallback '$LOG_FILE'" >&2
+            exit 1
+        fi
+        printf '%s :: [WARN] Falling back to log file %s (unable to write %s)\n' "$(date -Is)" "$LOG_FILE" "$target_log" >>"$LOG_FILE"
+    else
+        LOG_FILE="$target_log"
+    fi
 }
 
 acquire_lock() {
@@ -77,6 +89,17 @@ check_resource() {
     fi
     running=$(jq -r '.running // false' <<<"$info")
     healthy=$(jq -r '.healthy // false' <<<"$info")
+
+    local total_instances healthy_instances
+    total_instances=$(jq -r '.total_instances // empty' <<<"$info")
+    healthy_instances=$(jq -r '.healthy_instances // empty' <<<"$info")
+
+    if [[ "$healthy" != "true" && -n "$total_instances" && -n "$healthy_instances" ]]; then
+        if (( healthy_instances > 0 )); then
+            log "WARN" "Resource '$name' degraded but $healthy_instances/$total_instances instances healthy; skipping restart"
+            healthy="true"
+        fi
+    fi
     if [[ "$running" != "true" || "$healthy" != "true" ]]; then
         log "INFO" "Restarting resource '$name' (running=$running healthy=$healthy)"
         if ! vrooli resource stop "$name" >/dev/null 2>&1; then
