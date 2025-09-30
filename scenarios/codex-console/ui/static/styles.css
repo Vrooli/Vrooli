@@ -167,6 +167,12 @@ body {
   gap: 0.5rem;
 }
 
+.event-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
 .event-feed li {
   background: rgba(56, 189, 248, 0.08);
   border-radius: 0.75rem;
@@ -178,6 +184,14 @@ body {
   display: block;
   color: var(--text-secondary);
   margin-bottom: 0.35rem;
+}
+
+.event-feed .event-detail {
+  white-space: pre-wrap;
+  font-family: 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  margin: 0.35rem 0 0 0;
+  color: var(--text-secondary);
 }
 
 .console {

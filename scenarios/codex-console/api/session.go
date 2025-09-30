@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -60,6 +61,10 @@ type session struct {
 	transcriptWriter *bufio.Writer
 
 	readBuffer []byte
+
+	termSizeMu sync.RWMutex
+	termRows   int
+	termCols   int
 }
 
 func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, req createSessionRequest) (*session, error) {
@@ -79,6 +84,8 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 		clients:    make(map[*wsClient]struct{}),
 		idleReset:  make(chan struct{}, 1),
 		readBuffer: make([]byte, cfg.readBufferSizeBytes),
+		termRows:   cfg.defaultTTYRows,
+		termCols:   cfg.defaultTTYCols,
 	}
 
 	if err := os.MkdirAll(cfg.storagePath, 0o755); err != nil {
@@ -102,6 +109,10 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 	if err != nil {
 		s.cleanupOnInitFailure()
 		return nil, fmt.Errorf("start codex CLI: %w", err)
+	}
+	if err := pty.Setsize(ptyFile, &pty.Winsize{Rows: uint16(cfg.defaultTTYRows), Cols: uint16(cfg.defaultTTYCols)}); err != nil {
+		s.cleanupOnInitFailure()
+		return nil, fmt.Errorf("set initial pty size: %w", err)
 	}
 
 	s.command = cmd
@@ -210,6 +221,10 @@ func (s *session) waitForExit() {
 func (s *session) handleOutput(chunk []byte) {
 	s.touch()
 
+	if bytes.Contains(chunk, []byte("\x1b[6n")) {
+		s.respondCursorQuery()
+	}
+
 	payload := outputPayload{
 		Data:      base64.StdEncoding.EncodeToString(chunk),
 		Encoding:  "base64",
@@ -248,6 +263,42 @@ func (s *session) handleInput(data []byte) error {
 		Data:      base64.StdEncoding.EncodeToString(data),
 		Encoding:  "base64",
 	})
+	return nil
+}
+
+func (s *session) respondCursorQuery() {
+	if s.ptyFile == nil {
+		return
+	}
+	s.termSizeMu.RLock()
+	rows := s.termRows
+	cols := s.termCols
+	s.termSizeMu.RUnlock()
+	if rows <= 0 {
+		rows = 1
+	}
+	if cols <= 0 {
+		cols = 80
+	}
+	response := fmt.Sprintf("\x1b[%d;%dR", rows, cols)
+	_, _ = s.ptyFile.Write([]byte(response))
+}
+
+func (s *session) resize(cols, rows int) error {
+	if s.ptyFile == nil {
+		return errors.New("pty not available")
+	}
+	if cols <= 0 || rows <= 0 {
+		return errors.New("invalid size")
+	}
+	win := &pty.Winsize{Rows: uint16(rows), Cols: uint16(cols)}
+	if err := pty.Setsize(s.ptyFile, win); err != nil {
+		return fmt.Errorf("set pty size: %w", err)
+	}
+	s.termSizeMu.Lock()
+	s.termRows = rows
+	s.termCols = cols
+	s.termSizeMu.Unlock()
 	return nil
 }
 

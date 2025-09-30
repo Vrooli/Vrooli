@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -24,6 +25,8 @@ func handleWebSocketStream(w http.ResponseWriter, r *http.Request, session *sess
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		metrics.httpUpgradesFail.Add(1)
+		log.Printf("websocket upgrade failed: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -128,6 +131,18 @@ func (c *wsClient) readLoop() {
 				continue
 			}
 			_ = c.session.handleInput(bytes)
+
+		case "resize":
+			var payload resizePayload
+			if len(envelope.Payload) == 0 {
+				continue
+			}
+			if err := json.Unmarshal(envelope.Payload, &payload); err != nil {
+				continue
+			}
+			if err := c.session.resize(payload.Cols, payload.Rows); err != nil {
+				continue
+			}
 
 		case "heartbeat":
 			c.session.touch()

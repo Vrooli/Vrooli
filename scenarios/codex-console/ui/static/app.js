@@ -8,6 +8,7 @@ const elements = {
   socketState: document.getElementById('socketState'),
   transcriptSize: document.getElementById('transcriptSize'),
   eventFeed: document.getElementById('eventFeed'),
+  eventMeta: document.getElementById('eventMeta'),
   statusBadge: document.getElementById('statusBadge'),
   inputBox: document.getElementById('inputBox'),
   inputForm: document.getElementById('inputForm'),
@@ -30,7 +31,22 @@ const fitAddon = new window.FitAddon.FitAddon()
 term.loadAddon(fitAddon)
 term.open(elements.terminalContainer)
 fitAddon.fit()
+let lastSentSize = { cols: 0, rows: 0 }
 window.addEventListener('resize', () => requestAnimationFrame(() => fitAddon.fit()))
+term.onResize(({ cols, rows }) => {
+  sendResize(cols, rows)
+})
+
+const AGGREGATED_EVENT_TYPES = new Set(['ws-empty-frame'])
+const SUPPRESSED_EVENT_LABELS = {
+  'ws-empty-frame': 'Empty frames suppressed'
+}
+
+function initialSuppressedState() {
+  return {
+    'ws-empty-frame': 0
+  }
+}
 
 const state = {
   phase: 'idle',
@@ -39,6 +55,7 @@ const state = {
   socket: null,
   transcript: [],
   events: [],
+  suppressed: initialSuppressedState(),
   bridge: null
 }
 
@@ -138,6 +155,7 @@ function updateUI() {
   elements.statusBadge.textContent = `${state.phase.toUpperCase()} · ${state.socketState.toUpperCase()}`
   elements.statusBadge.style.color = badgeColor
 
+  renderEventMeta()
   renderEvents()
 
   state.bridge?.emit('session-update', {
@@ -145,12 +163,13 @@ function updateUI() {
     socketState: state.socketState,
     session: state.session,
     transcriptSize: state.transcript.length,
-    events: state.events.slice(-20)
+    events: state.events.slice(-20),
+    suppressed: { ...state.suppressed }
   })
 }
 
 function renderEvents() {
-  const recent = state.events.slice(-12).reverse()
+  const recent = state.events.slice(-50).reverse()
   elements.eventFeed.innerHTML = ''
   recent.forEach((event) => {
     const li = document.createElement('li')
@@ -161,16 +180,50 @@ function renderEvents() {
     label.style.fontWeight = '600'
     li.appendChild(time)
     li.appendChild(label)
+    if (event.payload !== undefined) {
+      const detail = document.createElement('pre')
+      detail.className = 'event-detail'
+      detail.textContent = formatEventPayload(event.payload)
+      li.appendChild(detail)
+    }
     elements.eventFeed.appendChild(li)
   })
 }
 
+function renderEventMeta() {
+  if (!elements.eventMeta) return
+  const summaries = Object.entries(state.suppressed)
+    .filter(([, count]) => count > 0)
+    .map(([type, count]) => `${SUPPRESSED_EVENT_LABELS[type] || type}: ${count}`)
+
+  if (summaries.length === 0) {
+    elements.eventMeta.textContent = ''
+    elements.eventMeta.classList.add('hidden')
+  } else {
+    elements.eventMeta.textContent = summaries.join(' • ')
+    elements.eventMeta.classList.remove('hidden')
+  }
+}
+
 function appendEvent(type, payload) {
-  state.events.push({ type, payload, timestamp: Date.now() })
-  if (state.events.length > 200) {
-    state.events.splice(0, state.events.length - 200)
+  const normalized = payload instanceof Error ? { message: payload.message, stack: payload.stack } : payload
+  if (AGGREGATED_EVENT_TYPES.has(type)) {
+    recordSuppressedEvent(type)
+    return
+  }
+  state.events.push({ type, payload: normalized, timestamp: Date.now() })
+  if (state.events.length > 500) {
+    state.events.splice(0, state.events.length - 500)
   }
   updateUI()
+}
+
+function recordSuppressedEvent(type) {
+  const current = (state.suppressed[type] || 0) + 1
+  state.suppressed[type] = current
+  if (current === 1 || current % 25 === 0) {
+    renderEventMeta()
+  }
 }
 
 function recordTranscript(entry) {
@@ -212,7 +265,10 @@ async function startSession() {
     state.session = data
     state.transcript = []
     state.events = []
+    state.suppressed = initialSuppressedState()
     term.reset()
+    renderEventMeta()
+    lastSentSize = { cols: 0, rows: 0 }
     appendEvent('session-created', data)
     connectWebSocket(data.id)
     setPhase('running')
@@ -243,6 +299,34 @@ async function stopSession() {
   }
 }
 
+function isArrayBufferView(value) {
+  return value && typeof value === 'object' && ArrayBuffer.isView(value)
+}
+
+async function normalizeSocketData(data) {
+  if (typeof data === 'string') {
+    return data
+  }
+  try {
+    if (data instanceof Blob && typeof data.text === 'function') {
+      return await data.text()
+    }
+    if (data instanceof ArrayBuffer) {
+      return textDecoder.decode(data)
+    }
+    if (isArrayBufferView(data)) {
+      const view = data
+      const buffer = view.byteOffset === 0 && view.byteLength === view.buffer.byteLength
+        ? view.buffer
+        : view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength)
+      return textDecoder.decode(buffer)
+    }
+  } catch (error) {
+    appendEvent('ws-decode-error', error)
+  }
+  return ''
+}
+
 function connectWebSocket(sessionId) {
   const url = buildWebSocketUrl(`/ws/sessions/${sessionId}/stream`)
   const socket = new WebSocket(url)
@@ -251,14 +335,26 @@ function connectWebSocket(sessionId) {
   socket.addEventListener('open', () => {
     setSocketState('open')
     appendEvent('ws-open', { sessionId })
+    if (term && typeof term.cols === 'number' && typeof term.rows === 'number') {
+      sendResize(term.cols, term.rows)
+    }
   })
 
-  socket.addEventListener('message', (event) => {
+  socket.addEventListener('message', async (event) => {
+    const raw = await normalizeSocketData(event.data)
+    if (!raw || raw.trim().length === 0) {
+      recordSuppressedEvent('ws-empty-frame')
+      return
+    }
     try {
-      const envelope = JSON.parse(event.data)
+      const envelope = JSON.parse(raw)
       handleStreamEnvelope(envelope)
     } catch (error) {
-      appendEvent('ws-message-error', error)
+      appendEvent('ws-message-error', {
+        message: error instanceof Error ? error.message : String(error),
+        raw
+      })
+      showError('Failed to process stream message')
     }
   })
 
@@ -286,12 +382,7 @@ function handleStreamEnvelope(envelope) {
       handleOutputPayload(envelope.payload)
       break
     case 'status':
-      appendEvent('session-status', envelope.payload)
-      recordTranscript({
-        timestamp: Date.now(),
-        direction: 'status',
-        message: JSON.stringify(envelope.payload)
-      })
+      handleStatusPayload(envelope.payload)
       break
     case 'heartbeat':
       appendEvent('session-heartbeat', envelope.payload)
@@ -322,6 +413,56 @@ function handleOutputPayload(payload) {
     encoding: payload.encoding,
     data: payload.data
   })
+}
+
+function handleStatusPayload(payload) {
+  appendEvent('session-status', payload)
+
+  if (payload && typeof payload === 'object') {
+    recordTranscript({
+      timestamp: payload.timestamp ? Date.parse(payload.timestamp) : Date.now(),
+      direction: 'status',
+      message: JSON.stringify(payload)
+    })
+
+    if (payload.status === 'started') {
+      setPhase('running')
+      setSocketState('open')
+      showError('')
+      return
+    }
+
+    if (payload.status === 'command_exit_error') {
+      setPhase('closed')
+      setSocketState('disconnected')
+      showError(`Codex exited: ${payload.reason || 'unknown error'}`)
+      notifyPanic(payload)
+      return
+    }
+
+    if (payload.status === 'closed') {
+      setPhase('closed')
+      setSocketState('disconnected')
+      if (payload.reason && !payload.reason.includes('client_requested')) {
+        showError(`Session closed: ${payload.reason}`)
+      }
+      return
+    }
+
+    return
+  }
+
+  recordTranscript({
+    timestamp: Date.now(),
+    direction: 'status',
+    message: JSON.stringify(payload)
+  })
+}
+
+function notifyPanic(payload) {
+  const reason = payload && typeof payload === 'object' && payload.reason ? payload.reason : 'unknown error'
+  term.write(`\r\n\u001b[31mCodex exited\u001b[0m: ${reason}\r\n`)
+  term.write('Review the event feed or transcripts for details.\r\n')
 }
 
 elements.inputForm.addEventListener('submit', (event) => {
@@ -371,4 +512,42 @@ function sendInput(value) {
   showError('')
 }
 
+function sendResize(cols, rows) {
+  if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
+    return
+  }
+  if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols <= 0 || rows <= 0) {
+    return
+  }
+  const { cols: lastCols, rows: lastRows } = lastSentSize
+  if (cols === lastCols && rows === lastRows) {
+    return
+  }
+  const payload = {
+    type: 'resize',
+    payload: { cols, rows }
+  }
+  try {
+    state.socket.send(JSON.stringify(payload))
+    lastSentSize = { cols, rows }
+    appendEvent('terminal-resize', { cols, rows })
+  } catch (error) {
+    appendEvent('terminal-resize-error', error)
+  }
+}
+
 updateUI()
+
+function formatEventPayload(payload) {
+  if (payload === undefined || payload === null) {
+    return ''
+  }
+  if (typeof payload === 'string') {
+    return payload
+  }
+  try {
+    return JSON.stringify(payload, null, 2)
+  } catch (_error) {
+    return '[unserializable payload]'
+  }
+}

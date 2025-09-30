@@ -18,6 +18,8 @@ type config struct {
 	maxConcurrent       int
 	panicKillGrace      time.Duration
 	readBufferSizeBytes int
+	defaultTTYRows      int
+	defaultTTYCols      int
 }
 
 func loadConfig() (config, error) {
@@ -41,6 +43,8 @@ func loadConfig() (config, error) {
 		maxConcurrent:       parseIntOrDefault(os.Getenv("CODEX_CONSOLE_MAX_CONCURRENT"), 4),
 		panicKillGrace:      parseDurationOrDefault(os.Getenv("CODEX_CONSOLE_PANIC_GRACE"), 3*time.Second),
 		readBufferSizeBytes: parseIntOrDefault(os.Getenv("CODEX_CONSOLE_READ_BUFFER"), 4096),
+		defaultTTYRows:      parseIntOrDefault(os.Getenv("CODEX_CONSOLE_TTY_ROWS"), 32),
+		defaultTTYCols:      parseIntOrDefault(os.Getenv("CODEX_CONSOLE_TTY_COLS"), 120),
 	}
 
 	if c.sessionTTL <= 0 {
@@ -57,6 +61,12 @@ func loadConfig() (config, error) {
 	}
 	if c.readBufferSizeBytes < 512 {
 		return config{}, errors.New("CODEX_CONSOLE_READ_BUFFER must be >= 512 bytes")
+	}
+	if c.defaultTTYRows <= 0 {
+		return config{}, errors.New("CODEX_CONSOLE_TTY_ROWS must be > 0")
+	}
+	if c.defaultTTYCols <= 0 {
+		return config{}, errors.New("CODEX_CONSOLE_TTY_COLS must be > 0")
 	}
 
 	return c, nil

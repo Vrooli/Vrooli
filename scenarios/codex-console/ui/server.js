@@ -22,6 +22,58 @@ if (!API_PORT) {
 
 const staticRoot = path.join(__dirname, 'static')
 
+const MIME_TYPES = {
+  '.css': 'text/css; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.ico': 'image/x-icon',
+  '.jpeg': 'image/jpeg',
+  '.jpg': 'image/jpeg',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml'
+}
+
+function contentTypeFor(filePath) {
+  const ext = path.extname(filePath).toLowerCase()
+  return MIME_TYPES[ext] || 'application/octet-stream'
+}
+
+function sanitizeCloseCode(code, fallback = 1000) {
+  return Number.isInteger(code) && code >= 1000 && code <= 4999 ? code : fallback
+}
+
+function sanitizeCloseReason(reason) {
+  if (typeof reason !== 'string' || reason.length === 0) {
+    return undefined
+  }
+  const encoder = new TextEncoder()
+  const bytes = encoder.encode(reason)
+  if (bytes.length <= 123) {
+    return reason
+  }
+  const decoder = new TextDecoder()
+  return decoder.decode(bytes.slice(0, 123))
+}
+
+function safeClose(socket, code, reason) {
+  if (!socket || socket.readyState === WebSocket.CLOSED) {
+    return
+  }
+  try {
+    if (code === undefined && reason === undefined) {
+      socket.close()
+    } else {
+      socket.close(code, reason)
+    }
+  } catch (error) {
+    console.error('[ws-proxy] close error', error.message)
+    if (typeof socket.terminate === 'function') {
+      socket.terminate()
+    }
+  }
+}
+
 function buildForwardedFor(req) {
   const prior = req.headers['x-forwarded-for']
   const remote = req.socket.remoteAddress
@@ -90,6 +142,7 @@ async function serveStatic(req, res) {
       return serveFallback(res)
     }
 
+    res.setHeader('Content-Type', contentTypeFor(filePath))
     const stream = createReadStream(filePath)
     stream.on('error', (err) => {
       console.error('[static] stream error', err.message)
@@ -102,6 +155,7 @@ async function serveStatic(req, res) {
     } else {
       console.error('[static] error', error.message)
       res.statusCode = 500
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
       res.end(STATUS_CODES[500])
     }
   }
@@ -110,6 +164,7 @@ async function serveStatic(req, res) {
 function serveFallback(res) {
   const fallback = path.join(staticRoot, 'index.html')
   if (existsSync(fallback)) {
+    res.setHeader('Content-Type', contentTypeFor(fallback))
     createReadStream(fallback).pipe(res)
   } else {
     res.statusCode = 404
@@ -152,7 +207,7 @@ const httpServer = createServer((req, res) => {
 const wsBridge = new WebSocketServer({ noServer: true })
 
 wsBridge.on('connection', (client, req) => {
-  const upstreamPath = req.url.replace(/^\/ws/, '/api')
+  const upstreamPath = req.url.replace(/^\/ws/, '/api/v1')
   const targetUrl = `ws://localhost:${API_PORT}${upstreamPath}`
   const upstream = new WebSocket(targetUrl, {
     headers: {
@@ -176,14 +231,14 @@ wsBridge.on('connection', (client, req) => {
 
   upstream.on('close', (code, reason) => {
     if (client.readyState === WebSocket.OPEN) {
-      client.close(code, typeof reason === 'string' ? reason : undefined)
+      safeClose(client, sanitizeCloseCode(code), sanitizeCloseReason(reason))
     }
   })
 
   upstream.on('error', (error) => {
     console.error('[ws-proxy] upstream error', error.message)
     if (client.readyState === WebSocket.OPEN) {
-      client.close(1011, error.message)
+      safeClose(client, 1011, sanitizeCloseReason(error.message))
     }
   })
 
@@ -195,13 +250,13 @@ wsBridge.on('connection', (client, req) => {
 
   client.on('close', () => {
     if (upstream.readyState === WebSocket.OPEN || upstream.readyState === WebSocket.CONNECTING) {
-      upstream.close()
+      safeClose(upstream)
     }
   })
 
   client.on('error', (error) => {
     console.error('[ws-proxy] client error', error.message)
-    upstream.close(1011, error.message)
+    safeClose(upstream, 1011, sanitizeCloseReason(error.message))
   })
 })
 

@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -77,4 +81,32 @@ type loggingResponseWriter struct {
 func (lrw *loggingResponseWriter) WriteHeader(statusCode int) {
 	lrw.status = statusCode
 	lrw.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (lrw *loggingResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if h, ok := lrw.ResponseWriter.(http.Hijacker); ok {
+		return h.Hijack()
+	}
+	return nil, nil, fmt.Errorf("loggingResponseWriter: underlying writer does not implement http.Hijacker")
+}
+
+func (lrw *loggingResponseWriter) Flush() {
+	if f, ok := lrw.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func (lrw *loggingResponseWriter) ReadFrom(r io.Reader) (int64, error) {
+	if rf, ok := lrw.ResponseWriter.(io.ReaderFrom); ok {
+		lrw.status = http.StatusOK
+		return rf.ReadFrom(r)
+	}
+	return io.Copy(lrw.ResponseWriter, r)
+}
+
+func (lrw *loggingResponseWriter) Push(target string, opts *http.PushOptions) error {
+	if p, ok := lrw.ResponseWriter.(http.Pusher); ok {
+		return p.Push(target, opts)
+	}
+	return http.ErrNotSupported
 }

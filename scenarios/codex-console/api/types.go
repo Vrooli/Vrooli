@@ -48,6 +48,11 @@ type heartbeatPayload struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+type resizePayload struct {
+	Cols int `json:"cols"`
+	Rows int `json:"rows"`
+}
+
 type sessionSummary struct {
 	ID           string    `json:"id"`
 	CreatedAt    time.Time `json:"createdAt"`
