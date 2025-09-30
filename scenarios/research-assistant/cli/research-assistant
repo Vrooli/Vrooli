@@ -14,8 +14,13 @@ VERSION="1.0.0"
 if [ -n "${API_PORT:-}" ]; then
     API_URL="${RESEARCH_API_URL:-http://localhost:${API_PORT}}"
 else
-    # Try to find running API port
-    API_PORT=$(ps aux | grep -E "research-assistant-api" | grep -v grep | head -1 | grep -oE "port [0-9]+" | cut -d' ' -f2 || echo "8080")
+    # Try to find running API port from process
+    API_PID=$(ps aux | grep -E "./research-assistant-api" | grep -v grep | head -1 | awk '{print $2}')
+    if [ -n "${API_PID:-}" ]; then
+        API_PORT=$(lsof -i -P | grep "${API_PID}" | grep LISTEN | head -1 | grep -oE ':([0-9]+)' | cut -d: -f2 || echo "17039")
+    else
+        API_PORT="17039"
+    fi
     API_URL="${RESEARCH_API_URL:-http://localhost:${API_PORT}}"
 fi
 

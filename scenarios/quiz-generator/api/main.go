@@ -762,9 +762,11 @@ func main() {
 	router.Use(gin.Recovery())
 	router.Use(corsMiddleware())
 
-	// Health check
+	// Health check (at root for backwards compatibility)
 	router.GET("/health", healthCheck)
 	router.GET("/ready", healthCheck)
+	// Health check at /api path for contract compliance
+	router.GET("/api/health", healthCheck)
 
 	// API routes
 	v1 := router.Group("/api/v1")

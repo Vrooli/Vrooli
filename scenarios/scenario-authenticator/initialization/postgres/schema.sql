@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS users (
     login_count INTEGER DEFAULT 0,
     failed_login_attempts INTEGER DEFAULT 0,
     locked_until TIMESTAMP,
-    deleted_at TIMESTAMP
+    deleted_at TIMESTAMP,
+    oauth_providers JSONB DEFAULT '{}'::jsonb
 );
 
 -- Create indexes for users table

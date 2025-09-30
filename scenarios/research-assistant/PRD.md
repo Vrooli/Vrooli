@@ -35,11 +35,12 @@ Intelligent, multi-source research orchestration with automated analysis, synthe
   - [x] Chat interface with RAG capabilities
   
 - **Should Have (P1)**
-  - [x] Source quality ranking and verification
-  - [x] Contradiction detection and highlighting
-  - [x] Configurable research depth (quick/standard/deep)
-  - [x] Report templates and presets
-  - [x] JavaScript-heavy site extraction via Browserless
+  - [ ] Source quality ranking and verification - Basic ranking only
+  - [ ] Contradiction detection and highlighting - Not implemented
+  - [ ] Configurable research depth (quick/standard/deep) - Partial: depth field exists
+  - [ ] Report templates and presets - Not implemented
+  - [ ] JavaScript-heavy site extraction via Browserless - Resource available but not integrated
+  - [x] Advanced search filters - Implemented 2025-09-30: language, safe_search, file_type, site, exclude_sites, sort_by, region, date ranges
   
 - **Nice to Have (P2)**
   - [ ] Multi-language research capabilities
@@ -205,55 +206,85 @@ primary_entities:
 
 ### API Contract
 ```yaml
+# ACTUAL IMPLEMENTATION (as of 2025-09-30)
 endpoints:
+  - method: GET
+    path: /health
+    purpose: API health check with resource status
+    output_schema: |
+      {
+        status: string
+        services: {database, n8n, ollama, qdrant, searxng, windmill}
+        timestamp: int
+      }
+
+  - method: GET
+    path: /api/reports
+    purpose: List all research reports
+    output_schema: |
+      {
+        reports: array[Report]
+        count: int
+      }
+
   - method: POST
-    path: /api/v1/research/create
-    purpose: Enables other scenarios to request research
+    path: /api/reports
+    purpose: Create a new research report
     input_schema: |
       {
         topic: string (required)
-        depth: enum(quick, standard, deep)
-        length: int (1-10 pages)
-        template: string (optional)
+        depth: string (quick|standard|deep)
+        target_length: int
+        language: string
+        tags: array[string]
+        category: string
       }
-    output_schema: |
-      {
-        report_id: UUID
-        status: string
-        estimated_completion: timestamp
-        webhook_url: string
-      }
-    sla:
-      response_time: 500ms
-      availability: 99.9%
-      
+
   - method: GET
-    path: /api/v1/research/{report_id}
-    purpose: Retrieve completed research reports
-    output_schema: |
-      {
-        id: UUID
-        title: string
-        content: string (markdown)
-        pdf_url: string
-        sources: array
-        metadata: object
-      }
-      
+    path: /api/reports/{id}
+    purpose: Get specific report details
+
   - method: POST
-    path: /api/v1/research/chat
-    purpose: Conversational interface to research data
+    path: /api/search
+    purpose: Perform advanced search with filters
     input_schema: |
       {
-        report_id: UUID (optional)
-        message: string
-        context_window: int
+        query: string
+        engines: array[string]
+        category: string
+        time_range: string
+        limit: int
+        filters: map[string]string
+        language: string
+        safe_search: int (0-2)
+        file_type: string
+        site: string
+        exclude_sites: array[string]
+        sort_by: string
+        region: string
+        min_date: string
+        max_date: string
       }
     output_schema: |
       {
-        response: string
-        sources: array
-        suggested_topics: array
+        query: string
+        results_count: int
+        results: array
+        engines_used: array
+        query_time: float
+        timestamp: int
+        filters_applied: object
+      }
+
+  - method: GET
+    path: /api/dashboard/stats
+    purpose: Get dashboard statistics
+    output_schema: |
+      {
+        total_reports: int
+        recent_reports: array
+        top_categories: array
+        average_confidence: float
       }
 ```
 
@@ -810,25 +841,37 @@ tests:
 
 ## 📝 Implementation Notes
 
+### Recent Improvements (2025-09-30)
+**Advanced Search Filters (P1)**: Implemented comprehensive search filtering
+- Added language, safe_search, file_type, site, exclude_sites filters
+- Implemented sort_by capability (date, popularity, relevance)
+- Added region filtering and date range support (min_date, max_date)
+- Enhanced search response with filters_applied metadata
+
+**Resource Connectivity**: Fixed SearXNG integration
+- Started SearXNG resource successfully on port 8280
+- All critical resources now healthy (5/6 resources)
+- Windmill remains optional and not blocking
+
+**CLI Port Detection**: Improved reliability
+- Enhanced port detection logic using process ID and lsof
+- Better fallback handling with default port 17039
+
 ### Recent Improvements (2025-09-24)
 **API Stability**: Fixed environment variable handling to use defaults for resource URLs
-- Modified main.go to detect resource ports dynamically (N8N, Windmill, SearXNG, etc.)
-- API now gracefully handles missing optional resources (Windmill)
-- SearXNG port corrected from 8080 to 8280 (actual Vrooli port)
-
-**CLI Enhancement**: Dynamic API port detection
-- CLI now detects running API port instead of hardcoding port 8080
-- Supports API_PORT environment variable for override
-- Falls back to process detection for running instances
+- Modified main.go to detect resource ports dynamically
+- API gracefully handles missing optional resources
+- SearXNG port corrected from 8080 to 8280
 
 **Database**: Schema properly initialized
 - research_assistant schema created in PostgreSQL
 - Reports table structure validated and functional
 
-**Known Issues**:
-- n8n workflows fail to populate during setup (resource may need restart)
-- Windmill resource is unavailable (optional, not blocking)
-- Integration test script references missing var.sh file (non-critical)
+**Known Limitations**:
+- n8n workflows require manual import (resource-n8n content inject)
+- Windmill resource unavailable (optional feature)
+- Test framework has missing handlers for http/integration tests
+- Some P1 features not fully implemented (contradiction detection, report templates)
 
 ### Design Decisions
 **RAG Architecture**: Chose Qdrant over pgvector for superior performance

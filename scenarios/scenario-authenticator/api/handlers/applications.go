@@ -3,12 +3,15 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"scenario-authenticator/auth"
 	"scenario-authenticator/db"
 	"scenario-authenticator/models"
 	"scenario-authenticator/utils"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +19,16 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+)
+
+var (
+	scenarioNamePattern  = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	allowedScenarioTypes = map[string]struct{}{
+		"api":      {},
+		"ui":       {},
+		"workflow": {},
+		"hybrid":   {},
+	}
 )
 
 // Application represents a scenario/app that uses this auth service
@@ -36,6 +49,42 @@ type Application struct {
 	TotalAuths     int        `json:"total_authentications"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+func normalizeScenarioType(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "api", nil
+	}
+
+	tokens := strings.Split(trimmed, ",")
+	set := make(map[string]struct{})
+	for _, token := range tokens {
+		normalized := strings.TrimSpace(strings.ToLower(token))
+		if normalized == "" {
+			continue
+		}
+		if _, ok := allowedScenarioTypes[normalized]; !ok {
+			return "", fmt.Errorf("unsupported scenario type: %s", normalized)
+		}
+		set[normalized] = struct{}{}
+	}
+
+	if len(set) == 0 {
+		return "api", nil
+	}
+
+	values := make([]string, 0, len(set))
+	for value := range set {
+		values = append(values, value)
+	}
+
+	if len(values) == 1 {
+		return values[0], nil
+	}
+
+	sort.Strings(values)
+	return strings.Join(values, ","), nil
 }
 
 // ApplicationStats represents application statistics
@@ -214,9 +263,9 @@ func RegisterApplicationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate scenario name format (should be kebab-case)
-	if !strings.HasPrefix(req.Name, "scenario-") {
-		utils.SendError(w, "Application name should start with 'scenario-'", http.StatusBadRequest)
+	// Validate scenario name format matches CLI scenarios
+	if !scenarioNamePattern.MatchString(req.Name) {
+		utils.SendError(w, "Application name must use lowercase letters, numbers, or hyphens", http.StatusBadRequest)
 		return
 	}
 
@@ -226,9 +275,12 @@ func RegisterApplicationHandler(w http.ResponseWriter, r *http.Request) {
 		req.RateLimit = &defaultRate
 	}
 
-	if req.ScenarioType == "" {
-		req.ScenarioType = "api"
+	normalizedType, err := normalizeScenarioType(req.ScenarioType)
+	if err != nil {
+		utils.SendError(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+	req.ScenarioType = normalizedType
 
 	if req.AllowedOrigins == nil {
 		req.AllowedOrigins = []string{}
@@ -240,7 +292,7 @@ func RegisterApplicationHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Check if application name already exists
 	var existingID string
-	err := db.DB.QueryRow("SELECT id FROM applications WHERE name = $1", req.Name).Scan(&existingID)
+	err = db.DB.QueryRow("SELECT id FROM applications WHERE name = $1", req.Name).Scan(&existingID)
 	if err == nil {
 		utils.SendError(w, "Application name already exists", http.StatusConflict)
 		return

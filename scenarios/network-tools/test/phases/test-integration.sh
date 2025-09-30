@@ -10,7 +10,7 @@ readonly YELLOW='\033[1;33m'
 readonly NC='\033[0m' # No Color
 
 # Configuration
-readonly API_BASE="http://localhost:${API_PORT:-15000}"
+readonly API_BASE="http://localhost:${API_PORT:-17125}"
 readonly TEST_TIMEOUT=30
 
 # Test counter

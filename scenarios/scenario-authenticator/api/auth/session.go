@@ -144,3 +144,27 @@ func GetClientIP(r *http.Request) string {
 	}
 	return r.RemoteAddr
 }
+
+// StoreOAuthState stores OAuth state token with provider info
+func StoreOAuthState(state, provider string, expiration time.Duration) error {
+	key := fmt.Sprintf("oauth_state:%s", state)
+	return db.RedisClient.Set(db.Ctx, key, provider, expiration).Err()
+}
+
+// ValidateOAuthState validates and removes OAuth state token
+func ValidateOAuthState(state, provider string) bool {
+	if state == "" {
+		return false
+	}
+
+	key := fmt.Sprintf("oauth_state:%s", state)
+	storedProvider, err := db.RedisClient.Get(db.Ctx, key).Result()
+	if err != nil {
+		return false
+	}
+
+	// Delete the state after validation (one-time use)
+	db.RedisClient.Del(db.Ctx, key)
+
+	return storedProvider == provider
+}

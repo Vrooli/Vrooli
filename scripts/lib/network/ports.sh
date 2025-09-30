@@ -142,11 +142,39 @@ ports::is_port_available() {
         done
     fi
     
-    # Check for recent lock file (handles race conditions)
+    # Check for existing lock file to handle concurrent allocations
     local lock_file="$SCENARIO_STATE_DIR/.port_${port}.lock"
-    if [[ -f "$lock_file" ]] && [[ $(find "$lock_file" -mmin -5 2>/dev/null) ]]; then
-        # Lock exists and is recent - port is taken
-        return 1
+    if [[ -f "$lock_file" ]]; then
+        local lock_info lock_scenario lock_pid lock_timestamp
+        lock_info=$(cat "$lock_file" 2>/dev/null || true)
+        lock_scenario=${lock_info%%:*}
+        lock_pid=${lock_info#*:}; lock_pid=${lock_pid%%:*}
+        lock_timestamp=${lock_info##*:}
+
+        # If the same scenario already owns the lock and the process is alive,
+        # treat the port as available so sequential lifecycle phases can reuse it.
+        if [[ -n "$lock_scenario" && "$lock_scenario" == "$scenario_name" ]]; then
+            if [[ -n "$lock_pid" ]] && kill -0 "$lock_pid" 2>/dev/null; then
+                return 0
+            fi
+            # Same scenario but process exited – clean up the stale lock
+            rm -f "$lock_file" 2>/dev/null || true
+        else
+            # Different scenario holding the lock – verify if it's still alive
+            if [[ -n "$lock_pid" ]] && kill -0 "$lock_pid" 2>/dev/null; then
+                return 1
+            fi
+
+            # No live process; respect recent locks to avoid rapid recycling
+            local now
+            now=$(date +%s)
+            if [[ -n "$lock_timestamp" ]] && (( now - lock_timestamp < 300 )); then
+                return 1
+            fi
+
+            # Stale lock – remove it and continue
+            rm -f "$lock_file" 2>/dev/null || true
+        fi
     fi
     
     # Ultimate test: can we bind to it?
@@ -299,7 +327,17 @@ ports::allocate_scenario() {
             
             # Claim the port with lock file
             local lock_file="$SCENARIO_STATE_DIR/.port_${fixed_port}.lock"
-            if ! (set -C; echo "${scenario_name}:$$:$(date +%s)" > "$lock_file") 2>/dev/null; then
+            if [[ -f "$lock_file" ]]; then
+                local existing_info existing_scenario
+                existing_info=$(cat "$lock_file" 2>/dev/null || true)
+                existing_scenario=${existing_info%%:*}
+                if [[ -n "$existing_scenario" && "$existing_scenario" == "$scenario_name" ]]; then
+                    printf '%s:%s:%s\n' "$scenario_name" "$$" "$(date +%s)" > "$lock_file"
+                else
+                    errors+=("LOCK FAILURE: Fixed port $fixed_port for '$port_name' already locked by scenario '${existing_scenario:-unknown}'")
+                    continue
+                fi
+            elif ! (set -C; printf '%s:%s:%s\n' "$scenario_name" "$$" "$(date +%s)" > "$lock_file") 2>/dev/null; then
                 errors+=("LOCK FAILURE: Could not claim fixed port $fixed_port for '$port_name' (race condition or permission issue)")
                 continue
             fi

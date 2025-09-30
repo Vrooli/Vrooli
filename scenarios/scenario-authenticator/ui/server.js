@@ -2,6 +2,8 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { exec as execCallback } from 'child_process';
+import { promisify } from 'util';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +20,67 @@ const userCardScriptPath = path.join(__dirname, 'user-card.js');
 const CONTACT_BOOK_URL =
   process.env.CONTACT_BOOK_URL ||
   (process.env.CONTACT_BOOK_API_PORT ? `http://localhost:${process.env.CONTACT_BOOK_API_PORT}` : undefined);
+
+const execAsync = promisify(execCallback);
+const workspaceRoot = path.resolve(__dirname, '..', '..', '..');
+const SCENARIO_CACHE_TTL_MS = 60_000;
+
+let cachedScenarios;
+let cachedScenariosFetchedAt = 0;
+
+async function loadScenariosFromCli() {
+  const { stdout } = await execAsync('vrooli scenario list --json', {
+    cwd: workspaceRoot,
+    env: process.env,
+  });
+
+  let payload = stdout.trim();
+  if (!payload) {
+    return [];
+  }
+
+  const braceIndex = payload.search(/[\[{]/);
+  if (braceIndex > 0) {
+    payload = payload.slice(braceIndex);
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(payload);
+  } catch (error) {
+    console.warn('[scenario-authenticator-ui] Failed to parse scenario list payload', error);
+    return [];
+  }
+
+  const rawScenarios = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.scenarios)
+    ? parsed.scenarios
+    : [];
+
+  const normalized = rawScenarios
+    .map((scenario) => {
+      const name = scenario?.name || scenario?.slug || scenario?.id || '';
+      if (!name) {
+        return null;
+      }
+      const displayName =
+        scenario?.display_name ||
+        scenario?.displayName ||
+        scenario?.title ||
+        scenario?.label ||
+        name;
+
+      return {
+        name,
+        displayName,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+  return normalized;
+}
 
 if (!fs.existsSync(indexHtmlPath)) {
   console.error(
@@ -47,6 +110,24 @@ app.get('/config', (_req, res) => {
     version: '2.0.0',
     service: 'authentication-ui',
   });
+});
+
+app.get('/scenarios', async (_req, res) => {
+  const now = Date.now();
+  if (cachedScenarios && now - cachedScenariosFetchedAt < SCENARIO_CACHE_TTL_MS) {
+    res.json({ scenarios: cachedScenarios, cached: true });
+    return;
+  }
+
+  try {
+    const scenarios = await loadScenariosFromCli();
+    cachedScenarios = scenarios;
+    cachedScenariosFetchedAt = Date.now();
+    res.json({ scenarios });
+  } catch (error) {
+    console.error('[scenario-authenticator-ui] Failed to list scenarios', error);
+    res.status(500).json({ error: 'FAILED_TO_LIST_SCENARIOS' });
+  }
 });
 
 app.get('/dashboard', (_req, res) => {

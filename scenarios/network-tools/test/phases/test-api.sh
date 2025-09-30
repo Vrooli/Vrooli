@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Configuration
-readonly API_BASE="${API_BASE:-http://localhost:${API_PORT:-15000}}"
+readonly API_BASE="${API_BASE:-http://localhost:${API_PORT:-17125}}"
 readonly TEST_TIMEOUT=10
 readonly GREEN='\033[0;32m'
 readonly RED='\033[0;31m'

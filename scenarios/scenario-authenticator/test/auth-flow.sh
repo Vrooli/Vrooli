@@ -64,11 +64,29 @@ REGISTER_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/v1/auth/register" \
         \"username\": \"${TEST_USERNAME}\"
     }")
 
-if check_response "$REGISTER_RESPONSE" "token"; then
+# Check if registration succeeded or user already exists
+if echo "$REGISTER_RESPONSE" | grep -q "token"; then
     log_info "✓ Registration successful"
     TOKEN=$(echo "$REGISTER_RESPONSE" | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+elif echo "$REGISTER_RESPONSE" | grep -q "already registered"; then
+    log_warning "User already exists, attempting login instead"
+    # Try to login with the same credentials
+    LOGIN_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/v1/auth/login" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"email\": \"${TEST_EMAIL}\",
+            \"password\": \"${TEST_PASSWORD}\"
+        }")
+    if echo "$LOGIN_RESPONSE" | grep -q "token"; then
+        log_info "✓ Login successful for existing user"
+        TOKEN=$(echo "$LOGIN_RESPONSE" | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+    else
+        log_error "✗ Could not login with existing user"
+        exit 1
+    fi
 else
     log_error "✗ Registration failed"
+    echo "Response: $REGISTER_RESPONSE"
     exit 1
 fi
 
@@ -104,13 +122,16 @@ fi
 
 # Test 4: Get User Info
 log_info "Test 4: Get User Info"
-USER_RESPONSE=$(curl -s -X GET "${BASE_URL}/api/v1/users" \
+# Extract user ID from login response
+USER_ID=$(echo "$LOGIN_RESPONSE" | grep -o '"id":"[^"]*' | cut -d'"' -f4)
+USER_RESPONSE=$(curl -s -X GET "${BASE_URL}/api/v1/users/${USER_ID}" \
     -H "Authorization: Bearer ${LOGIN_TOKEN}")
 
 if echo "$USER_RESPONSE" | grep -q "${TEST_EMAIL}"; then
     log_info "✓ User info retrieved successfully"
 else
     log_error "✗ Failed to retrieve user info"
+    echo "Response: $USER_RESPONSE"
     exit 1
 fi
 

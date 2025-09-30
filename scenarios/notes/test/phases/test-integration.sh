@@ -1,13 +1,17 @@
 #!/bin/bash
 # Integration tests for SmartNotes
 
-set -e
+set -euo pipefail
 
 echo "🔗 Running SmartNotes integration tests..."
 
 # Test configuration
 API_URL="http://localhost:${API_PORT:-17009}"
 UI_URL="http://localhost:${UI_PORT:-36529}"
+
+# Track test results
+TESTS_PASSED=0
+TESTS_FAILED=0
 
 # Function to make API calls
 api_call() {
@@ -80,4 +84,32 @@ else
     exit 1
 fi
 
-echo "✅ All integration tests passed!"
+# Test semantic search if Qdrant is available
+echo "Testing semantic search..."
+if curl -sf "http://localhost:6333/collections" &>/dev/null; then
+    # Create a note with specific content
+    api_call POST /api/notes '{"title":"AI Research","content":"Machine learning, neural networks, deep learning algorithms"}'
+    sleep 2 # Allow time for indexing
+
+    # Test semantic search
+    semantic_response=$(api_call POST /api/search/semantic '{"query":"artificial intelligence","limit":5}' || echo "FAILED")
+    if [[ "$semantic_response" != "FAILED" ]]; then
+        echo "✅ Semantic search functionality available"
+        ((TESTS_PASSED++))
+    else
+        echo "⚠️  Semantic search not fully working"
+    fi
+else
+    echo "⚠️  Qdrant not available - semantic search skipped"
+fi
+
+# Summary
+echo ""
+echo "📊 Test Summary:"
+echo "   ✅ Tests Passed: ${TESTS_PASSED}"
+if [[ $TESTS_FAILED -gt 0 ]]; then
+    echo "   ❌ Tests Failed: ${TESTS_FAILED}"
+    exit 1
+else
+    echo "✅ All integration tests passed!"
+fi

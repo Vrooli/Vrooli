@@ -98,6 +98,16 @@ type SearchRequest struct {
 	TimeRange  string            `json:"time_range"`
 	Limit      int               `json:"limit"`
 	Filters    map[string]string `json:"filters"`
+	// Advanced filters for P1 requirement
+	Language   string            `json:"language"`       // Filter by content language
+	SafeSearch int               `json:"safe_search"`    // 0=off, 1=moderate, 2=strict
+	FileType   string            `json:"file_type"`      // pdf, doc, etc.
+	Site       string            `json:"site"`           // Specific site/domain
+	ExcludeSites []string        `json:"exclude_sites"`  // Sites to exclude
+	SortBy     string            `json:"sort_by"`        // relevance, date, popularity
+	Region     string            `json:"region"`         // Geographic region filter
+	MinDate    string            `json:"min_date"`       // ISO date string
+	MaxDate    string            `json:"max_date"`       // ISO date string
 }
 
 type AnalysisRequest struct {
@@ -764,6 +774,45 @@ func (s *APIServer) sendMessage(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "not implemented"})
 }
 
+// Helper function to sort results by a field
+func sortResultsByField(results []interface{}, field string, descending bool) {
+	// Simple bubble sort for demonstration - could be optimized
+	n := len(results)
+	for i := 0; i < n-1; i++ {
+		for j := 0; j < n-i-1; j++ {
+			r1 := results[j].(map[string]interface{})
+			r2 := results[j+1].(map[string]interface{})
+
+			v1, _ := r1[field]
+			v2, _ := r2[field]
+
+			shouldSwap := false
+			switch field {
+			case "score":
+				s1, _ := v1.(float64)
+				s2, _ := v2.(float64)
+				if descending {
+					shouldSwap = s1 < s2
+				} else {
+					shouldSwap = s1 > s2
+				}
+			case "publishedDate":
+				d1, _ := v1.(string)
+				d2, _ := v2.(string)
+				if descending {
+					shouldSwap = d1 < d2
+				} else {
+					shouldSwap = d1 > d2
+				}
+			}
+
+			if shouldSwap {
+				results[j], results[j+1] = results[j+1], results[j]
+			}
+		}
+	}
+}
+
 func (s *APIServer) performSearch(w http.ResponseWriter, r *http.Request) {
 	var req SearchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -787,9 +836,37 @@ func (s *APIServer) performSearch(w http.ResponseWriter, r *http.Request) {
 		Timeout: 30 * time.Second,
 	}
 
+	// Build enhanced query with advanced filters
+	enhancedQuery := req.Query
+
+	// Add site filter to query
+	if req.Site != "" {
+		enhancedQuery += " site:" + req.Site
+	}
+
+	// Add file type filter
+	if req.FileType != "" {
+		enhancedQuery += " filetype:" + req.FileType
+	}
+
+	// Add excluded sites
+	for _, site := range req.ExcludeSites {
+		enhancedQuery += " -site:" + site
+	}
+
+	// Add date range if specified
+	if req.MinDate != "" || req.MaxDate != "" {
+		if req.MinDate != "" {
+			enhancedQuery += " after:" + req.MinDate
+		}
+		if req.MaxDate != "" {
+			enhancedQuery += " before:" + req.MaxDate
+		}
+	}
+
 	// Prepare query parameters
 	params := map[string]string{
-		"q":        req.Query,
+		"q":        enhancedQuery,
 		"format":   "json",
 		"category": req.Category,
 	}
@@ -802,6 +879,21 @@ func (s *APIServer) performSearch(w http.ResponseWriter, r *http.Request) {
 	// Add time range if specified
 	if req.TimeRange != "" {
 		params["time_range"] = req.TimeRange
+	}
+
+	// Add language filter
+	if req.Language != "" {
+		params["language"] = req.Language
+	}
+
+	// Add safe search
+	if req.SafeSearch > 0 {
+		params["safesearch"] = strconv.Itoa(req.SafeSearch)
+	}
+
+	// Add region filter
+	if req.Region != "" {
+		params["locale"] = req.Region
 	}
 
 	// Build query string
@@ -842,12 +934,27 @@ func (s *APIServer) performSearch(w http.ResponseWriter, r *http.Request) {
 		results = []interface{}{}
 	}
 
+	// Apply sorting if requested
+	if req.SortBy != "" && len(results) > 0 {
+		// Sort results based on the requested sort method
+		switch req.SortBy {
+		case "date":
+			// Sort by date (newest first)
+			sortResultsByField(results, "publishedDate", true)
+		case "popularity":
+			// Sort by score/popularity
+			sortResultsByField(results, "score", true)
+		case "relevance":
+			// Already sorted by relevance by SearXNG
+		}
+	}
+
 	// Limit results
 	if len(results) > req.Limit {
 		results = results[:req.Limit]
 	}
 
-	// Format response
+	// Format response with enhanced metadata
 	response := map[string]interface{}{
 		"query":         req.Query,
 		"results_count": len(results),
@@ -855,6 +962,14 @@ func (s *APIServer) performSearch(w http.ResponseWriter, r *http.Request) {
 		"engines_used":  searxngResponse["engines"],
 		"query_time":    searxngResponse["query_time"],
 		"timestamp":     time.Now().Unix(),
+		"filters_applied": map[string]interface{}{
+			"language":   req.Language,
+			"safe_search": req.SafeSearch,
+			"file_type":  req.FileType,
+			"site":       req.Site,
+			"region":     req.Region,
+			"sort_by":    req.SortBy,
+		},
 	}
 
 	w.Header().Set("Content-Type", "application/json")

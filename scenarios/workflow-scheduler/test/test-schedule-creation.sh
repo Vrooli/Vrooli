@@ -56,7 +56,7 @@ else
     echo "⚠️ Timezone endpoint failed"
 fi
 
-# Test creating a schedule (will fail without DB but tests API)
+# Test creating a schedule with proper enum values
 echo "Testing schedule creation..."
 SCHEDULE_JSON='{
     "name": "Test Schedule",
@@ -65,15 +65,47 @@ SCHEDULE_JSON='{
     "timezone": "UTC",
     "target_type": "webhook",
     "target_url": "http://localhost:5678/webhook/test",
-    "enabled": true
+    "enabled": true,
+    "retry_strategy": "exponential",
+    "overlap_policy": "skip"
 }'
 
-if curl -sf -X POST "$API_BASE/api/schedules" \
+RESPONSE=$(curl -s -X POST "$API_BASE/api/schedules" \
     -H "Content-Type: application/json" \
-    -d "$SCHEDULE_JSON" > /dev/null 2>&1; then
+    -d "$SCHEDULE_JSON" 2>/dev/null)
+
+if echo "$RESPONSE" | grep -q '"id"'; then
     echo "✅ Schedule creation successful"
+    SCHEDULE_ID=$(echo "$RESPONSE" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+
+    # Test update
+    echo "Testing schedule update..."
+    UPDATE_JSON='{
+        "name": "Updated Test Schedule",
+        "cron_expression": "0 10 * * *",
+        "enabled": false,
+        "timezone": "UTC",
+        "target_type": "webhook",
+        "target_url": "http://localhost:5678/webhook/test"
+    }'
+
+    if curl -sf -X PUT "$API_BASE/api/schedules/$SCHEDULE_ID" \
+        -H "Content-Type: application/json" \
+        -d "$UPDATE_JSON" > /dev/null 2>&1; then
+        echo "✅ Schedule update successful"
+    else
+        echo "⚠️ Schedule update failed"
+    fi
+
+    # Test delete
+    echo "Testing schedule deletion..."
+    if curl -sf -X DELETE "$API_BASE/api/schedules/$SCHEDULE_ID" > /dev/null 2>&1; then
+        echo "✅ Schedule deletion successful"
+    else
+        echo "⚠️ Schedule deletion failed"
+    fi
 else
-    echo "⚠️ Schedule creation failed (expected without database)"
+    echo "⚠️ Schedule creation failed: $RESPONSE"
 fi
 
 echo "✅ Schedule creation test completed"

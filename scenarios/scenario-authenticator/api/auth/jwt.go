@@ -24,8 +24,8 @@ var (
 // LoadJWTKeys loads or generates JWT signing keys
 func LoadJWTKeys() error {
 	// Try to load existing keys
-	privateKeyPath := "data/keys/private.pem"
-	publicKeyPath := "data/keys/public.pem"
+	privateKeyPath := "scenarios/scenario-authenticator/data/keys/private.pem"
+	publicKeyPath := "scenarios/scenario-authenticator/data/keys/public.pem"
 	
 	// Try to load private key
 	privateKeyData, err := ioutil.ReadFile(privateKeyPath)
@@ -113,11 +113,11 @@ func GenerateJWTKeys() error {
 	}
 	
 	// Try to save keys (non-critical if it fails)
-	if err := ioutil.WriteFile("data/keys/private.pem", pem.EncodeToMemory(privateKeyPEM), 0600); err != nil {
+	if err := ioutil.WriteFile("scenarios/scenario-authenticator/data/keys/private.pem", pem.EncodeToMemory(privateKeyPEM), 0600); err != nil {
 		log.Printf("Warning: Could not save private key: %v", err)
 	}
-	
-	if err := ioutil.WriteFile("data/keys/public.pem", pem.EncodeToMemory(publicKeyPEM), 0644); err != nil {
+
+	if err := ioutil.WriteFile("scenarios/scenario-authenticator/data/keys/public.pem", pem.EncodeToMemory(publicKeyPEM), 0644); err != nil {
 		log.Printf("Warning: Could not save public key: %v", err)
 	}
 	
@@ -173,4 +173,14 @@ func GenerateRefreshToken() string {
 func HashToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(hash[:])
+}
+
+// GenerateSecureToken generates a secure random token of specified length in bytes
+func GenerateSecureToken(length int) (string, error) {
+	b := make([]byte, length)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }

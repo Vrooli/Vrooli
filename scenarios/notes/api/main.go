@@ -208,8 +208,9 @@ func main() {
 	router.HandleFunc("/api/templates", getTemplatesHandler).Methods("GET")
 	router.HandleFunc("/api/templates", createTemplateHandler).Methods("POST")
 	
-	// Search endpoint
+	// Search endpoints
 	router.HandleFunc("/api/search", searchHandler).Methods("POST")
+	router.HandleFunc("/api/search/semantic", semanticSearchHandler).Methods("POST")
 	
 	// Setup CORS
 	c := cors.New(cors.Options{
@@ -317,13 +318,20 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at, updated_at, last_accessed`
 	
-	err := db.QueryRow(query, note.UserID, note.Title, note.Content, 
+	err := db.QueryRow(query, note.UserID, note.Title, note.Content,
 		note.ContentType, note.FolderID).Scan(&note.ID, &note.CreatedAt, &note.UpdatedAt, &note.LastAccessed)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
+	// Calculate word count and reading time
+	note.WordCount = len(note.Content) / 5 // Rough estimate
+	note.ReadingTime = (note.WordCount + 199) / 200 // Assuming 200 words per minute
+
+	// Index in Qdrant for semantic search
+	go indexNoteInQdrant(note)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(note)
@@ -379,13 +387,18 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	
 	err := db.QueryRow(query, id, note.Title, note.Content, note.FolderID,
 		note.IsPinned, note.IsFavorite).Scan(&note.UpdatedAt)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	note.ID = id
+	note.UserID = getDefaultUserID() // Set user ID for indexing
+
+	// Re-index in Qdrant with updated content
+	go indexNoteInQdrant(note)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(note)
 }
@@ -399,7 +412,10 @@ func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
+	// Remove from Qdrant as well
+	go deleteNoteFromQdrant(id)
+
 	w.WriteHeader(http.StatusNoContent)
 }
 

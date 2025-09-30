@@ -8,13 +8,21 @@ The Quiz Generator is a foundational educational scenario for Vrooli that provid
 
 ## ✨ Key Features
 
-- **AI-Powered Generation**: Create quizzes automatically from PDFs, text files, markdown, and Word documents
-- **Multiple Question Types**: MCQ, True/False, Short Answer, Fill-in-the-Blank, Matching, and Ordering
-- **Smart Question Bank**: Semantic search and reusable questions with quality scoring
-- **Real-time Assessment**: Interactive quiz-taking with immediate feedback
-- **Analytics Dashboard**: Track performance, identify knowledge gaps, and optimize learning
-- **Export/Import**: Support for JSON, QTI, and Moodle formats
-- **API & CLI Access**: Full programmatic control for integration with other scenarios
+### ✅ Implemented
+- **Manual Quiz Creation**: Full UI for creating custom quizzes with multiple question types
+- **Multiple Question Types**: MCQ, True/False, Short Answer, Fill-in-the-Blank
+- **Real-time Assessment**: Interactive quiz-taking with practice mode and immediate feedback
+- **JSON Export**: Export quizzes in JSON format for sharing and backup
+- **REST API**: Complete API for programmatic access by other scenarios
+- **CLI Interface**: Command-line tools for quiz operations
+- **PostgreSQL Storage**: Reliable persistence for quizzes, questions, and results
+- **Health Monitoring**: Standard health endpoints at /api/health
+
+### 🚧 In Progress
+- **AI-Powered Generation**: Create quizzes from documents (currently uses fallback questions)
+- **Smart Question Bank**: Semantic search using Qdrant (basic search implemented)
+- **Analytics Dashboard**: UI scaffolded, metrics collection pending
+- **QTI Export**: JSON export working, QTI format planned
 
 ## 🏗️ Architecture
 
@@ -47,7 +55,10 @@ vrooli scenario setup quiz-generator
 # 2. Start the scenario
 vrooli scenario run quiz-generator
 
-# 3. Install CLI (optional)
+# 3. Access the services
+# API: http://localhost:16470
+# UI: http://localhost:3251
+# CLI: quiz-generator --help
 ./cli/install.sh
 ```
 

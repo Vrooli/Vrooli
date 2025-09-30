@@ -97,6 +97,19 @@ func main() {
 	router.Get("/api/v1/sessions", apimiddleware.AuthMiddleware(handlers.GetSessionsHandler))
 	router.Delete("/api/v1/sessions/{id}", apimiddleware.AuthMiddleware(handlers.RevokeSessionHandler))
 
+	// OAuth endpoints
+	handlers.InitOAuth() // Initialize OAuth configuration
+	router.Get("/api/v1/auth/oauth/providers", handlers.GetOAuthProvidersHandler)
+	router.Get("/api/v1/auth/oauth/login", handlers.OAuthLoginHandler)
+	router.Get("/api/v1/auth/oauth/google/callback", handlers.OAuthCallbackHandler)
+	router.Get("/api/v1/auth/oauth/github/callback", handlers.OAuthCallbackHandler)
+
+	// API Key management
+	router.Post("/api/v1/apikeys", apimiddleware.AuthMiddleware(handlers.CreateAPIKeyHandler))
+	router.Get("/api/v1/apikeys", apimiddleware.AuthMiddleware(handlers.ListAPIKeysHandler))
+	router.Delete("/api/v1/apikeys/{id}", apimiddleware.AuthMiddleware(handlers.RevokeAPIKeyHandler))
+	router.Post("/api/v1/apikeys/validate", handlers.ValidateAPIKeyHandler)
+
 	// Application management
 	router.Get("/api/v1/applications", apimiddleware.RequireRole("admin", handlers.GetApplicationsHandler))
 	router.Post("/api/v1/applications", apimiddleware.RequireRole("admin", handlers.RegisterApplicationHandler))

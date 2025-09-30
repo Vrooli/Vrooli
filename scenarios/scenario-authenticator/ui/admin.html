@@ -253,6 +253,23 @@
             color: var(--success);
         }
 
+        .stat-card.stat-card--metric {
+            flex-direction: row;
+            align-items: center;
+            gap: 22px;
+        }
+
+        .stat-card.stat-card--metric .stat-card__meta {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stat-card.stat-card--metric .stat-card__value {
+            font-size: 34px;
+        }
+
         .panel-card {
             background: var(--surface-subtle);
             border-radius: 24px;
@@ -305,6 +322,54 @@
             font-size: 20px;
             font-weight: 600;
             color: #333;
+        }
+
+        .form-helper-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        .type-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .type-option {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(37, 99, 235, 0.25);
+            background: rgba(37, 99, 235, 0.06);
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .type-option:hover {
+            background: rgba(37, 99, 235, 0.12);
+        }
+
+        .type-option input {
+            margin: 0;
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary);
+        }
+
+        .type-option span {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-strong);
+            letter-spacing: 0.02em;
+        }
+
+        .type-option.type-option--active {
+            border-color: rgba(37, 99, 235, 0.55);
+            background: rgba(37, 99, 235, 0.16);
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
         }
 
         .btn {
@@ -735,7 +800,7 @@
 
     <section class="metrics-section" aria-label="Authentication metrics">
         <div class="stat-cards">
-            <article class="stat-card">
+            <article class="stat-card stat-card--metric">
                 <div class="stat-card__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -749,7 +814,7 @@
                     <span class="stat-card__change stat-card__change--positive">2 new this week</span>
                 </div>
             </article>
-            <article class="stat-card">
+            <article class="stat-card stat-card--metric">
                 <div class="stat-card__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -764,7 +829,7 @@
                     <span class="stat-card__change stat-card__change--positive">12 onboarded today</span>
                 </div>
             </article>
-            <article class="stat-card">
+            <article class="stat-card stat-card--metric">
                 <div class="stat-card__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -778,7 +843,7 @@
                     <span class="stat-card__change">Across all scenarios</span>
                 </div>
             </article>
-            <article class="stat-card">
+            <article class="stat-card stat-card--metric">
                 <div class="stat-card__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -801,7 +866,6 @@
             <button class="tab active" data-tab="applications" role="tab" id="tab-applications" aria-selected="true" tabindex="0">Applications</button>
             <button class="tab" data-tab="users" role="tab" id="tab-users" aria-selected="false" tabindex="-1">Users</button>
             <button class="tab" data-tab="sessions" role="tab" id="tab-sessions" aria-selected="false" tabindex="-1">Sessions</button>
-            <button class="tab" data-tab="audit" role="tab" id="tab-audit" aria-selected="false" tabindex="-1">Audit Logs</button>
             <button class="tab" data-tab="integration" role="tab" id="tab-integration" aria-selected="false" tabindex="-1">Integration Guide</button>
         </nav>
 
@@ -915,43 +979,6 @@
                     <tbody id="sessionsTableBody">
                         <tr>
                             <td colspan="6" style="text-align: center; padding: 40px; color: #666;">No active sessions</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Audit Logs Tab -->
-        <div class="tab-content" id="audit-tab" hidden>
-            <div class="section">
-                <div class="section-header">
-                    <h2 class="section-title">Authentication Events</h2>
-                    <select class="form-select" style="width: 200px;">
-                        <option>All Applications</option>
-                        <option>scenario-visited-tracker</option>
-                        <option>scenario-saas-billing</option>
-                    </select>
-                </div>
-                
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Event</th>
-                            <th>User</th>
-                            <th>Application</th>
-                            <th>IP Address</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="auditTableBody">
-                        <tr>
-                            <td>Just now</td>
-                            <td>user.logged_in</td>
-                            <td>admin@vrooli.local</td>
-                            <td>Auth Admin</td>
-                            <td>127.0.0.1</td>
-                            <td><span class="status-badge status-active">Success</span></td>
                         </tr>
                     </tbody>
                 </table>
@@ -1137,23 +1164,26 @@ scenario-authenticator protect your-scenario ui
             
             <form id="registerAppForm">
                 <div class="form-group">
-                    <label class="form-label">Scenario Name</label>
-                    <input type="text" class="form-input" id="appName" placeholder="scenario-example" required>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Display Name</label>
-                    <input type="text" class="form-input" id="appDisplayName" placeholder="Example Scenario" required>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Scenario Type</label>
-                    <select class="form-select" id="appType">
-                        <option value="api">API Only</option>
-                        <option value="ui">UI Only</option>
-                        <option value="workflow">Workflow (n8n)</option>
-                        <option value="hybrid">Hybrid (API + UI)</option>
+                    <label class="form-label" for="scenarioSelect">Scenario</label>
+                    <select class="form-select" id="scenarioSelect" required>
+                        <option value="" selected>Loading scenarios…</option>
                     </select>
+                    <p class="form-helper-text">Choose a real Vrooli scenario to authorize.</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Scenario Surfaces</label>
+                    <div class="type-options" id="appTypeOptions">
+                        <label class="type-option type-option--active" for="appTypeApi">
+                            <input type="checkbox" name="appTypeOption" value="api" id="appTypeApi" checked>
+                            <span>API</span>
+                        </label>
+                        <label class="type-option" for="appTypeUi">
+                            <input type="checkbox" name="appTypeOption" value="ui" id="appTypeUi">
+                            <span>UI</span>
+                        </label>
+                    </div>
+                    <p class="form-helper-text">Select every surface this scenario exposes.</p>
                 </div>
                 
                 <div class="form-group">
@@ -1352,6 +1382,8 @@ scenario-authenticator protect your-scenario ui
         let selectedUserDetails = null;
         const userCardContainer = document.getElementById('userCardContainer');
         let userCard = null;
+        let scenarioOptions = [];
+        let scenarioOptionsLoaded = false;
 
         function normalizeRoleList(rawRoles) {
             if (!rawRoles) {
@@ -1453,6 +1485,149 @@ scenario-authenticator protect your-scenario ui
             return `${agent.slice(0, 45)}…`;
         }
 
+        function splitScenarioTypes(rawValue) {
+            if (!rawValue) {
+                return ['api'];
+            }
+            return rawValue
+                .split(',')
+                .map((value) => value.trim().toLowerCase())
+                .filter((value) => value.length > 0);
+        }
+
+        function formatScenarioTypeLabel(value) {
+            switch (value) {
+                case 'api':
+                    return 'API';
+                case 'ui':
+                    return 'UI';
+                default:
+                    return value.toUpperCase();
+            }
+        }
+
+        function renderScenarioTypeBadges(rawValue) {
+            const badges = splitScenarioTypes(rawValue).map((type) => {
+                return `<span class="status-badge">${escapeHtml(formatScenarioTypeLabel(type))}</span>`;
+            });
+            if (badges.length === 0) {
+                badges.push('<span class="status-badge">API</span>');
+            }
+            return badges.join(' ');
+        }
+
+        function syncScenarioTypeOptions() {
+            document.querySelectorAll('.type-option').forEach((label) => {
+                const input = label.querySelector('input[type="checkbox"]');
+                if (input?.checked) {
+                    label.classList.add('type-option--active');
+                } else {
+                    label.classList.remove('type-option--active');
+                }
+            });
+        }
+
+        function ensureTypeOptionListeners() {
+            const container = document.getElementById('appTypeOptions');
+            if (!container) {
+                return;
+            }
+
+            container.querySelectorAll('input[name="appTypeOption"]').forEach((input) => {
+                input.addEventListener('change', () => {
+                    syncScenarioTypeOptions();
+                });
+            });
+
+            syncScenarioTypeOptions();
+        }
+
+        function applyScenarioOptionsToSelect(options) {
+            const select = document.getElementById('scenarioSelect');
+            if (!select) {
+                return;
+            }
+
+            const previousValue = select.value;
+            select.innerHTML = '';
+
+            if (!options || options.length === 0) {
+                const emptyOption = document.createElement('option');
+                emptyOption.value = '';
+                emptyOption.textContent = 'No scenarios available';
+                emptyOption.disabled = true;
+                emptyOption.selected = true;
+                select.appendChild(emptyOption);
+                return;
+            }
+
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Select a scenario';
+            placeholder.disabled = true;
+            placeholder.selected = true;
+            select.appendChild(placeholder);
+
+            options.forEach((scenario) => {
+                const option = document.createElement('option');
+                option.value = scenario.name;
+                option.dataset.displayName = scenario.displayName;
+                option.textContent = `${scenario.displayName} (${scenario.name})`;
+                select.appendChild(option);
+            });
+
+            if (previousValue) {
+                const match = options.find((scenario) => scenario.name === previousValue);
+                if (match) {
+                    select.value = previousValue;
+                }
+            }
+        }
+
+        async function ensureScenarioOptionsLoaded(forceRefresh = false) {
+            if (!forceRefresh && scenarioOptionsLoaded && scenarioOptions.length > 0) {
+                applyScenarioOptionsToSelect(scenarioOptions);
+                return scenarioOptions;
+            }
+
+            const select = document.getElementById('scenarioSelect');
+            if (select && select.options.length === 0) {
+                const loadingOption = document.createElement('option');
+                loadingOption.value = '';
+                loadingOption.textContent = 'Loading scenarios…';
+                loadingOption.disabled = true;
+                loadingOption.selected = true;
+                select.appendChild(loadingOption);
+            }
+
+            try {
+                const response = await fetch('/scenarios');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch scenarios');
+                }
+
+                const data = await response.json();
+                const list = Array.isArray(data.scenarios) ? data.scenarios : [];
+                scenarioOptions = list;
+                scenarioOptionsLoaded = list.length > 0;
+                applyScenarioOptionsToSelect(list);
+                return list;
+            } catch (error) {
+                console.error('Failed to load scenario list:', error);
+                scenarioOptionsLoaded = false;
+                if (select) {
+                    select.innerHTML = '';
+                    const failedOption = document.createElement('option');
+                    failedOption.value = '';
+                    failedOption.textContent = 'Unable to load scenarios';
+                    failedOption.disabled = true;
+                    failedOption.selected = true;
+                    select.appendChild(failedOption);
+                }
+                return [];
+            }
+        }
+
         function resetCreateUserForm() {
             const form = document.getElementById('createUserForm');
             if (form) {
@@ -1463,6 +1638,13 @@ scenario-authenticator protect your-scenario ui
                 errorEl.style.display = 'none';
                 errorEl.textContent = '';
             }
+        }
+
+        function handleUnauthorizedResponse() {
+            showSnackbar('Session expired. Please sign in again.', 'warning');
+            setTimeout(() => {
+                logout();
+            }, 1200);
         }
 
         function closeCreateUserModal() {
@@ -1549,7 +1731,14 @@ scenario-authenticator protect your-scenario ui
                 document.getElementById('manageUserForm')?.addEventListener('submit', handleManageUserSubmit);
                 document.getElementById('registerAppForm')?.addEventListener('submit', handleRegisterApplication);
 
-                await Promise.all([loadApplications(), loadUsers(), loadStatistics()]);
+                ensureTypeOptionListeners();
+
+                await Promise.all([
+                    ensureScenarioOptionsLoaded(),
+                    loadApplications(),
+                    loadUsers(),
+                    loadStatistics(),
+                ]);
                 updateIntegrationGuideUrls();
             } catch (error) {
                 console.error('Failed to initialize:', error);
@@ -1594,9 +1783,6 @@ scenario-authenticator protect your-scenario ui
                         break;
                     case 'sessions':
                         loadSessions();
-                        break;
-                    case 'audit':
-                        loadAuditLogs();
                         break;
                     case 'integration':
                         updateIntegrationGuideUrls();
@@ -1679,7 +1865,7 @@ scenario-authenticator protect your-scenario ui
                                         <strong>${app.display_name}</strong><br>
                                         <small style="color: #666;">${app.name}</small>
                                     </td>
-                                    <td><span class="status-badge">${app.scenario_type || 'api'}</span></td>
+                                    <td>${renderScenarioTypeBadges(app.scenario_type)}</td>
                                     <td><span class="status-badge status-${app.is_active ? 'active' : 'inactive'}">${app.is_active ? 'active' : 'inactive'}</span></td>
                                     <td>${app.total_users || 0}</td>
                                     <td>${app.active_sessions || 0}</td>
@@ -2212,9 +2398,7 @@ scenario-authenticator protect your-scenario ui
             event.preventDefault();
 
             const form = event.target;
-            const nameField = document.getElementById('appName');
-            const displayNameField = document.getElementById('appDisplayName');
-            const typeField = document.getElementById('appType');
+            const scenarioSelect = document.getElementById('scenarioSelect');
             const originsField = document.getElementById('appOrigins');
             const rateLimitField = document.getElementById('appRateLimit');
             const errorEl = document.getElementById('registerAppError');
@@ -2225,29 +2409,45 @@ scenario-authenticator protect your-scenario ui
                 errorEl.textContent = '';
             }
 
-            const name = nameField?.value?.trim();
-            const displayName = displayNameField?.value?.trim();
-            const scenarioType = typeField?.value || 'api';
+            const selectedOption = scenarioSelect?.selectedOptions?.[0];
+            const scenarioName = selectedOption?.value?.trim() || '';
+            const scenarioDisplayName = selectedOption?.dataset.displayName?.trim() || '';
+            const selectedTypes = Array.from(
+                document.querySelectorAll('input[name="appTypeOption"]:checked')
+            ).map((input) => input.value.toLowerCase());
             const origins = originsField?.value
                 ?.split(',')
                 .map((origin) => origin.trim())
                 .filter((origin) => origin.length > 0) || [];
             const rateLimitValue = rateLimitField?.value;
 
-            if (!name || !displayName) {
+            if (!scenarioName) {
                 if (errorEl) {
-                    errorEl.textContent = 'Scenario name and display name are required.';
+                    errorEl.textContent = 'Select a scenario to register.';
                     errorEl.style.display = 'block';
                 }
                 return;
             }
 
+            if (selectedTypes.length === 0) {
+                if (errorEl) {
+                    errorEl.textContent = 'Choose at least one scenario surface (API or UI).';
+                    errorEl.style.display = 'block';
+                }
+                return;
+            }
+
+            const sortedTypes = selectedTypes.sort();
             const payload = {
-                name,
-                display_name: displayName,
-                scenario_type: scenarioType,
-                allowed_origins: origins
+                name: scenarioName,
+                display_name: scenarioDisplayName || scenarioName,
+                scenario_type: sortedTypes.join(','),
+                allowed_origins: origins,
             };
+
+            if (!payload.scenario_type) {
+                payload.scenario_type = 'api';
+            }
 
             const parsedRateLimit = Number(rateLimitValue);
             if (!Number.isNaN(parsedRateLimit) && parsedRateLimit > 0) {
@@ -2264,10 +2464,15 @@ scenario-authenticator protect your-scenario ui
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
+                        'Authorization': `Bearer ${authToken}`,
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
                 });
+
+                if (response.status === 401) {
+                    handleUnauthorizedResponse();
+                    return;
+                }
 
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
@@ -2409,31 +2614,51 @@ scenario-authenticator protect your-scenario ui
             }
         }
 
-        // Load audit logs
-        async function loadAuditLogs() {
-            showSnackbar('Audit log viewer is coming soon.', 'info');
-        }
-
         // Show register modal
-        function showRegisterModal() {
-            document.getElementById('registerModal').classList.add('show');
-            document.getElementById('registerAppForm')?.reset();
+        async function showRegisterModal() {
+            const scenarios = await ensureScenarioOptionsLoaded();
+            const form = document.getElementById('registerAppForm');
             const errorEl = document.getElementById('registerAppError');
+            const submitButton = form?.querySelector('button[type="submit"]');
+
+            form?.reset();
+            syncScenarioTypeOptions();
+
             if (errorEl) {
                 errorEl.style.display = 'none';
                 errorEl.textContent = '';
             }
+
+            if (submitButton) {
+                submitButton.disabled = scenarios.length === 0;
+            }
+
+            if (scenarios.length === 0 && errorEl) {
+                errorEl.textContent = 'No scenarios discovered. Run `vrooli scenario list` to verify scenario availability.';
+                errorEl.style.display = 'block';
+            }
+
+            document.getElementById('registerModal').classList.add('show');
         }
 
         // Close modal
         function closeModal() {
-            document.getElementById('registerModal').classList.remove('show');
-            document.getElementById('registerAppForm')?.reset();
+            const form = document.getElementById('registerAppForm');
+            form?.reset();
+            syncScenarioTypeOptions();
+
+            const submitButton = form?.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = false;
+            }
+
             const errorEl = document.getElementById('registerAppError');
             if (errorEl) {
                 errorEl.style.display = 'none';
                 errorEl.textContent = '';
             }
+
+            document.getElementById('registerModal').classList.remove('show');
         }
 
         // Close credentials modal
@@ -2541,6 +2766,7 @@ scenario-authenticator protect your-scenario ui
                 
             const redirectsText = app.redirect_uris && app.redirect_uris.length > 0 ? 
                 app.redirect_uris.join(', ') : 'None configured';
+            const scenarioTypeBadges = renderScenarioTypeBadges(app.scenario_type);
             
             content.innerHTML = `
                 <div style="display: grid; gap: 30px;">
@@ -2560,7 +2786,7 @@ scenario-authenticator protect your-scenario ui
                             </div>
                             <div>
                                 <label style="font-weight: 600; color: #666;">Type</label>
-                                <p style="margin: 5px 0 15px 0;"><span class="status-badge">${app.scenario_type}</span></p>
+                                <p style="margin: 5px 0 15px 0;">${scenarioTypeBadges}</p>
                                 
                                 <label style="font-weight: 600; color: #666;">Status</label>
                                 <p style="margin: 5px 0 15px 0;"><span class="status-badge status-${app.is_active ? 'active' : 'inactive'}">${app.is_active ? 'Active' : 'Inactive'}</span></p>
