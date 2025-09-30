@@ -1,4 +1,4 @@
-# Codex Console Scenario Makefile
+# Web Console Scenario Makefile
 #
 # Use these commands to interact with the scenario through the Vrooli lifecycle system.
 # Never run binaries directly; always use `make` targets or `vrooli scenario ...` commands.
@@ -9,7 +9,7 @@
 SCENARIO_NAME := $(notdir $(CURDIR))
 
 help:
-	@echo "\033[1;36mCodex Console Scenario Commands\033[0m"
+	@echo "\033[1;36mWeb Console Scenario Commands\033[0m"
 	@echo "  make start   - Start services via lifecycle"
 	@echo "  make stop    - Stop services"
 	@echo "  make dev     - Start in development mode"
@@ -41,7 +41,7 @@ status:
 
 clean:
 	@echo "\033[1;33mRemoving build artefacts...\033[0m"
-	@rm -f api/codex-console-api
+	@rm -f api/web-console-api
 	@rm -rf ui/dist
 	@echo "\033[1;32mClean complete\033[0m"
 
@@ -73,5 +73,5 @@ check: fmt lint test
 
 build:
 	@echo "\033[1;34mBuilding $(SCENARIO_NAME)...\033[0m"
-	@if [ -d api ]; then cd api && go build -o codex-console-api .; fi
+	@if [ -d api ]; then cd api && go build -o web-console-api .; fi
 	@if [ -d ui ]; then cd ui && pnpm run build; fi

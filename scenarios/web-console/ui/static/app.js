@@ -6,6 +6,7 @@ const elements = {
   sessionId: document.getElementById('sessionId'),
   sessionPhase: document.getElementById('sessionPhase'),
   socketState: document.getElementById('socketState'),
+  sessionCommand: document.getElementById('sessionCommand'),
   transcriptSize: document.getElementById('transcriptSize'),
   eventFeed: document.getElementById('eventFeed'),
   eventMeta: document.getElementById('eventMeta'),
@@ -15,6 +16,8 @@ const elements = {
   errorBanner: document.getElementById('errorBanner'),
   terminalContainer: document.getElementById('terminal')
 }
+
+const shortcutButtons = Array.from(document.querySelectorAll('[data-shortcut-id]'))
 
 const term = new window.Terminal({
   convertEol: true,
@@ -48,6 +51,14 @@ function initialSuppressedState() {
   }
 }
 
+function formatCommandLabel(command, args) {
+  if (!command) return '—'
+  if (Array.isArray(args) && args.length > 0) {
+    return `${command} ${args.join(' ')}`
+  }
+  return command
+}
+
 const state = {
   phase: 'idle',
   socketState: 'disconnected',
@@ -56,7 +67,42 @@ const state = {
   transcript: [],
   events: [],
   suppressed: initialSuppressedState(),
-  bridge: null
+  bridge: null,
+  pendingShortcuts: []
+}
+
+function handleShortcutButton(button) {
+  if (!button) return
+  const command = (button.dataset.command || '').trim()
+  const id = button.dataset.shortcutId || 'unknown'
+  if (!command) {
+    appendEvent('shortcut-invalid', { id })
+    return
+  }
+
+  if (state.socket && state.socket.readyState === WebSocket.OPEN) {
+    const success = transmitInput(command, {
+      eventType: 'shortcut',
+      source: id,
+      command,
+      flushInputBox: false,
+      clearError: true
+    })
+    if (!success) {
+      showError('Terminal stream is not connected')
+    }
+    return
+  }
+
+  state.pendingShortcuts.push({ id, command })
+  appendEvent('shortcut-queued', { id, command })
+
+  if (state.phase === 'idle' || state.phase === 'closed') {
+    startSession({ reason: `shortcut:${id}` }).catch((error) => {
+      appendEvent('shortcut-start-error', error)
+      showError('Unable to start terminal session for shortcut')
+    })
+  }
 }
 
 const textDecoder = new TextDecoder()
@@ -79,7 +125,7 @@ function buildWebSocketUrl(path) {
 }
 
 function initializeIframeBridge() {
-  const CHANNEL = 'codex-console'
+  const CHANNEL = 'web-console'
   const emit = (type, payload) => {
     if (window.parent) {
       window.parent.postMessage({ channel: CHANNEL, type, payload }, '*')
@@ -149,7 +195,15 @@ function updateUI() {
   elements.sendBtn.disabled = state.socketState !== 'open'
   elements.inputBox.disabled = state.socketState !== 'open'
   elements.sessionId.textContent = state.session ? `${state.session.id.slice(0, 8)}…` : '—'
+  if (elements.sessionCommand) {
+    elements.sessionCommand.textContent = state.session ? formatCommandLabel(state.session.command, state.session.args) : '—'
+  }
   elements.transcriptSize.textContent = `${state.transcript.length} records`
+
+  shortcutButtons.forEach((button) => {
+    if (!button) return
+    button.disabled = state.phase === 'closing'
+  })
 
   const badgeColor = state.phase === 'running' ? '#22c55e' : state.phase === 'closing' ? '#f97316' : '#38bdf8'
   elements.statusBadge.textContent = `${state.phase.toUpperCase()} · ${state.socketState.toUpperCase()}`
@@ -244,32 +298,50 @@ function showError(message) {
   elements.errorBanner.classList.remove('hidden')
 }
 
-async function startSession() {
+async function startSession(options = {}) {
   if (state.phase === 'creating' || state.phase === 'running') return
   showError('')
   setPhase('creating')
   setSocketState('connecting')
 
   try {
+    const payload = {}
+    const operator = elements.operatorInput.value.trim()
+    if (operator) payload.operator = operator
+    if (options.reason) payload.reason = options.reason
+    if (options.command) payload.command = options.command
+    if (Array.isArray(options.args) && options.args.length > 0) payload.args = options.args
+    if (options.metadata) payload.metadata = options.metadata
+
     const response = await proxyToApi('/api/v1/sessions', {
       method: 'POST',
-      json: {
-        operator: elements.operatorInput.value.trim() || undefined
-      }
+      json: payload
     })
     if (!response.ok) {
       const text = await response.text()
       throw new Error(text || `API error (${response.status})`)
     }
     const data = await response.json()
-    state.session = data
+    const sessionArgs = Array.isArray(data.args) ? [...data.args] : Array.isArray(options.args) ? [...options.args] : []
+    const sessionCommand = data.command || options.command || ''
+    state.session = {
+      ...data,
+      command: sessionCommand,
+      args: sessionArgs,
+      commandLine: formatCommandLabel(sessionCommand, sessionArgs)
+    }
     state.transcript = []
     state.events = []
     state.suppressed = initialSuppressedState()
     term.reset()
     renderEventMeta()
     lastSentSize = { cols: 0, rows: 0 }
-    appendEvent('session-created', data)
+    appendEvent('session-created', {
+      ...data,
+      reason: options.reason || null,
+      command: state.session.command,
+      args: state.session.args
+    })
     connectWebSocket(data.id)
     setPhase('running')
     state.bridge?.emit('session-started', data)
@@ -338,6 +410,7 @@ function connectWebSocket(sessionId) {
     if (term && typeof term.cols === 'number' && typeof term.rows === 'number') {
       sendResize(term.cols, term.rows)
     }
+    flushPendingShortcuts()
   })
 
   socket.addEventListener('message', async (event) => {
@@ -435,7 +508,7 @@ function handleStatusPayload(payload) {
     if (payload.status === 'command_exit_error') {
       setPhase('closed')
       setSocketState('disconnected')
-      showError(`Codex exited: ${payload.reason || 'unknown error'}`)
+      showError(`Command exited: ${payload.reason || 'unknown error'}`)
       notifyPanic(payload)
       return
     }
@@ -461,8 +534,75 @@ function handleStatusPayload(payload) {
 
 function notifyPanic(payload) {
   const reason = payload && typeof payload === 'object' && payload.reason ? payload.reason : 'unknown error'
-  term.write(`\r\n\u001b[31mCodex exited\u001b[0m: ${reason}\r\n`)
+  term.write(`\r\n\u001b[31mCommand exited\u001b[0m: ${reason}\r\n`)
   term.write('Review the event feed or transcripts for details.\r\n')
+}
+
+function transmitInput(value, meta = {}) {
+  if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
+    return false
+  }
+
+  const normalized = value.endsWith('\n') ? value : `${value}\n`
+  const payload = {
+    type: 'input',
+    payload: {
+      data: normalized,
+      encoding: 'utf-8'
+    }
+  }
+
+  try {
+    state.socket.send(JSON.stringify(payload))
+  } catch (error) {
+    appendEvent('stdin-send-error', error)
+    return false
+  }
+
+  recordTranscript({
+    timestamp: Date.now(),
+    direction: 'stdin',
+    encoding: 'utf-8',
+    data: btoa(payload.payload.data)
+  })
+
+  appendEvent(meta.eventType || 'stdin', {
+    length: payload.payload.data.length,
+    source: meta.source || undefined,
+    command: meta.command || value.trim()
+  })
+
+  if (meta.flushInputBox !== false) {
+    elements.inputBox.value = ''
+  }
+
+  if (meta.clearError !== false) {
+    showError('')
+  }
+
+  return true
+}
+
+function flushPendingShortcuts() {
+  if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
+    return
+  }
+  if (!Array.isArray(state.pendingShortcuts) || state.pendingShortcuts.length === 0) {
+    return
+  }
+  const queue = state.pendingShortcuts.splice(0)
+  queue.forEach((item) => {
+    const success = transmitInput(item.command, {
+      eventType: 'shortcut',
+      source: item.id,
+      command: item.command.trim(),
+      flushInputBox: false,
+      clearError: false
+    })
+    if (!success) {
+      appendEvent('shortcut-dispatch-failed', { id: item.id })
+    }
+  })
 }
 
 elements.inputForm.addEventListener('submit', (event) => {
@@ -484,32 +624,17 @@ elements.operatorInput.addEventListener('change', () => {
   state.bridge?.emit('operator-updated', { operator: elements.operatorInput.value })
 })
 
+shortcutButtons.forEach((button) => {
+  button.addEventListener('click', () => handleShortcutButton(button))
+})
+
 function sendInput(value) {
   const trimmed = value.trim()
   if (!trimmed) return
-  if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
-    showError('Session stream is not connected')
-    return
+  const success = transmitInput(value, { flushInputBox: true, clearError: true, eventType: 'stdin', command: trimmed })
+  if (!success) {
+    showError('Terminal stream is not connected')
   }
-
-  const payload = {
-    type: 'input',
-    payload: {
-      data: value.endsWith('\n') ? value : `${value}\n`,
-      encoding: 'utf-8'
-    }
-  }
-
-  state.socket.send(JSON.stringify(payload))
-  recordTranscript({
-    timestamp: Date.now(),
-    direction: 'stdin',
-    encoding: 'utf-8',
-    data: btoa(payload.payload.data)
-  })
-  appendEvent('stdin', { length: payload.payload.data.length })
-  elements.inputBox.value = ''
-  showError('')
 }
 
 function sendResize(cols, rows) {

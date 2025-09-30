@@ -11,7 +11,7 @@ func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metric
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"status": "ok",
-			"note":   "codex console must run behind authenticated proxy",
+			"note":   "web console must run behind authenticated proxy",
 		})
 	})
 
@@ -85,6 +85,8 @@ func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metric
 				ExpiresAt:    session.expiresAt,
 				LastActivity: session.lastActivityTime(),
 				State:        "active",
+				Command:      session.commandName,
+				Args:         append([]string{}, session.commandArgs...),
 			})
 		default:
 			writeJSONError(w, http.StatusMethodNotAllowed, "unsupported action")
@@ -108,7 +110,13 @@ func handleCreateSession(w http.ResponseWriter, r *http.Request, manager *sessio
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	resp := createSessionResponse{ID: s.id, CreatedAt: s.createdAt, ExpiresAt: s.expiresAt}
+	resp := createSessionResponse{
+		ID:        s.id,
+		CreatedAt: s.createdAt,
+		ExpiresAt: s.expiresAt,
+		Command:   s.commandName,
+		Args:      append([]string{}, s.commandArgs...),
+	}
 	writeJSON(w, http.StatusCreated, resp)
 }
 

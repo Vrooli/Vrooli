@@ -1,4 +1,4 @@
-module codexconsole
+module webconsole
 
 go 1.24
 

@@ -93,6 +93,37 @@ body {
   color: #0b1120;
 }
 
+.btn-ghost {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-primary);
+  border: 1px solid transparent;
+  text-align: left;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 1rem;
+}
+
+.btn-ghost:hover {
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.quick-actions {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.quick-actions .shortcut-title {
+  font-weight: 600;
+}
+
+.quick-actions .shortcut-command {
+  font-family: 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
 .layout {
   display: grid;
   grid-template-columns: 320px 1fr;

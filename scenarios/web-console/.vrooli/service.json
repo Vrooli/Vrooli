@@ -2,14 +2,13 @@
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "name": "codex-console",
-    "displayName": "Codex Console",
-    "description": "Secure iframe-embedded telepresence layer for the Codex CLI",
-    "version": "0.1.0",
+    "name": "web-console",
+    "displayName": "Web Console",
+    "description": "Remote-first terminal console with quick command shortcuts",
+    "version": "0.2.0",
     "tags": [
-      "codex",
-      "telepresence",
       "terminal",
+      "shortcuts",
       "iframe",
       "go-api",
       "vanilla-js"
@@ -18,12 +17,12 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "description": "Codex Console API port",
+      "description": "Web Console API port",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "Codex Console UI port",
+      "description": "Web Console UI port",
       "range": "35000-39999"
     }
   },
@@ -31,7 +30,7 @@
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Codex Console health check",
+      "description": "Web Console health check",
       "endpoints": {
         "api": "/healthz"
       },
@@ -50,7 +49,7 @@
       "startup_grace_period": 15000
     },
     "setup": {
-      "description": "Initialize Codex Console services and dependencies",
+      "description": "Initialize Web Console services and dependencies",
       "steps": [
         {
           "name": "prepare-storage",
@@ -59,31 +58,31 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod tidy && go build -o codex-console-api .",
+          "run": "cd api && go mod tidy && go build -o web-console-api .",
           "description": "Build Go API server"
         },
         {
           "name": "show-next-steps",
-          "run": "echo 'Codex Console ready. Use make run to launch services.'",
+          "run": "echo 'Web Console ready. Use make run to launch services.'",
           "description": "Display next-step guidance"
         }
       ]
     },
     "develop": {
-      "description": "Run Codex Console API and UI servers via lifecycle",
+      "description": "Run Web Console API and UI servers via lifecycle",
       "steps": [
         {
           "name": "build-api",
-          "run": "cd api && go build -o codex-console-api .",
+          "run": "cd api && go build -o web-console-api .",
           "description": "Build Go API server binary"
         },
         {
           "name": "start-api",
-          "run": "cd api && ./codex-console-api",
+          "run": "cd api && ./web-console-api",
           "description": "Start Go API server",
           "background": true,
           "condition": {
-            "file_exists": "api/codex-console-api"
+            "file_exists": "api/web-console-api"
           }
         },
         {
@@ -103,7 +102,7 @@
       ]
     },
     "test": {
-      "description": "Placeholder tests for Codex Console",
+      "description": "Placeholder tests for Web Console",
       "steps": [
         {
           "name": "lint-and-build",
@@ -113,16 +112,16 @@
       ]
     },
     "stop": {
-      "description": "Stop Codex Console services",
+      "description": "Stop Web Console services",
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f \"codex-console-api\" || true; sleep 1; pkill -9 -f \"codex-console-api\" 2>/dev/null || true",
+          "run": "pkill -f \"web-console-api\" || true; sleep 1; pkill -9 -f \"web-console-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/codex-console/ui/server.js\" || true; sleep 1; pkill -9 -f \"scenarios/codex-console/ui/server.js\" 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/web-console/ui/server.js\" || true; sleep 1; pkill -9 -f \"scenarios/web-console/ui/server.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

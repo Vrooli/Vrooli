@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Codex Console</title>
+    <title>Terminal Console</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -11,12 +11,12 @@
     <main class="page">
       <header class="header">
         <div>
-          <h1>Codex Console Telepresence</h1>
+          <h1>Web Console</h1>
           <p>Embed this console inside an authenticated scenario. Direct exposure is prohibited.</p>
         </div>
         <div class="header-actions">
           <span id="statusBadge" class="status-badge">IDLE · DISCONNECTED</span>
-          <button id="startBtn" class="btn btn-primary">Launch Codex</button>
+          <button id="startBtn" class="btn btn-primary">Start Terminal</button>
           <button id="stopBtn" class="btn btn-danger" disabled>Stop Session</button>
         </div>
       </header>
@@ -35,8 +35,28 @@
               <li><span>ID</span><span id="sessionId">—</span></li>
               <li><span>Phase</span><span id="sessionPhase">idle</span></li>
               <li><span>Socket</span><span id="socketState">disconnected</span></li>
+              <li><span>Command</span><span id="sessionCommand">—</span></li>
               <li><span>Transcript</span><span id="transcriptSize">0 records</span></li>
             </ul>
+          </section>
+
+          <section class="panel">
+            <h2>Quick Commands</h2>
+            <div class="quick-actions">
+              <button class="btn btn-ghost" data-shortcut-id="codex" data-command="codex --yolo">
+                <span class="shortcut-title">Launch Codex</span>
+                <span class="shortcut-command">codex --yolo</span>
+              </button>
+              <button class="btn btn-ghost" data-shortcut-id="claude" data-command="claude --dangerously-skip-permissions">
+                <span class="shortcut-title">Launch Claude</span>
+                <span class="shortcut-command">claude --dangerously-skip-permissions</span>
+              </button>
+              <button class="btn btn-ghost" data-shortcut-id="status" data-command="vrooli status --verbose">
+                <span class="shortcut-title">Check Status</span>
+                <span class="shortcut-command">vrooli status --verbose</span>
+              </button>
+            </div>
+            <p class="panel-note">Shortcuts run inside the active terminal. We'll boot a shell automatically if needed.</p>
           </section>
 
           <section class="panel">
@@ -47,14 +67,14 @@
 
           <section class="panel warning">
             <h2>Safety Notice</h2>
-            <p><strong>Codex Console ships with no authentication.</strong> Always embed it behind a secure proxy and parent scenario with proper identity controls.</p>
+            <p><strong>This console ships with no authentication.</strong> Always embed it behind a secure proxy and parent scenario with proper identity controls.</p>
           </section>
         </aside>
 
         <section class="console">
           <div id="terminal" class="terminal"></div>
           <form id="inputForm" class="input-bar">
-            <textarea id="inputBox" rows="2" placeholder="Enter instruction for Codex. Press Enter to send, Shift+Enter for newline"></textarea>
+            <textarea id="inputBox" rows="2" placeholder="Enter terminal input. Press Enter to send, Shift+Enter for newline"></textarea>
             <button id="sendBtn" type="submit" class="btn btn-accent">Send</button>
           </form>
           <div id="errorBanner" class="error-banner hidden"></div>

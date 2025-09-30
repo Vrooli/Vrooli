@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -38,6 +39,9 @@ type session struct {
 	cfg     config
 	metrics *metricsRegistry
 	manager *sessionManager
+
+	commandName string
+	commandArgs []string
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -88,6 +92,22 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 		termCols:   cfg.defaultTTYCols,
 	}
 
+	command := strings.TrimSpace(req.Command)
+	var args []string
+	if command == "" {
+		command = cfg.defaultCommand
+		args = append([]string{}, cfg.defaultArgs...)
+	} else {
+		args = append([]string{}, req.Args...)
+	}
+	if command == "" {
+		s.cleanupOnInitFailure()
+		return nil, errors.New("no command provided")
+	}
+
+	s.commandName = command
+	s.commandArgs = append([]string{}, args...)
+
 	if err := os.MkdirAll(cfg.storagePath, 0o755); err != nil {
 		s.cleanupOnInitFailure()
 		return nil, fmt.Errorf("create storage directory: %w", err)
@@ -102,13 +122,20 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 	s.transcriptFile = file
 	s.transcriptWriter = bufio.NewWriter(file)
 
-	cmd := exec.CommandContext(ctx, cfg.cliPath)
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "CODEX_CONSOLE_SESSION_ID="+id)
+	cmd := exec.CommandContext(ctx, command, args...)
+	envExtras := []string{
+		"TERM=xterm-256color",
+		"WEB_CONSOLE_SESSION_ID=" + id,
+		"TERMINAL_CONSOLE_SESSION_ID=" + id,
+		"TERMINAL_CONSOLE_COMMAND=" + command,
+		"TERMINAL_CONSOLE_COMMAND_LINE=" + formatCommandLine(command, args),
+	}
+	cmd.Env = append(os.Environ(), envExtras...)
 
 	ptyFile, err := pty.Start(cmd)
 	if err != nil {
 		s.cleanupOnInitFailure()
-		return nil, fmt.Errorf("start codex CLI: %w", err)
+		return nil, fmt.Errorf("start command: %w", err)
 	}
 	if err := pty.Setsize(ptyFile, &pty.Winsize{Rows: uint16(cfg.defaultTTYRows), Cols: uint16(cfg.defaultTTYCols)}); err != nil {
 		s.cleanupOnInitFailure()
@@ -119,13 +146,20 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 	s.ptyFile = ptyFile
 	s.lastActivity.Store(time.Now().UTC().UnixNano())
 
-	s.recordStatus("started", "")
+	s.recordStatus("started", formatCommandLine(command, args))
 
 	if req.Operator != "" {
 		s.writeTranscript(transcriptEntry{
 			Timestamp: time.Now().UTC(),
 			Direction: directionStatus,
 			Message:   "operator:" + req.Operator,
+		})
+	}
+	if req.Reason != "" {
+		s.writeTranscript(transcriptEntry{
+			Timestamp: time.Now().UTC(),
+			Direction: directionStatus,
+			Message:   "reason:" + req.Reason,
 		})
 	}
 	if len(req.Metadata) > 0 {
@@ -145,6 +179,11 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 	go s.waitForExit()
 
 	return s, nil
+}
+
+func formatCommandLine(command string, args []string) string {
+	parts := append([]string{command}, args...)
+	return strings.Join(parts, " ")
 }
 
 func (s *session) cleanupOnInitFailure() {
@@ -213,7 +252,7 @@ func (s *session) streamOutput() {
 func (s *session) waitForExit() {
 	err := s.command.Wait()
 	if err != nil {
-		s.recordStatus("command_exit_error", fmt.Sprintf("%v", err))
+		s.recordStatus("command_exit_error", fmt.Sprintf("%s: %v", formatCommandLine(s.commandName, s.commandArgs), err))
 	}
 	s.Close(reasonClientRequested)
 }

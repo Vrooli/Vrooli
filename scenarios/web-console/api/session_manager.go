@@ -92,6 +92,8 @@ func (m *sessionManager) listSummaries() []sessionSummary {
 			ExpiresAt:    s.expiresAt,
 			LastActivity: s.lastActivityTime(),
 			State:        "active",
+			Command:      s.commandName,
+			Args:         append([]string{}, s.commandArgs...),
 		})
 	}
 	return result
@@ -105,7 +107,7 @@ func (m *sessionManager) makeProxyGuard(next http.Handler) http.Handler {
 		forwardedFor := r.Header.Get("X-Forwarded-For")
 		forwardedProto := r.Header.Get("X-Forwarded-Proto")
 		if strings.TrimSpace(forwardedFor) == "" || strings.TrimSpace(forwardedProto) == "" {
-			writeJSONError(w, http.StatusForbidden, "codex console must be behind an authenticated proxy; missing required forwarding headers")
+			writeJSONError(w, http.StatusForbidden, "web console must be behind an authenticated proxy; missing required forwarding headers")
 			return
 		}
 		next.ServeHTTP(w, r)

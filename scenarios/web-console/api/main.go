@@ -42,7 +42,12 @@ func main() {
 	defer stop()
 
 	go func() {
-		logger.Info("codex console api starting", "addr", cfg.addr, "cliPath", cfg.cliPath)
+		logger.Info(
+			"web console api starting",
+			"addr", cfg.addr,
+			"defaultCommand", cfg.defaultCommand,
+			"defaultArgs", cfg.defaultArgs,
+		)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("api server error", "error", err)
 		}

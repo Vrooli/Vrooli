@@ -11,12 +11,12 @@ const __dirname = path.dirname(__filename)
 const { UI_PORT, API_PORT } = process.env
 
 if (!UI_PORT) {
-  console.error('Codex Console UI requires UI_PORT environment variable')
+  console.error('Web Console UI requires UI_PORT environment variable')
   process.exit(1)
 }
 
 if (!API_PORT) {
-  console.error('Codex Console UI requires API_PORT environment variable')
+  console.error('Web Console UI requires API_PORT environment variable')
   process.exit(1)
 }
 
@@ -169,7 +169,7 @@ function serveFallback(res) {
   } else {
     res.statusCode = 404
     res.setHeader('Content-Type', 'text/plain')
-    res.end('Codex Console UI assets not built yet.')
+    res.end('Web Console UI assets not built yet.')
   }
 }
 
@@ -272,7 +272,7 @@ httpServer.on('upgrade', (req, socket, head) => {
 })
 
 httpServer.listen(Number(UI_PORT), '0.0.0.0', () => {
-  console.log(`Codex Console UI listening on http://localhost:${UI_PORT}`)
+  console.log(`Web Console UI listening on http://localhost:${UI_PORT}`)
 })
 
 export { proxyToApi }

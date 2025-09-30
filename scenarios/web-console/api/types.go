@@ -9,12 +9,16 @@ type createSessionRequest struct {
 	Operator string          `json:"operator,omitempty"`
 	Reason   string          `json:"reason,omitempty"`
 	Metadata json.RawMessage `json:"metadata,omitempty"`
+	Command  string          `json:"command,omitempty"`
+	Args     []string        `json:"args,omitempty"`
 }
 
 type createSessionResponse struct {
 	ID        string    `json:"id"`
 	CreatedAt time.Time `json:"createdAt"`
 	ExpiresAt time.Time `json:"expiresAt"`
+	Command   string    `json:"command"`
+	Args      []string  `json:"args"`
 }
 
 type apiError struct {
@@ -59,6 +63,8 @@ type sessionSummary struct {
 	ExpiresAt    time.Time `json:"expiresAt"`
 	LastActivity time.Time `json:"lastActivity"`
 	State        string    `json:"state"`
+	Command      string    `json:"command"`
+	Args         []string  `json:"args"`
 }
 
 type transcriptDirection string
