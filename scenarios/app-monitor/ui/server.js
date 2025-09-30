@@ -49,6 +49,13 @@ const APP_CACHE_TTL_MS = 15_000;
 const APP_PORT_CACHE = new Map();
 const APP_PORT_INFLIGHT = new Map();
 
+const PROXY_AFFINITY_TTL_MS = 120_000;
+const PROXY_AFFINITY_MAX_ENTRIES = 5_000;
+const DEFAULT_REF_KEY = '__NO_REF__';
+// Map of request key -> Map of referer key -> affinity metadata
+const proxyAffinity = new Map();
+let proxyAffinityEntryCount = 0;
+
 // Force HTTPS for browsers accessing via Cloudflare tunnel to avoid mixed-protocol issues
 app.use((req, res, next) => {
     const forwardedProtoHeader = req.headers['x-forwarded-proto'];
@@ -405,6 +412,284 @@ const stripProxyPrefix = (fullPath) => {
     return stripped.startsWith('/') ? stripped : `/${stripped}`;
 };
 
+const normalizeHost = (host) => {
+    if (typeof host !== 'string') {
+        return '';
+    }
+    return host.trim().toLowerCase();
+};
+
+const ensureLeadingSlash = (value = '/') => {
+    if (typeof value !== 'string') {
+        return '/';
+    }
+    if (!value) {
+        return '/';
+    }
+    return value.startsWith('/') ? value : `/${value}`;
+};
+
+const parseForAffinity = (value, fallbackHost = '') => {
+    const normalizedFallbackHost = normalizeHost(fallbackHost);
+    if (typeof value !== 'string' || value.length === 0) {
+        return {
+            host: normalizedFallbackHost,
+            path: '/',
+            search: '',
+        };
+    }
+
+    try {
+        const base = normalizedFallbackHost ? `http://${normalizedFallbackHost}` : 'http://placeholder';
+        const parsed = new URL(value, base);
+        return {
+            host: normalizeHost(parsed.host || normalizedFallbackHost),
+            path: parsed.pathname || '/',
+            search: parsed.search || '',
+        };
+    } catch (error) {
+        const questionIndex = value.indexOf('?');
+        const pathPart = questionIndex === -1 ? value : value.slice(0, questionIndex);
+        const searchPart = questionIndex === -1 ? '' : value.slice(questionIndex);
+        return {
+            host: normalizedFallbackHost,
+            path: ensureLeadingSlash(pathPart || value),
+            search: typeof searchPart === 'string' ? searchPart : '',
+        };
+    }
+};
+
+const buildAffinityKey = ({ host, path, search }) => {
+    const normalizedHost = normalizeHost(host);
+    const normalizedPath = path || '/';
+    return `${normalizedHost}||${normalizedPath}||${search || ''}`;
+};
+
+const normalizeRefererKey = (value, fallbackHost = '') => {
+    if (typeof value !== 'string' || value.length === 0) {
+        return null;
+    }
+    const details = parseForAffinity(value, fallbackHost);
+    if (!details.host && (!details.path || details.path === '/')) {
+        return null;
+    }
+    return buildAffinityKey(details);
+};
+
+const cleanupProxyAffinity = () => {
+    if (proxyAffinityEntryCount === 0) {
+        return;
+    }
+
+    const now = Date.now();
+
+    for (const [key, bucket] of proxyAffinity.entries()) {
+        for (const [refKey, entry] of Array.from(bucket.entries())) {
+            if (entry.expiresAt <= now) {
+                bucket.delete(refKey);
+                proxyAffinityEntryCount -= 1;
+            }
+        }
+
+        if (bucket.size === 0) {
+            proxyAffinity.delete(key);
+        }
+    }
+
+    if (proxyAffinityEntryCount <= PROXY_AFFINITY_MAX_ENTRIES) {
+        return;
+    }
+
+    const entries = [];
+    for (const [key, bucket] of proxyAffinity.entries()) {
+        for (const [refKey, entry] of bucket.entries()) {
+            entries.push({ key, refKey, entry });
+        }
+    }
+
+    entries.sort((a, b) => a.entry.lastSeen - b.entry.lastSeen);
+    const excess = proxyAffinityEntryCount - PROXY_AFFINITY_MAX_ENTRIES;
+
+    for (let index = 0; index < excess && index < entries.length; index += 1) {
+        const { key, refKey } = entries[index];
+        const bucket = proxyAffinity.get(key);
+        if (!bucket) {
+            continue;
+        }
+        if (bucket.delete(refKey)) {
+            proxyAffinityEntryCount -= 1;
+        }
+        if (bucket.size === 0) {
+            proxyAffinity.delete(key);
+        }
+    }
+};
+
+const registerProxyAffinityEntry = ({ host, path, search, refererKey, appId }) => {
+    const normalizedHost = normalizeHost(host);
+    if (!normalizedHost || !path) {
+        return;
+    }
+
+    const key = buildAffinityKey({ host: normalizedHost, path, search });
+    const normalizedRefKey = refererKey ?? DEFAULT_REF_KEY;
+    const now = Date.now();
+
+    let bucket = proxyAffinity.get(key);
+    if (!bucket) {
+        bucket = new Map();
+        proxyAffinity.set(key, bucket);
+    }
+
+    const existing = bucket.get(normalizedRefKey);
+    if (!existing) {
+        proxyAffinityEntryCount += 1;
+    }
+
+    bucket.set(normalizedRefKey, {
+        appId,
+        expiresAt: now + PROXY_AFFINITY_TTL_MS,
+        lastSeen: now,
+    });
+
+    cleanupProxyAffinity();
+};
+
+const recordProxyAffinityForRequest = ({ req, appId, targetPath }) => {
+    if (!req || !appId) {
+        return;
+    }
+
+    const hostHeader = normalizeHost(req.headers.host || '');
+    if (!hostHeader) {
+        return;
+    }
+
+    const requestParts = parseForAffinity(req.originalUrl, hostHeader);
+    if (!requestParts || !requestParts.path) {
+        return;
+    }
+
+    const refererKey = normalizeRefererKey(req.headers.referer || req.headers.referrer, hostHeader);
+
+    const requestKey = buildAffinityKey({
+        host: hostHeader,
+        path: requestParts.path,
+        search: requestParts.search,
+    });
+
+    registerProxyAffinityEntry({
+        host: hostHeader,
+        path: requestParts.path,
+        search: requestParts.search,
+        refererKey,
+        appId,
+    });
+
+    if (targetPath && typeof targetPath === 'string') {
+        const targetParts = parseForAffinity(targetPath, hostHeader);
+        if (
+            targetParts &&
+            targetParts.path &&
+            (targetParts.path !== requestParts.path || targetParts.search !== requestParts.search)
+        ) {
+            const usesProxyPrefix =
+                requestParts.path.startsWith(`${APP_PROXY_PREFIX}/`) &&
+                requestParts.path.includes(`/${APP_PROXY_SEGMENT}`);
+            const targetRefererKey = usesProxyPrefix ? requestKey : refererKey;
+            registerProxyAffinityEntry({
+                host: hostHeader,
+                path: targetParts.path,
+                search: targetParts.search,
+                refererKey: targetRefererKey ?? refererKey,
+                appId,
+            });
+        }
+    }
+};
+
+const resolveAppIdForKey = (key, refererKey, visited = new Set()) => {
+    cleanupProxyAffinity();
+
+    if (!key || visited.has(key)) {
+        return null;
+    }
+
+    visited.add(key);
+
+    const bucket = proxyAffinity.get(key);
+    if (!bucket) {
+        return null;
+    }
+
+    const now = Date.now();
+    const normalizedRefKey = refererKey ?? DEFAULT_REF_KEY;
+    const direct = bucket.get(normalizedRefKey);
+    if (direct && direct.expiresAt > now) {
+        return direct.appId;
+    }
+
+    let freshest = null;
+
+    for (const [storedRefKey, entry] of bucket.entries()) {
+        if (entry.expiresAt <= now) {
+            continue;
+        }
+
+        if (refererKey && storedRefKey === refererKey) {
+            return entry.appId;
+        }
+
+        if (storedRefKey !== DEFAULT_REF_KEY && !visited.has(storedRefKey)) {
+            const resolved = resolveAppIdForKey(storedRefKey, null, visited);
+            if (resolved && resolved === entry.appId) {
+                return entry.appId;
+            }
+        }
+
+        if (!freshest || entry.lastSeen > freshest.lastSeen) {
+            freshest = entry;
+        }
+    }
+
+    return freshest ? freshest.appId : null;
+};
+
+const resolveAppIdFromRequest = (req) => {
+    if (!req) {
+        return null;
+    }
+
+    const hostHeader = normalizeHost(req.headers.host || '');
+    if (!hostHeader) {
+        return null;
+    }
+
+    const requestParts = parseForAffinity(req.originalUrl, hostHeader);
+    if (!requestParts || !requestParts.path) {
+        return null;
+    }
+
+    const requestKey = buildAffinityKey({
+        host: hostHeader,
+        path: requestParts.path,
+        search: requestParts.search,
+    });
+
+    const refererKey = normalizeRefererKey(req.headers.referer || req.headers.referrer, hostHeader);
+
+    const direct = resolveAppIdForKey(requestKey, refererKey);
+    if (direct) {
+        return direct;
+    }
+
+    if (refererKey) {
+        return resolveAppIdForKey(refererKey, null);
+    }
+
+    return null;
+};
+
 const sanitizeWebSocketHeaders = (headers = {}, port, req) => {
     const sanitized = {};
     for (const [key, value] of Object.entries(headers)) {
@@ -511,6 +796,7 @@ const proxyHttpRequest = async ({ req, res, appId, targetPath }) => {
                 headers: sanitizedHeaders,
             },
             (proxyRes) => {
+                recordProxyAffinityForRequest({ req, appId, targetPath: requestPath });
                 const rewrittenHeaders = rewriteResponseHeaders(proxyRes.headers, appId, port);
                 res.status(proxyRes.statusCode ?? 502);
                 for (const [headerKey, headerValue] of Object.entries(rewrittenHeaders)) {
@@ -576,32 +862,69 @@ app.use(async (req, res, next) => {
         return next();
     }
 
+    const targetPath = stripProxyPrefix(req.originalUrl);
+    const affinityAppId = resolveAppIdFromRequest(req);
+    if (affinityAppId) {
+        try {
+            await proxyHttpRequest({
+                req,
+                res,
+                appId: affinityAppId,
+                targetPath,
+            });
+            return;
+        } catch (error) {
+            console.error('[APP PROXY] Affinity proxy failed:', error.message);
+            if (res.headersSent) {
+                return;
+            }
+        }
+    }
+
     const referer = req.headers.referer || req.headers.referrer;
     if (!referer || typeof referer !== 'string') {
         return next();
     }
 
     const fetchSite = req.headers['sec-fetch-site'];
-    if (fetchSite && fetchSite !== 'same-origin') {
+    if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'same-site' && fetchSite !== 'none') {
         return next();
     }
 
-    let parsed;
-    try {
-        parsed = new URL(referer);
-    } catch (error) {
+    const hostHeader = normalizeHost(req.headers.host || '');
+    const refererDetails = parseForAffinity(referer, hostHeader);
+    if (!refererDetails) {
         return next();
     }
 
-    if (!parsed.pathname.startsWith(`${APP_PROXY_PREFIX}/`) || !parsed.pathname.includes(`/${APP_PROXY_SEGMENT}`)) {
+    const refererKey = buildAffinityKey(refererDetails);
+    const refererAffinityAppId = resolveAppIdForKey(refererKey, null);
+    if (refererAffinityAppId) {
+        try {
+            await proxyHttpRequest({
+                req,
+                res,
+                appId: refererAffinityAppId,
+                targetPath,
+            });
+            return;
+        } catch (error) {
+            console.error('[APP PROXY] Referer-affinity proxy failed:', error.message);
+            if (res.headersSent) {
+                return;
+            }
+        }
+    }
+
+    if (!refererDetails.path.startsWith(`${APP_PROXY_PREFIX}/`) || !refererDetails.path.includes(`/${APP_PROXY_SEGMENT}`)) {
         return next();
     }
 
-    if (parsed.host && req.headers.host && parsed.host !== req.headers.host) {
+    if (refererDetails.host && hostHeader && refererDetails.host !== hostHeader) {
         return next();
     }
 
-    const match = parsed.pathname.match(new RegExp(`^${APP_PROXY_PREFIX}/([^/]+)/${APP_PROXY_SEGMENT}`));
+    const match = refererDetails.path.match(new RegExp(`^${APP_PROXY_PREFIX}/([^/]+)/${APP_PROXY_SEGMENT}`));
     if (!match) {
         return next();
     }
@@ -613,7 +936,7 @@ app.use(async (req, res, next) => {
             req,
             res,
             appId,
-            targetPath: stripProxyPrefix(req.originalUrl),
+            targetPath,
         });
         return;
     } catch (error) {

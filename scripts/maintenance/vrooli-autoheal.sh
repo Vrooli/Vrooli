@@ -18,6 +18,15 @@ log() {
     printf '%s :: [%s] %s\n' "$(date -Is)" "$level" "$*" | tee -a "$LOG_FILE" >/dev/null
 }
 
+log_stream() {
+    local level="$1"
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        log "$level" "$line"
+    done
+    return 0
+}
+
 fatal() {
     log "ERROR" "$*"
     exit 1
@@ -79,6 +88,36 @@ parse_list() {
         trimmed=$(trim_token "$token")
         [[ -n "$trimmed" ]] && printf '%s\n' "$trimmed"
     done
+}
+
+append_scenario_logs() {
+    set +e
+    local scenario="$1"
+    local base_log="${HOME}/.vrooli/logs/${scenario}.log"
+    local lifecycle_dir="${HOME}/.vrooli/logs/scenarios/${scenario}"
+
+    if [[ -f "$base_log" ]]; then
+        log "DEBUG" "Lifecycle tail (last 50 lines) from $base_log"
+        { tail -n 50 "$base_log" 2>/dev/null || true; } | sed 's/^/    /' | log_stream "TRACE" || true
+    fi
+
+    if [[ -d "$lifecycle_dir" ]]; then
+        local log_file
+        shopt -s nullglob
+        local count=0
+        for log_file in "$lifecycle_dir"/*.log; do
+            [[ -f "$log_file" ]] || continue
+            ((count++))
+            if ((count > 5)); then
+                log "DEBUG" "Additional background logs suppressed (showing first 5)"
+                break
+            fi
+            log "DEBUG" "Background tail (last 200 lines) from $log_file"
+            { tail -n 200 "$log_file" 2>/dev/null || true; } | sed 's/^/    /' | log_stream "TRACE" || true
+        done
+        shopt -u nullglob
+    fi
+    set -e
 }
 
 check_resource() {
@@ -162,6 +201,7 @@ check_scenario() {
         fi
         if ! vrooli scenario start "$name" --clean-stale >>"$LOG_FILE" 2>&1; then
             log "ERROR" "Failed to start scenario '$name'"
+            append_scenario_logs "$name"
         else
             log "INFO" "Scenario '$name' restart requested"
             if [[ "$VERIFY_DELAY" =~ ^[0-9]+$ && "$VERIFY_DELAY" -gt 0 ]]; then
@@ -172,6 +212,7 @@ check_scenario() {
                     scenario_status_fields "$verify_info" verify_state verify_api verify_ui
                     if scenario_requires_restart "$verify_state" "$verify_api" "$verify_ui"; then
                         log "ERROR" "Scenario '$name' still failing after restart (state=$verify_state api=$verify_api ui=$verify_ui)"
+                        append_scenario_logs "$name"
                     else
                         log "INFO" "Scenario '$name' reported healthy after restart"
                     fi
