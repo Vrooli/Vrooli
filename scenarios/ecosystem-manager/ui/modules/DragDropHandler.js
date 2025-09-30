@@ -5,9 +5,20 @@ export class DragDropHandler {
         this.draggedElement = null;
         this.draggedTaskId = null;
         this.draggedFromStatus = null;
+        this.autoScrollEdgeThreshold = 80;
+        this.autoScrollEdgeThresholdHorizontal = 100;
+        this.autoScrollVelocity = { x: 0, y: 0 };
+        this.autoScrollAnimationFrame = null;
+        this.touchDragState = null;
+        this.kanbanBoard = null;
+
+        this.handlePointerMove = this.handlePointerMove.bind(this);
+        this.handlePointerUp = this.handlePointerUp.bind(this);
     }
 
     initializeDragDrop() {
+        this.kanbanBoard = document.querySelector('.kanban-board');
+
         // Set up drop zones
         document.querySelectorAll('.kanban-column').forEach(column => {
             column.addEventListener('dragover', (e) => this.handleDragOver(e));
@@ -19,6 +30,7 @@ export class DragDropHandler {
     setupTaskCardDragHandlers(card, taskId, status) {
         card.addEventListener('dragstart', (e) => this.handleDragStart(e, taskId, status));
         card.addEventListener('dragend', (e) => this.handleDragEnd(e));
+        card.addEventListener('pointerdown', (e) => this.handlePointerDown(e, card, taskId, status));
     }
 
     handleDragStart(e, taskId, status) {
@@ -47,9 +59,13 @@ export class DragDropHandler {
         if (e.preventDefault) {
             e.preventDefault();
         }
-        
+
         e.dataTransfer.dropEffect = 'move';
-        
+
+        if (typeof e.clientX === 'number' || typeof e.clientY === 'number') {
+            this.maybeAutoScroll(e.clientX, e.clientY);
+        }
+
         const column = e.target.closest('.kanban-column');
         if (column && !column.classList.contains('drag-over')) {
             // Remove drag-over class from all columns
@@ -68,21 +84,26 @@ export class DragDropHandler {
         if (column && !column.contains(e.relatedTarget)) {
             column.classList.remove('drag-over');
         }
+
+        if (!column) {
+            this.stopAutoScroll();
+        }
     }
 
     async handleDrop(e) {
         if (e.stopPropagation) {
             e.stopPropagation();
         }
-        
+
         const column = e.target.closest('.kanban-column');
         if (!column) return false;
-        
+
         const targetStatus = column.dataset.status;
-        
+
         // Remove drag-over class
         column.classList.remove('drag-over');
-        
+        this.stopAutoScroll();
+
         if (this.draggedElement && this.draggedTaskId && targetStatus !== this.draggedFromStatus) {
             if (this.onDrop) {
                 await this.onDrop(this.draggedTaskId, this.draggedFromStatus, targetStatus);
@@ -95,15 +116,205 @@ export class DragDropHandler {
     handleDragEnd(e) {
         // Remove dragging class
         e.target.classList.remove('dragging');
-        
+
         // Remove drag-over class from all columns
         document.querySelectorAll('.kanban-column').forEach(column => {
             column.classList.remove('drag-over');
         });
-        
+
         // Reset drag state
         this.draggedElement = null;
         this.draggedTaskId = null;
         this.draggedFromStatus = null;
+        this.stopAutoScroll();
+    }
+
+    handlePointerDown(e, card, taskId, status) {
+        if (e.pointerType !== 'touch') {
+            return;
+        }
+
+        e.preventDefault();
+
+        if (!this.kanbanBoard) {
+            this.kanbanBoard = document.querySelector('.kanban-board');
+        }
+
+        const rect = card.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        const offsetY = e.clientY - rect.top;
+
+        const ghost = this.createTouchGhost(card, rect);
+
+        this.touchDragState = {
+            pointerId: e.pointerId,
+            card,
+            taskId,
+            fromStatus: status,
+            offsetX,
+            offsetY,
+            ghost
+        };
+
+        card.classList.add('dragging');
+        card.setPointerCapture?.(e.pointerId);
+        this.updateTouchGhostPosition(ghost, e.clientX, e.clientY, offsetX, offsetY);
+
+        document.addEventListener('pointermove', this.handlePointerMove, { passive: false });
+        document.addEventListener('pointerup', this.handlePointerUp, { passive: false });
+        document.addEventListener('pointercancel', this.handlePointerUp, { passive: false });
+    }
+
+    handlePointerMove(e) {
+        if (!this.touchDragState || e.pointerId !== this.touchDragState.pointerId) {
+            return;
+        }
+
+        e.preventDefault();
+
+        const { ghost, offsetX, offsetY } = this.touchDragState;
+        this.updateTouchGhostPosition(ghost, e.clientX, e.clientY, offsetX, offsetY);
+        this.highlightColumnAtPoint(e.clientX, e.clientY);
+        this.maybeAutoScroll(e.clientX, e.clientY);
+    }
+
+    async handlePointerUp(e) {
+        if (!this.touchDragState || e.pointerId !== this.touchDragState.pointerId) {
+            return;
+        }
+
+        e.preventDefault();
+
+        const { card, taskId, fromStatus, ghost } = this.touchDragState;
+        card.classList.remove('dragging');
+        card.releasePointerCapture?.(e.pointerId);
+
+        if (ghost && ghost.parentElement) {
+            ghost.parentElement.removeChild(ghost);
+        }
+
+        const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+        const column = dropTarget ? dropTarget.closest('.kanban-column') : null;
+
+        this.clearDragHighlights();
+        this.stopAutoScroll();
+
+        if (column) {
+            const targetStatus = column.dataset.status;
+            if (targetStatus && targetStatus !== fromStatus && this.onDrop) {
+                await this.onDrop(taskId, fromStatus, targetStatus);
+            }
+        }
+
+        document.removeEventListener('pointermove', this.handlePointerMove);
+        document.removeEventListener('pointerup', this.handlePointerUp);
+        document.removeEventListener('pointercancel', this.handlePointerUp);
+
+        this.touchDragState = null;
+    }
+
+    maybeAutoScroll(clientX, clientY) {
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+
+        let vertical = 0;
+        if (typeof clientY === 'number' && !Number.isNaN(clientY)) {
+            if (clientY < this.autoScrollEdgeThreshold) {
+                vertical = -1;
+            } else if (clientY > viewportHeight - this.autoScrollEdgeThreshold) {
+                vertical = 1;
+            }
+        }
+
+        let horizontal = 0;
+        if (typeof clientX === 'number' && !Number.isNaN(clientX)) {
+            if (clientX < this.autoScrollEdgeThresholdHorizontal) {
+                horizontal = -1;
+            } else if (clientX > viewportWidth - this.autoScrollEdgeThresholdHorizontal) {
+                horizontal = 1;
+            }
+        }
+
+        if (horizontal === 0 && vertical === 0) {
+            this.stopAutoScroll();
+        } else {
+            this.startAutoScroll(horizontal, vertical);
+        }
+    }
+
+    startAutoScroll(horizontal, vertical) {
+        this.autoScrollVelocity = { x: horizontal, y: vertical };
+
+        if (this.autoScrollAnimationFrame) {
+            return;
+        }
+
+        const step = () => {
+            const { x, y } = this.autoScrollVelocity;
+            if (x === 0 && y === 0) {
+                this.stopAutoScroll();
+                return;
+            }
+
+            if (y !== 0) {
+                const scrollAmountY = y * 14;
+                window.scrollBy({ top: scrollAmountY, left: 0, behavior: 'auto' });
+            }
+
+            if (x !== 0 && (this.kanbanBoard || document.querySelector('.kanban-board'))) {
+                if (!this.kanbanBoard) {
+                    this.kanbanBoard = document.querySelector('.kanban-board');
+                }
+                if (this.kanbanBoard) {
+                    const scrollAmountX = x * 18;
+                    this.kanbanBoard.scrollLeft += scrollAmountX;
+                }
+            }
+
+            this.autoScrollAnimationFrame = window.requestAnimationFrame(step);
+        };
+
+        this.autoScrollAnimationFrame = window.requestAnimationFrame(step);
+    }
+
+    stopAutoScroll() {
+        this.autoScrollVelocity = { x: 0, y: 0 };
+        if (this.autoScrollAnimationFrame) {
+            window.cancelAnimationFrame(this.autoScrollAnimationFrame);
+            this.autoScrollAnimationFrame = null;
+        }
+    }
+
+    createTouchGhost(card, rect) {
+        const ghost = card.cloneNode(true);
+        ghost.removeAttribute('id');
+        ghost.classList.add('touch-drag-ghost');
+        ghost.style.width = `${rect.width}px`;
+        ghost.style.height = `${rect.height}px`;
+        ghost.style.opacity = '0.9';
+        document.body.appendChild(ghost);
+        return ghost;
+    }
+
+    updateTouchGhostPosition(ghost, clientX, clientY, offsetX = 0, offsetY = 0) {
+        if (!ghost) return;
+        const x = clientX - offsetX;
+        const y = clientY - offsetY;
+        ghost.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    }
+
+    highlightColumnAtPoint(clientX, clientY) {
+        const element = document.elementFromPoint(clientX, clientY);
+        const column = element ? element.closest('.kanban-column') : null;
+        this.clearDragHighlights();
+        if (column) {
+            column.classList.add('drag-over');
+        }
+    }
+
+    clearDragHighlights() {
+        document.querySelectorAll('.kanban-column.drag-over').forEach(column => {
+            column.classList.remove('drag-over');
+        });
     }
 }

@@ -502,21 +502,48 @@ func (app *App) uploadFile(c *gin.Context) {
 		return
 	}
 
-	// Insert file record
-	query := `
-		INSERT INTO files (original_name, file_hash, size_bytes, mime_type, 
-		                  storage_path, folder_path, status, processing_stage,
-		                  custom_metadata, uploaded_at, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'uploaded', $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		RETURNING id
-	`
+	// Insert file record (with dynamic schema detection for compatibility)
+	// Check which columns exist
+	var hasUserID, hasFilename, hasOriginalName bool
+	app.DB.QueryRow(`
+		SELECT
+			EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'files' AND column_name = 'user_id'),
+			EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'files' AND column_name = 'filename'),
+			EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'files' AND column_name = 'original_name')
+	`).Scan(&hasUserID, &hasFilename, &hasOriginalName)
+
+	// Build query based on actual schema
+	nameColumn := "original_name"
+	if hasFilename && !hasOriginalName {
+		nameColumn = "filename"
+	}
+
+	var query string
+	if hasUserID {
+		// Include user_id with default value
+		query = fmt.Sprintf(`
+			INSERT INTO files (%s, file_hash, size_bytes, mime_type,
+			                  storage_path, folder_path, status, processing_stage,
+			                  custom_metadata, user_id, uploaded_at, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'uploaded', $7, 'default', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+			RETURNING id
+		`, nameColumn)
+	} else {
+		query = fmt.Sprintf(`
+			INSERT INTO files (%s, file_hash, size_bytes, mime_type,
+			                  storage_path, folder_path, status, processing_stage,
+			                  custom_metadata, uploaded_at, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'uploaded', $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+			RETURNING id
+		`, nameColumn)
+	}
 
 	// Convert metadata to JSON
 	metadataJSON, err := json.Marshal(req.Metadata)
 	if err != nil {
 		metadataJSON = []byte("{}")
 	}
-	
+
 	var fileID string
 	err = app.DB.QueryRow(query, req.Filename, req.FileHash, req.SizeBytes,
 		req.MimeType, req.StoragePath, req.FolderPath, metadataJSON).Scan(&fileID)

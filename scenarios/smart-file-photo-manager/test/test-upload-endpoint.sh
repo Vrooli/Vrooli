@@ -1,7 +1,7 @@
 #\!/bin/bash
 # Test file upload endpoint
 
-API_BASE_URL="${SMART_FILE_MANAGER_API_URL:-http://localhost:8090}"
+API_BASE_URL="${SMART_FILE_MANAGER_API_URL:-http://localhost:${API_PORT:-16025}}"
 
 echo "Testing file upload endpoint..."
 

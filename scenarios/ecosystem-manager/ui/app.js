@@ -535,8 +535,11 @@ class EcosystemManager {
         this.handlePopState = this.handlePopState.bind(this);
         this.toggleFilterPanel = this.toggleFilterPanel.bind(this);
         this.syncFilterPanelForViewport = this.syncFilterPanelForViewport.bind(this);
+        this.handleFilterKeyDown = this.handleFilterKeyDown.bind(this);
+        this.updateActionButtonLabelsForViewport = this.updateActionButtonLabelsForViewport.bind(this);
 
         this.horizontalScrollLockUntil = 0;
+        this.isFilterDialogOpen = false;
     }
 
     async init() {
@@ -600,6 +603,27 @@ class EcosystemManager {
         if (tabButtons.length > 0) {
             this.switchTab('tasks');
         }
+
+        this.updateActionButtonLabelsForViewport();
+    }
+
+    updateActionButtonLabelsForViewport() {
+        const isMobileViewport = window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
+        const labels = document.querySelectorAll('.form-actions .btn .btn-label[data-label-desktop]');
+
+        labels.forEach(label => {
+            const desktopLabel = label.dataset.labelDesktop;
+            if (!desktopLabel) {
+                return;
+            }
+
+            const mobileLabel = label.dataset.labelMobile || desktopLabel;
+            const desiredText = isMobileViewport ? mobileLabel : desktopLabel;
+
+            if (label.textContent !== desiredText) {
+                label.textContent = desiredText;
+            }
+        });
     }
 
     initializeFilterControls() {
@@ -608,6 +632,16 @@ class EcosystemManager {
         this.filterState = this.collectFilterStateFromUI();
         this.filterTasks(this.filterState);
         window.addEventListener('popstate', this.handlePopState);
+
+        const filterCloseBtn = document.getElementById('filter-close-btn');
+        if (filterCloseBtn) {
+            filterCloseBtn.addEventListener('click', () => this.toggleFilterPanel(false));
+        }
+
+        const filterBackdrop = document.getElementById('filters-backdrop');
+        if (filterBackdrop) {
+            filterBackdrop.addEventListener('click', () => this.toggleFilterPanel(false));
+        }
     }
 
     getFiltersFromUrl() {
@@ -658,21 +692,36 @@ class EcosystemManager {
         const filtersSection = document.getElementById('filters');
         const filterPanel = document.getElementById('filter-panel');
         const toggleBtn = document.getElementById('filter-toggle-btn');
+        const backdrop = document.getElementById('filters-backdrop');
 
         if (!filtersSection || !filterPanel || !toggleBtn) {
             return;
         }
 
-        const isMobile = window.matchMedia ? window.matchMedia('(max-width: 768px)').matches : window.innerWidth <= 768;
+        const isMobile = this.isMobileViewport();
 
         if (isMobile) {
             const expanded = filtersSection.classList.contains('filters-expanded');
             filterPanel.setAttribute('aria-hidden', (!expanded).toString());
             toggleBtn.setAttribute('aria-expanded', expanded.toString());
+            if (backdrop) {
+                backdrop.hidden = !expanded;
+            }
         } else {
-            filtersSection.classList.remove('filters-expanded');
+            if (filtersSection.classList.contains('filters-expanded')) {
+                filtersSection.classList.remove('filters-expanded');
+            }
+            filterPanel.removeAttribute('role');
+            filterPanel.removeAttribute('aria-modal');
+            filterPanel.removeAttribute('aria-labelledby');
             filterPanel.setAttribute('aria-hidden', 'false');
             toggleBtn.setAttribute('aria-expanded', 'false');
+            if (backdrop) {
+                backdrop.hidden = true;
+            }
+            document.removeEventListener('keydown', this.handleFilterKeyDown);
+            this.isFilterDialogOpen = false;
+            this.restoreBodyScrollIfSafe();
         }
     }
 
@@ -716,36 +765,66 @@ class EcosystemManager {
         const filtersSection = document.getElementById('filters');
         const filterPanel = document.getElementById('filter-panel');
         const toggleBtn = document.getElementById('filter-toggle-btn');
+        const backdrop = document.getElementById('filters-backdrop');
 
         if (!filtersSection || !filterPanel || !toggleBtn) {
             return;
         }
 
-        const isMobile = window.matchMedia ? window.matchMedia('(max-width: 768px)').matches : window.innerWidth <= 768;
-
-        if (!isMobile) {
+        const isMobile = this.isMobileViewport();
+        if (!isMobile && forceState !== false) {
             return;
         }
 
         const currentlyExpanded = filtersSection.classList.contains('filters-expanded');
         const shouldExpand = typeof forceState === 'boolean' ? forceState : !currentlyExpanded;
-        const stateChanged = shouldExpand !== currentlyExpanded;
 
-        if (stateChanged) {
-            filtersSection.classList.toggle('filters-expanded', shouldExpand);
+        if (shouldExpand === currentlyExpanded && isMobile) {
+            return;
         }
-        filterPanel.setAttribute('aria-hidden', (!shouldExpand).toString());
-        toggleBtn.setAttribute('aria-expanded', shouldExpand.toString());
 
-        if (stateChanged) {
-            if (shouldExpand) {
-                const firstInput = filterPanel.querySelector('select, button, input');
-                if (firstInput) {
-                    firstInput.focus({ preventScroll: true });
-                }
-            } else {
+        filtersSection.classList.toggle('filters-expanded', shouldExpand);
+
+        if (isMobile) {
+            filterPanel.setAttribute('aria-hidden', (!shouldExpand).toString());
+            toggleBtn.setAttribute('aria-expanded', shouldExpand.toString());
+            if (backdrop) {
+                backdrop.hidden = !shouldExpand;
+            }
+        } else {
+            filterPanel.setAttribute('aria-hidden', 'false');
+            toggleBtn.setAttribute('aria-expanded', 'false');
+            if (backdrop) {
+                backdrop.hidden = true;
+            }
+        }
+
+        if (shouldExpand) {
+            filterPanel.setAttribute('role', 'dialog');
+            filterPanel.setAttribute('aria-modal', 'true');
+            filterPanel.setAttribute('aria-labelledby', 'filter-dialog-title');
+            document.body.style.overflow = 'hidden';
+            this.isFilterDialogOpen = true;
+            document.addEventListener('keydown', this.handleFilterKeyDown);
+
+            const firstInput = filterPanel.querySelector('select, button, input:not([type="hidden"])');
+            if (firstInput) {
+                firstInput.focus({ preventScroll: true });
+            }
+        } else if (isMobile) {
+            filterPanel.removeAttribute('role');
+            filterPanel.removeAttribute('aria-modal');
+            filterPanel.removeAttribute('aria-labelledby');
+            document.removeEventListener('keydown', this.handleFilterKeyDown);
+            this.isFilterDialogOpen = false;
+            this.restoreBodyScrollIfSafe();
+
+            if (document.activeElement && filterPanel.contains(document.activeElement)) {
                 toggleBtn.focus({ preventScroll: true });
             }
+        } else {
+            this.isFilterDialogOpen = false;
+            this.restoreBodyScrollIfSafe();
         }
     }
 
@@ -753,6 +832,27 @@ class EcosystemManager {
         return ['type', 'operation', 'priority', 'search'].some(
             key => (newState[key] || '') !== (this.filterState?.[key] || '')
         );
+    }
+
+    isMobileViewport() {
+        if (window.matchMedia) {
+            return window.matchMedia('(max-width: 768px)').matches;
+        }
+        return window.innerWidth <= 768;
+    }
+
+    handleFilterKeyDown(event) {
+        if (event.key === 'Escape' && this.isFilterDialogOpen) {
+            event.preventDefault();
+            this.toggleFilterPanel(false);
+        }
+    }
+
+    restoreBodyScrollIfSafe() {
+        const openModal = document.querySelector('.modal.show');
+        if (!openModal && !this.isFilterDialogOpen) {
+            document.body.style.overflow = '';
+        }
     }
 
     updateUrlWithFilters(filterState = {}) {
@@ -1040,7 +1140,7 @@ class EcosystemManager {
                 if (e.target === modal) {
                     modal.classList.remove('show');
                     // Re-enable body scroll when closing modal by clicking backdrop
-                    document.body.style.overflow = '';
+                    this.restoreBodyScrollIfSafe();
                 }
             });
         });
@@ -1173,6 +1273,7 @@ class EcosystemManager {
 
     setupEventListeners() {
         window.addEventListener('resize', this.syncFilterPanelForViewport);
+        window.addEventListener('resize', this.updateActionButtonLabelsForViewport);
 
         const kanbanBoard = document.querySelector('.kanban-board');
         if (kanbanBoard) {
@@ -2049,6 +2150,7 @@ class EcosystemManager {
         
         // Use the enhanced two-column layout
         contentElement.innerHTML = this.getTaskDetailsHTML(task);
+        this.updateActionButtonLabelsForViewport();
 
         // Initialize custom interactions
         this.initializeAutoRequeueToggle(task);
@@ -2063,121 +2165,123 @@ class EcosystemManager {
         const runningProcess = isRunning ? this.processMonitor.getRunningProcess(task.id) : null;
         
         return `
-            <form id="edit-task-form">
-                <div class="task-details-container task-details-grid">
-                    <!-- Left Column: Form Fields -->
-                    <div class="task-form-column">
-                        <!-- Basic Information -->
-                        <div class="form-group">
-                            <label for="edit-task-title">Title *</label>
-                            <input type="text" id="edit-task-title" name="title" value="${this.escapeHtml(task.title)}" required>
-                        </div>
-                        
-                        <!-- Task Status and Priority -->
-                        <div class="form-row">
+            <form id="edit-task-form" class="task-details-form">
+                <div class="task-details-container">
+                    <div class="task-details-grid">
+                        <!-- Left Column: Form Fields -->
+                        <div class="task-form-column">
+                            <!-- Basic Information -->
                             <div class="form-group">
-                                <label for="edit-task-status">Status</label>
-                                <select id="edit-task-status" name="status">
-                                    <option value="pending" ${task.status === 'pending' ? 'selected' : ''}>Pending</option>
-                                    <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>Active</option>
-                                    <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
-                                    <option value="completed-finalized" ${task.status === 'completed-finalized' ? 'selected' : ''}>Finished</option>
-                                    <option value="failed" ${task.status === 'failed' ? 'selected' : ''}>Failed</option>
-                                    <option value="failed-blocked" ${task.status === 'failed-blocked' ? 'selected' : ''}>Blocked</option>
-                                    <option value="archived" ${task.status === 'archived' ? 'selected' : ''}>Archived</option>
-                                </select>
+                                <label for="edit-task-title">Title *</label>
+                                <input type="text" id="edit-task-title" name="title" value="${this.escapeHtml(task.title)}" required>
                             </div>
                             
-                            <div class="form-group">
-                                <label for="edit-task-priority">Priority</label>
-                                <select id="edit-task-priority" name="priority">
-                                    <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
-                                    <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Medium</option>
-                                    <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
-                                    <option value="critical" ${task.priority === 'critical' ? 'selected' : ''}>Critical</option>
-                                </select>
+                            <!-- Task Status and Priority -->
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="edit-task-status">Status</label>
+                                    <select id="edit-task-status" name="status">
+                                        <option value="pending" ${task.status === 'pending' ? 'selected' : ''}>Pending</option>
+                                        <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>Active</option>
+                                        <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
+                                        <option value="completed-finalized" ${task.status === 'completed-finalized' ? 'selected' : ''}>Finished</option>
+                                        <option value="failed" ${task.status === 'failed' ? 'selected' : ''}>Failed</option>
+                                        <option value="failed-blocked" ${task.status === 'failed-blocked' ? 'selected' : ''}>Blocked</option>
+                                        <option value="archived" ${task.status === 'archived' ? 'selected' : ''}>Archived</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="edit-task-priority">Priority</label>
+                                    <select id="edit-task-priority" name="priority">
+                                        <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
+                                        <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Medium</option>
+                                        <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
+                                        <option value="critical" ${task.priority === 'critical' ? 'selected' : ''}>Critical</option>
+                                    </select>
+                                </div>
                             </div>
-                        </div>
 
-                        <!-- Auto-Requeue Toggle -->
-                        <div class="form-group">
-                            <label id="auto-requeue-label">Queue Automation</label>
-                            <div class="auto-requeue-toggle toggle-group" role="radiogroup" aria-labelledby="auto-requeue-label">
-                                <input type="radio" class="toggle-input" id="auto-requeue-on" name="auto_requeue_mode" value="true" ${task.processor_auto_requeue === false ? '' : 'checked'}>
-                                <label class="toggle-btn" for="auto-requeue-on">
-                                    <i class="fas fa-play"></i>
-                                    Auto
-                                </label>
-                                <input type="radio" class="toggle-input" id="auto-requeue-off" name="auto_requeue_mode" value="false" ${task.processor_auto_requeue === false ? 'checked' : ''}>
-                                <label class="toggle-btn" for="auto-requeue-off">
-                                    <i class="fas fa-hand-paper"></i>
-                                    Manual
-                                </label>
-                            </div>
-                            <div class="auto-requeue-hint">Keep this enabled so the queue processor can pick the task automatically. Disable it only when you want to hold the task for manual review.</div>
-                        </div>
-
-                        <!-- Current Phase and Operation Type -->
-                        <div class="form-row">
+                            <!-- Auto-Requeue Toggle -->
                             <div class="form-group">
-                                <label for="edit-task-phase">Current Phase</label>
-                                <select id="edit-task-phase" name="current_phase">
-                                    <option value="">No Phase</option>
-                                    <option value="pending" ${task.current_phase === 'pending' ? 'selected' : ''}>Pending</option>
-                                    <option value="in-progress" ${task.current_phase === 'in-progress' ? 'selected' : ''}>Active</option>
-                                    <option value="completed" ${task.current_phase === 'completed' ? 'selected' : ''}>Completed</option>
-                                    <option value="finalized" ${task.current_phase === 'finalized' ? 'selected' : ''}>Finalized</option>
-                                    <option value="failed" ${task.current_phase === 'failed' ? 'selected' : ''}>Failed</option>
-                                    <option value="blocked" ${task.current_phase === 'blocked' ? 'selected' : ''}>Blocked</option>
-                                </select>
+                                <label id="auto-requeue-label">Queue Automation</label>
+                                <div class="auto-requeue-toggle toggle-group" role="radiogroup" aria-labelledby="auto-requeue-label">
+                                    <input type="radio" class="toggle-input" id="auto-requeue-on" name="auto_requeue_mode" value="true" ${task.processor_auto_requeue === false ? '' : 'checked'}>
+                                    <label class="toggle-btn" for="auto-requeue-on">
+                                        <i class="fas fa-play"></i>
+                                        Auto
+                                    </label>
+                                    <input type="radio" class="toggle-input" id="auto-requeue-off" name="auto_requeue_mode" value="false" ${task.processor_auto_requeue === false ? 'checked' : ''}>
+                                    <label class="toggle-btn" for="auto-requeue-off">
+                                        <i class="fas fa-hand-paper"></i>
+                                        Manual
+                                    </label>
+                                </div>
+                                <div class="auto-requeue-hint">Keep this enabled so the queue processor can pick the task automatically. Disable it only when you want to hold the task for manual review.</div>
+                            </div>
+
+                            <!-- Current Phase and Operation Type -->
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="edit-task-phase">Current Phase</label>
+                                    <select id="edit-task-phase" name="current_phase">
+                                        <option value="">No Phase</option>
+                                        <option value="pending" ${task.current_phase === 'pending' ? 'selected' : ''}>Pending</option>
+                                        <option value="in-progress" ${task.current_phase === 'in-progress' ? 'selected' : ''}>Active</option>
+                                        <option value="completed" ${task.current_phase === 'completed' ? 'selected' : ''}>Completed</option>
+                                        <option value="finalized" ${task.current_phase === 'finalized' ? 'selected' : ''}>Finalized</option>
+                                        <option value="failed" ${task.current_phase === 'failed' ? 'selected' : ''}>Failed</option>
+                                        <option value="blocked" ${task.current_phase === 'blocked' ? 'selected' : ''}>Blocked</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="edit-task-operation">Type</label>
+                                    <select id="edit-task-operation" name="operation">
+                                        <option value="generator" ${task.operation === 'generator' ? 'selected' : ''}>Generator</option>
+                                        <option value="improver" ${task.operation === 'improver' ? 'selected' : ''}>Improver</option>
+                                    </select>
+                                </div>
                             </div>
                             
+                            <!-- Notes -->
                             <div class="form-group">
-                                <label for="edit-task-operation">Type</label>
-                                <select id="edit-task-operation" name="operation">
-                                    <option value="generator" ${task.operation === 'generator' ? 'selected' : ''}>Generator</option>
-                                    <option value="improver" ${task.operation === 'improver' ? 'selected' : ''}>Improver</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Notes -->
-                        <div class="form-group">
-                            <label for="edit-task-notes">Notes</label>
-                            <textarea id="edit-task-notes" name="notes" rows="16" 
-                                      placeholder="Additional notes or context...">${this.escapeHtml(task.notes || '')}</textarea>
-                        </div>
-                    </div>
-                    
-                    <!-- Right Column: Execution Results and Task Information -->
-                    <div class="task-info-column">
-                        <div id="auto-requeue-alert" class="auto-requeue-alert ${task.processor_auto_requeue === false ? 'disabled' : 'enabled'}">
-                            <i class="fas ${task.processor_auto_requeue === false ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i>
-                            <div>
-                                <div class="alert-title">${task.processor_auto_requeue === false ? 'Auto requeue disabled' : 'Auto requeue enabled'}</div>
-                                <div class="alert-body">${task.processor_auto_requeue === false ? 'The queue processor will skip this task until you re-enable auto requeue or launch it manually.' : 'This task is eligible for automated execution whenever a processing slot opens.'}</div>
+                                <label for="edit-task-notes">Notes</label>
+                                <textarea id="edit-task-notes" name="notes" rows="16" 
+                                          placeholder="Additional notes or context...">${this.escapeHtml(task.notes || '')}</textarea>
                             </div>
                         </div>
 
-                        ${this.getTaskExecutionInfoHTML(task, isRunning, runningProcess)}
+                        <!-- Right Column: Execution Results and Task Information -->
+                        <div class="task-info-column">
+                            <div id="auto-requeue-alert" class="auto-requeue-alert ${task.processor_auto_requeue === false ? 'disabled' : 'enabled'}">
+                                <i class="fas ${task.processor_auto_requeue === false ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i>
+                                <div>
+                                    <div class="alert-title">${task.processor_auto_requeue === false ? 'Auto requeue disabled' : 'Auto requeue enabled'}</div>
+                                    <div class="alert-body">${task.processor_auto_requeue === false ? 'The queue processor will skip this task until you re-enable auto requeue or launch it manually.' : 'This task is eligible for automated execution whenever a processing slot opens.'}</div>
+                                </div>
+                            </div>
+
+                            ${this.getTaskExecutionInfoHTML(task, isRunning, runningProcess)}
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Action Buttons -->
-                <div class="form-actions">
+                <div class="form-actions form-actions--flush">
                     <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeModal('task-details-modal')" aria-label="Cancel">
                         <i class="fas fa-times" aria-hidden="true"></i>
-                        <span class="btn-label">Cancel</span>
+                        <span class="btn-label" data-label-desktop="Cancel" data-label-mobile="Cancel">Cancel</span>
                     </button>
                     
                     <button type="button" class="btn btn-info" onclick="ecosystemManager.viewTaskPrompt('${task.id}')" title="View the prompt that was/will be sent to Claude" aria-label="View Prompt">
                         <i class="fas fa-file-alt" aria-hidden="true"></i>
-                        <span class="btn-label">View Prompt</span>
+                        <span class="btn-label" data-label-desktop="View Prompt" data-label-mobile="Prompt">View Prompt</span>
                     </button>
                     
                     <button type="button" class="btn btn-primary" onclick="ecosystemManager.saveTaskChanges('${task.id}')" aria-label="Save Changes">
                         <i class="fas fa-save" aria-hidden="true"></i>
-                        <span class="btn-label">Save Changes</span>
+                        <span class="btn-label" data-label-desktop="Save Changes" data-label-mobile="Save">Save Changes</span>
                     </button>
                 </div>
             </form>
@@ -3156,7 +3260,7 @@ class EcosystemManager {
             }
             modal.classList.remove('show');
             // Re-enable body scroll when closing modal
-            document.body.style.overflow = '';
+            this.restoreBodyScrollIfSafe();
         }
     }
 
@@ -4479,7 +4583,7 @@ class EcosystemManager {
         if (modal) {
             modal.classList.remove('show');
             // Re-enable body scroll when closing modal
-            document.body.style.overflow = '';
+            this.restoreBodyScrollIfSafe();
         }
     }
 
