@@ -864,9 +864,21 @@ const AppPreviewView = () => {
     setIframeLoadError(null);
     setIframeLoadedAt(Date.now());
     setPreviewOverlay(prev => {
-      if (prev && prev.type === 'waiting' && prev.message === PREVIEW_CONNECTING_LABEL) {
+      if (!prev) {
+        return prev;
+      }
+
+      if (prev.type === 'waiting' && prev.message === PREVIEW_CONNECTING_LABEL) {
         return null;
       }
+
+      if (
+        prev.type === 'error' &&
+        (prev.message === PREVIEW_TIMEOUT_MESSAGE || prev.message === PREVIEW_MIXED_CONTENT_MESSAGE)
+      ) {
+        return null;
+      }
+
       return prev;
     });
   }, []);

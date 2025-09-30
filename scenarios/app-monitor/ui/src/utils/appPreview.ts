@@ -1,83 +1,6 @@
 import type { App } from '@/types';
 
-const resolveLocalOrigin = (): string => {
-  const fallback = 'http://127.0.0.1';
-
-  try {
-    const override =
-      typeof import.meta !== 'undefined' &&
-      import.meta.env &&
-      typeof import.meta.env.VITE_APP_MONITOR_LOCAL_ORIGIN === 'string'
-        ? import.meta.env.VITE_APP_MONITOR_LOCAL_ORIGIN.trim()
-        : '';
-
-    if (!override) {
-      return fallback;
-    }
-
-    const candidate = new URL(override.includes('://') ? override : `http://${override}`);
-    return candidate.origin;
-  } catch (error) {
-    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
-      console.warn('Invalid VITE_APP_MONITOR_LOCAL_ORIGIN override; falling back to 127.0.0.1', error);
-    }
-    return fallback;
-  }
-};
-
-const LOCAL_ORIGIN = resolveLocalOrigin();
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
-
-const buildFromLocalOrigin = (path: string): string => {
-  try {
-    const base = new URL(LOCAL_ORIGIN);
-    const normalizedPath = path.replace(/^\//, '');
-    const joined = new URL(normalizedPath, base);
-    return joined.toString();
-  } catch {
-    const normalizedPath = path.replace(/^\//, '');
-    return `${LOCAL_ORIGIN.replace(/\/$/, '')}/${normalizedPath}`;
-  }
-};
-
-const buildFromLocalPort = (port: number): string => {
-  try {
-    const base = new URL(LOCAL_ORIGIN);
-    if (port) {
-      base.port = String(port);
-    }
-    return base.toString();
-  } catch {
-    return `${LOCAL_ORIGIN.replace(/:\d+$/, '')}:${port}`;
-  }
-};
-
-const coerceAbsoluteToLocal = (absoluteUrl: string, fallbackPort?: number | null): string => {
-  try {
-    const parsed = new URL(absoluteUrl);
-    if (LOOPBACK_HOSTS.has(parsed.hostname)) {
-      return parsed.toString();
-    }
-
-    const localBase = new URL(LOCAL_ORIGIN);
-    localBase.pathname = parsed.pathname;
-    localBase.search = parsed.search;
-    localBase.hash = parsed.hash;
-
-    if (parsed.port) {
-      localBase.port = parsed.port;
-    } else if (fallbackPort) {
-      localBase.port = String(fallbackPort);
-    }
-
-    return localBase.toString();
-  } catch {
-    if (fallbackPort) {
-      return buildFromLocalPort(fallbackPort);
-    }
-    return buildFromLocalOrigin(absoluteUrl);
-  }
-};
+const APP_PROXY_PREFIX = '/apps';
 
 export const normalizeStatus = (status?: string | null) => (status ?? '').toLowerCase();
 
@@ -280,21 +203,12 @@ export const buildPreviewUrl = (app: App): string | null => {
   const environment = (app.environment ?? {}) as Record<string, unknown>;
   const uiPort = computeAppUIPort(app);
 
-  const resolveCandidate = (value: string): string => {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return trimmed;
-    }
-
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      return coerceAbsoluteToLocal(trimmed, uiPort);
-    }
-
-    return buildFromLocalOrigin(trimmed);
-  };
+  if (uiPort !== null) {
+    return `${APP_PROXY_PREFIX}/${encodeURIComponent(app.id)}/proxy/`;
+  }
 
   if (typeof config.ui_url === 'string' && config.ui_url.trim()) {
-    return resolveCandidate(config.ui_url);
+    return config.ui_url.trim();
   }
 
   for (const [label, rawValue] of Object.entries(environment)) {
@@ -304,21 +218,20 @@ export const buildPreviewUrl = (app: App): string | null => {
     }
 
     const candidate = unwrapValue(rawValue);
-    if (typeof candidate !== 'string') {
-      continue;
-    }
-
-    const resolved = resolveCandidate(candidate);
-    if (resolved) {
-      return resolved;
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
     }
   }
 
-  if (uiPort === null) {
-    return null;
+  if (typeof app.port === 'number' && Number.isFinite(app.port)) {
+    return `http://127.0.0.1:${app.port}`;
   }
 
-  return buildFromLocalPort(uiPort);
+  if (typeof app.port === 'string' && app.port.trim()) {
+    return app.port.trim();
+  }
+
+  return null;
 };
 
 export const locateAppByIdentifier = (apps: App[], identifier: string): App | null => {
