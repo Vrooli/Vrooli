@@ -13,6 +13,7 @@ const elements = {
   terminalHost: document.getElementById('terminalHost'),
   layout: document.getElementById('mainLayout'),
   drawerToggle: document.getElementById('drawerToggle'),
+  drawerClose: document.getElementById('drawerClose'),
   drawerIndicator: document.getElementById('drawerIndicator'),
   detailsDrawer: document.getElementById('detailsDrawer'),
   drawerBackdrop: document.getElementById('drawerBackdrop'),
@@ -282,6 +283,10 @@ initializeTabCustomizationUI()
 
 if (elements.drawerToggle) {
   elements.drawerToggle.addEventListener('click', () => toggleDrawer())
+}
+
+if (elements.drawerClose) {
+  elements.drawerClose.addEventListener('click', () => closeDrawer())
 }
 
 if (elements.drawerBackdrop) {
