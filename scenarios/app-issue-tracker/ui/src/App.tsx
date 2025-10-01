@@ -36,13 +36,14 @@ import {
   User,
   X,
 } from 'lucide-react';
-import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
 import { IssuesBoard, columnMeta as issueColumnMeta } from './pages/IssuesBoard';
 import { SettingsPage } from './pages/Settings';
 import {
+  AgentSettings,
   AppSettings,
   DashboardStats,
+  DisplaySettings,
   Issue,
   IssueAttachment,
   IssueStatus,
@@ -569,68 +570,14 @@ function getIssueIdFromLocation(): string | null {
   }
 }
 
-const navItems = [
-  {
-    key: 'dashboard' as NavKey,
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-  },
-  {
-    key: 'issues' as NavKey,
-    label: 'Issues',
-    icon: KanbanSquare,
-  },
-  {
-    key: 'settings' as NavKey,
-    label: 'Settings',
-    icon: Cog,
-  },
-];
+// Navigation removed - single page app with dialogs
 
-function normalizePathname(pathname: string): string {
-  if (pathname === '/') {
-    return '/';
-  }
-  const trimmed = pathname.replace(/\/+$/, '');
-  return trimmed.length > 0 ? trimmed : '/';
-}
-
-function pathToNavKey(pathname: string): NavKey {
-  const normalized = normalizePathname(pathname);
-  switch (normalized) {
-    case '/dashboard':
-      return 'dashboard';
-    case '/settings':
-      return 'settings';
-    case '/issues':
-    case '/':
-    default:
-      return 'issues';
-  }
-}
-
-function navKeyToPath(nav: NavKey): string {
-  switch (nav) {
-    case 'dashboard':
-      return '/dashboard';
-    case 'settings':
-      return '/settings';
-    case 'issues':
-    default:
-      return '/';
-  }
-}
-
-function getInitialNavKey(): NavKey {
-  if (typeof window === 'undefined') {
-    return 'issues';
-  }
-  return pathToNavKey(window.location.pathname);
-}
+// URL routing simplified - only issues page with query params
 
 function App() {
   const isMountedRef = useRef(true);
-  const [activeNav, setActiveNav] = useState<NavKey>(() => getInitialNavKey());
+  const [metricsDialogOpen, setMetricsDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [processorSettings, setProcessorSettings] = useState<ProcessorSettings>(SampleData.processor);
   const [agentSettings, setAgentSettings] = useState(AppSettings.agent);
   const [displaySettings, setDisplaySettings] = useState(AppSettings.display);
@@ -730,7 +677,6 @@ function App() {
       const nextIssueId = getIssueIdFromLocation();
       setFocusedIssueId(nextIssueId);
       setIssueDetailOpen(Boolean(nextIssueId));
-      setActiveNav(pathToNavKey(window.location.pathname));
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -739,12 +685,7 @@ function App() {
     };
   }, []);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    setActiveNav(pathToNavKey(window.location.pathname));
-  }, []);
+  // Removed navigation initialization - single page app
 
   const fetchAllData = useCallback(async () => {
     if (isMountedRef.current) {
@@ -919,12 +860,6 @@ function App() {
   }, [focusedIssueId]);
 
   useEffect(() => {
-    if (activeNav !== 'issues' && filtersOpen) {
-      setFiltersOpen(false);
-    }
-  }, [activeNav, filtersOpen]);
-
-  useEffect(() => {
     if (typeof document === 'undefined') {
       return;
     }
@@ -986,28 +921,7 @@ function App() {
     }
   }, [focusedIssueId, issues]);
 
-  useEffect(() => {
-    if (!focusedIssueId) {
-      return;
-    }
-
-    if (activeNav !== 'issues') {
-      setActiveNav('issues');
-    }
-
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const normalizedPath = normalizePathname(window.location.pathname);
-    if (normalizedPath !== '/' && normalizedPath !== '/issues') {
-      const url = new URL(window.location.href);
-      url.pathname = '/';
-      const nextSearch = url.searchParams.toString();
-      const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ''}${url.hash}`;
-      window.history.replaceState({}, '', nextUrl);
-    }
-  }, [focusedIssueId, activeNav]);
+  // Removed navigation sync - single page app
 
   const createIssue = useCallback(
     async (input: CreateIssueInput): Promise<string | null> => {
@@ -1120,7 +1034,6 @@ function App() {
   const handleSubmitNewIssue = useCallback(
     async (input: CreateIssueInput) => {
       const newIssueId = await createIssue(input);
-      setActiveNav('issues');
       if (newIssueId) {
         setFocusedIssueId(newIssueId);
         setIssueDetailOpen(true);
@@ -1213,59 +1126,30 @@ function App() {
     setFocusedIssueId(null);
   }, []);
 
-  const handleNavSelect = useCallback(
-    (nextNav: NavKey) => {
-      setActiveNav(nextNav);
-      setFiltersOpen(false);
-      if (nextNav !== 'issues') {
-        setFocusedIssueId(null);
-        setIssueDetailOpen(false);
-      }
+  const handleOpenMetrics = useCallback(() => {
+    setMetricsDialogOpen(true);
+  }, []);
 
-      if (typeof window === 'undefined') {
-        return;
-      }
+  const handleCloseMetrics = useCallback(() => {
+    setMetricsDialogOpen(false);
+  }, []);
 
-      const url = new URL(window.location.href);
-      const targetPath = navKeyToPath(nextNav);
-      const normalizedCurrent = normalizePathname(url.pathname);
-      const normalizedTarget = normalizePathname(targetPath);
+  const handleOpenSettings = useCallback(() => {
+    setSettingsDialogOpen(true);
+  }, []);
 
-      if (normalizedCurrent !== normalizedTarget) {
-        url.pathname = targetPath;
-      }
+  const handleCloseSettings = useCallback(() => {
+    setSettingsDialogOpen(false);
+  }, []);
 
-      if (nextNav !== 'issues') {
-        url.searchParams.delete('issue');
-      }
-
-      const nextSearch = url.searchParams.toString();
-      const nextUrl = `${normalizePathname(url.pathname)}${nextSearch ? `?${nextSearch}` : ''}${url.hash}`;
-      const currentUrl = `${normalizePathname(window.location.pathname)}${window.location.search}${window.location.hash}`;
-
-      if (nextUrl !== currentUrl) {
-        window.history.pushState({}, '', nextUrl);
-      }
-    },
-    [],
-  );
-
-  const handleDashboardOpenIssues = useCallback(() => {
-    handleNavSelect('issues');
-  }, [handleNavSelect]);
-
-  const handleDashboardOpenIssue = useCallback(
+  const handleMetricsOpenIssue = useCallback(
     (issueId: string) => {
-      handleNavSelect('issues');
+      setMetricsDialogOpen(false);
       setFocusedIssueId(issueId);
       setIssueDetailOpen(true);
     },
-    [handleNavSelect],
+    [],
   );
-
-  const handleDashboardOpenAutomationSettings = useCallback(() => {
-    handleNavSelect('settings');
-  }, [handleNavSelect]);
 
   const handleToggleActive = useCallback(() => {
     const previousActive = processorSettings.active;
@@ -1360,74 +1244,13 @@ function App() {
   }, [agentSettings.backend, showSnackbar]);
 
 
-  const renderedPage = useMemo(() => {
-    switch (activeNav) {
-      case 'dashboard':
-        return (
-          <Dashboard
-            stats={dashboardStats}
-            issues={issues}
-            processor={processorSettings}
-            agentSettings={agentSettings}
-            onOpenIssues={handleDashboardOpenIssues}
-            onOpenIssue={handleDashboardOpenIssue}
-            onOpenAutomationSettings={handleDashboardOpenAutomationSettings}
-          />
-        );
-      case 'issues':
-        return (
-          <IssuesBoard
-            issues={filteredIssues}
-            focusedIssueId={focusedIssueId}
-            onIssueSelect={handleIssueSelect}
-            onIssueDelete={handleIssueDelete}
-            onIssueArchive={handleIssueArchive}
-            onIssueDrop={handleIssueStatusChange}
-            hiddenColumns={hiddenColumns}
-            onHideColumn={handleHideColumn}
-          />
-        );
-      case 'settings':
-        return (
-          <SettingsPage
-            apiBaseUrl={API_BASE_URL}
-            processor={processorSettings}
-            agent={agentSettings}
-            display={displaySettings}
-            onProcessorChange={processorSetter}
-            onAgentChange={setAgentSettings}
-            onDisplayChange={setDisplaySettings}
-          />
-        );
-      default:
-        return null;
-    }
-  }, [
-    activeNav,
-    dashboardStats,
-    filteredIssues,
-    processorSettings,
-    agentSettings,
-    displaySettings,
-    focusedIssueId,
-    handleIssueSelect,
-    handleIssueArchive,
-    handleIssueDelete,
-    handleIssueStatusChange,
-    hiddenColumns,
-    handleHideColumn,
-  ]);
+  // Single page - always render issues board
 
   const showIssueDetailModal = issueDetailOpen && selectedIssue;
 
   return (
     <>
       <div className={`app-shell ${displaySettings.theme}`}>
-        <Sidebar
-          items={navItems}
-          activeItem={activeNav}
-          onSelect={handleNavSelect}
-        />
         <div className="main-panel">
           {rateLimitStatus?.rate_limited && rateLimitStatus.seconds_until_reset > 0 && (
             <div className="rate-limit-banner">
@@ -1439,9 +1262,7 @@ function App() {
               </span>
             </div>
           )}
-          <main
-            className={`page-container ${activeNav === 'issues' ? 'page-container--issues' : ''}`.trim()}
-          >
+          <main className="page-container page-container--issues">
             {loading && <div className="data-banner loading">Loading latest data…</div>}
             {loadError && (
               <div className="data-banner error">
@@ -1451,53 +1272,76 @@ function App() {
                 </button>
               </div>
             )}
-            {renderedPage}
+            <IssuesBoard
+              issues={filteredIssues}
+              focusedIssueId={focusedIssueId}
+              onIssueSelect={handleIssueSelect}
+              onIssueDelete={handleIssueDelete}
+              onIssueArchive={handleIssueArchive}
+              onIssueDrop={handleIssueStatusChange}
+              hiddenColumns={hiddenColumns}
+              onHideColumn={handleHideColumn}
+            />
 
-            {activeNav === 'issues' && (
-              <div className="issues-floating-controls">
-                <div className="issues-floating-panel">
-                  <button
-                    type="button"
-                    className={`icon-button icon-button--status ${processorSettings.active ? 'is-active' : ''}`.trim()}
-                    onClick={handleToggleActive}
-                    aria-label={
-                      processorSettings.active ? 'Pause issue automation' : 'Activate issue automation'
-                    }
-                  >
-                    {processorSettings.active ? <Pause size={18} /> : <Play size={18} />}
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-button icon-button--primary"
-                    onClick={handleCreateIssue}
-                    aria-label="Create new issue"
-                  >
-                    <Plus size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`icon-button icon-button--filter ${filtersOpen ? 'is-active' : ''}`.trim()}
-                    onClick={() => setFiltersOpen((state) => !state)}
-                    aria-label="Toggle filters"
-                    aria-expanded={filtersOpen}
-                  >
-                    <Filter size={18} />
-                  </button>
-                  <IssueBoardToolbar
-                    open={filtersOpen}
-                    onRequestClose={() => setFiltersOpen(false)}
-                    priorityFilter={priorityFilter}
-                    onPriorityFilterChange={handlePriorityFilterChange}
-                    appFilter={appFilter}
-                    onAppFilterChange={handleAppFilterChange}
-                    appOptions={availableApps}
-                    hiddenColumns={hiddenColumns}
-                    onToggleColumn={handleToggleColumn}
-                    onResetColumns={handleResetHiddenColumns}
-                  />
-                </div>
+            <div className="issues-floating-controls">
+              <div className="issues-floating-panel">
+                <button
+                  type="button"
+                  className={`icon-button icon-button--status ${processorSettings.active ? 'is-active' : ''}`.trim()}
+                  onClick={handleToggleActive}
+                  aria-label={
+                    processorSettings.active ? 'Pause issue automation' : 'Activate issue automation'
+                  }
+                >
+                  {processorSettings.active ? <Pause size={18} /> : <Play size={18} />}
+                </button>
+                <button
+                  type="button"
+                  className="icon-button icon-button--primary"
+                  onClick={handleCreateIssue}
+                  aria-label="Create new issue"
+                >
+                  <Plus size={18} />
+                </button>
+                <button
+                  type="button"
+                  className={`icon-button icon-button--filter ${filtersOpen ? 'is-active' : ''}`.trim()}
+                  onClick={() => setFiltersOpen((state) => !state)}
+                  aria-label="Toggle filters"
+                  aria-expanded={filtersOpen}
+                >
+                  <Filter size={18} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button icon-button--secondary"
+                  onClick={handleOpenMetrics}
+                  aria-label="Open metrics"
+                >
+                  <LayoutDashboard size={18} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button icon-button--secondary"
+                  onClick={handleOpenSettings}
+                  aria-label="Open settings"
+                >
+                  <Cog size={18} />
+                </button>
+                <IssueBoardToolbar
+                  open={filtersOpen}
+                  onRequestClose={() => setFiltersOpen(false)}
+                  priorityFilter={priorityFilter}
+                  onPriorityFilterChange={handlePriorityFilterChange}
+                  appFilter={appFilter}
+                  onAppFilterChange={handleAppFilterChange}
+                  appOptions={availableApps}
+                  hiddenColumns={hiddenColumns}
+                  onToggleColumn={handleToggleColumn}
+                  onResetColumns={handleResetHiddenColumns}
+                />
               </div>
-            )}
+            </div>
           </main>
         </div>
       </div>
@@ -1508,6 +1352,30 @@ function App() {
 
       {showIssueDetailModal && selectedIssue && (
         <IssueDetailsModal issue={selectedIssue} onClose={handleIssueDetailClose} />
+      )}
+
+      {metricsDialogOpen && (
+        <MetricsDialog
+          stats={dashboardStats}
+          issues={issues}
+          processor={processorSettings}
+          agentSettings={agentSettings}
+          onClose={handleCloseMetrics}
+          onOpenIssue={handleMetricsOpenIssue}
+        />
+      )}
+
+      {settingsDialogOpen && (
+        <SettingsDialog
+          apiBaseUrl={API_BASE_URL}
+          processor={processorSettings}
+          agent={agentSettings}
+          display={displaySettings}
+          onProcessorChange={processorSetter}
+          onAgentChange={setAgentSettings}
+          onDisplayChange={setDisplaySettings}
+          onClose={handleCloseSettings}
+        />
       )}
 
       {snackbar && (
@@ -2486,6 +2354,102 @@ function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
           </div>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+interface MetricsDialogProps {
+  stats: DashboardStats;
+  issues: Issue[];
+  processor: ProcessorSettings;
+  agentSettings: AgentSettings;
+  onClose: () => void;
+  onOpenIssue: (issueId: string) => void;
+}
+
+function MetricsDialog({
+  stats,
+  issues,
+  processor,
+  agentSettings,
+  onClose,
+  onOpenIssue,
+}: MetricsDialogProps) {
+  return (
+    <Modal onClose={onClose} labelledBy="metrics-dialog-title" panelClassName="modal-panel--wide">
+      <div className="modal-header">
+        <div>
+          <p className="modal-eyebrow">Dashboard</p>
+          <h2 id="metrics-dialog-title" className="modal-title">
+            Metrics
+          </h2>
+        </div>
+        <button className="modal-close" type="button" aria-label="Close metrics" onClick={onClose}>
+          <X size={18} />
+        </button>
+      </div>
+
+      <div className="modal-body modal-body--dashboard">
+        <Dashboard
+          stats={stats}
+          issues={issues}
+          processor={processor}
+          agentSettings={agentSettings}
+          onOpenIssues={onClose}
+          onOpenIssue={onOpenIssue}
+          onOpenAutomationSettings={onClose}
+        />
+      </div>
+    </Modal>
+  );
+}
+
+interface SettingsDialogProps {
+  apiBaseUrl: string;
+  processor: ProcessorSettings;
+  agent: AgentSettings;
+  display: DisplaySettings;
+  onProcessorChange: (settings: ProcessorSettings) => void;
+  onAgentChange: (settings: AgentSettings) => void;
+  onDisplayChange: (settings: DisplaySettings) => void;
+  onClose: () => void;
+}
+
+function SettingsDialog({
+  apiBaseUrl,
+  processor,
+  agent,
+  display,
+  onProcessorChange,
+  onAgentChange,
+  onDisplayChange,
+  onClose,
+}: SettingsDialogProps) {
+  return (
+    <Modal onClose={onClose} labelledBy="settings-dialog-title" panelClassName="modal-panel--wide">
+      <div className="modal-header">
+        <div>
+          <p className="modal-eyebrow">Configuration</p>
+          <h2 id="settings-dialog-title" className="modal-title">
+            Settings
+          </h2>
+        </div>
+        <button className="modal-close" type="button" aria-label="Close settings" onClick={onClose}>
+          <X size={18} />
+        </button>
+      </div>
+
+      <div className="modal-body modal-body--settings">
+        <SettingsPage
+          apiBaseUrl={apiBaseUrl}
+          processor={processor}
+          agent={agent}
+          display={display}
+          onProcessorChange={onProcessorChange}
+          onAgentChange={onAgentChange}
+          onDisplayChange={onDisplayChange}
+        />
+      </div>
     </Modal>
   );
 }
