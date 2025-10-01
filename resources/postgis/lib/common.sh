@@ -191,7 +191,8 @@ postgis_import_geojson() {
     # Check if ogr2ogr is available in container
     if docker exec "$container" which ogr2ogr >/dev/null 2>&1; then
         # Copy file to container
-        local container_path="/tmp/$(basename "$geojson_file")"
+        local container_path
+        container_path="/tmp/$(basename "$geojson_file")"
         if ! docker cp "$geojson_file" "$container:$container_path" 2>/dev/null; then
             log::error "Failed to copy GeoJSON file to container"
             return 1

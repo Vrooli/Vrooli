@@ -80,7 +80,8 @@ postgis::geocoding::geocode() {
             LIMIT 1
         "
         
-        local cached_result=$(docker exec -i postgis-main psql -U vrooli -d spatial -t -A -c "$cache_query" 2>/dev/null)
+        local cached_result
+        cached_result=$(docker exec -i postgis-main psql -U vrooli -d spatial -t -A -c "$cache_query" 2>/dev/null)
         
         if [[ -n "$cached_result" ]]; then
             echo "✅ Found in cache: $cached_result"
@@ -126,7 +127,8 @@ postgis::geocoding::geocode() {
         LIMIT 1
     "
     
-    local place_result=$(docker exec -i postgis-main psql -U vrooli -d spatial -t -A -c "$place_query" 2>/dev/null)
+    local place_result
+    place_result=$(docker exec -i postgis-main psql -U vrooli -d spatial -t -A -c "$place_query" 2>/dev/null)
     
     if [[ -n "$place_result" ]]; then
         echo "✅ Matched place: $place_result"
@@ -181,7 +183,8 @@ postgis::geocoding::reverse() {
         LIMIT 1
     "
     
-    local result=$(docker exec -i postgis-main psql -U vrooli -d spatial -t -A -c "$reverse_query" 2>/dev/null)
+    local result
+    result=$(docker exec -i postgis-main psql -U vrooli -d spatial -t -A -c "$reverse_query" 2>/dev/null)
     
     if [[ -n "$result" ]]; then
         echo "✅ Reverse geocoded: $result"
@@ -200,7 +203,8 @@ postgis::geocoding::reverse() {
         LIMIT 1
     "
     
-    local approx_result=$(docker exec -i postgis-main psql -U vrooli -d spatial -t -A -c "$approx_query" 2>/dev/null)
+    local approx_result
+    approx_result=$(docker exec -i postgis-main psql -U vrooli -d spatial -t -A -c "$approx_query" 2>/dev/null)
     
     if [[ -n "$approx_result" ]]; then
         echo "⚠️  Approximate location: $approx_result"
@@ -224,7 +228,8 @@ postgis::geocoding::batch() {
     
     echo "address,lat,lon,confidence" > "$output_file"
     
-    local total=$(wc -l < "$input_file")
+    local total
+    total=$(wc -l < "$input_file")
     local current=0
     
     while IFS= read -r address; do

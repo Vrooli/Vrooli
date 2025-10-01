@@ -4,6 +4,12 @@
 
 None - All major issues resolved!
 
+## Recent Improvements (2025-09-30)
+
+### Code Quality Enhancements
+- Fixed shellcheck warnings in `lib/geocoding.sh` - separated variable declarations from assignments to avoid masking return values (SC2155)
+- Fixed shellcheck warning in `lib/common.sh` - separated container_path declaration from assignment
+
 ## Resolved Issues
 
 ### 1. pgRouting Extension Support (RESOLVED - 2025-09-15)

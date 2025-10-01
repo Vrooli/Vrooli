@@ -45,10 +45,12 @@ Some DBMS procedures like `dbms.listTransactions` are not available in Neo4j Com
 - Use alternative monitoring approaches through logs
 - Consider upgrading to Enterprise Edition for full monitoring capabilities
 
-## APOC Plugin (RESOLVED)
+## APOC Plugin (RESOLVED - 2025-09-30)
 
 ### Status
 APOC Core is now automatically installed and configured with proper file operation permissions.
+- **Fixed**: APOC installation URL corrected from non-existent version "2025.09.0" to compatible "5.26.12"
+- **Verified**: APOC loads correctly on restart and all functions work
 
 ### Configuration Applied
 - `NEO4J_apoc_export_file_enabled=true` - Enables file exports

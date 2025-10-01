@@ -8,7 +8,7 @@ export class SettingsManager {
         this.recyclerModelCache = {};
         this.recyclerModelRequests = {};
         this.defaultSettings = {
-            theme: 'light',
+            theme: 'dark',
             slots: 1,
             refresh_interval: 30,
             active: false,
@@ -81,6 +81,10 @@ export class SettingsManager {
     }
 
     applySettingsToUI(settings) {
+        const cachedThemePreference = localStorage.getItem('ecosystemManager_theme');
+        const resolvedTheme = cachedThemePreference || settings.theme || 'dark';
+        settings.theme = resolvedTheme;
+
         // Map settings keys to form field IDs (using backend field names)
         const fieldMapping = {
             'theme': 'settings-theme',
@@ -123,10 +127,10 @@ export class SettingsManager {
         this.updateProcessorToggleUI(settings.active);
 
         // Apply theme to body element
-        this.applyTheme(settings.theme || 'light');
+        this.applyTheme(resolvedTheme, { markUserPreference: false });
         
         // Store the original theme for potential reversion
-        this.originalTheme = settings.theme || 'light';
+        this.originalTheme = resolvedTheme;
     }
 
     updateProcessorToggleUI(isActive) {
@@ -262,7 +266,8 @@ export class SettingsManager {
         return formData;
     }
 
-    applyTheme(theme) {
+    applyTheme(theme, options = {}) {
+        const { markUserPreference = false } = options;
         const body = document.body;
         if (theme === 'dark') {
             body.classList.add('dark-mode');
@@ -272,15 +277,25 @@ export class SettingsManager {
         
         // Cache the theme in localStorage for immediate application on next load
         localStorage.setItem('ecosystemManager_theme', theme);
+        if (markUserPreference) {
+            localStorage.setItem('ecosystemManager_theme_user_choice', 'true');
+        }
         console.log(`Theme applied: ${theme}, body classes:`, body.className);
     }
 
     // Static method to ensure cached theme is applied (redundant check)
     static applyCachedTheme() {
         const cachedTheme = localStorage.getItem('ecosystemManager_theme');
-        
+        const userPreferenceSet = localStorage.getItem('ecosystemManager_theme_user_choice') === 'true';
+        let themeToApply = cachedTheme || 'dark';
+
+        if (!userPreferenceSet) {
+            themeToApply = 'dark';
+            localStorage.setItem('ecosystemManager_theme', themeToApply);
+        }
+
         // Apply proper dark mode class and remove inline styles
-        if (cachedTheme === 'dark' || window.applyDarkModeOnLoad) {
+        if (themeToApply === 'dark' || window.applyDarkModeOnLoad) {
             document.body.classList.add('dark-mode');
             // Remove the temporary inline style if it exists
             const tempStyle = document.querySelector('head style');
@@ -290,13 +305,13 @@ export class SettingsManager {
         } else {
             document.body.classList.remove('dark-mode');
         }
-        console.log(`Cached theme verified on load: ${cachedTheme || 'light'}`);
+        console.log(`Cached theme verified on load: ${themeToApply}`);
     }
 
     revertThemePreview() {
         // Revert to the original theme if user cancels
         if (this.originalTheme) {
-            this.applyTheme(this.originalTheme);
+            this.applyTheme(this.originalTheme, { markUserPreference: false });
         }
     }
 

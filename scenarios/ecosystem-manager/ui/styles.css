@@ -566,7 +566,7 @@ main {
 
 .kanban-column {
     background: var(--card-bg);
-    border-radius: var(--border-radius);
+    border-radius: 0;
     box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
@@ -810,7 +810,7 @@ body.dark-mode .queue-timer {
     justify-content: space-between;
     align-items: center;
     background: var(--light-gray);
-    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    border-radius: 0;
 }
 
 .column-header.error {
@@ -2859,8 +2859,8 @@ body.dark-mode .form-help[data-tone='error'] {
 /* Responsive Design */
 @media (max-width: 1200px) {
     .kanban-board {
-        gap: 1.25rem;
-        padding: 0.5rem 1rem 0.75rem 1rem;
+        gap: 0;
+        padding: 0;
     }
 
     .kanban-column {
@@ -3280,15 +3280,15 @@ button:focus,
 
 }
 
-/* Improved kanban board spacing */
+/* Keep kanban board flush across breakpoints */
 .kanban-board {
-    padding: 0 1rem;
+    padding: 0;
 }
 
 @media (max-width: 1200px) {
     .kanban-board {
-        gap: 1rem;
-        padding: 0 0.5rem;
+        gap: 0;
+        padding: 0;
     }
 }
 

@@ -11,6 +11,8 @@ export class DragDropHandler {
         this.autoScrollAnimationFrame = null;
         this.touchDragState = null;
         this.kanbanBoard = null;
+        this.touchDragThreshold = 12;
+        this.originalDraggableState = new WeakMap();
 
         this.handlePointerMove = this.handlePointerMove.bind(this);
         this.handlePointerUp = this.handlePointerUp.bind(this);
@@ -134,8 +136,6 @@ export class DragDropHandler {
             return;
         }
 
-        e.preventDefault();
-
         if (!this.kanbanBoard) {
             this.kanbanBoard = document.querySelector('.kanban-board');
         }
@@ -144,21 +144,25 @@ export class DragDropHandler {
         const offsetX = e.clientX - rect.left;
         const offsetY = e.clientY - rect.top;
 
-        const ghost = this.createTouchGhost(card, rect);
-
         this.touchDragState = {
             pointerId: e.pointerId,
             card,
             taskId,
             fromStatus: status,
+            startX: e.clientX,
+            startY: e.clientY,
             offsetX,
             offsetY,
-            ghost
+            ghost: null,
+            dragging: false
         };
 
-        card.classList.add('dragging');
+        if (card) {
+            this.originalDraggableState.set(card, card.draggable);
+            card.draggable = false;
+        }
+
         card.setPointerCapture?.(e.pointerId);
-        this.updateTouchGhostPosition(ghost, e.clientX, e.clientY, offsetX, offsetY);
 
         document.addEventListener('pointermove', this.handlePointerMove, { passive: false });
         document.addEventListener('pointerup', this.handlePointerUp, { passive: false });
@@ -170,9 +174,24 @@ export class DragDropHandler {
             return;
         }
 
+        const state = this.touchDragState;
+        const deltaX = Math.abs(e.clientX - state.startX);
+        const deltaY = Math.abs(e.clientY - state.startY);
+
+        if (!state.dragging) {
+            if (deltaX <= this.touchDragThreshold && deltaY <= this.touchDragThreshold) {
+                return;
+            }
+            this.activateTouchDrag(e);
+        }
+
+        if (!state.dragging) {
+            return;
+        }
+
         e.preventDefault();
 
-        const { ghost, offsetX, offsetY } = this.touchDragState;
+        const { ghost, offsetX, offsetY } = state;
         this.updateTouchGhostPosition(ghost, e.clientX, e.clientY, offsetX, offsetY);
         this.highlightColumnAtPoint(e.clientX, e.clientY);
         this.maybeAutoScroll(e.clientX, e.clientY);
@@ -183,26 +202,43 @@ export class DragDropHandler {
             return;
         }
 
-        e.preventDefault();
+        const state = this.touchDragState;
+        const wasDragging = state.dragging;
 
-        const { card, taskId, fromStatus, ghost } = this.touchDragState;
+        if (wasDragging) {
+            e.preventDefault();
+        }
+
+        const { card, taskId, fromStatus, ghost } = state;
         card.classList.remove('dragging');
         card.releasePointerCapture?.(e.pointerId);
+
+        if (card) {
+            if (this.originalDraggableState.has(card)) {
+                const original = this.originalDraggableState.get(card);
+                card.draggable = original;
+                this.originalDraggableState.delete(card);
+            } else {
+                card.draggable = true;
+            }
+        }
 
         if (ghost && ghost.parentElement) {
             ghost.parentElement.removeChild(ghost);
         }
 
-        const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
-        const column = dropTarget ? dropTarget.closest('.kanban-column') : null;
+        if (wasDragging) {
+            const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+            const column = dropTarget ? dropTarget.closest('.kanban-column') : null;
 
-        this.clearDragHighlights();
-        this.stopAutoScroll();
+            this.clearDragHighlights();
+            this.stopAutoScroll();
 
-        if (column) {
-            const targetStatus = column.dataset.status;
-            if (targetStatus && targetStatus !== fromStatus && this.onDrop) {
-                await this.onDrop(taskId, fromStatus, targetStatus);
+            if (column) {
+                const targetStatus = column.dataset.status;
+                if (targetStatus && targetStatus !== fromStatus && this.onDrop) {
+                    await this.onDrop(taskId, fromStatus, targetStatus);
+                }
             }
         }
 
@@ -211,6 +247,36 @@ export class DragDropHandler {
         document.removeEventListener('pointercancel', this.handlePointerUp);
 
         this.touchDragState = null;
+    }
+
+    activateTouchDrag(e) {
+        if (!this.touchDragState) {
+            return;
+        }
+
+        const state = this.touchDragState;
+        if (state.dragging) {
+            return;
+        }
+
+        const { card, offsetX, offsetY } = state;
+        e.preventDefault();
+        const rect = card.getBoundingClientRect();
+        const ghost = this.createTouchGhost(card, rect, {
+            initialX: e.clientX,
+            initialY: e.clientY,
+            offsetX,
+            offsetY
+        });
+
+        card.classList.add('dragging');
+
+        state.ghost = ghost;
+        state.dragging = true;
+
+        this.updateTouchGhostPosition(ghost, e.clientX, e.clientY, offsetX, offsetY);
+        this.highlightColumnAtPoint(e.clientX, e.clientY);
+        this.maybeAutoScroll(e.clientX, e.clientY);
     }
 
     maybeAutoScroll(clientX, clientY) {
@@ -285,14 +351,26 @@ export class DragDropHandler {
         }
     }
 
-    createTouchGhost(card, rect) {
+    createTouchGhost(card, rect, options = {}) {
         const ghost = card.cloneNode(true);
         ghost.removeAttribute('id');
-        ghost.classList.add('touch-drag-ghost');
         ghost.style.width = `${rect.width}px`;
         ghost.style.height = `${rect.height}px`;
         ghost.style.opacity = '0.9';
+
+        const { initialX, initialY, offsetX = 0, offsetY = 0 } = options;
+        if (typeof initialX === 'number' && typeof initialY === 'number') {
+            ghost.style.transform = `translate3d(${initialX - offsetX}px, ${initialY - offsetY}px, 0)`;
+        } else {
+            ghost.style.transform = 'translate3d(-9999px, -9999px, 0)';
+        }
+
+        ghost.classList.add('touch-drag-ghost');
+        ghost.style.transition = 'none';
         document.body.appendChild(ghost);
+        requestAnimationFrame(() => {
+            ghost.style.transition = 'transform 0.05s ease-out';
+        });
         return ghost;
     }
 

@@ -2851,8 +2851,9 @@ class EcosystemManager {
             
             if (result.success) {
                 // Apply theme immediately after successful save and update original theme
-                this.settingsManager.applyTheme(settings.theme || 'light');
-                this.settingsManager.originalTheme = settings.theme || 'light'; // Update original theme
+                const resolvedTheme = settings.theme || 'dark';
+                this.settingsManager.applyTheme(resolvedTheme, { markUserPreference: true });
+                this.settingsManager.originalTheme = resolvedTheme; // Update original theme
                 
                 // Update processor status UI immediately
                 this.settingsManager.updateProcessorToggleUI(settings.active);
@@ -4364,7 +4365,7 @@ class EcosystemManager {
 
     previewTheme(theme) {
         // Apply theme immediately for preview, but don't save it yet
-        this.settingsManager.applyTheme(theme);
+        this.settingsManager.applyTheme(theme, { markUserPreference: false });
     }
 
     resetSettingsToDefault() {

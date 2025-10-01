@@ -11,7 +11,14 @@
     <script>
         (function() {
             const cachedTheme = localStorage.getItem('ecosystemManager_theme');
-            if (cachedTheme === 'dark') {
+            const userPreferenceSet = localStorage.getItem('ecosystemManager_theme_user_choice') === 'true';
+            const themeToApply = (userPreferenceSet && cachedTheme) ? cachedTheme : 'dark';
+
+            if (!userPreferenceSet || !cachedTheme) {
+                localStorage.setItem('ecosystemManager_theme', themeToApply);
+            }
+
+            if (themeToApply === 'dark') {
                 // Inject dark mode styles immediately
                 const style = document.createElement('style');
                 style.textContent = `
@@ -41,6 +48,8 @@
                 document.head.appendChild(style);
                 // Also set a flag to transfer to proper dark mode when body loads
                 window.applyDarkModeOnLoad = true;
+            } else {
+                window.applyDarkModeOnLoad = false;
             }
         })();
     </script>

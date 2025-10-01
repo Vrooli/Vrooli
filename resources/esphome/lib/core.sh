@@ -990,10 +990,10 @@ esphome::bulk::status() {
 
 esphome::metrics() {
     log::info "Collecting device metrics and telemetry..."
-    
+
     local config_dir="${ESPHOME_CONFIG_DIR}"
     local metrics_file="${ESPHOME_DATA_DIR}/metrics.json"
-    
+
     # Initialize metrics JSON
     echo '{
         "timestamp": "'$(date -Iseconds)'",
@@ -1048,45 +1048,51 @@ esphome::metrics() {
     
     for config in "${configs[@]}"; do
         ((total++))
-        
+        echo "[DEBUG] Processing config: $config" >&2
+
         # Check device status - skip network check for now as devices may not be online
         # In production, this would check actual device status via ESPHome API
         # For now, simulate with random status for demonstration
         local is_online=$((RANDOM % 2))
+        echo "[DEBUG] is_online: $is_online" >&2
         
         if [[ $is_online -eq 1 ]]; then
             ((online++))
             local status="online"
-            
+
             # Simulated device info (in production, would query actual device)
-            local device_info=$(cat <<EOF
-{
-    "name": "${config}",
+            local uptime=$(shuf -i 1000-100000 -n 1)
+            local heap=$(shuf -i 20000-80000 -n 1)
+            local signal=$(shuf -i 40-80 -n 1)
+            local temp_int=$(shuf -i 18-28 -n 1)
+            local temp_dec=$(shuf -i 0-9 -n 1)
+            local last_seen=$(date -Iseconds)
+
+            local device_info='{
+    "name": "'${config}'",
     "status": "online",
-    "uptime_seconds": $(shuf -i 1000-100000 -n 1),
-    "free_heap": $(shuf -i 20000-80000 -n 1),
-    "wifi_signal": -$(shuf -i 40-80 -n 1),
-    "temperature": $(shuf -i 18-28 -n 1).$(shuf -i 0-9 -n 1),
-    "last_seen": "$(date -Iseconds)"
-}
-EOF
-)
+    "uptime_seconds": '${uptime}',
+    "free_heap": '${heap}',
+    "wifi_signal": -'${signal}',
+    "temperature": '${temp_int}'.'${temp_dec}',
+    "last_seen": "'${last_seen}'"
+}'
         else
             ((offline++))
-            local device_info=$(cat <<EOF
-{
-    "name": "${config}",
+            local device_info='{
+    "name": "'${config}'",
     "status": "offline",
     "last_seen": "unknown"
-}
-EOF
-)
+}'
         fi
         
         # Append device info to metrics (using jq if available)
         if command -v jq &>/dev/null; then
             # Use proper JSON escaping - fixed to avoid hanging on input
-            jq --argjson new "$device_info" '.devices += [$new]' "$metrics_file" > "${metrics_file}.tmp" && mv "${metrics_file}.tmp" "$metrics_file"
+            echo "$device_info" | jq . >/dev/null 2>&1  # Validate JSON first
+            if [[ $? -eq 0 ]]; then
+                jq --argjson new "$device_info" '.devices += [$new]' "$metrics_file" > "${metrics_file}.tmp" && mv "${metrics_file}.tmp" "$metrics_file"
+            fi
         fi
     done
     
