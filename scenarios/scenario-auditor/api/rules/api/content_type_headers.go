@@ -202,7 +202,7 @@ func veryLongHandler(w http.ResponseWriter, r *http.Request) {
 }
   </input>
   <expected-violations>1</expected-violations>
-  <expected-message>Missing JSON Content-Type Header</expected-message>
+  <expected-message>JSON response missing Content-Type header</expected-message>
 </test-case>
 */
 
@@ -296,6 +296,7 @@ func CheckContentTypeHeaders(content []byte, filePath string) []Violation {
 					Severity:       "medium",
 					Title:          "Missing JSON Content-Type Header",
 					Description:    "JSON response missing Content-Type header",
+					Message:        "JSON response missing Content-Type header",
 					FilePath:       filePath,
 					LineNumber:     i + 1,
 					CodeSnippet:    line,
@@ -314,6 +315,7 @@ func CheckContentTypeHeaders(content []byte, filePath string) []Violation {
 						Severity:       "medium",
 						Title:          "Missing JSON Content-Type Header",
 						Description:    "JSON response missing Content-Type header",
+						Message:        "JSON response missing Content-Type header",
 						FilePath:       filePath,
 						LineNumber:     i + 1,
 						CodeSnippet:    line,

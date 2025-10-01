@@ -1422,10 +1422,24 @@
                 const response = await fetch('/config');
                 if (response.ok) {
                     const config = await response.json();
-                    apiUrl = config.apiUrl;
-                    API_BASE = config.apiBase;
-                    addLog(`Config loaded: API at ${apiUrl}`, 'success');
-                    document.getElementById('apiEndpoint').textContent = apiUrl;
+                    const proxiedApiUrl = config.proxyApiUrl || '';
+                    const proxiedApiBase = config.proxyApiBase || '';
+                    const directApiUrl = config.apiUrl || config.directApiUrl || '';
+                    const directApiBase = config.apiBase || config.directApiBase || '';
+                    apiUrl = proxiedApiUrl || directApiUrl || '/proxy';
+                    const normalizedApiUrl = apiUrl.replace(/\/$/, '');
+                    API_BASE = proxiedApiBase || directApiBase || (
+                        normalizedApiUrl.endsWith('/api')
+                            ? `${normalizedApiUrl}/v1`
+                            : `${normalizedApiUrl}/api/v1`
+                    );
+
+                    const displayEndpoint = config.displayApiUrl || directApiUrl || apiUrl;
+                    addLog(`Config loaded: API proxy at ${apiUrl}`, 'success');
+                    if (directApiUrl) {
+                        addLog(`Direct API available at ${directApiUrl}`, 'info');
+                    }
+                    document.getElementById('apiEndpoint').textContent = displayEndpoint;
                     return config;
                 } else {
                     throw new Error(`Config endpoint returned ${response.status}`);

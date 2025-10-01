@@ -30,7 +30,7 @@ func (o *Orchestrator) AddScenario(scenario *MaintenanceScenario) {
 func (o *Orchestrator) GetScenarios() []*MaintenanceScenario {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
-	
+
 	scenarios := make([]*MaintenanceScenario, 0, len(o.scenarios))
 	for _, scenario := range o.scenarios {
 		scenarios = append(scenarios, scenario)
@@ -41,7 +41,7 @@ func (o *Orchestrator) GetScenarios() []*MaintenanceScenario {
 func (o *Orchestrator) GetScenario(id string) (*MaintenanceScenario, bool) {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
-	
+
 	scenario, exists := o.scenarios[id]
 	return scenario, exists
 }
@@ -49,51 +49,51 @@ func (o *Orchestrator) GetScenario(id string) (*MaintenanceScenario, bool) {
 func (o *Orchestrator) ActivateScenario(id string) bool {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	
+
 	scenario, exists := o.scenarios[id]
 	if !exists {
 		return false
 	}
-	
+
 	scenario.IsActive = true
 	now := time.Now()
 	scenario.LastActive = &now
-	
+
 	o.activityLog = append(o.activityLog, ActivityEntry{
 		Timestamp: now,
 		Action:    "activate",
 		Scenario:  id,
 		Success:   true,
 	})
-	
+
 	return true
 }
 
 func (o *Orchestrator) DeactivateScenario(id string) bool {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	
+
 	scenario, exists := o.scenarios[id]
 	if !exists {
 		return false
 	}
-	
+
 	scenario.IsActive = false
-	
+
 	o.activityLog = append(o.activityLog, ActivityEntry{
 		Timestamp: time.Now(),
 		Action:    "deactivate",
 		Scenario:  id,
 		Success:   true,
 	})
-	
+
 	return true
 }
 
 func (o *Orchestrator) GetPresets() []*Preset {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
-	
+
 	presets := make([]*Preset, 0, len(o.presets))
 	for _, preset := range o.presets {
 		presets = append(presets, preset)
@@ -104,7 +104,7 @@ func (o *Orchestrator) GetPresets() []*Preset {
 func (o *Orchestrator) GetPreset(id string) (*Preset, bool) {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
-	
+
 	preset, exists := o.presets[id]
 	return preset, exists
 }
@@ -112,45 +112,45 @@ func (o *Orchestrator) GetPreset(id string) (*Preset, bool) {
 func (o *Orchestrator) ApplyPreset(presetID string) ([]string, []string, bool) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	
+
 	preset, exists := o.presets[presetID]
 	if !exists {
 		return nil, nil, false
 	}
-	
+
 	// Toggle preset active state
 	preset.IsActive = !preset.IsActive
-	
+
 	// Apply the union of all active presets to scenarios
 	activated, deactivated := o.applyPresetUnion()
-	
+
 	action := "activate-preset"
 	if !preset.IsActive {
 		action = "deactivate-preset"
 	}
-	
+
 	o.activityLog = append(o.activityLog, ActivityEntry{
 		Timestamp: time.Now(),
 		Action:    action,
 		Preset:    presetID,
 		Success:   true,
-		Message:   fmt.Sprintf("Preset %s, Scenarios changed: %d activated, %d deactivated", 
+		Message: fmt.Sprintf("Preset %s, Scenarios changed: %d activated, %d deactivated",
 			map[bool]string{true: "activated", false: "deactivated"}[preset.IsActive],
 			len(activated), len(deactivated)),
 	})
-	
+
 	return activated, deactivated, true
 }
 
 func (o *Orchestrator) StopAll() []string {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	
+
 	// Deactivate all presets first
 	for _, preset := range o.presets {
 		preset.IsActive = false
 	}
-	
+
 	// Deactivate all scenarios
 	deactivated := make([]string, 0)
 	for scenarioID, scenario := range o.scenarios {
@@ -159,40 +159,40 @@ func (o *Orchestrator) StopAll() []string {
 			deactivated = append(deactivated, scenarioID)
 		}
 	}
-	
+
 	o.activityLog = append(o.activityLog, ActivityEntry{
 		Timestamp: time.Now(),
 		Action:    "stop-all",
 		Success:   true,
 		Message:   fmt.Sprintf("Deactivated all presets and %d scenarios", len(deactivated)),
 	})
-	
+
 	return deactivated
 }
 
 func (o *Orchestrator) GetStatus() (int, int, []ActivityEntry) {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
-	
+
 	activeCount := 0
 	for _, scenario := range o.scenarios {
 		if scenario.IsActive {
 			activeCount++
 		}
 	}
-	
+
 	recentActivity := o.activityLog
 	if len(recentActivity) > 10 {
 		recentActivity = o.activityLog[len(o.activityLog)-10:]
 	}
-	
+
 	return len(o.scenarios), activeCount, recentActivity
 }
 
 func (o *Orchestrator) UpdatePresetStates() {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	
+
 	for _, preset := range o.presets {
 		for scenarioID, scenario := range o.scenarios {
 			if preset.Pattern == "*" {
@@ -216,7 +216,7 @@ func (o *Orchestrator) UpdatePresetStates() {
 func (o *Orchestrator) applyPresetUnion() ([]string, []string) {
 	// Calculate which scenarios should be active based on the union of all active presets
 	shouldBeActive := make(map[string]bool)
-	
+
 	for _, preset := range o.presets {
 		if preset.IsActive {
 			for scenarioID, active := range preset.States {
@@ -226,10 +226,10 @@ func (o *Orchestrator) applyPresetUnion() ([]string, []string) {
 			}
 		}
 	}
-	
+
 	activated := make([]string, 0)
 	deactivated := make([]string, 0)
-	
+
 	// Update scenarios based on union
 	for scenarioID, scenario := range o.scenarios {
 		if shouldBeActive[scenarioID] && !scenario.IsActive {
@@ -242,7 +242,7 @@ func (o *Orchestrator) applyPresetUnion() ([]string, []string) {
 			deactivated = append(deactivated, scenarioID)
 		}
 	}
-	
+
 	return activated, deactivated
 }
 
@@ -250,7 +250,7 @@ func (o *Orchestrator) applyPresetUnion() ([]string, []string) {
 func (o *Orchestrator) GetActivePresets() []*Preset {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
-	
+
 	activePresets := make([]*Preset, 0)
 	for _, preset := range o.presets {
 		if preset.IsActive {
@@ -264,7 +264,7 @@ func (o *Orchestrator) GetActivePresets() []*Preset {
 func (o *Orchestrator) IsPresetActive(presetID string) bool {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
-	
+
 	preset, exists := o.presets[presetID]
 	if !exists {
 		return false

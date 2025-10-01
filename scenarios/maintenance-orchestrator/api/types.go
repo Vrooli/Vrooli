@@ -3,15 +3,15 @@ package main
 import "time"
 
 type MaintenanceScenario struct {
-	ID            string            `json:"id"`
-	Name          string            `json:"name"`
-	DisplayName   string            `json:"displayName"`
-	Description   string            `json:"description"`
-	IsActive      bool              `json:"isActive"`
-	Endpoint      string            `json:"endpoint"`
-	Port          int               `json:"port"`
-	Tags          []string          `json:"tags"`
-	LastActive    *time.Time        `json:"lastActive,omitempty"`
+	ID            string             `json:"id"`
+	Name          string             `json:"name"`
+	DisplayName   string             `json:"displayName"`
+	Description   string             `json:"description"`
+	IsActive      bool               `json:"isActive"`
+	Endpoint      string             `json:"endpoint"`
+	Port          int                `json:"port"`
+	Tags          []string           `json:"tags"`
+	LastActive    *time.Time         `json:"lastActive,omitempty"`
 	ResourceUsage map[string]float64 `json:"resourceUsage,omitempty"`
 }
 

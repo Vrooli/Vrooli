@@ -19,7 +19,7 @@ import (
 func handleGetScenarios(orchestrator *Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		scenarios := orchestrator.GetScenarios()
-		
+
 		// Convert to a clean response format
 		result := make([]map[string]interface{}, 0, len(scenarios))
 		for _, s := range scenarios {
@@ -41,7 +41,7 @@ func handleGetScenarios(orchestrator *Orchestrator) http.HandlerFunc {
 			}
 			result = append(result, scenarioMap)
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"scenarios": result,
@@ -108,7 +108,7 @@ func handleDeactivateScenario(orchestrator *Orchestrator) http.HandlerFunc {
 func handleGetPresets(orchestrator *Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		presets := orchestrator.GetPresets()
-		
+
 		// Convert to a clean response format
 		result := make([]map[string]interface{}, 0, len(presets))
 		for _, p := range presets {
@@ -124,7 +124,7 @@ func handleGetPresets(orchestrator *Orchestrator) http.HandlerFunc {
 			}
 			result = append(result, presetMap)
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"presets": result,
@@ -135,7 +135,7 @@ func handleGetPresets(orchestrator *Orchestrator) http.HandlerFunc {
 func handleGetActivePresets(orchestrator *Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		activePresets := orchestrator.GetActivePresets()
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"activePresets": activePresets,
@@ -203,29 +203,29 @@ func handleGetStatus(orchestrator *Orchestrator, startTime time.Time) http.Handl
 func healthHandler(startTime time.Time) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		overallStatus := "healthy"
-		
+
 		// Schema-compliant health response
 		healthResponse := map[string]interface{}{
-			"status":    overallStatus,
-			"service":   serviceName,
-			"timestamp": time.Now().UTC().Format(time.RFC3339),
-			"readiness": true, // Service is ready to accept requests
-			"version":   apiVersion,
+			"status":       overallStatus,
+			"service":      serviceName,
+			"timestamp":    time.Now().UTC().Format(time.RFC3339),
+			"readiness":    true, // Service is ready to accept requests
+			"version":      apiVersion,
 			"dependencies": map[string]interface{}{},
 			"metrics": map[string]interface{}{
 				"uptime_seconds": time.Since(startTime).Seconds(),
 			},
 		}
-		
+
 		dependencies := healthResponse["dependencies"].(map[string]interface{})
-		
+
 		// 1. Check scenario discovery capability (critical for orchestrator)
 		discoveryHealth := checkScenarioDiscovery()
 		dependencies["scenario_discovery"] = discoveryHealth
 		if discoveryHealth["connected"] == false {
 			overallStatus = "unhealthy" // Discovery is critical
 		}
-		
+
 		// 2. Check preset management system
 		presetHealth := checkPresetManagement()
 		dependencies["preset_management"] = presetHealth
@@ -234,7 +234,7 @@ func healthHandler(startTime time.Time) http.HandlerFunc {
 				overallStatus = "degraded"
 			}
 		}
-		
+
 		// 3. Check scenario state management
 		stateHealth := checkScenarioStateManagement()
 		dependencies["state_management"] = stateHealth
@@ -243,7 +243,7 @@ func healthHandler(startTime time.Time) http.HandlerFunc {
 				overallStatus = "degraded"
 			}
 		}
-		
+
 		// 4. Check filesystem access for scenario management
 		filesystemHealth := checkFilesystemAccess()
 		dependencies["filesystem"] = filesystemHealth
@@ -252,10 +252,10 @@ func healthHandler(startTime time.Time) http.HandlerFunc {
 				overallStatus = "degraded"
 			}
 		}
-		
+
 		// Update overall status
 		healthResponse["status"] = overallStatus
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(healthResponse)
 	}
@@ -267,7 +267,7 @@ func checkScenarioDiscovery() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	// Check if we can access scenarios directory
 	scenariosDir := "scenarios"
 	if _, err := os.Stat(scenariosDir); err != nil {
@@ -279,7 +279,7 @@ func checkScenarioDiscovery() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Try to read directory contents
 	entries, err := ioutil.ReadDir(scenariosDir)
 	if err != nil {
@@ -291,7 +291,7 @@ func checkScenarioDiscovery() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Count valid scenario directories (those with Makefile)
 	validScenarios := 0
 	for _, entry := range entries {
@@ -302,11 +302,11 @@ func checkScenarioDiscovery() map[string]interface{} {
 			}
 		}
 	}
-	
+
 	result["connected"] = true
 	result["total_directories"] = len(entries)
 	result["valid_scenarios"] = validScenarios
-	
+
 	return result
 }
 
@@ -316,11 +316,11 @@ func checkPresetManagement() map[string]interface{} {
 		"connected": true,
 		"error":     nil,
 	}
-	
+
 	// Simple check - just return that presets are available
 	// Avoid creating new orchestrators which might cause deadlocks
 	result["available_presets"] = 0
-	
+
 	return result
 }
 
@@ -330,12 +330,12 @@ func checkScenarioStateManagement() map[string]interface{} {
 		"connected": true,
 		"error":     nil,
 	}
-	
+
 	// Simple check - avoid creating new orchestrators
 	result["active_scenarios"] = 0
 	result["inactive_scenarios"] = 0
 	result["total_scenarios"] = 0
-	
+
 	return result
 }
 
@@ -345,7 +345,7 @@ func checkScenarioStateManagement_OLD() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	// Test scenario state tracking
 	tempOrchestrator := NewOrchestrator()
 	if tempOrchestrator == nil {
@@ -357,7 +357,7 @@ func checkScenarioStateManagement_OLD() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Test getting scenario states
 	scenarios := tempOrchestrator.GetScenarios()
 	if scenarios == nil {
@@ -369,7 +369,7 @@ func checkScenarioStateManagement_OLD() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Count active/inactive scenarios
 	activeCount := 0
 	for _, scenario := range scenarios {
@@ -377,12 +377,12 @@ func checkScenarioStateManagement_OLD() map[string]interface{} {
 			activeCount++
 		}
 	}
-	
+
 	result["connected"] = true
 	result["total_scenarios"] = len(scenarios)
 	result["active_scenarios"] = activeCount
 	result["inactive_scenarios"] = len(scenarios) - activeCount
-	
+
 	return result
 }
 
@@ -392,11 +392,11 @@ func checkFilesystemAccess() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	// Test write access in working directory
 	testFile := ".maintenance_orchestrator_health_test"
 	testContent := fmt.Sprintf("Health check test at %s", time.Now().Format(time.RFC3339))
-	
+
 	err := ioutil.WriteFile(testFile, []byte(testContent), 0644)
 	if err != nil {
 		result["error"] = map[string]interface{}{
@@ -407,7 +407,7 @@ func checkFilesystemAccess() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Test read access
 	_, err = ioutil.ReadFile(testFile)
 	if err != nil {
@@ -419,22 +419,22 @@ func checkFilesystemAccess() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Test delete access
 	err = os.Remove(testFile)
 	if err != nil {
 		log.Printf("Warning: Could not clean up test file %s: %v", testFile, err)
 		// Don't fail the health check for cleanup failure
 	}
-	
+
 	// Get working directory info
 	cwd, _ := os.Getwd()
-	
+
 	result["connected"] = true
 	result["working_directory"] = cwd
 	result["write_access"] = true
 	result["read_access"] = true
-	
+
 	return result
 }
 
@@ -463,21 +463,20 @@ func handleStopAll(orchestrator *Orchestrator) http.HandlerFunc {
 	}
 }
 
-
 func notifyScenarioStateChange(endpoint, state string) {
 	client := &http.Client{Timeout: 5 * time.Second}
-	
+
 	payload := map[string]string{"maintenanceState": state}
 	data, _ := json.Marshal(payload)
-	
+
 	req, err := http.NewRequest("POST", endpoint+"/api/maintenance/state", strings.NewReader(string(data)))
 	if err != nil {
 		log.Printf("Error creating request for %s: %v", endpoint, err)
 		return
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("Error notifying %s of state change: %v", endpoint, err)
@@ -491,16 +490,16 @@ func handleStartScenario() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		scenarioID := vars["id"]
-		
+
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		
+
 		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "start", scenarioID)
 		var out bytes.Buffer
 		var stderr bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &stderr
-		
+
 		err := cmd.Run()
 		if err != nil {
 			log.Printf("Error starting scenario %s: %v, stderr: %s", scenarioID, err, stderr.String())
@@ -511,7 +510,7 @@ func handleStartScenario() http.HandlerFunc {
 			})
 			return
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":  true,
@@ -527,16 +526,16 @@ func handleStopScenario() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		scenarioID := vars["id"]
-		
+
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		
+
 		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "stop", scenarioID)
 		var out bytes.Buffer
 		var stderr bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &stderr
-		
+
 		err := cmd.Run()
 		if err != nil {
 			log.Printf("Error stopping scenario %s: %v, stderr: %s", scenarioID, err, stderr.String())
@@ -547,7 +546,7 @@ func handleStopScenario() http.HandlerFunc {
 			})
 			return
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":  true,
@@ -567,7 +566,7 @@ func handleGetScenarioStatuses() http.HandlerFunc {
 		var stderr bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &stderr
-		
+
 		err := cmd.Run()
 		if err != nil {
 			// Log error but don't fail - return empty statuses
@@ -578,7 +577,7 @@ func handleGetScenarioStatuses() http.HandlerFunc {
 			})
 			return
 		}
-		
+
 		// Parse the JSON output
 		var statusData map[string]interface{}
 		if err := json.Unmarshal(out.Bytes(), &statusData); err != nil {
@@ -589,7 +588,7 @@ func handleGetScenarioStatuses() http.HandlerFunc {
 			})
 			return
 		}
-		
+
 		// Extract scenarios from the status data
 		statuses := make(map[string]interface{})
 		if scenarios, ok := statusData["scenarios"].([]interface{}); ok {
@@ -598,7 +597,7 @@ func handleGetScenarioStatuses() http.HandlerFunc {
 					if name, ok := s["name"].(string); ok {
 						status := "stopped"
 						processCount := 0
-						
+
 						if statusStr, ok := s["status"].(string); ok {
 							if statusStr == "running" || statusStr == "RUNNING" {
 								status = "running"
@@ -606,12 +605,12 @@ func handleGetScenarioStatuses() http.HandlerFunc {
 								status = "error"
 							}
 						}
-						
+
 						// Check for "processes" field (actual field name in JSON)
 						if procs, ok := s["processes"].(float64); ok {
 							processCount = int(procs)
 						}
-						
+
 						statuses[name] = map[string]interface{}{
 							"status":       status,
 							"processCount": processCount,
@@ -620,7 +619,7 @@ func handleGetScenarioStatuses() http.HandlerFunc {
 				}
 			}
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"statuses": statuses,
@@ -636,14 +635,14 @@ func handleListAllScenarios() http.HandlerFunc {
 		var stderr bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &stderr
-		
+
 		err := cmd.Run()
 		if err != nil {
 			log.Printf("Error listing scenarios: %v, stderr: %s", err, stderr.String())
 			http.Error(w, "Failed to list scenarios", http.StatusInternalServerError)
 			return
 		}
-		
+
 		// Parse the JSON output
 		var listData map[string]interface{}
 		if err := json.Unmarshal(out.Bytes(), &listData); err != nil {
@@ -651,23 +650,23 @@ func handleListAllScenarios() http.HandlerFunc {
 			http.Error(w, "Failed to parse scenario list", http.StatusInternalServerError)
 			return
 		}
-		
+
 		// Extract scenarios and their tags
 		allScenarios := []map[string]interface{}{}
 		if scenarios, ok := listData["scenarios"].([]interface{}); ok {
 			for _, scenario := range scenarios {
 				if s, ok := scenario.(map[string]interface{}); ok {
 					scenarioInfo := map[string]interface{}{
-						"name": s["name"],
+						"name":        s["name"],
 						"displayName": s["displayName"],
 						"description": s["description"],
-						"tags": s["tags"],
+						"tags":        s["tags"],
 					}
 					allScenarios = append(allScenarios, scenarioInfo)
 				}
 			}
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"scenarios": allScenarios,
@@ -680,7 +679,7 @@ func handleAddMaintenanceTag() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		scenarioName := vars["name"]
-		
+
 		// Read the service.json file
 		servicePath := fmt.Sprintf("scenarios/%s/.vrooli/service.json", scenarioName)
 		data, err := ioutil.ReadFile(servicePath)
@@ -689,27 +688,27 @@ func handleAddMaintenanceTag() http.HandlerFunc {
 			http.Error(w, "Failed to read service configuration", http.StatusInternalServerError)
 			return
 		}
-		
+
 		var service map[string]interface{}
 		if err := json.Unmarshal(data, &service); err != nil {
 			log.Printf("Error parsing service.json for %s: %v", scenarioName, err)
 			http.Error(w, "Failed to parse service configuration", http.StatusInternalServerError)
 			return
 		}
-		
+
 		// Get or create service object
 		serviceData, ok := service["service"].(map[string]interface{})
 		if !ok {
 			serviceData = make(map[string]interface{})
 			service["service"] = serviceData
 		}
-		
+
 		// Get or create tags array
 		tags := []interface{}{}
 		if existingTags, ok := serviceData["tags"].([]interface{}); ok {
 			tags = existingTags
 		}
-		
+
 		// Check if maintenance tag already exists
 		hasMaintenanceTag := false
 		for _, tag := range tags {
@@ -718,11 +717,11 @@ func handleAddMaintenanceTag() http.HandlerFunc {
 				break
 			}
 		}
-		
+
 		if !hasMaintenanceTag {
 			tags = append(tags, "maintenance")
 			serviceData["tags"] = tags
-			
+
 			// Write back the modified service.json
 			modifiedData, err := json.MarshalIndent(service, "", "  ")
 			if err != nil {
@@ -730,14 +729,14 @@ func handleAddMaintenanceTag() http.HandlerFunc {
 				http.Error(w, "Failed to update service configuration", http.StatusInternalServerError)
 				return
 			}
-			
+
 			if err := ioutil.WriteFile(servicePath, modifiedData, 0644); err != nil {
 				log.Printf("Error writing service.json for %s: %v", scenarioName, err)
 				http.Error(w, "Failed to save service configuration", http.StatusInternalServerError)
 				return
 			}
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
@@ -751,7 +750,7 @@ func handleRemoveMaintenanceTag() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		scenarioName := vars["name"]
-		
+
 		// Read the service.json file
 		servicePath := fmt.Sprintf("scenarios/%s/.vrooli/service.json", scenarioName)
 		data, err := ioutil.ReadFile(servicePath)
@@ -760,14 +759,14 @@ func handleRemoveMaintenanceTag() http.HandlerFunc {
 			http.Error(w, "Failed to read service configuration", http.StatusInternalServerError)
 			return
 		}
-		
+
 		var service map[string]interface{}
 		if err := json.Unmarshal(data, &service); err != nil {
 			log.Printf("Error parsing service.json for %s: %v", scenarioName, err)
 			http.Error(w, "Failed to parse service configuration", http.StatusInternalServerError)
 			return
 		}
-		
+
 		// Get service object
 		serviceData, ok := service["service"].(map[string]interface{})
 		if !ok {
@@ -779,7 +778,7 @@ func handleRemoveMaintenanceTag() http.HandlerFunc {
 			})
 			return
 		}
-		
+
 		// Get tags array
 		if existingTags, ok := serviceData["tags"].([]interface{}); ok {
 			newTags := []interface{}{}
@@ -788,9 +787,9 @@ func handleRemoveMaintenanceTag() http.HandlerFunc {
 					newTags = append(newTags, tag)
 				}
 			}
-			
+
 			serviceData["tags"] = newTags
-			
+
 			// Write back the modified service.json
 			modifiedData, err := json.MarshalIndent(service, "", "  ")
 			if err != nil {
@@ -798,14 +797,14 @@ func handleRemoveMaintenanceTag() http.HandlerFunc {
 				http.Error(w, "Failed to update service configuration", http.StatusInternalServerError)
 				return
 			}
-			
+
 			if err := ioutil.WriteFile(servicePath, modifiedData, 0644); err != nil {
 				log.Printf("Error writing service.json for %s: %v", scenarioName, err)
 				http.Error(w, "Failed to save service configuration", http.StatusInternalServerError)
 				return
 			}
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
@@ -819,10 +818,10 @@ func handleGetScenarioPresetAssignments(orchestrator *Orchestrator) http.Handler
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		scenarioName := vars["name"]
-		
+
 		assignments := make(map[string]bool)
 		presets := orchestrator.GetPresets()
-		
+
 		// Check which presets include this scenario
 		for _, preset := range presets {
 			if preset.States != nil {
@@ -831,7 +830,7 @@ func handleGetScenarioPresetAssignments(orchestrator *Orchestrator) http.Handler
 				}
 			}
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"assignments": assignments,
@@ -845,37 +844,37 @@ func handleGetScenarioPort() http.HandlerFunc {
 		vars := mux.Vars(r)
 		scenarioName := vars["name"]
 		portType := r.URL.Query().Get("type")
-		
+
 		// Default to UI_PORT if not specified
 		if portType == "" {
 			portType = "UI_PORT"
 		}
-		
+
 		// Run vrooli scenario port command with timeout
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		
+
 		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", scenarioName, portType)
 		var out bytes.Buffer
 		var stderr bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &stderr
-		
+
 		err := cmd.Run()
 		if err != nil {
 			// Scenario might not be running or might not have the requested port
 			log.Printf("Error getting port for %s/%s: %v, stderr: %s", scenarioName, portType, err, stderr.String())
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"port": nil,
+				"port":  nil,
 				"error": "Port not available",
 			})
 			return
 		}
-		
+
 		// Parse the port number
 		portStr := strings.TrimSpace(out.String())
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"port": portStr,
@@ -889,31 +888,31 @@ func handleUpdateScenarioPresetAssignments(orchestrator *Orchestrator) http.Hand
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		scenarioName := vars["name"]
-		
+
 		var requestData struct {
 			Assignments map[string]bool `json:"assignments"`
 		}
-		
+
 		if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
-		
+
 		// Update all presets to reflect the new assignments
 		presets := orchestrator.GetPresets()
-		
+
 		// Create a map for easier lookup
 		presetMap := make(map[string]*Preset)
 		for _, preset := range presets {
 			presetMap[preset.ID] = preset
 		}
-		
+
 		for presetID, shouldInclude := range requestData.Assignments {
 			if preset, exists := presetMap[presetID]; exists {
 				if preset.States == nil {
 					preset.States = make(map[string]bool)
 				}
-				
+
 				if shouldInclude {
 					// Add scenario to this preset (set to true for activation)
 					preset.States[scenarioName] = true
@@ -923,7 +922,7 @@ func handleUpdateScenarioPresetAssignments(orchestrator *Orchestrator) http.Hand
 				}
 			}
 		}
-		
+
 		// Also handle presets not mentioned in the request (remove scenario from them)
 		for _, preset := range presets {
 			if _, mentioned := requestData.Assignments[preset.ID]; !mentioned {
@@ -932,7 +931,7 @@ func handleUpdateScenarioPresetAssignments(orchestrator *Orchestrator) http.Hand
 				}
 			}
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,

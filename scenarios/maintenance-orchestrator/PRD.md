@@ -22,12 +22,12 @@ Agents gain awareness of maintenance windows, can coordinate maintenance activit
 
 ### Functional Requirements
 - **Must Have (P0)**
-  - [ ] Discovery of all maintenance scenarios via "maintenance" tag in service.json
-  - [ ] API endpoints for activate/deactivate individual maintenance scenarios
-  - [ ] All maintenance scenarios start in inactive state by default
-  - [ ] Status endpoint showing current state of all maintenance scenarios
-  - [ ] Basic UI dashboard with toggle switches for each scenario
-  - [ ] At least 3 default presets (Full Maintenance, Security Only, Off Hours)
+  - [x] Discovery of all maintenance scenarios via "maintenance" tag in service.json (Validated: 10 scenarios discovered)
+  - [x] API endpoints for activate/deactivate individual maintenance scenarios (Validated: Both endpoints functional)
+  - [x] All maintenance scenarios start in inactive state by default (Validated: All scenarios start inactive)
+  - [x] Status endpoint showing current state of all maintenance scenarios (Validated: /api/v1/status working)
+  - [x] Basic UI dashboard with toggle switches for each scenario (Validated: UI accessible at port 37116)
+  - [x] At least 3 default presets (Full Maintenance, Security Only, Off Hours) (Validated: 7 presets available)
   
 - **Should Have (P1)**
   - [ ] Custom preset creation and management

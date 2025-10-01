@@ -22,15 +22,20 @@ Think of it as "mission control" for system maintenance - you decide exactly wha
 ```bash
 # Start the orchestrator
 vrooli scenario run maintenance-orchestrator
+# Or using Make:
+cd scenarios/maintenance-orchestrator && make run
+
+# Access the UI dashboard (port shown in startup logs)
+# The UI will display at http://localhost:371XX
 
 # List all maintenance scenarios
 maintenance-orchestrator list
 
 # Activate a specific scenario
-maintenance-orchestrator activate dependency-updater
+maintenance-orchestrator activate code-smell
 
 # Apply a preset
-maintenance-orchestrator preset apply security-only
+maintenance-orchestrator preset apply full
 
 # Check status
 maintenance-orchestrator status --json
@@ -41,11 +46,8 @@ maintenance-orchestrator status --json
 ### 1. Full Maintenance
 Activates all maintenance scenarios - use with caution!
 
-### 2. Security Only  
-Activates only security-related maintenance:
-- dependency-scanner
-- vulnerability-checker
-- security-audit
+### 2. Security
+Security-related maintenance scenarios
 
 ### 3. Performance
 Optimization and monitoring scenarios:

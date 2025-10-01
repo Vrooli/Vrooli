@@ -30,30 +30,46 @@ function initializeMap() {
 }
 
 // Add markers for foliage regions
-function addFoliageMarkers() {
-    sampleRegions.forEach(region => {
-        const color = getColorForStatus(region.status);
-        const marker = L.circleMarker([region.lat, region.lng], {
-            radius: 10 + region.intensity,
-            fillColor: color,
-            color: '#4a3c2a',
-            weight: 2,
-            opacity: 1,
-            fillOpacity: 0.7
-        }).addTo(map);
-        
-        marker.bindPopup(`
-            <div class="popup-content">
-                <h3>${region.name}</h3>
-                <p>${region.state}</p>
-                <p><strong>Status:</strong> ${formatStatus(region.status)}</p>
-                <p><strong>Color Intensity:</strong> ${region.intensity}/10</p>
-                <button onclick="showRegionDetails(${region.id})">View Details</button>
-            </div>
-        `);
-        
-        markers.push(marker);
-    });
+async function addFoliageMarkers() {
+    // Use real data from API if available, otherwise use empty array
+    const regions = regionsData.length > 0 ? regionsData : [];
+
+    // Fetch current foliage status for each region
+    for (const region of regions) {
+        try {
+            const foliageResponse = await fetch(`${API_BASE}/api/foliage?region_id=${region.id}`);
+            const foliageData = await foliageResponse.json();
+
+            const status = foliageData.data?.peak_status || 'not_started';
+            const intensity = foliageData.data?.color_intensity || 0;
+
+            const color = getColorForStatus(status);
+            const marker = L.circleMarker([region.latitude, region.longitude], {
+                radius: 10 + intensity,
+                fillColor: color,
+                color: '#4a3c2a',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.7
+            }).addTo(map);
+
+            marker.bindPopup(`
+                <div class="popup-content">
+                    <h3>${region.name}</h3>
+                    <p>${region.state}</p>
+                    <p><strong>Status:</strong> ${formatStatus(status)}</p>
+                    <p><strong>Color Intensity:</strong> ${intensity}/10</p>
+                    <button onclick="showRegionDetails(${region.id})">View Details</button>
+                </div>
+            `);
+
+            // Store status and intensity on marker for later updates
+            marker.regionData = { id: region.id, status, intensity };
+            markers.push(marker);
+        } catch (err) {
+            console.error(`Failed to load foliage data for region ${region.id}:`, err);
+        }
+    }
 }
 
 // Get color based on foliage status
@@ -147,12 +163,14 @@ function updateTimeSlider() {
 function updateMarkersForDate(date) {
     // Simulate changing foliage based on date
     const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
-    
-    markers.forEach((marker, index) => {
-        const region = sampleRegions[index];
-        const peakDay = 270 + (index * 5); // Stagger peak days
+
+    markers.forEach((marker) => {
+        if (!marker.regionData) return;
+
+        // Use typical peak week from region data if available
+        const peakDay = 270 + (marker.regionData.id * 5); // Stagger based on region ID
         const dayDiff = Math.abs(dayOfYear - peakDay);
-        
+
         let status, intensity;
         if (dayDiff > 30) {
             status = 'not_started';
@@ -167,7 +185,7 @@ function updateMarkersForDate(date) {
             status = 'peak';
             intensity = 10;
         }
-        
+
         const color = getColorForStatus(status);
         marker.setStyle({ fillColor: color });
         marker.setRadius(10 + intensity);
@@ -201,42 +219,50 @@ function loadTimeline() {
 
 // Get regions for a specific week
 function getRegionsForWeek(weekIndex) {
-    // Simulate which regions peak in which weeks
-    const weekRegions = [
-        [], // Sep Week 1
-        [], // Sep Week 2
-        [sampleRegions[5]], // Sep Week 3
-        [sampleRegions[2]], // Sep Week 4
-        [sampleRegions[0], sampleRegions[1]], // Oct Week 1
-        [sampleRegions[3]], // Oct Week 2
-        [sampleRegions[4]], // Oct Week 3
-        [], // Oct Week 4
-    ];
-    return weekRegions[weekIndex] || [];
+    // Use real regions data if available
+    if (regionsData.length === 0) return [];
+
+    // Simulate which regions peak in which weeks based on typical_peak_week
+    return regionsData.filter(region => {
+        const peakWeek = region.typical_peak_week || 40;
+        const weekNumber = 35 + weekIndex; // Sep Week 1 = week 35
+        return Math.abs(peakWeek - weekNumber) <= 1;
+    });
 }
 
 // Load regions grid
-function loadRegionsGrid() {
+async function loadRegionsGrid() {
     const grid = document.getElementById('regions-grid');
     grid.innerHTML = '';
-    
-    sampleRegions.forEach(region => {
-        const card = document.createElement('div');
-        card.className = 'region-card';
-        card.innerHTML = `
-            <div class="region-image"></div>
-            <div class="region-info">
-                <div class="region-name">${region.name}</div>
-                <div class="region-state">${region.state}</div>
-                <span class="region-status status-${region.status}">${formatStatus(region.status)}</span>
-                <div style="margin-top: 1rem;">
-                    <div>Color Intensity: ${region.intensity}/10</div>
+
+    for (const region of regionsData) {
+        try {
+            // Fetch current foliage status
+            const foliageResponse = await fetch(`${API_BASE}/api/foliage?region_id=${region.id}`);
+            const foliageData = await foliageResponse.json();
+
+            const status = foliageData.data?.peak_status || 'not_started';
+            const intensity = foliageData.data?.color_intensity || 0;
+
+            const card = document.createElement('div');
+            card.className = 'region-card';
+            card.innerHTML = `
+                <div class="region-image"></div>
+                <div class="region-info">
+                    <div class="region-name">${region.name}</div>
+                    <div class="region-state">${region.state}</div>
+                    <span class="region-status status-${status}">${formatStatus(status)}</span>
+                    <div style="margin-top: 1rem;">
+                        <div>Color Intensity: ${intensity}/10</div>
+                    </div>
                 </div>
-            </div>
-        `;
-        card.addEventListener('click', () => showRegionDetails(region.id));
-        grid.appendChild(card);
-    });
+            `;
+            card.addEventListener('click', () => showRegionDetails(region.id));
+            grid.appendChild(card);
+        } catch (err) {
+            console.error(`Failed to load region ${region.id}:`, err);
+        }
+    }
 }
 
 // Load regions
@@ -279,14 +305,14 @@ function clearMarkers() {
 function loadPlannerRegions() {
     const selector = document.getElementById('region-selector');
     selector.innerHTML = '';
-    
-    sampleRegions.forEach(region => {
+
+    regionsData.forEach(region => {
         const checkbox = document.createElement('div');
         checkbox.className = 'region-checkbox';
         checkbox.innerHTML = `
             <label>
                 <input type="checkbox" value="${region.id}">
-                ${region.name}
+                ${region.name}, ${region.state}
             </label>
         `;
         selector.appendChild(checkbox);
@@ -334,37 +360,49 @@ function displaySavedTrips() {
 }
 
 // Show region details
-function showRegionDetails(regionId) {
-    const region = sampleRegions.find(r => r.id === regionId);
+async function showRegionDetails(regionId) {
+    const region = regionsData.find(r => r.id === regionId);
     if (!region) return;
-    
+
     const panel = document.getElementById('info-panel');
     const content = document.getElementById('info-content');
-    
-    content.innerHTML = `
-        <div style="margin-top: 1rem;">
-            <p><strong>Location:</strong> ${region.name}, ${region.state}</p>
-            <p><strong>Current Status:</strong> ${formatStatus(region.status)}</p>
-            <p><strong>Color Intensity:</strong> ${region.intensity}/10</p>
-            <p><strong>Coordinates:</strong> ${region.lat.toFixed(4)}, ${region.lng.toFixed(4)}</p>
-            
-            <div style="margin-top: 1.5rem;">
-                <h4>Forecast</h4>
-                <p>Peak Expected: October 15, 2025</p>
-                <p>Confidence: 85%</p>
+
+    try {
+        // Fetch current foliage status
+        const foliageResponse = await fetch(`${API_BASE}/api/foliage?region_id=${regionId}`);
+        const foliageData = await foliageResponse.json();
+
+        const status = foliageData.data?.peak_status || 'not_started';
+        const intensity = foliageData.data?.color_intensity || 0;
+
+        content.innerHTML = `
+            <div style="margin-top: 1rem;">
+                <p><strong>Location:</strong> ${region.name}, ${region.state}</p>
+                <p><strong>Current Status:</strong> ${formatStatus(status)}</p>
+                <p><strong>Color Intensity:</strong> ${intensity}/10</p>
+                <p><strong>Coordinates:</strong> ${region.latitude.toFixed(4)}, ${region.longitude.toFixed(4)}</p>
+                <p><strong>Elevation:</strong> ${region.elevation_meters || 'N/A'} meters</p>
+
+                <div style="margin-top: 1.5rem;">
+                    <h4>Forecast</h4>
+                    <p>Peak Expected: Week ${region.typical_peak_week || 40} of year</p>
+                    <p>Confidence: 85%</p>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <h4>Weather Conditions</h4>
+                    <p>Temperature: 52°F / 11°C</p>
+                    <p>Recent Rainfall: Moderate</p>
+                    <p>Night Temps: Optimal for color</p>
+                </div>
             </div>
-            
-            <div style="margin-top: 1.5rem;">
-                <h4>Weather Conditions</h4>
-                <p>Temperature: 52°F / 11°C</p>
-                <p>Recent Rainfall: Moderate</p>
-                <p>Night Temps: Optimal for color</p>
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('info-title').textContent = region.name;
-    panel.classList.add('open');
+        `;
+
+        document.getElementById('info-title').textContent = region.name;
+        panel.classList.add('open');
+    } catch (err) {
+        console.error(`Failed to show region details for ${regionId}:`, err);
+    }
 }
 
 // Close info panel

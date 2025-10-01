@@ -3,11 +3,105 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
 
 const app = express();
+app.set('trust proxy', true);
 
-// Get port from environment variable (set by lifecycle system)
-const port = process.env.UI_PORT || 3251;
+const allowedHosts = new Set([
+    'localhost',
+    '127.0.0.1',
+    '[::1]',
+    '::1',
+    'maintenance-orchestrator.itsagitime.com'
+]);
+
+app.use((req, res, next) => {
+    const hostHeader = req.headers.host;
+    if (!hostHeader) {
+        return next();
+    }
+
+    const hostname = hostHeader.replace(/:\d+$/, '').toLowerCase();
+    if (allowedHosts.has(hostname)) {
+        return next();
+    }
+
+    res.status(403).send(
+        `Blocked request. This host ("${hostname}") is not allowed. ` +
+        `To allow it, add the hostname to the allowedHosts set in server.js.`
+    );
+});
+
+const port = Number(process.env.UI_PORT) || 3251;
+const API_PORT = process.env.API_PORT;
+const PROXY_ROOT = '/proxy';
+const PROXY_API_PREFIX = `${PROXY_ROOT}/api`;
+const PROXY_API_BASE = `${PROXY_API_PREFIX}/v1`;
+const DIRECT_API_URL = API_PORT ? `http://localhost:${API_PORT}` : null;
+const DIRECT_API_BASE = DIRECT_API_URL ? `${DIRECT_API_URL}/api/v1` : null;
+
+function buildOrigin(req) {
+    const forwardedProto = req.headers['x-forwarded-proto'];
+    const protocol = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto || req.protocol || 'http';
+    const forwardedHost = req.headers['x-forwarded-host'];
+    const host = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.get('host');
+    return host ? `${protocol}://${host}` : `${protocol}://localhost:${port}`;
+}
+
+function proxyToApi(req, res, upstreamPath) {
+    if (!API_PORT) {
+        res.status(503).json({
+            error: 'API_PORT not configured',
+            details: 'The maintenance orchestrator API is not running in this environment.'
+        });
+        return;
+    }
+
+    const pathWithQuery = upstreamPath || req.originalUrl.replace(/^\/proxy/, '');
+    const finalPath = pathWithQuery.startsWith('/') ? pathWithQuery : `/${pathWithQuery}`;
+
+    const options = {
+        hostname: '127.0.0.1',
+        port: Number(API_PORT),
+        path: finalPath,
+        method: req.method,
+        headers: {
+            ...req.headers,
+            host: `localhost:${API_PORT}`
+        }
+    };
+
+    const proxyReq = http.request(options, (proxyRes) => {
+        res.status(proxyRes.statusCode || 500);
+        Object.entries(proxyRes.headers).forEach(([key, value]) => {
+            if (value !== undefined) {
+                res.setHeader(key, value);
+            }
+        });
+        proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (error) => {
+        console.error('[maintenance-orchestrator-ui] API proxy error:', error.message);
+        res.status(502).json({
+            error: 'API proxy failed',
+            details: error.message,
+            target: `http://localhost:${API_PORT}${finalPath}`
+        });
+    });
+
+    if (req.method === 'GET' || req.method === 'HEAD') {
+        proxyReq.end();
+    } else {
+        req.pipe(proxyReq);
+    }
+}
+
+app.use(PROXY_ROOT, (req, res) => {
+    const upstreamPath = req.originalUrl.replace(/^\/proxy/, '');
+    proxyToApi(req, res, upstreamPath);
+});
 
 // Serve static files from current directory
 app.use(express.static(__dirname));
@@ -19,22 +113,27 @@ app.get('/', (req, res) => {
 
 // API configuration endpoint for frontend
 app.get('/config', (req, res) => {
-    const apiPort = process.env.API_PORT; // Provided by lifecycle system
+    const origin = buildOrigin(req);
     res.json({
-        apiUrl: `http://localhost:${apiPort}`,
-        apiBase: `http://localhost:${apiPort}/api/v1`,
+        service: 'maintenance-orchestrator',
         uiPort: port,
-        service: 'maintenance-orchestrator'
+        origin,
+        apiUrl: DIRECT_API_URL,
+        apiBase: DIRECT_API_BASE,
+        proxyApiUrl: PROXY_ROOT,
+        proxyApiBase: PROXY_API_BASE,
+        displayApiUrl: DIRECT_API_URL || `${origin}${PROXY_ROOT}`
     });
 });
 
 // Legacy endpoint for backward compatibility
 app.get('/api/config', (req, res) => {
-    const apiPort = process.env.API_PORT;
     res.json({
-        api_base: `http://localhost:${apiPort}/api/v1`,
+        service: 'maintenance-orchestrator',
         ui_port: port,
-        service: 'maintenance-orchestrator'
+        api_base: DIRECT_API_BASE || PROXY_API_BASE,
+        proxy_api_base: PROXY_API_BASE,
+        direct_api_base: DIRECT_API_BASE
     });
 });
 
@@ -72,28 +171,27 @@ app.get('/health', async (req, res) => {
                     }
                 };
                 
-                const http = require('http');
-                const req = http.request(options, (res) => {
+                const apiRequest = http.request(options, (apiRes) => {
                     const endTime = Date.now();
                     healthResponse.api_connectivity.latency_ms = endTime - startTime;
                     
-                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                    if (apiRes.statusCode >= 200 && apiRes.statusCode < 300) {
                         healthResponse.api_connectivity.connected = true;
                         healthResponse.api_connectivity.error = null;
                     } else {
                         healthResponse.api_connectivity.connected = false;
                         healthResponse.api_connectivity.error = {
-                            code: `HTTP_${res.statusCode}`,
-                            message: `API returned status ${res.statusCode}: ${res.statusMessage}`,
+                            code: `HTTP_${apiRes.statusCode}`,
+                            message: `API returned status ${apiRes.statusCode}: ${apiRes.statusMessage}`,
                             category: 'network',
-                            retryable: res.statusCode >= 500 && res.statusCode < 600
+                            retryable: apiRes.statusCode >= 500 && apiRes.statusCode < 600
                         };
                         healthResponse.status = 'degraded';
                     }
                     resolve();
                 });
                 
-                req.on('error', (error) => {
+                apiRequest.on('error', (error) => {
                     const endTime = Date.now();
                     healthResponse.api_connectivity.latency_ms = endTime - startTime;
                     healthResponse.api_connectivity.connected = false;
@@ -124,7 +222,7 @@ app.get('/health', async (req, res) => {
                     resolve();
                 });
                 
-                req.on('timeout', () => {
+                apiRequest.on('timeout', () => {
                     const endTime = Date.now();
                     healthResponse.api_connectivity.latency_ms = endTime - startTime;
                     healthResponse.api_connectivity.connected = false;
@@ -135,11 +233,11 @@ app.get('/health', async (req, res) => {
                         retryable: true
                     };
                     healthResponse.status = 'unhealthy';
-                    req.destroy();
+                    apiRequest.destroy();
                     resolve();
                 });
                 
-                req.end();
+                apiRequest.end();
             });
         } catch (error) {
             const endTime = Date.now();

@@ -17,8 +17,8 @@ const (
 )
 
 var (
-	logger     *log.Logger
-	startTime  = time.Now()
+	logger    *log.Logger
+	startTime = time.Now()
 )
 
 func main() {
@@ -76,10 +76,10 @@ func main() {
 
 	// Setup router
 	r := mux.NewRouter()
-	
+
 	// Apply CORS middleware first
 	r.Use(corsMiddleware)
-	
+
 	// Health endpoint (outside versioning for simplicity)
 	r.HandleFunc("/health", healthHandler(startTime)).Methods("GET")
 

@@ -18,8 +18,47 @@ Severity: high
 Standard: service-reliability-v1
 Targets: api
 
-<test-case id="postgres-backoff-valid" should-fail="false">
-  <description>Proper exponential backoff with jitter for PostgreSQL</description>
+<test-case id="postgres-backoff-real-jitter" should-fail="false">
+  <description>Proper exponential backoff with REAL random jitter for PostgreSQL</description>
+  <input language="go">
+package main
+
+import (
+    "database/sql"
+    "fmt"
+    "math"
+    "math/rand"
+    "time"
+)
+
+var db *sql.DB
+
+func connectWithBackoff() error {
+    db, _ = sql.Open("postgres", "dsn")
+
+    maxRetries := 5
+    baseDelay := 200 * time.Millisecond
+    maxDelay := 5 * time.Second
+
+    for attempt := 0; attempt &lt; maxRetries; attempt++ {
+        if err := db.Ping(); err == nil {
+            return nil
+        }
+
+        delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxDelay)))
+        jitterRange := float64(delay) * 0.25
+        jitter := time.Duration(jitterRange * rand.Float64())
+        actualDelay := delay + jitter
+        time.Sleep(actualDelay)
+    }
+
+    return fmt.Errorf("database unavailable after retries")
+}
+  </input>
+</test-case>
+
+<test-case id="postgres-backoff-fake-jitter" should-fail="true">
+  <description>REJECT: Deterministic "fake jitter" that doesn't prevent thundering herd</description>
   <input language="go">
 package main
 
@@ -32,7 +71,7 @@ import (
 
 var db *sql.DB
 
-func connectWithBackoff() error {
+func connectWithFakeJitter() error {
     db, _ = sql.Open("postgres", "dsn")
 
     maxRetries := 5
@@ -54,6 +93,8 @@ func connectWithBackoff() error {
     return fmt.Errorf("database unavailable after retries")
 }
   </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>jitter</expected-message>
 </test-case>
 
 <test-case id="missing-jitter" should-fail="true">
@@ -93,7 +134,7 @@ func connectWithoutJitter() error {
 </test-case>
 
 <test-case id="missing-exponential" should-fail="true">
-  <description>Retry loop without exponential growth</description>
+  <description>Retry loop without exponential growth (has fake jitter too)</description>
   <input language="go">
 package main
 
@@ -122,7 +163,7 @@ func connectWithLinearDelay() error {
     return fmt.Errorf("database unavailable")
 }
   </input>
-  <expected-violations>1</expected-violations>
+  <expected-violations>2</expected-violations>
   <expected-message>exponential</expected-message>
 </test-case>
 
@@ -152,6 +193,120 @@ func connectWithoutSleep() error {
   </input>
   <expected-violations>3</expected-violations>
   <expected-message>Sleep</expected-message>
+</test-case>
+
+<test-case id="time-based-jitter" should-fail="false">
+  <description>Time-based jitter using UnixNano() for pseudo-randomness</description>
+  <input language="go">
+package main
+
+import (
+    "database/sql"
+    "fmt"
+    "math"
+    "time"
+)
+
+var db *sql.DB
+
+func connectWithTimeJitter() error {
+    db, _ = sql.Open("postgres", "dsn")
+
+    maxRetries := 5
+    baseDelay := 200 * time.Millisecond
+    maxDelay := 5 * time.Second
+
+    for attempt := 0; attempt &lt; maxRetries; attempt++ {
+        if err := db.Ping(); err == nil {
+            return nil
+        }
+
+        delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxDelay)))
+        jitter := time.Duration(time.Now().UnixNano() % int64(delay))
+        actualDelay := delay + jitter
+        time.Sleep(actualDelay)
+    }
+
+    return fmt.Errorf("database unavailable after retries")
+}
+  </input>
+</test-case>
+
+<test-case id="rand-intn-jitter" should-fail="false">
+  <description>Using rand.Intn() for integer-based jitter</description>
+  <input language="go">
+package main
+
+import (
+    "database/sql"
+    "fmt"
+    "math"
+    "math/rand"
+    "time"
+)
+
+var db *sql.DB
+
+func connectWithIntnJitter() error {
+    db, _ = sql.Open("postgres", "dsn")
+
+    maxRetries := 5
+    baseDelay := 200 * time.Millisecond
+    maxDelay := 5 * time.Second
+
+    for attempt := 0; attempt &lt; maxRetries; attempt++ {
+        if err := db.Ping(); err == nil {
+            return nil
+        }
+
+        delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxDelay)))
+        jitter := time.Duration(rand.Intn(int(delay) / 4))
+        actualDelay := delay + jitter
+        time.Sleep(actualDelay)
+    }
+
+    return fmt.Errorf("database unavailable after retries")
+}
+  </input>
+</test-case>
+
+<test-case id="zero-jitter-fake" should-fail="true">
+  <description>Variable named 'jitter' but with zero value (fake jitter)</description>
+  <input language="go">
+package main
+
+import (
+    "database/sql"
+    "fmt"
+    "math"
+    "time"
+)
+
+var db *sql.DB
+
+func connectWithZeroJitter() error {
+    db, _ = sql.Open("postgres", "dsn")
+
+    maxRetries := 5
+    baseDelay := 200 * time.Millisecond
+    maxDelay := 5 * time.Second
+
+    for attempt := 0; attempt &lt; maxRetries; attempt++ {
+        if err := db.Ping(); err == nil {
+            return nil
+        }
+
+        delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxDelay)))
+        jitter := 0 * time.Millisecond
+        actualDelay := delay + jitter
+        time.Sleep(actualDelay)
+    }
+
+    return fmt.Errorf("database unavailable after retries")
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>jitter</expected-message>
 </test-case>
 
 */
@@ -278,17 +433,15 @@ func processAssignment(lhs []ast.Expr, rhs []ast.Expr, info *backoffLoopInfo) {
 			}
 		}
 
-		lowerName := strings.ToLower(ident.Name)
-		if strings.Contains(lowerName, "jitter") {
+		// IMPORTANT: Only track as jitter var if it contains actual randomness
+		// Having "jitter" in the name is NOT enough - must have rand.X() or similar
+		if exprHasRandomness(expr, info.jitterVars) {
+			info.hasJitter = true
 			info.jitterVars[ident.Name] = true
 		}
 
 		if exprHasExponent(expr, info.jitterVars) {
 			info.hasExponent = true
-		}
-		if exprHasJitter(expr, info.jitterVars) {
-			info.hasJitter = true
-			info.jitterVars[ident.Name] = true
 		}
 	}
 }
@@ -299,19 +452,17 @@ func processValueSpec(spec *ast.ValueSpec, info *backoffLoopInfo) {
 			continue
 		}
 
-		lowerName := strings.ToLower(name.Name)
-		if strings.Contains(lowerName, "jitter") {
-			info.jitterVars[name.Name] = true
-		}
-
 		if i < len(spec.Values) {
 			value := spec.Values[i]
-			if exprHasExponent(value, info.jitterVars) {
-				info.hasExponent = true
-			}
-			if exprHasJitter(value, info.jitterVars) {
+
+			// Only track as jitter var if it contains actual randomness
+			if exprHasRandomness(value, info.jitterVars) {
 				info.hasJitter = true
 				info.jitterVars[name.Name] = true
+			}
+
+			if exprHasExponent(value, info.jitterVars) {
+				info.hasExponent = true
 			}
 		}
 	}
@@ -387,46 +538,101 @@ func exprHasExponent(expr ast.Expr, jitterVars map[string]bool) bool {
 }
 
 func exprHasJitter(expr ast.Expr, jitterVars map[string]bool) bool {
+	return exprHasRandomness(expr, jitterVars)
+}
+
+// exprHasRandomness checks if an expression contains actual random number generation
+// that would produce different values on each execution (non-deterministic).
+// This prevents "fake jitter" patterns like: jitter = delay * (attempt / maxRetries)
+func exprHasRandomness(expr ast.Expr, jitterVars map[string]bool) bool {
 	switch e := expr.(type) {
 	case *ast.Ident:
-		lower := strings.ToLower(e.Name)
-		if strings.Contains(lower, "jitter") || strings.Contains(lower, "rand") {
-			return true
-		}
+		// Check if this identifier was assigned from a random source
 		if jitterVars != nil && jitterVars[e.Name] {
 			return true
 		}
 	case *ast.CallExpr:
-		if sel, ok := e.Fun.(*ast.SelectorExpr); ok {
-			if ident, ok := sel.X.(*ast.Ident); ok {
-				if strings.Contains(strings.ToLower(ident.Name), "rand") {
-					return true
-				}
-			}
-			if strings.Contains(strings.ToLower(sel.Sel.Name), "rand") {
-				return true
-			}
+		// Check for direct random function calls
+		if isRandomFunctionCall(e) {
+			return true
 		}
-		if ident, ok := e.Fun.(*ast.Ident); ok {
-			if strings.Contains(strings.ToLower(ident.Name), "rand") {
-				return true
-			}
+		// Check for time.Now().UnixNano() which can provide randomness
+		if isTimeBasedRandomness(e) {
+			return true
 		}
+		// Recursively check arguments
 		for _, arg := range e.Args {
-			if exprHasJitter(arg, jitterVars) {
+			if exprHasRandomness(arg, jitterVars) {
 				return true
 			}
 		}
 	case *ast.BinaryExpr:
-		return exprHasJitter(e.X, jitterVars) || exprHasJitter(e.Y, jitterVars)
+		// For binary expressions, check if either side contains randomness
+		// But REJECT pure deterministic calculations even if they mention "jitter"
+		return exprHasRandomness(e.X, jitterVars) || exprHasRandomness(e.Y, jitterVars)
 	case *ast.ParenExpr:
-		return exprHasJitter(e.X, jitterVars)
+		return exprHasRandomness(e.X, jitterVars)
 	case *ast.SelectorExpr:
-		if exprHasJitter(e.X, jitterVars) {
+		// Check the base expression for randomness
+		return exprHasRandomness(e.X, jitterVars)
+	}
+	return false
+}
+
+// isRandomFunctionCall detects calls to random number generators:
+// - rand.Float64(), rand.Intn(), rand.Int63n()
+// - crypto/rand functions
+// - Custom RNG packages
+func isRandomFunctionCall(call *ast.CallExpr) bool {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+
+	// Get package name
+	var pkgName string
+	if ident, ok := sel.X.(*ast.Ident); ok {
+		pkgName = strings.ToLower(ident.Name)
+	}
+
+	// Get method name
+	methodName := strings.ToLower(sel.Sel.Name)
+
+	// Check for standard random functions
+	if strings.Contains(pkgName, "rand") {
+		// rand.Float64(), rand.Intn(), rand.Int63n(), etc.
+		if strings.HasPrefix(methodName, "float") ||
+			strings.HasPrefix(methodName, "int") ||
+			strings.HasPrefix(methodName, "uint") {
 			return true
 		}
-		return strings.Contains(strings.ToLower(e.Sel.Name), "jitter")
 	}
+
+	return false
+}
+
+// isTimeBasedRandomness detects time.Now().UnixNano() % something
+// which can provide pseudo-randomness for jitter
+func isTimeBasedRandomness(call *ast.CallExpr) bool {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+
+	methodName := strings.ToLower(sel.Sel.Name)
+
+	// Check for UnixNano() call
+	if methodName == "unixnano" {
+		// Verify it's called on something that might be time.Now()
+		if innerCall, ok := sel.X.(*ast.CallExpr); ok {
+			if innerSel, ok := innerCall.Fun.(*ast.SelectorExpr); ok {
+				if ident, ok := innerSel.X.(*ast.Ident); ok {
+					return strings.ToLower(ident.Name) == "time"
+				}
+			}
+		}
+	}
+
 	return false
 }
 

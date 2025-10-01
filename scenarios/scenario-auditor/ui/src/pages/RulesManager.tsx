@@ -1,6 +1,6 @@
 import { AgentInfo, RuleImplementationStatus, RuleScenarioTestResult, RuleTestStatus, Scenario } from '@/types/api'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Brain, CheckCircle, ChevronDown, CircleStop, Clock, Code, Eye, EyeOff, Info, Play, Plus, Shield, Target, Terminal, TestTube, X, XCircle } from 'lucide-react'
+import { AlertTriangle, Brain, CheckCircle, ChevronDown, CircleStop, Clock, Code, Eye, EyeOff, Info, Play, Plus, RefreshCw, Search, Shield, Target, Terminal, TestTube, X, XCircle } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
 import React, { useEffect, useMemo, useState } from 'react'
 import { CodeEditor } from '../components/CodeEditor'
@@ -238,6 +238,7 @@ export default function RulesManager() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [selectedRule, setSelectedRule] = useState<string | null>(null)
   const [localRules, setLocalRules] = useState<Record<string, any>>({})
+  const [searchTerm, setSearchTerm] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'implementation' | 'tests' | 'playground'>('implementation')
   const [testResults, setTestResults] = useState<any>(null)
   const [isRunningTests, setIsRunningTests] = useState(false)
@@ -331,6 +332,7 @@ export default function RulesManager() {
 
   const [showExecutionOutput, setShowExecutionOutput] = useState<{ [key: number]: boolean }>({})
   const [executionInfoExpanded, setExecutionInfoExpanded] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const { data: rulesData, isLoading, refetch } = useQuery({
     queryKey: ['rules'],
@@ -542,6 +544,15 @@ export default function RulesManager() {
     }
   }
 
+  const handleRefreshRules = async () => {
+    setIsRefreshing(true)
+    try {
+      await refetch()
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
   // Reset tab and test data when rule changes
   React.useEffect(() => {
     setAgentError(null)
@@ -591,13 +602,28 @@ export default function RulesManager() {
   const rules = localRules
   const rulesArray = useMemo(() => Object.values(rules || {}), [rules])
 
+  // Filter rules by search term
+  const filteredRulesArray = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase()
+    if (!term) return rulesArray
+
+    return rulesArray.filter((rule: any) => {
+      return (
+        rule.name?.toLowerCase().includes(term) ||
+        rule.description?.toLowerCase().includes(term) ||
+        rule.id?.toLowerCase().includes(term) ||
+        rule.category?.toLowerCase().includes(term)
+      )
+    })
+  }, [rulesArray, searchTerm])
+
   const categorizedRules = useMemo(() => {
     const base: Record<string, any[]> = {}
     TARGET_CATEGORY_CONFIG.forEach(cfg => {
       base[cfg.id] = []
     })
 
-    rulesArray.forEach((rule: any) => {
+    filteredRulesArray.forEach((rule: any) => {
       const rawTargets: string[] = Array.isArray(rule?.targets) ? (rule.targets as string[]) : []
       const normalizedTargets = Array.from(new Set<string>(
         rawTargets
@@ -629,7 +655,7 @@ export default function RulesManager() {
     })
 
     return base
-  }, [rulesArray])
+  }, [filteredRulesArray])
 
   const targetCategoryEntries = useMemo(() => (
     TARGET_CATEGORY_CONFIG.map(config => [config.id, {
@@ -670,15 +696,27 @@ export default function RulesManager() {
             Manage and configure auditing rules
           </p>
         </div>
-        <button
-          type="button"
-          className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          data-testid="create-rule-btn"
-          onClick={openCreateRuleModal}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Create Rule
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleRefreshRules}
+            disabled={isRefreshing || isLoading}
+            title="Refresh rules from disk (includes file changes and new rules)"
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            data-testid="create-rule-btn"
+            onClick={openCreateRuleModal}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create Rule
+          </button>
+        </div>
       </div>
 
       {createSuccess && (
@@ -691,11 +729,24 @@ export default function RulesManager() {
       )}
 
       {/* Filters */}
-      <div className="mb-6 flex items-center space-x-4">
+      <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+        <div className="relative flex-1">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search rules by name, description, or category..."
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            data-testid="rule-search"
+          />
+        </div>
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:w-48"
           data-testid="category-filter"
         >
           <option value="">All Targets</option>
