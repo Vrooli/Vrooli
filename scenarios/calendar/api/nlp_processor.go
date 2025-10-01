@@ -22,9 +22,9 @@ type NLPProcessor struct {
 }
 
 type OllamaRequest struct {
-	Model    string `json:"model"`
-	Messages []OllamaMessage `json:"messages"`
-	Stream   bool   `json:"stream"`
+	Model    string                 `json:"model"`
+	Messages []OllamaMessage        `json:"messages"`
+	Stream   bool                   `json:"stream"`
 	Options  map[string]interface{} `json:"options,omitempty"`
 }
 
@@ -39,7 +39,7 @@ type OllamaResponse struct {
 }
 
 type ParsedScheduleIntent struct {
-	Action      string                 `json:"action"`       // create, update, delete, query
+	Action      string                 `json:"action"` // create, update, delete, query
 	EventTitle  string                 `json:"event_title"`
 	Description string                 `json:"description"`
 	StartTime   *time.Time             `json:"start_time"`
@@ -136,7 +136,7 @@ func (nlp *NLPProcessor) ProcessSchedulingRequest(ctx context.Context, userID, m
 	// Enhanced error handling with user-friendly responses
 	if actionErr != nil {
 		log.Printf("❌ Action execution failed for user %s, action %s: %v", userID, intent.Action, actionErr)
-		
+
 		// Check for specific error types and provide appropriate responses
 		if strings.Contains(actionErr.Error(), "context deadline exceeded") {
 			return &ChatResponse{
@@ -147,7 +147,7 @@ func (nlp *NLPProcessor) ProcessSchedulingRequest(ctx context.Context, userID, m
 				},
 			}, nil
 		}
-		
+
 		if strings.Contains(actionErr.Error(), "database") || strings.Contains(actionErr.Error(), "connection") {
 			return &ChatResponse{
 				Response: "I'm having trouble connecting to the calendar system right now. Please try again in a few moments.",
@@ -176,7 +176,7 @@ func (nlp *NLPProcessor) parseSchedulingIntent(ctx context.Context, message stri
 	if nlp.ollamaURL == "" {
 		return nil, fmt.Errorf("Ollama not configured")
 	}
-	
+
 	// Create system prompt for Ollama
 	systemPrompt := `You are a calendar scheduling assistant. Parse the user's message and extract scheduling information.
 Return a JSON object with these fields:
@@ -240,7 +240,7 @@ Response: {"action":"create","event_title":"Meeting with John","start_time":"202
 	// Enhanced JSON parsing from Ollama's message content
 	var intent ParsedScheduleIntent
 	content := strings.TrimSpace(ollamaResp.Message.Content)
-	
+
 	if content == "" {
 		return nil, fmt.Errorf("received empty response from Ollama")
 	}
@@ -306,7 +306,7 @@ Response: {"action":"create","event_title":"Meeting with John","start_time":"202
 				colNum -= int64(len(line) + 1) // +1 for newline
 				lineNum++
 			}
-			return nil, fmt.Errorf("JSON syntax error at line %d, column %d: %w\nJSON excerpt: %s", 
+			return nil, fmt.Errorf("JSON syntax error at line %d, column %d: %w\nJSON excerpt: %s",
 				lineNum, colNum, err, jsonStr[:min(200, len(jsonStr))])
 		}
 		return nil, fmt.Errorf("failed to parse Ollama JSON response: %w\nJSON: %s", err, jsonStr[:min(200, len(jsonStr))])
@@ -343,7 +343,7 @@ func (nlp *NLPProcessor) validateParsedIntent(intent *ParsedScheduleIntent) erro
 		if intent.EndTime.Before(*intent.StartTime) || intent.EndTime.Equal(*intent.StartTime) {
 			return fmt.Errorf("end time (%v) must be after start time (%v)", intent.EndTime, intent.StartTime)
 		}
-		
+
 		// Check for unreasonably long events (more than 24 hours)
 		duration := intent.EndTime.Sub(*intent.StartTime)
 		if duration > 24*time.Hour {
@@ -356,7 +356,7 @@ func (nlp *NLPProcessor) validateParsedIntent(intent *ParsedScheduleIntent) erro
 		if intent.StartTime.Before(time.Now().Add(-24 * time.Hour)) {
 			return fmt.Errorf("start time is more than 24 hours in the past: %v", intent.StartTime)
 		}
-		
+
 		// Warn about events scheduled too far in the future (more than 2 years)
 		if intent.StartTime.After(time.Now().Add(2 * 365 * 24 * time.Hour)) {
 			return fmt.Errorf("start time is more than 2 years in the future: %v", intent.StartTime)
@@ -403,10 +403,10 @@ func (nlp *NLPProcessor) fallbackParsing(message string) *ParsedScheduleIntent {
 	}
 
 	msgLower := strings.ToLower(message)
-	
+
 	// Enhanced action detection with scoring
 	actionScores := make(map[string]int)
-	
+
 	// Create action indicators
 	createWords := []string{"schedule", "create", "add", "book", "set up", "plan", "arrange"}
 	for _, word := range createWords {
@@ -414,7 +414,7 @@ func (nlp *NLPProcessor) fallbackParsing(message string) *ParsedScheduleIntent {
 			actionScores["create"]++
 		}
 	}
-	
+
 	// Update action indicators
 	updateWords := []string{"update", "change", "modify", "reschedule", "move", "shift", "edit"}
 	for _, word := range updateWords {
@@ -422,7 +422,7 @@ func (nlp *NLPProcessor) fallbackParsing(message string) *ParsedScheduleIntent {
 			actionScores["update"]++
 		}
 	}
-	
+
 	// Delete action indicators
 	deleteWords := []string{"delete", "cancel", "remove", "clear", "drop"}
 	for _, word := range deleteWords {
@@ -430,7 +430,7 @@ func (nlp *NLPProcessor) fallbackParsing(message string) *ParsedScheduleIntent {
 			actionScores["delete"]++
 		}
 	}
-	
+
 	// Query action indicators
 	queryWords := []string{"show", "list", "what", "when", "find", "search", "display", "view"}
 	for _, word := range queryWords {
@@ -438,7 +438,7 @@ func (nlp *NLPProcessor) fallbackParsing(message string) *ParsedScheduleIntent {
 			actionScores["query"]++
 		}
 	}
-	
+
 	// Determine best action based on highest score
 	maxScore := 0
 	bestAction := "create" // default
@@ -448,18 +448,18 @@ func (nlp *NLPProcessor) fallbackParsing(message string) *ParsedScheduleIntent {
 			bestAction = action
 		}
 	}
-	
+
 	intent.Action = bestAction
-	
+
 	// Adjust confidence based on action detection strength
 	if maxScore > 0 {
 		// Calculate confidence with proper float math
-	confidenceCalc := 0.5 + float64(maxScore)*0.1
-	if confidenceCalc > 0.8 {
-		intent.Confidence = 0.8
-	} else {
-		intent.Confidence = confidenceCalc
-	}
+		confidenceCalc := 0.5 + float64(maxScore)*0.1
+		if confidenceCalc > 0.8 {
+			intent.Confidence = 0.8
+		} else {
+			intent.Confidence = confidenceCalc
+		}
 	} else {
 		intent.Confidence = 0.3 // Lower confidence when no clear action indicators
 	}
@@ -467,15 +467,15 @@ func (nlp *NLPProcessor) fallbackParsing(message string) *ParsedScheduleIntent {
 	// Enhanced time reference extraction
 	now := time.Now()
 	var baseDate *time.Time
-	
+
 	// Determine base date with improved logic
 	if strings.Contains(msgLower, "tomorrow") {
 		tomorrow := now.AddDate(0, 0, 1)
 		baseDate = &tomorrow
-	} else if strings.Contains(msgLower, "today") || 
-	         strings.Contains(msgLower, "this afternoon") || 
-	         strings.Contains(msgLower, "this morning") ||
-	         strings.Contains(msgLower, "this evening") {
+	} else if strings.Contains(msgLower, "today") ||
+		strings.Contains(msgLower, "this afternoon") ||
+		strings.Contains(msgLower, "this morning") ||
+		strings.Contains(msgLower, "this evening") {
 		baseDate = &now
 	} else if strings.Contains(msgLower, "next week") {
 		nextWeek := now.AddDate(0, 0, 7)
@@ -489,7 +489,7 @@ func (nlp *NLPProcessor) fallbackParsing(message string) *ParsedScheduleIntent {
 			"monday": 1, "tuesday": 2, "wednesday": 3, "thursday": 4,
 			"friday": 5, "saturday": 6, "sunday": 0,
 		}
-		
+
 		for dayName, dayNum := range dayNames {
 			if strings.Contains(msgLower, dayName) {
 				// Find next occurrence of this day
@@ -504,12 +504,12 @@ func (nlp *NLPProcessor) fallbackParsing(message string) *ParsedScheduleIntent {
 			}
 		}
 	}
-	
+
 	// Extract time and set start/end times
 	if baseDate != nil {
 		startTime := nlp.extractTimeFromMessage(msgLower, *baseDate)
 		intent.StartTime = &startTime
-		
+
 		// Smart duration detection
 		duration := 1 * time.Hour // default
 		if strings.Contains(msgLower, "lunch") {
@@ -523,19 +523,19 @@ func (nlp *NLPProcessor) fallbackParsing(message string) *ParsedScheduleIntent {
 		} else if strings.Contains(msgLower, "workshop") || strings.Contains(msgLower, "training") {
 			duration = 2 * time.Hour
 		}
-		
+
 		// Look for explicit duration mentions
 		durationPatterns := []struct {
 			pattern *regexp.Regexp
 			value   time.Duration
 		}{
-			{regexp.MustCompile(`(\d+)\s*hours?`), 0}, // Will be calculated
+			{regexp.MustCompile(`(\d+)\s*hours?`), 0},   // Will be calculated
 			{regexp.MustCompile(`(\d+)\s*minutes?`), 0}, // Will be calculated
 			{regexp.MustCompile(`half\s*hour|30\s*min`), 30 * time.Minute},
 			{regexp.MustCompile(`quarter\s*hour|15\s*min`), 15 * time.Minute},
 			{regexp.MustCompile(`all\s*day`), 8 * time.Hour},
 		}
-		
+
 		for _, dp := range durationPatterns {
 			if matches := dp.pattern.FindStringSubmatch(msgLower); len(matches) > 0 {
 				if dp.value > 0 {
@@ -552,12 +552,12 @@ func (nlp *NLPProcessor) fallbackParsing(message string) *ParsedScheduleIntent {
 				break
 			}
 		}
-		
+
 		// Validate duration is reasonable
 		if duration > 12*time.Hour {
 			duration = 2 * time.Hour // Cap at 2 hours for safety
 		}
-		
+
 		endTime := startTime.Add(duration)
 		intent.EndTime = &endTime
 	}
@@ -736,7 +736,7 @@ func (nlp *NLPProcessor) handleCreateEvent(ctx context.Context, userID string, i
 					conflictEnd.Format("3:04 PM")))
 			}
 		}
-		
+
 		if len(conflicts) > 0 {
 			return &ChatResponse{
 				Response: fmt.Sprintf("⚠️  You have a scheduling conflict with:\n%s\n\nWould you still like to schedule this event?",
@@ -748,7 +748,7 @@ func (nlp *NLPProcessor) handleCreateEvent(ctx context.Context, userID string, i
 				},
 				RequiresConfirmation: true,
 				Context: map[string]interface{}{
-					"conflicts": conflicts,
+					"conflicts":      conflicts,
 					"proposed_event": intent,
 				},
 			}, nil
@@ -808,19 +808,19 @@ func (nlp *NLPProcessor) handleCreateEvent(ctx context.Context, userID string, i
 		// processor := NewCalendarProcessor(nlp.db, nlp.config) // Not needed - inline reminder creation
 		for _, reminder := range intent.Reminders {
 			// Create reminder inline (method doesn't exist on CalendarProcessor)
-		reminderID := uuid.New().String()
-		minutesBefore := 15 // Default
-		if reminder.MinutesBefore > 0 {
-			minutesBefore = reminder.MinutesBefore
-		}
-		reminderTime := intent.StartTime.Add(time.Duration(-minutesBefore) * time.Minute)
-		
-		reminderQuery := `
+			reminderID := uuid.New().String()
+			minutesBefore := 15 // Default
+			if reminder.MinutesBefore > 0 {
+				minutesBefore = reminder.MinutesBefore
+			}
+			reminderTime := intent.StartTime.Add(time.Duration(-minutesBefore) * time.Minute)
+
+			reminderQuery := `
 			INSERT INTO event_reminders (id, event_id, minutes_before, notification_type, scheduled_time)
 			VALUES ($1, $2, $3, $4, $5)
 		`
-		
-		if _, err := nlp.db.Exec(reminderQuery, reminderID, eventID, minutesBefore, reminder.NotificationType, reminderTime); err != nil {
+
+			if _, err := nlp.db.Exec(reminderQuery, reminderID, eventID, minutesBefore, reminder.NotificationType, reminderTime); err != nil {
 				reminderErrors = append(reminderErrors, fmt.Sprintf("%s reminder: %v", reminder.NotificationType, err))
 				log.Printf("⚠️  Failed to create %s reminder for event %s: %v", reminder.NotificationType, eventID, err)
 			}
@@ -903,7 +903,7 @@ func (nlp *NLPProcessor) handleUpdateEvent(ctx context.Context, userID string, i
 		WHERE user_id = $1 AND status != 'cancelled'
 		AND (title ILIKE $2 OR $2 = '')
 		ORDER BY start_time DESC LIMIT 1`
-	
+
 	var eventID, eventTitle string
 	searchTitle := "%" + intent.EventTitle + "%"
 	err := nlp.db.QueryRowContext(ctx, query, userID, searchTitle).Scan(&eventID, &eventTitle)
@@ -953,7 +953,7 @@ func (nlp *NLPProcessor) handleUpdateEvent(ctx context.Context, userID string, i
 
 	updateQuery := fmt.Sprintf("UPDATE events SET %s, updated_at = NOW() WHERE id = $1",
 		strings.Join(updates, ", "))
-	
+
 	if _, err := nlp.db.ExecContext(ctx, updateQuery, params...); err != nil {
 		return nil, fmt.Errorf("failed to update event: %w", err)
 	}
@@ -977,7 +977,7 @@ func (nlp *NLPProcessor) handleDeleteEvent(ctx context.Context, userID string, i
 		WHERE user_id = $1 AND status != 'cancelled'
 		AND (title ILIKE $2 OR $2 = '')
 		RETURNING id, title`
-	
+
 	var eventID, eventTitle string
 	searchTitle := "%" + intent.EventTitle + "%"
 	err := nlp.db.QueryRowContext(ctx, query, userID, searchTitle).Scan(&eventID, &eventTitle)
@@ -1012,9 +1012,9 @@ func (nlp *NLPProcessor) handleQueryEvents(ctx context.Context, userID string, i
 		SELECT id, title, start_time, end_time, location 
 		FROM events 
 		WHERE user_id = $1 AND status != 'cancelled'`
-	
+
 	params := []interface{}{userID}
-	
+
 	// Add time filters if specified
 	if intent.StartTime != nil {
 		query += " AND start_time >= $2"
@@ -1029,9 +1029,9 @@ func (nlp *NLPProcessor) handleQueryEvents(ctx context.Context, userID string, i
 			params = append(params, endOfDay)
 		}
 	}
-	
+
 	query += " ORDER BY start_time LIMIT 10"
-	
+
 	rows, err := nlp.db.QueryContext(ctx, query, params...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query events: %w", err)
@@ -1047,7 +1047,7 @@ func (nlp *NLPProcessor) handleQueryEvents(ctx context.Context, userID string, i
 			continue
 		}
 		hasEvents = true
-		
+
 		eventStr := fmt.Sprintf("• %s on %s",
 			title,
 			startTime.Format("Mon Jan 2 at 3:04 PM"))
@@ -1078,15 +1078,15 @@ func (nlp *NLPProcessor) handleQueryEvents(ctx context.Context, userID string, i
 func (nlp *NLPProcessor) handleAmbiguous(ctx context.Context, intent *ParsedScheduleIntent, originalMessage string) (*ChatResponse, error) {
 	// When intent is unclear, ask for clarification
 	suggestions := []SuggestedAction{}
-	
+
 	if strings.Contains(strings.ToLower(originalMessage), "free") ||
-	   strings.Contains(strings.ToLower(originalMessage), "available") {
+		strings.Contains(strings.ToLower(originalMessage), "available") {
 		suggestions = append(suggestions, SuggestedAction{
 			Action:     "find_free_time",
 			Confidence: 0.8,
 		})
 	}
-	
+
 	suggestions = append(suggestions, []SuggestedAction{
 		{Action: "create_event", Confidence: 0.6},
 		{Action: "list_events", Confidence: 0.6},
@@ -1094,7 +1094,7 @@ func (nlp *NLPProcessor) handleAmbiguous(ctx context.Context, intent *ParsedSche
 	}...)
 
 	return &ChatResponse{
-		Response: "I'm not sure what you'd like to do. You can:\n• Schedule a new event\n• View your calendar\n• Update or cancel an existing event\n• Find free time in your schedule",
+		Response:         "I'm not sure what you'd like to do. You can:\n• Schedule a new event\n• View your calendar\n• Update or cancel an existing event\n• Find free time in your schedule",
 		SuggestedActions: suggestions,
 	}, nil
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { format, addDays, startOfWeek, addWeeks } from 'date-fns'
+import { format, addDays, addWeeks } from 'date-fns'
 import { X, Clock, MapPin, Repeat, Calendar as CalendarIcon, Plus, Minus } from 'lucide-react'
 import { useCalendarStore } from '@/stores/calendarStore'
 import { api } from '@/services/api'

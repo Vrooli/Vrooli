@@ -254,7 +254,7 @@ test_configurations() {
     
     # Service.json validation
     run_test "service.json is valid JSON" "jq empty .vrooli/service.json"
-    run_test "service.json has required metadata" "jq -e '.metadata.name and .metadata.description' .vrooli/service.json >/dev/null"
+    run_test "service.json has required metadata" "jq -e '.service.name and .service.description' .vrooli/service.json >/dev/null"
     run_test "service.json has port configuration" "jq -e '.ports.api and .ports.ui' .vrooli/service.json >/dev/null"
     run_test "service.json has resource deps" "jq -e '.resources.required' .vrooli/service.json >/dev/null"
     

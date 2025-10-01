@@ -2,8 +2,29 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 import App from './App'
 import './index.css'
+
+declare global {
+  interface Window {
+    __calendarBridgeInitialized?: boolean
+  }
+}
+
+if (typeof window !== 'undefined' && window.parent !== window && !window.__calendarBridgeInitialized) {
+  let parentOrigin: string | undefined
+  try {
+    if (document.referrer) {
+      parentOrigin = new URL(document.referrer).origin
+    }
+  } catch (error) {
+    console.warn('[Calendar] Unable to parse parent origin for iframe bridge', error)
+  }
+
+  initIframeBridgeChild({ parentOrigin, appId: 'calendar' })
+  window.__calendarBridgeInitialized = true
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {

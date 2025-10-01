@@ -101,10 +101,14 @@ install_job() {
         crontab -l | grep -v '# Vrooli autoheal' | grep -v 'vrooli-autoheal.sh' >"$tmp" || true
     fi
 
+    resources_clean="$(printf %s "$RESOURCES" | tr -d '
+' | sed 's/[[:space:]]\+//g')"
+    scenarios_clean="$(printf %s "$SCENARIOS" | tr -d '
+' | sed 's/[[:space:]]\+//g')"
     {
         cat "$tmp" 2>/dev/null || true
         echo '# Vrooli autoheal'
-        echo "$CRON_SCHEDULE PATH=/usr/local/bin:/usr/bin:/bin VROOLI_AUTOHEAL_RESOURCES=$RESOURCES VROOLI_AUTOHEAL_SCENARIOS=$SCENARIOS VROOLI_AUTOHEAL_GRACE_SECONDS=$GRACE VROOLI_AUTOHEAL_LOG_FILE=$LOG_FILE VROOLI_AUTOHEAL_LOCK_FILE=$LOCK_FILE $TARGET_PATH"
+        echo "$CRON_SCHEDULE PATH=/usr/local/bin:/usr/bin:/bin VROOLI_AUTOHEAL_RESOURCES=$resources_clean VROOLI_AUTOHEAL_SCENARIOS=$scenarios_clean VROOLI_AUTOHEAL_GRACE_SECONDS=$GRACE VROOLI_AUTOHEAL_LOG_FILE=$LOG_FILE VROOLI_AUTOHEAL_LOCK_FILE=$LOCK_FILE $TARGET_PATH"
     } | crontab -
 
     rm -f "$tmp"

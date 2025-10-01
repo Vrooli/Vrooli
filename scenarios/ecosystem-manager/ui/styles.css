@@ -4614,6 +4614,50 @@ body.dark-mode .rate-limit-notification {
     background: linear-gradient(135deg, #d32f2f 0%, #c2185b 100%);
 }
 
+.rate-limit-status-card {
+    background: rgba(240, 98, 146, 0.12);
+    border: 1px solid rgba(240, 98, 146, 0.35);
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.rate-limit-status-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: #d32f2f;
+}
+
+.rate-limit-status-title i {
+    color: #d32f2f;
+}
+
+.rate-limit-status-body {
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+.rate-limit-status-help {
+    font-size: 0.85rem;
+    color: var(--medium-gray);
+}
+
+.rate-limit-status-clear {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--success-color);
+    font-weight: 500;
+}
+
+.rate-limit-status-clear i {
+    color: var(--success-color);
+}
+
 /* Task Details Grid Layout */
 .task-details-grid {
     display: grid;

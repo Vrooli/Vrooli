@@ -301,12 +301,27 @@ export class UIComponents {
         }, 1000);
     }
 
-    static dismissRateLimitNotification(button) {
-        const notification = button.closest('.rate-limit-notification');
+    static dismissRateLimitNotification(target) {
+        let notification = null;
+
+        if (target && typeof target.closest === 'function') {
+            notification = target.closest('.rate-limit-notification');
+        }
+
+        if (!notification && target && target.classList && target.classList.contains('rate-limit-notification')) {
+            notification = target;
+        }
+
+        if (!notification) {
+            notification = document.querySelector('.rate-limit-notification');
+        }
+
         if (notification) {
             notification.classList.remove('show');
             setTimeout(() => {
-                notification.remove();
+                if (notification.parentNode) {
+                    notification.remove();
+                }
             }, 300);
         }
     }

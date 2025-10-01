@@ -481,6 +481,10 @@ class EcosystemManager {
         // State
         this.isLoading = false;
         this.rateLimitEndTime = null;
+        this.rateLimitPaused = false;
+        this.rateLimitTargetEnd = null;
+        this.rateLimitNotificationSuppressed = false;
+        this.rateLimitOverlayVisible = false;
         this.refreshCountdownInterval = null;
         this.lastRefreshTime = Date.now();
         this.refreshInterval = 30; // Default 30 seconds
@@ -2801,12 +2805,129 @@ class EcosystemManager {
     }
 
     updateQueueStatusUI(status) {
-        // Update queue metrics
-        // Update last processed time
-        if (status.last_processed_at) {
-            const element = document.getElementById('last-processed-time');
-            if (element) {
-                element.textContent = new Date(status.last_processed_at).toLocaleString();
+        if (!status || typeof status !== 'object') {
+            return;
+        }
+
+        const lastProcessedElement = document.getElementById('last-processed-time');
+        if (lastProcessedElement) {
+            if (status.last_processed_at) {
+                lastProcessedElement.textContent = new Date(status.last_processed_at).toLocaleString();
+            } else {
+                lastProcessedElement.textContent = '—';
+            }
+        }
+
+        const processorToggle = document.getElementById('queue-processor-toggle');
+        if (processorToggle && typeof status.settings_active === 'boolean') {
+            processorToggle.checked = Boolean(status.settings_active);
+
+            const pausedByRateLimit = Boolean(status.rate_limit_info && status.rate_limit_info.paused);
+            processorToggle.disabled = pausedByRateLimit;
+            processorToggle.title = pausedByRateLimit
+                ? 'Processor paused while waiting for the provider rate limit to clear.'
+                : '';
+        }
+
+        const rateLimitInfo = status.rate_limit_info || {};
+        const rateLimitStatusElement = document.getElementById('rate-limit-status');
+        const paused = Boolean(rateLimitInfo.paused);
+
+        if (rateLimitStatusElement) {
+            if (paused) {
+                const remainingSeconds = this.getRateLimitRemainingSeconds(rateLimitInfo);
+                const pauseUntilDate = rateLimitInfo.pause_until ? new Date(rateLimitInfo.pause_until) : null;
+                const resumeLabel = pauseUntilDate
+                    ? `${pauseUntilDate.toLocaleDateString()} ${pauseUntilDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`.trim()
+                    : 'as soon as capacity returns';
+
+                rateLimitStatusElement.innerHTML = `
+                    <div class="rate-limit-status-card">
+                        <span class="rate-limit-status-title">
+                            <i class="fas fa-hourglass-half"></i>
+                            Provider rate limit active
+                        </span>
+                        <div class="rate-limit-status-body">
+                            Queue resumes around <strong>${this.escapeHtml(resumeLabel)}</strong>
+                            (${this.escapeHtml(this.formatSeconds(remainingSeconds))} remaining)
+                        </div>
+                        <div class="rate-limit-status-help">
+                            Wait for the provider cooldown to expire or use “Reset Rate Limit Pause” once you have confirmed new capacity.
+                        </div>
+                    </div>
+                `;
+            } else {
+                rateLimitStatusElement.innerHTML = `
+                    <span class="rate-limit-status-clear">
+                        <i class="fas fa-check-circle"></i>
+                        No rate limit currently active
+                    </span>
+                `;
+            }
+        }
+
+        this.handleRateLimitStateUpdate(paused, rateLimitInfo);
+    }
+
+    getRateLimitRemainingSeconds(info) {
+        if (!info) {
+            return 0;
+        }
+
+        const rawRemaining = Number(info.remaining_secs);
+        if (Number.isFinite(rawRemaining) && rawRemaining >= 0) {
+            return Math.round(rawRemaining);
+        }
+
+        if (info.pause_until) {
+            const pauseUntil = new Date(info.pause_until).getTime();
+            const diffMs = pauseUntil - Date.now();
+            if (Number.isFinite(diffMs)) {
+                return Math.max(0, Math.round(diffMs / 1000));
+            }
+        }
+
+        return 0;
+    }
+
+    handleRateLimitStateUpdate(paused, info) {
+        if (this.rateLimitOverlayVisible && !document.querySelector('.rate-limit-notification')) {
+            this.rateLimitOverlayVisible = false;
+        }
+
+        if (paused) {
+            const remainingSeconds = this.getRateLimitRemainingSeconds(info);
+            const pauseUntilDate = info && info.pause_until ? new Date(info.pause_until) : null;
+            const targetEnd = pauseUntilDate
+                ? pauseUntilDate.getTime()
+                : Date.now() + (Math.max(remainingSeconds, 1) * 1000);
+
+            const isNewEvent = !this.rateLimitPaused
+                || !this.rateLimitTargetEnd
+                || Math.abs(this.rateLimitTargetEnd - targetEnd) > 2000;
+
+            this.rateLimitPaused = true;
+            this.rateLimitTargetEnd = targetEnd;
+            this.rateLimitEndTime = targetEnd;
+
+            if (isNewEvent) {
+                this.rateLimitNotificationSuppressed = false;
+            }
+
+            const shouldShowOverlay = !this.rateLimitNotificationSuppressed
+                && (!this.rateLimitOverlayVisible || isNewEvent);
+
+            if (shouldShowOverlay) {
+                this.handleRateLimit(Math.max(remainingSeconds, 1));
+            }
+        } else {
+            this.rateLimitPaused = false;
+            this.rateLimitTargetEnd = null;
+            this.rateLimitEndTime = null;
+            this.rateLimitNotificationSuppressed = false;
+
+            if (this.rateLimitOverlayVisible) {
+                this.clearRateLimitNotification();
             }
         }
     }
@@ -3463,12 +3584,46 @@ class EcosystemManager {
     }
 
     handleRateLimit(retryAfter) {
-        this.rateLimitEndTime = Date.now() + (retryAfter * 1000);
-        UIComponents.showRateLimitNotification(retryAfter);
+        const seconds = Number.isFinite(retryAfter) ? Math.max(1, Math.round(retryAfter)) : 60;
+        this.rateLimitEndTime = Date.now() + (seconds * 1000);
+        UIComponents.showRateLimitNotification(seconds);
+        this.rateLimitOverlayVisible = true;
     }
 
     dismissRateLimitNotification(button) {
         UIComponents.dismissRateLimitNotification(button);
+        this.rateLimitOverlayVisible = false;
+
+        if (button) {
+            this.rateLimitNotificationSuppressed = true;
+        }
+    }
+
+    clearRateLimitNotification() {
+        UIComponents.dismissRateLimitNotification();
+        this.rateLimitOverlayVisible = false;
+        this.rateLimitNotificationSuppressed = false;
+        this.rateLimitEndTime = null;
+    }
+
+    formatSeconds(seconds) {
+        if (!Number.isFinite(seconds) || seconds <= 0) {
+            return 'less than a minute';
+        }
+
+        const totalSeconds = Math.round(seconds);
+        const minutes = Math.floor(totalSeconds / 60);
+        const remainingSeconds = totalSeconds % 60;
+
+        if (minutes && remainingSeconds) {
+            return `${minutes}m ${remainingSeconds}s`;
+        }
+
+        if (minutes) {
+            return `${minutes}m`;
+        }
+
+        return `${remainingSeconds}s`;
     }
 
     escapeHtml(text) {
@@ -4559,10 +4714,21 @@ class EcosystemManager {
 
     resetRateLimit() {
         this.rateLimitEndTime = null;
+        this.rateLimitPaused = false;
+        this.rateLimitTargetEnd = null;
+        this.rateLimitNotificationSuppressed = false;
+        this.clearRateLimitNotification();
+
         this.showToast('Rate limit pause has been reset', 'success');
+
         const statusElement = document.getElementById('rate-limit-status');
         if (statusElement) {
-            statusElement.innerHTML = '<span style="color: var(--success-color);">No rate limit currently active</span>';
+            statusElement.innerHTML = `
+                <span class="rate-limit-status-clear">
+                    <i class="fas fa-check-circle"></i>
+                    No rate limit currently active
+                </span>
+            `;
         }
     }
 

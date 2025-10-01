@@ -1,0 +1,35 @@
+id: scenario-improver-research-assistant-20250924-002147
+title: Enhance scenario research-assistant
+type: scenario
+operation: improver
+target: research-assistant
+targets:
+    - research-assistant
+category: ""
+priority: high
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: rate_limited
+started_at: "2025-09-30T17:52:55-04:00"
+completed_at: ""
+completion_count: 2
+last_completed_at: "2025-09-30T00:23:38-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-24T00:21:47-04:00"
+updated_at: "2025-09-30T17:53:26-04:00"
+tags: []
+notes: "Already pretty good, but could use some additional validation/tidying. Notes from last time:\n\n**What was accomplished:**\n- **Fixed CLI Port Detection**: Improved the CLI's ability to detect the correct API port using process ID and lsof\n- **Started SearXNG Resource**: Got SearXNG running successfully, enabling search functionality across 70+ engines\n- **Implemented Advanced Search Filters (P1)**: Added comprehensive search filtering including:\n  - Language, safe search, file type filters\n  - Site inclusion/exclusion capabilities  \n  - Date range filtering (min_date, max_date)\n  - Sorting options (date, popularity, relevance)\n  - Region filtering\n  - Enhanced response metadata showing applied filters\n- **Updated Documentation**: \n  - Corrected PRD to reflect actual API implementation\n  - Updated PRD with realistic P1 requirement status\n  - Enhanced README with API examples and recent updates\n  - Created PROBLEMS.md to document issues for future improvers\n\n**Current status:** \nWorking/Improved - The scenario is functional with:\n- API running with enhanced search capabilities\n- 5/6 required resources healthy (Windmill optional)\n- Advanced search filters fully operational\n- Documentation accurately reflects implementation\n\n**Remaining issues or limitations:**\n1. n8n workflows require manual import (injection config needed)\n2. Test framework missing handlers (16 tests skipped)\n3. Some P1 features not implemented (contradiction detection, report templates)\n4. Windmill resource unavailable (optional dashboard features)\n\n**Suggested next actions:**\n- Implement injection config for n8n workflows\n- Update test framework with missing handlers\n- Complete implementation of remaining P1 features\n\n**Validation evidence:**\n```bash\n# Advanced search with filters working\ncurl -X POST http://localhost:16814/api/search \\\n  -d '{\"query\":\"AI\",\"file_type\":\"pdf\",\"sort_by\":\"date\",\"safe_search\":1}'\n# Response includes: \"filters_applied\": {\"file_type\":\"pdf\",\"sort_by\":\"date\",\"safe_search\":1}\n\n# API health shows 5/6 resources healthy\ncurl http://localhost:16814/health\n# {\"services\":{\"database\":\"healthy\",\"n8n\":\"healthy\",\"ollama\":\"healthy\",\"qdrant\":\"healthy\",\"searxng\":\"healthy\"}}\n```"
+results:
+    rate_limit_info:
+        hit_at: "2025-09-30T17:53:26-04:00"
+        message: Rate limited at 2025-09-30T17:53:26-04:00. Will retry after 1800 seconds.
+        retry_after: 1800
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true

@@ -23,23 +23,23 @@ const (
 
 // LogEntry represents a structured log entry
 type LogEntry struct {
-	Timestamp   time.Time              `json:"timestamp"`
-	Level       LogLevel               `json:"level"`
-	Message     string                 `json:"message"`
-	Service     string                 `json:"service"`
-	Version     string                 `json:"version"`
-	Component   string                 `json:"component,omitempty"`
-	Function    string                 `json:"function,omitempty"`
-	File        string                 `json:"file,omitempty"`
-	Line        int                    `json:"line,omitempty"`
-	UserID      string                 `json:"user_id,omitempty"`
-	RequestID   string                 `json:"request_id,omitempty"`
-	Error       string                 `json:"error,omitempty"`
-	Duration    string                 `json:"duration,omitempty"`
-	HTTPStatus  int                    `json:"http_status,omitempty"`
-	HTTPMethod  string                 `json:"http_method,omitempty"`
-	HTTPPath    string                 `json:"http_path,omitempty"`
-	Fields      map[string]interface{} `json:"fields,omitempty"`
+	Timestamp  time.Time              `json:"timestamp"`
+	Level      LogLevel               `json:"level"`
+	Message    string                 `json:"message"`
+	Service    string                 `json:"service"`
+	Version    string                 `json:"version"`
+	Component  string                 `json:"component,omitempty"`
+	Function   string                 `json:"function,omitempty"`
+	File       string                 `json:"file,omitempty"`
+	Line       int                    `json:"line,omitempty"`
+	UserID     string                 `json:"user_id,omitempty"`
+	RequestID  string                 `json:"request_id,omitempty"`
+	Error      string                 `json:"error,omitempty"`
+	Duration   string                 `json:"duration,omitempty"`
+	HTTPStatus int                    `json:"http_status,omitempty"`
+	HTTPMethod string                 `json:"http_method,omitempty"`
+	HTTPPath   string                 `json:"http_path,omitempty"`
+	Fields     map[string]interface{} `json:"fields,omitempty"`
 }
 
 // Logger provides structured logging capabilities
@@ -247,17 +247,17 @@ func (b *LogBuilder) Log() {
 	}
 
 	var output string
-	
+
 	if b.logger.prettyPrint {
 		output = b.formatPretty()
 	} else {
 		jsonBytes, err := json.Marshal(b.entry)
 		if err != nil {
 			// Fallback to simple format if JSON marshaling fails
-			output = fmt.Sprintf("[%s] %s %s: %s", 
+			output = fmt.Sprintf("[%s] %s %s: %s",
 				b.entry.Timestamp.Format("2006-01-02T15:04:05.000Z"),
-				b.entry.Level, 
-				b.entry.Component, 
+				b.entry.Level,
+				b.entry.Component,
 				b.entry.Message)
 		} else {
 			output = string(jsonBytes)
@@ -280,43 +280,43 @@ func (b *LogBuilder) shouldLog() bool {
 		LogLevelError: 3,
 		LogLevelFatal: 4,
 	}
-	
+
 	entryPriority, exists := levelPriority[b.entry.Level]
 	if !exists {
 		return true
 	}
-	
+
 	minPriority, exists := levelPriority[b.logger.minLevel]
 	if !exists {
 		return true
 	}
-	
+
 	return entryPriority >= minPriority
 }
 
 func (b *LogBuilder) formatPretty() string {
 	var parts []string
-	
+
 	// Timestamp and level
 	levelColor := getLevelColor(b.entry.Level)
 	timestamp := b.entry.Timestamp.Format("15:04:05.000")
 	parts = append(parts, fmt.Sprintf("\033[90m%s\033[0m %s%-5s\033[0m", timestamp, levelColor, b.entry.Level))
-	
+
 	// Component and function
 	if b.entry.Component != "" {
 		parts = append(parts, fmt.Sprintf("\033[36m[%s]\033[0m", b.entry.Component))
 	}
-	
+
 	// Message
 	if b.entry.Message != "" {
 		parts = append(parts, b.entry.Message)
 	}
-	
+
 	// Error
 	if b.entry.Error != "" {
 		parts = append(parts, fmt.Sprintf("\033[91merror=%s\033[0m", b.entry.Error))
 	}
-	
+
 	// HTTP context
 	if b.entry.HTTPMethod != "" {
 		httpInfo := fmt.Sprintf("%s %s", b.entry.HTTPMethod, b.entry.HTTPPath)
@@ -326,29 +326,29 @@ func (b *LogBuilder) formatPretty() string {
 		}
 		parts = append(parts, fmt.Sprintf("\033[94m[%s]\033[0m", httpInfo))
 	}
-	
+
 	// Duration
 	if b.entry.Duration != "" {
 		parts = append(parts, fmt.Sprintf("\033[93mduration=%s\033[0m", b.entry.Duration))
 	}
-	
+
 	// User context
 	if b.entry.UserID != "" {
 		parts = append(parts, fmt.Sprintf("\033[95muser=%s\033[0m", b.entry.UserID))
 	}
-	
+
 	// Custom fields
 	if len(b.entry.Fields) > 0 {
 		for k, v := range b.entry.Fields {
 			parts = append(parts, fmt.Sprintf("\033[90m%s=%v\033[0m", k, v))
 		}
 	}
-	
+
 	// Location (file:line)
 	if b.entry.File != "" && b.entry.Line != 0 {
 		parts = append(parts, fmt.Sprintf("\033[90m(%s:%d)\033[0m", b.entry.File, b.entry.Line))
 	}
-	
+
 	return strings.Join(parts, " ")
 }
 
@@ -367,7 +367,7 @@ func getLevelColor(level LogLevel) string {
 	case LogLevelFatal:
 		return "\033[35m" // Magenta
 	default:
-		return "\033[0m"  // Reset
+		return "\033[0m" // Reset
 	}
 }
 
@@ -382,7 +382,7 @@ func getStatusColor(status int) string {
 	case status >= 500:
 		return "\033[31m" // Red for server error
 	default:
-		return "\033[0m"  // Reset
+		return "\033[0m" // Reset
 	}
 }
 
@@ -391,18 +391,18 @@ func getFunctionName(skip int) string {
 	if !ok {
 		return ""
 	}
-	
+
 	fn := runtime.FuncForPC(pc)
 	if fn == nil {
 		return ""
 	}
-	
+
 	fullName := fn.Name()
 	parts := strings.Split(fullName, ".")
 	if len(parts) > 0 {
 		return parts[len(parts)-1]
 	}
-	
+
 	return fullName
 }
 
@@ -443,7 +443,7 @@ func LogDatabaseOperation(operation, table string, duration time.Duration, err e
 		WithDuration(duration).
 		WithField("operation", operation).
 		WithField("table", table)
-	
+
 	if err != nil {
 		builder = Error("database").
 			Message(fmt.Sprintf("Database %s failed on %s", operation, table)).
@@ -452,7 +452,7 @@ func LogDatabaseOperation(operation, table string, duration time.Duration, err e
 			WithField("table", table).
 			WithError(err)
 	}
-	
+
 	builder.Log()
 }
 
@@ -473,7 +473,7 @@ func LogAuthEvent(event, userID string, success bool) {
 	if !success {
 		level = Warn
 	}
-	
+
 	level("auth").
 		Message(fmt.Sprintf("Authentication %s", event)).
 		WithUser(userID).

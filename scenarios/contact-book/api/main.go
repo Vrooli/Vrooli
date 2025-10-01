@@ -1051,6 +1051,9 @@ func main() {
 	initDB()
 	defer db.Close()
 
+	// Initialize MinIO client for file storage
+	initMinIO()
+
 	// Initialize Qdrant client for semantic search
 	qdrantClient = NewQdrantClient()
 	if err := qdrantClient.CreateCollection(); err != nil {
@@ -1097,6 +1100,16 @@ func main() {
 
 		// Search routes
 		api.POST("/search", searchContacts)
+
+		// Attachment routes
+		api.POST("/contacts/:id/attachments", uploadAttachment)
+		api.GET("/contacts/:id/attachments", getAttachments)
+		api.GET("/attachments/:attachmentId/download", downloadAttachment)
+		api.DELETE("/attachments/:attachmentId", deleteAttachment)
+
+		// Communication preferences routes
+		api.GET("/contacts/:id/preferences", getCommunicationPreferences)
+		api.POST("/communications", recordCommunication)
 	}
 
 	uiDir := os.Getenv("CONTACT_BOOK_UI_DIR")

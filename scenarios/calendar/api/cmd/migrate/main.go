@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	migrationsDir = "migrations"
+	migrationsDir   = "migrations"
 	migrationsTable = "schema_migrations"
 )
 
@@ -201,7 +201,7 @@ func loadMigrations() ([]Migration, error) {
 
 func getAppliedMigrations(db *sql.DB) (map[string]MigrationRecord, error) {
 	query := `SELECT version, applied_at, checksum FROM ` + migrationsTable + ` ORDER BY version`
-	
+
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query applied migrations: %w", err)
@@ -209,7 +209,7 @@ func getAppliedMigrations(db *sql.DB) (map[string]MigrationRecord, error) {
 	defer rows.Close()
 
 	applied := make(map[string]MigrationRecord)
-	
+
 	for rows.Next() {
 		var record MigrationRecord
 		if err := rows.Scan(&record.Version, &record.AppliedAt, &record.Checksum); err != nil {
@@ -307,12 +307,12 @@ func runMigrationsDown(count int) error {
 	defer db.Close()
 
 	log.Printf("Rolling back %d migration(s)...", count)
-	
+
 	// For now, just log that down migrations aren't implemented
 	// In a production system, you'd want to implement proper down migrations
 	log.Println("⚠️  Down migrations not implemented yet")
 	log.Println("   Consider implementing rollback scripts or manual database changes")
-	
+
 	return nil
 }
 
@@ -384,10 +384,10 @@ func showMigrationStatus() error {
 func createMigration(name string) error {
 	// Generate timestamp
 	timestamp := time.Now().Format("20060102_150405")
-	
+
 	// Clean name
 	cleanName := strings.ReplaceAll(strings.ToLower(name), " ", "_")
-	
+
 	// Generate filename
 	filename := fmt.Sprintf("%s_%s.sql", timestamp, cleanName)
 	filepath := filepath.Join(migrationsDir, filename)
@@ -429,10 +429,10 @@ func createMigration(name string) error {
 
 func resetMigrations() error {
 	fmt.Print("⚠️  This will delete all data and reset the database. Are you sure? (yes/no): ")
-	
+
 	var confirmation string
 	fmt.Scanln(&confirmation)
-	
+
 	if confirmation != "yes" {
 		log.Println("Reset cancelled")
 		return nil
@@ -449,7 +449,7 @@ func resetMigrations() error {
 	// Drop all tables (in reverse dependency order)
 	tables := []string{
 		"event_embeddings",
-		"event_reminders", 
+		"event_reminders",
 		"recurring_patterns",
 		"events",
 		"users",

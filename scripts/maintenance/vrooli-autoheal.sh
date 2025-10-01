@@ -52,6 +52,15 @@ ensure_prereqs() {
 }
 
 acquire_lock() {
+    local lock_dir
+    lock_dir="$(dirname "$LOCK_FILE")"
+    if ! mkdir -p "$lock_dir" 2>/dev/null; then
+        log "WARN" "Unable to create lock directory $lock_dir; falling back to /tmp"
+        LOCK_FILE=/tmp/vrooli-autoheal.lock
+        lock_dir="$(dirname "$LOCK_FILE")"
+        mkdir -p "$lock_dir" 2>/dev/null || true
+    fi
+
     if command -v flock >/dev/null 2>&1; then
         exec 9>"$LOCK_FILE"
         if ! flock -n 9; then

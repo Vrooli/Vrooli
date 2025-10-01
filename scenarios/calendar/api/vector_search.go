@@ -23,7 +23,7 @@ type VectorSearchManager struct {
 
 type QdrantPoint struct {
 	ID      string                 `json:"id"`
-	Vector  []float64             `json:"vector"`
+	Vector  []float64              `json:"vector"`
 	Payload map[string]interface{} `json:"payload"`
 }
 
@@ -45,7 +45,7 @@ type QdrantSearchResponse struct {
 }
 
 type EventEmbedding struct {
-	ID                string    `json:"id"`
+	ID               string    `json:"id"`
 	EventID          string    `json:"event_id"`
 	QdrantPointID    string    `json:"qdrant_point_id"`
 	EmbeddingVersion string    `json:"embedding_version"`
@@ -73,7 +73,7 @@ func (vsm *VectorSearchManager) CreateEmbeddingForEvent(ctx context.Context, eve
 
 	// Generate content for embedding
 	content := vsm.generateEventContent(event)
-	
+
 	// Calculate content hash
 	hash := sha256.Sum256([]byte(content))
 	contentHash := fmt.Sprintf("%x", hash)
@@ -82,7 +82,7 @@ func (vsm *VectorSearchManager) CreateEmbeddingForEvent(ctx context.Context, eve
 	var existingHash string
 	checkQuery := `SELECT content_hash FROM event_embeddings WHERE event_id = $1`
 	err := vsm.db.QueryRowContext(ctx, checkQuery, event.ID).Scan(&existingHash)
-	
+
 	if err == nil && existingHash == contentHash {
 		// Content hasn't changed, no need to update embedding
 		return nil
@@ -90,7 +90,7 @@ func (vsm *VectorSearchManager) CreateEmbeddingForEvent(ctx context.Context, eve
 
 	// Generate embedding vector (placeholder - in real implementation, this would call OpenAI or similar)
 	vector := vsm.generateMockEmbedding(content)
-	
+
 	// Generate keywords for better searchability
 	keywords := vsm.extractKeywords(content)
 
@@ -100,15 +100,15 @@ func (vsm *VectorSearchManager) CreateEmbeddingForEvent(ctx context.Context, eve
 		ID:     pointID,
 		Vector: vector,
 		Payload: map[string]interface{}{
-			"event_id":     event.ID,
-			"user_id":      event.UserID,
-			"title":        event.Title,
-			"description":  event.Description,
-			"event_type":   event.EventType,
-			"location":     event.Location,
-			"start_time":   event.StartTime.Unix(),
-			"keywords":     keywords,
-			"content":      content,
+			"event_id":    event.ID,
+			"user_id":     event.UserID,
+			"title":       event.Title,
+			"description": event.Description,
+			"event_type":  event.EventType,
+			"location":    event.Location,
+			"start_time":  event.StartTime.Unix(),
+			"keywords":    keywords,
+			"content":     content,
 		},
 	}
 
@@ -123,7 +123,7 @@ func (vsm *VectorSearchManager) CreateEmbeddingForEvent(ctx context.Context, eve
 		insertQuery := `
 			INSERT INTO event_embeddings (id, event_id, qdrant_point_id, embedding_version, content_hash, keywords, created_at, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`
-		
+
 		keywordsJSON, _ := json.Marshal(keywords)
 		_, err = vsm.db.ExecContext(ctx, insertQuery, uuid.New().String(), event.ID, pointID, "v1.0", contentHash, keywordsJSON)
 	} else {
@@ -132,7 +132,7 @@ func (vsm *VectorSearchManager) CreateEmbeddingForEvent(ctx context.Context, eve
 			UPDATE event_embeddings 
 			SET qdrant_point_id = $2, content_hash = $3, keywords = $4, updated_at = NOW()
 			WHERE event_id = $1`
-		
+
 		keywordsJSON, _ := json.Marshal(keywords)
 		_, err = vsm.db.ExecContext(ctx, updateQuery, event.ID, pointID, contentHash, keywordsJSON)
 	}
@@ -211,18 +211,18 @@ func (vsm *VectorSearchManager) SearchEventsBySemantic(ctx context.Context, quer
 // generateEventContent creates searchable content from an event
 func (vsm *VectorSearchManager) generateEventContent(event Event) string {
 	content := []string{event.Title}
-	
+
 	if event.Description != "" {
 		content = append(content, event.Description)
 	}
-	
+
 	if event.Location != "" {
 		content = append(content, event.Location)
 	}
-	
+
 	content = append(content, event.EventType)
 	content = append(content, event.StartTime.Format("January 2006"))
-	
+
 	return strings.Join(content, " ")
 }
 
@@ -232,7 +232,7 @@ func (vsm *VectorSearchManager) generateMockEmbedding(text string) []float64 {
 	// This is a placeholder implementation
 	// In production, you would call OpenAI's embedding API or use a local model
 	vector := make([]float64, vsm.dimensions)
-	
+
 	// Generate deterministic but varied embeddings based on text content
 	textBytes := []byte(strings.ToLower(text))
 	for i := 0; i < vsm.dimensions; i++ {
@@ -242,7 +242,7 @@ func (vsm *VectorSearchManager) generateMockEmbedding(text string) []float64 {
 			vector[i] = float64((i*37+len(textBytes))%256) / 256.0
 		}
 	}
-	
+
 	return vector
 }
 
@@ -250,7 +250,7 @@ func (vsm *VectorSearchManager) generateMockEmbedding(text string) []float64 {
 func (vsm *VectorSearchManager) extractKeywords(content string) []string {
 	words := strings.Fields(strings.ToLower(content))
 	keywords := make([]string, 0)
-	
+
 	for _, word := range words {
 		// Basic keyword extraction - remove common words and short words
 		word = strings.Trim(word, ".,!?;:")
@@ -258,7 +258,7 @@ func (vsm *VectorSearchManager) extractKeywords(content string) []string {
 			keywords = append(keywords, word)
 		}
 	}
-	
+
 	return keywords
 }
 
@@ -271,18 +271,18 @@ func (vsm *VectorSearchManager) isStopWord(word string) bool {
 		"this": true, "that": true, "these": true, "those": true, "a": true, "an": true, "is": true, "was": true,
 		"are": true, "were": true, "will": true, "would": true, "could": true, "should": true, "may": true, "might": true,
 	}
-	
+
 	return stopWords[word]
 }
 
 // storePointInQdrant stores a vector point in Qdrant
 func (vsm *VectorSearchManager) storePointInQdrant(ctx context.Context, point QdrantPoint) error {
 	upsertURL := fmt.Sprintf("%s/collections/%s/points", vsm.qdrantURL, vsm.collectionName)
-	
+
 	payload := map[string]interface{}{
 		"points": []QdrantPoint{point},
 	}
-	
+
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal point: %w", err)

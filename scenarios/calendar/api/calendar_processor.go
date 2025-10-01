@@ -26,15 +26,15 @@ type ReminderManager struct {
 }
 
 type Reminder struct {
-	ID            string    `json:"id"`
-	EventID       string    `json:"event_id"`
-	UserID        string    `json:"user_id"`
-	MinutesBefore int       `json:"minutes_before"`
-	Type          string    `json:"type"`
-	Status        string    `json:"status"`
-	SendAt        time.Time `json:"send_at"`
+	ID            string     `json:"id"`
+	EventID       string     `json:"event_id"`
+	UserID        string     `json:"user_id"`
+	MinutesBefore int        `json:"minutes_before"`
+	Type          string     `json:"type"`
+	Status        string     `json:"status"`
+	SendAt        time.Time  `json:"send_at"`
 	SentAt        *time.Time `json:"sent_at,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
+	CreatedAt     time.Time  `json:"created_at"`
 }
 
 type NotificationRequest struct {
@@ -104,8 +104,8 @@ func (cp *CalendarProcessor) ProcessReminders(ctx context.Context) error {
 			EventStart    time.Time
 			EventLocation sql.NullString
 		}
-		
-		if err := rows.Scan(&r.ID, &r.EventID, &r.UserID, &r.MinutesBefore, &r.Type, 
+
+		if err := rows.Scan(&r.ID, &r.EventID, &r.UserID, &r.MinutesBefore, &r.Type,
 			&r.SendAt, &r.EventTitle, &r.EventDesc, &r.EventStart, &r.EventLocation); err != nil {
 			return fmt.Errorf("failed to scan reminder: %w", err)
 		}
@@ -122,16 +122,16 @@ func (cp *CalendarProcessor) ProcessReminders(ctx context.Context) error {
 		if reminder.EventLocation.Valid {
 			location = reminder.EventLocation.String
 		}
-		
+
 		// Get user email from auth service or use fallback for single-user mode
 		userEmail, err := cp.getUserEmail(ctx, reminder.UserID)
 		if err != nil {
 			fmt.Printf("Failed to get user email for %s: %v\n", reminder.UserID, err)
 			continue
 		}
-		
-		if err := cp.reminderManager.SendReminder(ctx, reminder.ID, userEmail, 
-			reminder.EventTitle, description, reminder.EventStart, 
+
+		if err := cp.reminderManager.SendReminder(ctx, reminder.ID, userEmail,
+			reminder.EventTitle, description, reminder.EventStart,
 			location, reminder.MinutesBefore); err != nil {
 			// Log error but continue processing other reminders
 			fmt.Printf("Failed to send reminder %s: %v\n", reminder.ID, err)
@@ -149,30 +149,30 @@ func (cp *CalendarProcessor) ProcessReminders(ctx context.Context) error {
 }
 
 // CreateRemindersForEvent creates reminders for a new event
-func (cp *CalendarProcessor) CreateRemindersForEvent(ctx context.Context, eventID, userID string, 
+func (cp *CalendarProcessor) CreateRemindersForEvent(ctx context.Context, eventID, userID string,
 	startTime time.Time, reminders []ReminderRequest) error {
-	
+
 	for _, reminder := range reminders {
 		reminderID := uuid.New().String()
 		sendAt := startTime.Add(-time.Duration(reminder.MinutesBefore) * time.Minute)
-		
+
 		query := `
 			INSERT INTO event_reminders (id, event_id, minutes_before, notification_type, status, scheduled_time, created_at)
 			VALUES ($1, $2, $3, $4, 'pending', $5, NOW())`
-		
-		if _, err := cp.db.ExecContext(ctx, query, reminderID, eventID, 
+
+		if _, err := cp.db.ExecContext(ctx, query, reminderID, eventID,
 			reminder.MinutesBefore, reminder.NotificationType, sendAt); err != nil {
 			return fmt.Errorf("failed to create reminder: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
 // SendReminder sends a reminder notification
-func (rm *ReminderManager) SendReminder(ctx context.Context, reminderID, userEmail, 
+func (rm *ReminderManager) SendReminder(ctx context.Context, reminderID, userEmail,
 	eventTitle, eventDesc string, eventStart time.Time, location string, minutesBefore int) error {
-	
+
 	notificationReq := NotificationRequest{
 		ProfileID:  rm.notificationProfileID,
 		Recipients: []string{userEmail},
@@ -192,8 +192,8 @@ func (rm *ReminderManager) SendReminder(ctx context.Context, reminderID, userEma
 		return fmt.Errorf("failed to marshal notification request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", 
-		rm.notificationServiceURL+"/api/v1/notifications/send", 
+	req, err := http.NewRequestWithContext(ctx, "POST",
+		rm.notificationServiceURL+"/api/v1/notifications/send",
 		bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create notification request: %w", err)
@@ -235,6 +235,101 @@ func (cp *CalendarProcessor) StartReminderProcessor(ctx context.Context) {
 			}
 		}
 	}()
+}
+
+// StartEventAutomationProcessor starts a background goroutine to trigger automations when events start
+func (cp *CalendarProcessor) StartEventAutomationProcessor(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(30 * time.Second) // Check every 30 seconds for more precision
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := cp.ProcessStartingEvents(ctx); err != nil {
+					fmt.Printf("Error processing event automation: %v\n", err)
+				}
+			}
+		}
+	}()
+}
+
+// ProcessStartingEvents finds events that are starting now and triggers their automation
+func (cp *CalendarProcessor) ProcessStartingEvents(ctx context.Context) error {
+	// Get all events starting in the next minute that have automation configured
+	query := `
+		SELECT id, user_id, title, description, start_time, end_time, timezone,
+		       location, event_type, status, metadata, automation_config
+		FROM events
+		WHERE status = 'active'
+		  AND start_time > NOW() - INTERVAL '1 minute'
+		  AND start_time <= NOW() + INTERVAL '30 seconds'
+		  AND automation_config IS NOT NULL
+		  AND automation_config != '{}'::jsonb
+		  AND (metadata->>'automation_triggered' IS NULL OR metadata->>'automation_triggered' != 'true')
+		ORDER BY start_time
+		LIMIT 10`
+
+	rows, err := cp.db.QueryContext(ctx, query)
+	if err != nil {
+		return fmt.Errorf("failed to fetch starting events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []Event
+	for rows.Next() {
+		var e Event
+		var metadata, automation sql.NullString
+
+		if err := rows.Scan(&e.ID, &e.UserID, &e.Title, &e.Description,
+			&e.StartTime, &e.EndTime, &e.Timezone, &e.Location, &e.EventType,
+			&e.Status, &metadata, &automation); err != nil {
+			return fmt.Errorf("failed to scan event: %w", err)
+		}
+
+		// Parse metadata and automation config
+		if metadata.Valid && metadata.String != "" {
+			if err := json.Unmarshal([]byte(metadata.String), &e.Metadata); err == nil {
+				// Successfully parsed
+			}
+		}
+		if e.Metadata == nil {
+			e.Metadata = make(map[string]interface{})
+		}
+
+		if automation.Valid && automation.String != "" {
+			if err := json.Unmarshal([]byte(automation.String), &e.AutomationConfig); err == nil {
+				// Successfully parsed
+			}
+		}
+
+		events = append(events, e)
+	}
+
+	// Process each event's automation
+	for _, event := range events {
+		// Process the automation
+		if err := cp.ProcessEventAutomation(ctx, event); err != nil {
+			fmt.Printf("Failed to process automation for event %s: %v\n", event.ID, err)
+			continue
+		}
+
+		// Mark automation as triggered in metadata
+		event.Metadata["automation_triggered"] = "true"
+		metadataJSON, _ := json.Marshal(event.Metadata)
+
+		updateQuery := `UPDATE events SET metadata = $1 WHERE id = $2`
+		if _, err := cp.db.ExecContext(ctx, updateQuery, metadataJSON, event.ID); err != nil {
+			fmt.Printf("Failed to update event %s metadata: %v\n", event.ID, err)
+		}
+
+		// Emit event.starting event
+		fmt.Printf("Event starting: %s - %s\n", event.ID, event.Title)
+	}
+
+	return nil
 }
 
 // ProcessEventAutomation handles event-triggered automation (replaces n8n event-automation workflow)
@@ -366,7 +461,7 @@ func (cp *CalendarProcessor) processRecurringAutomation(ctx context.Context, eve
 
 	pattern, _ := recurrenceConfig["pattern"].(string)
 	interval, _ := recurrenceConfig["interval"].(float64)
-	
+
 	// Calculate next occurrence
 	var nextStart time.Time
 	switch pattern {
@@ -409,7 +504,7 @@ func (cp *CalendarProcessor) processRecurringAutomation(ctx context.Context, eve
 		newMetadata = make(map[string]interface{})
 	}
 	newMetadata["recurrence_group_id"] = event.ID
-	
+
 	metadataJSON, _ := json.Marshal(newMetadata)
 	automationJSON, _ := json.Marshal(event.AutomationConfig)
 
@@ -436,7 +531,7 @@ func (cp *CalendarProcessor) getUserEmail(ctx context.Context, userID string) (s
 	}
 
 	// Create request to get user info from auth service
-	req, err := http.NewRequestWithContext(ctx, "GET", 
+	req, err := http.NewRequestWithContext(ctx, "GET",
 		cp.config.AuthServiceURL+"/api/v1/users/"+userID, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create user request: %w", err)

@@ -758,3 +758,114 @@ This will start all required services and dependencies automatically.
 ---
 
 For questions, issues, or contributions, please refer to the main Calendar scenario documentation in the [README.md](../README.md) file.
+---
+
+## Meeting Preparation Automation
+
+The calendar API provides automated meeting preparation features to help users prepare for meetings efficiently.
+
+### Generate Meeting Agenda
+
+Generate an automatic agenda for a meeting based on its type and duration.
+
+**Endpoint:** `GET /api/v1/events/{event_id}/agenda`
+
+**Request:**
+```http
+GET /api/v1/events/123e4567-e89b-12d3-a456-426614174000/agenda
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "event_id": "123e4567-e89b-12d3-a456-426614174000",
+  "title": "Team Planning Meeting",
+  "objective": "Define goals, create action plans, and assign responsibilities",
+  "duration": "60 minutes",
+  "attendees": ["team@example.com", "manager@example.com"],
+  "agenda_items": [
+    {
+      "topic": "Welcome & Agenda Review",
+      "duration_minutes": 5,
+      "description": "Brief introduction and review of meeting objectives"
+    },
+    {
+      "topic": "Goals & Objectives",
+      "duration_minutes": 15,
+      "description": "Define what we want to achieve"
+    },
+    {
+      "topic": "Strategy & Approach", 
+      "duration_minutes": 20,
+      "description": "How we will achieve our goals"
+    },
+    {
+      "topic": "Timeline & Milestones",
+      "duration_minutes": 15,
+      "description": "Key dates and deliverables"
+    },
+    {
+      "topic": "Summary & Action Items",
+      "duration_minutes": 5,
+      "description": "Recap decisions and next steps"
+    }
+  ],
+  "pre_work": [
+    "Review previous plans and outcomes",
+    "Research industry best practices",
+    "Prepare initial ideas and proposals"
+  ],
+  "generated_at": "2025-09-27T10:00:00Z"
+}
+```
+
+### Update Meeting Agenda
+
+Save or update a customized agenda for a meeting.
+
+**Endpoint:** `PUT /api/v1/events/{event_id}/agenda`
+
+**Request:**
+```json
+{
+  "objective": "Custom objective for the meeting",
+  "agenda_items": [
+    {
+      "topic": "Introduction",
+      "duration_minutes": 10,
+      "owner": "John Smith",
+      "description": "Welcome and introductions"
+    }
+  ],
+  "pre_work": ["Review Q3 reports"],
+  "notes": "Remember to discuss budget allocation"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Agenda updated successfully"
+}
+```
+
+### Supported Meeting Types
+
+The system automatically generates appropriate agendas for various meeting types:
+
+- **Standup/Daily**: Progress updates, blockers, daily plans
+- **Review**: Progress overview, feedback, next steps
+- **Planning**: Goals, strategy, timeline, responsibilities
+- **Retrospective**: Reflections, improvements, action items
+- **1-on-1**: Progress discussion, feedback, concerns
+- **Kickoff**: Project goals, timeline, roles, success criteria
+- **Brainstorming**: Idea generation, solution exploration
+
+The agenda generation considers:
+- Meeting duration for appropriate time allocation
+- Meeting title keywords for context
+- Number of attendees for participation planning
+- Event type for specialized formatting
+EOF < /dev/null

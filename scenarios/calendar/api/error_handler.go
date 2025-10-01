@@ -22,23 +22,23 @@ const (
 	ErrorCodeConflict        ErrorCode = "CONFLICT"
 	ErrorCodeValidationError ErrorCode = "VALIDATION_ERROR"
 	ErrorCodeRateLimit       ErrorCode = "RATE_LIMIT_EXCEEDED"
-	
+
 	// Server errors (5xx)
-	ErrorCodeInternalServer  ErrorCode = "INTERNAL_SERVER_ERROR"
-	ErrorCodeServiceUnavailable ErrorCode = "SERVICE_UNAVAILABLE"
-	ErrorCodeTimeout         ErrorCode = "TIMEOUT"
-	ErrorCodeDatabaseError   ErrorCode = "DATABASE_ERROR"
+	ErrorCodeInternalServer       ErrorCode = "INTERNAL_SERVER_ERROR"
+	ErrorCodeServiceUnavailable   ErrorCode = "SERVICE_UNAVAILABLE"
+	ErrorCodeTimeout              ErrorCode = "TIMEOUT"
+	ErrorCodeDatabaseError        ErrorCode = "DATABASE_ERROR"
 	ErrorCodeExternalServiceError ErrorCode = "EXTERNAL_SERVICE_ERROR"
 )
 
 // APIError represents a structured API error response
 type APIError struct {
-	Code       ErrorCode   `json:"code"`
-	Message    string      `json:"message"`
-	Details    interface{} `json:"details,omitempty"`
-	Timestamp  string      `json:"timestamp"`
-	RequestID  string      `json:"request_id,omitempty"`
-	Path       string      `json:"path,omitempty"`
+	Code      ErrorCode   `json:"code"`
+	Message   string      `json:"message"`
+	Details   interface{} `json:"details,omitempty"`
+	Timestamp string      `json:"timestamp"`
+	RequestID string      `json:"request_id,omitempty"`
+	Path      string      `json:"path,omitempty"`
 }
 
 // Error implements the error interface
@@ -55,9 +55,9 @@ type ValidationError struct {
 
 // ErrorResponse represents the complete error response structure
 type ErrorResponse struct {
-	Error       APIError            `json:"error"`
-	Validations []ValidationError   `json:"validations,omitempty"`
-	Context     map[string]string   `json:"context,omitempty"`
+	Error       APIError          `json:"error"`
+	Validations []ValidationError `json:"validations,omitempty"`
+	Context     map[string]string `json:"context,omitempty"`
 }
 
 // NewAPIError creates a new APIError with current timestamp
@@ -82,14 +82,14 @@ func NewValidationError(field, value, message string) ValidationError {
 // ErrorHandler provides centralized error handling
 type ErrorHandler struct {
 	includeStackTrace bool
-	logErrors        bool
+	logErrors         bool
 }
 
 // NewErrorHandler creates a new error handler
 func NewErrorHandler(includeStackTrace, logErrors bool) *ErrorHandler {
 	return &ErrorHandler{
 		includeStackTrace: includeStackTrace,
-		logErrors:        logErrors,
+		logErrors:         logErrors,
 	}
 }
 
@@ -231,18 +231,18 @@ func (eh *ErrorHandler) wrapUnknownError(err error) *APIError {
 }
 
 func (eh *ErrorHandler) logError(r *http.Request, apiError *APIError, originalErr error) {
-	log.Printf("[ERROR] %s %s - %s: %s", 
+	log.Printf("[ERROR] %s %s - %s: %s",
 		r.Method, r.URL.Path, apiError.Code, apiError.Message)
-	
+
 	if originalErr != nil && originalErr.Error() != apiError.Message {
 		log.Printf("[ERROR] Original error: %v", originalErr)
 	}
-	
+
 	// Log additional context
 	if apiError.RequestID != "" {
 		log.Printf("[ERROR] Request ID: %s", apiError.RequestID)
 	}
-	
+
 	if userAgent := r.Header.Get("User-Agent"); userAgent != "" {
 		log.Printf("[ERROR] User Agent: %s", userAgent)
 	}
@@ -251,7 +251,7 @@ func (eh *ErrorHandler) logError(r *http.Request, apiError *APIError, originalEr
 func (eh *ErrorHandler) sendErrorResponse(w http.ResponseWriter, statusCode int, errorResponse ErrorResponse) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	if err := json.NewEncoder(w).Encode(errorResponse); err != nil {
 		log.Printf("Failed to encode error response: %v", err)
 		// Fallback to plain text
@@ -278,7 +278,7 @@ func RecoveryMiddleware(eh *ErrorHandler) func(http.Handler) http.Handler {
 			defer func() {
 				if err := recover(); err != nil {
 					log.Printf("[PANIC] %v", err)
-					
+
 					var apiError *APIError
 					if e, ok := err.(error); ok {
 						apiError = InternalServerError("Server panic occurred", map[string]string{
@@ -289,11 +289,11 @@ func RecoveryMiddleware(eh *ErrorHandler) func(http.Handler) http.Handler {
 							"panic": err,
 						})
 					}
-					
+
 					eh.HandleError(w, r, apiError)
 				}
 			}()
-			
+
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -312,7 +312,7 @@ func ValidateEmail(field, email string) *ValidationError {
 	if email == "" {
 		return nil // Use ValidateRequired for required check
 	}
-	
+
 	if !strings.Contains(email, "@") || !strings.Contains(email, ".") {
 		ve := NewValidationError(field, email, "Invalid email format")
 		return &ve
@@ -325,11 +325,11 @@ func ValidateStringLength(field, value string, minLen, maxLen int) *ValidationEr
 		ve := NewValidationError(field, value, fmt.Sprintf("Must be at least %d characters", minLen))
 		return &ve
 	}
-	
+
 	if maxLen > 0 && len(value) > maxLen {
 		ve := NewValidationError(field, value, fmt.Sprintf("Must be no more than %d characters", maxLen))
 		return &ve
 	}
-	
+
 	return nil
 }

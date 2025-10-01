@@ -159,6 +159,13 @@ COMMANDS:
                            AI-powered schedule optimization
     
     remind test <event_id> Test notification delivery
+    
+    sync connect <provider>
+                           Connect external calendar (google/outlook)
+    sync disconnect <provider>
+                           Disconnect external calendar
+    sync status            Show external calendar connections
+    sync run               Manually sync external calendars
 
 OPTIONS:
     --json                 Output in JSON format
@@ -477,6 +484,112 @@ schedule_chat() {
     fi
 }
 
+# Sync commands for external calendar integration
+sync_connect() {
+    local provider="${1:-}"
+    
+    if [[ -z "$provider" ]]; then
+        print_error "Provider required (google or outlook)"
+        echo "Usage: calendar sync connect <provider>"
+        return 1
+    fi
+    
+    if [[ "$provider" != "google" && "$provider" != "outlook" ]]; then
+        print_error "Invalid provider. Must be 'google' or 'outlook'"
+        return 1
+    fi
+    
+    # Initiate OAuth flow
+    response=$(api_request "GET" "/api/v1/external-sync/oauth/$provider" "")
+    http_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | head -n-1)
+    
+    if [[ "$http_code" == "200" ]]; then
+        auth_url=$(echo "$body" | jq -r '.auth_url')
+        state=$(echo "$body" | jq -r '.state')
+        
+        print_success "✨ Starting $provider Calendar connection..."
+        echo ""
+        echo "Please visit this URL to authorize access:"
+        print_info "$auth_url"
+        echo ""
+        echo "After authorization, the calendar will be connected automatically."
+    else
+        print_error "Failed to initiate connection"
+        echo "$body" | jq '.' 2>/dev/null || echo "$body"
+    fi
+}
+
+sync_disconnect() {
+    local provider="${1:-}"
+    
+    if [[ -z "$provider" ]]; then
+        print_error "Provider required (google or outlook)"
+        echo "Usage: calendar sync disconnect <provider>"
+        return 1
+    fi
+    
+    response=$(api_request "DELETE" "/api/v1/external-sync/disconnect/$provider" "")
+    http_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | head -n-1)
+    
+    if [[ "$http_code" == "200" ]]; then
+        print_success "✅ Disconnected $provider Calendar"
+    else
+        print_error "Failed to disconnect"
+        echo "$body" | jq '.' 2>/dev/null || echo "$body"
+    fi
+}
+
+sync_status() {
+    response=$(api_request "GET" "/api/v1/external-sync/status" "")
+    http_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | head -n-1)
+    
+    if [[ "$http_code" == "200" ]]; then
+        connections=$(echo "$body" | jq -r '.connections')
+        
+        if [[ "$connections" == "[]" || -z "$connections" ]]; then
+            print_info "📅 No external calendars connected"
+            echo ""
+            echo "Connect a calendar with:"
+            echo "  calendar sync connect google"
+            echo "  calendar sync connect outlook"
+        else
+            print_success "📅 External Calendar Status:"
+            echo ""
+            echo "$body" | jq -r '.connections[] | "• \(.provider | ascii_upcase): \(if .connected then "✅ Connected" else "❌ Disconnected" end) | Last sync: \(.last_sync // "Never")"'
+        fi
+    else
+        print_error "Failed to fetch status"
+        echo "$body" | jq '.' 2>/dev/null || echo "$body"
+    fi
+}
+
+sync_run() {
+    print_info "🔄 Starting manual sync..."
+    
+    response=$(api_request "POST" "/api/v1/external-sync/sync" "{}")
+    http_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | head -n-1)
+    
+    if [[ "$http_code" == "200" ]]; then
+        results=$(echo "$body" | jq -r '.results')
+        
+        if [[ "$results" == "[]" || -z "$results" ]]; then
+            print_warning "No calendars to sync"
+            echo "Connect a calendar first with: calendar sync connect <provider>"
+        else
+            print_success "✅ Sync completed:"
+            echo ""
+            echo "$body" | jq -r '.results[] | "• \(.provider | ascii_upcase): \(.status) | Created: \(.events_created // 0), Updated: \(.events_updated // 0), Synced: \(.events_synced // 0)"'
+        fi
+    else
+        print_error "Sync failed"
+        echo "$body" | jq '.' 2>/dev/null || echo "$body"
+    fi
+}
+
 # Main command dispatcher
 main() {
     # Load configuration
@@ -516,6 +629,17 @@ main() {
             case "$subcommand" in
                 chat) schedule_chat "$@" ;;
                 *) print_error "Unknown schedule command: $subcommand"; exit 1 ;;
+            esac
+            ;;
+        sync)
+            local subcommand="${1:-help}"
+            shift || true
+            case "$subcommand" in
+                connect) sync_connect "$@" ;;
+                disconnect) sync_disconnect "$@" ;;
+                status) sync_status "$@" ;;
+                run) sync_run "$@" ;;
+                *) print_error "Unknown sync command: $subcommand"; exit 1 ;;
             esac
             ;;
         *)
