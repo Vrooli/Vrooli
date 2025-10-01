@@ -46,126 +46,11 @@
     </script>
 </head>
 <body>
-    <!-- Fixed Top Container -->
-    <div class="fixed-top-container" id="fixed-top-container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <div class="header-left">
-                    <h1 class="header-title" aria-label="Ecosystem Manager">
-                        <i class="fas fa-cogs" aria-hidden="true"></i>
-                        <span class="header-title-text">Ecosystem Manager</span>
-                    </h1>
-                    <div class="header-subtitle">Unified Resource & Scenario Management</div>
-                </div>
-                
-                <div class="header-right">
-                    <div class="queue-status">
-                        <div class="queue-info">
-                            <button class="queue-processor-status btn-processor-toggle" id="processor-toggle-btn" onclick="ecosystemManager.toggleProcessor()" title="Click to toggle processor" aria-live="polite">
-                                <i class="fas fa-play" id="processor-status-icon"></i>
-                                <span id="processor-status">Active</span>
-                            </button>
-                            <div class="queue-timer">
-                                <i class="fas fa-clock"></i>
-                                <span id="next-refresh">Next: <span id="refresh-countdown">--</span>s</span>
-                            </div>
-                            <!-- Process Monitor Widget -->
-                            <div class="process-monitor" id="process-monitor" style="display: none;">
-                                <button type="button" class="process-monitor-toggle" id="process-monitor-toggle" title="View running agents">
-                                    <span class="process-info">
-                                        <i class="fas fa-brain"></i>
-                                        <span id="running-process-count">0</span> Claude
-                                    </span>
-                                    <i class="fas fa-chevron-down process-monitor-arrow" id="process-monitor-arrow"></i>
-                                </button>
-                                <div class="process-dropdown" id="process-monitor-dropdown"></div>
-                            </div>
-                            <button class="btn-icon logs-btn" onclick="ecosystemManager.openLogsModal()" title="View API Logs">
-                                <i class="fas fa-scroll"></i>
-                            </button>
-                            <button class="btn-icon settings-btn" onclick="ecosystemManager.openSettingsModal()" title="Settings">
-                                <i class="fas fa-cog"></i>
-                            </button>
-                            <button class="btn btn-primary new-task-btn" onclick="ecosystemManager.showCreateTaskModal()" aria-label="Create new task">
-                                <i class="fas fa-plus" aria-hidden="true"></i>
-                                <span class="btn-label">New Task</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <!-- Filters -->
-        <section class="filters" id="filters">
-            <div class="filters-backdrop" id="filters-backdrop" hidden></div>
-            <div class="filter-panel" id="filter-panel">
-                <div class="filter-dialog-header" id="filter-dialog-header">
-                    <h2 class="filter-dialog-title" id="filter-dialog-title">Filters</h2>
-                    <button type="button" class="filter-dialog-close" id="filter-close-btn" aria-label="Close filters">
-                        <i class="fas fa-times" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div class="filter-group">
-                    <label class="sr-only" for="filter-type">Filter by type</label>
-                    <select id="filter-type" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Type">
-                        <option value="">All Types</option>
-                        <option value="resource">Resources</option>
-                        <option value="scenario">Scenarios</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label class="sr-only" for="filter-operation">Filter by operation</label>
-                    <select id="filter-operation" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Operation">
-                        <option value="">All Operations</option>
-                        <option value="generator">Generators</option>
-                        <option value="improver">Improvers</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label class="sr-only" for="filter-priority">Filter by priority</label>
-                    <select id="filter-priority" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Priority">
-                        <option value="">All Priorities</option>
-                        <option value="critical">Critical</option>
-                        <option value="high">High</option>
-                        <option value="medium">Medium</option>
-                        <option value="low">Low</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group filter-clear-group">
-                    <button class="btn btn-secondary" onclick="ecosystemManager.clearFilters()">
-                        <i class="fas fa-times"></i>
-                        <span class="btn-label">Clear</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="filters-bar">
-                <div class="filter-group filter-search">
-                    <input 
-                        type="text" 
-                        id="search-input" 
-                        class="search-input" 
-                        placeholder="Search tasks..."
-                        oninput="ecosystemManager.applyFilters()"
-                    >
-                    <i class="fas fa-search search-icon"></i>
-                </div>
-                <button type="button" class="btn btn-secondary filter-toggle-btn" id="filter-toggle-btn" onclick="ecosystemManager.toggleFilterPanel()" aria-controls="filter-panel" aria-expanded="false">
-                    <i class="fas fa-sliders-h" aria-hidden="true"></i>
-                    <span class="btn-label">Filters</span>
-                    <span class="filter-active-count" id="filter-active-count" hidden>0</span>
-                </button>
-            </div>
-        </section>
-    </div><!-- End Fixed Top Container -->
+    <h1 class="sr-only">Ecosystem Manager</h1>
 
     <!-- Kanban Board -->
-    <main class="kanban-board">
+    <main class="kanban-layout">
+        <div class="kanban-board">
         <!-- Pending Column -->
         <div class="kanban-column" data-status="pending">
             <div class="column-header">
@@ -285,7 +170,117 @@
                 <!-- Archived tasks will be loaded here -->
             </div>
         </div>
+        </div>
     </main>
+
+    <!-- Floating Controls -->
+    <aside class="floating-controls" id="floating-controls" aria-label="Quick actions">
+        <div class="floating-controls-secondary">
+            <button class="queue-processor-status btn-processor-toggle" id="processor-toggle-btn" onclick="ecosystemManager.toggleProcessor()" title="Click to toggle processor" aria-live="polite">
+                <i class="fas fa-play" id="processor-status-icon"></i>
+                <span id="processor-status" class="sr-only">Active</span>
+            </button>
+            <button type="button" class="btn-icon filter-btn" id="filter-toggle-btn" onclick="ecosystemManager.toggleFilterPanel()" aria-controls="filter-panel" aria-expanded="false" title="Open filters">
+                <i class="fas fa-sliders-h" aria-hidden="true"></i>
+                <span class="sr-only">Filters</span>
+                <span class="filter-active-count" id="filter-active-count" hidden>0</span>
+            </button>
+            <div class="queue-timer" aria-live="polite">
+                <i class="fas fa-clock" aria-hidden="true"></i>
+                <span id="next-refresh">Next: <span id="refresh-countdown">--</span>s</span>
+            </div>
+            <div class="process-monitor" id="process-monitor" style="display: none;">
+                <button type="button" class="process-monitor-toggle" id="process-monitor-toggle" title="View running agents">
+                    <span class="process-info">
+                        <i class="fas fa-brain"></i>
+                        <span id="running-process-count">0</span> Claude
+                    </span>
+                    <i class="fas fa-chevron-down process-monitor-arrow" id="process-monitor-arrow"></i>
+                </button>
+                <div class="process-dropdown" id="process-monitor-dropdown"></div>
+            </div>
+            <button class="btn-icon logs-btn" onclick="ecosystemManager.openLogsModal()" title="View API Logs">
+                <i class="fas fa-scroll"></i>
+            </button>
+            <button class="btn-icon settings-btn" onclick="ecosystemManager.openSettingsModal()" title="Settings">
+                <i class="fas fa-cog"></i>
+            </button>
+            <button class="btn-icon btn-icon-primary new-task-btn" onclick="ecosystemManager.showCreateTaskModal()" aria-label="Create new task" title="New Task">
+                <i class="fas fa-plus" aria-hidden="true"></i>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Filters Dialog -->
+    <section class="filters" id="filters" aria-hidden="true" hidden>
+        <div class="filters-backdrop" id="filters-backdrop" hidden></div>
+        <div class="filter-panel" id="filter-panel" role="dialog" aria-labelledby="filter-dialog-title" aria-hidden="true" tabindex="-1" hidden inert>
+            <div class="filter-dialog-header" id="filter-dialog-header">
+                <h2 class="filter-dialog-title" id="filter-dialog-title">Filters</h2>
+                <button type="button" class="filter-dialog-close" id="filter-close-btn" aria-label="Close filters">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="filter-group">
+                <label for="search-input" class="filter-label">Search</label>
+                <div class="filter-search">
+                    <i class="fas fa-search search-icon" aria-hidden="true"></i>
+                    <input 
+                        type="text" 
+                        id="search-input" 
+                        class="search-input" 
+                        placeholder="Search tasks..."
+                        oninput="ecosystemManager.applyFilters()"
+                        autocomplete="off"
+                    >
+                </div>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-type">Type</label>
+                <select id="filter-type" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Type">
+                    <option value="">All Types</option>
+                    <option value="resource">Resources</option>
+                    <option value="scenario">Scenarios</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-operation">Operation</label>
+                <select id="filter-operation" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Operation">
+                    <option value="">All Operations</option>
+                    <option value="generator">Generators</option>
+                    <option value="improver">Improvers</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-priority">Priority</label>
+                <select id="filter-priority" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Priority">
+                    <option value="">All Priorities</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <span class="filter-label" id="column-toggle-label">Columns</span>
+                <div class="column-toggle-chip-list" id="column-toggle-container" role="group" aria-labelledby="column-toggle-label">
+                    <button type="button" class="column-toggle-chip" data-column="pending" aria-pressed="true">Pending</button>
+                    <button type="button" class="column-toggle-chip" data-column="in-progress" aria-pressed="true">Active</button>
+                    <button type="button" class="column-toggle-chip" data-column="completed" aria-pressed="true">Completed</button>
+                    <button type="button" class="column-toggle-chip" data-column="completed-finalized" aria-pressed="true">Finished</button>
+                    <button type="button" class="column-toggle-chip" data-column="failed" aria-pressed="true">Failed</button>
+                    <button type="button" class="column-toggle-chip" data-column="failed-blocked" aria-pressed="true">Blocked</button>
+                    <button type="button" class="column-toggle-chip" data-column="archived" aria-pressed="false">Archived</button>
+                </div>
+            </div>
+            <div class="filter-group filter-clear-group">
+                <button class="btn btn-secondary" onclick="ecosystemManager.clearFilters()">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                    <span class="btn-label">Clear</span>
+                </button>
+            </div>
+        </div>
+    </section>
 
     <!-- Create Task Modal -->
     <div id="create-task-modal" class="modal">

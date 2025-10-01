@@ -1,20 +1,11 @@
 // Fall Foliage Explorer - Interactive Application
 
 // Configuration
-const API_BASE = `http://localhost:${window.location.port === '3920' ? '8920' : '8920'}`;
+const API_BASE = 'http://localhost:17175';  // Fixed API port from service.json
 let map = null;
 let markers = [];
 let currentView = 'map';
-
-// Sample data for demonstration
-const sampleRegions = [
-    { id: 1, name: 'White Mountains', state: 'New Hampshire', lat: 44.2700, lng: -71.3034, status: 'near_peak', intensity: 7 },
-    { id: 2, name: 'Green Mountains', state: 'Vermont', lat: 43.9207, lng: -72.8986, status: 'peak', intensity: 9 },
-    { id: 3, name: 'Adirondacks', state: 'New York', lat: 44.1127, lng: -74.0524, status: 'progressing', intensity: 5 },
-    { id: 4, name: 'Great Smoky Mountains', state: 'Tennessee', lat: 35.6532, lng: -83.5070, status: 'near_peak', intensity: 8 },
-    { id: 5, name: 'Blue Ridge Parkway', state: 'Virginia', lat: 37.5615, lng: -79.3553, status: 'peak', intensity: 10 },
-    { id: 6, name: 'Berkshires', state: 'Massachusetts', lat: 42.3604, lng: -73.2290, status: 'progressing', intensity: 6 },
-];
+let regionsData = [];  // Will be populated from API
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', () => {
@@ -249,15 +240,39 @@ function loadRegionsGrid() {
 }
 
 // Load regions
-function loadRegions() {
-    fetch(`${API_BASE}/api/regions`)
-        .then(res => res.json())
-        .then(data => {
-            console.log('Regions loaded:', data);
-        })
-        .catch(err => {
-            console.log('Using sample data');
-        });
+async function loadRegions() {
+    try {
+        const response = await fetch(`${API_BASE}/api/regions`);
+        const data = await response.json();
+
+        if (data && data.regions) {
+            regionsData = data.regions;
+            console.log('Regions loaded from API:', regionsData);
+
+            // Update the map with real data
+            if (map) {
+                clearMarkers();
+                addFoliageMarkers();
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load regions from API:', err);
+        // Fallback to sample data for demo
+        regionsData = [
+            { id: 1, name: 'White Mountains', state: 'New Hampshire', latitude: 44.2700, longitude: -71.3034, current_status: 'near_peak', color_intensity: 7 },
+            { id: 2, name: 'Green Mountains', state: 'Vermont', latitude: 43.9207, longitude: -72.8986, current_status: 'peak', color_intensity: 9 },
+            { id: 3, name: 'Adirondacks', state: 'New York', latitude: 44.1127, longitude: -74.0524, current_status: 'progressing', color_intensity: 5 },
+            { id: 4, name: 'Great Smoky Mountains', state: 'Tennessee', latitude: 35.6532, longitude: -83.5070, current_status: 'near_peak', color_intensity: 8 },
+            { id: 5, name: 'Blue Ridge Parkway', state: 'Virginia', latitude: 37.5615, longitude: -79.3553, current_status: 'peak', color_intensity: 10 },
+            { id: 6, name: 'Berkshires', state: 'Massachusetts', latitude: 42.3604, longitude: -73.2290, current_status: 'progressing', color_intensity: 6 },
+        ];
+    }
+}
+
+// Clear existing markers
+function clearMarkers() {
+    markers.forEach(marker => map.removeLayer(marker));
+    markers = [];
 }
 
 // Load planner regions

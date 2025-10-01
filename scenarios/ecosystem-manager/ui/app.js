@@ -509,6 +509,17 @@ class EcosystemManager {
             'failed-blocked': [],
             archived: []
         };
+        this.defaultColumnVisibility = {
+            pending: true,
+            'in-progress': true,
+            completed: true,
+            'completed-finalized': true,
+            failed: true,
+            'failed-blocked': true,
+            archived: false
+        };
+        this.columnVisibility = { ...this.defaultColumnVisibility };
+        this.columnToggleButtons = new Map();
         this.pendingTargetRefresh = null;
         this.filterState = {
             type: '',
@@ -538,12 +549,13 @@ class EcosystemManager {
         this.refreshAll = this.refreshAll.bind(this);
         this.handlePopState = this.handlePopState.bind(this);
         this.toggleFilterPanel = this.toggleFilterPanel.bind(this);
-        this.syncFilterPanelForViewport = this.syncFilterPanelForViewport.bind(this);
         this.handleFilterKeyDown = this.handleFilterKeyDown.bind(this);
         this.updateActionButtonLabelsForViewport = this.updateActionButtonLabelsForViewport.bind(this);
+        this.handleGlobalHotkeys = this.handleGlobalHotkeys.bind(this);
 
         this.horizontalScrollLockUntil = 0;
         this.isFilterDialogOpen = false;
+        this.filterPanelHideTimeout = null;
     }
 
     async init() {
@@ -593,7 +605,6 @@ class EcosystemManager {
         this.setupModals();
         this.initializeTargetSelector();
         this.initializeFilterControls();
-        this.syncFilterPanelForViewport();
         this.updateFilterSummaryUI(this.filterState);
         this.initializeRecyclerTestbed();
 
@@ -631,21 +642,76 @@ class EcosystemManager {
     }
 
     initializeFilterControls() {
+        const filtersSection = document.getElementById('filters');
+        const filterPanel = document.getElementById('filter-panel');
+        const filterBackdrop = document.getElementById('filters-backdrop');
+
         const stateFromUrl = this.getFiltersFromUrl();
         this.applyFilterStateToUI(stateFromUrl);
         this.filterState = this.collectFilterStateFromUI();
         this.filterTasks(this.filterState);
         window.addEventListener('popstate', this.handlePopState);
 
+        this.initializeColumnVisibilityControls();
+
+        if (filtersSection && filterPanel && !filtersSection.classList.contains('filters-open')) {
+            filtersSection.hidden = true;
+            filterPanel.hidden = true;
+            filterPanel.setAttribute('inert', '');
+            filtersSection.style.pointerEvents = 'none';
+            filterPanel.style.pointerEvents = 'none';
+
+            if (filterBackdrop) {
+                filterBackdrop.hidden = true;
+            }
+        }
+
         const filterCloseBtn = document.getElementById('filter-close-btn');
         if (filterCloseBtn) {
             filterCloseBtn.addEventListener('click', () => this.toggleFilterPanel(false));
         }
-
-        const filterBackdrop = document.getElementById('filters-backdrop');
         if (filterBackdrop) {
             filterBackdrop.addEventListener('click', () => this.toggleFilterPanel(false));
         }
+    }
+
+    initializeColumnVisibilityControls() {
+        const container = document.getElementById('column-toggle-container');
+        if (!container) {
+            return;
+        }
+
+        const chips = Array.from(container.querySelectorAll('.column-toggle-chip'));
+        if (chips.length === 0) {
+            return;
+        }
+
+        chips.forEach(chip => {
+            const status = chip.dataset.column;
+            if (!status) {
+                return;
+            }
+
+            this.columnToggleButtons.set(status, chip);
+
+            if (typeof this.columnVisibility[status] !== 'boolean') {
+                this.columnVisibility[status] = this.defaultColumnVisibility.hasOwnProperty(status)
+                    ? this.defaultColumnVisibility[status]
+                    : status !== 'archived';
+            }
+
+            const isVisible = Boolean(this.columnVisibility[status]);
+            chip.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
+
+            chip.addEventListener('click', () => {
+                const currentlyPressed = chip.getAttribute('aria-pressed') === 'true';
+                this.setColumnVisibility(status, !currentlyPressed, { source: 'chip' });
+            });
+        });
+
+        Object.entries(this.columnVisibility).forEach(([status, visible]) => {
+            this.setColumnVisibility(status, Boolean(visible), { source: 'init', suppressToast: true, force: true });
+        });
     }
 
     getFiltersFromUrl() {
@@ -692,47 +758,9 @@ class EcosystemManager {
         };
     }
 
-    syncFilterPanelForViewport() {
-        const filtersSection = document.getElementById('filters');
-        const filterPanel = document.getElementById('filter-panel');
-        const toggleBtn = document.getElementById('filter-toggle-btn');
-        const backdrop = document.getElementById('filters-backdrop');
-
-        if (!filtersSection || !filterPanel || !toggleBtn) {
-            return;
-        }
-
-        const isMobile = this.isMobileViewport();
-
-        if (isMobile) {
-            const expanded = filtersSection.classList.contains('filters-expanded');
-            filterPanel.setAttribute('aria-hidden', (!expanded).toString());
-            toggleBtn.setAttribute('aria-expanded', expanded.toString());
-            if (backdrop) {
-                backdrop.hidden = !expanded;
-            }
-        } else {
-            if (filtersSection.classList.contains('filters-expanded')) {
-                filtersSection.classList.remove('filters-expanded');
-            }
-            filterPanel.removeAttribute('role');
-            filterPanel.removeAttribute('aria-modal');
-            filterPanel.removeAttribute('aria-labelledby');
-            filterPanel.setAttribute('aria-hidden', 'false');
-            toggleBtn.setAttribute('aria-expanded', 'false');
-            if (backdrop) {
-                backdrop.hidden = true;
-            }
-            document.removeEventListener('keydown', this.handleFilterKeyDown);
-            this.isFilterDialogOpen = false;
-            this.restoreBodyScrollIfSafe();
-        }
-    }
-
     updateFilterSummaryUI(state = this.filterState || {}) {
         const toggleBtn = document.getElementById('filter-toggle-btn');
         const badge = document.getElementById('filter-active-count');
-        const filtersSection = document.getElementById('filters');
 
         const activeCount = ['type', 'operation', 'priority']
             .map(key => (state[key] || '').trim())
@@ -758,10 +786,8 @@ class EcosystemManager {
                 toggleBtn.setAttribute('aria-label', baseLabel);
                 toggleBtn.title = baseLabel;
             }
-        }
 
-        if (filtersSection) {
-            filtersSection.classList.toggle('filters-have-active', activeCount > 0);
+            toggleBtn.classList.toggle('is-active', activeCount > 0);
         }
     }
 
@@ -775,35 +801,37 @@ class EcosystemManager {
             return;
         }
 
-        const isMobile = this.isMobileViewport();
-        if (!isMobile && forceState !== false) {
+        const isOpen = filtersSection.classList.contains('filters-open');
+        const shouldOpen = typeof forceState === 'boolean' ? forceState : !isOpen;
+
+        if (shouldOpen === isOpen) {
             return;
         }
 
-        const currentlyExpanded = filtersSection.classList.contains('filters-expanded');
-        const shouldExpand = typeof forceState === 'boolean' ? forceState : !currentlyExpanded;
+        window.clearTimeout(this.filterPanelHideTimeout);
 
-        if (shouldExpand === currentlyExpanded && isMobile) {
-            return;
-        }
+        if (shouldOpen) {
+            filtersSection.hidden = false;
+            filterPanel.hidden = false;
+            filterPanel.removeAttribute('inert');
+            filtersSection.style.pointerEvents = '';
+            filterPanel.style.pointerEvents = '';
 
-        filtersSection.classList.toggle('filters-expanded', shouldExpand);
-
-        if (isMobile) {
-            filterPanel.setAttribute('aria-hidden', (!shouldExpand).toString());
-            toggleBtn.setAttribute('aria-expanded', shouldExpand.toString());
             if (backdrop) {
-                backdrop.hidden = !shouldExpand;
+                backdrop.hidden = false;
             }
         } else {
-            filterPanel.setAttribute('aria-hidden', 'false');
-            toggleBtn.setAttribute('aria-expanded', 'false');
-            if (backdrop) {
-                backdrop.hidden = true;
-            }
+            filterPanel.setAttribute('inert', '');
+            filtersSection.style.pointerEvents = 'none';
+            filterPanel.style.pointerEvents = 'none';
         }
 
-        if (shouldExpand) {
+        filtersSection.classList.toggle('filters-open', shouldOpen);
+        filtersSection.setAttribute('aria-hidden', (!shouldOpen).toString());
+        filterPanel.setAttribute('aria-hidden', (!shouldOpen).toString());
+        toggleBtn.setAttribute('aria-expanded', shouldOpen.toString());
+
+        if (shouldOpen) {
             filterPanel.setAttribute('role', 'dialog');
             filterPanel.setAttribute('aria-modal', 'true');
             filterPanel.setAttribute('aria-labelledby', 'filter-dialog-title');
@@ -811,24 +839,35 @@ class EcosystemManager {
             this.isFilterDialogOpen = true;
             document.addEventListener('keydown', this.handleFilterKeyDown);
 
-            const firstInput = filterPanel.querySelector('select, button, input:not([type="hidden"])');
-            if (firstInput) {
-                firstInput.focus({ preventScroll: true });
+            const focusable = filterPanel.querySelector('input:not([type="hidden"]), select, textarea, button:not([type="hidden"]):not([disabled]), [tabindex]:not([tabindex="-1"])');
+            if (focusable && typeof focusable.focus === 'function') {
+                focusable.focus({ preventScroll: true });
+            } else {
+                filterPanel.focus({ preventScroll: true });
             }
-        } else if (isMobile) {
-            filterPanel.removeAttribute('role');
+        } else {
             filterPanel.removeAttribute('aria-modal');
-            filterPanel.removeAttribute('aria-labelledby');
             document.removeEventListener('keydown', this.handleFilterKeyDown);
             this.isFilterDialogOpen = false;
             this.restoreBodyScrollIfSafe();
 
+            const finalizeClose = () => {
+                if (backdrop) {
+                    backdrop.hidden = true;
+                }
+                filtersSection.hidden = true;
+                filterPanel.hidden = true;
+                filterPanel.setAttribute('inert', '');
+                filtersSection.style.pointerEvents = 'none';
+                filterPanel.style.pointerEvents = 'none';
+                this.filterPanelHideTimeout = null;
+            };
+
+            this.filterPanelHideTimeout = window.setTimeout(finalizeClose, 220);
+
             if (document.activeElement && filterPanel.contains(document.activeElement)) {
                 toggleBtn.focus({ preventScroll: true });
             }
-        } else {
-            this.isFilterDialogOpen = false;
-            this.restoreBodyScrollIfSafe();
         }
     }
 
@@ -845,10 +884,74 @@ class EcosystemManager {
         return window.innerWidth <= 768;
     }
 
+    handleGlobalHotkeys(event) {
+        if (event.defaultPrevented) {
+            return;
+        }
+
+        if (event.key === '/' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+            const activeElement = document.activeElement;
+            const isTyping = activeElement && (
+                activeElement.tagName === 'INPUT' ||
+                activeElement.tagName === 'TEXTAREA' ||
+                activeElement.isContentEditable
+            );
+
+            if (isTyping) {
+                return;
+            }
+
+            event.preventDefault();
+            this.toggleFilterPanel(true);
+
+            requestAnimationFrame(() => {
+                const searchInput = document.getElementById('search-input');
+                if (searchInput) {
+                    searchInput.focus({ preventScroll: true });
+                    if (typeof searchInput.select === 'function') {
+                        searchInput.select();
+                    }
+                }
+            });
+        }
+    }
+
     handleFilterKeyDown(event) {
-        if (event.key === 'Escape' && this.isFilterDialogOpen) {
+        if (!this.isFilterDialogOpen) {
+            return;
+        }
+
+        if (event.key === 'Escape') {
             event.preventDefault();
             this.toggleFilterPanel(false);
+            return;
+        }
+
+        if (event.key === 'Tab') {
+            const filterPanel = document.getElementById('filter-panel');
+            if (!filterPanel) {
+                return;
+            }
+
+            const focusableSelectors = 'button:not([disabled]):not([tabindex="-1"]), select:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), [tabindex]:not([tabindex="-1"])';
+            const focusable = Array.from(filterPanel.querySelectorAll(focusableSelectors))
+                .filter(el => !el.hasAttribute('hidden') && el.offsetParent !== null);
+
+            if (focusable.length === 0) {
+                return;
+            }
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const active = document.activeElement;
+
+            if (event.shiftKey && active === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && active === last) {
+                event.preventDefault();
+                first.focus();
+            }
         }
     }
 
@@ -885,7 +988,6 @@ class EcosystemManager {
         this.applyFilterStateToUI(stateFromUrl);
         this.filterState = this.collectFilterStateFromUI();
         this.filterTasks(this.filterState);
-        this.syncFilterPanelForViewport();
     }
 
     getSelectedTargets() {
@@ -1276,8 +1378,8 @@ class EcosystemManager {
     }
 
     setupEventListeners() {
-        window.addEventListener('resize', this.syncFilterPanelForViewport);
         window.addEventListener('resize', this.updateActionButtonLabelsForViewport);
+        window.addEventListener('keydown', this.handleGlobalHotkeys);
 
         const kanbanBoard = document.querySelector('.kanban-board');
         if (kanbanBoard) {
@@ -4400,6 +4502,10 @@ class EcosystemManager {
         if (prioritySelect) prioritySelect.value = '';
         if (searchInput) searchInput.value = '';
 
+        Object.entries(this.defaultColumnVisibility).forEach(([status, visible]) => {
+            this.setColumnVisibility(status, visible, { source: 'clear', suppressToast: true, force: true });
+        });
+
         this.applyFilters();
         this.toggleFilterPanel(false);
     }
@@ -4753,22 +4859,72 @@ class EcosystemManager {
         }
     }
 
-    hideColumn(status) {
+    setColumnVisibility(status, isVisible, options = {}) {
         const column = document.querySelector(`[data-status="${status}"]`);
-        if (column) {
-            column.classList.add('hidden');
-            this.updateGridLayout();
-            this.showToast(`${status.charAt(0).toUpperCase() + status.slice(1)} column hidden`, 'info');
+        if (!column) {
+            return;
+        }
+
+        const { suppressToast = false, source = 'programmatic', force = false } = options;
+
+        if (typeof this.columnVisibility[status] !== 'boolean') {
+            this.columnVisibility[status] = this.defaultColumnVisibility.hasOwnProperty(status)
+                ? this.defaultColumnVisibility[status]
+                : true;
+        }
+
+        const wasVisible = this.columnVisibility[status];
+        if (!force && wasVisible === isVisible) {
+            return;
+        }
+
+        this.columnVisibility[status] = isVisible;
+        column.classList.toggle('hidden', !isVisible);
+        this.updateGridLayout();
+
+        const chip = this.columnToggleButtons.get(status);
+        if (chip) {
+            chip.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
+        }
+
+        if (!suppressToast) {
+            const label = this.getColumnDisplayName(status);
+            if (isVisible) {
+                this.showToast(`${label} column shown`, 'success');
+            } else {
+                const hint = source === 'column-button' ? ' Use Filters → Columns to show it again.' : '';
+                this.showToast(`${label} column hidden.${hint}`, 'info');
+            }
         }
     }
 
-    showColumn(status) {
-        const column = document.querySelector(`[data-status="${status}"]`);
-        if (column) {
-            column.classList.remove('hidden');
-            this.updateGridLayout();
-            this.showToast(`${status.charAt(0).toUpperCase() + status.slice(1)} column shown`, 'info');
+    getColumnDisplayName(status) {
+        const mapping = {
+            pending: 'Pending',
+            'in-progress': 'Active',
+            completed: 'Completed',
+            'completed-finalized': 'Finished',
+            failed: 'Failed',
+            'failed-blocked': 'Blocked',
+            archived: 'Archived'
+        };
+
+        if (mapping[status]) {
+            return mapping[status];
         }
+
+        return status
+            .split('-')
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+    }
+
+    hideColumn(status) {
+        this.setColumnVisibility(status, false, { source: 'column-button' });
+    }
+
+    showColumn(status) {
+        this.setColumnVisibility(status, true, { source: 'column-button' });
     }
 
     updateGridLayout() {
