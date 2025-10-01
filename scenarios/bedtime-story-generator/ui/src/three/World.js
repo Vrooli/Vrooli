@@ -35,6 +35,7 @@ export default class World {
     this.scene = experience.scene;
 
     this.activeRoom = initialState?.activeRoom || DEFAULT_ROOM;
+    this.profilingSettings = initialState?.profiling || {};
 
     this.currentGlow = new THREE.Color("#4f6dff");
     this.targetGlow = new THREE.Color("#4f6dff");
@@ -161,13 +162,15 @@ export default class World {
 
     // Update story projector
     if (this.projectorScreen && this.projectorLight && this.projectorLens) {
-      const hasStory = !!snapshot.selectedStory;
+      const hasStory = !!snapshot.selectedStory && !this.profilingSettings?.disableProjectorCanvas;
       this.projectorLight.intensity = hasStory ? 0.5 : 0;
       this.projectorScreen.material.emissiveIntensity = hasStory ? 0.1 : 0;
       this.projectorLens.material.emissiveIntensity = hasStory ? 0.5 : 0;
       
       // Update canvas content
-      this._updateStoryCanvas(snapshot.selectedStory);
+      if (!this.profilingSettings?.disableProjectorCanvas) {
+        this._updateStoryCanvas(snapshot.selectedStory);
+      }
     }
   }
 
@@ -789,6 +792,7 @@ export default class World {
 
   _updateStoryCanvas(story) {
     if (!this.storyContext || !this.storyTexture) return;
+    if (this.profilingSettings?.disableProjectorCanvas) return;
     
     const ctx = this.storyContext;
     const canvas = this.storyCanvas;
@@ -869,6 +873,10 @@ export default class World {
 
   _updateStudio({ elapsed, delta }) {
     if (this.activeRoom !== "studio") {
+      return;
+    }
+
+    if (this.profilingSettings?.disableWorldAnimations) {
       return;
     }
 
@@ -1004,6 +1012,10 @@ export default class World {
       return;
     }
 
+    if (this.profilingSettings?.disableWorldAnimations) {
+      return;
+    }
+
     this.bedroomRoom.rotation.y = Math.sin(elapsed * 0.00005) * 0.02;
   }
 
@@ -1125,5 +1137,9 @@ export default class World {
     [this.rimLight, this.keyLight, this.fillLight].forEach((light) => {
       if (light) this.scene.remove(light);
     });
+  }
+
+  setProfilingSettings(settings = {}) {
+    this.profilingSettings = settings;
   }
 }

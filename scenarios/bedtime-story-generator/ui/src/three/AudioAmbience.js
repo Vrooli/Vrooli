@@ -361,4 +361,23 @@ export default class AudioAmbience {
     this.sounds = {};
     this.activeAmbience.clear();
   }
+
+  setEnabled(enabled) {
+    if (this.enabled === enabled) {
+      return;
+    }
+
+    this.enabled = enabled;
+
+    if (!enabled) {
+      Object.keys(this.sounds).forEach((soundType) => {
+        this._fadeOutSound(soundType, 0.5);
+      });
+    } else {
+      this.setTimeOfDay(this.currentTimeOfDay || "day");
+      if (this.currentStoryMood) {
+        this.setStoryMood(this.currentStoryMood);
+      }
+    }
+  }
 }

@@ -34,7 +34,7 @@ This capability fundamentally improves the quality and reliability of all Vrooli
   - [x] AI-powered test case generation using scenario analysis and code inspection (2025-11-03: App Issue Tracker delegation working)
   - [x] Automated test execution with detailed reporting and failure analysis (2025-09-28: Execution and reporting functional)
   - [x] Test vault creation with phase-based testing for complex scenarios (2025-09-28: Vault creation working via CLI)
-  - [ ] Integration with existing Vrooli testing infrastructure
+  - [x] Integration with existing Vrooli testing infrastructure (2025-09-30: Integrated via vrooli scenario test command, fixed port discovery)
   
 - **Should Have (P1)**
   - [ ] Visual test coverage analysis with gap identification

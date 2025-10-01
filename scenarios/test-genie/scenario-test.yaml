@@ -65,7 +65,7 @@ setup:
     timeout: 120
     steps:
       - action: http_get
-        url: "http://localhost:8090/health"
+        url: "http://localhost:8090/api/v1/health"
         expected_status: 200
         description: "App Issue Tracker health check"
 
@@ -76,25 +76,15 @@ develop:
     category: api_development
     timeout: 180
     steps:
-      - action: http_get
-        url: "http://localhost:8200/health"
-        expected_status: 200
-        expected_json:
-          status: "healthy"
-        description: "API health check"
+      - action: exec
+        command: "API_PORT=$(lsof -i -P -n 2>/dev/null | grep test-genie-api | grep LISTEN | awk '{print $9}' | cut -d: -f2 | head -1); curl -sf http://localhost:${API_PORT}/health | jq -e '.status == \"healthy\"'"
+        expected_exit_code: 0
+        description: "API health check with dynamic port discovery"
 
-      - action: http_post
-        url: "http://localhost:8200/api/v1/test-suite/generate"
-        json_data:
-          scenario_name: "test-scenario"
-          test_types: ["unit", "integration"]
-          coverage_target: 95
-          options:
-            include_performance_tests: true
-            include_security_tests: true
-            custom_test_patterns: []
-            execution_timeout: 300
-        expected_status: 202
+      - action: exec
+        command: "API_PORT=$(vrooli scenario port test-genie API_PORT); curl -sf -X POST http://localhost:${API_PORT}/api/v1/test-suite/generate -H 'Content-Type: application/json' -d '"
+{"scenario_name":"test-scenario","test_types":["unit","integration"],"coverage_target":95,"options":{"include_performance_tests":true,"include_security_tests":true,"custom_test_patterns":[],"execution_timeout":300}}' | jq -e '.request_id' > /dev/null"
+        expected_exit_code: 0
         store_response_as: test_generation_request
         validate_response:
           has_field: "request_id"

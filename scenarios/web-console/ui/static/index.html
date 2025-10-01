@@ -85,6 +85,10 @@
               <li><span>Command</span><span id="sessionCommand">—</span></li>
               <li><span>Transcript</span><span id="transcriptSize">0 records</span></li>
             </ul>
+            <div class="panel-actions">
+              <button id="signOutAllSessions" class="btn btn-danger" type="button">Sign out all sessions</button>
+              <p class="panel-note">Closes every active terminal session for this console.</p>
+            </div>
           </section>
 
           <section class="panel">
@@ -121,6 +125,38 @@
         <div id="drawerBackdrop" class="drawer-backdrop" aria-hidden="true"></div>
       </section>
     </main>
+
+    <div id="tabContextBackdrop" class="tab-context-backdrop hidden" aria-hidden="true"></div>
+    <div
+      id="tabContextMenu"
+      class="tab-context-menu hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tabContextTitle"
+      aria-hidden="true"
+    >
+      <form id="tabContextForm" class="tab-context-body">
+        <div class="tab-context-header">
+          <h2 id="tabContextTitle">Customize Tab</h2>
+          <button type="button" id="tabContextCancel" class="tab-context-close" aria-label="Close customization">×</button>
+        </div>
+
+        <label class="tab-context-field">
+          <span>Tab name</span>
+          <input id="tabContextName" type="text" maxlength="48" autocomplete="off" />
+        </label>
+
+        <div class="tab-context-section">
+          <span class="tab-context-label">Color</span>
+          <div id="tabContextColors" class="tab-context-colors" role="listbox" aria-label="Tab colors"></div>
+        </div>
+
+        <div class="tab-context-actions">
+          <button type="button" id="tabContextReset" class="btn btn-ghost">Reset</button>
+          <button type="submit" id="tabContextSave" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.min.js"></script>

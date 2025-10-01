@@ -131,6 +131,9 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 		"TERMINAL_CONSOLE_COMMAND_LINE=" + formatCommandLine(command, args),
 	}
 	cmd.Env = append(os.Environ(), envExtras...)
+	if cfg.defaultWorkingDir != "" {
+		cmd.Dir = cfg.defaultWorkingDir
+	}
 
 	ptyFile, err := pty.Start(cmd)
 	if err != nil {

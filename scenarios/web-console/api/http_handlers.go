@@ -23,8 +23,14 @@ func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metric
 			handleCreateSession(w, r, manager)
 		case http.MethodGet:
 			writeJSON(w, http.StatusOK, manager.listSummaries())
+		case http.MethodDelete:
+			terminated := manager.deleteAllSessions(reasonClientRequested)
+			writeJSON(w, http.StatusOK, map[string]any{
+				"status":     "terminating_all",
+				"terminated": terminated,
+			})
 		default:
-			w.Header().Set("Allow", "GET, POST")
+			w.Header().Set("Allow", "GET, POST, DELETE")
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
 	}))

@@ -15,10 +15,114 @@ const elements = {
   drawerToggle: document.getElementById('drawerToggle'),
   drawerIndicator: document.getElementById('drawerIndicator'),
   detailsDrawer: document.getElementById('detailsDrawer'),
-  drawerBackdrop: document.getElementById('drawerBackdrop')
+  drawerBackdrop: document.getElementById('drawerBackdrop'),
+  tabContextMenu: document.getElementById('tabContextMenu'),
+  tabContextForm: document.getElementById('tabContextForm'),
+  tabContextName: document.getElementById('tabContextName'),
+  tabContextColors: document.getElementById('tabContextColors'),
+  tabContextCancel: document.getElementById('tabContextCancel'),
+  tabContextReset: document.getElementById('tabContextReset'),
+  tabContextBackdrop: document.getElementById('tabContextBackdrop'),
+  signOutAllSessions: document.getElementById('signOutAllSessions')
 }
 
 const shortcutButtons = Array.from(document.querySelectorAll('[data-shortcut-id]'))
+
+const TAB_COLOR_OPTIONS = [
+  {
+    id: 'sky',
+    label: 'Sky',
+    swatch: '#38bdf8',
+    styles: {
+      border: 'rgba(56, 189, 248, 0.28)',
+      hover: 'rgba(56, 189, 248, 0.45)',
+      active: 'rgba(56, 189, 248, 0.65)',
+      selectedStart: 'rgba(56, 189, 248, 0.35)',
+      selectedEnd: 'rgba(14, 116, 144, 0.38)',
+      glow: 'rgba(56, 189, 248, 0.35)',
+      label: '#f8fafc'
+    }
+  },
+  {
+    id: 'emerald',
+    label: 'Emerald',
+    swatch: '#34d399',
+    styles: {
+      border: 'rgba(52, 211, 153, 0.26)',
+      hover: 'rgba(16, 185, 129, 0.42)',
+      active: 'rgba(16, 185, 129, 0.62)',
+      selectedStart: 'rgba(16, 185, 129, 0.32)',
+      selectedEnd: 'rgba(5, 150, 105, 0.38)',
+      glow: 'rgba(16, 185, 129, 0.32)',
+      label: '#ecfeff'
+    }
+  },
+  {
+    id: 'amber',
+    label: 'Amber',
+    swatch: '#f59e0b',
+    styles: {
+      border: 'rgba(245, 158, 11, 0.32)',
+      hover: 'rgba(245, 158, 11, 0.48)',
+      active: 'rgba(245, 158, 11, 0.68)',
+      selectedStart: 'rgba(251, 191, 36, 0.35)',
+      selectedEnd: 'rgba(217, 119, 6, 0.42)',
+      glow: 'rgba(245, 158, 11, 0.35)',
+      label: '#fffbeb'
+    }
+  },
+  {
+    id: 'sunset',
+    label: 'Sunset',
+    swatch: '#f97316',
+    styles: {
+      border: 'rgba(249, 115, 22, 0.32)',
+      hover: 'rgba(249, 115, 22, 0.48)',
+      active: 'rgba(249, 115, 22, 0.7)',
+      selectedStart: 'rgba(251, 146, 60, 0.36)',
+      selectedEnd: 'rgba(194, 65, 12, 0.38)',
+      glow: 'rgba(249, 115, 22, 0.36)',
+      label: '#fff7ed'
+    }
+  },
+  {
+    id: 'violet',
+    label: 'Violet',
+    swatch: '#a855f7',
+    styles: {
+      border: 'rgba(168, 85, 247, 0.32)',
+      hover: 'rgba(139, 92, 246, 0.5)',
+      active: 'rgba(139, 92, 246, 0.7)',
+      selectedStart: 'rgba(196, 181, 253, 0.36)',
+      selectedEnd: 'rgba(126, 58, 242, 0.42)',
+      glow: 'rgba(168, 85, 247, 0.38)',
+      label: '#f5f3ff'
+    }
+  },
+  {
+    id: 'slate',
+    label: 'Slate',
+    swatch: '#64748b',
+    styles: {
+      border: 'rgba(100, 116, 139, 0.32)',
+      hover: 'rgba(100, 116, 139, 0.5)',
+      active: 'rgba(100, 116, 139, 0.7)',
+      selectedStart: 'rgba(148, 163, 184, 0.32)',
+      selectedEnd: 'rgba(71, 85, 105, 0.48)',
+      glow: 'rgba(100, 116, 139, 0.35)',
+      label: '#f8fafc'
+    }
+  }
+]
+
+const TAB_COLOR_DEFAULT = TAB_COLOR_OPTIONS[0]?.id || 'sky'
+const TAB_COLOR_MAP = TAB_COLOR_OPTIONS.reduce((map, option) => {
+  map[option.id] = option
+  return map
+}, {})
+
+const TAB_LONG_PRESS_DELAY = 550
+const tabColorButtons = new Map()
 
 const terminalDefaults = {
   convertEol: true,
@@ -61,6 +165,12 @@ const state = {
     open: false,
     unreadCount: 0,
     previousFocus: null
+  },
+  tabMenu: {
+    open: false,
+    tabId: null,
+    selectedColor: TAB_COLOR_DEFAULT,
+    anchor: { x: 0, y: 0 }
   }
 }
 
@@ -90,6 +200,12 @@ shortcutButtons.forEach((button) => {
   button.addEventListener('click', () => handleShortcutButton(button))
 })
 
+if (elements.signOutAllSessions) {
+  elements.signOutAllSessions.addEventListener('click', handleSignOutAllSessions)
+}
+
+initializeTabCustomizationUI()
+
 if (elements.drawerToggle) {
   elements.drawerToggle.addEventListener('click', () => toggleDrawer())
 }
@@ -99,17 +215,27 @@ if (elements.drawerBackdrop) {
 }
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && state.drawer.open) {
+  if (event.key !== 'Escape') return
+  if (state.tabMenu.open) {
+    event.preventDefault()
+    closeTabCustomization()
+    return
+  }
+  if (state.drawer.open) {
     event.preventDefault()
     closeDrawer()
   }
 })
 
 window.addEventListener('resize', () => {
-  const active = getActiveTab()
-  if (!active) return
   requestAnimationFrame(() => {
-    active.fitAddon?.fit()
+    const active = getActiveTab()
+    if (active) {
+      active.fitAddon?.fit()
+    }
+    if (state.tabMenu.open) {
+      positionTabContextMenu(state.tabMenu.anchor)
+    }
   })
 })
 
@@ -216,6 +342,8 @@ function createTerminalTab({ focus = false } = {}) {
   const tab = {
     id,
     label,
+    defaultLabel: label,
+    colorId: TAB_COLOR_DEFAULT,
     term,
     fitAddon,
     container,
@@ -229,6 +357,9 @@ function createTerminalTab({ focus = false } = {}) {
     pendingWrites: [],
     errorMessage: '',
     lastSentSize: { cols: 0, rows: 0 },
+    domItem: null,
+    domButton: null,
+    domClose: null,
     domLabel: null
   }
 
@@ -258,6 +389,9 @@ function createTerminalTab({ focus = false } = {}) {
 
 function destroyTerminalTab(tab) {
   if (!tab) return
+  if (state.tabMenu.open && state.tabMenu.tabId === tab.id) {
+    closeTabCustomization()
+  }
   try {
     tab.term?.dispose()
   } catch (_error) {
@@ -319,6 +453,7 @@ function updateTabButtonState(tab) {
   if (tab.domClose) {
     tab.domClose.disabled = state.tabs.length === 1
   }
+  applyTabAppearance(tab)
 }
 
 function focusTerminal(tab) {
@@ -358,6 +493,7 @@ function renderTabs() {
       labelSpan.textContent = tab.label
       selectBtn.appendChild(labelSpan)
       selectBtn.addEventListener('click', () => setActiveTab(tab.id))
+      registerTabCustomizationHandlers(selectBtn, tab)
 
       const closeBtn = document.createElement('button')
       closeBtn.type = 'button'
@@ -399,13 +535,278 @@ function renderTabs() {
       tab.domButton.textContent = tab.label
     }
     tab.domButton.title = tab.label
+    if (tab.domClose) {
+      tab.domClose.setAttribute('aria-label', `Close ${tab.label}`)
+    }
+    applyTabAppearance(tab)
     updateTabButtonState(tab)
   })
+}
+
+function registerTabCustomizationHandlers(button, tab) {
+  if (!button) return
+  button.addEventListener('contextmenu', (event) => {
+    event.preventDefault()
+    handleTabCustomizationRequest(tab, event)
+  })
+
+  button.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse') return
+    let longPressTriggered = false
+    const timer = window.setTimeout(() => {
+      longPressTriggered = true
+      handleTabCustomizationRequest(tab, event)
+    }, TAB_LONG_PRESS_DELAY)
+
+    const cancel = () => {
+      window.clearTimeout(timer)
+      button.removeEventListener('pointerup', cancel)
+      button.removeEventListener('pointerleave', cancel)
+      button.removeEventListener('pointercancel', cancel)
+      if (longPressTriggered) {
+        button.addEventListener('click', suppressNextClick, { once: true, capture: true })
+      }
+    }
+
+    button.addEventListener('pointerup', cancel)
+    button.addEventListener('pointerleave', cancel)
+    button.addEventListener('pointercancel', cancel)
+  })
+}
+
+function handleTabCustomizationRequest(tab, triggerEvent) {
+  if (!tab) return
+  let anchor
+  if (triggerEvent && typeof triggerEvent.clientX === 'number' && typeof triggerEvent.clientY === 'number') {
+    anchor = { x: triggerEvent.clientX, y: triggerEvent.clientY }
+  } else if (tab.domButton) {
+    const rect = tab.domButton.getBoundingClientRect()
+    anchor = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+  } else {
+    anchor = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+  }
+  setActiveTab(tab.id)
+  openTabCustomization(tab, anchor)
+}
+
+let tabMenuCloseTimer = null
+
+function initializeTabCustomizationUI() {
+  const container = elements.tabContextColors
+  if (!container) return
+  container.innerHTML = ''
+  tabColorButtons.clear()
+
+  TAB_COLOR_OPTIONS.forEach((option) => {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'tab-color-option'
+    button.dataset.colorId = option.id
+    button.style.setProperty('--swatch-color', option.swatch)
+    button.setAttribute('role', 'option')
+    button.setAttribute('aria-label', `${option.label} tab color`)
+    button.addEventListener('click', () => {
+      selectTabColor(option.id)
+    })
+    tabColorButtons.set(option.id, button)
+    container.appendChild(button)
+  })
+
+  if (elements.tabContextForm) {
+    elements.tabContextForm.addEventListener('submit', handleTabContextSubmit)
+  }
+  if (elements.tabContextCancel) {
+    elements.tabContextCancel.addEventListener('click', () => closeTabCustomization())
+  }
+  if (elements.tabContextBackdrop) {
+    elements.tabContextBackdrop.addEventListener('click', () => closeTabCustomization())
+  }
+  if (elements.tabContextReset) {
+    elements.tabContextReset.addEventListener('click', handleTabContextReset)
+  }
+
+  selectTabColor(TAB_COLOR_DEFAULT)
+}
+
+function openTabCustomization(tab, anchor) {
+  if (!elements.tabContextMenu || !elements.tabContextBackdrop || !elements.tabContextName) return
+
+  if (tabMenuCloseTimer) {
+    window.clearTimeout(tabMenuCloseTimer)
+    tabMenuCloseTimer = null
+  }
+
+  const option = TAB_COLOR_MAP[tab.colorId] ? tab.colorId : TAB_COLOR_DEFAULT
+
+  state.tabMenu.open = true
+  state.tabMenu.tabId = tab.id
+  state.tabMenu.selectedColor = option
+  state.tabMenu.anchor = anchor || { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+
+  elements.tabContextName.value = tab.label
+  selectTabColor(state.tabMenu.selectedColor)
+
+  elements.tabContextBackdrop.classList.remove('hidden')
+  elements.tabContextMenu.classList.remove('hidden')
+  elements.tabContextMenu.style.left = '0px'
+  elements.tabContextMenu.style.top = '0px'
+
+  requestAnimationFrame(() => {
+    elements.tabContextBackdrop.classList.add('active')
+    elements.tabContextBackdrop.setAttribute('aria-hidden', 'false')
+    positionTabContextMenu(state.tabMenu.anchor)
+    elements.tabContextMenu.classList.add('active')
+    elements.tabContextMenu.setAttribute('aria-hidden', 'false')
+    try {
+      elements.tabContextName.focus({ preventScroll: true })
+    } catch (_error) {
+      elements.tabContextName.focus()
+    }
+    elements.tabContextName.select()
+  })
+}
+
+function closeTabCustomization() {
+  if (!state.tabMenu.open) return
+  state.tabMenu.open = false
+  state.tabMenu.tabId = null
+  state.tabMenu.anchor = { x: 0, y: 0 }
+  state.tabMenu.selectedColor = TAB_COLOR_DEFAULT
+
+  if (!elements.tabContextMenu || !elements.tabContextBackdrop) return
+
+  elements.tabContextMenu.classList.remove('active')
+  elements.tabContextMenu.setAttribute('aria-hidden', 'true')
+  elements.tabContextBackdrop.classList.remove('active')
+  elements.tabContextBackdrop.setAttribute('aria-hidden', 'true')
+
+  tabMenuCloseTimer = window.setTimeout(() => {
+    elements.tabContextMenu?.classList.add('hidden')
+    elements.tabContextBackdrop?.classList.add('hidden')
+    tabMenuCloseTimer = null
+  }, 180)
+}
+
+function positionTabContextMenu(anchor) {
+  if (!elements.tabContextMenu) return
+  const menu = elements.tabContextMenu
+  const { x, y } = anchor || { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+
+  const padding = 16
+  const rect = menu.getBoundingClientRect()
+
+  let left = x
+  let top = y
+
+  if (left + rect.width + padding > window.innerWidth) {
+    left = window.innerWidth - rect.width - padding
+  }
+  if (left < padding) {
+    left = padding
+  }
+  if (top + rect.height + padding > window.innerHeight) {
+    top = window.innerHeight - rect.height - padding
+  }
+  if (top < padding) {
+    top = padding
+  }
+
+  menu.style.left = `${left}px`
+  menu.style.top = `${top}px`
+}
+
+function selectTabColor(colorId) {
+  const option = TAB_COLOR_MAP[colorId] ? colorId : TAB_COLOR_DEFAULT
+  state.tabMenu.selectedColor = option
+  tabColorButtons.forEach((button, id) => {
+    const isSelected = id === option
+    button.setAttribute('aria-selected', isSelected ? 'true' : 'false')
+    button.classList.toggle('selected', isSelected)
+  })
+}
+
+function handleTabContextSubmit(event) {
+  event.preventDefault()
+  const tabId = state.tabMenu.tabId
+  const tab = tabId ? findTab(tabId) : null
+  if (!tab) {
+    closeTabCustomization()
+    return
+  }
+
+  const inputValue = elements.tabContextName?.value?.trim() || ''
+  const colorId = state.tabMenu.selectedColor && TAB_COLOR_MAP[state.tabMenu.selectedColor] ? state.tabMenu.selectedColor : TAB_COLOR_DEFAULT
+
+  tab.label = inputValue || tab.defaultLabel || tab.label
+  tab.colorId = colorId
+
+  if (tab.domLabel) {
+    tab.domLabel.textContent = tab.label
+  }
+  if (tab.domButton) {
+    tab.domButton.title = tab.label
+  }
+  if (tab.domClose) {
+    tab.domClose.setAttribute('aria-label', `Close ${tab.label}`)
+  }
+
+  applyTabAppearance(tab)
+  updateTabButtonState(tab)
+  renderTabs()
+  if (tab.id === state.activeTabId) {
+    updateUI()
+  }
+
+  closeTabCustomization()
+}
+
+function handleTabContextReset() {
+  if (!state.tabMenu.open) return
+  const tabId = state.tabMenu.tabId
+  const tab = tabId ? findTab(tabId) : null
+  if (!tab) {
+    closeTabCustomization()
+    return
+  }
+  const fallbackLabel = tab.defaultLabel || tab.label
+  if (elements.tabContextName) {
+    elements.tabContextName.value = fallbackLabel
+  }
+  state.tabMenu.selectedColor = TAB_COLOR_DEFAULT
+  selectTabColor(TAB_COLOR_DEFAULT)
+}
+
+function suppressNextClick(event) {
+  event.preventDefault()
+  event.stopImmediatePropagation()
+}
+
+function applyTabAppearance(tab) {
+  if (!tab?.domButton) return
+  if (!TAB_COLOR_MAP[tab.colorId]) {
+    tab.colorId = TAB_COLOR_DEFAULT
+  }
+  const option = TAB_COLOR_MAP[tab.colorId] || TAB_COLOR_MAP[TAB_COLOR_DEFAULT]
+  const styles = option?.styles || TAB_COLOR_MAP[TAB_COLOR_DEFAULT].styles
+  if (!styles) return
+  const style = tab.domButton.style
+  tab.domButton.dataset.tabColor = option?.id || TAB_COLOR_DEFAULT
+  style.setProperty('--tab-color-border', styles.border)
+  style.setProperty('--tab-color-border-hover', styles.hover)
+  style.setProperty('--tab-color-border-active', styles.active)
+  style.setProperty('--tab-color-selected-start', styles.selectedStart)
+  style.setProperty('--tab-color-selected-end', styles.selectedEnd)
+  style.setProperty('--tab-color-glow', styles.glow)
+  style.setProperty('--tab-color-label', styles.label)
 }
 
 async function closeTab(tabId) {
   const tab = findTab(tabId)
   if (!tab) return
+
+  if (state.tabMenu.open && state.tabMenu.tabId === tabId) {
+    closeTabCustomization()
+  }
 
   await stopSession(tab)
 
@@ -567,6 +968,7 @@ function updateUI() {
     renderEvents(null)
     renderError(null)
     emitSessionUpdate(null)
+    updateSessionActions()
     resetUnreadEvents()
     return
   }
@@ -594,7 +996,19 @@ function updateUI() {
   renderEvents(tab)
   renderError(tab)
   emitSessionUpdate(tab)
+  updateSessionActions()
   updateDrawerIndicator()
+}
+
+function updateSessionActions() {
+  const button = elements.signOutAllSessions
+  if (!button) return
+  if (button.dataset.busy === 'true') {
+    button.disabled = true
+    return
+  }
+  const hasActiveSessions = state.tabs.some((entry) => entry.session && entry.phase !== 'closed')
+  button.disabled = !hasActiveSessions
 }
 
 function renderError(tab) {
@@ -776,6 +1190,95 @@ async function stopSession(tab) {
     setTabPhase(tab, 'closed')
     setTabSocketState(tab, 'disconnected')
     state.bridge?.emit('session-ended', { id: tab.session.id, tabId: tab.id })
+  }
+}
+
+async function handleSignOutAllSessions() {
+  const button = elements.signOutAllSessions
+  if (!button || button.dataset.busy === 'true') return
+
+  const sessions = state.tabs.filter((tab) => tab.session && tab.phase !== 'closed')
+  if (sessions.length === 0) {
+    button.blur()
+    return
+  }
+
+  const confirmMessage =
+    sessions.length === 1
+      ? 'Sign out the active session? This will close the terminal.'
+      : `Sign out all ${sessions.length} sessions? This will close every terminal.`
+  if (!window.confirm(confirmMessage)) {
+    return
+  }
+
+  const originalLabel = button.textContent || ''
+  button.dataset.busy = 'true'
+  button.dataset.label = originalLabel
+  button.disabled = true
+  button.textContent = 'Signing out…'
+
+  sessions.forEach((tab) => {
+    appendEvent(tab, 'session-stop-all-requested', { id: tab.session.id })
+    setTabPhase(tab, 'closing')
+    const socketOpen = tab.socket && tab.socket.readyState === WebSocket.OPEN
+    setTabSocketState(tab, socketOpen ? 'closing' : 'disconnected')
+  })
+
+  try {
+    const response = await proxyToApi('/api/v1/sessions', { method: 'DELETE' })
+    if (!response.ok) {
+      const text = await response.text()
+      throw new Error(text || `API error (${response.status})`)
+    }
+
+    let payload
+    const contentType = response.headers.get('Content-Type') || ''
+    if (contentType.includes('application/json')) {
+      try {
+        payload = await response.json()
+      } catch (_error) {
+        payload = null
+      }
+    }
+
+    const eventPayload =
+      payload && typeof payload === 'object'
+        ? payload
+        : { status: 'terminating_all', terminated: sessions.length }
+
+    sessions.forEach((tab) => {
+      appendEvent(tab, 'session-stop-all', eventPayload)
+      if (tab.socket) {
+        try {
+          tab.socket.close()
+        } catch (_error) {
+          // ignore close failures
+        }
+      }
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to sign out sessions'
+    const activeTab = getActiveTab()
+    if (activeTab) {
+      showError(activeTab, message)
+    }
+    sessions.forEach((tab) => {
+      appendEvent(tab, 'session-stop-all-error', error)
+      if (tab.phase === 'closing') {
+        setTabPhase(tab, tab.session ? 'running' : 'idle')
+      }
+      if (tab.socketState === 'closing') {
+        const socketOpen = tab.socket && tab.socket.readyState === WebSocket.OPEN
+        setTabSocketState(tab, socketOpen ? 'open' : 'disconnected')
+      }
+    })
+  } finally {
+    const label = button.dataset.label || 'Sign out all sessions'
+    button.textContent = label
+    delete button.dataset.label
+    delete button.dataset.busy
+    button.disabled = false
+    updateSessionActions()
   }
 }
 

@@ -11,14 +11,141 @@ import HotspotRegistry from "./HotspotRegistry.js";
 import ResourceLoader from "./ResourceLoader.js";
 import Navigation from "./Navigation.js";
 import PostProcessing from "./PostProcessing.js";
-import PhysicsSimulation from "./PhysicsSimulation.js";
 import useExperienceStore from "../state/store.js";
+import { pushLongTasks } from "../performance/longTaskCache.js";
 
 const SCENE_COLORS = {
   day: "#bce3ff",
   evening: "#ffbb9a",
   night: "#0f112a",
 };
+
+const PROFILE_SAMPLE_INTERVAL = 15;
+
+class FrameProfiler {
+  constructor() {
+    this.enabled = typeof performance !== "undefined";
+    this.sections = [];
+    this.frameCounter = 0;
+    this.sampleInterval = PROFILE_SAMPLE_INTERVAL;
+  }
+
+  begin() {
+    if (!this.enabled) return;
+    this.startTime = performance.now();
+    this.lastMark = this.startTime;
+    this.sections = [];
+  }
+
+  mark(label) {
+    if (!this.enabled || !this.startTime) return;
+    const now = performance.now();
+    this.sections.push({ label, duration: now - this.lastMark });
+    this.lastMark = now;
+  }
+
+  end({ renderer, frame }) {
+    if (!this.enabled || !this.startTime) return;
+    const endTime = performance.now();
+    const total = endTime - this.startTime;
+
+    this.frameCounter += 1;
+    if (this.frameCounter % this.sampleInterval !== 0) {
+      return;
+    }
+
+    const info = renderer?.info;
+    const renderInfo = info?.render || {};
+    const memoryInfo = info?.memory || {};
+
+    const snapshot = {
+      total,
+      sections: this.sections
+        .map((section) => ({
+          label: section.label,
+          duration: section.duration,
+          pct: total > 0 ? (section.duration / total) * 100 : 0,
+        }))
+        .filter((section) => section.duration >= 0.01),
+      renderer: {
+        drawCalls: renderInfo.calls || 0,
+        triangles: renderInfo.triangles || 0,
+        points: renderInfo.points || 0,
+        lines: renderInfo.lines || 0,
+        geometries: memoryInfo.geometries || 0,
+        textures: memoryInfo.textures || 0,
+      },
+      timestamp: endTime,
+      interval: this.sampleInterval,
+      rawDelta: frame?.rawDelta,
+    };
+
+    const store = useExperienceStore.getState();
+    store.recordFrameProfile?.(snapshot);
+  }
+}
+
+class PerformanceMonitor {
+  constructor() {
+    const Observer = window?.PerformanceObserver;
+    if (!Observer) {
+      this.enabled = false;
+      return;
+    }
+
+    this.enabled = true;
+    this.longTaskObserver = null;
+    this.gcObserver = null;
+
+    const supported = Observer.supportedEntryTypes || [];
+    if (supported.includes("longtask")) {
+      this.longTaskObserver = new Observer((list) => {
+        const entries = list.getEntries();
+        const store = useExperienceStore.getState();
+        pushLongTasks(entries);
+        entries.forEach((entry) => {
+          const payload = {
+            name: entry.name,
+            duration: entry.duration,
+            startTime: entry.startTime,
+            attribution: (entry.attribution || []).map((item) => ({
+              name: item.name,
+              entryType: item.entryType,
+              startTime: item.startTime,
+              duration: item.duration,
+              containerType: item.containerType,
+            })),
+            timestamp: performance.now(),
+          };
+          store.recordLongTask?.(payload);
+        });
+      });
+      this.longTaskObserver.observe({ entryTypes: ["longtask"] });
+    }
+
+    if (supported.includes("gc")) {
+      this.gcObserver = new Observer((list) => {
+        const entries = list.getEntries();
+        const store = useExperienceStore.getState();
+        entries.forEach((entry) => {
+          const payload = {
+            duration: entry.duration,
+            startTime: entry.startTime,
+            type: entry.detail?.type || entry.name,
+            timestamp: performance.now(),
+          };
+          store.recordGCEvent?.(payload);
+        });
+      });
+      this.gcObserver.observe({ entryTypes: ["gc"] });
+    }
+  }
+
+  destroy() {
+    this.longTaskObserver?.disconnect?.();
+    this.gcObserver?.disconnect?.();
+  }
+}
 
 export default class Experience {
   constructor({ target }) {
@@ -66,12 +193,15 @@ export default class Experience {
       });
     });
 
-    // Initialize post-processing and physics
+    // Initialize post-processing (off by default for performance)
     this.postProcessing = new PostProcessing(this);
     this.postProcessing.enabled = false;
-    this.physicsSimulation = new PhysicsSimulation(this);
-    this.physicsSimulation.disable();
-    
+
+    this.frameProfiler = new FrameProfiler();
+    this.performanceMonitor = new PerformanceMonitor();
+    this.profiling = initialState.profiling || {};
+    this.prevHeapUsage = performance.memory?.usedJSHeapSize ?? null;
+
     // Subscribe to asset reload events for key assets
     this._setupHotReloadSubscriptions();
 
@@ -90,9 +220,12 @@ export default class Experience {
         activeRoom: state.activeRoom,
         cameraAutopilot: state.cameraAutopilot,
         developerMode: state.developerMode,
+        profiling: state.profiling,
       }),
       this._handleStoreChange,
     );
+
+    this._applyProfilingSettings();
   }
 
   get config() {
@@ -110,45 +243,70 @@ export default class Experience {
   }
 
   _handleTick(frame) {
+    this.frameProfiler.begin();
+
     if (this.scene?.background && this.sceneBackgroundTarget) {
       this.scene.background.lerp(this.sceneBackgroundTarget, 0.03);
     }
+    this.frameProfiler.mark("background");
     this.camera.update(frame);
+    this.frameProfiler.mark("camera");
     this.navigation.update(frame);
+    this.frameProfiler.mark("navigation");
     this.cameraRig.update(frame);
+    this.frameProfiler.mark("cameraRig");
     this.cameraRailSystem.update(frame.delta);
-    this.audioAmbience.update(frame.delta);
-    this.world.update(frame);
-    
-    // Update physics simulation
-    if (this.physicsSimulation) {
-      this.physicsSimulation.update(frame.delta);
+    this.frameProfiler.mark("cameraRail");
+    if (!this.profiling?.disableAudio) {
+      this.audioAmbience.update(frame.delta);
+      this.frameProfiler.mark("audio");
     }
+    this.world.update(frame);
+    this.frameProfiler.mark("world");
     
     // Render with post-processing if available
-    if (this.postProcessing && this.postProcessing.enabled) {
+    if (this.postProcessing && this.postProcessing.enabled && !this.profiling?.disablePostProcessing) {
       this.postProcessing.render();
+      this.frameProfiler.mark("postProcessing");
     } else {
       this.renderer.update(frame);
+      this.frameProfiler.mark("render");
+    }
+
+    this.frameProfiler.end({ renderer: this.renderer.instance, frame });
+
+    if (performance.memory) {
+      const currentHeap = performance.memory.usedJSHeapSize;
+      if (this.prevHeapUsage != null) {
+        const delta = currentHeap - this.prevHeapUsage;
+        if (delta < -2_000_000) {
+          const store = useExperienceStore.getState();
+          store.recordGCEvent?.({
+            duration: Math.abs(delta) / 1_000,
+            startTime: frame?.now ?? performance.now(),
+            type: "heap-drop",
+            timestamp: performance.now(),
+            delta,
+            current: currentHeap,
+          });
+        }
+      }
+      this.prevHeapUsage = currentHeap;
     }
   }
 
   _handleStoreChange(snapshot) {
+    this.storeSnapshot = snapshot;
     const targetColor = SCENE_COLORS[snapshot.timeOfDay] || SCENE_COLORS.day;
     this.sceneBackgroundTarget.set(targetColor);
+    this.profiling = snapshot.profiling || this.profiling;
     
     // Update post-processing for time of day
     if (this.postProcessing) {
       this.postProcessing.setTimeOfDay(snapshot.timeOfDay);
     }
     this.world.setStoreSnapshot(snapshot);
-    if (this.physicsSimulation) {
-      if (snapshot.developerMode) {
-        this.physicsSimulation.enable();
-      } else {
-        this.physicsSimulation.disable();
-      }
-    }
+    this.world.setProfilingSettings(this.profiling);
     if (snapshot.activeRoom && snapshot.activeRoom !== this.currentRoom) {
       this.currentRoom = snapshot.activeRoom;
       this.cameraRig.updateRoom(this.currentRoom);
@@ -170,14 +328,10 @@ export default class Experience {
     }
 
     if (typeof snapshot.developerMode === "boolean") {
-      if (snapshot.developerMode) {
-        this.postProcessing.enabled = true;
-        this.physicsSimulation?.enable();
-      } else {
-        this.postProcessing.enabled = false;
-        this.physicsSimulation?.disable();
-      }
+      this.postProcessing.enabled = snapshot.developerMode && !this.profiling?.disablePostProcessing;
     }
+
+    this._applyProfilingSettings();
 
     // Play camera intro rail on first load
     if (this.cameraRailSystem && !this.hasPlayedIntro) {
@@ -233,6 +387,7 @@ export default class Experience {
     this.resourceLoader.destroy();
     this.navigation.destroy?.();
     this.unsubscribeStore?.();
+    this.performanceMonitor?.destroy?.();
 
     this.scene.traverse((child) => {
       if (child.geometry) child.geometry.dispose?.();
@@ -260,5 +415,17 @@ export default class Experience {
       .catch((error) => {
         console.error("Failed to load room assets", roomId, error);
       });
+  }
+
+  _applyProfilingSettings() {
+    if (this.audioAmbience) {
+      this.audioAmbience.setEnabled(!this.profiling?.disableAudio);
+    }
+    if (this.postProcessing) {
+      this.postProcessing.enabled = !!this.storeSnapshot?.developerMode && !this.profiling?.disablePostProcessing;
+    }
+    if (this.world) {
+      this.world.setProfilingSettings(this.profiling);
+    }
   }
 }

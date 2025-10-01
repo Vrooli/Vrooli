@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +23,7 @@ type config struct {
 	readBufferSizeBytes int
 	defaultTTYRows      int
 	defaultTTYCols      int
+	defaultWorkingDir   string
 }
 
 func loadConfig() (config, error) {
@@ -43,6 +45,11 @@ func loadConfig() (config, error) {
 	defaultCommand = strings.TrimSpace(defaultCommand)
 	defaultArgs := parseArgs(os.Getenv("WEB_CONSOLE_DEFAULT_ARGS"))
 
+	workingDir, err := resolveWorkingDir()
+	if err != nil {
+		return config{}, err
+	}
+
 	c := config{
 		addr:                fmt.Sprintf("%s:%s", host, port),
 		defaultCommand:      defaultCommand,
@@ -56,6 +63,7 @@ func loadConfig() (config, error) {
 		readBufferSizeBytes: parseIntOrDefault(os.Getenv("WEB_CONSOLE_READ_BUFFER"), 4096),
 		defaultTTYRows:      parseIntOrDefault(os.Getenv("WEB_CONSOLE_TTY_ROWS"), 32),
 		defaultTTYCols:      parseIntOrDefault(os.Getenv("WEB_CONSOLE_TTY_COLS"), 120),
+		defaultWorkingDir:   workingDir,
 	}
 
 	if c.defaultCommand == "" {
@@ -85,6 +93,52 @@ func loadConfig() (config, error) {
 	}
 
 	return c, nil
+}
+
+func resolveWorkingDir() (string, error) {
+	base := upDirectory(3)
+	override := strings.TrimSpace(os.Getenv("WEB_CONSOLE_WORKING_DIR"))
+
+	var candidate string
+	if override != "" {
+		if filepath.IsAbs(override) {
+			candidate = filepath.Clean(override)
+		} else {
+			candidate = filepath.Clean(filepath.Join(base, override))
+		}
+	} else {
+		candidate = base
+	}
+
+	if candidate == "" {
+		return "", errors.New("unable to determine working directory")
+	}
+
+	info, err := os.Stat(candidate)
+	if err != nil {
+		return "", fmt.Errorf("resolve working dir: %w", err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("resolve working dir: %s is not a directory", candidate)
+	}
+
+	return candidate, nil
+}
+
+func upDirectory(levels int) string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	dir := filepath.Clean(cwd)
+	for i := 0; i < levels; i++ {
+		next := filepath.Dir(dir)
+		if next == dir {
+			break
+		}
+		dir = next
+	}
+	return dir
 }
 
 func parseArgs(raw string) []string {

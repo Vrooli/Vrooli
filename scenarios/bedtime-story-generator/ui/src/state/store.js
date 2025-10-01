@@ -105,6 +105,15 @@ const useExperienceStore = create(
     cameraAutopilot: true,
     hotspots: initialHotspotState.map,
     loader: defaultLoaderState,
+    frameProfile: null,
+    longTasks: [],
+    gcEvents: [],
+    profiling: {
+      disableAudio: false,
+      disableWorldAnimations: false,
+      disableProjectorCanvas: false,
+      disablePostProcessing: false,
+    },
 
     setTimeOfDay: (timeOfDay) => {
       set({ timeOfDay, theme: getThemeForTime(timeOfDay) });
@@ -245,6 +254,40 @@ const useExperienceStore = create(
     },
 
     resetLoader: () => set({ loader: defaultLoaderState }),
+
+    recordFrameProfile: (sample) => {
+      if (!sample) return;
+      set({ frameProfile: sample });
+    },
+
+    recordLongTask: (task) => {
+      if (!task) return;
+      set((state) => {
+        const history = [...state.longTasks, task].slice(-12);
+        return { longTasks: history };
+      });
+    },
+
+    clearLongTasks: () => set({ longTasks: [] }),
+
+    recordGCEvent: (event) => {
+      if (!event) return;
+      set((state) => {
+        const history = [...state.gcEvents, event].slice(-8);
+        return { gcEvents: history };
+      });
+    },
+
+    clearGCEvents: () => set({ gcEvents: [] }),
+
+    setProfilingFlag: (flag, value) => {
+      set((state) => ({
+        profiling: {
+          ...state.profiling,
+          [flag]: value,
+        },
+      }));
+    },
   })),
 );
 

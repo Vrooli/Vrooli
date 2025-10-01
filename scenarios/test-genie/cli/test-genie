@@ -228,7 +228,7 @@ EOF
     fi
     
     local response
-    response=$(api_request "POST" "/api/v1/test-suite/generate" "$request_body" "201")
+    response=$(api_request "POST" "/api/v1/test-suite/generate" "$request_body" "202")
     
     if [[ $? -ne 0 ]]; then
         return 1

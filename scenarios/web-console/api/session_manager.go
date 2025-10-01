@@ -67,6 +67,22 @@ func (m *sessionManager) deleteSession(id string, reason closeReason) {
 	}
 }
 
+func (m *sessionManager) deleteAllSessions(reason closeReason) int {
+	m.mu.Lock()
+	toClose := make([]*session, 0, len(m.sessions))
+	for id, s := range m.sessions {
+		toClose = append(toClose, s)
+		delete(m.sessions, id)
+	}
+	m.mu.Unlock()
+
+	for _, s := range toClose {
+		s.Close(reason)
+	}
+
+	return len(toClose)
+}
+
 func (m *sessionManager) onSessionClosed(s *session, _ closeReason) {
 	m.mu.Lock()
 	delete(m.sessions, s.id)

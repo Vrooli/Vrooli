@@ -20,6 +20,7 @@ export default class Time extends EventEmitter {
     }
 
     this.delta = now - this.current;
+    this.rawDelta = this.delta;
     this.elapsed = now - this.start;
     this.current = now;
 
@@ -31,6 +32,7 @@ export default class Time extends EventEmitter {
     this.emit("tick", {
       delta: this.delta,
       elapsed: this.elapsed,
+      rawDelta: this.rawDelta,
       now,
     });
 
