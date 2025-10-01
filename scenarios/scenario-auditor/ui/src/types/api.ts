@@ -327,6 +327,14 @@ export interface RuleScenarioTestResult {
   targets: string[]
   violations: StandardsViolation[]
   warning?: string
+  error?: string
+}
+
+export interface RuleScenarioBatchTestResult {
+  rule_id: string
+  total_scenarios: number
+  total_duration_ms: number
+  results: RuleScenarioTestResult[]
 }
 
 export interface FixAgentResponse {

@@ -641,7 +641,8 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Scenario string `json:"scenario"`
+		Scenario  string   `json:"scenario"`   // Single scenario (deprecated, for backward compatibility)
+		Scenarios []string `json:"scenarios"`  // Multiple scenarios (new)
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -649,9 +650,15 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scenarioName := strings.TrimSpace(req.Scenario)
-	if scenarioName == "" {
-		HTTPError(w, "Scenario is required", http.StatusBadRequest, nil)
+	// Support both single and batch modes
+	scenarios := req.Scenarios
+	if len(scenarios) == 0 && req.Scenario != "" {
+		// Backward compatibility: single scenario
+		scenarios = []string{strings.TrimSpace(req.Scenario)}
+	}
+
+	if len(scenarios) == 0 {
+		HTTPError(w, "At least one scenario is required", http.StatusBadRequest, nil)
 		return
 	}
 
@@ -698,37 +705,68 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	start := time.Now()
-	violations, filesScanned, _, evalErr := evaluateRuleOnScenario(ruleInfo, scenarioName)
-	if evalErr != nil {
-		if os.IsNotExist(evalErr) {
-			HTTPError(w, "Scenario not found", http.StatusNotFound, evalErr)
-			return
+	// Process scenarios (single or batch)
+	results := []map[string]interface{}{}
+	overallStart := time.Now()
+
+	for _, scenarioName := range scenarios {
+		scenarioName = strings.TrimSpace(scenarioName)
+		if scenarioName == "" {
+			continue
 		}
-		logger.Error(fmt.Sprintf("Failed to execute rule %s on scenario %s", ruleID, scenarioName), evalErr)
-		HTTPError(w, "Failed to evaluate rule on scenario", http.StatusInternalServerError, evalErr)
-		return
+
+		start := time.Now()
+		violations, filesScanned, _, evalErr := evaluateRuleOnScenario(ruleInfo, scenarioName)
+
+		result := map[string]interface{}{
+			"rule_id":       ruleID,
+			"scenario":      scenarioName,
+			"files_scanned": filesScanned,
+			"targets":       sortedTargets,
+			"duration_ms":   time.Since(start).Milliseconds(),
+		}
+
+		if evalErr != nil {
+			if os.IsNotExist(evalErr) {
+				result["error"] = "Scenario not found"
+				result["violations"] = []StandardsViolation{}
+			} else {
+				logger.Error(fmt.Sprintf("Failed to execute rule %s on scenario %s", ruleID, scenarioName), evalErr)
+				result["error"] = fmt.Sprintf("Failed to evaluate rule: %v", evalErr)
+				result["violations"] = []StandardsViolation{}
+			}
+		} else {
+			warning := ""
+			if filesScanned == 0 && len(violations) == 0 && !containsStructure {
+				warning = fmt.Sprintf("No matching files were scanned for this rule in the selected scenario. Targets evaluated: %s.", strings.Join(sortedTargets, ", "))
+			}
+
+			if violations == nil {
+				violations = []StandardsViolation{}
+			}
+
+			result["violations"] = violations
+			if warning != "" {
+				result["warning"] = warning
+			}
+		}
+
+		results = append(results, result)
 	}
 
-	warning := ""
-	if filesScanned == 0 && len(violations) == 0 && !containsStructure {
-		warning = fmt.Sprintf("No matching files were scanned for this rule in the selected scenario. Targets evaluated: %s.", strings.Join(sortedTargets, ", "))
-	}
-
-	if violations == nil {
-		violations = []StandardsViolation{}
-	}
-
-	response := map[string]interface{}{
-		"rule_id":       ruleID,
-		"scenario":      scenarioName,
-		"files_scanned": filesScanned,
-		"violations":    violations,
-		"targets":       sortedTargets,
-		"duration_ms":   time.Since(start).Milliseconds(),
-	}
-	if warning != "" {
-		response["warning"] = warning
+	// Return appropriate response format
+	var response interface{}
+	if len(results) == 1 {
+		// Single scenario: backward compatible response
+		response = results[0]
+	} else {
+		// Multiple scenarios: batch response
+		response = map[string]interface{}{
+			"rule_id":           ruleID,
+			"total_scenarios":   len(results),
+			"total_duration_ms": time.Since(overallStart).Milliseconds(),
+			"results":           results,
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

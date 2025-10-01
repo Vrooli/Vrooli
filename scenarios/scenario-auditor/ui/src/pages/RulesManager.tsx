@@ -1,4 +1,4 @@
-import { AgentInfo, RuleImplementationStatus, RuleScenarioTestResult, RuleTestStatus, Scenario } from '@/types/api'
+import { AgentInfo, RuleImplementationStatus, RuleScenarioBatchTestResult, RuleScenarioTestResult, RuleTestStatus, Scenario } from '@/types/api'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Brain, CheckCircle, ChevronDown, CircleStop, Clock, Code, Eye, EyeOff, Info, Play, Plus, RefreshCw, Search, Shield, Target, Terminal, TestTube, X, XCircle } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
@@ -260,11 +260,11 @@ export default function RulesManager() {
   })
   const [isScenarioTestModalOpen, setIsScenarioTestModalOpen] = useState(false)
   const [isRunningScenarioTest, setIsRunningScenarioTest] = useState(false)
-  const [scenarioTestResult, setScenarioTestResult] = useState<RuleScenarioTestResult | null>(null)
+  const [scenarioTestResults, setScenarioTestResults] = useState<RuleScenarioTestResult[]>([])
   const [scenarioTestError, setScenarioTestError] = useState<string | null>(null)
-  const [scenarioTestScenario, setScenarioTestScenario] = useState<string | null>(null)
   const [scenarioTestCompletedAt, setScenarioTestCompletedAt] = useState<Date | null>(null)
   const [scenarioSearchTerm, setScenarioSearchTerm] = useState('')
+  const [selectedScenarios, setSelectedScenarios] = useState<Set<string>>(new Set())
   const queryClient = useQueryClient()
 
   const { data: activeAgentsData } = useQuery({
@@ -359,18 +359,14 @@ export default function RulesManager() {
   }, [selectedRule])
 
   useEffect(() => {
-    setScenarioTestResult(null)
+    setScenarioTestResults([])
     setScenarioTestError(null)
-    setScenarioTestScenario(null)
     setScenarioTestCompletedAt(null)
+    setSelectedScenarios(new Set())
   }, [selectedRule])
 
   const ruleStatuses = (rulesData?.rule_statuses || {}) as Record<string, RuleTestStatus>
   const currentRuleStatus = selectedRule ? ruleStatuses[selectedRule] : undefined
-  const scenarioTargets = scenarioTestResult?.targets ?? []
-  const scenarioViolations = scenarioTestResult?.violations ?? []
-  const scenarioFilesScanned = scenarioTestResult?.files_scanned ?? 0
-  const scenarioDurationMs = scenarioTestResult?.duration_ms ?? 0
   const filteredScenarioOptions = useMemo(() => {
     const list = Array.isArray(scenarioOptions) ? scenarioOptions : []
     const term = scenarioSearchTerm.trim().toLowerCase()
@@ -424,22 +420,30 @@ export default function RulesManager() {
     }
   }
 
-  const handleRunScenarioTest = async (scenarioName: string) => {
-    if (!selectedRule || !scenarioName) return
+  const handleRunScenarioTests = async () => {
+    if (!selectedRule || selectedScenarios.size === 0) return
 
-    setScenarioTestScenario(scenarioName)
     setScenarioTestError(null)
     setIsRunningScenarioTest(true)
     setIsScenarioTestModalOpen(false)
 
     try {
-      const result = await apiService.testRuleOnScenario(selectedRule, scenarioName)
-      setScenarioTestResult(result)
+      const scenariosArray = Array.from(selectedScenarios)
+      const response = await apiService.testRuleOnScenarios(selectedRule, scenariosArray)
+
+      // Handle both single and batch responses
+      if ('results' in response) {
+        // Batch response
+        setScenarioTestResults(response.results)
+      } else {
+        // Single response (backward compatibility)
+        setScenarioTestResults([response])
+      }
       setScenarioTestCompletedAt(new Date())
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to run scenario test'
+      const message = error instanceof Error ? error.message : 'Failed to run scenario tests'
       setScenarioTestError(message)
-      setScenarioTestResult(null)
+      setScenarioTestResults([])
       setScenarioTestCompletedAt(new Date())
     } finally {
       setIsRunningScenarioTest(false)
@@ -848,9 +852,9 @@ export default function RulesManager() {
                   <Target className="h-6 w-6 text-slate-700" />
                 </div>
                 <div className="mt-3 text-center sm:mt-4">
-                  <h3 className="text-base font-semibold leading-6 text-gray-900">Select scenario to evaluate</h3>
+                  <h3 className="text-base font-semibold leading-6 text-gray-900">Select scenarios to evaluate</h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    Run this rule against any scenario without toggling global standards scans.
+                    Run this rule against multiple scenarios without toggling global standards scans.
                   </p>
                 </div>
               </div>
@@ -875,40 +879,86 @@ export default function RulesManager() {
                       <span>Loading scenarios...</span>
                     </div>
                   ) : (
-                    <ul className="divide-y divide-gray-200 text-left text-sm">
-                      {filteredScenarioOptions.length === 0 ? (
-                        <li className="px-3 py-4 text-center text-gray-500">
-                          No scenarios match your search.
-                        </li>
-                      ) : (
-                        filteredScenarioOptions.map(option => (
-                          <li key={option.name} className="px-3 py-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{option.name}</p>
-                                {option.description && (
-                                  <p className="text-xs text-gray-500">{option.description}</p>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleRunScenarioTest(option.name)}
-                                disabled={isRunningScenarioTest}
-                                className="inline-flex items-center rounded-md border border-transparent bg-slate-700 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 disabled:opacity-50"
-                              >
-                                {isRunningScenarioTest ? (
-                                  <Clock className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Target className="h-4 w-4" />
-                                )}
-                                <span className="ml-2">Run</span>
-                              </button>
-                            </div>
-                          </li>
-                        ))
+                    <>
+                      {filteredScenarioOptions.length > 0 && (
+                        <div className="sticky top-0 z-10 border-b border-gray-200 bg-white px-3 py-2">
+                          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedScenarios.size === filteredScenarioOptions.length && filteredScenarioOptions.length > 0}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedScenarios(new Set(filteredScenarioOptions.map(s => s.name)))
+                                } else {
+                                  setSelectedScenarios(new Set())
+                                }
+                              }}
+                              className="h-4 w-4 rounded border-gray-300 text-slate-700 focus:ring-slate-500"
+                            />
+                            <span>Select All ({filteredScenarioOptions.length})</span>
+                          </label>
+                        </div>
                       )}
-                    </ul>
+                      <ul className="divide-y divide-gray-200 text-left text-sm">
+                        {filteredScenarioOptions.length === 0 ? (
+                          <li className="px-3 py-4 text-center text-gray-500">
+                            No scenarios match your search.
+                          </li>
+                        ) : (
+                          filteredScenarioOptions.map(option => (
+                            <li key={option.name} className="px-3 py-3 hover:bg-gray-50">
+                              <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedScenarios.has(option.name)}
+                                  onChange={(e) => {
+                                    const newSelection = new Set(selectedScenarios)
+                                    if (e.target.checked) {
+                                      newSelection.add(option.name)
+                                    } else {
+                                      newSelection.delete(option.name)
+                                    }
+                                    setSelectedScenarios(newSelection)
+                                  }}
+                                  className="h-4 w-4 rounded border-gray-300 text-slate-700 focus:ring-slate-500"
+                                />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-gray-900">{option.name}</p>
+                                  {option.description && (
+                                    <p className="text-xs text-gray-500">{option.description}</p>
+                                  )}
+                                </div>
+                              </label>
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                    </>
                   )}
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-sm text-gray-600">
+                    {selectedScenarios.size} scenario{selectedScenarios.size !== 1 ? 's' : ''} selected
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleRunScenarioTests}
+                    disabled={selectedScenarios.size === 0 || isRunningScenarioTest}
+                    className="inline-flex items-center rounded-md border border-transparent bg-slate-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isRunningScenarioTest ? (
+                      <>
+                        <Clock className="h-4 w-4 mr-2 animate-spin" />
+                        Testing...
+                      </>
+                    ) : (
+                      <>
+                        <Target className="h-4 w-4 mr-2" />
+                        Run Tests
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1307,116 +1357,131 @@ export default function RulesManager() {
                       <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
                         <Clock className="h-4 w-4 animate-spin" />
                         <span>
-                          Testing rule on {scenarioTestScenario || 'selected scenario'}...
+                          Testing rule on {selectedScenarios.size} scenario{selectedScenarios.size !== 1 ? 's' : ''}...
                         </span>
                       </div>
                     )}
 
                     {scenarioTestError && (
                       <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                        <p className="font-semibold">Failed to test on {scenarioTestScenario || 'scenario'}.</p>
+                        <p className="font-semibold">Failed to run scenario tests</p>
                         <p className="mt-1 text-red-600">{scenarioTestError}</p>
                       </div>
                     )}
 
-                    {scenarioTestResult && (
-                      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <h5 className="text-sm font-semibold text-slate-900">
-                              Scenario run: {scenarioTestResult.scenario}
-                            </h5>
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                              <span>{scenarioFilesScanned} file{scenarioFilesScanned === 1 ? '' : 's'} scanned</span>
-                              <span>•</span>
-                              <span>{scenarioViolations.length} violation{scenarioViolations.length === 1 ? '' : 's'}</span>
-                              <span>•</span>
-                              <span>{formatDurationMs(scenarioDurationMs)}</span>
-                            </div>
-                            {scenarioTestResult.warning && (
-                              <p className="mt-2 inline-flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700">
-                                <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-                                <span>{scenarioTestResult.warning}</span>
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-xs text-slate-500">
-                            {scenarioTestCompletedAt && (
-                              <span>Last run {scenarioTestCompletedAt.toLocaleTimeString()}</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {scenarioTargets.map((target, index) => {
-                            const badgeClass = TARGET_BADGE_CLASSES[target] || 'bg-gray-100 text-gray-700'
-                            const category = TARGET_CATEGORY_CONFIG.find(cfg => cfg.id === target)
-                            return (
-                              <span
-                                key={`scenario-target-${target}-${index}`}
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}`}
-                              >
-                                {category?.label || target}
-                              </span>
-                            )
-                          })}
-                        </div>
-                        <div className="mt-4">
-                          {scenarioViolations.length === 0 ? (
-                            <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-                              No violations detected for this scenario.
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {scenarioViolations.map((violation, index) => (
-                                <div key={violation.id || `${violation.file_path || 'violation'}-${index}`} className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                    <div className="space-y-1">
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${violation.severity === 'critical'
-                                          ? 'bg-red-100 text-red-800'
-                                          : violation.severity === 'high'
-                                            ? 'bg-orange-100 text-orange-800'
-                                            : violation.severity === 'medium'
-                                              ? 'bg-yellow-100 text-yellow-800'
-                                              : 'bg-green-100 text-green-800'
-                                          }`}>
-                                          {violation.severity}
-                                        </span>
-                                        {violation.file_path && (
-                                          <span className="font-mono text-xs text-slate-600">{violation.file_path}</span>
-                                        )}
-                                        {violation.line_number ? (
-                                          <span className="text-xs text-slate-500">Line {violation.line_number}</span>
-                                        ) : null}
-                                      </div>
-                                      <p className="text-sm font-medium text-slate-900">
-                                        {violation.title || violation.description || 'Rule violation detected'}
-                                      </p>
-                                      {violation.description && (
-                                        <p className="text-sm text-slate-700">{violation.description}</p>
-                                      )}
-                                    </div>
-                                    {violation.standard && (
-                                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                                        {violation.standard}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {violation.recommendation && (
-                                    <p className="mt-2 text-xs text-slate-600">
-                                      <span className="font-semibold text-slate-700">Recommended fix:</span> {violation.recommendation}
-                                    </p>
-                                  )}
-                                  {violation.code_snippet && (
-                                    <pre className="mt-2 max-h-40 overflow-auto rounded bg-slate-900 p-2 text-xs text-slate-100 whitespace-pre-wrap">
-                                      {violation.code_snippet}
-                                    </pre>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
+                    {scenarioTestResults.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-sm font-semibold text-gray-900">
+                            Scenario Test Results ({scenarioTestResults.length})
+                          </h5>
+                          {scenarioTestCompletedAt && (
+                            <span className="text-xs text-slate-500">
+                              Last run {scenarioTestCompletedAt.toLocaleTimeString()}
+                            </span>
                           )}
                         </div>
+                        {scenarioTestResults.map((result, resultIndex) => (
+                          <div key={`scenario-result-${result.scenario}-${resultIndex}`} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <h6 className="text-sm font-semibold text-slate-900">
+                                  {result.scenario}
+                                </h6>
+                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                                  <span>{result.files_scanned} file{result.files_scanned === 1 ? '' : 's'} scanned</span>
+                                  <span>•</span>
+                                  <span>{result.violations.length} violation{result.violations.length === 1 ? '' : 's'}</span>
+                                  <span>•</span>
+                                  <span>{formatDurationMs(result.duration_ms)}</span>
+                                </div>
+                                {result.warning && (
+                                  <p className="mt-2 inline-flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700">
+                                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <span>{result.warning}</span>
+                                  </p>
+                                )}
+                                {result.error && (
+                                  <p className="mt-2 inline-flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700">
+                                    <XCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <span>{result.error}</span>
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {result.targets.map((target, index) => {
+                                const badgeClass = TARGET_BADGE_CLASSES[target] || 'bg-gray-100 text-gray-700'
+                                const category = TARGET_CATEGORY_CONFIG.find(cfg => cfg.id === target)
+                                return (
+                                  <span
+                                    key={`scenario-target-${result.scenario}-${target}-${index}`}
+                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}`}
+                                  >
+                                    {category?.label || target}
+                                  </span>
+                                )
+                              })}
+                            </div>
+                            <div className="mt-4">
+                              {result.violations.length === 0 ? (
+                                <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                                  No violations detected for this scenario.
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  {result.violations.map((violation, index) => (
+                                    <div key={violation.id || `${violation.file_path || 'violation'}-${index}`} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                        <div className="space-y-1">
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${violation.severity === 'critical'
+                                              ? 'bg-red-100 text-red-800'
+                                              : violation.severity === 'high'
+                                                ? 'bg-orange-100 text-orange-800'
+                                                : violation.severity === 'medium'
+                                                  ? 'bg-yellow-100 text-yellow-800'
+                                                  : 'bg-green-100 text-green-800'
+                                              }`}>
+                                              {violation.severity}
+                                            </span>
+                                            {violation.file_path && (
+                                              <span className="font-mono text-xs text-slate-600">{violation.file_path}</span>
+                                            )}
+                                            {violation.line_number ? (
+                                              <span className="text-xs text-slate-500">Line {violation.line_number}</span>
+                                            ) : null}
+                                          </div>
+                                          <p className="text-sm font-medium text-slate-900">
+                                            {violation.title || violation.description || 'Rule violation detected'}
+                                          </p>
+                                          {violation.description && (
+                                            <p className="text-sm text-slate-700">{violation.description}</p>
+                                          )}
+                                        </div>
+                                        {violation.standard && (
+                                          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                            {violation.standard}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {violation.recommendation && (
+                                        <p className="mt-2 text-xs text-slate-600">
+                                          <span className="font-semibold text-slate-700">Recommended fix:</span> {violation.recommendation}
+                                        </p>
+                                      )}
+                                      {violation.code_snippet && (
+                                        <pre className="mt-2 max-h-40 overflow-auto rounded bg-slate-900 p-2 text-xs text-slate-100 whitespace-pre-wrap">
+                                          {violation.code_snippet}
+                                        </pre>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
 
