@@ -8,20 +8,22 @@ import (
 )
 
 type sessionManager struct {
-	cfg     config
-	metrics *metricsRegistry
+	cfg       config
+	metrics   *metricsRegistry
+	workspace *workspace
 
 	mu       sync.RWMutex
 	sessions map[string]*session
 	slots    chan struct{}
 }
 
-func newSessionManager(cfg config, metrics *metricsRegistry) *sessionManager {
+func newSessionManager(cfg config, metrics *metricsRegistry, ws *workspace) *sessionManager {
 	return &sessionManager{
-		cfg:      cfg,
-		metrics:  metrics,
-		sessions: make(map[string]*session),
-		slots:    make(chan struct{}, cfg.maxConcurrent),
+		cfg:       cfg,
+		metrics:   metrics,
+		workspace: ws,
+		sessions:  make(map[string]*session),
+		slots:     make(chan struct{}, cfg.maxConcurrent),
 	}
 }
 
@@ -88,6 +90,19 @@ func (m *sessionManager) onSessionClosed(s *session, _ closeReason) {
 	delete(m.sessions, s.id)
 	m.mu.Unlock()
 	m.releaseSlot()
+
+	// Detach session from any tabs in workspace
+	if m.workspace != nil {
+		m.workspace.mu.RLock()
+		for _, tab := range m.workspace.Tabs {
+			if tab.SessionID != nil && *tab.SessionID == s.id {
+				m.workspace.mu.RUnlock()
+				_ = m.workspace.detachSession(tab.ID)
+				return
+			}
+		}
+		m.workspace.mu.RUnlock()
+	}
 }
 
 func (m *sessionManager) releaseSlot() {

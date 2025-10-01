@@ -18,8 +18,8 @@ Severity: high
 Standard: service-reliability-v1
 Targets: api
 
-<test-case id="postgres-backoff-real-jitter" should-fail="false">
-  <description>Proper exponential backoff with REAL random jitter for PostgreSQL</description>
+<test-case id="PASS-postgres-backoff-real-random-jitter" should-fail="false">
+  <description>✅ SHOULD PASS: Proper exponential backoff with REAL random jitter for PostgreSQL</description>
   <input language="go">
 package main
 
@@ -57,8 +57,8 @@ func connectWithBackoff() error {
   </input>
 </test-case>
 
-<test-case id="postgres-backoff-fake-jitter" should-fail="true">
-  <description>REJECT: Deterministic "fake jitter" that doesn't prevent thundering herd</description>
+<test-case id="FAIL-postgres-backoff-deterministic-jitter" should-fail="true">
+  <description>❌ SHOULD FAIL: Deterministic "fake jitter" that doesn't prevent thundering herd</description>
   <input language="go">
 package main
 
@@ -97,8 +97,8 @@ func connectWithFakeJitter() error {
   <expected-message>jitter</expected-message>
 </test-case>
 
-<test-case id="missing-jitter" should-fail="true">
-  <description>Backoff loop without jitter</description>
+<test-case id="FAIL-missing-jitter" should-fail="true">
+  <description>❌ SHOULD FAIL: Backoff loop without jitter</description>
   <input language="go">
 package main
 
@@ -133,8 +133,8 @@ func connectWithoutJitter() error {
   <expected-message>jitter</expected-message>
 </test-case>
 
-<test-case id="missing-exponential" should-fail="true">
-  <description>Retry loop without exponential growth (has fake jitter too)</description>
+<test-case id="FAIL-missing-exponential-backoff" should-fail="true">
+  <description>❌ SHOULD FAIL: Retry loop without exponential growth (has fake jitter too)</description>
   <input language="go">
 package main
 
@@ -167,8 +167,8 @@ func connectWithLinearDelay() error {
   <expected-message>exponential</expected-message>
 </test-case>
 
-<test-case id="missing-sleep" should-fail="true">
-  <description>Retry loop without sleep between attempts</description>
+<test-case id="FAIL-missing-sleep-call" should-fail="true">
+  <description>❌ SHOULD FAIL: Retry loop without sleep between attempts</description>
   <input language="go">
 package main
 
@@ -195,8 +195,8 @@ func connectWithoutSleep() error {
   <expected-message>Sleep</expected-message>
 </test-case>
 
-<test-case id="time-based-jitter" should-fail="false">
-  <description>Time-based jitter using UnixNano() for pseudo-randomness</description>
+<test-case id="PASS-time-based-jitter-unixnano" should-fail="false">
+  <description>✅ SHOULD PASS: Time-based jitter using UnixNano() for pseudo-randomness</description>
   <input language="go">
 package main
 
@@ -232,8 +232,8 @@ func connectWithTimeJitter() error {
   </input>
 </test-case>
 
-<test-case id="rand-intn-jitter" should-fail="false">
-  <description>Using rand.Intn() for integer-based jitter</description>
+<test-case id="PASS-rand-intn-jitter" should-fail="false">
+  <description>✅ SHOULD PASS: Using rand.Intn() for integer-based jitter</description>
   <input language="go">
 package main
 
@@ -270,8 +270,8 @@ func connectWithIntnJitter() error {
   </input>
 </test-case>
 
-<test-case id="zero-jitter-fake" should-fail="true">
-  <description>Variable named 'jitter' but with zero value (fake jitter)</description>
+<test-case id="FAIL-zero-jitter-constant" should-fail="true">
+  <description>❌ SHOULD FAIL: Variable named 'jitter' but with zero value (fake jitter)</description>
   <input language="go">
 package main
 
@@ -339,7 +339,7 @@ func CheckDatabaseBackoff(content []byte, filePath string) []Violation {
 				filePath,
 				line,
 				"Database Retry Missing Sleep",
-				"Database retry loops must include time.Sleep between connection attempts",
+				"Database retry loops must include time.Sleep() between connection attempts. Without delays, the service will hammer the database with rapid retries, potentially overwhelming it during recovery.",
 			))
 		}
 		if !analysis.hasExponent {
@@ -347,7 +347,7 @@ func CheckDatabaseBackoff(content []byte, filePath string) []Violation {
 				filePath,
 				line,
 				"Database Retry Missing Exponential Backoff",
-				"Database retry loops must grow delays exponentially (e.g. math.Pow or bit shifts)",
+				"Database retry loops must grow delays exponentially using math.Pow(2, attempt), bit shifts (1<<attempt), or similar. Linear delays (e.g., 1s, 2s, 3s) cause premature timeouts and don't give databases enough recovery time.",
 			))
 		}
 		if !analysis.hasJitter {
@@ -355,7 +355,7 @@ func CheckDatabaseBackoff(content []byte, filePath string) []Violation {
 				filePath,
 				line,
 				"Database Retry Missing Jitter",
-				"Database retry loops must add jitter to prevent thundering herd reconnects",
+				"Database retry loops must add RANDOM jitter using rand.Float64(), rand.Intn(), or time.Now().UnixNano() to prevent thundering herd. Deterministic calculations like (attempt/maxRetries) will NOT prevent all service instances from reconnecting simultaneously.",
 			))
 		}
 
@@ -637,14 +637,34 @@ func isTimeBasedRandomness(call *ast.CallExpr) bool {
 }
 
 func newBackoffViolation(filePath string, line int, title, message string) Violation {
+	// Determine severity based on file path context
+	severity := "high"
+	lowerPath := strings.ToLower(filePath)
+
+	// Lower severity for non-production contexts:
+	// - Migration scripts (typically run once, single-instance)
+	// - Test files (not production code)
+	// - Initialization/setup scripts (often single-instance)
+	// - CLI tools in /scripts/ or /tools/ directories
+	if strings.Contains(lowerPath, "/migrate/") ||
+		strings.Contains(lowerPath, "/migration/") ||
+		strings.Contains(lowerPath, "_test.go") ||
+		strings.Contains(lowerPath, "/test/") ||
+		strings.Contains(lowerPath, "/scripts/") ||
+		strings.Contains(lowerPath, "/tools/") ||
+		strings.Contains(lowerPath, "/initialization/") ||
+		strings.Contains(lowerPath, "/init/") {
+		severity = "medium"
+	}
+
 	return Violation{
 		Type:           "database_backoff",
-		Severity:       "high",
+		Severity:       severity,
 		Title:          title,
 		Description:    message,
 		FilePath:       filePath,
 		LineNumber:     line,
-		Recommendation: "Implement exponential backoff with jitter before retrying database connections",
+		Recommendation: "Implement exponential backoff with random jitter. Example: delay = baseDelay * 2^attempt (capped at maxDelay), then add random jitter using rand.Float64() * delay * 0.25. This prevents thundering herd when multiple instances reconnect simultaneously.",
 		Standard:       "service-reliability-v1",
 	}
 }

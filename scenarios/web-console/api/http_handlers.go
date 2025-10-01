@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metricsRegistry) {
+func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metricsRegistry, ws *workspace) {
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"status": "ok",
@@ -17,10 +17,66 @@ func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metric
 
 	mux.HandleFunc("/metrics", metrics.serveHTTP)
 
+	// Workspace endpoints
+	workspaceHandler := manager.makeProxyGuard(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handleGetWorkspace(w, r, ws)
+		case http.MethodPut:
+			handleUpdateWorkspace(w, r, ws)
+		default:
+			w.Header().Set("Allow", "GET, PUT")
+			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+		}
+	}))
+	mux.Handle("/api/v1/workspace", workspaceHandler)
+
+	workspaceStreamHandler := manager.makeProxyGuard(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		handleWorkspaceWebSocket(w, r, ws, metrics)
+	}))
+	mux.Handle("/api/v1/workspace/stream", workspaceStreamHandler)
+
+	workspaceTabsHandler := manager.makeProxyGuard(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			handleCreateTab(w, r, ws)
+		default:
+			w.Header().Set("Allow", "POST")
+			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+		}
+	}))
+	mux.Handle("/api/v1/workspace/tabs", workspaceTabsHandler)
+
+	workspaceTabDetailHandler := manager.makeProxyGuard(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		trimmed := strings.TrimPrefix(r.URL.Path, "/api/v1/workspace/tabs/")
+		if trimmed == "" {
+			writeJSONError(w, http.StatusBadRequest, "tab id required")
+			return
+		}
+		parts := strings.Split(trimmed, "/")
+		tabID := parts[0]
+
+		switch r.Method {
+		case http.MethodPatch:
+			handleUpdateTab(w, r, ws, tabID)
+		case http.MethodDelete:
+			handleDeleteTab(w, r, ws, tabID)
+		default:
+			w.Header().Set("Allow", "PATCH, DELETE")
+			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+		}
+	}))
+	mux.Handle("/api/v1/workspace/tabs/", workspaceTabDetailHandler)
+
+	// Session endpoints
 	sessionsHandler := manager.makeProxyGuard(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
-			handleCreateSession(w, r, manager)
+			handleCreateSession(w, r, manager, ws)
 		case http.MethodGet:
 			writeJSON(w, http.StatusOK, manager.listSummaries())
 		case http.MethodDelete:
@@ -101,7 +157,79 @@ func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metric
 	mux.Handle("/api/v1/sessions/", sessionDetailHandler)
 }
 
-func handleCreateSession(w http.ResponseWriter, r *http.Request, manager *sessionManager) {
+func handleGetWorkspace(w http.ResponseWriter, _ *http.Request, ws *workspace) {
+	state, err := ws.getState()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to get workspace state")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(state)
+}
+
+func handleUpdateWorkspace(w http.ResponseWriter, r *http.Request, ws *workspace) {
+	var req struct {
+		ActiveTabID string    `json:"activeTabId"`
+		Tabs        []tabMeta `json:"tabs"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	if err := ws.updateState(req.ActiveTabID, req.Tabs); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
+func handleCreateTab(w http.ResponseWriter, r *http.Request, ws *workspace) {
+	var tab tabMeta
+	if err := json.NewDecoder(r.Body).Decode(&tab); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	if err := ws.addTab(tab); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, tab)
+}
+
+func handleUpdateTab(w http.ResponseWriter, r *http.Request, ws *workspace, tabID string) {
+	var req struct {
+		Label   string `json:"label"`
+		ColorID string `json:"colorId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	if err := ws.updateTab(tabID, req.Label, req.ColorID); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			writeJSONError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
+func handleDeleteTab(w http.ResponseWriter, _ *http.Request, ws *workspace, tabID string) {
+	if err := ws.removeTab(tabID); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			writeJSONError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+}
+
+func handleCreateSession(w http.ResponseWriter, r *http.Request, manager *sessionManager, ws *workspace) {
 	var req createSessionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != http.ErrBodyNotAllowed && err != io.EOF {
 		writeJSONError(w, http.StatusBadRequest, "invalid payload")
@@ -116,6 +244,12 @@ func handleCreateSession(w http.ResponseWriter, r *http.Request, manager *sessio
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	// Attach session to tab if tabId provided
+	if req.TabID != "" {
+		_ = ws.attachSession(req.TabID, s.id)
+	}
+
 	resp := createSessionResponse{
 		ID:        s.id,
 		CreatedAt: s.createdAt,

@@ -24,11 +24,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	workspacePath := cfg.storagePath + "/workspace.json"
+	ws, err := newWorkspace(workspacePath)
+	if err != nil {
+		logger.Error("failed to initialize workspace", "error", err)
+		os.Exit(1)
+	}
+	logger.Info("workspace initialized", "path", workspacePath)
+
 	metrics := newMetricsRegistry()
-	manager := newSessionManager(cfg, metrics)
+	manager := newSessionManager(cfg, metrics, ws)
 
 	mux := http.NewServeMux()
-	registerRoutes(mux, manager, metrics)
+	registerRoutes(mux, manager, metrics, ws)
 
 	srv := &http.Server{
 		Addr:         cfg.addr,

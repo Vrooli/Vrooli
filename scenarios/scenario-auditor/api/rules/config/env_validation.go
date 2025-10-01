@@ -136,6 +136,62 @@ console.log('API key:', apiKey);
   <expected-violations>1</expected-violations>
   <expected-message>Sensitive environment variable logged</expected-message>
 </test-case>
+
+<test-case id="multi-var-declaration" should-fail="true" path="api/service/main.go">
+  <description>Multiple environment variables in single declaration with partial validation</description>
+  <input language="go">
+func setup() {
+    host, port := os.Getenv("HOST"), os.Getenv("PORT")
+    if host == "" {
+        log.Fatal("HOST is required")
+    }
+    // PORT is never validated - should be caught
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>PORT</expected-message>
+</test-case>
+
+<test-case id="multi-var-all-validated" should-fail="false" path="api/service/main.go">
+  <description>Multiple environment variables with all validated</description>
+  <input language="go">
+func setup() {
+    host, port := os.Getenv("HOST"), os.Getenv("PORT")
+    if host == "" {
+        log.Fatal("HOST is required")
+    }
+    if port == "" {
+        log.Fatal("PORT is required")
+    }
+}
+  </input>
+</test-case>
+
+<test-case id="multi-var-with-error" should-fail="false" path="api/service/main.go">
+  <description>Multi-variable with error return properly validated</description>
+  <input language="go">
+func setup() {
+    value, ok := os.LookupEnv("CONFIG")
+    if !ok {
+        log.Fatal("CONFIG is required")
+    }
+}
+  </input>
+</test-case>
+
+<test-case id="commented-validation" should-fail="true" path="api/service/main.go">
+  <description>Commented-out validation is intentionally detected as a security risk</description>
+  <input language="go">
+func setup() {
+    apiKey := os.Getenv("API_KEY")
+    // if apiKey == "" { log.Fatal("API_KEY required") }
+    // TODO: uncomment before deploy
+    useKey(apiKey)
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>API_KEY</expected-message>
+</test-case>
 */
 
 const (
@@ -226,64 +282,103 @@ func checkGoEnvValidation(content, filepath string) []Violation {
 			continue
 		}
 
-		envVar := extractEnvVarName(line)
-		assignedVar := extractAssignedVarName(line)
-		if assignedVar == "" {
-			assignedVar = envVar
+		// Extract ALL env vars and assigned vars from this line
+		envVars := extractAllEnvVarNames(line)
+		assignedVars := extractAllAssignedVarNames(line)
+
+		// Handle cases where we have different counts
+		// If we have multiple Getenv calls but only one assigned var,
+		// that var gets the first env var, others are tracked independently
+		pairs := make([]struct{ envVar, assignedVar string }, 0)
+
+		if len(assignedVars) == 0 {
+			// Direct usage like: if os.Getenv("VAR") == ""
+			for _, envVar := range envVars {
+				pairs = append(pairs, struct{ envVar, assignedVar string }{envVar, envVar})
+			}
+		} else if len(envVars) == len(assignedVars) {
+			// Perfect match: host, port := os.Getenv("HOST"), os.Getenv("PORT")
+			for idx, envVar := range envVars {
+				pairs = append(pairs, struct{ envVar, assignedVar string }{envVar, assignedVars[idx]})
+			}
+		} else if len(envVars) == 1 && len(assignedVars) > 1 {
+			// Case like: val, err := os.Getenv("KEY")
+			// Use first assigned var that's not underscore
+			for _, assignedVar := range assignedVars {
+				if assignedVar != "_" {
+					pairs = append(pairs, struct{ envVar, assignedVar string }{envVars[0], assignedVar})
+					break
+				}
+			}
+		} else {
+			// Fallback: pair in order, use env var name for extras
+			for idx, envVar := range envVars {
+				if idx < len(assignedVars) {
+					pairs = append(pairs, struct{ envVar, assignedVar string }{envVar, assignedVars[idx]})
+				} else {
+					pairs = append(pairs, struct{ envVar, assignedVar string }{envVar, envVar})
+				}
+			}
 		}
 
-		sensitiveVar := isSensitiveVar(envVar)
-		hasValidation := false
-		logLine := -1
+		// Process each pair
+		for _, pair := range pairs {
+			envVar := pair.envVar
+			assignedVar := pair.assignedVar
 
-		for j := i + 1; j < len(lines) && j < i+8; j++ {
-			nextLine := strings.TrimSpace(lines[j])
-			if nextLine == "" {
-				continue
-			}
+			sensitiveVar := isSensitiveVar(envVar)
+			hasValidation := false
+			logLine := -1
 
-			lower := strings.ToLower(nextLine)
-			containsVar := strings.Contains(nextLine, assignedVar) || strings.Contains(lower, strings.ToLower(assignedVar))
-			if strings.HasPrefix(lower, "if") && containsVar {
-				if strings.Contains(nextLine, `== ""`) || strings.Contains(nextLine, `== ''`) ||
-					strings.Contains(nextLine, "len("+assignedVar+") == 0") || strings.Contains(nextLine, "len("+strings.ToLower(assignedVar)+") == 0") {
+			for j := i + 1; j < len(lines) && j < i+8; j++ {
+				nextLine := strings.TrimSpace(lines[j])
+				if nextLine == "" {
+					continue
+				}
+
+				lower := strings.ToLower(nextLine)
+				containsVar := strings.Contains(nextLine, assignedVar) || strings.Contains(lower, strings.ToLower(assignedVar))
+				if strings.HasPrefix(lower, "if") && containsVar {
+					if strings.Contains(nextLine, `== ""`) || strings.Contains(nextLine, `== ''`) ||
+						strings.Contains(nextLine, "len("+assignedVar+") == 0") || strings.Contains(nextLine, "len("+strings.ToLower(assignedVar)+") == 0") {
+						hasValidation = true
+						break
+					}
+				}
+
+				if (strings.Contains(nextLine, "log.Fatal") || strings.Contains(nextLine, "panic(") || strings.Contains(nextLine, "log.Fatalf")) && containsVar {
 					hasValidation = true
 					break
 				}
 			}
 
-			if (strings.Contains(nextLine, "log.Fatal") || strings.Contains(nextLine, "panic(") || strings.Contains(nextLine, "log.Fatalf")) && containsVar {
-				hasValidation = true
-				break
-			}
-		}
-
-		if sensitiveVar {
-			for j := i; j < len(lines) && j < i+10; j++ {
-				logCandidate := lines[j]
-				if strings.Contains(logCandidate, "log.") || strings.Contains(logCandidate, "fmt.Print") {
-					if strings.Contains(logCandidate, assignedVar) || strings.Contains(logCandidate, envVar) {
-						logLine = j
-						break
+			if sensitiveVar {
+				for j := i; j < len(lines) && j < i+10; j++ {
+					logCandidate := lines[j]
+					if strings.Contains(logCandidate, "log.") || strings.Contains(logCandidate, "fmt.Print") {
+						if strings.Contains(logCandidate, assignedVar) || strings.Contains(logCandidate, envVar) {
+							logLine = j
+							break
+						}
 					}
 				}
 			}
-		}
 
-		state := acc[envVar]
-		if state == nil {
-			state = &envAcc{first: i, loggedLine: -1}
-			acc[envVar] = state
-		} else if i < state.first {
-			state.first = i
-		}
-		if hasValidation {
-			state.validated = true
-		}
-		if sensitiveVar && logLine >= 0 {
-			state.logged = true
-			if state.loggedLine == -1 || logLine < state.loggedLine {
-				state.loggedLine = logLine
+			state := acc[envVar]
+			if state == nil {
+				state = &envAcc{first: i, loggedLine: -1}
+				acc[envVar] = state
+			} else if i < state.first {
+				state.first = i
+			}
+			if hasValidation {
+				state.validated = true
+			}
+			if sensitiveVar && logLine >= 0 {
+				state.logged = true
+				if state.loggedLine == -1 || logLine < state.loggedLine {
+					state.loggedLine = logLine
+				}
 			}
 		}
 	}
@@ -707,6 +802,42 @@ func extractAssignedVarName(line string) string {
 		return matches[1]
 	}
 	return ""
+}
+
+// extractAllEnvVarNames extracts all environment variable names from os.Getenv() calls
+func extractAllEnvVarNames(line string) []string {
+	pattern := regexp.MustCompile(`os\.Getenv\(["']([^"']+)["']\)`)
+	matches := pattern.FindAllStringSubmatch(line, -1)
+	vars := make([]string, 0, len(matches))
+	for _, match := range matches {
+		if len(match) > 1 {
+			vars = append(vars, match[1])
+		}
+	}
+	return vars
+}
+
+// extractAllAssignedVarNames extracts all variable names from the left side of :=
+func extractAllAssignedVarNames(line string) []string {
+	// Find the := operator
+	idx := strings.Index(line, ":=")
+	if idx == -1 {
+		return nil
+	}
+
+	// Get everything before :=
+	leftSide := line[:idx]
+
+	// Split by comma and extract variable names
+	vars := make([]string, 0)
+	for _, part := range strings.Split(leftSide, ",") {
+		trimmed := strings.TrimSpace(part)
+		// Extract just the variable name (handle cases like "var1, var2")
+		if trimmed != "" && trimmed != "_" {
+			vars = append(vars, trimmed)
+		}
+	}
+	return vars
 }
 
 func isSensitiveVar(name string) bool {

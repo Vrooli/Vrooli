@@ -161,6 +161,8 @@ const state = {
   tabs: [],
   activeTabId: null,
   bridge: null,
+  workspaceSocket: null,
+  workspaceReconnectTimer: null,
   drawer: {
     open: false,
     unreadCount: 0,
@@ -178,17 +180,89 @@ let tabSequence = 0
 
 state.bridge = initializeIframeBridge()
 
-const initialTab = createTerminalTab({ focus: true })
-if (initialTab) {
-  startSession(initialTab, { reason: 'initial-tab' }).catch((error) => {
-    appendEvent(initialTab, 'session-error', error)
-    showError(initialTab, error instanceof Error ? error.message : 'Unable to start terminal session')
-  })
+// Load workspace from server
+async function initializeWorkspace() {
+  try {
+    const response = await proxyToApi('/api/v1/workspace')
+    if (!response.ok) {
+      throw new Error(`Failed to load workspace: ${response.status}`)
+    }
+    const workspace = await response.json()
+
+    // Restore tabs from workspace
+    if (workspace.tabs && workspace.tabs.length > 0) {
+      workspace.tabs.forEach((tabMeta) => {
+        const tab = createTerminalTab({
+          focus: false,
+          id: tabMeta.id,
+          label: tabMeta.label,
+          colorId: tabMeta.colorId
+        })
+        if (tab && tabMeta.sessionId) {
+          // Try to reconnect to existing session (may fail if session expired)
+          reconnectSession(tab, tabMeta.sessionId).catch(() => {
+            // Session no longer exists, that's okay
+            console.log(`Session ${tabMeta.sessionId} no longer available for tab ${tabMeta.id}`)
+          })
+        }
+      })
+
+      // Set active tab
+      if (workspace.activeTabId) {
+        setActiveTab(workspace.activeTabId)
+      }
+    } else {
+      // No tabs in workspace, create initial tab
+      const initialTab = createTerminalTab({ focus: true })
+      if (initialTab) {
+        await syncTabToWorkspace(initialTab)
+        startSession(initialTab, { reason: 'initial-tab' }).catch((error) => {
+          appendEvent(initialTab, 'session-error', error)
+          showError(initialTab, error instanceof Error ? error.message : 'Unable to start terminal session')
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Failed to initialize workspace:', error)
+    // Fallback: create initial tab
+    const initialTab = createTerminalTab({ focus: true })
+    if (initialTab) {
+      await syncTabToWorkspace(initialTab)
+      startSession(initialTab, { reason: 'initial-tab' }).catch((error) => {
+        appendEvent(initialTab, 'session-error', error)
+        showError(initialTab, error instanceof Error ? error.message : 'Unable to start terminal session')
+      })
+    }
+  }
+
+  // Connect workspace WebSocket
+  connectWorkspaceWebSocket()
 }
 
-elements.addTabBtn.addEventListener('click', () => {
+// Sync a local tab to the server workspace
+async function syncTabToWorkspace(tab) {
+  try {
+    await proxyToApi('/api/v1/workspace/tabs', {
+      method: 'POST',
+      json: {
+        id: tab.id,
+        label: tab.label,
+        colorId: tab.colorId,
+        order: state.tabs.indexOf(tab)
+      }
+    })
+  } catch (error) {
+    console.error('Failed to sync tab to workspace:', error)
+  }
+}
+
+// Initialize workspace on load
+initializeWorkspace()
+
+elements.addTabBtn.addEventListener('click', async () => {
   const tab = createTerminalTab({ focus: true })
   if (tab) {
+    await syncTabToWorkspace(tab)
     startSession(tab, { reason: 'new-tab' }).catch((error) => {
       appendEvent(tab, 'session-error', error)
       showError(tab, error instanceof Error ? error.message : 'Unable to start terminal session')
@@ -322,10 +396,15 @@ function updateDrawerIndicator() {
   }
 }
 
-function createTerminalTab({ focus = false } = {}) {
+function createTerminalTab({ focus = false, id = null, label = null, colorId = TAB_COLOR_DEFAULT } = {}) {
   if (!elements.terminalHost) return null
-  const id = `tab-${Date.now()}-${++tabSequence}`
-  const label = `Terminal ${tabSequence}`
+  if (!id) {
+    id = `tab-${Date.now()}-${++tabSequence}`
+  }
+  if (!label) {
+    tabSequence++
+    label = `Terminal ${tabSequence}`
+  }
 
   const container = document.createElement('div')
   container.className = 'terminal-screen'
@@ -343,7 +422,7 @@ function createTerminalTab({ focus = false } = {}) {
     id,
     label,
     defaultLabel: label,
-    colorId: TAB_COLOR_DEFAULT,
+    colorId: colorId || TAB_COLOR_DEFAULT,
     term,
     fitAddon,
     container,
@@ -428,6 +507,7 @@ function setActiveTab(tabId) {
   if (!tab) {
     return
   }
+  const previousActiveId = state.activeTabId
   state.activeTabId = tabId
   state.tabs.forEach((entry) => {
     if (!entry.container) return
@@ -441,6 +521,25 @@ function setActiveTab(tabId) {
   resetUnreadEvents()
   focusTerminal(tab)
   updateUI()
+
+  // Sync active tab change to server (only if it actually changed)
+  if (previousActiveId !== tabId) {
+    proxyToApi('/api/v1/workspace', {
+      method: 'PUT',
+      json: {
+        activeTabId: tabId,
+        tabs: state.tabs.map((t, idx) => ({
+          id: t.id,
+          label: t.label,
+          colorId: t.colorId,
+          order: idx,
+          sessionId: t.session ? t.session.id : null
+        }))
+      }
+    }).catch((error) => {
+      console.error('Failed to sync active tab to server:', error)
+    })
+  }
 }
 
 function updateTabButtonState(tab) {
@@ -757,6 +856,17 @@ function handleTabContextSubmit(event) {
     updateUI()
   }
 
+  // Sync to server
+  proxyToApi(`/api/v1/workspace/tabs/${tabId}`, {
+    method: 'PATCH',
+    json: {
+      label: tab.label,
+      colorId: tab.colorId
+    }
+  }).catch((error) => {
+    console.error('Failed to update tab on server:', error)
+  })
+
   closeTabCustomization()
 }
 
@@ -813,6 +923,13 @@ async function closeTab(tabId) {
   destroyTerminalTab(tab)
 
   state.tabs = state.tabs.filter((entry) => entry.id !== tabId)
+
+  // Sync deletion to server
+  proxyToApi(`/api/v1/workspace/tabs/${tabId}`, {
+    method: 'DELETE'
+  }).catch((error) => {
+    console.error('Failed to delete tab from server:', error)
+  })
 
   if (state.activeTabId === tabId) {
     const fallback = state.tabs[state.tabs.length - 1] || state.tabs[0] || null
@@ -1127,6 +1244,7 @@ async function startSession(tab, options = {}) {
     if (options.command) payload.command = options.command
     if (Array.isArray(options.args) && options.args.length > 0) payload.args = options.args
     if (options.metadata) payload.metadata = options.metadata
+    if (tab.id) payload.tabId = tab.id
 
     const response = await proxyToApi('/api/v1/sessions', {
       method: 'POST',
@@ -1632,3 +1750,200 @@ function formatEventPayload(payload) {
     return '[unserializable payload]'
   }
 }
+
+// Workspace WebSocket connection
+function connectWorkspaceWebSocket() {
+  if (state.workspaceSocket && state.workspaceSocket.readyState === WebSocket.OPEN) {
+    return
+  }
+
+  const url = buildWebSocketUrl('/ws/workspace/stream')
+  const socket = new WebSocket(url)
+  state.workspaceSocket = socket
+
+  socket.addEventListener('open', () => {
+    console.log('Workspace WebSocket connected')
+    if (state.workspaceReconnectTimer) {
+      clearTimeout(state.workspaceReconnectTimer)
+      state.workspaceReconnectTimer = null
+    }
+  })
+
+  socket.addEventListener('message', async (event) => {
+    try {
+      // Handle different data types (string, Blob, ArrayBuffer)
+      let rawData = event.data
+      if (rawData instanceof Blob) {
+        rawData = await rawData.text()
+      } else if (rawData instanceof ArrayBuffer) {
+        rawData = new TextDecoder().decode(rawData)
+      }
+
+      const data = JSON.parse(rawData)
+
+      // Ignore status messages from proxy
+      if (data.type === 'status' && data.payload?.status === 'upstream_connected') {
+        return
+      }
+
+      // First message might be the initial workspace state (not wrapped in event)
+      if (data.activeTabId !== undefined && data.tabs !== undefined) {
+        console.log('Received initial workspace state')
+        return // We already loaded workspace via REST, ignore this
+      }
+
+      handleWorkspaceEvent(data)
+    } catch (error) {
+      console.error('Failed to parse workspace event:', error)
+    }
+  })
+
+  socket.addEventListener('close', () => {
+    console.log('Workspace WebSocket closed, reconnecting...')
+    state.workspaceSocket = null
+    if (!state.workspaceReconnectTimer) {
+      state.workspaceReconnectTimer = setTimeout(() => {
+        connectWorkspaceWebSocket()
+      }, 3000)
+    }
+  })
+
+  socket.addEventListener('error', (error) => {
+    console.error('Workspace WebSocket error:', error)
+  })
+}
+
+// Handle workspace events from server
+function handleWorkspaceEvent(event) {
+  if (!event || !event.type) return
+
+  switch (event.type) {
+    case 'workspace-full-update':
+      handleWorkspaceFullUpdate(event.payload)
+      break
+    case 'tab-added':
+      handleTabAdded(event.payload)
+      break
+    case 'tab-updated':
+      handleTabUpdated(event.payload)
+      break
+    case 'tab-removed':
+      handleTabRemoved(event.payload)
+      break
+    case 'active-tab-changed':
+      handleActiveTabChanged(event.payload)
+      break
+    case 'session-attached':
+      handleSessionAttached(event.payload)
+      break
+    case 'session-detached':
+      handleSessionDetached(event.payload)
+      break
+    default:
+      console.log('Unknown workspace event:', event.type)
+  }
+}
+
+function handleWorkspaceFullUpdate(payload) {
+  // TODO: Implement full workspace sync
+  console.log('Full workspace update:', payload)
+}
+
+function handleTabAdded(payload) {
+  // Check if tab already exists locally
+  const existing = findTab(payload.id)
+  if (existing) return
+
+  // Create tab locally
+  createTerminalTab({
+    focus: false,
+    id: payload.id,
+    label: payload.label,
+    colorId: payload.colorId
+  })
+}
+
+function handleTabUpdated(payload) {
+  const tab = findTab(payload.id)
+  if (!tab) return
+
+  tab.label = payload.label
+  tab.colorId = payload.colorId
+  applyTabAppearance(tab)
+  renderTabs()
+  if (tab.id === state.activeTabId) {
+    updateUI()
+  }
+}
+
+function handleTabRemoved(payload) {
+  const tab = findTab(payload.id)
+  if (!tab) return
+
+  // Remove tab locally (but don't sync back to server)
+  destroyTerminalTab(tab)
+  state.tabs = state.tabs.filter((entry) => entry.id !== payload.id)
+
+  if (state.activeTabId === payload.id) {
+    const fallback = state.tabs[state.tabs.length - 1] || state.tabs[0] || null
+    state.activeTabId = fallback ? fallback.id : null
+  }
+
+  renderTabs()
+  if (state.activeTabId) {
+    const active = getActiveTab()
+    if (active) {
+      setActiveTab(active.id)
+    }
+  } else {
+    updateUI()
+  }
+}
+
+function handleActiveTabChanged(payload) {
+  if (payload.id && payload.id !== state.activeTabId) {
+    setActiveTab(payload.id)
+  }
+}
+
+function handleSessionAttached(payload) {
+  const tab = findTab(payload.tabId)
+  if (!tab || !payload.sessionId) return
+
+  // Reconnect to session if needed
+  if (!tab.session || tab.session.id !== payload.sessionId) {
+    reconnectSession(tab, payload.sessionId)
+  }
+}
+
+function handleSessionDetached(payload) {
+  const tab = findTab(payload.tabId)
+  if (!tab) return
+
+  // Mark session as detached
+  if (tab.session) {
+    tab.session = null
+    setTabPhase(tab, 'idle')
+    setTabSocketState(tab, 'disconnected')
+  }
+}
+
+async function reconnectSession(tab, sessionId) {
+  try {
+    const response = await proxyToApi(`/api/v1/sessions/${sessionId}`)
+    if (!response.ok) {
+      console.error('Failed to fetch session:', sessionId)
+      return
+    }
+    const data = await response.json()
+    tab.session = {
+      ...data,
+      commandLine: formatCommandLabel(data.command, data.args)
+    }
+    connectWebSocket(tab, sessionId)
+    setTabPhase(tab, 'running')
+  } catch (error) {
+    console.error('Failed to reconnect session:', error)
+  }
+}
+

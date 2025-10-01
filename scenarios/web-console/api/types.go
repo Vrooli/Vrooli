@@ -11,6 +11,7 @@ type createSessionRequest struct {
 	Metadata json.RawMessage `json:"metadata,omitempty"`
 	Command  string          `json:"command,omitempty"`
 	Args     []string        `json:"args,omitempty"`
+	TabID    string          `json:"tabId,omitempty"`
 }
 
 type createSessionResponse struct {
