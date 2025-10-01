@@ -584,6 +584,7 @@ function App() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilterValue>('all');
   const [appFilter, setAppFilter] = useState<string>('all');
+  const [searchFilter, setSearchFilter] = useState<string>('');
   const [hiddenColumns, setHiddenColumns] = useState<IssueStatus[]>(['archived']);
   const [createIssueOpen, setCreateIssueOpen] = useState(false);
   const [issueDetailOpen, setIssueDetailOpen] = useState(false);
@@ -639,9 +640,23 @@ function App() {
     return issues.filter((issue) => {
       const matchesPriority = priorityFilter === 'all' || issue.priority === priorityFilter;
       const matchesApp = appFilter === 'all' || issue.app === appFilter;
-      return matchesPriority && matchesApp;
+
+      let matchesSearch = true;
+      if (searchFilter.trim()) {
+        const query = searchFilter.toLowerCase();
+        matchesSearch =
+          issue.id.toLowerCase().includes(query) ||
+          issue.title.toLowerCase().includes(query) ||
+          issue.description.toLowerCase().includes(query) ||
+          issue.assignee.toLowerCase().includes(query) ||
+          issue.tags.some(tag => tag.toLowerCase().includes(query)) ||
+          (issue.reporterName?.toLowerCase().includes(query) ?? false) ||
+          (issue.reporterEmail?.toLowerCase().includes(query) ?? false);
+      }
+
+      return matchesPriority && matchesApp && matchesSearch;
     });
-  }, [issues, priorityFilter, appFilter]);
+  }, [issues, priorityFilter, appFilter, searchFilter]);
 
   useEffect(() => {
     if (appFilter !== 'all' && !availableApps.includes(appFilter)) {
@@ -1050,6 +1065,18 @@ function App() {
     setAppFilter(value);
   }, []);
 
+  const handleSearchFilterChange = useCallback((value: string) => {
+    setSearchFilter(value);
+  }, []);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (priorityFilter !== 'all') count++;
+    if (appFilter !== 'all') count++;
+    if (searchFilter.trim()) count++;
+    return count;
+  }, [priorityFilter, appFilter, searchFilter]);
+
   const handleIssueArchive = useCallback(
     async (issue: Issue) => {
       try {
@@ -1309,8 +1336,14 @@ function App() {
                   onClick={() => setFiltersOpen((state) => !state)}
                   aria-label="Toggle filters"
                   aria-expanded={filtersOpen}
+                  style={{ position: 'relative' }}
                 >
                   <Filter size={18} />
+                  {activeFilterCount > 0 && (
+                    <span className="filter-badge" aria-label={`${activeFilterCount} active filters`}>
+                      {activeFilterCount}
+                    </span>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -1335,6 +1368,8 @@ function App() {
                   onPriorityFilterChange={handlePriorityFilterChange}
                   appFilter={appFilter}
                   onAppFilterChange={handleAppFilterChange}
+                  searchFilter={searchFilter}
+                  onSearchFilterChange={handleSearchFilterChange}
                   appOptions={availableApps}
                   hiddenColumns={hiddenColumns}
                   onToggleColumn={handleToggleColumn}
@@ -1351,7 +1386,7 @@ function App() {
       )}
 
       {showIssueDetailModal && selectedIssue && (
-        <IssueDetailsModal issue={selectedIssue} onClose={handleIssueDetailClose} />
+        <IssueDetailsModal issue={selectedIssue} onClose={handleIssueDetailClose} onStatusChange={updateIssueStatus} />
       )}
 
       {metricsDialogOpen && (
@@ -1460,9 +1495,10 @@ function Snackbar({ message, tone, onClose }: SnackbarProps) {
 interface IssueDetailsModalProps {
   issue: Issue;
   onClose: () => void;
+  onStatusChange?: (issueId: string, newStatus: IssueStatus) => void | Promise<void>;
 }
 
-function IssueDetailsModal({ issue, onClose }: IssueDetailsModalProps) {
+function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModalProps) {
   const createdText = formatDateTime(issue.createdAt);
   const updatedText = formatDateTime(issue.updatedAt);
   const resolvedText = formatDateTime(issue.resolvedAt);
@@ -1471,6 +1507,13 @@ function IssueDetailsModal({ issue, onClose }: IssueDetailsModalProps) {
   const resolvedHint = formatRelativeTime(issue.resolvedAt);
   const description = issue.description?.trim();
   const notes = issue.notes?.trim();
+
+  const handleStatusChange = async (event: ChangeEvent<HTMLSelectElement>) => {
+    const newStatus = event.target.value as IssueStatus;
+    if (newStatus !== issue.status && onStatusChange) {
+      await onStatusChange(issue.id, newStatus);
+    }
+  };
 
   return (
     <Modal onClose={onClose} labelledBy="issue-details-title">
@@ -1490,6 +1533,28 @@ function IssueDetailsModal({ issue, onClose }: IssueDetailsModalProps) {
       </div>
 
       <div className="modal-body">
+        {onStatusChange && (
+          <div className="form-field form-field-full">
+            <label htmlFor="issue-status-selector">
+              <span>Status (Accessibility Feature)</span>
+              <div className="select-wrapper">
+                <select
+                  id="issue-status-selector"
+                  value={issue.status}
+                  onChange={handleStatusChange}
+                >
+                  {VALID_STATUSES.map((status) => (
+                    <option key={status} value={status}>
+                      {toTitleCase(status.replace(/-/g, ' '))}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={16} />
+              </div>
+            </label>
+          </div>
+        )}
+
         <div className="issue-detail-grid">
           <IssueMetaTile label="Status" value={toTitleCase(issue.status.replace(/-/g, ' '))} />
           <IssueMetaTile label="Priority" value={issue.priority} />
@@ -1801,6 +1866,8 @@ interface IssueBoardToolbarProps {
   onPriorityFilterChange: (value: PriorityFilterValue) => void;
   appFilter: string;
   onAppFilterChange: (value: string) => void;
+  searchFilter: string;
+  onSearchFilterChange: (value: string) => void;
   appOptions: string[];
   hiddenColumns: IssueStatus[];
   onToggleColumn: (status: IssueStatus) => void;
@@ -1814,6 +1881,8 @@ function IssueBoardToolbar({
   onPriorityFilterChange,
   appFilter,
   onAppFilterChange,
+  searchFilter,
+  onSearchFilterChange,
   appOptions,
   hiddenColumns,
   onToggleColumn,
@@ -1825,6 +1894,7 @@ function IssueBoardToolbar({
   const handleClearFilters = () => {
     onPriorityFilterChange('all');
     onAppFilterChange('all');
+    onSearchFilterChange('');
   };
 
   if (!open) {
@@ -1859,6 +1929,16 @@ function IssueBoardToolbar({
             <span>Filters</span>
           </div>
           <div className="issues-toolbar-fields">
+            <label className="issues-toolbar-field" style={{ flex: '1 1 100%' }}>
+              <span>Search</span>
+              <input
+                type="text"
+                value={searchFilter}
+                onChange={(event) => onSearchFilterChange(event.target.value)}
+                placeholder="Search by title, description, ID, tags..."
+              />
+            </label>
+
             <label className="issues-toolbar-field">
               <span>Priority</span>
               <div className="select-wrapper">

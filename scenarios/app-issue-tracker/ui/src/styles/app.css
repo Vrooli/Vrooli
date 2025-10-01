@@ -134,6 +134,30 @@
   box-shadow: 0 16px 30px rgba(99, 102, 241, 0.3);
 }
 
+.filter-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0 5px;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+  pointer-events: none;
+}
+
+.dark .filter-badge {
+  background: #f87171;
+  box-shadow: 0 2px 8px rgba(248, 113, 113, 0.5);
+}
+
 .icon-button--secondary {
   background: var(--card-bg);
   color: var(--text);
@@ -573,11 +597,12 @@
   scroll-behavior: smooth;
   padding: 0;
   margin: 0;
-  touch-action: pan-x;
+  touch-action: pan-x pan-y;
   overscroll-behavior-x: contain;
   scrollbar-gutter: stable;
   height: 100%;
   min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .issues-board .kanban-grid::-webkit-scrollbar {
@@ -979,7 +1004,7 @@
 
 .kanban-column-body {
   flex: 1;
-  padding: 20px 18px;
+  padding: 20px 18px 120px 18px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1051,6 +1076,18 @@
 
 .issue-card:active {
   cursor: grabbing;
+}
+
+.issue-card.dragging {
+  opacity: 0.4;
+}
+
+.touch-drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  will-change: transform;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.25);
 }
 
 .issue-card:hover {

@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
-import type { DragEvent, WheelEvent } from 'react';
+import type { DragEvent, WheelEvent, TouchEvent } from 'react';
 import { AlertTriangle, ArchiveRestore, CheckCircle2, CircleSlash, Clock, Construction, EyeOff } from 'lucide-react';
 import { Issue, IssueStatus } from '../data/sampleData';
 import { IssueCard } from '../components/IssueCard';
@@ -36,10 +36,22 @@ export function IssuesBoard({
 }: IssuesBoardProps) {
   const [dragState, setDragState] = useState<{ issueId: string; from: IssueStatus } | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<IssueStatus | null>(null);
+  const [pointerDragState, setPointerDragState] = useState<{
+    pointerId: number;
+    issueId: string;
+    fromStatus: IssueStatus;
+    startX: number;
+    startY: number;
+    offsetX: number;
+    offsetY: number;
+    ghost: HTMLElement | null;
+    dragging: boolean;
+  } | null>(null);
   const kanbanGridRef = useRef<HTMLDivElement>(null);
   const scrollLockRef = useRef<{ timeout: number | null }>({
     timeout: null,
   });
+  const POINTER_DRAG_THRESHOLD = 12;
 
   const grouped = useMemo(() => {
     const base: Record<IssueStatus, Issue[]> = {
@@ -204,6 +216,134 @@ export function IssuesBoard({
     await onIssueDrop?.(currentDrag.issueId, currentDrag.from, status);
   };
 
+  const handlePointerCardDown = (issue: Issue, event: React.PointerEvent<HTMLDivElement>, card: HTMLElement) => {
+    const rect = card.getBoundingClientRect();
+    const offsetX = event.clientX - rect.left;
+    const offsetY = event.clientY - rect.top;
+
+    setPointerDragState({
+      pointerId: event.pointerId,
+      issueId: issue.id,
+      fromStatus: issue.status,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX,
+      offsetY,
+      ghost: null,
+      dragging: false,
+    });
+
+    card.setPointerCapture?.(event.pointerId);
+  };
+
+  const handlePointerCardMove = (event: React.PointerEvent<HTMLDivElement>, card: HTMLElement) => {
+    if (!pointerDragState || event.pointerId !== pointerDragState.pointerId) {
+      return;
+    }
+
+    const deltaX = Math.abs(event.clientX - pointerDragState.startX);
+    const deltaY = Math.abs(event.clientY - pointerDragState.startY);
+
+    if (!pointerDragState.dragging) {
+      if (deltaX <= POINTER_DRAG_THRESHOLD && deltaY <= POINTER_DRAG_THRESHOLD) {
+        return;
+      }
+
+      // Activate drag
+      event.preventDefault();
+      const rect = card.getBoundingClientRect();
+      const ghost = card.cloneNode(true) as HTMLElement;
+      ghost.removeAttribute('id');
+      ghost.style.width = `${rect.width}px`;
+      ghost.style.height = `${rect.height}px`;
+      ghost.style.opacity = '0.9';
+      ghost.style.position = 'fixed';
+      ghost.style.zIndex = '1000';
+      ghost.style.pointerEvents = 'none';
+      ghost.classList.add('touch-drag-ghost');
+      ghost.style.transition = 'none';
+
+      const x = event.clientX - pointerDragState.offsetX;
+      const y = event.clientY - pointerDragState.offsetY;
+      ghost.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+
+      document.body.appendChild(ghost);
+
+      card.classList.add('dragging');
+
+      setPointerDragState({
+        ...pointerDragState,
+        ghost,
+        dragging: true,
+      });
+
+      return;
+    }
+
+    event.preventDefault();
+
+    // Update ghost position
+    if (pointerDragState.ghost) {
+      const x = event.clientX - pointerDragState.offsetX;
+      const y = event.clientY - pointerDragState.offsetY;
+      pointerDragState.ghost.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    }
+
+    // Highlight column
+    const element = document.elementFromPoint(event.clientX, event.clientY);
+    const column = element?.closest('.kanban-column');
+
+    document.querySelectorAll('.kanban-column').forEach((col) => {
+      col.classList.remove('kanban-column--drag-over');
+    });
+
+    if (column) {
+      const status = column.getAttribute('data-status') as IssueStatus | null;
+      column.classList.add('kanban-column--drag-over');
+      setDragOverStatus(status);
+    } else {
+      setDragOverStatus(null);
+    }
+  };
+
+  const handlePointerCardUp = async (event: React.PointerEvent<HTMLDivElement>, card: HTMLElement) => {
+    if (!pointerDragState || event.pointerId !== pointerDragState.pointerId) {
+      return;
+    }
+
+    const wasDragging = pointerDragState.dragging;
+
+    if (wasDragging) {
+      event.preventDefault();
+    }
+
+    card.classList.remove('dragging');
+    card.releasePointerCapture?.(event.pointerId);
+
+    if (pointerDragState.ghost && pointerDragState.ghost.parentElement) {
+      pointerDragState.ghost.parentElement.removeChild(pointerDragState.ghost);
+    }
+
+    if (wasDragging) {
+      const dropTarget = document.elementFromPoint(event.clientX, event.clientY);
+      const column = dropTarget?.closest('.kanban-column');
+
+      document.querySelectorAll('.kanban-column').forEach((col) => {
+        col.classList.remove('kanban-column--drag-over');
+      });
+
+      if (column) {
+        const targetStatus = column.getAttribute('data-status') as IssueStatus | null;
+        if (targetStatus && targetStatus !== pointerDragState.fromStatus && onIssueDrop) {
+          await onIssueDrop(pointerDragState.issueId, pointerDragState.fromStatus, targetStatus);
+        }
+      }
+    }
+
+    setPointerDragState(null);
+    setDragOverStatus(null);
+  };
+
   return (
     <div className="issues-board">
       <div className="kanban-grid" data-columns={visibleStatuses.length} ref={kanbanGridRef} onWheel={handleWheel}>
@@ -225,6 +365,7 @@ export function IssuesBoard({
               <section
                 key={status}
                 className={columnClasses.join(' ')}
+                data-status={status}
                 onDragOver={(event) => handleColumnDragOver(event, status)}
                 onDragEnter={(event) => handleColumnDragOver(event, status)}
                 onDragLeave={(event) => handleColumnDragLeave(event, status)}
@@ -258,6 +399,9 @@ export function IssuesBoard({
                       onArchive={confirmArchive}
                       onDragStart={handleCardDragStart}
                       onDragEnd={handleCardDragEnd}
+                      onPointerDown={handlePointerCardDown}
+                      onPointerMove={handlePointerCardMove}
+                      onPointerUp={handlePointerCardUp}
                       draggable
                     />
                   ))}

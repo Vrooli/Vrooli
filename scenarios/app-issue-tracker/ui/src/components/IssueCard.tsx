@@ -15,6 +15,9 @@ interface IssueCardProps {
   draggable?: boolean;
   onDragStart?: (issue: Issue, event: DragEvent<HTMLDivElement>) => void;
   onDragEnd?: (issue: Issue, event: DragEvent<HTMLDivElement>) => void;
+  onPointerDown?: (issue: Issue, event: PointerEvent<HTMLDivElement>, card: HTMLElement) => void;
+  onPointerMove?: (event: PointerEvent<HTMLDivElement>, card: HTMLElement) => void;
+  onPointerUp?: (event: PointerEvent<HTMLDivElement>, card: HTMLElement) => void;
 }
 
 export function IssueCard({
@@ -26,14 +29,13 @@ export function IssueCard({
   draggable = true,
   onDragStart,
   onDragEnd,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
 }: IssueCardProps) {
-  const touchStateRef = useRef<{ x: number; y: number; moved: boolean }>({
-    x: 0,
-    y: 0,
-    moved: false,
-  });
   const ignoreClickRef = useRef(false);
   const dragHandleActiveRef = useRef(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const className = [
     'issue-card',
@@ -81,80 +83,37 @@ export function IssueCard({
     onDragEnd?.(issue, event);
   };
 
-  const handlePointerUp = () => {
-    dragHandleActiveRef.current = false;
-  };
-
-  const handlePointerCancel = () => {
-    dragHandleActiveRef.current = false;
-  };
-
-  const handleDragHandlePointerDown = (event: PointerEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    dragHandleActiveRef.current = true;
-  };
-
-  const handleDragHandlePointerUp = (event: PointerEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    dragHandleActiveRef.current = false;
-  };
-
-  const handleDragHandlePointerLeave = (event: PointerEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    dragHandleActiveRef.current = false;
-  };
-
-  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    const touch = event.touches[0];
-    if (!touch) {
-      return;
-    }
-    touchStateRef.current = { x: touch.clientX, y: touch.clientY, moved: false };
-  };
-
-  const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
-    const touch = event.touches[0];
-    if (!touch) {
-      return;
-    }
-    const dx = touch.clientX - touchStateRef.current.x;
-    const dy = touch.clientY - touchStateRef.current.y;
-    if (!touchStateRef.current.moved) {
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance > TOUCH_MOVE_THRESHOLD) {
-        touchStateRef.current.moved = true;
-      }
-    }
-  };
-
-  const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+  const handleCardPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null;
-    if (target?.closest('.issue-card-action')) {
-      ignoreClickRef.current = true;
-      window.setTimeout(() => {
-        ignoreClickRef.current = false;
-      }, 0);
-      touchStateRef.current = { x: 0, y: 0, moved: false };
+    const handle = target?.closest('.issue-card-drag-handle');
+
+    if (!handle || !cardRef.current) {
       return;
     }
 
-    const moved = touchStateRef.current.moved;
-    ignoreClickRef.current = true;
-    window.setTimeout(() => {
-      ignoreClickRef.current = false;
-    }, 0);
+    event.stopPropagation();
+    onPointerDown?.(issue, event, cardRef.current);
+  };
 
-    if (!moved && !target?.closest('.issue-card-drag-handle')) {
-      onSelect?.(issue.id);
+  const handleCardPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!cardRef.current) {
+      return;
     }
+    onPointerMove?.(event, cardRef.current);
+  };
 
-    touchStateRef.current = { x: 0, y: 0, moved: false };
+  const handleCardPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (!cardRef.current) {
+      return;
+    }
+    onPointerUp?.(event, cardRef.current);
   };
 
   const isArchived = issue.status === 'archived';
 
   return (
     <div
+      ref={cardRef}
       className={className}
       data-issue-id={issue.id}
       role="button"
@@ -165,12 +124,10 @@ export function IssueCard({
       draggable={draggable}
       onDragStart={handleDragStartInternal}
       onDragEnd={handleDragEndInternal}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerCancel}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchEnd}
+      onPointerDown={handleCardPointerDown}
+      onPointerMove={handleCardPointerMove}
+      onPointerUp={handleCardPointerUp}
+      onPointerCancel={handleCardPointerUp}
     >
       <header className="issue-card-header">
         <div className="issue-card-meta">
@@ -181,9 +138,6 @@ export function IssueCard({
             type="button"
             className="issue-card-action issue-card-drag-handle"
             aria-label={`Drag ${issue.id}`}
-            onPointerDown={handleDragHandlePointerDown}
-            onPointerUp={handleDragHandlePointerUp}
-            onPointerLeave={handleDragHandlePointerLeave}
           >
             <GripVertical size={16} />
           </button>
