@@ -7,6 +7,7 @@ import type {
   ReactNode,
 } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CalendarClock,
   CircleAlert,
@@ -597,23 +598,24 @@ function normalizePathname(pathname: string): string {
 function pathToNavKey(pathname: string): NavKey {
   const normalized = normalizePathname(pathname);
   switch (normalized) {
-    case '/issues':
-      return 'issues';
+    case '/dashboard':
+      return 'dashboard';
     case '/settings':
       return 'settings';
+    case '/issues':
     case '/':
     default:
-      return 'dashboard';
+      return 'issues';
   }
 }
 
 function navKeyToPath(nav: NavKey): string {
   switch (nav) {
-    case 'issues':
-      return '/issues';
+    case 'dashboard':
+      return '/dashboard';
     case 'settings':
       return '/settings';
-    case 'dashboard':
+    case 'issues':
     default:
       return '/';
   }
@@ -621,7 +623,7 @@ function navKeyToPath(nav: NavKey): string {
 
 function getInitialNavKey(): NavKey {
   if (typeof window === 'undefined') {
-    return 'dashboard';
+    return 'issues';
   }
   return pathToNavKey(window.location.pathname);
 }
@@ -998,9 +1000,9 @@ function App() {
     }
 
     const normalizedPath = normalizePathname(window.location.pathname);
-    if (normalizedPath !== '/issues') {
+    if (normalizedPath !== '/' && normalizedPath !== '/issues') {
       const url = new URL(window.location.href);
-      url.pathname = '/issues';
+      url.pathname = '/';
       const nextSearch = url.searchParams.toString();
       const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ''}${url.hash}`;
       window.history.replaceState({}, '', nextUrl);
@@ -1542,7 +1544,7 @@ function Modal({ onClose, labelledBy, panelClassName, children }: ModalProps) {
     };
   }, [onClose]);
 
-  return (
+  const modalContent = (
     <div className="modal-backdrop" onMouseDown={handleBackdropMouseDown}>
       <div
         className={`modal-panel${panelClassName ? ` ${panelClassName}` : ''}`}
@@ -1554,6 +1556,10 @@ function Modal({ onClose, labelledBy, panelClassName, children }: ModalProps) {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? createPortal(modalContent, document.body)
+    : modalContent;
 }
 
 interface SnackbarProps {

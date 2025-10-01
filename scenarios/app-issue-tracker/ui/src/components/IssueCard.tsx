@@ -151,8 +151,6 @@ export function IssueCard({
     touchStateRef.current = { x: 0, y: 0, moved: false };
   };
 
-  const summaryText = issue.summary?.trim();
-  const appLabel = issue.app?.trim();
   const isArchived = issue.status === 'archived';
 
   return (
@@ -177,7 +175,6 @@ export function IssueCard({
       <header className="issue-card-header">
         <div className="issue-card-meta">
           <span className="issue-priority">{issue.priority}</span>
-          <span className="issue-assignee">{issue.assignee}</span>
         </div>
         <div className="issue-card-actions">
           <button
@@ -210,12 +207,6 @@ export function IssueCard({
         </div>
       </header>
       <h3 className="issue-title">{issue.title}</h3>
-      {summaryText && <p className="issue-summary">{summaryText}</p>}
-      {appLabel && (
-        <div className="issue-flags">
-          <span className="issue-app-tag">{appLabel}</span>
-        </div>
-      )}
       <footer className="issue-footer">
         <span className="issue-meta">
           <Hash size={14} />
