@@ -42,6 +42,7 @@ ensure_prereqs() {
     command -v vrooli >/dev/null 2>&1 || fatal "vrooli CLI not found in PATH"
     command -v jq >/dev/null 2>&1 || fatal "jq is required but not found in PATH"
     command -v curl >/dev/null 2>&1 || fatal "curl is required but not found in PATH"
+    command -v lsof >/dev/null 2>&1 || fatal "lsof is required but not found in PATH"
     if command -v timeout >/dev/null 2>&1; then
         TIMEOUT_BIN="timeout"
     else
@@ -174,6 +175,110 @@ append_scenario_logs() {
     set -e
 }
 
+find_scenario_dir() {
+    local name="$1"
+    local -a candidates=()
+
+    if [[ -n "${VROOLI_ROOT:-}" ]]; then
+        candidates+=("${VROOLI_ROOT}/scenarios/${name}")
+    fi
+    candidates+=(
+        "${HOME}/Vrooli/scenarios/${name}"
+        "${PWD}/scenarios/${name}"
+    )
+
+    local candidate
+    for candidate in "${candidates[@]}"; do
+        if [[ -d "$candidate" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+collect_scenario_ports() {
+    local name="$1"
+    local proc_dir="${HOME}/.vrooli/processes/scenarios/${name}"
+    declare -A seen_ports=()
+
+    if [[ -d "$proc_dir" ]]; then
+        local meta port
+        shopt -s nullglob
+        for meta in "$proc_dir"/*.json; do
+            [[ -f "$meta" ]] || continue
+            port=$(jq -r 'try .port catch ""' "$meta" 2>/dev/null || true)
+            if [[ -n "$port" && "$port" != "null" && "$port" =~ ^[0-9]+$ ]]; then
+                seen_ports["$port"]=1
+            fi
+        done
+        shopt -u nullglob
+    fi
+
+    local scenario_dir service_file
+    if scenario_dir=$(find_scenario_dir "$name" 2>/dev/null); then
+        service_file="$scenario_dir/.vrooli/service.json"
+        if [[ -f "$service_file" ]]; then
+            while IFS= read -r port; do
+                if [[ -n "$port" && "$port" =~ ^[0-9]+$ ]]; then
+                    seen_ports["$port"]=1
+                fi
+            done < <(jq -r '.ports? | to_entries[] | select(.value.port != null) | .value.port' "$service_file" 2>/dev/null || true)
+        fi
+    fi
+
+    local port
+    for port in "${!seen_ports[@]}"; do
+        printf '%s\n' "$port"
+    done
+}
+
+kill_port_listener() {
+    local name="$1" port="$2"
+    if [[ -z "$port" || ! "$port" =~ ^[0-9]+$ ]]; then
+        return 0
+    fi
+
+    local pids pid
+    if ! pids=$(lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | sort -u); then
+        return 0
+    fi
+    if [[ -z "$pids" ]]; then
+        return 0
+    fi
+
+    log "WARN" "Scenario '$name' port $port still in use; forcing shutdown of listener(s): $pids"
+    for pid in $pids; do
+        kill -TERM "$pid" 2>/dev/null || true
+    done
+    sleep 2
+    for pid in $pids; do
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -KILL "$pid" 2>/dev/null || true
+        fi
+    done
+    return 0
+}
+
+cleanup_scenario_ports() {
+    local name="$1"
+    local -a ports
+    mapfile -t ports < <(collect_scenario_ports "$name" 2>/dev/null | sort -n)
+    if [[ "${#ports[@]}" -eq 0 ]]; then
+        return 0
+    fi
+
+    local port
+    for port in "${ports[@]}"; do
+        kill_port_listener "$name" "$port"
+    done
+
+    local proc_dir="${HOME}/.vrooli/processes/scenarios/${name}"
+    if [[ -d "$proc_dir" ]]; then
+        rm -f "$proc_dir"/*.pid "$proc_dir"/*.json 2>/dev/null || true
+    fi
+}
+
 check_resource() {
     local name="$1"
     local info running healthy total_instances healthy_instances
@@ -267,6 +372,7 @@ restart_scenario() {
     if ! run_with_timeout_stream vrooli scenario stop "$name" >>"$LOG_FILE" 2>&1; then
         log "DEBUG" "Stop command for '$name' returned non-zero, continuing"
     fi
+    cleanup_scenario_ports "$name"
     if ! run_with_timeout_stream vrooli scenario start "$name" --clean-stale >>"$LOG_FILE" 2>&1; then
         log "ERROR" "Failed to start scenario '$name'"
         append_scenario_logs "$name"

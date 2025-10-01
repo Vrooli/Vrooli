@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     port: parseInt(process.env.UI_PORT || process.env.PORT || '3000'),
     host: '0.0.0.0',
+    allowedHosts: ['system-monitor.itsagitime.com'],
     proxy: {
       // Proxy API calls to the Go backend
       '/api': {

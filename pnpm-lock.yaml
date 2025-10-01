@@ -1990,8 +1990,8 @@ importers:
   scenarios/scenario-authenticator/ui:
     dependencies:
       express:
-        specifier: ^5.1.0
-        version: 5.1.0
+        specifier: ^4.19.2
+        version: 4.19.2
 
   scenarios/scenario-surfer/ui:
     dependencies:

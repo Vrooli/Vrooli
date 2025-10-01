@@ -8,6 +8,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: Number(process.env.UI_PORT) || 5173,
+    allowedHosts: ['app-issue-tracker.itsagitime.com'],
     proxy: {
       '/api': {
         target: `http://localhost:${apiPort}`,

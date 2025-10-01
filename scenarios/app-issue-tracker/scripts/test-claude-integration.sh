@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test script for Claude Code integration with App Issue Tracker
+# Test script for Codex integration with App Issue Tracker
 
 set -euo pipefail
 
@@ -18,20 +18,20 @@ warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ISSUES_DIR="${SCRIPT_DIR}/../data/issues"
 
-echo "[WARN] Legacy Claude integration test expects flat YAML files." >&2
+echo "[WARN] Legacy Codex integration test expects flat YAML files." >&2
 echo "       Folder-based issue bundles are now default—use \"make test\" instead." >&2
 exit 1
 
-info "Testing Claude Code Integration for App Issue Tracker"
+info "Testing Codex Integration for App Issue Tracker"
 echo
 
-# Test 1: Check if resource-claude-code is available
-info "Test 1: Checking resource-claude-code availability..."
-if command -v resource-claude-code &> /dev/null; then
-    success "resource-claude-code CLI is available"
-    resource-claude-code status 2>&1 | head -5 || true
+# Test 1: Check if resource-codex is available
+info "Test 1: Checking resource-codex availability..."
+if command -v resource-codex &> /dev/null; then
+    success "resource-codex CLI is available"
+    resource-codex status 2>&1 | head -5 || true
 else
-    error "resource-claude-code CLI not found. Please install it first."
+    error "resource-codex CLI not found. Please install it first."
     exit 1
 fi
 
@@ -56,13 +56,13 @@ else
     warn "No open issues found. Creating a test issue..."
     
     # Create a test issue
-    TEST_ISSUE_ID="test-claude-$(date +%s)"
-    TEST_ISSUE_FILE="$ISSUES_DIR/open/500-test-claude-integration.yaml"
+    TEST_ISSUE_ID="test-codex-$(date +%s)"
+    TEST_ISSUE_FILE="$ISSUES_DIR/open/500-test-codex-integration.yaml"
     
     cat > "$TEST_ISSUE_FILE" << EOF
 id: $TEST_ISSUE_ID
-title: "Test Claude Integration Issue"
-description: "This is a test issue to verify Claude Code integration is working properly"
+title: "Test Codex Integration Issue"
+description: "This is a test issue to verify Codex integration is working properly"
 type: bug
 priority: low
 app_id: app-issue-tracker
@@ -74,9 +74,9 @@ reporter:
   timestamp: $(date -Iseconds)
 
 error_context:
-  error_message: "Claude integration test error"
+  error_message: "Codex integration test error"
   stack_trace: |
-    Error: Test error for Claude integration
+    Error: Test error for Codex integration
     at testFunction (test.js:10:5)
     at main (test.js:20:3)
 
@@ -85,7 +85,7 @@ metadata:
   updated_at: $(date -Iseconds)
   tags:
     - "test"
-    - "claude-integration"
+    - "codex-integration"
 EOF
     
     success "Created test issue: $TEST_ISSUE_ID"
@@ -150,26 +150,26 @@ else
     warn "Fix generator script not found"
 fi
 
-# Test 5: Verify resource-claude-code direct execution
-info "Test 5: Testing direct resource-claude-code execution..."
+# Test 5: Verify resource-codex direct execution
+info "Test 5: Testing direct resource-codex execution..."
 TEST_PROMPT="Say 'Hello from App Issue Tracker!' in exactly 5 words."
 DIRECT_OUTPUT=$(mktemp)
 
-if echo "$TEST_PROMPT" | resource-claude-code run - > "$DIRECT_OUTPUT" 2>&1; then
-    success "Direct Claude Code execution works"
+if resource-codex content execute --context text --operation analyze "$TEST_PROMPT" > "$DIRECT_OUTPUT" 2>&1; then
+    success "Direct Codex execution works"
     info "Response: $(cat "$DIRECT_OUTPUT")"
 else
     warn "Direct execution failed - may need authentication"
-    echo "Try running: claude auth login"
+    echo "Try running: resource-codex manage configure-cli"
 fi
 
 rm -f "$DIRECT_OUTPUT"
 
 echo
-success "🎉 Claude Code integration tests completed!"
+success "🎉 Codex integration tests completed!"
 echo
 info "Summary:"
-echo "  ✓ resource-claude-code CLI is available"
+echo "  ✓ resource-codex CLI is available"
 echo "  ✓ Investigation script updated with proper integration"
 echo "  ✓ Fix generation script updated with proper integration"
 echo "  ✓ Test infrastructure is in place"
@@ -177,4 +177,4 @@ echo
 info "Next steps:"
 echo "  1. Ensure the API server properly triggers investigations"
 echo "  2. Test with real issues from the UI or CLI"
-echo "  3. Monitor Claude Code usage with: resource-claude-code usage"
+echo "  3. Monitor Codex status with: resource-codex status"

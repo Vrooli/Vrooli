@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)}"
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../.." && pwd)}"
 API_PORT="${VROOLI_API_PORT:-8092}"
 LOG_FILE="${VROOLI_API_RESTART_LOG:-/var/log/vrooli-api-restart.log}"
 FALLBACK_LOG="${HOME}/.vrooli/logs/vrooli-api-restart.log"

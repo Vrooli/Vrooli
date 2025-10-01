@@ -1,17 +1,21 @@
 package api
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"strings"
 )
 
 /*
-Rule: Content-Type Headers
-Description: API responses must set appropriate Content-Type headers
-Reason: Ensures clients can properly parse responses and prevents security issues
+Rule: JSON Content-Type Headers
+Description: JSON API responses must set Content-Type: application/json header
+Reason: Ensures clients can properly parse JSON responses and prevents security issues like content sniffing
 Category: api
 Severity: medium
 Standard: api-design-v1
 Targets: api
+Note: This rule specifically checks JSON responses. For other content types (HTML, XML, PDF, CSV), see companion rules.
 
 <test-case id="json-without-content-type" should-fail="true">
   <description>JSON response without Content-Type header</description>
@@ -25,7 +29,7 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 }
   </input>
   <expected-violations>1</expected-violations>
-  <expected-message>Incorrect Content-Type header</expected-message>
+  <expected-message>JSON response missing Content-Type header</expected-message>
 </test-case>
 
 <test-case id="write-without-content-type" should-fail="true">
@@ -37,7 +41,7 @@ func handleResponse(w http.ResponseWriter, r *http.Request) {
 }
   </input>
   <expected-violations>1</expected-violations>
-  <expected-message>Missing Content-Type Header</expected-message>
+  <expected-message>JSON response missing Content-Type header</expected-message>
 </test-case>
 
 <test-case id="proper-json-content-type" should-fail="false">
@@ -101,6 +105,105 @@ func handleMultiFormat(w http.ResponseWriter, r *http.Request) {
 }
   </input>
 </test-case>
+
+<test-case id="gin-framework" should-fail="false">
+  <description>Gin framework automatically sets Content-Type</description>
+  <input language="go">
+func handleGin(c *gin.Context) {
+    c.JSON(200, gin.H{"status": "ok"})
+}
+
+func handleGinIndented(c *gin.Context) {
+    c.IndentedJSON(200, map[string]string{"status": "ok"})
+}
+  </input>
+</test-case>
+
+<test-case id="echo-framework" should-fail="false">
+  <description>Echo framework automatically sets Content-Type</description>
+  <input language="go">
+func handleEcho(c echo.Context) error {
+    return c.JSON(200, map[string]string{"status": "ok"})
+}
+  </input>
+</test-case>
+
+<test-case id="long-handler-with-header" should-fail="false">
+  <description>Header set more than 10 but less than 30 lines before encoding</description>
+  <input language="go">
+func complexHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+
+    // Validate input
+    if r.Method != http.MethodPost {
+        http.Error(w, "Method not allowed", 405)
+        return
+    }
+
+    // Parse request
+    var req Request
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request", 400)
+        return
+    }
+
+    // Fetch data
+    data, err := fetchData(r.Context(), req.ID)
+    if err != nil {
+        http.Error(w, "Data fetch failed", 500)
+        return
+    }
+
+    // Process data
+    result := processData(data)
+
+    // Encode response (line ~25 from header)
+    json.NewEncoder(w).Encode(result)
+}
+  </input>
+</test-case>
+
+<test-case id="header-too-far" should-fail="true">
+  <description>Header set more than 30 lines before encoding</description>
+  <input language="go">
+func veryLongHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    // Line 3
+    // Line 4
+    // Line 5
+    // Line 6
+    // Line 7
+    // Line 8
+    // Line 9
+    // Line 10
+    // Line 11
+    // Line 12
+    // Line 13
+    // Line 14
+    // Line 15
+    // Line 16
+    // Line 17
+    // Line 18
+    // Line 19
+    // Line 20
+    // Line 21
+    // Line 22
+    // Line 23
+    // Line 24
+    // Line 25
+    // Line 26
+    // Line 27
+    // Line 28
+    // Line 29
+    // Line 30
+    // Line 31
+    // Line 32
+    json.NewEncoder(w).Encode(data)
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Missing JSON Content-Type Header</expected-message>
+</test-case>
 */
 
 var jsonHeaderHelperIndicators = []string{
@@ -120,6 +223,28 @@ var jsonResponseHelperIndicators = []string{
 	"returnjson(",
 }
 
+// Web framework patterns that automatically set Content-Type
+var frameworkJSONPatterns = []string{
+	// Gin framework
+	"c.json(",
+	"ctx.json(",
+	"c.indentedjson(",
+	"c.securejson(",
+	"c.jsonp(",
+	"c.asciijson(",
+	"c.purejson(",
+	// Echo framework
+	"c.json(",
+	"ctx.json(",
+	"c.jsonblob(",
+	"c.jsonpretty(",
+	// Fiber framework
+	"c.json(",
+	"ctx.json(",
+	// Chi with render
+	"render.json(",
+}
+
 // CheckContentTypeHeaders validates Content-Type header usage
 func CheckContentTypeHeaders(content []byte, filePath string) []Violation {
 	var violations []Violation
@@ -133,17 +258,44 @@ func CheckContentTypeHeaders(content []byte, filePath string) []Violation {
 	lines := strings.Split(contentStr, "\n")
 	hasJSON := hasJSONResponse(contentStr)
 
+	// Get AST-detected helper functions that set JSON headers
+	jsonHelpers := getJSONHelperFunctions(contentStr)
+
+	// Detect middleware patterns (functions that wrap handlers and set headers)
+	hasMiddleware := detectJSONMiddleware(contentStr)
+
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
 		lowerLine := strings.ToLower(line)
 
+		// Skip framework patterns - they handle Content-Type automatically
+		if isFrameworkJSONCall(lowerLine) {
+			continue
+		}
+
+		// Skip if middleware detected (may set headers globally)
+		if hasMiddleware && isInHandlerFunction(lines, i) {
+			// Still check but be less strict - only flag if NO header anywhere in file
+			if !strings.Contains(contentStr, "Content-Type") && !strings.Contains(contentStr, "content-type") {
+				// No headers at all - flag this
+			} else {
+				// Middleware might be setting it - skip
+				continue
+			}
+		}
+
+		// Check for AST-detected helper function calls
+		if containsJSONHelper(lowerLine, jsonHelpers) {
+			continue
+		}
+
 		if strings.Contains(lowerLine, "json.newencoder") || strings.Contains(lowerLine, "json.marshal") {
-			if !hasHeaderBefore(lines, i, true) {
+			if !hasHeaderBefore(lines, i, true) && !containsJSONHelper(lowerLine, jsonHelpers) {
 				violations = append(violations, Violation{
 					Type:           "content_type_headers",
 					Severity:       "medium",
-					Title:          "Missing Content-Type Header",
-					Description:    "Incorrect Content-Type header",
+					Title:          "Missing JSON Content-Type Header",
+					Description:    "JSON response missing Content-Type header",
 					FilePath:       filePath,
 					LineNumber:     i + 1,
 					CodeSnippet:    line,
@@ -160,8 +312,8 @@ func CheckContentTypeHeaders(content []byte, filePath string) []Violation {
 					violations = append(violations, Violation{
 						Type:           "content_type_headers",
 						Severity:       "medium",
-						Title:          "Missing Content-Type Header",
-						Description:    "Missing Content-Type Header",
+						Title:          "Missing JSON Content-Type Header",
+						Description:    "JSON response missing Content-Type header",
 						FilePath:       filePath,
 						LineNumber:     i + 1,
 						CodeSnippet:    line,
@@ -174,6 +326,16 @@ func CheckContentTypeHeaders(content []byte, filePath string) []Violation {
 	}
 
 	return violations
+}
+
+// isFrameworkJSONCall detects web framework JSON methods that auto-set Content-Type
+func isFrameworkJSONCall(lowerLine string) bool {
+	for _, pattern := range frameworkJSONPatterns {
+		if strings.Contains(lowerLine, pattern) {
+			return true
+		}
+	}
+	return false
 }
 
 func hasJSONResponse(content string) bool {
@@ -197,7 +359,12 @@ func max(a, b int) int {
 }
 
 func hasHeaderBefore(lines []string, idx int, requireJSON bool) bool {
-	from := max(0, idx-10)
+	// Increased from 10 to 30 lines to handle realistic handlers with:
+	// - Input validation (3-5 lines)
+	// - Data fetching (5-10 lines)
+	// - Error handling (3-5 lines)
+	// - Business logic (5-10 lines)
+	from := max(0, idx-30)
 	return windowContainsHeader(lines, from, idx, requireJSON)
 }
 
@@ -246,7 +413,8 @@ func likelyJSONWrite(lines []string, index int) bool {
 		return true
 	}
 
-	if windowContainsJSONHelper(lines, max(0, index-5), index+1) {
+	// Increased lookback window for JSON helper detection
+	if windowContainsJSONHelper(lines, max(0, index-15), index+1) {
 		return true
 	}
 
@@ -255,7 +423,8 @@ func likelyJSONWrite(lines []string, index int) bool {
 		return false
 	}
 
-	for j := max(0, index-5); j < index; j++ {
+	// Increased lookback window for variable assignment tracking
+	for j := max(0, index-15); j < index; j++ {
 		assignLine := strings.TrimSpace(lines[j])
 		if strings.Contains(assignLine, target+" :=") || strings.Contains(assignLine, target+" =") {
 			if isLikelyJSONLiteral(assignLine) {
@@ -296,4 +465,122 @@ func extractWriteTarget(line string) string {
 
 func isLikelyJSONLiteral(line string) bool {
 	return strings.Contains(line, "{") || strings.Contains(line, "[")
+}
+
+// getJSONHelperFunctions uses AST to find functions that set JSON headers
+// Returns a map of function names that are known to set Content-Type: application/json
+func getJSONHelperFunctions(content string) map[string]bool {
+	helpers := make(map[string]bool)
+
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, "", content, parser.ParseComments)
+	if err != nil {
+		// Fallback to string-based detection if AST parsing fails
+		return helpers
+	}
+
+	ast.Inspect(node, func(n ast.Node) bool {
+		fn, ok := n.(*ast.FuncDecl)
+		if !ok {
+			return true
+		}
+
+		// Check if function body contains Content-Type header setting
+		hasJSONHeader := false
+		ast.Inspect(fn.Body, func(inner ast.Node) bool {
+			call, ok := inner.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+
+			// Check for w.Header().Set("Content-Type", "application/json")
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+
+			if sel.Sel.Name == "Set" && len(call.Args) >= 2 {
+				// Check first arg is "Content-Type"
+				if lit1, ok := call.Args[0].(*ast.BasicLit); ok {
+					if strings.Contains(lit1.Value, "Content-Type") || strings.Contains(lit1.Value, "content-type") {
+						// Check second arg contains "json"
+						if lit2, ok := call.Args[1].(*ast.BasicLit); ok {
+							if strings.Contains(strings.ToLower(lit2.Value), "json") {
+								hasJSONHeader = true
+								return false
+							}
+						}
+					}
+				}
+			}
+			return true
+		})
+
+		if hasJSONHeader {
+			helpers[fn.Name.Name] = true
+		}
+		return true
+	})
+
+	return helpers
+}
+
+// checkHeaderOrderViolation detects if w.WriteHeader is called before setting Content-Type
+func checkHeaderOrderViolation(lines []string, headerIdx int) bool {
+	// Look backwards from header line to see if WriteHeader was already called
+	for i := max(0, headerIdx-10); i < headerIdx; i++ {
+		lowerLine := strings.ToLower(lines[i])
+		if strings.Contains(lowerLine, "w.writeheader(") || strings.Contains(lowerLine, "w.write(") {
+			// Found write before header - this is a violation
+			return true
+		}
+	}
+	return false
+}
+
+// containsJSONHelper checks if a line calls any AST-detected JSON helper function
+func containsJSONHelper(lowerLine string, helpers map[string]bool) bool {
+	for helperName := range helpers {
+		if strings.Contains(lowerLine, strings.ToLower(helperName)+"(") {
+			return true
+		}
+	}
+	return false
+}
+
+// detectJSONMiddleware looks for middleware patterns that might set Content-Type globally
+func detectJSONMiddleware(content string) bool {
+	lower := strings.ToLower(content)
+
+	// Common middleware patterns
+	middlewarePatterns := []string{
+		"func jsonmiddleware",
+		"func contenttytemiddleware",
+		"func setjsonheader",
+		"return http.handlerfunc(func",
+		".use(func",
+	}
+
+	for _, pattern := range middlewarePatterns {
+		if strings.Contains(lower, pattern) {
+			// Check if it sets Content-Type
+			if strings.Contains(lower, "content-type") && strings.Contains(lower, "json") {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// isInHandlerFunction checks if a line is within an HTTP handler function
+func isInHandlerFunction(lines []string, idx int) bool {
+	// Look backwards to find function declaration
+	for i := idx; i >= max(0, idx-50); i-- {
+		line := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(line, "func ") && strings.Contains(line, "http.ResponseWriter") {
+			return true
+		}
+	}
+	return false
 }

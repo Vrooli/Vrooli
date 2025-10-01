@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import type { DragEvent, ReactNode } from 'react';
-import { AlertTriangle, ArchiveRestore, CheckCircle2, CircleSlash, Construction, EyeOff } from 'lucide-react';
+import type { DragEvent } from 'react';
+import { AlertTriangle, ArchiveRestore, CheckCircle2, CircleSlash, Clock, Construction, EyeOff } from 'lucide-react';
 import { Issue, IssueStatus } from '../data/sampleData';
 import { IssueCard } from '../components/IssueCard';
 
@@ -13,12 +13,12 @@ interface IssuesBoardProps {
   onIssueArchive?: (issue: Issue) => void;
   hiddenColumns?: IssueStatus[];
   onHideColumn?: (status: IssueStatus) => void;
-  toolbar?: ReactNode;
 }
 
 export const columnMeta: Record<IssueStatus, { title: string; icon: React.ComponentType<{ size?: number }> }> = {
   open: { title: 'Open', icon: AlertTriangle },
   active: { title: 'Active', icon: Construction },
+  waiting: { title: 'Waiting', icon: Clock },
   completed: { title: 'Completed', icon: CheckCircle2 },
   failed: { title: 'Failed', icon: CircleSlash },
   archived: { title: 'Archived', icon: ArchiveRestore },
@@ -33,7 +33,6 @@ export function IssuesBoard({
   onIssueArchive,
   hiddenColumns,
   onHideColumn,
-  toolbar,
 }: IssuesBoardProps) {
   const [dragState, setDragState] = useState<{ issueId: string; from: IssueStatus } | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<IssueStatus | null>(null);
@@ -42,6 +41,7 @@ export function IssuesBoard({
     const base: Record<IssueStatus, Issue[]> = {
       open: [],
       active: [],
+      waiting: [],
       completed: [],
       failed: [],
       archived: [],
@@ -150,8 +150,6 @@ export function IssuesBoard({
 
   return (
     <div className="issues-board">
-      {toolbar && <div className="issues-board-toolbar">{toolbar}</div>}
-
       <div className="kanban-grid" data-columns={visibleStatuses.length}>
         {visibleStatuses.length === 0 ? (
           <div className="kanban-empty-state">

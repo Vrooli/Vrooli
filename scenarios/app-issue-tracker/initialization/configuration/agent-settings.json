@@ -1,0 +1,75 @@
+{
+  "$schema": "agent-settings-schema",
+  "description": "Agent backend configuration for AI-powered investigation and fix generation",
+  "agent_backend": {
+    "provider": "codex",
+    "fallback_order": ["codex", "claude-code"],
+    "auto_fallback": true
+  },
+  "providers": {
+    "codex": {
+      "enabled": true,
+      "cli_command": "resource-codex",
+      "config_file": "codex-config.json",
+      "operations": {
+        "investigate": {
+          "command": "content execute --context text --operation analyze",
+          "timeout_seconds": 300
+        },
+        "fix": {
+          "command": "content execute --context text --operation analyze",
+          "timeout_seconds": 600
+        }
+      },
+      "capabilities": [
+        "investigation",
+        "fix_generation",
+        "code_analysis",
+        "pattern_detection"
+      ]
+    },
+    "claude-code": {
+      "enabled": true,
+      "cli_command": "resource-claude-code",
+      "config_file": null,
+      "operations": {
+        "investigate": {
+          "command": "content execute --context text --operation analyze",
+          "timeout_seconds": 300
+        },
+        "fix": {
+          "command": "content execute --context text --operation analyze",
+          "timeout_seconds": 600
+        }
+      },
+      "capabilities": [
+        "investigation",
+        "fix_generation",
+        "code_analysis",
+        "pattern_detection",
+        "interactive_fixes"
+      ]
+    }
+  },
+  "shared_settings": {
+    "rate_limits": {
+      "requests_per_minute": 10,
+      "concurrent_investigations": 3
+    },
+    "investigation_settings": {
+      "timeout_seconds": 300,
+      "max_retries": 2,
+      "context_window_files": 20,
+      "include_git_history": true,
+      "include_test_results": true,
+      "include_dependencies": true
+    },
+    "fix_generation_settings": {
+      "create_pull_request": false,
+      "run_tests_before_commit": true,
+      "require_human_approval": true,
+      "backup_before_fix": true,
+      "rollback_on_failure": true
+    }
+  }
+}

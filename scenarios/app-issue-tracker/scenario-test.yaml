@@ -7,7 +7,7 @@ resources:
     - postgres
     - qdrant
     - redis
-    - claude-code
+    - codex
     - ollama
     - agent-s2
 

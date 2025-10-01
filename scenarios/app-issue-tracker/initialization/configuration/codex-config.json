@@ -1,20 +1,20 @@
 {
-  "description": "Configuration for Claude-Code integration",
+  "description": "Configuration for Codex integration",
   "models": {
     "primary": {
-      "name": "claude-3-opus-20240229",
+      "name": "gpt-5-nano",
       "max_tokens": 8192,
       "temperature": 0.2,
       "use_cases": ["investigation", "fix_generation", "complex_analysis"]
     },
     "secondary": {
-      "name": "claude-3-sonnet-20240229",
+      "name": "gpt-5-mini",
       "max_tokens": 4096,
       "temperature": 0.3,
       "use_cases": ["documentation", "code_review", "pattern_analysis"]
     },
     "fast": {
-      "name": "claude-3-haiku-20240307",
+      "name": "gpt-4o-mini",
       "max_tokens": 2048,
       "temperature": 0.1,
       "use_cases": ["triage", "quick_assessment", "categorization"]
@@ -45,12 +45,12 @@
     "alert_threshold_daily": 100,
     "alert_threshold_monthly": 2000,
     "cost_per_1k_tokens": {
-      "opus_input": 0.015,
-      "opus_output": 0.075,
-      "sonnet_input": 0.003,
-      "sonnet_output": 0.015,
-      "haiku_input": 0.00025,
-      "haiku_output": 0.00125
+      "gpt5_nano_input": 0.00005,
+      "gpt5_nano_output": 0.00040,
+      "gpt5_mini_input": 0.00025,
+      "gpt5_mini_output": 0.00200,
+      "gpt4o_mini_input": 0.00060,
+      "gpt4o_mini_output": 0.00240
     }
   },
   "prompting_strategies": {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Claude Code Fix Generator Script
+# Codex Fix Generator Script
 # Generates, tests, and applies automated fixes for investigated issues
 
 set -euo pipefail
@@ -30,7 +30,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 ISSUES_DIR="${ISSUES_DIR:-$VROOLI_ROOT/scenarios/app-issue-tracker/data/issues}"
-printf "[WARN] claude-fix-generator.sh is incompatible with folder-per-issue storage.\n" >&2
+printf "[WARN] codex-fix-generator.sh is incompatible with folder-per-issue storage.\n" >&2
 printf "       Trigger fixes via the API instead.\n" >&2
 exit 1
 API_BASE_URL="http://localhost:8090/api"
@@ -74,7 +74,7 @@ generate_fix() {
     log "Starting fix generation for issue: $issue_id"
     
     # Create fix workspace
-    local workspace_dir="/tmp/claude-fix-${issue_id}"
+    local workspace_dir="/tmp/codex-fix-${issue_id}"
     mkdir -p "$workspace_dir"
     
     # Get issue details from YAML files
@@ -215,23 +215,23 @@ EOF
 
     log "Generated fix prompt: $fix_prompt_file"
     
-    # Check if resource-claude-code is available
-    if ! command -v resource-claude-code &> /dev/null; then
-        error "resource-claude-code CLI not found. Please ensure the resource is installed."
+    # Check if resource-codex is available
+    if ! command -v resource-codex &> /dev/null; then
+        error "resource-codex CLI not found. Please ensure the resource is installed."
         return 1
     fi
-    
+
     # Check resource status
-    log "Checking Claude Code resource status..."
-    if ! resource-claude-code status &> /dev/null; then
-        warn "Claude Code resource may not be running. Attempting to start..."
-        resource-claude-code start &> /dev/null || true
+    log "Checking Codex resource status..."
+    if ! resource-codex status &> /dev/null; then
+        warn "Codex resource may not be running. Attempting to start..."
+        resource-codex start &> /dev/null || true
     fi
-    
-    # Run Claude Code fix generation
-    log "Executing Claude Code fix generation..."
+
+    # Run Codex fix generation
+    log "Executing Codex fix generation..."
     local fix_output="${workspace_dir}/fix-report.md"
-    local claude_exit_code=0
+    local codex_exit_code=0
     
     # Navigate to project path if specified
     local original_dir=$(pwd)
@@ -240,18 +240,21 @@ EOF
         cd "$project_path"
     fi
     
-    # Execute Claude Code with the fix prompt using resource-claude-code run
-    if cat "$fix_prompt_file" | resource-claude-code run - > "$fix_output" 2>&1; then
-        success "Claude Code fix generation completed successfully"
+    # Execute Codex with the fix prompt
+    local fix_payload
+    fix_payload="$(cat "$fix_prompt_file")"
+
+    if resource-codex content execute --context text --operation analyze "$fix_payload" > "$fix_output" 2>&1; then
+        success "Codex fix generation completed successfully"
     else
-        claude_exit_code=$?
-        error "Claude Code fix generation failed with exit code: $claude_exit_code"
+        codex_exit_code=$?
+        error "Codex fix generation failed with exit code: $codex_exit_code"
         # Show error output for debugging
         if [[ -f "$fix_output" ]]; then
             warn "Error output: $(head -n 20 "$fix_output")"
         fi
         cd "$original_dir"
-        return $claude_exit_code
+        return $codex_exit_code
     fi
     
     cd "$original_dir"
@@ -588,7 +591,7 @@ main() {
             
         help|--help|-h)
             cat << EOF
-Claude Code Fix Generator
+Codex Fix Generator
 
 Usage: $0 <command> [options]
 
@@ -608,7 +611,7 @@ Commands:
 Examples:
   $0 generate "issue-123" "/path/to/project" true true
   $0 test "issue-123" "/path/to/project"
-  $0 validate "/tmp/claude-fix-issue-123/fix-report.md"
+  $0 validate "/tmp/codex-fix-issue-123/fix-report.md"
 
 Environment Variables:
   POSTGRES_URL    - PostgreSQL connection string

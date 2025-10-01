@@ -12,7 +12,6 @@ export class DragDropHandler {
         this.touchDragState = null;
         this.kanbanBoard = null;
         this.touchDragThreshold = 12;
-        this.originalDraggableState = new WeakMap();
 
         this.handlePointerMove = this.handlePointerMove.bind(this);
         this.handlePointerUp = this.handlePointerUp.bind(this);
@@ -30,30 +29,49 @@ export class DragDropHandler {
     }
 
     setupTaskCardDragHandlers(card, taskId, status) {
+        card.draggable = false;
         card.addEventListener('dragstart', (e) => this.handleDragStart(e, taskId, status));
         card.addEventListener('dragend', (e) => this.handleDragEnd(e));
         card.addEventListener('pointerdown', (e) => this.handlePointerDown(e, card, taskId, status));
+
+        const dragHandle = card.querySelector('.task-drag-handle');
+        if (dragHandle) {
+            dragHandle.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+        }
     }
 
     handleDragStart(e, taskId, status) {
-        this.draggedElement = e.target;
+        const card = e.currentTarget;
+        if (card.dataset.mouseDragState !== 'pending') {
+            e.preventDefault();
+            return;
+        }
+
+        card.dataset.mouseDragState = 'active';
+        this.draggedElement = card;
         this.draggedTaskId = taskId;
         this.draggedFromStatus = status;
         
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', e.target.innerHTML);
+        e.dataTransfer.setData('text/html', card.innerHTML);
         
         // Add dragging class
-        e.target.classList.add('dragging');
+        card.classList.add('dragging');
         
         // Set drag image
-        const dragImage = e.target.cloneNode(true);
+        const dragImage = card.cloneNode(true);
         dragImage.style.transform = 'rotate(-2deg)';
         dragImage.style.opacity = '0.8';
         document.body.appendChild(dragImage);
         dragImage.style.position = 'absolute';
         dragImage.style.top = '-1000px';
-        e.dataTransfer.setDragImage(dragImage, e.offsetX, e.offsetY);
+        const rect = card.getBoundingClientRect();
+        const offsetX = Number.isFinite(e.clientX) ? e.clientX - rect.left : rect.width / 2;
+        const offsetY = Number.isFinite(e.clientY) ? e.clientY - rect.top : rect.height / 2;
+        e.dataTransfer.setDragImage(dragImage, offsetX, offsetY);
         setTimeout(() => document.body.removeChild(dragImage), 0);
     }
 
@@ -116,8 +134,9 @@ export class DragDropHandler {
     }
 
     handleDragEnd(e) {
+        const card = e.currentTarget;
         // Remove dragging class
-        e.target.classList.remove('dragging');
+        card.classList.remove('dragging');
 
         // Remove drag-over class from all columns
         document.querySelectorAll('.kanban-column').forEach(column => {
@@ -129,10 +148,34 @@ export class DragDropHandler {
         this.draggedTaskId = null;
         this.draggedFromStatus = null;
         this.stopAutoScroll();
+
+        delete card.dataset.mouseDragState;
+        card.draggable = false;
     }
 
     handlePointerDown(e, card, taskId, status) {
+        const handle = e.target.closest('.task-drag-handle');
+        if (!handle) {
+            return;
+        }
+
+        e.stopPropagation();
+
         if (e.pointerType !== 'touch') {
+            card.dataset.mouseDragState = 'pending';
+            card.draggable = true;
+
+            const onPointerEnd = () => {
+                if (card.dataset.mouseDragState === 'pending') {
+                    delete card.dataset.mouseDragState;
+                    card.draggable = false;
+                }
+                card.removeEventListener('pointerup', onPointerEnd);
+                card.removeEventListener('pointercancel', onPointerEnd);
+            };
+
+            card.addEventListener('pointerup', onPointerEnd, { once: true });
+            card.addEventListener('pointercancel', onPointerEnd, { once: true });
             return;
         }
 
@@ -156,11 +199,6 @@ export class DragDropHandler {
             ghost: null,
             dragging: false
         };
-
-        if (card) {
-            this.originalDraggableState.set(card, card.draggable);
-            card.draggable = false;
-        }
 
         card.setPointerCapture?.(e.pointerId);
 
@@ -212,16 +250,7 @@ export class DragDropHandler {
         const { card, taskId, fromStatus, ghost } = state;
         card.classList.remove('dragging');
         card.releasePointerCapture?.(e.pointerId);
-
-        if (card) {
-            if (this.originalDraggableState.has(card)) {
-                const original = this.originalDraggableState.get(card);
-                card.draggable = original;
-                this.originalDraggableState.delete(card);
-            } else {
-                card.draggable = true;
-            }
-        }
+        card.draggable = false;
 
         if (ghost && ghost.parentElement) {
             ghost.parentElement.removeChild(ghost);

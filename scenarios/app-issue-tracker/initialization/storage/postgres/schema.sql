@@ -55,7 +55,7 @@ CREATE TABLE agents (
     capabilities agent_capability[] DEFAULT '{}',
     max_tokens INTEGER DEFAULT 4096,
     temperature DECIMAL(2,1) DEFAULT 0.2,
-    model VARCHAR(100) DEFAULT 'claude-3-opus-20240229',
+    model VARCHAR(100) DEFAULT 'gpt-5-nano',
     
     -- Performance tracking
     success_rate DECIMAL(3,2) DEFAULT 0.00,

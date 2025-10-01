@@ -10,6 +10,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CalendarClock,
   CircleAlert,
+  Clock,
+  Cog,
   ExternalLink,
   FileCode,
   FileDown,
@@ -25,6 +27,9 @@ import {
   Loader2,
   Mail,
   Paperclip,
+  Pause,
+  Play,
+  Plus,
   UploadCloud,
   Tag,
   User,
@@ -112,6 +117,13 @@ interface CreateIssueAttachmentPayload {
   encoding: 'base64' | 'plain';
   contentType: string;
   category?: string;
+}
+
+type SnackbarTone = 'info' | 'success' | 'error';
+
+interface SnackbarState {
+  message: string;
+  tone: SnackbarTone;
 }
 
 function buildApiUrl(path: string): string {
@@ -571,7 +583,7 @@ const navItems = [
   {
     key: 'settings' as NavKey,
     label: 'Settings',
-    icon: CircleAlert,
+    icon: Cog,
   },
 ];
 
@@ -618,7 +630,7 @@ function getInitialNavKey(): NavKey {
 function App() {
   const isMountedRef = useRef(true);
   const [activeNav, setActiveNav] = useState<NavKey>(() => getInitialNavKey());
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [processorSettings, setProcessorSettings] = useState<ProcessorSettings>(SampleData.processor);
   const [agentSettings, setAgentSettings] = useState(AppSettings.agent);
   const [displaySettings, setDisplaySettings] = useState(AppSettings.display);
@@ -631,7 +643,33 @@ function App() {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>(DEFAULT_STATS);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [processorError, setProcessorError] = useState<string | null>(null);
+  const [rateLimitStatus, setRateLimitStatus] = useState<{
+    rate_limited: boolean;
+    rate_limited_count: number;
+    reset_time: string;
+    seconds_until_reset: number;
+    rate_limit_agent: string;
+  } | null>(null);
   const [focusedIssueId, setFocusedIssueId] = useState<string | null>(() => getIssueIdFromLocation());
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((state) => !state);
+  }, []);
+
+  const showSnackbar = useCallback((message: string, tone: SnackbarTone = 'info') => {
+    setSnackbar({ message, tone });
+  }, []);
+
+  const handleProcessorError = useCallback(
+    (message: string) => {
+      setProcessorError(message);
+      showSnackbar(message, 'error');
+    },
+    [showSnackbar],
+  );
 
   const selectedIssue = useMemo(() => {
     return issues.find((issue) => issue.id === focusedIssueId) ?? null;
@@ -669,6 +707,18 @@ function App() {
   }, [appFilter, availableApps]);
 
   useEffect(() => {
+    if (!snackbar || typeof window === 'undefined') {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      setSnackbar((current) => (current === snackbar ? null : current));
+    }, 5000);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [snackbar]);
+
+  useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
@@ -704,6 +754,7 @@ function App() {
     if (isMountedRef.current) {
       setLoading(true);
       setLoadError(null);
+      setProcessorError(null);
     }
 
     let mappedIssues: Issue[] = [];
@@ -753,14 +804,102 @@ function App() {
       setDashboardStats(computedStats);
     }
 
+    try {
+      const response = await fetch(buildApiUrl('/automation/processor'));
+      if (response.ok) {
+        const payload = await response.json();
+        const state = payload?.data?.processor ?? payload?.processor;
+        if (state && isMountedRef.current) {
+          setProcessorSettings((prev) => ({
+            active: typeof state.active === 'boolean' ? state.active : prev.active,
+            concurrentSlots:
+              typeof state.concurrent_slots === 'number'
+                ? state.concurrent_slots
+                : prev.concurrentSlots,
+            refreshInterval:
+              typeof state.refresh_interval === 'number'
+                ? state.refresh_interval
+                : prev.refreshInterval,
+          }));
+          setProcessorError(null);
+        }
+      } else if (isMountedRef.current) {
+        handleProcessorError('Failed to load automation status.');
+      }
+    } catch (error) {
+      console.warn('Failed to load processor settings', error);
+      if (isMountedRef.current) {
+        handleProcessorError('Failed to load automation status.');
+      }
+    }
+
+    // Fetch rate limit status
+    try {
+      const response = await fetch(buildApiUrl('/rate-limit-status'));
+      if (response.ok) {
+        const payload = await response.json();
+        const status = payload?.data;
+        if (status && isMountedRef.current) {
+          setRateLimitStatus(status);
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load rate limit status', error);
+    }
+
     if (isMountedRef.current) {
       setLoading(false);
     }
-  }, []);
+  }, [handleProcessorError]);
 
   useEffect(() => {
     void fetchAllData();
   }, [fetchAllData]);
+
+  // Fetch agent backend settings
+  useEffect(() => {
+    const fetchAgentBackendSettings = async () => {
+      try {
+        const response = await fetch(buildApiUrl('/agent/settings'));
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.agent_backend && isMountedRef.current) {
+            setAgentSettings((prev) => ({
+              ...prev,
+              backend: {
+                provider: data.agent_backend.provider ?? 'codex',
+                autoFallback: data.agent_backend.auto_fallback ?? true,
+              },
+            }));
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load agent backend settings', error);
+      }
+    };
+    void fetchAgentBackendSettings();
+  }, []);
+
+  // Poll rate limit status every 10 seconds
+  useEffect(() => {
+    const fetchRateLimitStatus = async () => {
+      try {
+        const response = await fetch(buildApiUrl('/rate-limit-status'));
+        if (response.ok) {
+          const payload = await response.json();
+          const status = payload?.data;
+          if (status && isMountedRef.current) {
+            setRateLimitStatus(status);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to poll rate limit status', error);
+      }
+    };
+
+    const intervalId = setInterval(fetchRateLimitStatus, 10000); // Poll every 10 seconds
+    return () => clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -782,6 +921,12 @@ function App() {
   useEffect(() => {
     setIssueDetailOpen(Boolean(focusedIssueId));
   }, [focusedIssueId]);
+
+  useEffect(() => {
+    if (activeNav !== 'issues' && filtersOpen) {
+      setFiltersOpen(false);
+    }
+  }, [activeNav, filtersOpen]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -957,6 +1102,7 @@ function App() {
   );
 
   const handleCreateIssue = useCallback(() => {
+    setFiltersOpen(false);
     setCreateIssueOpen(true);
   }, []);
 
@@ -1074,9 +1220,14 @@ function App() {
   const handleNavSelect = useCallback(
     (nextNav: NavKey) => {
       setActiveNav(nextNav);
+      setFiltersOpen(false);
       if (nextNav !== 'issues') {
         setFocusedIssueId(null);
         setIssueDetailOpen(false);
+      }
+
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        setSidebarCollapsed(true);
       }
 
       if (typeof window === 'undefined') {
@@ -1107,16 +1258,141 @@ function App() {
     [],
   );
 
-  const handleToggleActive = () => {
+  const handleDashboardOpenIssues = useCallback(() => {
+    handleNavSelect('issues');
+  }, [handleNavSelect]);
+
+  const handleDashboardOpenIssue = useCallback(
+    (issueId: string) => {
+      handleNavSelect('issues');
+      setFocusedIssueId(issueId);
+      setIssueDetailOpen(true);
+    },
+    [handleNavSelect],
+  );
+
+  const handleDashboardOpenAutomationSettings = useCallback(() => {
+    handleNavSelect('settings');
+  }, [handleNavSelect]);
+
+  const handleToggleActive = useCallback(() => {
+    const previousActive = processorSettings.active;
+    const nextActive = !previousActive;
+
     setProcessorSettings((prev) => ({
       ...prev,
-      active: !prev.active,
+      active: nextActive,
     }));
-  };
+
+    setProcessorError(null);
+
+    void (async () => {
+      try {
+        const response = await fetch(buildApiUrl('/automation/processor'), {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ active: nextActive }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Processor update failed with status ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const state = payload?.data?.processor ?? payload?.processor;
+        if (state && isMountedRef.current) {
+          setProcessorSettings((prev) => ({
+            active: typeof state.active === 'boolean' ? state.active : prev.active,
+            concurrentSlots:
+              typeof state.concurrent_slots === 'number'
+                ? state.concurrent_slots
+                : prev.concurrentSlots,
+            refreshInterval:
+              typeof state.refresh_interval === 'number'
+                ? state.refresh_interval
+                : prev.refreshInterval,
+          }));
+          setProcessorError(null);
+        }
+      } catch (error) {
+        console.error('Failed to update processor state', error);
+        if (isMountedRef.current) {
+          setProcessorSettings((prev) => ({
+            ...prev,
+            active: previousActive,
+          }));
+          handleProcessorError('Failed to update automation status.');
+        }
+      }
+    })();
+  }, [processorSettings.active, handleProcessorError]);
 
   const processorSetter = (settings: ProcessorSettings) => {
     setProcessorSettings(settings);
   };
+
+  // Sync agent backend settings to API
+  useEffect(() => {
+    const backend = agentSettings.backend;
+    if (!backend) {
+      return;
+    }
+
+    const saveAgentBackendSettings = async () => {
+      try {
+        const response = await fetch(buildApiUrl('/agent/settings'), {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            provider: backend.provider,
+            auto_fallback: backend.autoFallback,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Agent settings update failed with status ${response.status}`);
+        }
+
+        console.log('Agent backend settings saved:', backend);
+      } catch (error) {
+        console.error('Failed to save agent backend settings', error);
+        showSnackbar('Failed to save agent backend settings', 'error');
+      }
+    };
+
+    void saveAgentBackendSettings();
+  }, [agentSettings.backend, showSnackbar]);
+
+  const headerRightContent = useMemo(() => {
+    if (activeNav === 'issues') {
+      return null;
+    }
+
+    return (
+      <>
+        <button
+          type="button"
+          className={`icon-button icon-button--status ${processorSettings.active ? 'is-active' : ''}`.trim()}
+          onClick={handleToggleActive}
+          aria-label={processorSettings.active ? 'Pause issue automation' : 'Activate issue automation'}
+        >
+          {processorSettings.active ? <Pause size={18} /> : <Play size={18} />}
+        </button>
+        <button
+          type="button"
+          className="icon-button icon-button--primary"
+          onClick={handleCreateIssue}
+          aria-label="Create new issue"
+        >
+          <Plus size={18} />
+        </button>
+      </>
+    );
+  }, [activeNav, processorSettings.active, handleToggleActive, handleCreateIssue]);
 
   const renderedPage = useMemo(() => {
     switch (activeNav) {
@@ -1127,6 +1403,9 @@ function App() {
             issues={issues}
             processor={processorSettings}
             agentSettings={agentSettings}
+            onOpenIssues={handleDashboardOpenIssues}
+            onOpenIssue={handleDashboardOpenIssue}
+            onOpenAutomationSettings={handleDashboardOpenAutomationSettings}
           />
         );
       case 'issues':
@@ -1140,18 +1419,6 @@ function App() {
             onIssueDrop={handleIssueStatusChange}
             hiddenColumns={hiddenColumns}
             onHideColumn={handleHideColumn}
-            toolbar={
-              <IssueBoardToolbar
-                priorityFilter={priorityFilter}
-                onPriorityFilterChange={handlePriorityFilterChange}
-                appFilter={appFilter}
-                onAppFilterChange={handleAppFilterChange}
-                appOptions={availableApps}
-                hiddenColumns={hiddenColumns}
-                onToggleColumn={handleToggleColumn}
-                onResetColumns={handleResetHiddenColumns}
-              />
-            }
           />
         );
       case 'settings':
@@ -1182,14 +1449,7 @@ function App() {
     handleIssueDelete,
     handleIssueStatusChange,
     hiddenColumns,
-    priorityFilter,
-    handlePriorityFilterChange,
-    appFilter,
-    handleAppFilterChange,
-    availableApps,
     handleHideColumn,
-    handleToggleColumn,
-    handleResetHiddenColumns,
   ]);
 
   const showIssueDetailModal = issueDetailOpen && selectedIssue;
@@ -1202,15 +1462,17 @@ function App() {
           items={navItems}
           activeItem={activeNav}
           onSelect={handleNavSelect}
-          onToggle={() => setSidebarCollapsed((state) => !state)}
+          onToggle={toggleSidebar}
         />
         <div className="main-panel">
           <Header
-            processor={processorSettings}
-            onToggleActive={handleToggleActive}
-            onCreateIssue={handleCreateIssue}
+            sidebarCollapsed={sidebarCollapsed}
+            onSidebarToggle={toggleSidebar}
+            rightContent={headerRightContent}
           />
-          <main className="page-container">
+          <main
+            className={`page-container ${activeNav === 'issues' ? 'page-container--issues' : ''}`.trim()}
+          >
             {loading && <div className="data-banner loading">Loading latest data…</div>}
             {loadError && (
               <div className="data-banner error">
@@ -1220,7 +1482,63 @@ function App() {
                 </button>
               </div>
             )}
+            {rateLimitStatus?.rate_limited && rateLimitStatus.seconds_until_reset > 0 && (
+              <div className="data-banner warning" style={{ backgroundColor: '#f59e0b', color: '#fff' }}>
+                <Clock size={18} style={{ marginRight: '8px' }} />
+                <span>
+                  Rate limit active ({rateLimitStatus.rate_limited_count} issue{rateLimitStatus.rate_limited_count !== 1 ? 's' : ''} waiting) - Resets in{' '}
+                  {Math.floor(rateLimitStatus.seconds_until_reset / 60)}m {rateLimitStatus.seconds_until_reset % 60}s
+                  {rateLimitStatus.rate_limit_agent && ` (${rateLimitStatus.rate_limit_agent})`}
+                </span>
+              </div>
+            )}
             {renderedPage}
+
+            {activeNav === 'issues' && (
+              <div className="issues-floating-controls">
+                <div className="issues-floating-panel">
+                  <button
+                    type="button"
+                    className={`icon-button icon-button--status ${processorSettings.active ? 'is-active' : ''}`.trim()}
+                    onClick={handleToggleActive}
+                    aria-label={
+                      processorSettings.active ? 'Pause issue automation' : 'Activate issue automation'
+                    }
+                  >
+                    {processorSettings.active ? <Pause size={18} /> : <Play size={18} />}
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button icon-button--primary"
+                    onClick={handleCreateIssue}
+                    aria-label="Create new issue"
+                  >
+                    <Plus size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    className={`icon-button icon-button--filter ${filtersOpen ? 'is-active' : ''}`.trim()}
+                    onClick={() => setFiltersOpen((state) => !state)}
+                    aria-label="Toggle filters"
+                    aria-expanded={filtersOpen}
+                  >
+                    <Filter size={18} />
+                  </button>
+                  <IssueBoardToolbar
+                    open={filtersOpen}
+                    onRequestClose={() => setFiltersOpen(false)}
+                    priorityFilter={priorityFilter}
+                    onPriorityFilterChange={handlePriorityFilterChange}
+                    appFilter={appFilter}
+                    onAppFilterChange={handleAppFilterChange}
+                    appOptions={availableApps}
+                    hiddenColumns={hiddenColumns}
+                    onToggleColumn={handleToggleColumn}
+                    onResetColumns={handleResetHiddenColumns}
+                  />
+                </div>
+              </div>
+            )}
           </main>
         </div>
       </div>
@@ -1232,6 +1550,10 @@ function App() {
       {showIssueDetailModal && selectedIssue && (
         <IssueDetailsModal issue={selectedIssue} onClose={handleIssueDetailClose} />
       )}
+
+      {snackbar && (
+        <Snackbar message={snackbar.message} tone={snackbar.tone} onClose={() => setSnackbar(null)} />
+      )}
     </>
   );
 }
@@ -1239,10 +1561,11 @@ function App() {
 interface ModalProps {
   onClose: () => void;
   labelledBy?: string;
+  panelClassName?: string;
   children: ReactNode;
 }
 
-function Modal({ onClose, labelledBy, children }: ModalProps) {
+function Modal({ onClose, labelledBy, panelClassName, children }: ModalProps) {
   const handleBackdropMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) {
       onClose();
@@ -1264,8 +1587,40 @@ function Modal({ onClose, labelledBy, children }: ModalProps) {
 
   return (
     <div className="modal-backdrop" onMouseDown={handleBackdropMouseDown}>
-      <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+      <div
+        className={`modal-panel${panelClassName ? ` ${panelClassName}` : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
+      >
         {children}
+      </div>
+    </div>
+  );
+}
+
+interface SnackbarProps {
+  message: string;
+  tone: SnackbarTone;
+  onClose: () => void;
+}
+
+function Snackbar({ message, tone, onClose }: SnackbarProps) {
+  const role = tone === 'error' ? 'alert' : 'status';
+  const live = tone === 'error' ? 'assertive' : 'polite';
+
+  return (
+    <div className="snackbar-container">
+      <div className={`snackbar snackbar--${tone}`} role={role} aria-live={live}>
+        <span className="snackbar-message">{message}</span>
+        <button
+          type="button"
+          className="snackbar-close"
+          onClick={onClose}
+          aria-label="Dismiss notification"
+        >
+          <X size={14} />
+        </button>
       </div>
     </div>
   );
@@ -1609,6 +1964,8 @@ function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
 }
 
 interface IssueBoardToolbarProps {
+  open: boolean;
+  onRequestClose: () => void;
   priorityFilter: PriorityFilterValue;
   onPriorityFilterChange: (value: PriorityFilterValue) => void;
   appFilter: string;
@@ -1620,6 +1977,8 @@ interface IssueBoardToolbarProps {
 }
 
 function IssueBoardToolbar({
+  open,
+  onRequestClose,
   priorityFilter,
   onPriorityFilterChange,
   appFilter,
@@ -1629,141 +1988,114 @@ function IssueBoardToolbar({
   onToggleColumn,
   onResetColumns,
 }: IssueBoardToolbarProps) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const popoverRef = useRef<HTMLDivElement | null>(null);
   const hiddenSet = useMemo(() => new Set(hiddenColumns), [hiddenColumns]);
   const statusOrder = useMemo(() => Object.keys(issueColumnMeta) as IssueStatus[], []);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const handleClick = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (popoverRef.current && popoverRef.current.contains(target)) {
-        return;
-      }
-      if (triggerRef.current && triggerRef.current.contains(target)) {
-        return;
-      }
-      setOpen(false);
-    };
-
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClick);
-    document.addEventListener('keydown', handleKeydown);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('keydown', handleKeydown);
-    };
-  }, [open]);
 
   const handleClearFilters = () => {
     onPriorityFilterChange('all');
     onAppFilterChange('all');
   };
 
+  if (!open) {
+    return null;
+  }
+
   return (
-    <div className="issues-toolbar">
-      <button
-        type="button"
-        ref={triggerRef}
-        className={`issues-toolbar-trigger ${open ? 'is-open' : ''}`}
-        onClick={() => setOpen((state) => !state)}
-        aria-expanded={open}
-        aria-haspopup="true"
-      >
-        <Filter size={16} />
-        <span>Filters & Columns</span>
-        <ChevronDown size={14} className={open ? 'rotated' : ''} />
-      </button>
-
-      {open && (
-        <div className="issues-toolbar-popover" ref={popoverRef}>
-          <div className="issues-toolbar-section">
-            <div className="issues-toolbar-heading">
-              <Filter size={16} />
-              <span>Filters</span>
-            </div>
-            <div className="issues-toolbar-fields">
-              <label className="issues-toolbar-field">
-                <span>Priority</span>
-                <div className="select-wrapper">
-                  <select
-                    value={priorityFilter}
-                    onChange={(event) => onPriorityFilterChange(event.target.value as PriorityFilterValue)}
-                  >
-                    <option value="all">All priorities</option>
-                    {(['Critical', 'High', 'Medium', 'Low'] as Priority[]).map((priority) => (
-                      <option key={priority} value={priority}>
-                        {priority}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} />
-                </div>
-              </label>
-
-              <label className="issues-toolbar-field">
-                <span>Application</span>
-                <div className="select-wrapper">
-                  <select value={appFilter} onChange={(event) => onAppFilterChange(event.target.value)}>
-                    <option value="all">All applications</option>
-                    {appOptions.map((app) => (
-                      <option key={app} value={app}>
-                        {app}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} />
-                </div>
-              </label>
-            </div>
-            <button type="button" className="ghost-button issues-toolbar-clear" onClick={handleClearFilters}>
-              Reset filters
-            </button>
+    <Modal
+      onClose={onRequestClose}
+      labelledBy="issue-filters-heading"
+      panelClassName="modal-panel--compact"
+    >
+      <div className="issues-toolbar-dialog">
+        <div className="issues-toolbar-popover-header">
+          <div className="issues-toolbar-heading">
+            <Filter size={16} />
+            <span id="issue-filters-heading">Filters & Columns</span>
           </div>
-
-          <div className="issues-toolbar-section">
-            <div className="issues-toolbar-heading">
-              <Eye size={16} />
-              <span>Columns</span>
-            </div>
-            <div className="column-toggle-row">
-              {statusOrder.map((status) => {
-                const meta = issueColumnMeta[status];
-                const hidden = hiddenSet.has(status);
-                return (
-                  <button
-                    key={status}
-                    type="button"
-                    className={`column-toggle ${hidden ? 'column-toggle--inactive' : ''}`}
-                    onClick={() => onToggleColumn(status)}
-                    aria-pressed={!hidden}
-                  >
-                    <span>{meta.title}</span>
-                    {hidden ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                );
-              })}
-            </div>
-            {hiddenColumns.length > 0 && (
-              <button type="button" className="link-button" onClick={onResetColumns}>
-                Show all columns
-              </button>
-            )}
-          </div>
+          <button
+            type="button"
+            className="icon-button icon-button--ghost"
+            onClick={onRequestClose}
+            aria-label="Close filters"
+          >
+            <X size={14} />
+          </button>
         </div>
-      )}
-    </div>
+
+        <div className="issues-toolbar-section">
+          <div className="issues-toolbar-heading">
+            <Filter size={16} />
+            <span>Filters</span>
+          </div>
+          <div className="issues-toolbar-fields">
+            <label className="issues-toolbar-field">
+              <span>Priority</span>
+              <div className="select-wrapper">
+                <select
+                  value={priorityFilter}
+                  onChange={(event) => onPriorityFilterChange(event.target.value as PriorityFilterValue)}
+                >
+                  <option value="all">All priorities</option>
+                  {(['Critical', 'High', 'Medium', 'Low'] as Priority[]).map((priority) => (
+                    <option key={priority} value={priority}>
+                      {priority}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={14} />
+              </div>
+            </label>
+
+            <label className="issues-toolbar-field">
+              <span>Application</span>
+              <div className="select-wrapper">
+                <select value={appFilter} onChange={(event) => onAppFilterChange(event.target.value)}>
+                  <option value="all">All applications</option>
+                  {appOptions.map((app) => (
+                    <option key={app} value={app}>
+                      {app}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </label>
+          </div>
+          <button type="button" className="ghost-button issues-toolbar-clear" onClick={handleClearFilters}>
+            Reset filters
+          </button>
+        </div>
+
+        <div className="issues-toolbar-section">
+          <div className="issues-toolbar-heading">
+            <Eye size={16} />
+            <span>Columns</span>
+          </div>
+          <div className="column-toggle-row">
+            {statusOrder.map((status) => {
+              const meta = issueColumnMeta[status];
+              const hidden = hiddenSet.has(status);
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  className={`column-toggle ${hidden ? 'column-toggle--inactive' : ''}`}
+                  onClick={() => onToggleColumn(status)}
+                  aria-pressed={!hidden}
+                >
+                  <span>{meta.title}</span>
+                  {hidden ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              );
+            })}
+          </div>
+          {hiddenColumns.length > 0 && (
+            <button type="button" className="link-button" onClick={onResetColumns}>
+              Show all columns
+            </button>
+          )}
+        </div>
+      </div>
+    </Modal>
   );
 }
 

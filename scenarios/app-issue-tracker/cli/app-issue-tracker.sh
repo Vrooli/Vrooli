@@ -56,6 +56,7 @@ usage() {
     echo -e "  ${GREEN}agents${NC}       Manage AI investigation agents"
     echo -e "  ${GREEN}apps${NC}         View app-specific issue statistics"
     echo -e "  ${GREEN}stats${NC}        View comprehensive issue analytics"
+    echo -e "  ${GREEN}export${NC}       Export issues to CSV, Markdown, or JSON"
     echo -e "  ${GREEN}health${NC}       Check service health and storage status"
     echo ""
     echo "Examples:"
@@ -868,6 +869,133 @@ cmd_stats() {
     fi
 }
 
+# Export command
+cmd_export() {
+    local json_output=false
+    local format="markdown"
+    local status=""
+    local priority=""
+    local output_file=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --format)
+                format="${2:-markdown}"
+                shift 2
+                ;;
+            --status)
+                status="$2"
+                shift 2
+                ;;
+            --priority)
+                priority="$2"
+                shift 2
+                ;;
+            --output|-o)
+                output_file="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: app-issue-tracker export [OPTIONS]"
+                echo ""
+                echo "Export issues to various formats"
+                echo ""
+                echo "Options:"
+                echo "  --format FORMAT    Export format (markdown, csv, json) [default: markdown]"
+                echo "  --status STATUS    Filter by status (open, active, completed, failed)"
+                echo "  --priority PRIO    Filter by priority (critical, high, medium, low)"
+                echo "  --output FILE      Write to file instead of stdout"
+                echo "  --json             Output in JSON format (API response)"
+                echo ""
+                echo "Examples:"
+                echo "  app-issue-tracker export --format csv > issues.csv"
+                echo "  app-issue-tracker export --format markdown --status open > open-issues.md"
+                echo "  app-issue-tracker export --format json --priority high --output high-priority.json"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    echo -e "${BLUE}📤 Exporting issues...${NC}"
+
+    local api_url
+    api_url=$(get_api_url)
+
+    # Build query parameters
+    local query_params="?limit=1000"
+    [[ -n "$status" ]] && query_params="${query_params}&status=${status}"
+    [[ -n "$priority" ]] && query_params="${query_params}&priority=${priority}"
+
+    # Fetch issues from API
+    local response
+    response=$(curl -s "${api_url}/issues${query_params}" 2>/dev/null)
+
+    local success
+    success=$(echo "$response" | jq -r '.success // false' 2>/dev/null)
+
+    if [[ "$success" == "true" ]]; then
+        local issues
+        issues=$(echo "$response" | jq -c '.data.issues // []' 2>/dev/null)
+
+        if [[ "$json_output" == true ]]; then
+            echo "$response" | format_json
+        else
+            local output=""
+            case "$format" in
+                csv)
+                    # CSV format
+                    output="ID,Title,Status,Priority,App,Created,Updated,Tags"
+                    local csv_rows
+                    csv_rows=$(echo "$issues" | jq -r '.[] | [.id, .title, .status, .priority, .app_id, .metadata.created_at, .metadata.updated_at, (.metadata.tags // [] | join(","))] | @csv' 2>/dev/null)
+                    [[ -n "$csv_rows" ]] && output="${output}\n${csv_rows}"
+                    ;;
+                markdown|md)
+                    # Markdown format
+                    output="# Issue Export Report"
+                    output="${output}\n\n**Generated:** $(date)"
+                    output="${output}\n**Total Issues:** $(echo "$issues" | jq 'length' 2>/dev/null)"
+                    [[ -n "$status" ]] && output="${output}\n**Filter - Status:** ${status}"
+                    [[ -n "$priority" ]] && output="${output}\n**Filter - Priority:** ${priority}"
+                    output="${output}\n\n## Issues\n"
+                    output="${output}\n| ID | Title | Status | Priority | App | Created |"
+                    output="${output}\n|---|---|---|---|---|---|"
+                    local md_rows
+                    md_rows=$(echo "$issues" | jq -r '.[] | "| \(.id) | \(.title) | \(.status) | \(.priority) | \(.app_id) | \(.metadata.created_at // "-") |"' 2>/dev/null)
+                    [[ -n "$md_rows" ]] && output="${output}\n${md_rows}"
+                    ;;
+                json)
+                    # JSON format
+                    output=$(echo "$issues" | jq '.' 2>/dev/null)
+                    ;;
+                *)
+                    echo -e "${RED}❌ Unknown format: ${format}${NC}"
+                    echo "   Supported formats: markdown, csv, json"
+                    return 1
+                    ;;
+            esac
+
+            if [[ -n "$output_file" ]]; then
+                echo -e "$output" > "$output_file"
+                echo -e "${GREEN}✅ Exported to: ${output_file}${NC}"
+                echo "   Format: ${format}"
+                echo "   Issues: $(echo "$issues" | jq 'length' 2>/dev/null)"
+            else
+                echo -e "$output"
+            fi
+        fi
+    else
+        echo -e "${RED}❌ Failed to export issues${NC}"
+        echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null
+    fi
+}
+
 # Health check command
 cmd_health() {
     local json_output=false
@@ -968,6 +1096,9 @@ main() {
             ;;
         stats)
             cmd_stats "$@"
+            ;;
+        export)
+            cmd_export "$@"
             ;;
         health)
             cmd_health "$@"

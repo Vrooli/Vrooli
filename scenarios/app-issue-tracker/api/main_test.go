@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -334,5 +335,142 @@ func TestGetIssueAttachmentHandlerServesContent(t *testing.T) {
 	}
 	if string(data) != artifactContent {
 		t.Fatalf("unexpected attachment body: %q", string(data))
+	}
+}
+
+func TestFinalizeAgentRunClearsRunMetadata(t *testing.T) {
+	server := newTestServer(t)
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	successIssue := &Issue{ID: "issue-success"}
+	successIssue.Metadata.Extra = map[string]string{
+		"agent_run_id":     "run-123",
+		"agent_last_error": "previous error",
+	}
+	successIssue.Investigation.StartedAt = now
+	successIssue.Investigation.CompletedAt = now
+
+	if _, err := server.saveIssue(successIssue, "active"); err != nil {
+		t.Fatalf("failed to seed issue: %v", err)
+	}
+
+	result := map[string]any{
+		"issue_id":     successIssue.ID,
+		"agent_id":     "unified-resolver",
+		"status":       "completed",
+		"error":        "",
+		"auto_resolve": true,
+		"investigation": map[string]any{
+			"report":           "Investigation complete",
+			"root_cause":       "Root cause identified",
+			"suggested_fix":    "Apply patch",
+			"confidence_score": 7,
+			"affected_files":   []string{"api/main.go"},
+			"started_at":       now,
+			"completed_at":     now,
+		},
+		"fix": map[string]any{
+			"summary":             "Implement fix",
+			"implementation_plan": "Plan steps",
+			"test_plan":           "go test ./...",
+			"rollback_plan":       "git reset --hard",
+			"status":              "generated",
+		},
+	}
+	stdoutBytes, err := json.Marshal(result)
+	if err != nil {
+		t.Fatalf("failed to marshal agent output: %v", err)
+	}
+
+	run := &agentRun{
+		issueID:     successIssue.ID,
+		agentID:     "unified-resolver",
+		done:        make(chan struct{}),
+		cancel:      func() {},
+		autoResolve: true,
+	}
+
+	server.finalizeAgentRun(run, stdoutBytes, nil, nil)
+
+	successDir, folder, err := server.findIssueDirectory(successIssue.ID)
+	if err != nil {
+		t.Fatalf("failed to locate issue: %v", err)
+	}
+	if folder != "completed" {
+		t.Fatalf("expected issue to move to completed, got %s", folder)
+	}
+
+	updated, err := server.loadIssueFromDir(successDir)
+	if err != nil {
+		t.Fatalf("failed to load updated issue: %v", err)
+	}
+
+	if _, ok := updated.Metadata.Extra["agent_run_id"]; ok {
+		t.Fatalf("expected agent_run_id to be cleared, extras: %#v", updated.Metadata.Extra)
+	}
+	if status := updated.Metadata.Extra["agent_last_status"]; status != "completed" {
+		t.Fatalf("expected agent_last_status to be 'completed', got %q", status)
+	}
+	if _, ok := updated.Metadata.Extra["agent_last_error"]; ok {
+		t.Fatalf("expected agent_last_error to be cleared, extras: %#v", updated.Metadata.Extra)
+	}
+	if _, ok := updated.Metadata.Extra["agent_last_process_error"]; ok {
+		t.Fatalf("expected agent_last_process_error to be cleared, extras: %#v", updated.Metadata.Extra)
+	}
+	if plan := updated.Metadata.Extra["test_plan"]; plan != "go test ./..." {
+		t.Fatalf("expected test_plan to be recorded, got %q", plan)
+	}
+	if strings.TrimSpace(updated.Metadata.ResolvedAt) == "" {
+		t.Fatalf("expected resolved timestamp to be set")
+	}
+}
+
+func TestFinalizeAgentRunCancellationPreservesStatus(t *testing.T) {
+	server := newTestServer(t)
+
+	cancelIssue := &Issue{ID: "issue-cancelled"}
+	cancelIssue.Metadata.Extra = map[string]string{
+		"agent_run_id": "run-cancel",
+	}
+	if _, err := server.saveIssue(cancelIssue, "active"); err != nil {
+		t.Fatalf("failed to seed issue: %v", err)
+	}
+
+	run := &agentRun{
+		issueID: cancelIssue.ID,
+		agentID: "unified-resolver",
+		done:    make(chan struct{}),
+		cancel:  func() {},
+	}
+	run.markCancelled("forced-stop")
+
+	server.finalizeAgentRun(run, nil, nil, fmt.Errorf("context canceled"))
+
+	cancelDir, folder, err := server.findIssueDirectory(cancelIssue.ID)
+	if err != nil {
+		t.Fatalf("failed to locate issue: %v", err)
+	}
+	if folder != "active" {
+		t.Fatalf("expected issue to remain active after cancellation, got %s", folder)
+	}
+
+	updated, err := server.loadIssueFromDir(cancelDir)
+	if err != nil {
+		t.Fatalf("failed to load updated issue: %v", err)
+	}
+	if status := updated.Metadata.Extra["agent_last_status"]; status != "cancelled" {
+		t.Fatalf("expected agent_last_status to be 'cancelled', got %q", status)
+	}
+	if reason := updated.Metadata.Extra["agent_last_cancel_reason"]; reason != "forced-stop" {
+		t.Fatalf("expected cancel reason 'forced-stop', got %q", reason)
+	}
+	if _, ok := updated.Metadata.Extra["agent_last_error"]; ok {
+		t.Fatalf("expected no agent_last_error after cancellation")
+	}
+	if _, ok := updated.Metadata.Extra["agent_run_id"]; ok {
+		t.Fatalf("expected agent_run_id to be cleared")
+	}
+	if _, ok := updated.Metadata.Extra["agent_last_process_error"]; ok {
+		t.Fatalf("expected no process error recorded for cancellation")
 	}
 }

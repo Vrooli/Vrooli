@@ -982,6 +982,46 @@ body.dark-mode .task-card.task-archived {
     gap: 0.4rem;
 }
 
+.task-drag-handle {
+    border: none;
+    background: transparent;
+    color: var(--medium-gray);
+    cursor: grab;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem;
+    border-radius: 8px;
+    touch-action: none;
+    transition: color 0.2s ease, background 0.2s ease;
+}
+
+.task-drag-handle i {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.task-drag-handle:hover,
+.task-drag-handle:focus-visible {
+    color: var(--primary-dark);
+    background: rgba(74, 144, 226, 0.12);
+    outline: none;
+}
+
+.task-drag-handle:active {
+    cursor: grabbing;
+}
+
+body.dark-mode .task-drag-handle {
+    color: var(--dark-medium-gray);
+}
+
+body.dark-mode .task-drag-handle:hover,
+body.dark-mode .task-drag-handle:focus-visible {
+    color: var(--white);
+    background: rgba(37, 99, 235, 0.28);
+}
+
 .task-completions {
     display: inline-flex;
     align-items: center;
@@ -3493,7 +3533,7 @@ body.dark-mode .touch-drag-ghost {
 /* Allow touch-action for scrolling but not dragging */
 @media (pointer: coarse) {
     .task-card {
-        touch-action: none;
+        touch-action: pan-y pan-x;
     }
 
     .task-card:active {

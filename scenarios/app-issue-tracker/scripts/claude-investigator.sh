@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
 
-# Claude Code Investigation Script
-# Direct interface to Claude Code CLI for issue investigation
+# AI Agent Investigation Script
+# Unified interface for Codex and Claude Code for issue investigation
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="${SCRIPT_DIR}/../initialization/configuration"
-CLAUDE_CONFIG="${CONFIG_DIR}/claude-config.json"
+AGENT_SETTINGS="${CONFIG_DIR}/agent-settings.json"
+CODEX_CONFIG="${CONFIG_DIR}/codex-config.json"
+PROMPTS_DIR="${SCRIPT_DIR}/../prompts"
+DEFAULT_PROMPT_FILE="${PROMPTS_DIR}/unified-resolver.md"
+
+# Agent backend (dynamically determined)
+AGENT_PROVIDER=""
+AGENT_CLI_COMMAND=""
+AGENT_OPERATION_CMD=""
 
 STATUSES=(open active completed failed archived investigating "in-progress" fixed closed)
 
@@ -53,6 +61,97 @@ success() {
 warn() {
     echo -e "${YELLOW}[WARN]${NC} $*" >&2
 }
+
+DEFAULT_PROMPT_TEMPLATE="Perform a full investigation and provide code-level remediation guidance."
+
+load_default_prompt_template() {
+    if [[ -f "$DEFAULT_PROMPT_FILE" ]]; then
+        DEFAULT_PROMPT_TEMPLATE="$(cat "$DEFAULT_PROMPT_FILE")"
+    else
+        warn "Prompt file not found at $DEFAULT_PROMPT_FILE; using built-in fallback instructions"
+    fi
+}
+
+load_default_prompt_template
+
+# Load agent backend configuration
+detect_agent_backend() {
+    local preferred_provider=""
+    local auto_fallback="true"
+    local fallback_order=()
+
+    # Try to load from agent-settings.json if available
+    if [[ -f "$AGENT_SETTINGS" ]] && command -v jq >/dev/null 2>&1; then
+        preferred_provider=$(jq -r '.agent_backend.provider // "codex"' "$AGENT_SETTINGS")
+        auto_fallback=$(jq -r '.agent_backend.auto_fallback // true' "$AGENT_SETTINGS")
+
+        # Read fallback order
+        readarray -t fallback_order < <(jq -r '.agent_backend.fallback_order[]?' "$AGENT_SETTINGS")
+    else
+        # Default fallback order
+        preferred_provider="codex"
+        fallback_order=("codex" "claude-code")
+    fi
+
+    # If preferred provider not in fallback order, add it first
+    if [[ ! " ${fallback_order[*]} " =~ " ${preferred_provider} " ]]; then
+        fallback_order=("$preferred_provider" "${fallback_order[@]}")
+    fi
+
+    # Try each provider in order
+    for provider in "${fallback_order[@]}"; do
+        local cli_cmd=""
+        local operation_cmd=""
+
+        case "$provider" in
+            codex)
+                cli_cmd="resource-codex"
+                operation_cmd="content execute --context text --operation analyze"
+                ;;
+            claude-code)
+                cli_cmd="resource-claude-code"
+                operation_cmd="content execute --context text --operation analyze"
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        # Check if CLI is available
+        if command -v "$cli_cmd" >/dev/null 2>&1; then
+            # Check if resource is running
+            if $cli_cmd status &>/dev/null; then
+                AGENT_PROVIDER="$provider"
+                AGENT_CLI_COMMAND="$cli_cmd"
+                AGENT_OPERATION_CMD="$operation_cmd"
+                log "Using agent backend: $provider ($cli_cmd)"
+                return 0
+            else
+                warn "Agent backend '$provider' CLI found but resource not running"
+            fi
+        else
+            warn "Agent backend '$provider' CLI not found: $cli_cmd"
+        fi
+
+        if [[ "$auto_fallback" != "true" ]]; then
+            break
+        fi
+    done
+
+    error "No available agent backend found. Tried: ${fallback_order[*]}"
+    return 1
+}
+
+# Initialize agent backend
+if ! detect_agent_backend; then
+    error "Failed to initialize agent backend"
+    exit 1
+fi
+
+# Load provider-specific config if available
+if [[ "$AGENT_PROVIDER" == "codex" && -f "$CODEX_CONFIG" ]]; then
+    export CODEX_CONFIG
+fi
 
 ensure_command() {
     local cmd="$1"
@@ -107,11 +206,45 @@ extract_section() {
     '
 }
 
+render_prompt_template() {
+    local template="$1"
+    local issue_title="$2"
+    local issue_description="$3"
+    local issue_type="$4"
+    local issue_priority="$5"
+    local app_name="$6"
+    local error_message="$7"
+    local stack_trace="$8"
+    local affected_files="$9"
+
+    local fallback="(not provided)"
+
+    [[ -z "${issue_title// }" ]] && issue_title="$fallback"
+    [[ -z "${issue_description// }" ]] && issue_description="$fallback"
+    [[ -z "${issue_type// }" ]] && issue_type="$fallback"
+    [[ -z "${issue_priority// }" ]] && issue_priority="$fallback"
+    [[ -z "${app_name// }" ]] && app_name="$fallback"
+    [[ -z "${error_message// }" ]] && error_message="$fallback"
+    [[ -z "${stack_trace// }" ]] && stack_trace="$fallback"
+    [[ -z "${affected_files// }" ]] && affected_files="$fallback"
+
+    template="${template//{{issue_title}}/$issue_title}"
+    template="${template//{{issue_description}}/$issue_description}"
+    template="${template//{{issue_type}}/$issue_type}"
+    template="${template//{{issue_priority}}/$issue_priority}"
+    template="${template//{{app_name}}/$app_name}"
+    template="${template//{{error_message}}/$error_message}"
+    template="${template//{{stack_trace}}/$stack_trace}"
+    template="${template//{{affected_files}}/$affected_files}"
+
+    echo "$template"
+}
+
 resolve_workflow() {
     local issue_id="$1"
     local agent_id="$2"
     local project_path="${3:-}"
-    local prompt_template="${4:-Perform a full investigation and provide code-level remediation guidance.}"
+    local prompt_template="${4:-$DEFAULT_PROMPT_TEMPLATE}"
     local auto_flag="${5:-true}"
 
     if [[ -z "$issue_id" ]]; then
@@ -207,28 +340,63 @@ investigate_issue() {
     local issue_id="$1"
     local agent_id="$2"
     local project_path="${3:-}"
-    local prompt_template="${4:-}"
+    local prompt_template="${4:-$DEFAULT_PROMPT_TEMPLATE}"
     local emit_json="${5:-true}"
 
     log "Starting investigation for issue: $issue_id"
 
     local started_at="$(date -Iseconds)"
     INVESTIGATION_STARTED_AT="$started_at"
+
+    local title=""
+    local description=""
+    local issue_type=""
+    local priority=""
+    local app_id=""
+    local error_message=""
+    local stack_trace=""
+    local affected_files=""
+
+    if [[ -n "$ISSUE_METADATA_PATH" && -f "$ISSUE_METADATA_PATH" ]]; then
+        title=$(grep "^title:" "$ISSUE_METADATA_PATH" | head -1 | sed 's/title: *"\?\(.*\)"\?/\1/' | sed 's/"$//')
+        description=$(grep "^description:" "$ISSUE_METADATA_PATH" | head -1 | sed 's/description: *"\?\(.*\)"\?/\1/' | sed 's/"$//')
+        issue_type=$(grep "^type:" "$ISSUE_METADATA_PATH" | head -1 | sed 's/type: *"\?\(.*\)"\?/\1/' | sed 's/"$//')
+        priority=$(grep "^priority:" "$ISSUE_METADATA_PATH" | head -1 | sed 's/priority: *"\?\(.*\)"\?/\1/' | sed 's/"$//')
+        app_id=$(grep "^app_id:" "$ISSUE_METADATA_PATH" | head -1 | sed 's/app_id: *"\?\(.*\)"\?/\1/' | sed 's/"$//')
+
+        if grep -q "error_message:" "$ISSUE_METADATA_PATH"; then
+            error_message=$(awk '/^error_context:/, /^[^[:space:]]/ {print}' "$ISSUE_METADATA_PATH" | grep "error_message:" | head -1 | sed 's/.*error_message: *"\?\(.*\)"\?/\1/' | sed 's/"$//')
+        fi
+
+        if grep -q "stack_trace:" "$ISSUE_METADATA_PATH"; then
+            stack_trace=$(awk '/^error_context:/,/^[^[:space:]]/ {print}' "$ISSUE_METADATA_PATH" | awk '/stack_trace:/{flag=1; next} /^[^[:space:]]/{flag=0} flag' | sed 's/^[[:space:]]*//')
+        fi
+
+        if grep -q "affected_files:" "$ISSUE_METADATA_PATH"; then
+            affected_files=$(sed -n '/affected_files:/,/^[[:space:]]*[a-z_]*:/p' "$ISSUE_METADATA_PATH" | grep ' - ' | sed 's/.*- "\(.*\)"/\1/' | tr '\n' ', ' | sed 's/, $//')
+        fi
+    fi
+
+    prompt_template=$(render_prompt_template "$prompt_template" "$title" "$description" "$issue_type" "$priority" "$app_id" "$error_message" "$stack_trace" "$affected_files")
     
     # Create investigation workspace
-    local workspace_dir="/tmp/claude-investigation-${issue_id}"
+    local workspace_dir="/tmp/codex-investigation-${issue_id}"
     mkdir -p "$workspace_dir"
     
     # Create investigation prompt file
     local prompt_file="${workspace_dir}/investigation-prompt.md"
     
-    cat > "$prompt_file" << EOF
+    cat > "$prompt_file" <<'EOF'
 # Issue Investigation Request
 
 You are a senior software engineer investigating a reported issue. Please analyze the codebase and provide a comprehensive investigation report.
 
 ## Task
-$prompt_template
+EOF
+
+    printf '%s\n' "$prompt_template" >> "$prompt_file"
+
+    cat >> "$prompt_file" <<'EOF'
 
 ## Investigation Steps
 1. **Analyze the codebase** at the specified path
@@ -262,55 +430,60 @@ Any similar issues or patterns to watch for.
 Rate your confidence in the analysis (1-10) and explain any uncertainties.
 
 ## Context
-- Issue ID: $issue_id
-- Agent ID: $agent_id
-- Project Path: $project_path
-- Timestamp: $(date -Iseconds)
-
-Please begin your investigation now.
 EOF
 
+    {
+        printf -- '- Issue ID: %s\n' "$issue_id"
+        printf -- '- Agent ID: %s\n' "$agent_id"
+        printf -- '- Project Path: %s\n' "$project_path"
+        printf -- '- Timestamp: %s\n' "$(date -Iseconds)"
+        printf '\n%s\n' 'Please begin your investigation now.'
+    } >> "$prompt_file"
+
     log "Created investigation prompt: $prompt_file"
-    
-    # Check if resource-claude-code is available
-    if ! command -v resource-claude-code &> /dev/null; then
-        error "resource-claude-code CLI not found. Please ensure the resource is installed."
+
+    # Verify agent backend is available
+    if [[ -z "$AGENT_CLI_COMMAND" ]]; then
+        error "No agent backend initialized. Please ensure resource-codex or resource-claude-code is available."
         return 1
     fi
-    
+
     # Check resource status
-    log "Checking Claude Code resource status..."
-    if ! resource-claude-code status &> /dev/null; then
-        warn "Claude Code resource may not be running. Attempting to start..."
-        resource-claude-code start &> /dev/null || true
+    log "Checking $AGENT_PROVIDER resource status..."
+    if ! $AGENT_CLI_COMMAND status &> /dev/null; then
+        warn "$AGENT_PROVIDER resource may not be running. Attempting to start..."
+        $AGENT_CLI_COMMAND start &> /dev/null || true
     fi
-    
-    # Run Claude Code investigation
-    log "Executing Claude Code investigation..."
+
+    # Run investigation using configured backend
+    log "Executing investigation with $AGENT_PROVIDER..."
     local investigation_output="${workspace_dir}/investigation-report.md"
-    local claude_exit_code=0
-    
+    local agent_exit_code=0
+
     # Navigate to project path if specified
     local original_dir=$(pwd)
     if [[ -n "$project_path" && -d "$project_path" ]]; then
         log "Changing to project directory: $project_path"
         cd "$project_path"
     fi
-    
-    # Execute Claude Code with the investigation prompt using resource-claude-code run
-    if cat "$prompt_file" | resource-claude-code run - > "$investigation_output" 2>&1; then
-        success "Claude Code investigation completed successfully"
+
+    # Execute agent with the investigation prompt
+    local prompt_payload
+    prompt_payload="$(cat "$prompt_file")"
+
+    if $AGENT_CLI_COMMAND $AGENT_OPERATION_CMD "$prompt_payload" > "$investigation_output" 2>&1; then
+        success "$AGENT_PROVIDER investigation completed successfully"
     else
-        claude_exit_code=$?
-        error "Claude Code investigation failed with exit code: $claude_exit_code"
+        agent_exit_code=$?
+        error "$AGENT_PROVIDER investigation failed with exit code: $agent_exit_code"
         # Try to show the error content for debugging
         if [[ -f "$investigation_output" ]]; then
             warn "Error output: $(head -n 20 "$investigation_output")"
         fi
         cd "$original_dir"
-        return $claude_exit_code
+        return $agent_exit_code
     fi
-    
+
     cd "$original_dir"
 
     local completed_at="$(date -Iseconds)"
@@ -363,8 +536,6 @@ EOF
     INVESTIGATION_COMPLETED_AT="${INVESTIGATION_COMPLETED_AT:-$(date -Iseconds)}"
 
     local json_output=$(jq -n \
-        --arg issue_id "$issue_id" \
-        --arg agent_id "$agent_id" \
         --arg report "$INVESTIGATION_REPORT" \
         --arg root "$INVESTIGATION_ROOT_CAUSE" \
         --arg suggested "$INVESTIGATION_SUGGESTED_FIX" \
@@ -374,15 +545,13 @@ EOF
         --argjson affected "$INVESTIGATION_AFFECTED_JSON" \
         --argjson confidence "$confidence_value" \
         '{
-            issue_id: $issue_id,
-            agent_id: $agent_id,
-            investigation_report: $report,
+            report: $report,
             root_cause: $root,
             suggested_fix: $suggested,
             confidence_score: $confidence,
             affected_files: $affected,
-            investigation_started_at: $started,
-            investigation_completed_at: $completed,
+            started_at: $started,
+            completed_at: $completed,
             status: "analysis_completed",
             workspace_path: $workspace
         }')
@@ -405,20 +574,24 @@ generate_fix() {
     local project_path="${3:-}"
     local emit_json="${4:-true}"
 
-    log "Generating fix for issue: $issue_id"
+    log "Generating fix for issue: $issue_id using $AGENT_PROVIDER"
 
-    local workspace_dir="/tmp/claude-fix-${issue_id}"
+    local workspace_dir="/tmp/agent-fix-${issue_id}"
     mkdir -p "$workspace_dir"
 
     local fix_prompt="${workspace_dir}/fix-prompt.md"
 
-    cat > "$fix_prompt" << EOF
+    cat > "$fix_prompt" <<'EOF'
 # Unified Fix Generation Request
 
 Based on the investigation summary below, deliver concrete remediation steps.
 
 ## Investigation Summary
-$investigation_report
+EOF
+
+    printf '%s\n' "$investigation_report" >> "$fix_prompt"
+
+    cat >> "$fix_prompt" <<'EOF'
 
 ## Tasks
 1. Summarize the proposed fix in plain language.
@@ -444,15 +617,20 @@ EOF
         cd "$project_path"
     fi
 
-    if ! command -v resource-claude-code &> /dev/null; then
-        error "resource-claude-code CLI not found"
+    # Verify agent backend is available
+    if [[ -z "$AGENT_CLI_COMMAND" ]]; then
+        error "No agent backend initialized for fix generation"
         cd "$original_dir"
         return 1
     fi
 
-    if ! cat "$fix_prompt" | resource-claude-code run - > "$fix_output" 2>&1; then
+    local fix_payload
+    fix_payload="$(cat "$fix_prompt")"
+
+    log "Generating fix with $AGENT_PROVIDER..."
+    if ! $AGENT_CLI_COMMAND $AGENT_OPERATION_CMD "$fix_payload" > "$fix_output" 2>&1; then
         FIX_STATUS="failed"
-        FIX_ERROR="Claude Code fix generation failed"
+        FIX_ERROR="$AGENT_PROVIDER fix generation failed"
         if [[ -f "$fix_output" ]]; then
             warn "Error output: $(head -n 20 "$fix_output")"
         fi
@@ -569,16 +747,19 @@ main() {
             
         help|--help|-h)
             cat << EOF
-Claude Code Investigation Script
+AI Agent Investigation Script
 
 Usage: $0 <command> [options]
+
+Supports: resource-codex, resource-claude-code (auto-detected)
+Current backend: ${AGENT_PROVIDER:-not initialized}
 
 Commands:
   resolve <issue_id> <agent_id> [project_path] [prompt_template] [auto_resolve]
     Run unified investigation + resolution (auto_resolve defaults to true)
 
   investigate <issue_id> <agent_id> [project_path] [prompt_template]
-    Run Claude Code investigation for an issue
+    Run AI investigation for an issue
     
   generate-fix <issue_id> <investigation_report> [project_path]
     Generate code fixes based on investigation

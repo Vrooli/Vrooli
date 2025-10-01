@@ -8,7 +8,7 @@ The App Issue Tracker uses direct script execution for AI-powered issue investig
 ### Investigation Flow
 1. **User triggers unified agent run** via API, CLI, or UI
 2. **API executes the resolution script** in background
-3. **Script interfaces with Claude Code** for analysis and remediation
+3. **Script interfaces with Codex** for analysis and remediation
 4. **Results are saved to the issue bundle** in YAML/Markdown format
 5. **Issue transitions through simplified status folders** automatically
 
@@ -31,8 +31,10 @@ Issues automatically move between folders based on their status:
 - `open/` - New issues awaiting triage
 - `active/` - Agent is currently working the issue
 - `completed/` - Agent produced a recommended fix
-- `failed/` - Agent run failed or needs manual attention
+- `failed/` - Agent run failed, was cancelled, or needs manual attention
 - `archived/` - Historical issues kept for reference
+
+Cancelled or idle-timed-out agent runs are automatically moved into `failed/` so follow-up workflows can immediately see they need human attention.
 
 ## Configuration
 
@@ -49,6 +51,7 @@ export QDRANT_URL=http://localhost:6333  # For semantic search
 ### Agent Configuration
 Agents are defined in the API with capabilities:
 - `unified-resolver` - Single-pass agent that triages, investigates, and drafts fixes
+- Prompt instructions are sourced from `prompts/unified-resolver.md` so updates do not require database migrations.
 
 ## Benefits of Direct Execution
 
@@ -72,13 +75,13 @@ cd cli
 ./app-issue-tracker.bats
 ```
 
-## Integration with Claude Code
+## Integration with Codex
 
-The `claude-investigator.sh` script creates structured prompts for Claude Code:
+The `claude-investigator.sh` script creates structured prompts for Codex:
 
 1. Loads issue details from YAML file
 2. Generates investigation prompt with context
-3. Executes Claude Code with project context
+3. Executes Codex with project context
 4. Parses response and updates issue file
 5. Moves issue to appropriate status folder
 

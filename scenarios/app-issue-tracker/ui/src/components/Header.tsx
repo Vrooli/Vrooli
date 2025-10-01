@@ -1,23 +1,29 @@
-import { useMemo } from 'react';
-import { Bug, Plus, ToggleLeft, ToggleRight } from 'lucide-react';
-import { ProcessorSettings } from '../data/sampleData';
+import type { ReactNode } from 'react';
+import { Bug, Menu } from 'lucide-react';
 
 interface HeaderProps {
-  processor: ProcessorSettings;
-  onToggleActive: () => void;
-  onCreateIssue: () => void;
+  sidebarCollapsed: boolean;
+  onSidebarToggle: () => void;
+  rightContent?: ReactNode;
 }
 
 export function Header({
-  processor,
-  onToggleActive,
-  onCreateIssue,
+  sidebarCollapsed,
+  onSidebarToggle,
+  rightContent,
 }: HeaderProps) {
-  const activeLabel = useMemo(() => (processor.active ? 'Active' : 'Paused'), [processor.active]);
-
   return (
     <header className="app-header">
       <div className="header-left">
+        <button
+          type="button"
+          className="header-sidebar-toggle"
+          onClick={onSidebarToggle}
+          aria-expanded={!sidebarCollapsed}
+          aria-label={`${sidebarCollapsed ? 'Open' : 'Collapse'} navigation sidebar`}
+        >
+          <Menu size={20} />
+        </button>
         <div className="scenario-badge">
           <Bug size={20} />
         </div>
@@ -26,16 +32,7 @@ export function Header({
           <p className="scenario-subtitle">AI-assisted triage for Vrooli scenarios</p>
         </div>
       </div>
-      <div className="header-right">
-        <button className={`processor-toggle ${processor.active ? 'on' : 'off'}`} onClick={onToggleActive}>
-          {processor.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
-          <span>{activeLabel}</span>
-        </button>
-        <button className="primary-action" onClick={onCreateIssue}>
-          <Plus size={18} />
-          <span>New Issue</span>
-        </button>
-      </div>
+      {rightContent && <div className="header-right">{rightContent}</div>}
     </header>
   );
 }

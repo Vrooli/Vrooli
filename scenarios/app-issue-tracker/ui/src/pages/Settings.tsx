@@ -333,6 +333,34 @@ export function SettingsPage({
               </p>
               <div className="form-grid">
                 <label>
+                  <span>AI Backend Provider</span>
+                  <select
+                    value={agent.backend?.provider ?? "codex"}
+                    onChange={(event) =>
+                      handleAgentChange("backend", {
+                        provider: event.target.value as "codex" | "claude-code",
+                        autoFallback: agent.backend?.autoFallback ?? true,
+                      })
+                    }
+                  >
+                    <option value="codex">Codex (Primary)</option>
+                    <option value="claude-code">Claude Code</option>
+                  </select>
+                </label>
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={agent.backend?.autoFallback ?? true}
+                    onChange={(event) =>
+                      handleAgentChange("backend", {
+                        provider: agent.backend?.provider ?? "codex",
+                        autoFallback: event.target.checked,
+                      })
+                    }
+                  />
+                  <span>Auto-fallback to alternative backend</span>
+                </label>
+                <label>
                   <span>Agent identifier</span>
                   <input
                     type="text"

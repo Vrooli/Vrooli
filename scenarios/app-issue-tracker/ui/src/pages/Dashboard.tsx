@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { KeyboardEvent, useMemo } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -27,9 +27,20 @@ interface DashboardProps {
   issues: Issue[];
   processor: ProcessorSettings;
   agentSettings: AgentSettings;
+  onOpenIssues: () => void;
+  onOpenIssue: (issueId: string) => void;
+  onOpenAutomationSettings: () => void;
 }
 
-export function Dashboard({ stats, issues, processor, agentSettings }: DashboardProps) {
+export function Dashboard({
+  stats,
+  issues,
+  processor,
+  agentSettings,
+  onOpenIssues,
+  onOpenIssue,
+  onOpenAutomationSettings,
+}: DashboardProps) {
   const priorityData = useMemo(() => {
     const labels = Object.keys(stats.priorityBreakdown);
     const values = Object.values(stats.priorityBreakdown);
@@ -97,6 +108,13 @@ export function Dashboard({ stats, issues, processor, agentSettings }: Dashboard
     [issues],
   );
 
+  const handleAutomationCardKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onOpenAutomationSettings();
+    }
+  };
+
   return (
     <div className="dashboard-page">
       <section className="page-header">
@@ -116,6 +134,7 @@ export function Dashboard({ stats, issues, processor, agentSettings }: Dashboard
           value={stats.totalIssues}
           subtitle="All tracked issues"
           icon={Activity}
+          onClick={onOpenIssues}
         />
         <StatsCard
           title="Open"
@@ -123,12 +142,14 @@ export function Dashboard({ stats, issues, processor, agentSettings }: Dashboard
           subtitle="Awaiting triage"
           icon={AlertTriangle}
           tone="warning"
+          onClick={onOpenIssues}
         />
         <StatsCard
           title="Active"
           value={stats.inProgress}
           subtitle="Agent currently working"
           icon={Clock3}
+          onClick={onOpenIssues}
         />
         <StatsCard
           title="Completed Today"
@@ -136,6 +157,7 @@ export function Dashboard({ stats, issues, processor, agentSettings }: Dashboard
           subtitle="Resolved in last 24h"
           icon={CheckCircle2}
           tone="success"
+          onClick={onOpenIssues}
         />
       </section>
 
@@ -169,16 +191,30 @@ export function Dashboard({ stats, issues, processor, agentSettings }: Dashboard
           <ul className="recent-issue-list">
             {recentIssues.map((issue) => (
               <li key={issue.id}>
-                <div className="issue-title-line">
-                  <span>{issue.title}</span>
-                  <span className={`pill priority-${issue.priority.toLowerCase()}`}>{issue.priority}</span>
-                </div>
-                <p>{issue.summary}</p>
+                <button
+                  type="button"
+                  className="recent-issue-button"
+                  onClick={() => onOpenIssue(issue.id)}
+                  aria-label={`Open issue ${issue.title || issue.id}`}
+                >
+                  <span className="issue-title-line">
+                    <span className="recent-issue-title">{issue.title}</span>
+                    <span className={`pill priority-${issue.priority.toLowerCase()}`}>{issue.priority}</span>
+                  </span>
+                  <span className="recent-issue-summary">{issue.summary}</span>
+                </button>
               </li>
             ))}
           </ul>
         </div>
-        <div className="detail-card">
+        <div
+          className="detail-card detail-card--interactive"
+          role="button"
+          tabIndex={0}
+          onClick={onOpenAutomationSettings}
+          onKeyDown={handleAutomationCardKeyDown}
+          aria-label="Open automation settings"
+        >
           <header>
             <h3>Automation Configuration</h3>
             <span className="detail-meta">Unified agent</span>

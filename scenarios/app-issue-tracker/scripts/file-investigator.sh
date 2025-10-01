@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# File-Based Claude Code Investigation Script
-# Reads YAML issue files, investigates with Claude, writes results back
+# File-Based Codex Investigation Script
+# Reads YAML issue files, investigates with Codex, writes results back
 
 set -euo pipefail
 
@@ -152,14 +152,14 @@ EOF
 
     log "Created investigation prompt: $prompt_file"
     
-    # Check if claude-code is available
-    if ! command -v claude-code &> /dev/null; then
-        error "claude-code CLI not found. Please install Claude Code."
+    # Check if resource-codex is available
+    if ! command -v resource-codex &> /dev/null; then
+        error "resource-codex CLI not found. Please install Codex."
         return 1
     fi
     
-    # Execute Claude Code investigation
-    log "Executing Claude Code investigation..."
+    # Execute Codex investigation
+    log "Executing Codex investigation..."
     local investigation_output="${workspace_dir}/investigation-report.md"
     local original_dir=$(pwd)
     
@@ -169,15 +169,15 @@ EOF
         cd "$project_path"
     fi
     
-    # Run Claude Code
-    local claude_exit_code=0
-    if claude-code --file "$prompt_file" > "$investigation_output" 2>&1; then
-        success "Claude Code investigation completed"
+    # Run Codex
+    local codex_exit_code=0
+    if resource-codex --file "$prompt_file" > "$investigation_output" 2>&1; then
+        success "Codex investigation completed"
     else
-        claude_exit_code=$?
-        error "Claude Code investigation failed with exit code: $claude_exit_code"
+        codex_exit_code=$?
+        error "Codex investigation failed with exit code: $codex_exit_code"
         cd "$original_dir"
-        return $claude_exit_code
+        return $codex_exit_code
     fi
     
     cd "$original_dir"
@@ -355,14 +355,14 @@ How to confirm the fix resolves the original problem.
 Please generate the fix now.
 EOF
 
-    # Execute Claude Code for fix generation
+    # Execute Codex for fix generation
     local original_dir=$(pwd)
     if [[ -n "$project_path" && -d "$project_path" ]]; then
         cd "$project_path"
     fi
     
     local fix_output="${workspace_dir}/fix-report.md"
-    if claude-code --file "$fix_prompt" > "$fix_output" 2>&1; then
+    if resource-codex --file "$fix_prompt" > "$fix_output" 2>&1; then
         success "Fix generation completed"
     else
         error "Fix generation failed"
@@ -503,13 +503,13 @@ main() {
             
         help|--help|-h)
             cat << EOF
-File-Based Claude Code Investigation Script
+File-Based Codex Investigation Script
 
 Usage: $0 <command> [options]
 
 Commands:
   investigate <issue_id> [agent_id] [project_path] [prompt]
-    Run Claude Code investigation for an issue
+    Run Codex investigation for an issue
     
   generate-fix <issue_id> [project_path] 
     Generate code fixes based on investigation

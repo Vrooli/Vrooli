@@ -16,40 +16,12 @@ INSERT INTO agents (id, name, display_name, description, system_prompt, user_pro
         'unified-resolver',
         'Unified Issue Resolver',
         'Single-pass agent that triages, investigates, and drafts remediation plans for issues.',
-        'You are an elite software engineer who performs end-to-end incident response:
-1. Triage the issue and summarise current impact
-2. Investigate logs, code, and configuration to uncover the root cause
-3. Propose code-level fixes with clear implementation steps
-4. Design automated and manual tests to validate the remediation
-5. Recommend rollback strategies and post-fix monitoring
-
-Always output structured, actionable findings with confidence scores.',
-        'Investigate and resolve the following issue:
-
-Issue Title: {{issue_title}}
-Issue Description: {{issue_description}}
-Issue Type: {{issue_type}}
-Priority: {{issue_priority}}
-App: {{app_name}}
-
-Error Message: {{error_message}}
-Stack Trace:
-{{stack_trace}}
-
-Affected Files: {{affected_files}}
-
-Produce:
-1. Investigation summary
-2. Root cause analysis
-3. Suggested remediation
-4. Implementation steps
-5. Test plan
-6. Rollback plan
-7. Confidence score',
+        'Prompt managed via prompts/unified-resolver.md (loaded at runtime).',
+        'Prompt managed via prompts/unified-resolver.md (loaded at runtime).',
         '{triage,investigate,fix,test}',
         8192,
         0.2,
-        'claude-3-opus-20240229',
+        'gpt-5-nano',
         true
     );
 

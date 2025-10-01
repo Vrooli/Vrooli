@@ -27,11 +27,23 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "Issue tracker web UI port",
-      "range": "35000-39999"
+      "port": 36221,
+      "description": "Issue tracker web UI port"
     }
   },
   "resources": {
+    "codex": {
+      "type": "codex",
+      "enabled": true,
+      "required": false,
+      "description": "AI agent for issue investigation and fix generation (primary)"
+    },
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": false,
+      "description": "AI agent for issue investigation and fix generation (alternative)"
+    },
     "qdrant": {
       "type": "qdrant",
       "enabled": true,
@@ -109,7 +121,7 @@
         },
         {
           "name": "install-main-cli",
-          "run": "ln -sf $(pwd)/cli/app-issue-tracker-v2.sh ~/.local/bin/app-issue-tracker-v2 2>/dev/null || echo '  CLI available at ./cli/app-issue-tracker-v2.sh'",
+          "run": "ln -sf $(pwd)/cli/app-issue-tracker.sh ~/.local/bin/app-issue-tracker 2>/dev/null || echo '  CLI available at ./cli/app-issue-tracker.sh'",
           "description": "Install main CLI command"
         },
         {
@@ -127,7 +139,7 @@
         },
         {
           "name": "show-file-urls",
-          "run": "echo '📁 File-Based Issue Tracker initialized\\n  📊 Management: ./issues/manage.sh status\\n  🌐 API: http://localhost:${API_PORT}\\n  🎯 CLI: app-issue-tracker-v2 --help\\n  📂 Issues: ./issues/\\n  📝 Templates: ./issues/templates/\\n\\n💡 Create issues with:\\n  app-issue-tracker-v2 create --title \"Issue title\" --priority high\\n  ./issues/manage.sh add\\n  cp issues/templates/bug-template.yaml issues/open/123-new.yaml'",
+          "run": "echo '📁 File-Based Issue Tracker initialized\\n  📊 Management: ./issues/manage.sh status\\n  🌐 API: http://localhost:${API_PORT}\\n  🎯 CLI: app-issue-tracker --help\\n  📂 Issues: ./issues/\\n  📝 Templates: ./issues/templates/\\n\\n💡 Create issues with:\\n  app-issue-tracker create --title \"Issue title\" --priority high\\n  ./issues/manage.sh add\\n  cp issues/templates/bug-template.yaml issues/open/123-new.yaml'",
           "description": "Display file-based service information"
         }
       ]
@@ -156,7 +168,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '📁 File-Based Issue Tracker running:\\n  🌐 Web UI (dev): http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT\\n  🎯 CLI: app-issue-tracker-v2 --help\\n  📊 Management: ./issues/manage.sh status\\n\\n📝 Create issues:\\n  app-issue-tracker-v2 create --title \"Bug title\" --priority high\\n  ./issues/manage.sh add\\n\\n📂 File Operations:\\n  ls issues/open/*.yaml\\n  mv issues/open/001-bug.yaml issues/investigating/\\n  ./issues/manage.sh search \"keyword\"'",
+          "run": "echo '📁 File-Based Issue Tracker running:\\n  🌐 Web UI (dev): http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT\\n  🎯 CLI: app-issue-tracker --help\\n  📊 Management: ./issues/manage.sh status\\n\\n📝 Create issues:\\n  app-issue-tracker create --title \"Bug title\" --priority high\\n  ./issues/manage.sh add\\n\\n📂 File Operations:\\n  ls issues/open/*.yaml\\n  mv issues/open/001-bug.yaml issues/investigating/\\n  ./issues/manage.sh search \"keyword\"'",
           "description": "Display service URLs"
         }
       ]
@@ -196,7 +208,7 @@
         },
         {
           "name": "test-main-cli",
-          "run": "bash cli/app-issue-tracker-v2.sh --help | grep -q 'File-Based Issue Management' && echo '✓ CLI v2 working' || echo '⚠ CLI test skipped'",
+          "run": "bash cli/app-issue-tracker.sh --help | grep -q 'App Issue Tracker' && echo '✓ CLI working' || echo '⚠ CLI test skipped'",
           "description": "Test main CLI functionality"
         }
       ]

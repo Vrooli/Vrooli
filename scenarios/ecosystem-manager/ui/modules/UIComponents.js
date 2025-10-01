@@ -21,7 +21,7 @@ export class UIComponents {
         ].filter(Boolean);
         card.className = cardClasses.join(' ');
         card.id = `task-${task.id}`;
-        card.draggable = true;
+        card.draggable = false;
         card.dataset.notesText = normalizedNotes.toLowerCase();
 
         const completionCount = Number.isInteger(task.completion_count) ? task.completion_count : 0;
@@ -52,6 +52,9 @@ export class UIComponents {
                     <span class="priority-chip priority-${task.priority}" title="Priority: ${task.priority}">
                         ${task.priority}
                     </span>
+                    <button type="button" class="task-drag-handle" title="Drag task" aria-label="Drag task">
+                        <i class="fas fa-grip-lines"></i>
+                    </button>
                 </div>
             </div>
             <h3 class="task-title">${this.escapeHtml(task.title)}</h3>

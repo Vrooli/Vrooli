@@ -26,9 +26,11 @@ A lightweight, file-based issue tracking system with AI-powered investigation ca
    ```
 
 3. The service will be available at:
-   - **Web UI**: http://localhost:35000 (or assigned port)
-   - **API**: http://localhost:15000/health
+   - **Web UI**: http://localhost:[UI_PORT] (dynamically assigned, check `vrooli scenario status app-issue-tracker`)
+   - **API**: http://localhost:[API_PORT]/health (dynamically assigned, typically 15000-19999 range)
    - **CLI**: `app-issue-tracker --help`
+
+   Note: Ports are dynamically allocated. Use `vrooli scenario status app-issue-tracker` to see actual ports.
 
 ### Create Your First Issue
 ```bash
@@ -53,7 +55,7 @@ app-issue-tracker investigate "Login button not working"
 ### AI Integration
 - **Automatic Investigation**: AI analyzes issues and suggests fixes
 - **Semantic Search**: Find similar issues using vector embeddings
-- **Claude Code Integration**: Leverages advanced AI for code-related issues
+- **Codex Integration**: Leverages advanced AI for code-related issues
 - **Workflow Automation**: Trigger investigations on issue creation/update
 
 ### Advanced Capabilities
@@ -93,10 +95,25 @@ app-issue-tracker/
 ## ⚙️ Configuration
 
 ### Environment Variables
-- `API_PORT`: API server port (default: 15000)
-- `UI_PORT`: Web UI port (default: 35000)
+- `API_PORT`: API server port (default: dynamically assigned)
+- `UI_PORT`: Web UI port (default: dynamically assigned)
 - `QDRANT_URL`: Vector database endpoint (optional)
-- `CLAUDE_API_KEY`: For AI investigations (optional)
+- `OPENAI_API_KEY`: For Codex-powered investigations (optional)
+
+### Security Configuration
+For production deployments, configure security settings:
+- `ENABLE_AUTH`: Enable API token authentication (default: false)
+- `API_TOKENS`: Comma-separated list of valid API tokens
+- `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins (default: *)
+- `RATE_LIMIT`: Maximum requests per time window (default: 100)
+
+### GitHub Integration
+To enable automatic PR creation:
+- `GITHUB_TOKEN`: GitHub personal access token with `repo` scope
+- `GITHUB_OWNER`: GitHub username or organization
+- `GITHUB_REPO`: Repository name
+
+**📖 See [docs/SECURITY_SETUP.md](docs/SECURITY_SETUP.md) for detailed security configuration guide.**
 
 ### Resources (Optional)
 - **Qdrant**: For semantic search (enabled by default)
@@ -205,7 +222,15 @@ Artifacts are persisted on disk under `artifacts/` alongside `metadata.yaml`, an
 
 ### Search
 - `GET /issues/search?q=query` – Keyword search
-- `GET /issues/search/semantic?query=description` – Vector search
+- `GET /issues/search/semantic?query=description` – Vector search (requires Qdrant)
+
+### Investigation & Fixes
+- `POST /investigate` – Trigger AI investigation for an issue
+- `POST /generate-fix` – Generate fix for investigated issue
+- `POST /issues/{id}/create-pr` – Create GitHub PR with fixes (requires GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO)
+
+### Export
+- `GET /export?format=json&status=open` – Export issues (formats: json, csv, markdown)
 
 ### Health
 - `GET /health` – Service status
@@ -255,7 +280,7 @@ mv data/issues/open/<issue-id> data/issues/completed/
 
 ### Common Issues
 - **Port conflicts**: Check `make status` and adjust ports in `.vrooli/service.json`
-- **AI not working**: Ensure `CLAUDE_API_KEY` is set or use mock mode
+- **AI not working**: Ensure `OPENAI_API_KEY` is set or use mock mode
 - **Search slow**: Install Qdrant or disable semantic search
 - **YAML validation errors**: Check schema in `initialization/configuration/app-registry.json`
 
@@ -288,7 +313,7 @@ This project is licensed under the MIT License - see the [LICENSE](../LICENSE) f
 ## 🙏 Acknowledgments
 
 - Built with [Vrooli](https://vrooli.com) scenario framework
-- AI integration powered by [Claude Code](https://claude.ai/code)
+- AI integration powered by [Codex](https://platform.openai.com/docs)
 - Thanks to the open-source community for tools like Go, Node.js, and Qdrant
 
 ---

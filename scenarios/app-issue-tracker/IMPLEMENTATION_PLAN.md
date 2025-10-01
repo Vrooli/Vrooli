@@ -1,7 +1,7 @@
 # App Issue Tracker - Implementation Plan
 
 ## Overview
-A comprehensive issue tracking system for Vrooli and its scenarios, featuring AI-powered investigation and automated fix attempts using Claude Code.
+A comprehensive issue tracking system for Vrooli and its scenarios, featuring AI-powered investigation and automated fix attempts using Codex.
 
 ## Architecture
 
@@ -18,7 +18,7 @@ A comprehensive issue tracking system for Vrooli and its scenarios, featuring AI
    - Investigation reports viewer
    - Fix attempt monitoring
 
-3. **Claude Code Integration**
+3. **Codex Integration**
    - Automated issue investigation
    - Root cause analysis
    - Fix generation and testing
@@ -32,7 +32,7 @@ A comprehensive issue tracking system for Vrooli and its scenarios, featuring AI
 ## Data Flow
 
 ```
-User/CLI → API → File System → Claude Code Script
+User/CLI → API → File System → Codex Script
                       ↓              ↓
                    Qdrant      Investigation
                                Report
@@ -58,7 +58,7 @@ User/CLI → API → File System → Claude Code Script
 - Related issue detection
 
 ### Automated Fixes
-- Claude Code generates fixes
+- Codex generates fixes
 - Runs tests to validate
 - Creates pull requests
 - Tracks success rates
@@ -110,7 +110,7 @@ vrooli-tracker search "authentication error"
 - 4GB RAM
 - 2 CPU cores
 - 20GB storage
-- Claude API key
+- OpenAI Codex API key
 
 ### Recommended
 - 8GB RAM
@@ -141,7 +141,7 @@ vrooli-tracker search "authentication error"
 ## Next Steps
 1. Implement core API endpoints
 2. Set up Web UI dashboards
-3. Configure Claude Code integration
+3. Configure Codex integration
 4. Create initial agent templates
 5. Build CLI tool
 6. Add semantic search
