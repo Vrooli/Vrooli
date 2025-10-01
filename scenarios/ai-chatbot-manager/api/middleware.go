@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -142,20 +143,15 @@ func ContentTypeMiddleware(next http.Handler) http.Handler {
 
 // AuthenticationMiddleware provides API key authentication for protected endpoints
 type AuthenticationMiddleware struct {
-	apiKeys map[string]bool // Simple API key store
-	logger  *Logger
+	db     *Database
+	logger *Logger
 }
 
 // NewAuthenticationMiddleware creates a new authentication middleware
-func NewAuthenticationMiddleware(logger *Logger) *AuthenticationMiddleware {
-	// In production, these would come from environment variables or a database
-	apiKeys := make(map[string]bool)
-	// Default API key for development - should be changed in production
-	apiKeys["dev-api-key-change-in-production"] = true
-
+func NewAuthenticationMiddleware(db *Database, logger *Logger) *AuthenticationMiddleware {
 	return &AuthenticationMiddleware{
-		apiKeys: apiKeys,
-		logger:  logger,
+		db:     db,
+		logger: logger,
 	}
 }
 
@@ -183,13 +179,26 @@ func (am *AuthenticationMiddleware) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		if !am.apiKeys[apiKey] {
+		// Special case: Allow development key for backward compatibility
+		if apiKey == "dev-api-key-change-in-production" {
+			// Development key - proceed without tenant context
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Validate API key from database
+		tenant, err := am.db.ValidateAPIKey(apiKey)
+		if err != nil || tenant == nil {
 			am.logger.Printf("Authentication failed: Invalid API key for %s", path)
 			http.Error(w, `{"error":"Invalid API key"}`, http.StatusUnauthorized)
 			return
 		}
 
-		// API key is valid, proceed
+		// Add tenant context to request
+		ctx := context.WithValue(r.Context(), "tenant", tenant)
+		r = r.WithContext(ctx)
+
+		// API key is valid, proceed with tenant context
 		next.ServeHTTP(w, r)
 	})
 }

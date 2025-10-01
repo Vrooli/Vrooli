@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import type { DragEvent } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
+import type { DragEvent, WheelEvent } from 'react';
 import { AlertTriangle, ArchiveRestore, CheckCircle2, CircleSlash, Clock, Construction, EyeOff } from 'lucide-react';
 import { Issue, IssueStatus } from '../data/sampleData';
 import { IssueCard } from '../components/IssueCard';
@@ -36,6 +36,10 @@ export function IssuesBoard({
 }: IssuesBoardProps) {
   const [dragState, setDragState] = useState<{ issueId: string; from: IssueStatus } | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<IssueStatus | null>(null);
+  const kanbanGridRef = useRef<HTMLDivElement>(null);
+  const scrollLockRef = useRef<{ timeout: number | null }>({
+    timeout: null,
+  });
 
   const grouped = useMemo(() => {
     const base: Record<IssueStatus, Issue[]> = {
@@ -65,6 +69,58 @@ export function IssuesBoard({
     () => (Object.keys(columnMeta) as IssueStatus[]).filter((status) => !hiddenSet.has(status)),
     [hiddenSet],
   );
+
+  // Cleanup scroll lock timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollLockRef.current.timeout !== null) {
+        clearTimeout(scrollLockRef.current.timeout);
+      }
+    };
+  }, []);
+
+  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented) {
+      return;
+    }
+
+    const scrollLock = scrollLockRef.current;
+    const now = Date.now();
+    const horizontalLockActive = scrollLock.timeout !== null;
+
+    // Check if we're scrolling within a column
+    const columnBody = (event.target as HTMLElement).closest('.kanban-column-body');
+    if (columnBody && !horizontalLockActive) {
+      const canScrollVertically = columnBody.scrollHeight > columnBody.clientHeight;
+      if (canScrollVertically) {
+        const scrollTop = columnBody.scrollTop;
+        const atTop = scrollTop <= 0;
+        const atBottom = (columnBody.scrollHeight - columnBody.clientHeight - scrollTop) <= 1;
+
+        // Allow vertical scrolling within column if not at boundaries
+        if ((event.deltaY < 0 && !atTop) || (event.deltaY > 0 && !atBottom)) {
+          return;
+        }
+      }
+    }
+
+    // Convert vertical scroll to horizontal scroll
+    if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+      event.preventDefault();
+      const kanbanGrid = kanbanGridRef.current;
+      if (kanbanGrid) {
+        kanbanGrid.scrollLeft += event.deltaY;
+      }
+
+      // Set horizontal scroll lock for 250ms
+      if (scrollLock.timeout !== null) {
+        clearTimeout(scrollLock.timeout);
+      }
+      scrollLock.timeout = window.setTimeout(() => {
+        scrollLock.timeout = null;
+      }, 250);
+    }
+  };
 
   const confirmDelete = (issue: Issue) => {
     if (!onIssueDelete) {
@@ -150,7 +206,7 @@ export function IssuesBoard({
 
   return (
     <div className="issues-board">
-      <div className="kanban-grid" data-columns={visibleStatuses.length}>
+      <div className="kanban-grid" data-columns={visibleStatuses.length} ref={kanbanGridRef} onWheel={handleWheel}>
         {visibleStatuses.length === 0 ? (
           <div className="kanban-empty-state">
             <p>All columns are hidden. Use the column controls to show them again.</p>
@@ -176,7 +232,7 @@ export function IssuesBoard({
               >
                 <header>
                   <div className="kanban-column-heading">
-                    <ColumnIcon size={16} />
+                    <ColumnIcon size={14} />
                     <h3>{column.title}</h3>
                     <span className="column-count">{columnIssues.length}</span>
                   </div>
@@ -187,7 +243,7 @@ export function IssuesBoard({
                       onClick={() => onHideColumn(status)}
                       aria-label={`Hide ${column.title} column`}
                     >
-                      <EyeOff size={14} />
+                      <EyeOff size={13} />
                     </button>
                   )}
                 </header>

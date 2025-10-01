@@ -655,9 +655,10 @@ func (s *Server) ProcessChatMessage(chatbotID string, req ChatRequest) (*ChatRes
 	}
 	if err := s.db.SaveMessage(userMessage); err != nil {
 		s.logger.Printf("Failed to save user message: %v", err)
+		// Continue even if saving fails to maintain conversation flow
 	}
 
-	// Get conversation history for context
+	// Get conversation history for context (includes the message we just saved)
 	messages, err := s.db.GetConversationHistory(conversationID)
 	if err != nil {
 		s.logger.Printf("Failed to get conversation history: %v", err)
@@ -665,7 +666,7 @@ func (s *Server) ProcessChatMessage(chatbotID string, req ChatRequest) (*ChatRes
 	}
 
 	// Generate AI response
-	response, confidence, err := s.GenerateAIResponse(chatbot, messages, req.Message)
+	response, confidence, err := s.GenerateAIResponse(chatbot, messages)
 	if err != nil {
 		s.logger.Printf("Failed to generate AI response: %v", err)
 		return nil, fmt.Errorf("failed to generate response")
@@ -772,7 +773,7 @@ func (s *Server) ProcessChatMessage(chatbotID string, req ChatRequest) (*ChatRes
 }
 
 // GenerateAIResponse generates a response using Ollama
-func (s *Server) GenerateAIResponse(chatbot *Chatbot, history []Message, userMessage string) (string, float64, error) {
+func (s *Server) GenerateAIResponse(chatbot *Chatbot, history []Message) (string, float64, error) {
 	// Prepare messages for Ollama
 	var ollamaMessages []OllamaMessage
 
@@ -787,6 +788,7 @@ func (s *Server) GenerateAIResponse(chatbot *Chatbot, history []Message, userMes
 	})
 
 	// Add conversation history (last 10 messages)
+	// Note: history now includes the current user message we just saved
 	historyStart := len(history) - 10
 	if historyStart < 0 {
 		historyStart = 0
@@ -799,11 +801,7 @@ func (s *Server) GenerateAIResponse(chatbot *Chatbot, history []Message, userMes
 		})
 	}
 
-	// Add current user message
-	ollamaMessages = append(ollamaMessages, OllamaMessage{
-		Role:    "user",
-		Content: userMessage,
-	})
+	// Current user message is already in history, no need to add it again
 
 	// Prepare Ollama request
 	model := "llama3.2"

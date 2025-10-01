@@ -707,7 +707,7 @@ func (d *Database) GetPendingEscalations(chatbotID string) ([]Escalation, error)
 // UpdateEscalationStatus updates the status of an escalation
 func (d *Database) UpdateEscalationStatus(escalationID, status, notes string) error {
 	query := `
-		UPDATE escalations 
+		UPDATE escalations
 		SET status = $1, resolution_notes = $2, resolved_at = $3
 		WHERE id = $4
 	`
@@ -720,4 +720,53 @@ func (d *Database) UpdateEscalationStatus(escalationID, status, notes string) er
 
 	_, err := d.db.Exec(query, status, notes, resolvedAt, escalationID)
 	return err
+}
+
+// ValidateAPIKey validates an API key and returns the associated tenant
+func (d *Database) ValidateAPIKey(apiKey string) (*Tenant, error) {
+	// First try to find the API key in the tenants table (simple API key)
+	query := `
+		SELECT id, name, slug, description, config, plan,
+		       max_chatbots, max_conversations_per_month, is_active,
+		       created_at, updated_at
+		FROM tenants
+		WHERE api_key = $1 AND is_active = true
+		LIMIT 1
+	`
+
+	var tenant Tenant
+	var configJSON, descriptionNull sql.NullString
+
+	err := d.db.QueryRow(query, apiKey).Scan(
+		&tenant.ID,
+		&tenant.Name,
+		&tenant.Slug,
+		&descriptionNull,
+		&configJSON,
+		&tenant.Plan,
+		&tenant.MaxChatbots,
+		&tenant.MaxConversationsPerMonth,
+		&tenant.IsActive,
+		&tenant.CreatedAt,
+		&tenant.UpdatedAt,
+	)
+
+	if err == nil {
+		// Found tenant with this API key
+		if descriptionNull.Valid {
+			tenant.Description = descriptionNull.String
+		}
+		if configJSON.Valid && configJSON.String != "" {
+			json.Unmarshal([]byte(configJSON.String), &tenant.Config)
+		}
+		return &tenant, nil
+	}
+
+	// If not found in tenants table, we could check api_keys table with hashing
+	// For now, return nil if not found
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("invalid API key")
+	}
+
+	return nil, err
 }

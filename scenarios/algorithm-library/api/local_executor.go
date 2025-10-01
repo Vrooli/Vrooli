@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -113,8 +114,61 @@ except Exception as e:
 
 // ExecuteGo executes Go code locally
 func (e *LocalExecutor) ExecuteGo(code string, stdin string) (*LocalExecutionResult, error) {
-	// Create a complete Go program
-	fullCode := fmt.Sprintf(`
+	// Detect if the code is a function definition
+	isFunction := strings.Contains(code, "func ") && !strings.Contains(code, "func main")
+
+	var fullCode string
+	if isFunction {
+		// If it's a function, place it outside main and call it
+		// Extract function name (assumes format: func functionName(...))
+		funcNameRegex := regexp.MustCompile(`func\s+(\w+)\s*\(`)
+		matches := funcNameRegex.FindStringSubmatch(code)
+		funcName := ""
+		if len(matches) > 1 {
+			funcName = matches[1]
+		}
+
+		// Create program that defines the function and calls it
+		fullCode = fmt.Sprintf(`
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
+%s
+
+func main() {
+	// Parse input for sorting algorithms
+	var input map[string]interface{}
+	decoder := json.NewDecoder(os.Stdin)
+	if err := decoder.Decode(&input); err == nil {
+		if arr, ok := input["arr"].([]interface{}); ok {
+			// Convert to int array
+			intArr := make([]int, len(arr))
+			for i, v := range arr {
+				if num, ok := v.(float64); ok {
+					intArr[i] = int(num)
+				}
+			}
+			// Call the function
+			result := %s(intArr)
+			// Output result as JSON
+			output, _ := json.Marshal(result)
+			fmt.Println(string(output))
+			return
+		}
+	}
+
+	// Fallback for non-JSON input
+	fmt.Println("[]")
+}
+`, code, funcName)
+	} else {
+		// If it's not a function, embed it directly in main
+		fullCode = fmt.Sprintf(`
 package main
 
 import (
@@ -126,11 +180,12 @@ func main() {
 	// Set up stdin
 	os.Stdin.Close()
 	os.Stdin = os.NewFile(0, "stdin")
-	
+
 	// User code
 	%s
 }
 `, code)
+	}
 
 	// Write to temporary file
 	tmpFile := "/tmp/algo_exec_" + fmt.Sprintf("%d", time.Now().UnixNano()) + ".go"

@@ -36,7 +36,6 @@ import {
   X,
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
-import { Header } from './components/Header';
 import { Dashboard } from './pages/Dashboard';
 import { IssuesBoard, columnMeta as issueColumnMeta } from './pages/IssuesBoard';
 import { SettingsPage } from './pages/Settings';
@@ -630,14 +629,13 @@ function getInitialNavKey(): NavKey {
 function App() {
   const isMountedRef = useRef(true);
   const [activeNav, setActiveNav] = useState<NavKey>(() => getInitialNavKey());
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [processorSettings, setProcessorSettings] = useState<ProcessorSettings>(SampleData.processor);
   const [agentSettings, setAgentSettings] = useState(AppSettings.agent);
   const [displaySettings, setDisplaySettings] = useState(AppSettings.display);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilterValue>('all');
   const [appFilter, setAppFilter] = useState<string>('all');
-  const [hiddenColumns, setHiddenColumns] = useState<IssueStatus[]>([]);
+  const [hiddenColumns, setHiddenColumns] = useState<IssueStatus[]>(['archived']);
   const [createIssueOpen, setCreateIssueOpen] = useState(false);
   const [issueDetailOpen, setIssueDetailOpen] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>(DEFAULT_STATS);
@@ -654,10 +652,6 @@ function App() {
   const [focusedIssueId, setFocusedIssueId] = useState<string | null>(() => getIssueIdFromLocation());
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
-
-  const toggleSidebar = useCallback(() => {
-    setSidebarCollapsed((state) => !state);
-  }, []);
 
   const showSnackbar = useCallback((message: string, tone: SnackbarTone = 'info') => {
     setSnackbar({ message, tone });
@@ -1226,10 +1220,6 @@ function App() {
         setIssueDetailOpen(false);
       }
 
-      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-        setSidebarCollapsed(true);
-      }
-
       if (typeof window === 'undefined') {
         return;
       }
@@ -1367,32 +1357,6 @@ function App() {
     void saveAgentBackendSettings();
   }, [agentSettings.backend, showSnackbar]);
 
-  const headerRightContent = useMemo(() => {
-    if (activeNav === 'issues') {
-      return null;
-    }
-
-    return (
-      <>
-        <button
-          type="button"
-          className={`icon-button icon-button--status ${processorSettings.active ? 'is-active' : ''}`.trim()}
-          onClick={handleToggleActive}
-          aria-label={processorSettings.active ? 'Pause issue automation' : 'Activate issue automation'}
-        >
-          {processorSettings.active ? <Pause size={18} /> : <Play size={18} />}
-        </button>
-        <button
-          type="button"
-          className="icon-button icon-button--primary"
-          onClick={handleCreateIssue}
-          aria-label="Create new issue"
-        >
-          <Plus size={18} />
-        </button>
-      </>
-    );
-  }, [activeNav, processorSettings.active, handleToggleActive, handleCreateIssue]);
 
   const renderedPage = useMemo(() => {
     switch (activeNav) {
@@ -1458,18 +1422,21 @@ function App() {
     <>
       <div className={`app-shell ${displaySettings.theme}`}>
         <Sidebar
-          collapsed={sidebarCollapsed}
           items={navItems}
           activeItem={activeNav}
           onSelect={handleNavSelect}
-          onToggle={toggleSidebar}
         />
         <div className="main-panel">
-          <Header
-            sidebarCollapsed={sidebarCollapsed}
-            onSidebarToggle={toggleSidebar}
-            rightContent={headerRightContent}
-          />
+          {rateLimitStatus?.rate_limited && rateLimitStatus.seconds_until_reset > 0 && (
+            <div className="rate-limit-banner">
+              <Clock size={18} style={{ marginRight: '8px' }} />
+              <span>
+                Rate limit active ({rateLimitStatus.rate_limited_count} issue{rateLimitStatus.rate_limited_count !== 1 ? 's' : ''} waiting) - Resets in{' '}
+                {Math.floor(rateLimitStatus.seconds_until_reset / 60)}m {rateLimitStatus.seconds_until_reset % 60}s
+                {rateLimitStatus.rate_limit_agent && ` (${rateLimitStatus.rate_limit_agent})`}
+              </span>
+            </div>
+          )}
           <main
             className={`page-container ${activeNav === 'issues' ? 'page-container--issues' : ''}`.trim()}
           >
@@ -1480,16 +1447,6 @@ function App() {
                 <button type="button" onClick={() => void fetchAllData()}>
                   Retry
                 </button>
-              </div>
-            )}
-            {rateLimitStatus?.rate_limited && rateLimitStatus.seconds_until_reset > 0 && (
-              <div className="data-banner warning" style={{ backgroundColor: '#f59e0b', color: '#fff' }}>
-                <Clock size={18} style={{ marginRight: '8px' }} />
-                <span>
-                  Rate limit active ({rateLimitStatus.rate_limited_count} issue{rateLimitStatus.rate_limited_count !== 1 ? 's' : ''} waiting) - Resets in{' '}
-                  {Math.floor(rateLimitStatus.seconds_until_reset / 60)}m {rateLimitStatus.seconds_until_reset % 60}s
-                  {rateLimitStatus.rate_limit_agent && ` (${rateLimitStatus.rate_limit_agent})`}
-                </span>
               </div>
             )}
             {renderedPage}
