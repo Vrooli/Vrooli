@@ -60,8 +60,8 @@ func configureAPI() {
   <expected-message>Sensitive environment variable logged</expected-message>
 </test-case>
 
-<test-case id="env-with-defaults" should-fail="false" path="api/service/main.go">
-  <description>Environment variable with sensible defaults</description>
+<test-case id="port-with-dangerous-default" should-fail="true" path="api/service/main.go">
+  <description>PORT variable with dangerous default (ports are dynamically allocated)</description>
   <input language="go">
 func getPort() string {
     port := os.Getenv("PORT")
@@ -69,6 +69,21 @@ func getPort() string {
         port = "8080"
     }
     return port
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>PORT</expected-message>
+</test-case>
+
+<test-case id="app-name-with-safe-default" should-fail="false" path="api/service/main.go">
+  <description>Non-port/non-sensitive variable with safe default</description>
+  <input language="go">
+func getAppName() string {
+    name := os.Getenv("APP_NAME")
+    if name == "" {
+        name = "default-app"
+    }
+    return name
 }
   </input>
 </test-case>
@@ -192,12 +207,136 @@ func setup() {
   <expected-violations>1</expected-violations>
   <expected-message>API_KEY</expected-message>
 </test-case>
+
+<test-case id="optional-debug-no-validation" should-fail="false" path="api/service/main.go">
+  <description>Optional DEBUG variable needs no validation (empty is valid)</description>
+  <input language="go">
+func isDebugMode() bool {
+    debug := os.Getenv("DEBUG")
+    return debug == "true"
+}
+  </input>
+</test-case>
+
+<test-case id="api-key-dangerous-default" should-fail="true" path="api/service/main.go">
+  <description>API_KEY with dangerous hardcoded default</description>
+  <input language="go">
+func getAPIKey() string {
+    apiKey := os.Getenv("API_KEY")
+    if apiKey == "" {
+        apiKey = "default-key-123"
+    }
+    return apiKey
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>API_KEY</expected-message>
+</test-case>
+
+<test-case id="database-url-dangerous-default" should-fail="true" path="api/service/main.go">
+  <description>DATABASE_URL with dangerous default</description>
+  <input language="go">
+func connectDB() {
+    dbURL := os.Getenv("DATABASE_URL")
+    if dbURL == "" {
+        dbURL = "postgres://localhost/defaultdb"
+    }
+    connect(dbURL)
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>DATABASE_URL</expected-message>
+</test-case>
+
+<test-case id="bash-port-default" should-fail="true" path="cli/setup.sh">
+  <description>Bash PORT with dangerous default substitution</description>
+  <input language="bash">
+#!/usr/bin/env bash
+PORT="${PORT:-8080}"
+echo "Starting on ${PORT}"
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>PORT</expected-message>
+</test-case>
+
+<test-case id="bash-debug-default" should-fail="false" path="cli/setup.sh">
+  <description>Bash DEBUG with safe default (optional variable)</description>
+  <input language="bash">
+#!/usr/bin/env bash
+DEBUG="${DEBUG:-false}"
+if [ "$DEBUG" = "true" ]; then
+  set -x
+fi
+  </input>
+</test-case>
+
+<test-case id="js-port-default" should-fail="true" path="ui/src/config.ts">
+  <description>JavaScript PORT with dangerous default using OR operator</description>
+  <input language="javascript">
+const port = process.env.PORT || '8080';
+server.listen(port);
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>PORT</expected-message>
+</test-case>
+
+<test-case id="js-debug-default" should-fail="false" path="ui/src/config.ts">
+  <description>JavaScript DEBUG with safe default (optional variable)</description>
+  <input language="javascript">
+const debug = process.env.DEBUG || 'false';
+if (debug === 'true') {
+  console.log('Debug mode enabled');
+}
+  </input>
+</test-case>
+
+<test-case id="comment-override-optional" should-fail="false" path="api/service/main.go">
+  <description>Comment override makes PORT optional</description>
+  <input language="go">
+func getPort() string {
+    // vrooli:env:optional
+    port := os.Getenv("CUSTOM_PORT")
+    if port == "" {
+        port = "8080"
+    }
+    return port
+}
+  </input>
+</test-case>
+
+<test-case id="comment-override-no-defaults" should-fail="true" path="api/service/main.go">
+  <description>Comment override enforces no-defaults</description>
+  <input language="go">
+func getConfig() string {
+    // vrooli:env:no-defaults
+    config := os.Getenv("CUSTOM_VAR")
+    if config == "" {
+        config = "default"
+    }
+    return config
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>CUSTOM_VAR</expected-message>
+</test-case>
 */
 
 const (
 	langGo   = "go"
 	langBash = "bash"
 	langJS   = "js"
+)
+
+// VarCategory represents the category of an environment variable
+type VarCategory int
+
+const (
+	// CategoryNoDefaults: Variables where default values are dangerous (ports, secrets)
+	CategoryNoDefaults VarCategory = iota
+	// CategoryValidationRequired: Variables that need validation but can have safe defaults
+	CategoryValidationRequired
+	// CategoryOptional: Variables where empty is a valid value
+	CategoryOptional
 )
 
 type EnvValidationRule struct{}
@@ -209,10 +348,14 @@ type envUsage struct {
 }
 
 type envAcc struct {
-	first      int
-	validated  bool
-	logged     bool
-	loggedLine int
+	first         int
+	validated     bool
+	logged        bool
+	loggedLine    int
+	hasDefault    bool
+	defaultLine   int
+	defaultValue  string
+	category      VarCategory
 }
 
 var (
@@ -326,6 +469,8 @@ func checkGoEnvValidation(content, filepath string) []Violation {
 			envVar := pair.envVar
 			assignedVar := pair.assignedVar
 
+			// Categorize the variable
+			category := categorizeEnvVar(envVar, lines, i)
 			sensitiveVar := isSensitiveVar(envVar)
 			hasValidation := false
 			logLine := -1
@@ -364,9 +509,12 @@ func checkGoEnvValidation(content, filepath string) []Violation {
 				}
 			}
 
+			// Check for dangerous defaults
+			hasDefault, defaultLine, defaultValue := detectsDefaultAssignment(lines, i, assignedVar)
+
 			state := acc[envVar]
 			if state == nil {
-				state = &envAcc{first: i, loggedLine: -1}
+				state = &envAcc{first: i, loggedLine: -1, defaultLine: -1, category: category}
 				acc[envVar] = state
 			} else if i < state.first {
 				state.first = i
@@ -380,20 +528,42 @@ func checkGoEnvValidation(content, filepath string) []Violation {
 					state.loggedLine = logLine
 				}
 			}
+			if hasDefault {
+				state.hasDefault = true
+				state.defaultValue = defaultValue
+				if state.defaultLine == -1 || defaultLine < state.defaultLine {
+					state.defaultLine = defaultLine
+				}
+			}
 		}
 	}
 
 	seen := make(map[string]bool)
 	var violations []Violation
 	for envVar, state := range acc {
+		// Check for sensitive logging violation (highest priority)
 		logged := false
 		if state.logged && state.loggedLine >= 0 {
 			appendViolation(&violations, seen, newSensitiveViolation(filepath, state.loggedLine+1, envVar))
 			logged = true
 		}
-		if !state.validated && !logged {
-			appendViolation(&violations, seen, newValidationViolation(filepath, state.first+1, envVar))
+
+		// Check for dangerous default violation
+		if state.hasDefault && state.category == CategoryNoDefaults {
+			appendViolation(&violations, seen, newDangerousDefaultViolation(filepath, state.defaultLine+1, envVar, state.defaultValue))
+		} else if state.category == CategoryValidationRequired {
+			// For validation-required vars, default counts as validation
+			// So if hasDefault, we don't need to check for missing validation
+			if !state.hasDefault && !state.validated && !logged {
+				appendViolation(&violations, seen, newValidationViolation(filepath, state.first+1, envVar))
+			}
+		} else if state.category == CategoryNoDefaults {
+			// For no-defaults category without default, still need validation
+			if !state.validated && !logged {
+				appendViolation(&violations, seen, newValidationViolation(filepath, state.first+1, envVar))
+			}
 		}
+		// CategoryOptional: no violations for missing validation
 	}
 
 	return violations
@@ -410,13 +580,18 @@ func checkBashEnvValidation(content, filepath string) []Violation {
 
 	for _, usage := range usages {
 		envVar := strings.ToUpper(usage.envVar)
+		category := categorizeEnvVar(envVar, lines, usage.lineIndex)
 		sensitive := isSensitiveVar(envVar)
 		hasValidation := bashHasValidation(lines, usage)
 		logged, logLine := bashLogsSensitive(lines, usage)
 
+		// Check for bash default substitution syntax
+		line := lines[usage.lineIndex]
+		hasDefault, defaultValue := bashHasDefault(line, envVar)
+
 		state := acc[envVar]
 		if state == nil {
-			state = &envAcc{first: usage.lineIndex, loggedLine: -1}
+			state = &envAcc{first: usage.lineIndex, loggedLine: -1, defaultLine: -1, category: category}
 			acc[envVar] = state
 		} else if usage.lineIndex < state.first {
 			state.first = usage.lineIndex
@@ -431,19 +606,40 @@ func checkBashEnvValidation(content, filepath string) []Violation {
 				state.loggedLine = logLine
 			}
 		}
+		if hasDefault {
+			state.hasDefault = true
+			state.defaultValue = defaultValue
+			if state.defaultLine == -1 || usage.lineIndex < state.defaultLine {
+				state.defaultLine = usage.lineIndex
+			}
+		}
 	}
 
 	seen := make(map[string]bool)
 	var violations []Violation
 	for envVar, state := range acc {
+		// Check for sensitive logging violation
 		logged := false
 		if state.logged && state.loggedLine >= 0 {
 			appendViolation(&violations, seen, newSensitiveViolation(filepath, state.loggedLine+1, envVar))
 			logged = true
 		}
-		if !state.validated && !logged {
-			appendViolation(&violations, seen, newValidationViolation(filepath, state.first+1, envVar))
+
+		// Check for dangerous default violation
+		if state.hasDefault && state.category == CategoryNoDefaults {
+			appendViolation(&violations, seen, newDangerousDefaultViolation(filepath, state.defaultLine+1, envVar, state.defaultValue))
+		} else if state.category == CategoryValidationRequired {
+			// For validation-required vars, default counts as validation
+			if !state.hasDefault && !state.validated && !logged {
+				appendViolation(&violations, seen, newValidationViolation(filepath, state.first+1, envVar))
+			}
+		} else if state.category == CategoryNoDefaults {
+			// For no-defaults category without default, still need validation
+			if !state.validated && !logged {
+				appendViolation(&violations, seen, newValidationViolation(filepath, state.first+1, envVar))
+			}
 		}
+		// CategoryOptional: no violations
 	}
 
 	return violations
@@ -464,13 +660,17 @@ func checkJSEnvValidation(content, filepath string) []Violation {
 
 	for _, usage := range usages {
 		envVar := strings.ToUpper(usage.envVar)
+		category := categorizeEnvVar(envVar, lines, usage.lineIndex)
 		sensitive := isSensitiveVar(envVar)
 		hasValidation := jsHasValidation(lines, usage)
 		logged, logLine := jsLogsSensitive(lines, usage)
 
+		// Check for JS/TS default patterns
+		hasDefault, defaultLine, defaultValue := jsHasDefault(lines, usage.lineIndex, usage.assigned, envVar)
+
 		state := acc[envVar]
 		if state == nil {
-			state = &envAcc{first: usage.lineIndex, loggedLine: -1}
+			state = &envAcc{first: usage.lineIndex, loggedLine: -1, defaultLine: -1, category: category}
 			acc[envVar] = state
 		} else if usage.lineIndex < state.first {
 			state.first = usage.lineIndex
@@ -485,19 +685,40 @@ func checkJSEnvValidation(content, filepath string) []Violation {
 				state.loggedLine = logLine
 			}
 		}
+		if hasDefault {
+			state.hasDefault = true
+			state.defaultValue = defaultValue
+			if state.defaultLine == -1 || defaultLine < state.defaultLine {
+				state.defaultLine = defaultLine
+			}
+		}
 	}
 
 	seen := make(map[string]bool)
 	var violations []Violation
 	for envVar, state := range acc {
+		// Check for sensitive logging violation
 		logged := false
 		if state.logged && state.loggedLine >= 0 {
 			appendViolation(&violations, seen, newSensitiveViolation(filepath, state.loggedLine+1, envVar))
 			logged = true
 		}
-		if !state.validated && !logged {
-			appendViolation(&violations, seen, newValidationViolation(filepath, state.first+1, envVar))
+
+		// Check for dangerous default violation
+		if state.hasDefault && state.category == CategoryNoDefaults {
+			appendViolation(&violations, seen, newDangerousDefaultViolation(filepath, state.defaultLine+1, envVar, state.defaultValue))
+		} else if state.category == CategoryValidationRequired {
+			// For validation-required vars, default counts as validation
+			if !state.hasDefault && !state.validated && !logged {
+				appendViolation(&violations, seen, newValidationViolation(filepath, state.first+1, envVar))
+			}
+		} else if state.category == CategoryNoDefaults {
+			// For no-defaults category without default, still need validation
+			if !state.validated && !logged {
+				appendViolation(&violations, seen, newValidationViolation(filepath, state.first+1, envVar))
+			}
 		}
+		// CategoryOptional: no violations
 	}
 
 	return violations
@@ -749,6 +970,23 @@ func newSensitiveViolation(file string, line int, envVar string) Violation {
 	}
 }
 
+func newDangerousDefaultViolation(file string, line int, envVar string, defaultValue string) Violation {
+	msg := fmt.Sprintf("Environment variable must not have default value: %s (default: %s)", envVar, defaultValue)
+	return Violation{
+		RuleID:         "env_validation",
+		Type:           "dangerous_env_default",
+		Severity:       "high",
+		Title:          "Dangerous default value for critical environment variable",
+		Message:        msg,
+		Description:    msg,
+		FilePath:       file,
+		LineNumber:     line,
+		Standard:       "OWASP",
+		Category:       "config",
+		Recommendation: "This variable requires explicit configuration. Fail fast when missing instead of using defaults. For ports and secrets, defaults are dangerous as they may conflict or expose security risks.",
+	}
+}
+
 func containsVarReference(line, envVar string) bool {
 	if strings.Contains(line, "${"+envVar+"}") {
 		return true
@@ -854,4 +1092,372 @@ func isSensitiveVar(name string) bool {
 	}
 
 	return false
+}
+
+// isPortVar checks if a variable name refers to a port
+func isPortVar(name string) bool {
+	upper := strings.ToUpper(name)
+
+	// Exact match
+	if upper == "PORT" {
+		return true
+	}
+
+	// Starts or ends with PORT + separator
+	if strings.HasPrefix(upper, "PORT_") || strings.HasSuffix(upper, "_PORT") {
+		return true
+	}
+
+	// Contains PORT with word boundaries (e.g., API_PORT, HTTP_PORT)
+	// Avoid false positives like REPORT_PATH
+	if strings.Contains(upper, "_PORT_") || strings.Contains(upper, "_PORT") {
+		return true
+	}
+
+	return false
+}
+
+// isCriticalURLVar checks if a variable is a critical connection URL
+func isCriticalURLVar(name string) bool {
+	upper := strings.ToUpper(name)
+
+	// Must end with _URL, _DSN, or _CONNECTION
+	if !strings.HasSuffix(upper, "_URL") &&
+	   !strings.HasSuffix(upper, "_DSN") &&
+	   !strings.HasSuffix(upper, "_CONNECTION") {
+		return false
+	}
+
+	// Must contain a database/service keyword
+	criticalServices := []string{
+		"DB", "DATABASE", "POSTGRES", "MYSQL", "MONGO", "REDIS",
+		"ELASTIC", "KAFKA", "RABBIT", "MQ",
+	}
+
+	for _, service := range criticalServices {
+		if strings.Contains(upper, service) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isOptionalVar checks if a variable is optional (empty is valid)
+func isOptionalVar(name string) bool {
+	upper := strings.ToUpper(name)
+
+	// Exact matches for common optional vars
+	optionalExact := []string{"DEBUG", "VERBOSE", "TRACE"}
+	for _, opt := range optionalExact {
+		if upper == opt {
+			return true
+		}
+	}
+
+	// Prefix patterns indicating optional behavior
+	optionalPrefixes := []string{
+		"DEBUG_", "VERBOSE_", "TRACE_",
+		"FEATURE_", "ENABLE_", "DISABLE_",
+		"OPT_", "OPTIONAL_",
+		"DRY_RUN", "SKIP_", "NO_",
+		"LOG_LEVEL", "LOG_FORMAT",
+	}
+
+	for _, prefix := range optionalPrefixes {
+		if strings.HasPrefix(upper, prefix) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// checkCommentOverride checks for comment-based category overrides
+// Looks at the previous line for comments like: // vrooli:env:optional
+func checkCommentOverride(lines []string, lineIndex int) (VarCategory, bool) {
+	if lineIndex == 0 {
+		return CategoryOptional, false
+	}
+
+	prevLine := strings.TrimSpace(lines[lineIndex-1])
+
+	// Check for Go/JS style comments
+	if strings.HasPrefix(prevLine, "//") {
+		if strings.Contains(prevLine, "vrooli:env:optional") {
+			return CategoryOptional, true
+		}
+		if strings.Contains(prevLine, "vrooli:env:no-defaults") {
+			return CategoryNoDefaults, true
+		}
+		if strings.Contains(prevLine, "vrooli:env:required") {
+			return CategoryValidationRequired, true
+		}
+	}
+
+	// Check for bash/shell style comments
+	if strings.HasPrefix(prevLine, "#") {
+		if strings.Contains(prevLine, "vrooli:env:optional") {
+			return CategoryOptional, true
+		}
+		if strings.Contains(prevLine, "vrooli:env:no-defaults") {
+			return CategoryNoDefaults, true
+		}
+		if strings.Contains(prevLine, "vrooli:env:required") {
+			return CategoryValidationRequired, true
+		}
+	}
+
+	return CategoryOptional, false
+}
+
+// categorizeEnvVar determines the category of an environment variable
+func categorizeEnvVar(name string, lines []string, lineIndex int) VarCategory {
+	// First check for comment overrides (highest priority)
+	if category, found := checkCommentOverride(lines, lineIndex); found {
+		return category
+	}
+
+	// Check for NO_DEFAULTS_ALLOWED category
+	if isSensitiveVar(name) || isPortVar(name) || isCriticalURLVar(name) {
+		return CategoryNoDefaults
+	}
+
+	// Check for OPTIONAL category
+	if isOptionalVar(name) {
+		return CategoryOptional
+	}
+
+	// Default to VALIDATION_REQUIRED
+	return CategoryValidationRequired
+}
+
+// detectsDefaultAssignment checks if a default value is assigned in a validation block (Go)
+// Returns (hasDefault, lineNumber, defaultValue)
+func detectsDefaultAssignment(lines []string, startLine int, assignedVar string) (bool, int, string) {
+	// Look for validation block starting from startLine
+	// Then scan inside the block for assignments to assignedVar
+
+	maxLook := startLine + 8
+	if maxLook > len(lines) {
+		maxLook = len(lines)
+	}
+
+	inValidationBlock := false
+
+	for i := startLine; i < maxLook; i++ {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+
+		lower := strings.ToLower(line)
+		containsVar := strings.Contains(line, assignedVar) || strings.Contains(lower, strings.ToLower(assignedVar))
+
+		// Check if this is the start of a validation block
+		if strings.HasPrefix(lower, "if") && containsVar {
+			if strings.Contains(line, `== ""`) || strings.Contains(line, `== ''`) ||
+				strings.Contains(line, "len("+assignedVar+") == 0") {
+				inValidationBlock = true
+
+				// Check same line for inline assignment: if x == "" { x = "default" }
+				if strings.Contains(line, "{") && strings.Contains(line, assignedVar+" =") {
+					// Extract value after =
+					if val := extractGoDefaultValue(line, assignedVar); val != "" {
+						return true, i, val
+					}
+				}
+				continue
+			}
+		}
+
+		// If we're in a validation block, look for assignments
+		if inValidationBlock {
+			// Check for closing brace (end of block)
+			if strings.Contains(line, "}") && !strings.Contains(line, "{") {
+				// Exit validation block
+				break
+			}
+
+			// Look for assignment patterns - try to extract value
+			// This handles: "varName = val", "varName=val", "varName := val"
+			if val := extractGoDefaultValue(line, assignedVar); val != "" {
+				// Make sure it's actually an assignment, not a comparison
+				if !strings.Contains(line, "==") && !strings.Contains(line, "!=") {
+					return true, i, val
+				}
+			}
+		}
+	}
+
+	return false, -1, ""
+}
+
+// extractGoDefaultValue extracts the default value from a Go assignment line
+func extractGoDefaultValue(line, varName string) string {
+	// Look for patterns: varName = "value" or varName := "value" or varName="value"
+	// Try with spaces first, then without
+	assignOps := []string{" = ", " := ", "=", ":="}
+
+	for _, op := range assignOps {
+		pattern := varName + op
+		if idx := strings.Index(line, pattern); idx >= 0 {
+			// Get everything after the operator
+			afterOp := strings.TrimSpace(line[idx+len(pattern):])
+
+			// Extract until semicolon, comment, or end of line
+			for _, endChar := range []string{";", "//"} {
+				if endIdx := strings.Index(afterOp, endChar); endIdx >= 0 {
+					afterOp = afterOp[:endIdx]
+					break
+				}
+			}
+
+			afterOp = strings.TrimSpace(afterOp)
+
+			// Ignore empty string assignments (no-op)
+			if afterOp == `""` || afterOp == "''" || afterOp == "" {
+				return ""
+			}
+
+			return afterOp
+		}
+	}
+
+	return ""
+}
+
+// bashHasDefault checks if a bash line uses default substitution syntax
+// Returns (hasDefault, defaultValue)
+func bashHasDefault(line string, envVar string) (bool, string) {
+	upper := strings.ToUpper(envVar)
+	lower := strings.ToLower(envVar)
+
+	// Check for ${VAR:-default}, ${VAR-default}, ${VAR:=default}
+	patterns := []struct{
+		prefix string
+		suffix string
+	}{
+		{"${" + upper + ":-", "}"},
+		{"${" + upper + "-", "}"},
+		{"${" + upper + ":=", "}"},
+		{"${" + lower + ":-", "}"},
+		{"${" + lower + "-", "}"},
+		{"${" + lower + ":=", "}"},
+	}
+
+	for _, pattern := range patterns {
+		if idx := strings.Index(line, pattern.prefix); idx >= 0 {
+			start := idx + len(pattern.prefix)
+			// Find the closing brace
+			if endIdx := strings.Index(line[start:], pattern.suffix); endIdx >= 0 {
+				defaultVal := strings.TrimSpace(line[start : start+endIdx])
+				// Ignore empty defaults
+				if defaultVal != "" && defaultVal != `""` && defaultVal != "''" {
+					return true, defaultVal
+				}
+			}
+		}
+	}
+
+	return false, ""
+}
+
+// jsHasDefault checks if JavaScript/TypeScript code uses default value patterns
+// Returns (hasDefault, lineNumber, defaultValue)
+func jsHasDefault(lines []string, startLine int, assignedVar string, envVar string) (bool, int, string) {
+	line := lines[startLine]
+
+	// Pattern 1: const port = process.env.PORT || 'default'
+	if strings.Contains(line, "||") {
+		parts := strings.Split(line, "||")
+		if len(parts) == 2 {
+			defaultVal := strings.TrimSpace(parts[1])
+			// Remove trailing semicolon
+			defaultVal = strings.TrimRight(defaultVal, ";")
+			if defaultVal != "" && defaultVal != `""` && defaultVal != "''" {
+				return true, startLine, defaultVal
+			}
+		}
+	}
+
+	// Pattern 2: const port = process.env.PORT ?? 'default' (nullish coalescing)
+	if strings.Contains(line, "??") {
+		parts := strings.Split(line, "??")
+		if len(parts) == 2 {
+			defaultVal := strings.TrimSpace(parts[1])
+			defaultVal = strings.TrimRight(defaultVal, ";")
+			if defaultVal != "" && defaultVal != `""` && defaultVal != "''" {
+				return true, startLine, defaultVal
+			}
+		}
+	}
+
+	// Pattern 3: Ternary operator - process.env.PORT ? process.env.PORT : 'default'
+	if strings.Contains(line, "?") && strings.Contains(line, ":") {
+		// This is complex to parse correctly, so we'll use a simple heuristic
+		// If line contains process.env and has ternary, likely has a default
+		if strings.Contains(line, "process.env."+envVar) || strings.Contains(line, "process.env."+strings.ToLower(envVar)) {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 2 {
+				defaultVal := strings.TrimSpace(parts[len(parts)-1])
+				defaultVal = strings.TrimRight(defaultVal, ";")
+				if defaultVal != "" && defaultVal != `""` && defaultVal != "''" {
+					return true, startLine, defaultVal
+				}
+			}
+		}
+	}
+
+	// Pattern 4: if (!varName) { varName = 'default' }
+	maxLook := startLine + 8
+	if maxLook > len(lines) {
+		maxLook = len(lines)
+	}
+
+	for i := startLine; i < maxLook; i++ {
+		checkLine := strings.TrimSpace(lines[i])
+		lower := strings.ToLower(checkLine)
+
+		// Check for if (!varName) or if (varName === undefined) etc
+		if strings.HasPrefix(lower, "if") {
+			containsVar := strings.Contains(checkLine, assignedVar)
+			hasNegation := strings.Contains(checkLine, "!"+assignedVar) ||
+				strings.Contains(lower, strings.ToLower(assignedVar)+" === undefined") ||
+				strings.Contains(lower, strings.ToLower(assignedVar)+" == null")
+
+			if containsVar && hasNegation {
+				// Look in next few lines for assignment
+				for j := i + 1; j < maxLook && j < i+4; j++ {
+					assignLine := strings.TrimSpace(lines[j])
+					if strings.Contains(assignLine, assignedVar+" =") {
+						if val := extractJSDefaultValue(assignLine, assignedVar); val != "" {
+							return true, j, val
+						}
+					}
+					// Stop at closing brace
+					if strings.Contains(assignLine, "}") {
+						break
+					}
+				}
+			}
+		}
+	}
+
+	return false, -1, ""
+}
+
+// extractJSDefaultValue extracts the default value from a JavaScript assignment
+func extractJSDefaultValue(line, varName string) string {
+	pattern := varName + " ="
+	if idx := strings.Index(line, pattern); idx >= 0 {
+		afterEq := strings.TrimSpace(line[idx+len(pattern):])
+		// Remove trailing semicolon or comma
+		afterEq = strings.TrimRight(afterEq, ";,")
+
+		if afterEq != "" && afterEq != `""` && afterEq != "''" {
+			return afterEq
+		}
+	}
+	return ""
 }

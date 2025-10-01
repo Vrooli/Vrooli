@@ -412,6 +412,18 @@ class ApiService {
     return this.fetch('/rules/test-coverage')
   }
 
+  async reportRuleIssue(payload: {
+    reportType: 'add_tests' | 'fix_tests' | 'fix_violations'
+    ruleId: string
+    customInstructions: string
+    selectedScenarios: string[]
+  }): Promise<{ issueId: string; issueUrl?: string; message: string }> {
+    return this.fetch('/rules/report-issue', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
   async getResults(): Promise<any> {
     return this.fetch('/scan-results')
   }

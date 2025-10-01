@@ -121,6 +121,10 @@ func initializeComponents() error {
 	storage = tasks.NewStorage(queueDir)
 	log.Println("✅ Task storage initialized")
 	systemlog.Info("Task storage initialized")
+	if err := storage.CleanupDuplicates(); err != nil {
+		log.Printf("Warning: duplicate task cleanup encountered issues: %v", err)
+		systemlog.Warnf("Duplicate task cleanup encountered issues: %v", err)
+	}
 
 	// Initialize prompts assembler
 	assembler, err = prompts.NewAssembler(promptsDir)

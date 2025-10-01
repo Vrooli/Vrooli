@@ -54,6 +54,14 @@ func (l *Logger) Info(msg string) {
 	l.Printf("INFO: %s", msg)
 }
 
+func (l *Logger) Warn(msg string, fields map[string]interface{}) {
+	if len(fields) > 0 {
+		l.Printf("WARN: %s %+v", msg, fields)
+	} else {
+		l.Printf("WARN: %s", msg)
+	}
+}
+
 // HTTPError sends structured error response
 func HTTPError(w http.ResponseWriter, message string, statusCode int, err error) {
 	logger := NewLogger()
@@ -341,12 +349,12 @@ func main() {
 	api.HandleFunc("/claude/fix/preview", previewClaudeFixHandler).Methods("POST")
 	api.HandleFunc("/claude/fix/{fixId}/status", getClaudeFixStatusHandler).Methods("GET")
 
-	// Agent management endpoints (for agent-dashboard integration)
-	api.HandleFunc("/agents", getAgentsHandler).Methods("GET")
-	api.HandleFunc("/agents", startAgentHandler).Methods("POST")
-	api.HandleFunc("/rules/{ruleId}/agents", startAgentHandler).Methods("POST")
-	api.HandleFunc("/agents/{agentId}/stop", stopAgentHandler).Methods("POST")
-	api.HandleFunc("/agents/{agentId}/logs", getAgentLogsHandler).Methods("GET")
+	// DEPRECATED: Agent management endpoints (replaced by app-issue-tracker integration)
+	// api.HandleFunc("/agents", getAgentsHandler).Methods("GET")
+	// api.HandleFunc("/agents", startAgentHandler).Methods("POST")
+	// api.HandleFunc("/rules/{ruleId}/agents", startAgentHandler).Methods("POST")
+	// api.HandleFunc("/agents/{agentId}/stop", stopAgentHandler).Methods("POST")
+	// api.HandleFunc("/agents/{agentId}/logs", getAgentLogsHandler).Methods("GET")
 
 	// NEW: Rules management endpoints for scenario-auditor
 	// IMPORTANT: Specific routes must come before parameterized routes to avoid conflicts
@@ -356,6 +364,7 @@ func main() {
 	api.HandleFunc("/rules/categories", getRuleCategoriesHandler).Methods("GET")
 	api.HandleFunc("/rules/ai/create", createRuleWithAIHandler).Methods("POST")
 	api.HandleFunc("/rules/ai/edit/{ruleId}", editRuleWithAIHandler).Methods("POST")
+	api.HandleFunc("/rules/report-issue", reportIssueHandler).Methods("POST")
 	// Parameterized routes come last
 	api.HandleFunc("/rules/{ruleId}", getRuleHandler).Methods("GET")
 	api.HandleFunc("/rules/{ruleId}", updateRuleHandler).Methods("PUT")

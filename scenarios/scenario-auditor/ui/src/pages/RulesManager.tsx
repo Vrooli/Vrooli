@@ -1,9 +1,11 @@
 import { AgentInfo, RuleImplementationStatus, RuleScenarioBatchTestResult, RuleScenarioTestResult, RuleTestStatus, Scenario } from '@/types/api'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Brain, CheckCircle, ChevronDown, CircleStop, Clock, Code, Eye, EyeOff, Info, Play, Plus, RefreshCw, Search, Shield, Target, Terminal, TestTube, X, XCircle } from 'lucide-react'
+import { AlertTriangle, Brain, CheckCircle, ChevronDown, CircleStop, Clock, Code, Eye, EyeOff, FileText, Info, Play, Plus, RefreshCw, Search, Shield, Target, Terminal, TestTube, X, XCircle } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
 import React, { useEffect, useMemo, useState } from 'react'
 import { CodeEditor } from '../components/CodeEditor'
+import ReportIssueDialog from '../components/ReportIssueDialog'
+import type { ReportPayload } from '../components/ReportIssueDialog'
 import { apiService } from '../services/api'
 
 const TARGET_CATEGORY_CONFIG: Array<{ id: string; label: string; description: string }> = [
@@ -265,6 +267,7 @@ export default function RulesManager() {
   const [scenarioTestCompletedAt, setScenarioTestCompletedAt] = useState<Date | null>(null)
   const [scenarioSearchTerm, setScenarioSearchTerm] = useState('')
   const [selectedScenarios, setSelectedScenarios] = useState<Set<string>>(new Set())
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false)
   const queryClient = useQueryClient()
 
   const { data: activeAgentsData } = useQuery({
@@ -466,19 +469,8 @@ export default function RulesManager() {
     }
   }
 
-  const handleStartAgent = async (action: 'add_rule_tests' | 'fix_rule_tests') => {
-    if (!selectedRule) return
-    setAgentError(null)
-    setIsLaunchingAgent(true)
-    try {
-      await apiService.startRuleAgent(selectedRule, action)
-      await queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
-    } catch (error) {
-      console.error('Failed to start agent:', error)
-      setAgentError((error as Error).message)
-    } finally {
-      setIsLaunchingAgent(false)
-    }
+  const handleSubmitReport = async (payload: ReportPayload) => {
+    return await apiService.reportRuleIssue(payload)
   }
 
   const handleStopAgent = async (agentId: string) => {
@@ -1089,6 +1081,16 @@ export default function RulesManager() {
         </div>
       )}
 
+      {/* Report Issue Dialog */}
+      <ReportIssueDialog
+        isOpen={isReportDialogOpen}
+        onClose={() => setIsReportDialogOpen(false)}
+        ruleId={selectedRule}
+        ruleName={ruleDetail?.rule?.name || null}
+        scenarioTestResults={scenarioTestResults}
+        onSubmitReport={handleSubmitReport}
+      />
+
       {/* Rule Detail Modal */}
       {selectedRule && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -1318,14 +1320,6 @@ export default function RulesManager() {
                           {isRunningTests ? 'Running...' : 'Run All Tests'}
                         </button>
                         <button
-                          onClick={() => handleStartAgent('add_rule_tests')}
-                          disabled={isLaunchingAgent || isAgentRunning || !selectedRule}
-                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
-                        >
-                          <Brain className="h-4 w-4 mr-2" />
-                          Add Tests (AI)
-                        </button>
-                        <button
                           onClick={() => {
                             setScenarioSearchTerm('')
                             setIsScenarioTestModalOpen(true)
@@ -1340,16 +1334,14 @@ export default function RulesManager() {
                           )}
                           {isRunningScenarioTest ? 'Testing...' : 'Test on Scenario'}
                         </button>
-                        {!allTestsPassing && (
-                          <button
-                            onClick={() => handleStartAgent('fix_rule_tests')}
-                            disabled={isLaunchingAgent || isAgentRunning || !selectedRule}
-                            className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50"
-                          >
-                            <Brain className="h-4 w-4 mr-2" />
-                            Fix Tests (AI)
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setIsReportDialogOpen(true)}
+                          disabled={!selectedRule}
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Report
+                        </button>
                       </div>
                     </div>
 

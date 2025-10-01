@@ -101,17 +101,18 @@ scenario::run() {
     # Run stale lock cleanup if requested
     if [[ "$clean_stale" == "true" ]]; then
         log::info "🧹 Cleaning stale locks before starting scenario..."
-        
+
         # Source clean commands for lock cleanup functionality
         if [[ -f "${var_ROOT_DIR}/cli/commands/clean-commands.sh" ]]; then
             # Source the clean functions
             source "${var_ROOT_DIR}/cli/commands/clean-commands.sh"
-            
-            # Run the lock cleanup (not dry-run)
-            clean::stale_locks 2>&1 | while IFS= read -r line; do
-                log::info "  $line"
-            done
-            
+
+            # Run the lock cleanup directly - NO PIPES
+            # The function writes formatted output directly to stdout
+            clean::stale_locks || {
+                log::warning "Lock cleanup encountered errors but continuing"
+            }
+
             log::success "✅ Stale lock cleanup completed"
         else
             log::warning "⚠️  Clean commands not found - skipping stale lock cleanup"
