@@ -10,12 +10,27 @@
   <body>
     <main class="page">
       <header class="header">
-        <div>
-          <h1>Web Console</h1>
-          <p>Embed this console inside an authenticated scenario. Direct exposure is prohibited.</p>
+        <div class="header-title-group">
+          <h1 class="header-title">
+            <span class="header-icon" aria-hidden="true">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="4 17 10 11 4 5"></polyline>
+                <line x1="12" y1="19" x2="20" y2="19"></line>
+              </svg>
+            </span>
+            Web Console
+          </h1>
         </div>
         <div class="header-actions">
-          <span id="statusBadge" class="status-badge">IDLE · DISCONNECTED</span>
           <button
             id="drawerToggle"
             class="drawer-toggle"

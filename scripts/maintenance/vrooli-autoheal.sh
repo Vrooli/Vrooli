@@ -11,6 +11,12 @@ LOG_FILE="${VROOLI_AUTOHEAL_LOG_FILE:-/var/log/vrooli-autoheal.log}"
 RESOURCE_LIST="${VROOLI_AUTOHEAL_RESOURCES:-postgres,redis,qdrant}"
 SCENARIO_LIST="${VROOLI_AUTOHEAL_SCENARIOS:-app-monitor,system-monitor,ecosystem-manager,maintenance-orchestrator,app-issue-tracker,vrooli-orchestrator,scenario-auditor,scenario-authenticator,web-console}"
 VERIFY_DELAY="${VROOLI_AUTOHEAL_VERIFY_DELAY:-30}"
+CMD_TIMEOUT="${VROOLI_AUTOHEAL_CMD_TIMEOUT:-120}"
+API_PORT="${VROOLI_API_PORT:-8092}"
+API_URL="${VROOLI_AUTOHEAL_API_URL:-http://127.0.0.1:${API_PORT}/health}"
+API_TIMEOUT="${VROOLI_AUTOHEAL_API_TIMEOUT:-5}"
+API_RECOVERY="${VROOLI_AUTOHEAL_API_RECOVERY:-}"
+TIMEOUT_BIN=""
 
 log() {
     local level="$1"
@@ -35,6 +41,13 @@ fatal() {
 ensure_prereqs() {
     command -v vrooli >/dev/null 2>&1 || fatal "vrooli CLI not found in PATH"
     command -v jq >/dev/null 2>&1 || fatal "jq is required but not found in PATH"
+    command -v curl >/dev/null 2>&1 || fatal "curl is required but not found in PATH"
+    if command -v timeout >/dev/null 2>&1; then
+        TIMEOUT_BIN="timeout"
+    else
+        TIMEOUT_BIN=""
+        log "WARN" "timeout command not available; commands will run without execution limits"
+    fi
     local target_log="$LOG_FILE"
     local fallback_log="${HOME}/.vrooli/logs/vrooli-autoheal.log"
 
@@ -99,6 +112,38 @@ parse_list() {
     done
 }
 
+run_with_timeout_capture() {
+    local __output_var="$1"
+    shift
+    local output
+    local rc
+
+    if [[ -n "${TIMEOUT_BIN}" ]]; then
+        if output=$("$TIMEOUT_BIN" "$CMD_TIMEOUT" "$@" 2>&1); then
+            rc=0
+        else
+            rc=$?
+        fi
+    else
+        if output=$("$@" 2>&1); then
+            rc=0
+        else
+            rc=$?
+        fi
+    fi
+
+    printf -v "$__output_var" '%s' "$output"
+    return $rc
+}
+
+run_with_timeout_stream() {
+    if [[ -n "${TIMEOUT_BIN}" ]]; then
+        "$TIMEOUT_BIN" "$CMD_TIMEOUT" "$@"
+    else
+        "$@"
+    fi
+}
+
 append_scenario_logs() {
     set +e
     local scenario="$1"
@@ -131,15 +176,14 @@ append_scenario_logs() {
 
 check_resource() {
     local name="$1"
-    local info running healthy
-    if ! info=$(vrooli resource status "$name" --json 2>/dev/null); then
-        log "WARN" "Failed to read status for resource '$name'"
+    local info running healthy total_instances healthy_instances
+    if ! run_with_timeout_capture info vrooli resource status "$name" --json; then
+        log "WARN" "Resource '$name' status check failed; attempting restart"
+        restart_resource "$name"
         return
     fi
     running=$(jq -r '.running // false' <<<"$info")
     healthy=$(jq -r '.healthy // false' <<<"$info")
-
-    local total_instances healthy_instances
     total_instances=$(jq -r '.total_instances // empty' <<<"$info")
     healthy_instances=$(jq -r '.healthy_instances // empty' <<<"$info")
 
@@ -149,16 +193,23 @@ check_resource() {
             healthy="true"
         fi
     fi
+
     if [[ "$running" != "true" || "$healthy" != "true" ]]; then
-        log "INFO" "Restarting resource '$name' (running=$running healthy=$healthy)"
-        if ! vrooli resource stop "$name" >/dev/null 2>&1; then
-            log "DEBUG" "Stop command for '$name' returned non-zero, continuing"
-        fi
-        if ! vrooli resource start "$name" >>"$LOG_FILE" 2>&1; then
-            log "ERROR" "Failed to start resource '$name'"
-        else
-            log "INFO" "Resource '$name' restart requested"
-        fi
+        restart_resource "$name" "$running" "$healthy"
+    fi
+}
+
+restart_resource() {
+    local name="$1"
+    local running="${2:-unknown}" healthy="${3:-unknown}"
+    log "INFO" "Restarting resource '$name' (running=$running healthy=$healthy)"
+    if ! run_with_timeout_stream vrooli resource stop "$name" >>"$LOG_FILE" 2>&1; then
+        log "DEBUG" "Stop command for '$name' returned non-zero, continuing"
+    fi
+    if ! run_with_timeout_stream vrooli resource start "$name" >>"$LOG_FILE" 2>&1; then
+        log "ERROR" "Failed to start resource '$name'"
+    else
+        log "INFO" "Resource '$name' restart requested"
     fi
 }
 
@@ -196,41 +247,73 @@ scenario_requires_restart() {
 check_scenario() {
     local name="$1"
     local info state="" api_ok="" ui_ok=""
-    if ! info=$(vrooli scenario status "$name" --json 2>/dev/null); then
-        log "WARN" "Failed to read status for scenario '$name'"
+    if ! run_with_timeout_capture info vrooli scenario status "$name" --json; then
+        log "WARN" "Scenario '$name' status check failed; attempting restart"
+        restart_scenario "$name"
         return
     fi
     scenario_status_fields "$info" state api_ok ui_ok
     log "DEBUG" "Scenario '$name' status check: state=$state api=$api_ok ui=$ui_ok"
 
     if scenario_requires_restart "$state" "$api_ok" "$ui_ok"; then
-        log "INFO" "Restarting scenario '$name' (state=$state api=$api_ok ui=$ui_ok)"
-        if ! vrooli scenario stop "$name" >/dev/null 2>&1; then
-            log "DEBUG" "Stop command for '$name' returned non-zero, continuing"
-        fi
-        if ! vrooli scenario start "$name" --clean-stale >>"$LOG_FILE" 2>&1; then
-            log "ERROR" "Failed to start scenario '$name'"
-            append_scenario_logs "$name"
-        else
-            log "INFO" "Scenario '$name' restart requested"
-            if [[ "$VERIFY_DELAY" =~ ^[0-9]+$ && "$VERIFY_DELAY" -gt 0 ]]; then
-                log "INFO" "Waiting ${VERIFY_DELAY}s before verification for '$name'"
-                sleep "$VERIFY_DELAY"
-                local verify_info verify_state="" verify_api="" verify_ui=""
-                if verify_info=$(vrooli scenario status "$name" --json 2>/dev/null); then
-                    scenario_status_fields "$verify_info" verify_state verify_api verify_ui
-                    if scenario_requires_restart "$verify_state" "$verify_api" "$verify_ui"; then
-                        log "ERROR" "Scenario '$name' still failing after restart (state=$verify_state api=$verify_api ui=$verify_ui)"
-                        append_scenario_logs "$name"
-                    else
-                        log "INFO" "Scenario '$name' reported healthy after restart"
-                    fi
-                else
-                    log "WARN" "Unable to verify scenario '$name' after restart"
-                fi
+        restart_scenario "$name" "$state" "$api_ok" "$ui_ok"
+    fi
+}
+
+restart_scenario() {
+    local name="$1"
+    local state="${2:-unknown}" api_ok="${3:-unknown}" ui_ok="${4:-unknown}"
+    log "INFO" "Restarting scenario '$name' (state=$state api=$api_ok ui=$ui_ok)"
+    if ! run_with_timeout_stream vrooli scenario stop "$name" >>"$LOG_FILE" 2>&1; then
+        log "DEBUG" "Stop command for '$name' returned non-zero, continuing"
+    fi
+    if ! run_with_timeout_stream vrooli scenario start "$name" --clean-stale >>"$LOG_FILE" 2>&1; then
+        log "ERROR" "Failed to start scenario '$name'"
+        append_scenario_logs "$name"
+        return
+    fi
+
+    log "INFO" "Scenario '$name' restart requested"
+    if [[ "$VERIFY_DELAY" =~ ^[0-9]+$ && "$VERIFY_DELAY" -gt 0 ]]; then
+        log "INFO" "Waiting ${VERIFY_DELAY}s before verification for '$name'"
+        sleep "$VERIFY_DELAY"
+        local verify_info verify_state="" verify_api="" verify_ui=""
+        if run_with_timeout_capture verify_info vrooli scenario status "$name" --json; then
+            scenario_status_fields "$verify_info" verify_state verify_api verify_ui
+            if scenario_requires_restart "$verify_state" "$verify_api" "$verify_ui"; then
+                log "ERROR" "Scenario '$name' still failing after restart (state=$verify_state api=$verify_api ui=$verify_ui)"
+                append_scenario_logs "$name"
+            else
+                log "INFO" "Scenario '$name' reported healthy after restart"
             fi
+        else
+            log "WARN" "Unable to verify scenario '$name' after restart"
         fi
     fi
+}
+
+check_api_health() {
+    if [[ -z "$API_URL" ]]; then
+        return 0
+    fi
+
+    local api_output=""
+    if ! run_with_timeout_capture api_output curl --max-time "$API_TIMEOUT" --silent --show-error --fail "$API_URL"; then
+        if [[ -n "$api_output" ]]; then
+            printf '%s\n' "$api_output" >>"$LOG_FILE"
+        fi
+        log "ERROR" "Vrooli API health check failed for $API_URL"
+        if [[ -n "$API_RECOVERY" ]]; then
+            log "INFO" "Running API recovery command"
+            if ! run_with_timeout_stream bash -c "$API_RECOVERY" >>"$LOG_FILE" 2>&1; then
+                log "ERROR" "API recovery command failed"
+            else
+                log "INFO" "API recovery command executed"
+            fi
+        fi
+        return 1
+    fi
+    return 0
 }
 
 main() {
@@ -243,6 +326,8 @@ main() {
 
     log "INFO" "Starting autoheal run (grace=${GRACE_SECONDS}s)"
     sleep "$GRACE_SECONDS"
+
+    check_api_health || true
 
     local resources=() scenarios=()
 

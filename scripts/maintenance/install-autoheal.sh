@@ -8,6 +8,13 @@ CRON_SCHEDULE="${VROOLI_AUTOHEAL_SCHEDULE:-@hourly}"
 RESOURCES="${VROOLI_AUTOHEAL_RESOURCES:-postgres,redis,qdrant,ollama,searxng,browserless}"
 SCENARIOS="${VROOLI_AUTOHEAL_SCENARIOS:-app-monitor,system-monitor,ecosystem-manager,maintenance-orchestrator,app-issue-tracker,vrooli-orchestrator,scenario-auditor,scenario-authenticator,web-console}"
 GRACE="${VROOLI_AUTOHEAL_GRACE_SECONDS:-60}"
+VERIFY_DELAY="${VROOLI_AUTOHEAL_VERIFY_DELAY:-30}"
+CMD_TIMEOUT="${VROOLI_AUTOHEAL_CMD_TIMEOUT:-120}"
+API_PORT="${VROOLI_API_PORT:-8092}"
+API_URL_DEFAULT="http://127.0.0.1:${API_PORT}/health"
+API_URL="${VROOLI_AUTOHEAL_API_URL:-$API_URL_DEFAULT}"
+API_TIMEOUT="${VROOLI_AUTOHEAL_API_TIMEOUT:-5}"
+API_RECOVERY="${VROOLI_AUTOHEAL_API_RECOVERY:-}"
 LOG_FILE="${VROOLI_AUTOHEAL_LOG_FILE:-/var/log/vrooli-autoheal.log}"
 LOCK_FILE="${VROOLI_AUTOHEAL_LOCK_FILE:-/tmp/vrooli-autoheal.lock}"
 LOGROTATE_FILE="${VROOLI_AUTOHEAL_LOGROTATE_PATH:-/etc/logrotate.d/vrooli-autoheal}"
@@ -24,6 +31,11 @@ Environment variables:
   VROOLI_AUTOHEAL_RESOURCES      Comma-separated resources to enforce
   VROOLI_AUTOHEAL_SCENARIOS      Comma-separated scenarios to enforce
   VROOLI_AUTOHEAL_GRACE_SECONDS  Seconds to wait before checks begin (default: $GRACE)
+  VROOLI_AUTOHEAL_VERIFY_DELAY   Seconds to wait after restart before verification (default: $VERIFY_DELAY)
+  VROOLI_AUTOHEAL_CMD_TIMEOUT    Seconds before CLI commands time out (default: $CMD_TIMEOUT)
+  VROOLI_AUTOHEAL_API_URL        API health endpoint (default: $API_URL)
+  VROOLI_AUTOHEAL_API_TIMEOUT    Seconds before API health check times out (default: $API_TIMEOUT)
+  VROOLI_AUTOHEAL_API_RECOVERY   Command to run when API health fails (default: none)
   VROOLI_AUTOHEAL_LOG_FILE       Log file path (default: $LOG_FILE)
   VROOLI_AUTOHEAL_LOCK_FILE      Lock file path (default: $LOCK_FILE)
   VROOLI_AUTOHEAL_LOGROTATE_PATH Logrotate config path (default: $LOGROTATE_FILE)
@@ -101,14 +113,34 @@ install_job() {
         crontab -l | grep -v '# Vrooli autoheal' | grep -v 'vrooli-autoheal.sh' >"$tmp" || true
     fi
 
-    resources_clean="$(printf %s "$RESOURCES" | tr -d '
-' | sed 's/[[:space:]]\+//g')"
-    scenarios_clean="$(printf %s "$SCENARIOS" | tr -d '
-' | sed 's/[[:space:]]\+//g')"
+    resources_clean="$(printf %s "$RESOURCES" | tr -d '\n' | tr -d '[:space:]')"
+    scenarios_clean="$(printf %s "$SCENARIOS" | tr -d '\n' | tr -d '[:space:]')"
+    grace_escaped="$(printf %q "$GRACE")"
+    verify_escaped="$(printf %q "$VERIFY_DELAY")"
+    cmd_timeout_escaped="$(printf %q "$CMD_TIMEOUT")"
+    api_url_escaped="$(printf %q "$API_URL")"
+    api_timeout_escaped="$(printf %q "$API_TIMEOUT")"
+    api_recovery_escaped="$(printf %q "$API_RECOVERY")"
+    log_file_escaped="$(printf %q "$LOG_FILE")"
+    lock_file_escaped="$(printf %q "$LOCK_FILE")"
+    target_path_escaped="$(printf %q "$TARGET_PATH")"
+
     {
         cat "$tmp" 2>/dev/null || true
         echo '# Vrooli autoheal'
-        echo "$CRON_SCHEDULE PATH=/usr/local/bin:/usr/bin:/bin VROOLI_AUTOHEAL_RESOURCES=$resources_clean VROOLI_AUTOHEAL_SCENARIOS=$scenarios_clean VROOLI_AUTOHEAL_GRACE_SECONDS=$GRACE VROOLI_AUTOHEAL_LOG_FILE=$LOG_FILE VROOLI_AUTOHEAL_LOCK_FILE=$LOCK_FILE $TARGET_PATH"
+        printf '%s PATH=/usr/local/bin:/usr/bin:/bin ' "$CRON_SCHEDULE"
+        printf 'VROOLI_AUTOHEAL_RESOURCES=%s ' "$resources_clean"
+        printf 'VROOLI_AUTOHEAL_SCENARIOS=%s ' "$scenarios_clean"
+        printf 'VROOLI_AUTOHEAL_GRACE_SECONDS=%s ' "$grace_escaped"
+        printf 'VROOLI_AUTOHEAL_VERIFY_DELAY=%s ' "$verify_escaped"
+        printf 'VROOLI_AUTOHEAL_CMD_TIMEOUT=%s ' "$cmd_timeout_escaped"
+        printf 'VROOLI_AUTOHEAL_API_URL=%s ' "$api_url_escaped"
+        printf 'VROOLI_AUTOHEAL_API_TIMEOUT=%s ' "$api_timeout_escaped"
+        printf 'VROOLI_AUTOHEAL_API_RECOVERY=%s ' "$api_recovery_escaped"
+        printf 'VROOLI_AUTOHEAL_LOG_FILE=%s ' "$log_file_escaped"
+        printf 'VROOLI_AUTOHEAL_LOCK_FILE=%s ' "$lock_file_escaped"
+        printf '%s' "$target_path_escaped"
+        printf '\n'
     } | crontab -
 
     rm -f "$tmp"

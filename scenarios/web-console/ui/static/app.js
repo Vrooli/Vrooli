@@ -1,5 +1,4 @@
 const elements = {
-  statusBadge: document.getElementById('statusBadge'),
   sessionId: document.getElementById('sessionId'),
   sessionPhase: document.getElementById('sessionPhase'),
   socketState: document.getElementById('socketState'),
@@ -136,7 +135,12 @@ function openDrawer() {
   applyDrawerState()
   resetUnreadEvents()
   requestAnimationFrame(() => {
-    elements.detailsDrawer?.focus()
+    if (!elements.detailsDrawer || typeof elements.detailsDrawer.focus !== 'function') return
+    try {
+      elements.detailsDrawer.focus({ preventScroll: true })
+    } catch (_error) {
+      elements.detailsDrawer.focus()
+    }
   })
 }
 
@@ -554,10 +558,6 @@ function updateUI() {
   const tab = getActiveTab()
 
   if (!tab) {
-    if (elements.statusBadge) {
-      elements.statusBadge.textContent = 'NO ACTIVE TAB'
-      elements.statusBadge.style.color = '#38bdf8'
-    }
     if (elements.sessionId) elements.sessionId.textContent = '—'
     if (elements.sessionPhase) elements.sessionPhase.textContent = 'idle'
     if (elements.socketState) elements.socketState.textContent = 'disconnected'
@@ -573,12 +573,6 @@ function updateUI() {
 
   const phase = tab.phase || 'idle'
   const socketState = tab.socketState || 'disconnected'
-  const badgeColor = phase === 'running' ? '#22c55e' : phase === 'closing' ? '#f97316' : '#38bdf8'
-
-  if (elements.statusBadge) {
-    elements.statusBadge.textContent = `${phase.toUpperCase()} · ${socketState.toUpperCase()}`
-    elements.statusBadge.style.color = badgeColor
-  }
 
   if (elements.sessionId) {
     elements.sessionId.textContent = tab.session ? `${tab.session.id.slice(0, 8)}…` : '—'
