@@ -1,4 +1,6 @@
 // Task Management Module
+import { logger } from '../utils/logger.js';
+
 export class TaskManager {
     constructor(apiBase, showToast, showLoading) {
         this.apiBase = apiBase;
@@ -28,7 +30,7 @@ export class TaskManager {
             if (error.isRateLimit) {
                 throw error;
             }
-            console.error(`Error loading ${status} tasks:`, error);
+            logger.error(`Error loading ${status} tasks:`, error);
             throw error;
         }
     }
@@ -48,7 +50,7 @@ export class TaskManager {
                 data = JSON.parse(responseText);
             } catch (parseError) {
                 // Leave data as null; we'll surface raw text below
-                console.warn('Failed to parse task creation response as JSON:', parseError);
+                logger.warn('Failed to parse task creation response as JSON:', parseError);
             }
         }
 

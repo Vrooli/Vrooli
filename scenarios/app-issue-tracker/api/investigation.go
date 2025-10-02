@@ -222,6 +222,18 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			}
 
 			// Not a rate limit - save error and move to failed
+			// Build error message with context
+			errorMsg := fmt.Sprintf("Agent execution failed: %v", err)
+			if len(outputStr) > 0 {
+				// Include first 1000 chars of output for context
+				if len(outputStr) > 1000 {
+					errorMsg = fmt.Sprintf("%s\n\nOutput (truncated):\n%s...", errorMsg, outputStr[:1000])
+				} else {
+					errorMsg = fmt.Sprintf("%s\n\nOutput:\n%s", errorMsg, outputStr)
+				}
+			}
+
+			// Load issue, update with error, and write before moving
 			issueDir, _, findErr := s.findIssueDirectory(issueID)
 			if findErr == nil {
 				issue, loadErr := s.loadIssueFromDir(issueDir)
@@ -230,23 +242,24 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 						issue.Metadata.Extra = make(map[string]string)
 					}
 
-					// Store script failure error
-					errorMsg := fmt.Sprintf("Investigation script failed: %v", err)
-					if len(outputStr) > 0 {
-						// Include first 500 chars of output for context
-						if len(outputStr) > 500 {
-							errorMsg = fmt.Sprintf("%s\n\nOutput (truncated): %s...", errorMsg, outputStr[:500])
-						} else {
-							errorMsg = fmt.Sprintf("%s\n\nOutput: %s", errorMsg, outputStr)
-						}
-					}
+					// Store agent execution failure details
 					issue.Metadata.Extra["agent_last_error"] = errorMsg
-					issue.Metadata.Extra["agent_last_status"] = "failed"
+					issue.Metadata.Extra["agent_last_status"] = "execution_failed"
+					issue.Metadata.Extra["agent_failure_time"] = time.Now().UTC().Format(time.RFC3339)
 					issue.Metadata.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-					s.writeIssueMetadata(issueDir, issue)
+
+					// Write updated metadata before moving
+					if writeErr := s.writeIssueMetadata(issueDir, issue); writeErr != nil {
+						log.Printf("Warning: failed to write error metadata for issue %s: %v", issueID, writeErr)
+					}
+				} else {
+					log.Printf("Warning: failed to load issue %s for error recording: %v", issueID, loadErr)
 				}
+			} else {
+				log.Printf("Warning: failed to find issue %s for error recording: %v", issueID, findErr)
 			}
 
+			// Move to failed status
 			s.moveIssue(issueID, "failed")
 
 			// Publish agent failed event

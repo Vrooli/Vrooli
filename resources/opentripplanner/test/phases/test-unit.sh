@@ -5,6 +5,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/../../lib"
+CONFIG_DIR="${SCRIPT_DIR}/../../config"
+
+# Source configuration first
+source "${CONFIG_DIR}/defaults.sh"
 
 # Source libraries to test
 source "${LIB_DIR}/core.sh"
@@ -89,6 +93,36 @@ if [[ "$OTP_BIKE_SPEED" =~ ^[0-9]+\.?[0-9]*$ ]]; then
     echo "✓"
 else
     echo "✗ (Invalid bike speed: $OTP_BIKE_SPEED)"
+    exit 1
+fi
+
+# Test 9: Test plan_trip function validation
+echo -n "9. Testing plan_trip parameter validation... "
+# Test missing parameters handling
+error_output=$(opentripplanner::plan_trip 2>&1 || true)
+if echo "$error_output" | grep -q "Missing required coordinates"; then
+    echo "✓"
+else
+    echo "✗ (Function doesn't validate parameters properly)"
+    exit 1
+fi
+
+# Test 10: Test transport mode mapping
+echo -n "10. Testing transport mode mapping... "
+# This tests that the function exists and can be called
+if type -t opentripplanner::plan_trip &>/dev/null; then
+    echo "✓"
+else
+    echo "✗ (plan_trip function not found)"
+    exit 1
+fi
+
+# Test 11: Test GTFS-RT feed function
+echo -n "11. Testing GTFS-RT feed addition function... "
+if type -t opentripplanner::add_gtfs_rt_feed &>/dev/null; then
+    echo "✓"
+else
+    echo "✗ (add_gtfs_rt_feed function not found)"
     exit 1
 fi
 

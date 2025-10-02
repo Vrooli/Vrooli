@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom';
 import { useWebSocket } from './hooks/useWebSocket';
 import type { WebSocketEvent } from './types/events';
 import {
+  AlertCircle,
   Brain,
   CalendarClock,
   CircleAlert,
@@ -551,6 +552,8 @@ function transformIssue(raw: ApiIssue): Issue {
     reporterName: raw.reporter?.name?.trim() || undefined,
     reporterEmail: raw.reporter?.email?.trim() || undefined,
     notes: notes || undefined,
+    metadata: raw.metadata,
+    investigation: raw.investigation,
   };
 }
 
@@ -1850,6 +1853,26 @@ function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModal
                   Confidence Score: {issue.investigation.confidence_score}/10
                 </div>
               )}
+            </div>
+          </section>
+        )}
+
+        {issue.metadata?.extra?.agent_last_error && (
+          <section className="issue-detail-section">
+            <h3>Agent Execution Error</h3>
+            <div className="issue-error-details">
+              <div className="issue-error-header">
+                <AlertCircle size={16} />
+                <span className="issue-error-status">
+                  Status: {issue.metadata?.extra?.agent_last_status || 'failed'}
+                </span>
+                {issue.metadata?.extra?.agent_failure_time && (
+                  <span className="issue-error-time">
+                    Failed at: {formatDateTime(issue.metadata.extra.agent_failure_time)}
+                  </span>
+                )}
+              </div>
+              <pre className="issue-error-content">{issue.metadata.extra.agent_last_error}</pre>
             </div>
           </section>
         )}

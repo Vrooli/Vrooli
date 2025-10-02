@@ -8,6 +8,23 @@
     <link rel="stylesheet" href="styles.css">
     <!-- High contrast mode support -->
     <link rel="stylesheet" href="high-contrast.css" media="(prefers-contrast: high)">
+    <script type="module">
+        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+        if (typeof window !== 'undefined' && window.parent !== window && !window.__accessibilityHubBridgeInitialized) {
+            let parentOrigin;
+            try {
+                if (document.referrer) {
+                    parentOrigin = new URL(document.referrer).origin;
+                }
+            } catch (error) {
+                console.warn('[AccessibilityHub] Unable to parse parent origin for iframe bridge', error);
+            }
+
+            initIframeBridgeChild({ parentOrigin, appId: 'accessibility-compliance-hub' });
+            window.__accessibilityHubBridgeInitialized = true;
+        }
+    </script>
 </head>
 <body>
     <a href="#main" class="skip-link">Skip to main content</a>

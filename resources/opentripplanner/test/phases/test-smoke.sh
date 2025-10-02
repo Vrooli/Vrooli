@@ -57,7 +57,8 @@ fi
 # Test 6: Check container logs for errors
 echo -n "6. Checking for container errors... "
 # Count critical errors (exclude known safe ones)
-error_count=$(docker logs "${OPENTRIPPLANNER_CONTAINER}" 2>&1 | grep -iE "error|exception|fatal" | grep -v "No errors" | grep -v "Parameter error" | wc -l)
+# Use || true to handle grep not finding matches with pipefail
+error_count=$(docker logs "${OPENTRIPPLANNER_CONTAINER}" 2>&1 | grep -iE "error|exception|fatal" | grep -v "No errors" | grep -v "Parameter error" | wc -l || true)
 if [[ ${error_count} -lt 5 ]]; then  # Allow some startup warnings
     echo "✓"
 else

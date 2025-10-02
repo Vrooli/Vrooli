@@ -29,11 +29,26 @@ export interface Issue {
     resolved_at?: string;
     tags?: string[];
     labels?: Record<string, string>;
+    extra?: {
+      agent_last_error?: string;
+      agent_last_status?: string;
+      agent_failure_time?: string;
+      rate_limit_until?: string;
+      rate_limit_agent?: string;
+      [key: string]: string | undefined;
+    };
   };
   reporter?: {
     name?: string;
     email?: string;
     timestamp?: string;
+  };
+  investigation?: {
+    agent_id?: string;
+    report?: string;
+    confidence_score?: number;
+    started_at?: string;
+    completed_at?: string;
   };
   attachments?: Array<{
     name?: string;

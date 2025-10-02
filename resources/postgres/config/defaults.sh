@@ -44,7 +44,7 @@ readonly POSTGRES_NETWORK="vrooli-network"
 # Instance configuration
 [[ -z "${POSTGRES_DEFAULT_PORT:-}" ]] && readonly POSTGRES_DEFAULT_PORT=5433
 readonly POSTGRES_DEFAULT_USER="vrooli"
-readonly POSTGRES_DEFAULT_DB="vrooli"
+[[ -z "${POSTGRES_DEFAULT_DB:-}" ]] && readonly POSTGRES_DEFAULT_DB="vrooli"
 readonly POSTGRES_MAX_INSTANCES=67
 
 # Port range for instances  

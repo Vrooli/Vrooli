@@ -188,7 +188,21 @@ func (s *Server) moveIssue(issueID, toFolder string) error {
 		return err
 	}
 
-	return s.writeIssueMetadata(targetDir, issue)
+	if err := s.writeIssueMetadata(targetDir, issue); err != nil {
+		return err
+	}
+
+	// Publish status change event for real-time updates
+	s.hub.Publish(NewEvent(EventIssueStatusChanged, IssueStatusChangedData{
+		IssueID:   issueID,
+		OldStatus: currentFolder,
+		NewStatus: toFolder,
+	}))
+
+	// Also publish issue.updated event to ensure clients have latest data
+	s.hub.Publish(NewEvent(EventIssueUpdated, IssueEventData{Issue: issue}))
+
+	return nil
 }
 
 // getAllIssues retrieves all issues with optional filters

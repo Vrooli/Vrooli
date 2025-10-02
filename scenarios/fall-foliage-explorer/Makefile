@@ -55,6 +55,21 @@ test: ## Run tests for this scenario
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test $(SCENARIO_NAME)
 
+test-smoke: ## Run smoke tests only
+	@echo "$(BLUE)🔥 Running smoke tests...$(RESET)"
+	@bash test/phases/test-smoke.sh
+
+test-unit: ## Run unit tests only
+	@echo "$(BLUE)🧪 Running unit tests...$(RESET)"
+	@bash test/phases/test-unit.sh
+
+test-integration: ## Run integration tests only
+	@echo "$(BLUE)🔗 Running integration tests...$(RESET)"
+	@bash test/phases/test-integration.sh
+
+test-all: test-smoke test-unit test-integration ## Run all test phases
+	@echo "$(GREEN)✅ All test phases passed!$(RESET)"
+
 logs: ## Show recent logs for this scenario
 	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario logs $(SCENARIO_NAME) --tail 50

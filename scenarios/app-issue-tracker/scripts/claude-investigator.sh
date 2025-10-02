@@ -106,29 +106,24 @@ detect_agent_backend() {
         case "$provider" in
             codex)
                 cli_cmd="resource-codex"
-                operation_cmd="content execute --context text --operation analyze"
+                operation_cmd="run -"
                 ;;
             claude-code)
                 cli_cmd="resource-claude-code"
-                operation_cmd="content execute --context text --operation analyze"
+                operation_cmd="run -"
                 ;;
             *)
                 continue
                 ;;
         esac
 
-        # Check if CLI is available
+        # Check if CLI is available (don't check status - these are on-demand tools, not persistent services)
         if command -v "$cli_cmd" >/dev/null 2>&1; then
-            # Check if resource is running
-            if $cli_cmd status &>/dev/null; then
-                AGENT_PROVIDER="$provider"
-                AGENT_CLI_COMMAND="$cli_cmd"
-                AGENT_OPERATION_CMD="$operation_cmd"
-                log "Using agent backend: $provider ($cli_cmd)"
-                return 0
-            else
-                warn "Agent backend '$provider' CLI found but resource not running"
-            fi
+            AGENT_PROVIDER="$provider"
+            AGENT_CLI_COMMAND="$cli_cmd"
+            AGENT_OPERATION_CMD="$operation_cmd"
+            log "Using agent backend: $provider ($cli_cmd)"
+            return 0
         else
             warn "Agent backend '$provider' CLI not found: $cli_cmd"
         fi
@@ -448,13 +443,6 @@ EOF
         return 1
     fi
 
-    # Check resource status
-    log "Checking $AGENT_PROVIDER resource status..."
-    if ! $AGENT_CLI_COMMAND status &> /dev/null; then
-        warn "$AGENT_PROVIDER resource may not be running. Attempting to start..."
-        $AGENT_CLI_COMMAND start &> /dev/null || true
-    fi
-
     # Run investigation using configured backend
     log "Executing investigation with $AGENT_PROVIDER..."
     local investigation_output="${workspace_dir}/investigation-report.md"
@@ -467,11 +455,11 @@ EOF
         cd "$project_path"
     fi
 
-    # Execute agent with the investigation prompt
+    # Execute agent with the investigation prompt via stdin (matches ecosystem-manager pattern)
     local prompt_payload
     prompt_payload="$(cat "$prompt_file")"
 
-    if $AGENT_CLI_COMMAND $AGENT_OPERATION_CMD "$prompt_payload" > "$investigation_output" 2>&1; then
+    if $AGENT_CLI_COMMAND $AGENT_OPERATION_CMD <<< "$prompt_payload" > "$investigation_output" 2>&1; then
         success "$AGENT_PROVIDER investigation completed successfully"
     else
         agent_exit_code=$?
@@ -628,7 +616,7 @@ EOF
     fix_payload="$(cat "$fix_prompt")"
 
     log "Generating fix with $AGENT_PROVIDER..."
-    if ! $AGENT_CLI_COMMAND $AGENT_OPERATION_CMD "$fix_payload" > "$fix_output" 2>&1; then
+    if ! $AGENT_CLI_COMMAND $AGENT_OPERATION_CMD <<< "$fix_payload" > "$fix_output" 2>&1; then
         FIX_STATUS="failed"
         FIX_ERROR="$AGENT_PROVIDER fix generation failed"
         if [[ -f "$fix_output" ]]; then

@@ -111,7 +111,7 @@ func (h *Hub) Run() {
 func (h *Hub) Publish(event Event) {
 	select {
 	case h.broadcast <- event:
-		// Event queued successfully
+		log.Printf("[WebSocket] Broadcasting event: %s", event.Type)
 	default:
 		log.Printf("[WebSocket] Broadcast channel full, event dropped: %s", event.Type)
 	}

@@ -317,9 +317,41 @@ postgres::status::get_config() {
     
     # Use first instance port if main doesn't exist
     if [[ ${#instances[@]} -gt 0 ]]; then
-        local first_instance="${instances[0]}"
-        main_port=$(postgres::common::get_instance_config "$first_instance" "port" 2>/dev/null || echo "$POSTGRES_DEFAULT_PORT")
-        container_name="${POSTGRES_CONTAINER_PREFIX}-${first_instance}"
+        local selected_instance=""
+
+        # Prefer the canonical 'main' instance when it has a Docker container
+        if postgres::common::container_exists "main"; then
+            selected_instance="main"
+        else
+            # Otherwise, pick the first instance that actually has a container
+            for instance in "${instances[@]}"; do
+                if postgres::common::container_exists "$instance"; then
+                    selected_instance="$instance"
+                    break
+                fi
+            done
+
+            # If no containers exist yet, fall back to 'main' when present or the first entry
+            if [[ -z "$selected_instance" ]]; then
+                for instance in "${instances[@]}"; do
+                    if [[ "$instance" == "main" ]]; then
+                        selected_instance="$instance"
+                        break
+                    fi
+                done
+            fi
+
+            if [[ -z "$selected_instance" ]]; then
+                selected_instance="${instances[0]}"
+            fi
+        fi
+
+        local configured_port
+        configured_port=$(postgres::common::get_instance_config "$selected_instance" "port" 2>/dev/null || true)
+        if [[ -n "$configured_port" ]]; then
+            main_port="$configured_port"
+        fi
+        container_name="${POSTGRES_CONTAINER_PREFIX}-${selected_instance}"
     fi
     
     cat << EOF

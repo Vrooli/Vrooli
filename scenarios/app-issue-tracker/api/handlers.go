@@ -572,6 +572,47 @@ func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	if targetStatus != currentFolder {
 		now := time.Now().UTC().Format(time.RFC3339)
+
+		// Handle backwards status transitions (completed/failed -> open)
+		// Clear investigation results for fresh execution (matches ecosystem-manager pattern)
+		isBackwardsTransition := (currentFolder == "completed" || currentFolder == "failed" || currentFolder == "active") &&
+			targetStatus == "open"
+
+		if isBackwardsTransition {
+			log.Printf("Issue %s moved backwards from %s to %s - clearing investigation data", issueID, currentFolder, targetStatus)
+			// Clear investigation fields
+			issue.Investigation.AgentID = ""
+			issue.Investigation.StartedAt = ""
+			issue.Investigation.CompletedAt = ""
+			issue.Investigation.Report = ""
+			issue.Investigation.RootCause = ""
+			issue.Investigation.SuggestedFix = ""
+			issue.Investigation.ConfidenceScore = nil
+			issue.Investigation.InvestigationDurationMinutes = nil
+			issue.Investigation.TokensUsed = nil
+			issue.Investigation.CostEstimate = nil
+
+			// Clear fix fields
+			issue.Fix.SuggestedFix = ""
+			issue.Fix.ImplementationPlan = ""
+			issue.Fix.Applied = false
+			issue.Fix.AppliedAt = ""
+			issue.Fix.CommitHash = ""
+			issue.Fix.PrURL = ""
+			issue.Fix.VerificationStatus = ""
+			issue.Fix.RollbackPlan = ""
+			issue.Fix.FixDurationMinutes = nil
+
+			// Clear agent execution error data from metadata.extra
+			if issue.Metadata.Extra != nil {
+				delete(issue.Metadata.Extra, "agent_last_error")
+				delete(issue.Metadata.Extra, "agent_last_status")
+				delete(issue.Metadata.Extra, "agent_failure_time")
+				delete(issue.Metadata.Extra, "rate_limit_until")
+				delete(issue.Metadata.Extra, "rate_limit_agent")
+			}
+		}
+
 		if targetStatus == "active" && strings.TrimSpace(issue.Investigation.StartedAt) == "" {
 			issue.Investigation.StartedAt = now
 		}

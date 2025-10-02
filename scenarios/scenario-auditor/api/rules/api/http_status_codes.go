@@ -14,9 +14,27 @@ Rule: HTTP Status Codes
 Description: Use proper HTTP status codes in API responses
 Reason: Ensures consistent API behavior and proper client error handling
 Category: api
-Severity: low
+Severity: Medium
 Standard: api-design-v1
 Targets: api
+
+Detections:
+1. Raw numeric status codes (e.g., w.WriteHeader(400) instead of http.StatusBadRequest)
+2. http.StatusOK (200) returned in error context
+3. Missing WriteHeader call in error blocks (stdlib only - frameworks handle automatically)
+
+Supported Error Patterns:
+- if err != nil { ... }
+- if e := fn(); e != nil { ... }
+- if errors.Is(err, ...) { ... }
+- if errors.As(err, ...) { ... }
+- Variables named err, e, errXXX
+
+Limitations:
+- Does NOT detect inverted checks: if err == nil { ... } else { ... }
+- Does NOT detect deferred error handlers
+- Does NOT track error state across switch statements
+- Wrapper functions (with statusCode parameter) are exempt from raw number checks
 
 <test-case id="raw-numeric-status" should-fail="true">
   <description>Using raw numeric HTTP status codes</description>
@@ -93,6 +111,42 @@ func handleGinRequest(c *gin.Context) {
     c.JSON(http.StatusCreated, result)
 }
   </input>
+</test-case>
+
+<test-case id="missing-status-code" should-fail="true">
+  <description>Missing WriteHeader in error block (returns 200 on error)</description>
+  <input language="go">
+func handleMissingStatus(w http.ResponseWriter, r *http.Request) {
+    data, err := fetchData(r)
+    if err != nil {
+        json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+        return
+    }
+
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(data)
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Missing Status Code</expected-message>
+</test-case>
+
+<test-case id="errors-is-pattern" should-fail="true">
+  <description>Missing WriteHeader with errors.Is pattern</description>
+  <input language="go">
+func handleErrorsIs(w http.ResponseWriter, r *http.Request) {
+    err := process(r)
+    if errors.Is(err, ErrNotFound) {
+        json.NewEncoder(w).Encode(map[string]string{"error": "not found"})
+        return
+    }
+
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Missing Status Code</expected-message>
 </test-case>
 */
 
@@ -210,14 +264,15 @@ func isAPIHandler(content string) bool {
 	}
 	return false
 }
+
 // AST-based implementation of HTTP status code checking
 // This replaces the regex-based approach with proper syntax tree analysis
 
 type statusCodeVisitor struct {
-	violations  []Violation
-	filePath    string
-	fileSet     *token.FileSet
-	content     string
+	violations []Violation
+	filePath   string
+	fileSet    *token.FileSet
+	content    string
 
 	// Function context
 	currentFunc *ast.FuncDecl
@@ -225,9 +280,9 @@ type statusCodeVisitor struct {
 
 	// Scope tracking for error blocks
 	errorBlocks      map[ast.Node]bool
-	errorBlockStmts  map[*ast.BlockStmt]bool  // Track block statements that are error blocks
+	errorBlockStmts  map[*ast.BlockStmt]bool // Track block statements that are error blocks
 	statusCalls      map[ast.Stmt]*statusCallInfo
-	writeHeaderCalls map[*ast.BlockStmt]bool  // Track which error blocks have WriteHeader
+	writeHeaderCalls map[*ast.BlockStmt]bool // Track which error blocks have WriteHeader
 
 	// Wrapper function cache
 	wrapperFuncs map[*ast.FuncDecl]bool
@@ -321,7 +376,7 @@ func (v *statusCodeVisitor) trackWriteHeaderCalls(block *ast.BlockStmt) {
 			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
 				if sel.Sel.Name == "WriteHeader" {
 					v.writeHeaderCalls[block] = true
-					return false  // Found it, stop searching this block
+					return false // Found it, stop searching this block
 				}
 			}
 		}
@@ -427,7 +482,7 @@ func (v *statusCodeVisitor) checkMissingStatusCode(call *ast.CallExpr) {
 
 	// Check if this error block has a WriteHeader call
 	if v.writeHeaderCalls[errorBlock] {
-		return  // WriteHeader was called, no violation
+		return // WriteHeader was called, no violation
 	}
 
 	// No WriteHeader found - report violation
@@ -548,8 +603,8 @@ func isWrapperFuncAST(fn *ast.FuncDecl) bool {
 			for _, name := range field.Names {
 				paramName := strings.ToLower(name.Name)
 				if strings.Contains(paramName, "status") ||
-				   strings.Contains(paramName, "code") ||
-				   paramName == "status" || paramName == "code" {
+					strings.Contains(paramName, "code") ||
+					paramName == "status" || paramName == "code" {
 					hasStatusParam = true
 				}
 			}
@@ -562,25 +617,36 @@ func isWrapperFuncAST(fn *ast.FuncDecl) bool {
 // isErrorCheckAST checks if a condition is an error check
 func isErrorCheckAST(cond ast.Expr) bool {
 	// Check for: err != nil, e != nil, etc.
-	binExpr, ok := cond.(*ast.BinaryExpr)
-	if !ok {
+	if binExpr, ok := cond.(*ast.BinaryExpr); ok {
+		if binExpr.Op != token.NEQ {
+			return false
+		}
+
+		// Check if right side is nil
+		if ident, ok := binExpr.Y.(*ast.Ident); !ok || ident.Name != "nil" {
+			return false
+		}
+
+		// Check if left side is error variable (err, e, error, etc.)
+		switch left := binExpr.X.(type) {
+		case *ast.Ident:
+			name := strings.ToLower(left.Name)
+			return name == "err" || name == "e" || strings.HasPrefix(name, "err")
+		}
+
 		return false
 	}
 
-	if binExpr.Op != token.NEQ {
-		return false
-	}
-
-	// Check if right side is nil
-	if ident, ok := binExpr.Y.(*ast.Ident); !ok || ident.Name != "nil" {
-		return false
-	}
-
-	// Check if left side is error variable (err, e, error, etc.)
-	switch left := binExpr.X.(type) {
-	case *ast.Ident:
-		name := strings.ToLower(left.Name)
-		return name == "err" || name == "e" || strings.HasPrefix(name, "err")
+	// Check for: errors.Is(err, ...), errors.As(err, ...)
+	if callExpr, ok := cond.(*ast.CallExpr); ok {
+		if sel, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
+			if ident, ok := sel.X.(*ast.Ident); ok {
+				// errors.Is(...) or errors.As(...)
+				if ident.Name == "errors" && (sel.Sel.Name == "Is" || sel.Sel.Name == "As") {
+					return true
+				}
+			}
+		}
 	}
 
 	return false
@@ -683,7 +749,7 @@ func isAPIHandlerAST(file *ast.File) bool {
 		// Also check for methods like WriteHeader, JSON, etc. which are API-specific
 		if sel, ok := n.(*ast.SelectorExpr); ok {
 			if sel.Sel.Name == "WriteHeader" || sel.Sel.Name == "JSON" ||
-			   sel.Sel.Name == "SendStatus" || sel.Sel.Name == "AbortWithStatusJSON" {
+				sel.Sel.Name == "SendStatus" || sel.Sel.Name == "AbortWithStatusJSON" {
 				found = true
 				return false
 			}

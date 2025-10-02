@@ -1,4 +1,6 @@
 // Process Monitoring Module
+import { logger } from '../utils/logger.js';
+
 export class ProcessMonitor {
     constructor(apiBase, showToast) {
         this.apiBase = apiBase;
@@ -78,7 +80,7 @@ export class ProcessMonitor {
         try {
             const response = await fetch(`${this.apiBase}/processes/running`);
             if (!response.ok) {
-                console.error('Failed to fetch running processes:', response.statusText);
+                logger.error('Failed to fetch running processes:', response.statusText);
                 return;
             }
             
@@ -142,7 +144,7 @@ export class ProcessMonitor {
             }
             return this.runningProcesses;
         } catch (error) {
-            console.error('Error fetching running processes:', error);
+            logger.error('Error fetching running processes:', error);
         }
     }
 
@@ -168,7 +170,7 @@ export class ProcessMonitor {
             
             return result;
         } catch (error) {
-            console.error('Failed to terminate process:', error);
+            logger.error('Failed to terminate process:', error);
             throw error;
         }
     }
@@ -293,7 +295,7 @@ export class ProcessMonitor {
                 this.stopLogUpdates();
             }
         } catch (error) {
-            console.error('Failed to fetch task logs', error);
+            logger.error('Failed to fetch task logs', error);
             if (initial) {
                 this.addLogEntry({ level: 'error', message: `Failed to load logs: ${error.message}` });
             }

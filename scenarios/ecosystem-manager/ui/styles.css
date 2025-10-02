@@ -4702,8 +4702,123 @@ form {
 }
 
 /* Dark Mode Adjustments for Execution Results */
+body.dark-mode .execution-results.success {
+    background: rgba(40, 167, 69, 0.12);
+    border-color: rgba(40, 167, 69, 0.4);
+}
 
+body.dark-mode .execution-results.error {
+    background: rgba(220, 53, 69, 0.12);
+    border-color: rgba(220, 53, 69, 0.4);
+}
 
+body.dark-mode .execution-results .claude-output {
+    background: #2d2d2d;
+    color: #e0e0e0;
+    border: 1px solid #404040;
+}
+
+body.dark-mode .execution-results .output-summary {
+    color: #66b3ff;
+}
+
+/* Dark Mode Adjustments for Auto Requeue Alert */
+body.dark-mode .auto-requeue-alert.enabled {
+    background: rgba(40, 167, 69, 0.15);
+    border-color: rgba(40, 167, 69, 0.5);
+    color: #90ee90;
+}
+
+body.dark-mode .auto-requeue-alert.enabled i {
+    color: #90ee90;
+}
+
+body.dark-mode .auto-requeue-alert.disabled {
+    background: rgba(255, 193, 7, 0.15);
+    border-color: rgba(255, 193, 7, 0.5);
+    color: #ffd54f;
+}
+
+body.dark-mode .auto-requeue-alert.disabled i {
+    color: #ffb300;
+}
+
+/* Dark Mode Adjustments for Tag Multi-Select */
+body.dark-mode .tag-multiselect {
+    background: #2d2d2d;
+    border-color: #404040;
+}
+
+body.dark-mode .tag-multiselect:focus-within {
+    border-color: #4a90e2;
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+}
+
+body.dark-mode .tag-multiselect.is-open {
+    border-color: #4a90e2;
+}
+
+body.dark-mode .tag-multiselect.is-disabled {
+    background: #1a1a1a;
+    opacity: 0.6;
+}
+
+body.dark-mode #task-target-search {
+    color: #e0e0e0;
+}
+
+body.dark-mode #task-target-search::placeholder {
+    color: #808080;
+}
+
+body.dark-mode .tag-multiselect-tag {
+    background: #3a3a3a;
+    color: #e0e0e0;
+    border-color: #505050;
+}
+
+body.dark-mode .tag-multiselect-remove {
+    color: #c0c0c0;
+}
+
+body.dark-mode .tag-multiselect-remove:hover {
+    background: rgba(220, 53, 69, 0.2);
+    color: #ff6b6b;
+}
+
+body.dark-mode .tag-multiselect-dropdown {
+    background: #2d2d2d;
+    border-color: #404040;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .tag-multiselect-placeholder {
+    color: #808080;
+}
+
+body.dark-mode .tag-multiselect-status {
+    color: #a0a0a0;
+}
+
+body.dark-mode .tag-multiselect-option {
+    color: #e0e0e0;
+}
+
+body.dark-mode .tag-multiselect-option:not(.is-disabled):hover {
+    background: rgba(74, 144, 226, 0.15);
+}
+
+body.dark-mode .tag-multiselect-option.is-highlighted {
+    background: rgba(74, 144, 226, 0.25);
+}
+
+body.dark-mode .tag-multiselect-option.is-disabled {
+    color: #606060;
+}
+
+body.dark-mode .tag-multiselect-option-check {
+    color: #4a90e2;
+}
 
 /* Dark Mode Adjustments for Settings */
 

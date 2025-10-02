@@ -1,4 +1,6 @@
 // Settings Management Module
+import { logger } from '../utils/logger.js';
+
 export class SettingsManager {
     constructor(apiBase, showToast) {
         this.apiBase = apiBase;
@@ -49,7 +51,7 @@ export class SettingsManager {
             };
             return this.settings;
         } catch (error) {
-            console.error('Failed to load settings:', error);
+            logger.error('Failed to load settings:', error);
             this.settings = JSON.parse(JSON.stringify(this.defaultSettings));
             return this.settings;
         }
@@ -57,8 +59,7 @@ export class SettingsManager {
 
     async saveSettings(settings) {
         try {
-            // Debug logging
-            console.log('Saving settings:', settings);
+            logger.debug('Saving settings:', settings);
             
             const response = await fetch(`${this.apiBase}/settings`, {
                 method: 'PUT',
@@ -68,7 +69,7 @@ export class SettingsManager {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Settings save failed:', errorText);
+                logger.error('Settings save failed:', errorText);
                 throw new Error(`Failed to save settings: ${errorText}`);
             }
 
@@ -76,7 +77,7 @@ export class SettingsManager {
             this.settings = settings;
             return result;
         } catch (error) {
-            console.error('Failed to save settings:', error);
+            logger.error('Failed to save settings:', error);
             throw error;
         }
     }
@@ -183,7 +184,7 @@ export class SettingsManager {
             providerSelect.value = providerValue;
         }
         this.populateRecyclerModelSelector(providerValue, recyclerSettings.model_name || '').catch(err => {
-            console.error('Failed to populate recycler models:', err);
+            logger.error('Failed to populate recycler models:', err);
         });
 
         const completionInput = document.getElementById('settings-recycler-completion-threshold');
@@ -236,13 +237,13 @@ export class SettingsManager {
                 } else {
                     formData[settingKey] = element.value;
                 }
-                console.log(`Collected ${settingKey}: ${formData[settingKey]} (from element ${fieldId})`);
+                logger.debug(`Collected ${settingKey}: ${formData[settingKey]} (from element ${fieldId})`);
             } else {
-                console.warn(`Element not found: ${fieldId}`);
+                logger.warn(`Element not found: ${fieldId}`);
             }
         });
 
-        console.log('Form data collected:', formData);
+        logger.debug('Form data collected:', formData);
 
         const recyclerDefaults = this.defaultSettings.recycler;
         const modelSelect = document.getElementById('settings-recycler-model-name');
@@ -283,7 +284,7 @@ export class SettingsManager {
         if (markUserPreference) {
             localStorage.setItem('ecosystemManager_theme_user_choice', 'true');
         }
-        console.log(`Theme applied: ${theme}, body classes:`, body.className);
+        logger.debug(`Theme applied: ${theme}, body classes:`, body.className);
     }
 
     // Static method to ensure cached theme is applied (redundant check)
@@ -308,7 +309,7 @@ export class SettingsManager {
         } else {
             document.body.classList.remove('dark-mode');
         }
-        console.log(`Cached theme verified on load: ${themeToApply}`);
+        logger.debug(`Cached theme verified on load: ${themeToApply}`);
     }
 
     revertThemePreview() {
@@ -339,13 +340,13 @@ export class SettingsManager {
                 const data = await response.json();
                 const models = Array.isArray(data.models) ? data.models : [];
                 if (data.error) {
-                    console.warn(`Recycler model fetch warning for ${normalized}:`, data.error);
+                    logger.warn(`Recycler model fetch warning for ${normalized}:`, data.error);
                     this.showToast(`Model list warning for ${normalized}: ${data.error}`, 'warning');
                 }
                 this.recyclerModelCache[normalized] = models;
                 return models;
             } catch (error) {
-                console.error(`Failed to fetch ${normalized} models:`, error);
+                logger.error(`Failed to fetch ${normalized} models:`, error);
                 this.showToast(`Failed to load ${normalized} models: ${error.message}`, 'error');
                 return [];
             } finally {
