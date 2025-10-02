@@ -216,6 +216,11 @@ export class CoveragePage {
             return;
         }
 
+        // Prevent duplicate binding
+        if (this.coverageTableContainer.dataset.bound === 'true') {
+            return;
+        }
+
         this.coverageTableContainer.querySelectorAll('button[data-action]').forEach((button) => {
             button.addEventListener('click', async (event) => {
                 const action = button.dataset.action;
@@ -237,6 +242,26 @@ export class CoveragePage {
             });
         });
 
+        // Row click handler (view coverage details)
+        this.coverageTableContainer.addEventListener('click', (event) => {
+            // Ignore clicks on buttons
+            if (event.target.closest('button')) {
+                return;
+            }
+
+            // Find the closest row element
+            const row = event.target.closest('tr');
+            if (row) {
+                // Find the view button in this row and extract scenario name
+                const viewButton = row.querySelector('button[data-action="coverage-view"]');
+                if (viewButton && viewButton.dataset.scenario) {
+                    const scenarioName = viewButton.dataset.scenario;
+                    this.viewCoverageAnalysis(scenarioName, viewButton);
+                }
+            }
+        });
+
+        this.coverageTableContainer.dataset.bound = 'true';
         refreshIcons();
     }
 

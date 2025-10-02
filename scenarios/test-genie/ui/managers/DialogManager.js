@@ -60,8 +60,8 @@ export class DialogManager {
         this.dialogs.vault = document.getElementById('vault-dialog-overlay');
         this.dialogs.health = document.getElementById('health-status-overlay');
         this.dialogs.coverageDetail = document.getElementById('coverage-detail-overlay');
-        this.dialogs.suiteDetail = document.getElementById('suite-detail');
-        this.dialogs.executionDetail = document.getElementById('execution-detail');
+        this.dialogs.suiteDetail = document.getElementById('suite-detail-overlay');
+        this.dialogs.executionDetail = document.getElementById('execution-detail-overlay');
     }
 
     /**
@@ -116,6 +116,48 @@ export class DialogManager {
             const closeBtn = document.getElementById('health-status-close');
             if (closeBtn) {
                 closeBtn.addEventListener('click', () => this.closeHealthDialog());
+            }
+        }
+
+        // Coverage Detail Dialog
+        if (this.dialogs.coverageDetail) {
+            this.dialogs.coverageDetail.addEventListener('click', (e) => {
+                if (e.target === this.dialogs.coverageDetail) {
+                    this.closeCoverageDetailDialog();
+                }
+            });
+
+            const closeBtn = document.getElementById('coverage-detail-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => this.closeCoverageDetailDialog());
+            }
+        }
+
+        // Suite Detail Dialog
+        if (this.dialogs.suiteDetail) {
+            this.dialogs.suiteDetail.addEventListener('click', (e) => {
+                if (e.target === this.dialogs.suiteDetail) {
+                    this.closeSuiteDetailDialog();
+                }
+            });
+
+            const closeBtn = document.getElementById('suite-detail-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => this.closeSuiteDetailDialog());
+            }
+        }
+
+        // Execution Detail Dialog
+        if (this.dialogs.executionDetail) {
+            this.dialogs.executionDetail.addEventListener('click', (e) => {
+                if (e.target === this.dialogs.executionDetail) {
+                    this.closeExecutionDetailDialog();
+                }
+            });
+
+            const closeBtn = document.getElementById('execution-detail-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => this.closeExecutionDetailDialog());
             }
         }
 
@@ -242,7 +284,10 @@ export class DialogManager {
      * @param {boolean} isBulkMode - Whether this is bulk generation mode
      */
     openGenerateDialog(triggerElement = null, scenarioName = '', isBulkMode = false) {
+        console.log('[DialogManager] openGenerateDialog called', { triggerElement, scenarioName, isBulkMode });
+
         if (!this.dialogs.generate) {
+            console.log('[DialogManager] Generate dialog element not found!');
             return;
         }
 
@@ -256,6 +301,7 @@ export class DialogManager {
         lockDialogScroll();
 
         // Update state
+        console.log('[DialogManager] Setting state - generateDialogBulkMode:', isBulkMode);
         this.stateManager.set('ui.generateDialogOpen', true);
         this.stateManager.set('ui.generateDialogScenarioName', scenarioName);
         this.stateManager.set('ui.generateDialogBulkMode', isBulkMode);
@@ -281,11 +327,13 @@ export class DialogManager {
         }
 
         // Emit event
+        console.log('[DialogManager] Emitting UI_DIALOG_OPENED event', { dialogType: 'generate', scenarioName, isBulkMode });
         this.eventBus.emit(EVENT_TYPES.UI_DIALOG_OPENED, {
             dialogType: 'generate',
             scenarioName,
             isBulkMode
         });
+        console.log('[DialogManager] Event emitted');
 
         // Focus first input
         const firstCheckbox = document.querySelector('#generate-phase-selector input[type="checkbox"]');
@@ -462,6 +510,35 @@ export class DialogManager {
     }
 
     /**
+     * Open Coverage Detail dialog
+     * @param {HTMLElement} triggerElement - Triggering element
+     * @param {string} scenarioName - Scenario name
+     */
+    openCoverageDetail(triggerElement = null, scenarioName = '') {
+        if (!this.dialogs.coverageDetail) {
+            return;
+        }
+
+        if (this.debug) {
+            console.log('[DialogManager] Opening coverage detail dialog for:', scenarioName);
+        }
+
+        this.dialogs.coverageDetail.classList.add('active');
+        this.dialogs.coverageDetail.setAttribute('aria-hidden', 'false');
+        lockDialogScroll();
+
+        // Update state
+        this.stateManager.set('ui.coverageDetailOpen', true);
+        this.stateManager.set('ui.coverageDetailScenario', scenarioName);
+
+        // Emit event
+        this.eventBus.emit(EVENT_TYPES.UI_DIALOG_OPENED, {
+            dialogType: 'coverageDetail',
+            scenarioName
+        });
+    }
+
+    /**
      * Close Coverage Detail dialog
      */
     closeCoverageDetailDialog() {
@@ -484,6 +561,106 @@ export class DialogManager {
         this.eventBus.emit(EVENT_TYPES.UI_DIALOG_CLOSED, {
             dialogType: 'coverageDetail'
         });
+    }
+
+    /**
+     * Open Suite Detail dialog
+     * @param {string} suiteId - Suite ID
+     */
+    openSuiteDetailDialog(suiteId) {
+        if (!this.dialogs.suiteDetail) {
+            return;
+        }
+
+        if (this.debug) {
+            console.log('[DialogManager] Opening suite detail dialog for:', suiteId);
+        }
+
+        this.dialogs.suiteDetail.classList.add('active');
+        this.dialogs.suiteDetail.setAttribute('aria-hidden', 'false');
+        lockDialogScroll();
+
+        // Update state
+        this.stateManager.set('ui.activeSuiteDetailId', suiteId);
+
+        // Emit event
+        this.eventBus.emit(EVENT_TYPES.UI_DIALOG_OPENED, {
+            dialogType: 'suiteDetail',
+            suiteId
+        });
+    }
+
+    /**
+     * Close Suite Detail dialog
+     */
+    closeSuiteDetailDialog() {
+        if (!this.dialogs.suiteDetail) {
+            return;
+        }
+
+        if (this.debug) {
+            console.log('[DialogManager] Closing suite detail dialog');
+        }
+
+        this.dialogs.suiteDetail.classList.remove('active');
+        this.dialogs.suiteDetail.setAttribute('aria-hidden', 'true');
+        unlockDialogScrollIfIdle(Object.values(this.dialogs));
+
+        // Update state
+        this.stateManager.set('ui.activeSuiteDetailId', null);
+
+        // Emit event
+        this.eventBus.emit(EVENT_TYPES.UI_SUITE_DETAIL_CLOSE);
+    }
+
+    /**
+     * Open Execution Detail dialog
+     * @param {string} executionId - Execution ID
+     */
+    openExecutionDetailDialog(executionId) {
+        if (!this.dialogs.executionDetail) {
+            return;
+        }
+
+        if (this.debug) {
+            console.log('[DialogManager] Opening execution detail dialog for:', executionId);
+        }
+
+        this.dialogs.executionDetail.classList.add('active');
+        this.dialogs.executionDetail.setAttribute('aria-hidden', 'false');
+        lockDialogScroll();
+
+        // Update state
+        this.stateManager.set('ui.activeExecutionDetailId', executionId);
+
+        // Emit event
+        this.eventBus.emit(EVENT_TYPES.UI_DIALOG_OPENED, {
+            dialogType: 'executionDetail',
+            executionId
+        });
+    }
+
+    /**
+     * Close Execution Detail dialog
+     */
+    closeExecutionDetailDialog() {
+        if (!this.dialogs.executionDetail) {
+            return;
+        }
+
+        if (this.debug) {
+            console.log('[DialogManager] Closing execution detail dialog');
+        }
+
+        this.dialogs.executionDetail.classList.remove('active');
+        this.dialogs.executionDetail.setAttribute('aria-hidden', 'true');
+        unlockDialogScrollIfIdle(Object.values(this.dialogs));
+
+        // Update state
+        this.stateManager.set('ui.activeExecutionDetailId', null);
+
+        // Emit event
+        this.eventBus.emit(EVENT_TYPES.UI_EXECUTION_DETAIL_CLOSE);
     }
 
     /**

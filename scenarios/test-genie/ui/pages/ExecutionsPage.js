@@ -8,6 +8,7 @@ import { stateManager } from '../core/StateManager.js';
 import { apiClient } from '../core/ApiClient.js';
 import { notificationManager } from '../managers/NotificationManager.js';
 import { selectionManager } from '../managers/SelectionManager.js';
+import { dialogManager } from '../managers/DialogManager.js';
 import {
     normalizeCollection,
     normalizeId,
@@ -27,13 +28,15 @@ export class ExecutionsPage {
         stateManagerInstance = stateManager,
         apiClientInstance = apiClient,
         notificationManagerInstance = notificationManager,
-        selectionManagerInstance = selectionManager
+        selectionManagerInstance = selectionManager,
+        dialogManagerInstance = dialogManager
     ) {
         this.eventBus = eventBusInstance;
         this.stateManager = stateManagerInstance;
         this.apiClient = apiClientInstance;
         this.notificationManager = notificationManagerInstance;
         this.selectionManager = selectionManagerInstance;
+        this.dialogManager = dialogManagerInstance;
 
         // DOM references
         this.executionsTableContainer = null;
@@ -364,21 +367,22 @@ export class ExecutionsPage {
 
         // Checkbox selection handler
         container.addEventListener('change', (event) => {
-            const checkbox = event.target.closest('[data-execution-id]');
-            if (checkbox && checkbox.type === 'checkbox') {
-                const executionId = checkbox.dataset.executionId;
-                if (executionId) {
-                    this.selectionManager.toggleExecutionSelection(executionId);
-                }
-            }
-
-            // Select all handler
-            const selectAllCheckbox = event.target.closest('[data-execution-select-all]');
-            if (selectAllCheckbox) {
+            // Select all handler - check this first
+            if (event.target.hasAttribute('data-execution-select-all')) {
+                const selectAllCheckbox = event.target;
                 if (selectAllCheckbox.checked) {
                     this.selectionManager.selectAllExecutions(this.renderedExecutionIds);
                 } else {
                     this.selectionManager.clearExecutionSelection();
+                }
+                return;
+            }
+
+            // Individual checkbox handler
+            if (event.target.type === 'checkbox' && event.target.hasAttribute('data-execution-id')) {
+                const executionId = event.target.dataset.executionId;
+                if (executionId) {
+                    this.selectionManager.toggleExecutionSelection(executionId);
                 }
             }
         });
@@ -399,6 +403,23 @@ export class ExecutionsPage {
             }
         });
 
+        // Row click handler (view execution details)
+        container.addEventListener('click', (event) => {
+            // Ignore clicks on checkboxes and buttons
+            if (event.target.closest('input[type="checkbox"], button')) {
+                return;
+            }
+
+            // Find the closest row element
+            const row = event.target.closest('tr[data-execution-id]');
+            if (row && row.dataset.executionId) {
+                const executionId = row.dataset.executionId;
+                if (executionId.trim()) {
+                    this.viewExecution(executionId);
+                }
+            }
+        });
+
         container.dataset.bound = 'true';
     }
 
@@ -412,11 +433,117 @@ export class ExecutionsPage {
             console.log('[ExecutionsPage] Viewing execution:', executionId);
         }
 
-        // Emit event for execution detail view
-        this.eventBus.emit(EVENT_TYPES.EXECUTION_VIEW_REQUESTED, {
-            executionId,
-            trigger: triggerElement
-        });
+        // Open execution detail dialog
+        this.dialogManager.openExecutionDetailDialog(executionId);
+
+        // Load execution details into the dialog
+        this.loadExecutionDetails(executionId);
+    }
+
+    /**
+     * Load execution details into dialog
+     * @param {string} executionId - Execution ID
+     * @private
+     */
+    async loadExecutionDetails(executionId) {
+        const contentContainer = document.getElementById('execution-detail-content');
+        if (!contentContainer) {
+            return;
+        }
+
+        contentContainer.innerHTML = '<div class="loading"><div class="spinner"></div>Loading execution details...</div>';
+
+        try {
+            const execution = await this.apiClient.getTestExecution(executionId);
+            if (!execution) {
+                contentContainer.innerHTML = '<div class="execution-detail-empty">Execution not found.</div>';
+                return;
+            }
+
+            // Update dialog header
+            const titleEl = document.getElementById('execution-detail-title');
+            const idEl = document.getElementById('execution-detail-id');
+            const subtitleEl = document.getElementById('execution-detail-subtitle');
+            const statusEl = document.getElementById('execution-detail-status');
+
+            if (titleEl) {
+                titleEl.textContent = execution.suite_name || 'Test Execution';
+            }
+            if (idEl) {
+                idEl.textContent = `Execution ID: ${executionId}`;
+            }
+            if (subtitleEl) {
+                const duration = calculateDuration(execution.start_time, execution.end_time);
+                subtitleEl.textContent = `Duration: ${duration}s • Started ${formatTimestamp(execution.start_time)}`;
+            }
+            if (statusEl) {
+                const statusClass = getStatusClass(execution.status);
+                statusEl.innerHTML = `
+                    <span class="status ${statusClass}">${escapeHtml(execution.status || 'unknown')}</span>
+                    <span class="execution-detail-chip">
+                        <i data-lucide="check-circle"></i>
+                        ${execution.passed_tests || 0} passed
+                    </span>
+                    <span class="execution-detail-chip">
+                        <i data-lucide="x-circle"></i>
+                        ${execution.failed_tests || 0} failed
+                    </span>
+                `;
+            }
+
+            // Render execution content
+            contentContainer.innerHTML = this.renderExecutionDetailContent(execution);
+            refreshIcons();
+
+        } catch (error) {
+            console.error('[ExecutionsPage] Failed to load execution details:', error);
+            contentContainer.innerHTML = '<div class="execution-detail-empty" style="color: var(--accent-error);">Failed to load execution details.</div>';
+        }
+    }
+
+    /**
+     * Render execution detail content
+     * @param {Object} execution - Execution data
+     * @returns {string} HTML string
+     * @private
+     */
+    renderExecutionDetailContent(execution) {
+        const failedTests = Array.isArray(execution.failed_test_details) ? execution.failed_test_details : [];
+
+        if (failedTests.length === 0 && execution.failed_tests === 0) {
+            return '<div class="execution-detail-empty" style="color: var(--accent-success);">All tests passed! 🎉</div>';
+        }
+
+        if (failedTests.length === 0) {
+            return '<div class="execution-detail-empty">No detailed failure information available.</div>';
+        }
+
+        const failedTestsHtml = failedTests.map((test, index) => {
+            const testName = test.name || test.test_name || `Test ${index + 1}`;
+            const error = test.error || test.message || 'No error message available';
+
+            return `
+                <details class="execution-detail-failed-test">
+                    <summary>
+                        <i data-lucide="alert-circle"></i>
+                        ${escapeHtml(testName)}
+                    </summary>
+                    <div class="execution-detail-assertion">
+                        <strong>Error:</strong>
+                        <pre>${escapeHtml(error)}</pre>
+                    </div>
+                </details>
+            `;
+        }).join('');
+
+        return `
+            <div class="suite-detail-section">
+                <h3>Failed Tests (${failedTests.length})</h3>
+                <div class="execution-detail-failed-tests">
+                    ${failedTestsHtml}
+                </div>
+            </div>
+        `;
     }
 
     /**

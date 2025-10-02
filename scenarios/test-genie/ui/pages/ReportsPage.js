@@ -428,14 +428,27 @@ export class ReportsPage {
         // X-axis labels
         ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
         ctx.font = '10px Inter, sans-serif';
+        ctx.textAlign = 'center';
+
+        // Calculate how many labels we can fit without overlap
+        const labelWidth = 50; // Approximate width needed per label
+        const availableWidth = chartWidth;
+        const maxLabels = Math.floor(availableWidth / labelWidth);
+        const labelInterval = Math.max(1, Math.ceil(series.length / maxLabels));
+
         series.forEach((point, index) => {
+            // Only show every Nth label to prevent overlap
+            if (index % labelInterval !== 0 && index !== series.length - 1) {
+                return;
+            }
+
             const bucket = point.bucket ? new Date(point.bucket) : null;
             if (!bucket || Number.isNaN(bucket.getTime())) {
                 return;
             }
             const label = bucket.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
             const x = margin.left + stepX * index;
-            ctx.fillText(label, x - 18, height - 8);
+            ctx.fillText(label, x, height - 8);
         });
 
         ctx.restore();

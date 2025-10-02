@@ -178,6 +178,9 @@ export class SuitesPage {
                 .map(row => row.latestSuiteId)
                 .filter(Boolean);
 
+            // Store scenario rows in state for dialog access
+            this.stateManager.setData('scenarioRows', scenarioRows);
+
             // Prune invalid selections
             this.selectionManager.pruneSuiteSelection(this.availableSuiteIds);
 
@@ -678,21 +681,22 @@ export class SuitesPage {
 
         // Checkbox selection handler
         container.addEventListener('change', (event) => {
-            const checkbox = event.target.closest('[data-suite-id]');
-            if (checkbox && checkbox.type === 'checkbox') {
-                const suiteId = checkbox.dataset.suiteId;
-                if (suiteId) {
-                    this.selectionManager.toggleSuiteSelection(suiteId);
-                }
-            }
-
-            // Select all handler
-            const selectAllCheckbox = event.target.closest('[data-suite-select-all]');
-            if (selectAllCheckbox) {
+            // Select all handler - check this first
+            if (event.target.hasAttribute('data-suite-select-all')) {
+                const selectAllCheckbox = event.target;
                 if (selectAllCheckbox.checked) {
                     this.selectionManager.selectAllSuites(this.renderedSuiteIds);
                 } else {
                     this.selectionManager.clearSuiteSelection();
+                }
+                return;
+            }
+
+            // Individual checkbox handler
+            if (event.target.type === 'checkbox' && event.target.hasAttribute('data-suite-id')) {
+                const suiteId = event.target.dataset.suiteId;
+                if (suiteId) {
+                    this.selectionManager.toggleSuiteSelection(suiteId);
                 }
             }
         });
@@ -720,9 +724,14 @@ export class SuitesPage {
                 return;
             }
 
-            const row = event.target.closest('[data-suite-id]');
+            // Find the closest row element (tr or div.suite-card)
+            const row = event.target.closest('tr[data-suite-id], div.suite-card[data-suite-id]');
             if (row && row.dataset.suiteId) {
-                this.viewSuite(row.dataset.suiteId);
+                const suiteId = row.dataset.suiteId;
+                // Only open dialog if there's actually a suite ID (not empty string)
+                if (suiteId.trim()) {
+                    this.viewSuite(suiteId);
+                }
             }
         });
 
@@ -738,10 +747,105 @@ export class SuitesPage {
             console.log('[SuitesPage] Viewing suite:', suiteId);
         }
 
-        // Emit event for suite detail view
-        this.eventBus.emit(EVENT_TYPES.SUITE_VIEW_REQUESTED, {
-            suiteId
-        });
+        // Open suite detail dialog
+        this.dialogManager.openSuiteDetailDialog(suiteId);
+
+        // Load suite details into the dialog
+        this.loadSuiteDetails(suiteId);
+    }
+
+    /**
+     * Load suite details into dialog
+     * @param {string} suiteId - Suite ID
+     * @private
+     */
+    async loadSuiteDetails(suiteId) {
+        const contentContainer = document.getElementById('suite-detail-content');
+        if (!contentContainer) {
+            return;
+        }
+
+        contentContainer.innerHTML = '<div class="loading"><div class="spinner"></div>Loading suite details...</div>';
+
+        try {
+            const suite = await this.apiClient.getTestSuite(suiteId);
+            if (!suite) {
+                contentContainer.innerHTML = '<div class="suite-detail-empty">Suite not found.</div>';
+                return;
+            }
+
+            // Update dialog title
+            const titleEl = document.getElementById('suite-detail-title');
+            const idEl = document.getElementById('suite-detail-id');
+            const subtitleEl = document.getElementById('suite-detail-subtitle');
+
+            if (titleEl) {
+                titleEl.textContent = suite.scenario_name || 'Test Suite';
+            }
+            if (idEl) {
+                idEl.textContent = `Suite ID: ${suiteId}`;
+            }
+            if (subtitleEl) {
+                const testCount = Array.isArray(suite.test_cases) ? suite.test_cases.length : 0;
+                subtitleEl.textContent = `${testCount} test case${testCount === 1 ? '' : 's'}`;
+            }
+
+            // Render suite content
+            contentContainer.innerHTML = this.renderSuiteDetailContent(suite);
+            refreshIcons();
+
+        } catch (error) {
+            console.error('[SuitesPage] Failed to load suite details:', error);
+            contentContainer.innerHTML = '<div class="suite-detail-empty" style="color: var(--accent-error);">Failed to load suite details.</div>';
+        }
+    }
+
+    /**
+     * Render suite detail content
+     * @param {Object} suite - Suite data
+     * @returns {string} HTML string
+     * @private
+     */
+    renderSuiteDetailContent(suite) {
+        const testCases = Array.isArray(suite.test_cases) ? suite.test_cases : [];
+
+        if (testCases.length === 0) {
+            return '<div class="suite-detail-empty">No test cases found in this suite.</div>';
+        }
+
+        const testRows = testCases.map((test, index) => {
+            const testType = test.type || test.test_type || 'unknown';
+            const testName = test.name || test.test_name || `Test ${index + 1}`;
+            const description = test.description || '';
+
+            return `
+                <tr>
+                    <td><strong>${escapeHtml(testName)}</strong></td>
+                    <td><span class="badge">${formatLabel(testType)}</span></td>
+                    <td>${escapeHtml(description)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        return `
+            <div class="suite-detail-section">
+                <h3>Test Cases</h3>
+                <div class="suite-detail-tests">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Test Name</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${testRows}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
     }
 
     /**

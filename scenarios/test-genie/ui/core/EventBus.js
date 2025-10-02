@@ -44,11 +44,18 @@ export const EVENT_TYPES = {
     // UI Events
     DIALOG_OPENED: 'dialog:opened',
     DIALOG_CLOSED: 'dialog:closed',
+    UI_DIALOG_OPEN: 'ui:dialog:open',
+    UI_DIALOG_CLOSE: 'ui:dialog:close',
+    UI_DIALOG_OPENED: 'ui:dialog:opened',
+    UI_DIALOG_CLOSED: 'ui:dialog:closed',
+    UI_SUITE_DETAIL_CLOSE: 'ui:suite:detail:close',
+    UI_EXECUTION_DETAIL_CLOSE: 'ui:execution:detail:close',
     NOTIFICATION_SHOW: 'notification:show',
     FILTER_CHANGED: 'filter:changed',
 
     // System Events
     HEALTH_CHANGED: 'system:health:changed',
+    HEALTH_CHECK_REQUESTED: 'system:health:check:requested',
     ERROR_OCCURRED: 'system:error',
 
     // Vault Events

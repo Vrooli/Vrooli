@@ -94,6 +94,7 @@ class TestGenieApp {
         this.executionDetailStatus = null;
         this.lastGenerateDialogTrigger = null;
         this.generateDialogScenarioName = '';
+        this.generateDialogIsBulkMode = false;
         this.lastCoverageDialogTrigger = null;
         this.lastVaultDialogTrigger = null;
         this.coverageTargetInput = null;
@@ -238,6 +239,38 @@ class TestGenieApp {
             this.handleVaultSubmit();
         });
 
+        // Listen for dialog opened events to sync state
+        eventBus.on(EVENT_TYPES.UI_DIALOG_OPENED, (event) => {
+            console.log('[DEBUG] UI_DIALOG_OPENED event received:', event);
+            if (event.data.dialogType === 'generate') {
+                // Sync bulk mode state from StateManager
+                this.generateDialogIsBulkMode = stateManager.get('ui.generateDialogBulkMode') || false;
+                this.generateDialogScenarioName = stateManager.get('ui.generateDialogScenarioName') || '';
+                console.log('[DEBUG] Generate dialog opened - bulk mode:', this.generateDialogIsBulkMode, 'scenario:', this.generateDialogScenarioName);
+                // Update the scenario display based on mode
+                this.updateGenerateScenarioDisplay();
+            }
+        });
+
+        // Generate result card buttons
+        document.getElementById('generate-another-btn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.showGenerateForm(true, true);
+        });
+
+        document.getElementById('generate-close-btn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            dialogManager.closeGenerateDialog();
+        });
+
+        document.getElementById('generate-open-issue-btn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            const issueUrl = e.currentTarget?.dataset?.issueUrl;
+            if (issueUrl) {
+                window.open(issueUrl, '_blank', 'noopener,noreferrer');
+            }
+        });
+
         this.coverageTargetInput = document.getElementById('coverage-target');
         this.coverageTargetDisplay = document.getElementById('coverage-target-display');
 
@@ -266,6 +299,7 @@ class TestGenieApp {
         if (suitesBulkGenerateButton) {
             suitesBulkGenerateButton.addEventListener('click', (event) => {
                 event.preventDefault();
+                console.log('[DEBUG] Bulk generate button clicked, opening dialog in bulk mode');
                 dialogManager.openGenerateDialog(suitesBulkGenerateButton, '', true);
             });
         }
@@ -531,16 +565,25 @@ class TestGenieApp {
     }
 
     updateGenerateScenarioDisplay() {
+        console.log('[DEBUG] updateGenerateScenarioDisplay called, bulk mode:', this.generateDialogIsBulkMode);
         const scenarioDisplay = document.getElementById('scenario-name-display');
         const scenarioChecklist = document.getElementById('scenario-checklist');
         const scenariosLabelSuffix = document.getElementById('scenarios-label-suffix');
 
+        console.log('[DEBUG] DOM elements found:', {
+            scenarioDisplay: !!scenarioDisplay,
+            scenarioChecklist: !!scenarioChecklist,
+            scenariosLabelSuffix: !!scenariosLabelSuffix
+        });
+
         if (!scenarioDisplay || !scenarioChecklist) {
+            console.log('[DEBUG] Missing required DOM elements, returning early');
             return;
         }
 
         // Bulk mode: show checklist, hide single display
         if (this.generateDialogIsBulkMode) {
+            console.log('[DEBUG] Showing checklist (bulk mode)');
             scenarioDisplay.hidden = true;
             scenarioChecklist.hidden = false;
             if (scenariosLabelSuffix) {
@@ -550,6 +593,7 @@ class TestGenieApp {
         }
         // Single mode: show single display, hide checklist
         else {
+            console.log('[DEBUG] Showing single display (single mode)');
             scenarioDisplay.hidden = false;
             scenarioChecklist.hidden = true;
             if (scenariosLabelSuffix) {
@@ -567,15 +611,22 @@ class TestGenieApp {
     }
 
     populateScenarioChecklist() {
+        console.log('[DEBUG] populateScenarioChecklist called');
         const checklistItems = document.getElementById('scenario-checklist-items');
         const selectAllCheckbox = document.getElementById('scenario-select-all');
 
         if (!checklistItems) {
+            console.log('[DEBUG] Checklist items container not found');
             return;
         }
 
+        // Get scenario rows from state manager (managed by SuitesPage)
+        const scenarioRows = stateManager.get('data.scenarioRows') || [];
+        console.log('[DEBUG] Scenario rows from state:', scenarioRows);
+
         // Get scenarios without tests (isMissing = true)
-        const scenariosWithoutTests = (this.currentSuiteRows || []).filter(scenario => scenario.isMissing);
+        const scenariosWithoutTests = scenarioRows.filter(scenario => scenario.isMissing);
+        console.log('[DEBUG] Scenarios without tests:', scenariosWithoutTests);
 
         if (scenariosWithoutTests.length === 0) {
             checklistItems.innerHTML = '<p style="padding: var(--spacing-sm); color: var(--text-muted); text-align: center;">All scenarios have tests!</p>';
@@ -680,7 +731,21 @@ class TestGenieApp {
         }
     }
 
-    showGenerateResultCard({ icon = 'check-circle', tone = 'success', title = '', message = '', metadata = [], issueUrl = '' } = {}) {
+    showGenerateResultCard({ icon = 'check-circle', tone = 'success', title = '', message = '', metadata = [], issueUrl = '', issues = [] } = {}) {
+        // Initialize DOM references if not already done
+        if (!this.generateResultCard) {
+            this.generateResultCard = document.getElementById('generation-result');
+            this.generateResultIcon = document.getElementById('generate-result-icon');
+            this.generateResultTitle = document.getElementById('generate-result-title');
+            this.generateResultMessage = document.getElementById('generate-result-message');
+            this.generateResultMetadata = document.getElementById('generate-result-metadata');
+            this.generateResultLinks = document.getElementById('generate-result-links');
+            this.generateResultIssueButton = document.getElementById('generate-open-issue-btn');
+            this.generateResultAgainButton = document.getElementById('generate-another-btn');
+            this.generateResultCloseButton = document.getElementById('generate-close-btn');
+            this.generateForm = this.generateForm || document.getElementById('generate-form');
+        }
+
         if (this.generateForm) {
             this.generateForm.classList.add('generate-form--hidden');
         }
@@ -722,11 +787,43 @@ class TestGenieApp {
             }
         }
 
+        // Handle multiple issues (bulk mode) or single issue
+        const hasIssues = (Array.isArray(issues) && issues.length > 0) || issueUrl;
+
         if (this.generateResultLinks) {
-            this.generateResultLinks.hidden = !issueUrl;
+            if (hasIssues) {
+                // Show the links container
+                this.generateResultLinks.hidden = false;
+
+                // If we have multiple issues, render them as a list
+                if (Array.isArray(issues) && issues.length > 0) {
+                    const issuesHtml = issues.map((issue, index) => {
+                        const url = issue.issue_url || issue.url || '';
+                        const scenario = issue.scenario_name || issue.scenario || `Issue ${index + 1}`;
+                        return url ? `
+                            <div style="margin-bottom: var(--spacing-xs);">
+                                <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="btn" style="width: 100%;">
+                                    <i data-lucide="external-link"></i>
+                                    <span>${escapeHtml(scenario)}</span>
+                                </a>
+                            </div>
+                        ` : '';
+                    }).filter(Boolean).join('');
+
+                    this.generateResultLinks.innerHTML = issuesHtml || '';
+                    this.refreshIcons();
+                } else if (issueUrl && this.generateResultIssueButton) {
+                    // Single issue - use the existing button
+                    const issueUrlString = String(issueUrl);
+                    this.generateResultIssueButton.dataset.issueUrl = issueUrlString;
+                    this.generateResultIssueButton.removeAttribute('hidden');
+                }
+            } else {
+                this.generateResultLinks.hidden = true;
+            }
         }
 
-        if (this.generateResultIssueButton) {
+        if (this.generateResultIssueButton && !Array.isArray(issues)) {
             if (issueUrl) {
                 const issueUrlString = String(issueUrl);
                 this.generateResultIssueButton.dataset.issueUrl = issueUrlString;
@@ -739,8 +836,8 @@ class TestGenieApp {
 
         this.refreshIcons();
 
-        if (issueUrl && this.generateResultIssueButton) {
-            this.focusElement(this.generateResultIssueButton);
+        if (hasIssues && this.generateResultLinks) {
+            this.focusElement(this.generateResultLinks.querySelector('a, button') || this.generateResultAgainButton);
         } else if (this.generateResultAgainButton) {
             this.focusElement(this.generateResultAgainButton);
         } else if (this.generateResultCloseButton) {
@@ -1156,7 +1253,7 @@ class TestGenieApp {
                     title: `Bulk Test Requests ${created > 0 ? 'Created' : 'Skipped'}`,
                     message,
                     metadata,
-                    issueUrl: issues.length > 0 ? issues[0].issue_url : ''
+                    issues: issues.length > 0 ? issues : []
                 });
 
                 this.showSuccess(message);
@@ -1232,10 +1329,8 @@ class TestGenieApp {
                 }
             }
 
-            await Promise.all([
-                this.loadTestSuites(),
-                // Vault scenario options handled by VaultPage
-            ]);
+            // Reload suites to show the new requests
+            await suitesPage.load();
 
         } catch (error) {
             console.error('Test generation failed:', error);
