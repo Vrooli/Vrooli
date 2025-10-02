@@ -141,6 +141,198 @@ func submitTestGenerationIssue(ctx context.Context, requestID uuid.UUID, req Gen
 	return result, nil
 }
 
+func submitTestEnhancementIssue(ctx context.Context, requestID uuid.UUID, req GenerateTestSuiteRequest) (*IssueTrackerResult, error) {
+	port, err := resolveScenarioPortViaCLI(ctx, "app-issue-tracker", "API_PORT")
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve app-issue-tracker API port: %w", err)
+	}
+
+	payload, err := buildIssueTrackerEnhancementPayload(requestID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal issue payload: %w", err)
+	}
+
+	endpoint := fmt.Sprintf("http://localhost:%d/api/v1/issues", port)
+
+	operation := func() (interface{}, error) {
+		httpCtx, cancel := context.WithTimeout(ctx, 25*time.Second)
+		defer cancel()
+
+		request, err := http.NewRequestWithContext(httpCtx, http.MethodPost, endpoint, bytes.NewReader(body))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create issue request: %w", err)
+		}
+		request.Header.Set("Content-Type", "application/json")
+
+		client := &http.Client{Timeout: 25 * time.Second}
+		response, err := client.Do(request)
+		if err != nil {
+			return nil, fmt.Errorf("failed to call app-issue-tracker: %w", err)
+		}
+		defer response.Body.Close()
+
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
+			data, _ := io.ReadAll(response.Body)
+			return nil, fmt.Errorf("app-issue-tracker returned status %d: %s", response.StatusCode, strings.TrimSpace(string(data)))
+		}
+
+		var trackerResp issueTrackerAPIResponse
+		if err := json.NewDecoder(response.Body).Decode(&trackerResp); err != nil {
+			return nil, fmt.Errorf("failed to decode app-issue-tracker response: %w", err)
+		}
+
+		if !trackerResp.Success {
+			message := strings.TrimSpace(trackerResp.Error)
+			if message == "" {
+				message = strings.TrimSpace(trackerResp.Message)
+			}
+			if message == "" {
+				message = "app-issue-tracker rejected the issue"
+			}
+			return nil, errors.New(message)
+		}
+
+		result := &IssueTrackerResult{Message: strings.TrimSpace(trackerResp.Message)}
+		if trackerResp.Data != nil {
+			if value, ok := trackerResp.Data["issue_id"].(string); ok {
+				result.IssueID = value
+			} else if value, ok := trackerResp.Data["issueId"].(string); ok {
+				result.IssueID = value
+			} else if rawIssue, ok := trackerResp.Data["issue"]; ok {
+				switch v := rawIssue.(type) {
+				case map[string]interface{}:
+					if nested, ok := v["id"].(string); ok {
+						result.IssueID = nested
+					}
+				}
+			}
+		}
+
+		if result.Message == "" {
+			result.Message = "Enhancement issue created successfully"
+		}
+
+		if result.IssueID != "" {
+			if issueURL, urlErr := buildIssueTrackerURL(ctx, result.IssueID); urlErr == nil {
+				result.IssueURL = issueURL
+			}
+		}
+
+		return result, nil
+	}
+
+	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	var raw interface{}
+	if issueTrackerCircuitBreaker != nil {
+		wrappedResult, execErr := issueTrackerCircuitBreaker.Execute(execCtx, operation)
+		if execErr != nil {
+			return nil, execErr
+		}
+		raw = wrappedResult
+	} else {
+		unwrapped, execErr := operation()
+		if execErr != nil {
+			return nil, execErr
+		}
+		raw = unwrapped
+	}
+
+	result, ok := raw.(*IssueTrackerResult)
+	if !ok || result == nil {
+		return nil, errors.New("unexpected response from issue tracker operation")
+	}
+
+	return result, nil
+}
+
+func buildIssueTrackerEnhancementPayload(requestID uuid.UUID, req GenerateTestSuiteRequest) (map[string]interface{}, error) {
+	scenario := strings.TrimSpace(req.ScenarioName)
+	if scenario == "" {
+		return nil, errors.New("scenario name is required for issue payload")
+	}
+
+	testTypes := make([]string, 0, len(req.TestTypes))
+	for _, t := range req.TestTypes {
+		trimmed := strings.TrimSpace(t)
+		if trimmed != "" {
+			testTypes = append(testTypes, trimmed)
+		}
+	}
+
+	if len(testTypes) == 0 {
+		testTypes = []string{"unit"}
+	}
+
+	requestSpec := map[string]interface{}{
+		"request_id":      requestID.String(),
+		"request_type":    "enhancement",
+		"scenario":        scenario,
+		"requested_at":    time.Now().UTC().Format(time.RFC3339),
+		"focus_areas":     testTypes,
+		"coverage_target": req.CoverageTarget,
+		"options":         req.Options,
+	}
+
+	specBytes, err := json.MarshalIndent(requestSpec, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request spec: %w", err)
+	}
+
+	description := buildIssueTrackerEnhancementDescription(scenario, testTypes, req)
+
+	metadata := map[string]string{
+		"requested_by": "test-genie",
+		"request_id":   requestID.String(),
+		"request_type": "enhancement",
+		"scenario":     scenario,
+	}
+
+	environment := map[string]string{
+		"scenario":      scenario,
+		"focus_areas":   strings.Join(testTypes, ","),
+		"coverage_target": fmt.Sprintf("%.2f", req.CoverageTarget),
+	}
+
+	artifactName := fmt.Sprintf("%s-test-enhancement.json", sanitizeForFilename(scenario))
+	artifacts := []map[string]interface{}{
+		{
+			"name":         artifactName,
+			"category":     "test_enhancement",
+			"content":      string(specBytes),
+			"encoding":     "plain",
+			"content_type": "application/json",
+		},
+	}
+
+	payload := map[string]interface{}{
+		"title":          fmt.Sprintf("Enhance test suite for %s", scenario),
+		"description":    description,
+		"type":           "task",
+		"priority":       "medium",
+		"app_id":         scenario,
+		"status":         "open",
+		"tags":           []string{"test-genie", "test-enhancement", "quality-improvement"},
+		"metadata_extra": metadata,
+		"environment":    environment,
+		"artifacts":      artifacts,
+		"reporter_name":  "Test Genie",
+		"reporter_email": "test-genie@vrooli.local",
+	}
+
+	if req.Model != "" {
+		metadata["preferred_model"] = strings.TrimSpace(req.Model)
+	}
+
+	return payload, nil
+}
+
 func buildIssueTrackerPayload(requestID uuid.UUID, req GenerateTestSuiteRequest) (map[string]interface{}, error) {
 	scenario := strings.TrimSpace(req.ScenarioName)
 	if scenario == "" {
@@ -220,6 +412,32 @@ func buildIssueTrackerPayload(requestID uuid.UUID, req GenerateTestSuiteRequest)
 	return payload, nil
 }
 
+func buildIssueTrackerEnhancementDescription(scenario string, testTypes []string, req GenerateTestSuiteRequest) string {
+	var builder strings.Builder
+	builder.WriteString("Test Genie requests test suite enhancement and quality improvement for the following scenario.\n\n")
+	builder.WriteString(fmt.Sprintf("Scenario: %s\n", scenario))
+	builder.WriteString(fmt.Sprintf("Focus areas: %s\n", strings.Join(testTypes, ", ")))
+	if req.CoverageTarget > 0 {
+		builder.WriteString(fmt.Sprintf("Target coverage: %.2f%%\n", req.CoverageTarget))
+	}
+
+	builder.WriteString("\n## ⚠️ IMPORTANT: Existing Tests Present\n\n")
+	builder.WriteString("**This scenario already has test suites**. Your task is to:\n")
+	builder.WriteString("1. **Assess**: Review existing test files and coverage reports\n")
+	builder.WriteString("2. **Identify Gaps**: Find untested functions, missing error cases, low-coverage areas\n")
+	builder.WriteString("3. **Enhance**: Add missing tests while preserving existing working tests\n")
+	builder.WriteString("4. **Improve Quality**: Refactor tests to follow gold standard patterns if needed\n\n")
+
+	builder.WriteString("**Assessment Checklist**:\n")
+	builder.WriteString("- [ ] Run existing test suite to understand current state\n")
+	builder.WriteString("- [ ] Generate coverage report to identify gaps\n")
+	builder.WriteString("- [ ] Review test structure for pattern compliance\n")
+	builder.WriteString("- [ ] Identify missing test types from focus areas\n")
+	builder.WriteString("- [ ] Check for test_helpers.go and test_patterns.go existence\n\n")
+
+	return builder.String() + buildSharedTestingGuidance(scenario, testTypes, req)
+}
+
 func buildIssueTrackerDescription(scenario string, testTypes []string, req GenerateTestSuiteRequest) string {
 	var builder strings.Builder
 	builder.WriteString("Test Genie requests automated test generation for the following scenario.\n\n")
@@ -228,6 +446,12 @@ func buildIssueTrackerDescription(scenario string, testTypes []string, req Gener
 	if req.CoverageTarget > 0 {
 		builder.WriteString(fmt.Sprintf("Target coverage: %.2f%%\n", req.CoverageTarget))
 	}
+
+	return builder.String() + buildSharedTestingGuidance(scenario, testTypes, req)
+}
+
+func buildSharedTestingGuidance(scenario string, testTypes []string, req GenerateTestSuiteRequest) string {
+	var builder strings.Builder
 
 	builder.WriteString("\n## Testing Infrastructure Integration\n\n")
 	builder.WriteString("**Centralized Testing Library**: All tests must integrate with Vrooli's centralized testing infrastructure at `scripts/scenarios/testing/`:\n")

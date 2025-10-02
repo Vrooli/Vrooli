@@ -1014,6 +1014,72 @@
             color: var(--text-primary);
         }
 
+        /* Dialog Tabs */
+        .dialog-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .dialog-tab {
+            flex: 1;
+            padding: 0.75rem var(--spacing-sm);
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-xs);
+        }
+
+        .dialog-tab:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .dialog-tab.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+
+        .dialog-tab svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .dialog-tab-content {
+            display: none;
+        }
+
+        .dialog-tab-content.active {
+            display: block;
+        }
+
+        .tab-explainer {
+            padding: var(--spacing-sm);
+            background: var(--bg-secondary);
+            border-left: 3px solid var(--accent-info);
+            border-radius: var(--panel-border-radius);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .tab-explainer p {
+            margin: 0;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .tab-explainer strong {
+            color: var(--text-primary);
+        }
+
         .form-range-group {
             display: flex;
             align-items: center;
@@ -3267,14 +3333,31 @@ test-genie help
             </button>
             <div class="suite-detail-header">
                 <div class="suite-detail-meta">
-                    <h2 id="generate-dialog-title">Generate Test Suite</h2>
-                    <div class="suite-detail-subtitle">Configure AI-powered generation for any scenario.</div>
+                    <h2 id="generate-dialog-title">Request Tests</h2>
+                    <div class="suite-detail-subtitle" id="generate-dialog-subtitle">Configure AI-powered test creation and enhancement.</div>
                 </div>
             </div>
             <div class="suite-detail-content">
-                <form id="generate-form" class="generate-form">
-                    <div class="form-group">
-                        <span class="form-label">Scenario<span id="scenarios-label-suffix"></span></span>
+                <!-- Tab Navigation -->
+                <div class="dialog-tabs">
+                    <button type="button" class="dialog-tab active" id="tab-create" data-tab="create">
+                        <i data-lucide="plus-circle"></i>
+                        <span>Create Tests</span>
+                    </button>
+                    <button type="button" class="dialog-tab" id="tab-enhance" data-tab="enhance">
+                        <i data-lucide="trending-up"></i>
+                        <span>Enhance Tests</span>
+                    </button>
+                </div>
+
+                <!-- Tab Content - Create -->
+                <div class="dialog-tab-content active" id="tab-content-create">
+                    <div class="tab-explainer">
+                        <p><strong>Create new test suites</strong> for scenarios that don't have tests yet. Test Genie will generate comprehensive test coverage from scratch.</p>
+                    </div>
+                    <form id="generate-form" class="generate-form">
+                        <div class="form-group">
+                            <span class="form-label">Scenario<span id="scenarios-label-suffix-create"></span></span>
                         <div id="scenario-name-display" class="scenario-name-display placeholder">Select a scenario from the table to generate a test suite.</div>
                         <div id="scenario-checklist" class="scenario-checklist" hidden>
                             <div class="scenario-checklist-header">
@@ -3353,7 +3436,97 @@ test-genie help
                             <span id="generate-btn-text">Create Request</span>
                         </button>
                     </div>
-                </form>
+                    </form>
+                </div>
+
+                <!-- Tab Content - Enhance -->
+                <div class="dialog-tab-content" id="tab-content-enhance">
+                    <div class="tab-explainer">
+                        <p><strong>Enhance existing test suites</strong> to improve coverage and quality. Test Genie will assess current tests and add missing coverage.</p>
+                    </div>
+                    <form id="enhance-form" class="generate-form">
+                        <div class="form-group">
+                            <span class="form-label">Scenario<span id="scenarios-label-suffix-enhance"></span></span>
+                            <div id="scenario-name-display-enhance" class="scenario-name-display placeholder">Select a scenario from the table to enhance tests.</div>
+                            <div id="scenario-checklist-enhance" class="scenario-checklist" hidden>
+                                <div class="scenario-checklist-header">
+                                    <label class="scenario-checklist-select-all">
+                                        <input type="checkbox" id="scenario-select-all-enhance">
+                                        <span>Select All</span>
+                                    </label>
+                                </div>
+                                <div class="scenario-checklist-items" id="scenario-checklist-items-enhance">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <span class="form-label">Focus Areas</span>
+                            <div class="vault-phase-selector" id="enhance-phase-selector">
+                                <label class="phase-option">
+                                    <input type="checkbox" value="dependencies" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Dependencies</span>
+                                        <span class="phase-description">Verify resources, secrets, and supporting services are wired.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="structure" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Structure</span>
+                                        <span class="phase-description">Validate project scaffolding, file layout, and naming discipline.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="unit" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Unit</span>
+                                        <span class="phase-description">Target isolated logic with deterministic, fast tests.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="integration" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Integration</span>
+                                        <span class="phase-description">Exercise resource orchestration and multi-service flows.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="business" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Business</span>
+                                        <span class="phase-description">Assert revenue-critical scenarios and success metrics.</span>
+                                    </div>
+                                </label>
+                                <label class="phase-option">
+                                    <input type="checkbox" value="performance" checked>
+                                    <div class="phase-option-body">
+                                        <span class="phase-name">Performance</span>
+                                        <span class="phase-description">Stress test throughput, latency, and scaling guardrails.</span>
+                                    </div>
+                                </label>
+                            </div>
+                            <span class="form-helper">Select areas to enhance. Agent will assess existing tests and add missing coverage.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="coverage-target-enhance">Coverage Target</label>
+                            <div class="form-range-group">
+                                <input type="range" id="coverage-target-enhance" class="form-range" min="50" max="100" value="80" step="5">
+                                <div class="form-range-value" id="coverage-target-display-enhance">80%</div>
+                            </div>
+                            <span class="form-helper">Aim for at least 80% to unlock quality gating insights.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="submit" class="btn" id="enhance-btn">
+                                <i data-lucide="trending-up"></i>
+                                <span id="enhance-btn-text">Create Enhancement Request</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
 
                 <div id="generation-result" class="generate-result" hidden>
                     <div class="generate-result-icon success" id="generate-result-icon" aria-hidden="true">

@@ -95,10 +95,13 @@ class TestGenieApp {
         this.lastGenerateDialogTrigger = null;
         this.generateDialogScenarioName = '';
         this.generateDialogIsBulkMode = false;
+        this.generateDialogActiveTab = 'create'; // 'create' or 'enhance'
         this.lastCoverageDialogTrigger = null;
         this.lastVaultDialogTrigger = null;
         this.coverageTargetInput = null;
         this.coverageTargetDisplay = null;
+        this.coverageTargetInputEnhance = null;
+        this.coverageTargetDisplayEnhance = null;
         this.generateForm = null;
         this.generateResultCard = null;
         this.generateResultIcon = null;
@@ -234,6 +237,11 @@ class TestGenieApp {
             this.handleGenerateSubmit();
         });
 
+        document.getElementById('enhance-form')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleEnhanceSubmit();
+        });
+
         document.getElementById('vault-form')?.addEventListener('submit', (e) => {
             e.preventDefault();
             this.handleVaultSubmit();
@@ -273,11 +281,29 @@ class TestGenieApp {
 
         this.coverageTargetInput = document.getElementById('coverage-target');
         this.coverageTargetDisplay = document.getElementById('coverage-target-display');
+        this.coverageTargetInputEnhance = document.getElementById('coverage-target-enhance');
+        this.coverageTargetDisplayEnhance = document.getElementById('coverage-target-display-enhance');
 
         if (this.coverageTargetInput) {
             this.updateCoverageTargetDisplay();
             this.coverageTargetInput.addEventListener('input', () => this.updateCoverageTargetDisplay());
             this.coverageTargetInput.addEventListener('change', () => this.updateCoverageTargetDisplay());
+        }
+
+        if (this.coverageTargetInputEnhance) {
+            this.updateCoverageTargetDisplayEnhance();
+            this.coverageTargetInputEnhance.addEventListener('input', () => this.updateCoverageTargetDisplayEnhance());
+            this.coverageTargetInputEnhance.addEventListener('change', () => this.updateCoverageTargetDisplayEnhance());
+        }
+
+        // Tab switching for generate dialog
+        const tabCreate = document.getElementById('tab-create');
+        const tabEnhance = document.getElementById('tab-enhance');
+        if (tabCreate) {
+            tabCreate.addEventListener('click', () => this.switchGenerateDialogTab('create'));
+        }
+        if (tabEnhance) {
+            tabEnhance.addEventListener('click', () => this.switchGenerateDialogTab('enhance'));
         }
 
         // Filter event listeners are now handled by SuitesPage and ExecutionsPage modules
@@ -564,48 +590,134 @@ class TestGenieApp {
         this.coverageTargetDisplay.textContent = `${normalized}%`;
     }
 
+    updateCoverageTargetDisplayEnhance() {
+        if (!this.coverageTargetInputEnhance || !this.coverageTargetDisplayEnhance) {
+            return;
+        }
+
+        const value = parseInt(this.coverageTargetInputEnhance.value, 10);
+        const normalized = Number.isFinite(value) ? value : 80;
+        this.coverageTargetDisplayEnhance.textContent = `${normalized}%`;
+    }
+
+    switchGenerateDialogTab(tab) {
+        console.log('[DEBUG] Switching to tab:', tab);
+        this.generateDialogActiveTab = tab;
+
+        // Update tab buttons
+        const tabCreate = document.getElementById('tab-create');
+        const tabEnhance = document.getElementById('tab-enhance');
+        const tabContentCreate = document.getElementById('tab-content-create');
+        const tabContentEnhance = document.getElementById('tab-content-enhance');
+
+        if (tab === 'create') {
+            tabCreate?.classList.add('active');
+            tabEnhance?.classList.remove('active');
+            tabContentCreate?.classList.add('active');
+            tabContentEnhance?.classList.remove('active');
+        } else {
+            tabCreate?.classList.remove('active');
+            tabEnhance?.classList.add('active');
+            tabContentCreate?.classList.remove('active');
+            tabContentEnhance?.classList.add('active');
+        }
+
+        // Populate the appropriate checklist
+        if (this.generateDialogIsBulkMode) {
+            if (tab === 'create') {
+                this.populateScenarioChecklist();
+            } else {
+                this.populateScenarioChecklistEnhance();
+            }
+        }
+
+        // Re-render Lucide icons
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+            lucide.createIcons();
+        }
+    }
+
     updateGenerateScenarioDisplay() {
         console.log('[DEBUG] updateGenerateScenarioDisplay called, bulk mode:', this.generateDialogIsBulkMode);
         const scenarioDisplay = document.getElementById('scenario-name-display');
         const scenarioChecklist = document.getElementById('scenario-checklist');
-        const scenariosLabelSuffix = document.getElementById('scenarios-label-suffix');
+        const scenariosLabelSuffix = document.getElementById('scenarios-label-suffix-create');
+
+        const scenarioDisplayEnhance = document.getElementById('scenario-name-display-enhance');
+        const scenarioChecklistEnhance = document.getElementById('scenario-checklist-enhance');
+        const scenariosLabelSuffixEnhance = document.getElementById('scenarios-label-suffix-enhance');
 
         console.log('[DEBUG] DOM elements found:', {
             scenarioDisplay: !!scenarioDisplay,
             scenarioChecklist: !!scenarioChecklist,
-            scenariosLabelSuffix: !!scenariosLabelSuffix
+            scenariosLabelSuffix: !!scenariosLabelSuffix,
+            scenarioDisplayEnhance: !!scenarioDisplayEnhance,
+            scenarioChecklistEnhance: !!scenarioChecklistEnhance,
+            scenariosLabelSuffixEnhance: !!scenariosLabelSuffixEnhance
         });
 
-        if (!scenarioDisplay || !scenarioChecklist) {
-            console.log('[DEBUG] Missing required DOM elements, returning early');
-            return;
-        }
-
-        // Bulk mode: show checklist, hide single display
+        // Bulk mode: show checklists, hide single displays
         if (this.generateDialogIsBulkMode) {
-            console.log('[DEBUG] Showing checklist (bulk mode)');
-            scenarioDisplay.hidden = true;
-            scenarioChecklist.hidden = false;
-            if (scenariosLabelSuffix) {
-                scenariosLabelSuffix.textContent = 's';
-            }
-            this.populateScenarioChecklist();
-        }
-        // Single mode: show single display, hide checklist
-        else {
-            console.log('[DEBUG] Showing single display (single mode)');
-            scenarioDisplay.hidden = false;
-            scenarioChecklist.hidden = true;
-            if (scenariosLabelSuffix) {
-                scenariosLabelSuffix.textContent = '';
+            console.log('[DEBUG] Showing checklists (bulk mode)');
+
+            // Update Create tab
+            if (scenarioDisplay && scenarioChecklist) {
+                scenarioDisplay.hidden = true;
+                scenarioChecklist.hidden = false;
+                if (scenariosLabelSuffix) {
+                    scenariosLabelSuffix.textContent = 's';
+                }
+                this.populateScenarioChecklist();
             }
 
-            if (this.generateDialogScenarioName) {
-                scenarioDisplay.textContent = this.generateDialogScenarioName;
-                scenarioDisplay.classList.remove('placeholder');
-            } else {
-                scenarioDisplay.textContent = 'Select a scenario from the table to generate a test suite.';
-                scenarioDisplay.classList.add('placeholder');
+            // Update Enhance tab
+            if (scenarioDisplayEnhance && scenarioChecklistEnhance) {
+                scenarioDisplayEnhance.hidden = true;
+                scenarioChecklistEnhance.hidden = false;
+                if (scenariosLabelSuffixEnhance) {
+                    scenariosLabelSuffixEnhance.textContent = 's';
+                }
+                this.populateScenarioChecklistEnhance();
+            }
+        }
+        // Single mode: show single displays, hide checklists
+        else {
+            console.log('[DEBUG] Showing single displays (single mode)');
+
+            // Update Create tab
+            if (scenarioDisplay && scenarioChecklist) {
+                scenarioDisplay.hidden = false;
+                scenarioChecklist.hidden = true;
+                if (scenariosLabelSuffix) {
+                    scenariosLabelSuffix.textContent = '';
+                }
+
+                if (this.generateDialogScenarioName) {
+                    scenarioDisplay.textContent = this.generateDialogScenarioName;
+                    scenarioDisplay.classList.remove('placeholder');
+                } else {
+                    scenarioDisplay.textContent = 'Select a scenario from the table to generate a test suite.';
+                    scenarioDisplay.classList.add('placeholder');
+                }
+            }
+
+            // Update Enhance tab
+            if (scenarioDisplayEnhance) {
+                scenarioDisplayEnhance.hidden = false;
+                if (scenarioChecklistEnhance) {
+                    scenarioChecklistEnhance.hidden = true;
+                }
+                if (scenariosLabelSuffixEnhance) {
+                    scenariosLabelSuffixEnhance.textContent = '';
+                }
+
+                if (this.generateDialogScenarioName) {
+                    scenarioDisplayEnhance.textContent = this.generateDialogScenarioName;
+                    scenarioDisplayEnhance.classList.remove('placeholder');
+                } else {
+                    scenarioDisplayEnhance.textContent = 'Select a scenario from the table to enhance tests.';
+                    scenarioDisplayEnhance.classList.add('placeholder');
+                }
             }
         }
     }
@@ -647,6 +759,68 @@ class TestGenieApp {
             <div class="scenario-checklist-item">
                 <input type="checkbox" id="scenario-check-${index}" data-scenario-name="${escapeHtml(scenario.scenarioName)}">
                 <label for="scenario-check-${index}">${escapeHtml(scenario.scenarioName)}</label>
+            </div>
+        `).join('');
+
+        // Bind Select All functionality
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', (e) => {
+                const checkboxes = checklistItems.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    cb.checked = e.target.checked;
+                });
+            });
+        }
+
+        // Update Select All when individual checkboxes change
+        checklistItems.addEventListener('change', () => {
+            if (selectAllCheckbox) {
+                const checkboxes = checklistItems.querySelectorAll('input[type="checkbox"]');
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                selectAllCheckbox.checked = allChecked;
+            }
+        });
+
+        this.refreshIcons();
+    }
+
+    populateScenarioChecklistEnhance() {
+        console.log('[DEBUG] populateScenarioChecklistEnhance called');
+        const checklistItems = document.getElementById('scenario-checklist-items-enhance');
+        const selectAllCheckbox = document.getElementById('scenario-select-all-enhance');
+
+        if (!checklistItems) {
+            console.log('[DEBUG] Enhance checklist items container not found');
+            return;
+        }
+
+        // Get scenario rows from state manager (managed by SuitesPage)
+        const scenarioRows = stateManager.get('data.scenarioRows') || [];
+        console.log('[DEBUG] Scenario rows from state:', scenarioRows);
+
+        // Get scenarios WITH tests (isMissing = false) - inverse of create
+        const scenariosWithTests = scenarioRows.filter(scenario => !scenario.isMissing);
+        console.log('[DEBUG] Scenarios with tests:', scenariosWithTests);
+
+        if (scenariosWithTests.length === 0) {
+            checklistItems.innerHTML = '<p style="padding: var(--spacing-sm); color: var(--text-muted); text-align: center;">No scenarios have tests yet!</p>';
+            if (selectAllCheckbox) {
+                selectAllCheckbox.disabled = true;
+            }
+            return;
+        }
+
+        // Enable select all
+        if (selectAllCheckbox) {
+            selectAllCheckbox.disabled = false;
+            selectAllCheckbox.checked = false;
+        }
+
+        // Render checklist items
+        checklistItems.innerHTML = scenariosWithTests.map((scenario, index) => `
+            <div class="scenario-checklist-item">
+                <input type="checkbox" id="scenario-check-enhance-${index}" data-scenario-name="${escapeHtml(scenario.scenarioName)}">
+                <label for="scenario-check-enhance-${index}">${escapeHtml(scenario.scenarioName)}</label>
             </div>
         `).join('');
 
@@ -1340,6 +1514,136 @@ class TestGenieApp {
             const finalButtonText = this.generateDialogIsBulkMode
                 ? '<i data-lucide="sparkles"></i> Create Requests'
                 : '<i data-lucide="zap"></i> Create Request';
+            btn.innerHTML = finalButtonText;
+            this.refreshIcons();
+        }
+    }
+
+    async handleEnhanceSubmit() {
+        const form = document.getElementById('enhance-form');
+        const btn = document.getElementById('enhance-btn');
+        if (!form || !btn) {
+            console.error('Enhance dialog elements are missing from the DOM.');
+            return;
+        }
+
+        // Get scenarios to enhance
+        let scenarioNames = [];
+        if (this.generateDialogIsBulkMode) {
+            // Bulk mode: collect checked scenarios from enhance checklist
+            const checklistItems = document.getElementById('scenario-checklist-items-enhance');
+            if (checklistItems) {
+                const checkedInputs = checklistItems.querySelectorAll('input[type="checkbox"]:checked');
+                scenarioNames = Array.from(checkedInputs).map(input => input.dataset.scenarioName).filter(Boolean);
+            }
+        } else {
+            // Single mode: use the single scenario name
+            const scenarioName = (this.generateDialogScenarioName || '').trim();
+            if (scenarioName) {
+                scenarioNames = [scenarioName];
+            }
+        }
+
+        let phaseInputs = Array.from(form.querySelectorAll('#enhance-phase-selector input[type="checkbox"]'));
+        if (!phaseInputs.length) {
+            phaseInputs = Array.from(document.querySelectorAll('#enhance-phase-selector input[type="checkbox"]'));
+        }
+        const selectedPhases = phaseInputs
+            .filter((input) => input.checked)
+            .map((input) => String(input.value || '').trim())
+            .filter(Boolean);
+
+        const coverageRaw = this.coverageTargetInputEnhance
+            ? parseInt(this.coverageTargetInputEnhance.value, 10)
+            : parseInt(document.getElementById('coverage-target-enhance')?.value ?? '80', 10);
+        const coverageTarget = Number.isFinite(coverageRaw) ? coverageRaw : 80;
+        const normalizedCoverage = Math.min(100, Math.max(50, coverageTarget));
+
+        if (scenarioNames.length === 0 || selectedPhases.length === 0) {
+            this.showError('Please fill in all required fields');
+            return;
+        }
+
+        const includePerformance = selectedPhases.includes('performance');
+        const includeSecurity = selectedPhases.includes('security');
+
+        this.showGenerateForm(false, false);
+        btn.disabled = true;
+        const buttonText = this.generateDialogIsBulkMode
+            ? `<div class="spinner"></div> Creating ${scenarioNames.length} Enhancement ${scenarioNames.length === 1 ? 'Request' : 'Requests'}...`
+            : '<div class="spinner"></div> Creating Enhancement Request...';
+        btn.innerHTML = buttonText;
+
+        try {
+            let response;
+
+            if (this.generateDialogIsBulkMode && scenarioNames.length > 1) {
+                // Bulk mode: call enhance-batch endpoint
+                const requestData = {
+                    scenario_names: scenarioNames,
+                    test_types: selectedPhases,
+                    coverage_target: normalizedCoverage,
+                    options: {
+                        include_performance_tests: includePerformance,
+                        include_security_tests: includeSecurity,
+                        custom_test_patterns: [],
+                        execution_timeout: 300
+                    }
+                };
+
+                response = await fetch(`${this.apiBaseUrl}/test-suite/enhance-batch`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+            } else {
+                // Single mode: TODO - add single enhance endpoint if needed
+                this.showError('Single scenario enhancement not yet implemented');
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+
+            // Handle bulk mode response
+            if (this.generateDialogIsBulkMode && result.results) {
+                const created = result.created || 0;
+                const skipped = result.skipped || 0;
+                const issues = result.issues || [];
+
+                const metadata = [
+                    { label: 'Enhanced', value: `${created} ${created === 1 ? 'request' : 'requests'}` },
+                    { label: 'Skipped', value: `${skipped} (no existing tests)` }
+                ];
+
+                const message = created > 0
+                    ? `Created ${created} enhancement ${created === 1 ? 'request' : 'requests'}${skipped > 0 ? `, skipped ${skipped} without tests` : ''}.`
+                    : 'All selected scenarios need tests created first.';
+
+                this.showGenerateResultCard({
+                    icon: created > 0 ? 'trending-up' : 'info',
+                    tone: created > 0 ? 'info' : 'warning',
+                    title: `Test Enhancement Requests ${created > 0 ? 'Created' : 'Skipped'}`,
+                    message,
+                    metadata,
+                    issues: issues.length > 0 ? issues : []
+                });
+
+                this.showSuccess(message);
+            }
+        } catch (error) {
+            console.error('Test enhancement failed:', error);
+            this.showError(`Test enhancement failed: ${error.message}`);
+        } finally {
+            btn.disabled = false;
+            const finalButtonText = this.generateDialogIsBulkMode
+                ? '<i data-lucide="trending-up"></i> Create Enhancement Requests'
+                : '<i data-lucide="trending-up"></i> Create Enhancement Request';
             btn.innerHTML = finalButtonText;
             this.refreshIcons();
         }

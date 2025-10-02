@@ -1342,6 +1342,120 @@ func generateBatchTestSuiteHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+func enhanceBatchTestSuiteHandler(c *gin.Context) {
+	var req GenerateBatchTestSuiteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := GenerateBatchTestSuiteResponse{
+		Results: []BatchGenerateResult{},
+		Issues:  []IssueCreationResult{},
+	}
+
+	for _, scenarioName := range req.ScenarioNames {
+		// Check if scenario has existing tests (inverse of create logic)
+		var existingSuites int
+		err := db.QueryRow(`
+			SELECT COUNT(*) FROM test_suites
+			WHERE scenario_name = $1 AND status = 'active'
+		`, scenarioName).Scan(&existingSuites)
+
+		if err != nil {
+			log.Printf("⚠️  Error checking existing suites for %s: %v", scenarioName, err)
+			response.Results = append(response.Results, BatchGenerateResult{
+				ScenarioName: scenarioName,
+				Status:       "error",
+				Reason:       "Database error",
+			})
+			continue
+		}
+
+		// Skip if no active test suites (nothing to enhance)
+		if existingSuites == 0 {
+			response.Skipped++
+			response.Results = append(response.Results, BatchGenerateResult{
+				ScenarioName: scenarioName,
+				Status:       "skipped",
+				Reason:       "No existing tests to enhance",
+			})
+			continue
+		}
+
+		// Create individual enhancement request for this scenario
+		individualReq := GenerateTestSuiteRequest{
+			ScenarioName:   scenarioName,
+			TestTypes:      req.TestTypes,
+			CoverageTarget: req.CoverageTarget,
+			Options:        req.Options,
+			Model:          req.Model,
+		}
+
+		suiteID := uuid.New()
+		requestedAt := time.Now().UTC()
+
+		// Try to submit enhancement issue
+		issueResult, issueErr := submitTestEnhancementIssue(c.Request.Context(), suiteID, individualReq)
+		if issueErr == nil {
+			// Successfully created enhancement issue
+			metrics := CoverageMetrics{
+				CodeCoverage:       req.CoverageTarget,
+				BranchCoverage:     math.Max(req.CoverageTarget*0.9, 0),
+				FunctionCoverage:   math.Max(req.CoverageTarget*0.95, 0),
+				IssueID:            issueResult.IssueID,
+				IssueURL:           issueResult.IssueURL,
+				RequestID:          suiteID.String(),
+				RequestStatus:      "submitted",
+				RequestedAt:        requestedAt.Format(time.RFC3339),
+				RequestedBy:        "test-genie",
+				RequestedTestTypes: append([]string(nil), req.TestTypes...),
+				Notes:              "Awaiting automated test enhancement via app-issue-tracker",
+			}
+
+			coverageJSON, _ := json.Marshal(metrics)
+			suiteType := fmt.Sprintf("enhancement-%s", suiteID.String()[:8])
+
+			if _, err := db.Exec(`
+				INSERT INTO test_suites (id, scenario_name, suite_type, coverage_metrics, generated_at, status)
+				VALUES ($1, $2, $3, $4, $5, $6)
+			`, suiteID, scenarioName, suiteType, coverageJSON, requestedAt, "maintenance_required"); err != nil {
+				log.Printf("⚠️  Failed to record test enhancement request for %s: %v", scenarioName, err)
+				response.Results = append(response.Results, BatchGenerateResult{
+					ScenarioName: scenarioName,
+					Status:       "error",
+					Reason:       "Failed to record request",
+				})
+				continue
+			}
+
+			response.Created++
+			response.Results = append(response.Results, BatchGenerateResult{
+				ScenarioName: scenarioName,
+				Status:       "created",
+				IssueID:      issueResult.IssueID,
+				IssueURL:     issueResult.IssueURL,
+			})
+			response.Issues = append(response.Issues, IssueCreationResult{
+				ScenarioName: scenarioName,
+				IssueID:      issueResult.IssueID,
+				IssueURL:     issueResult.IssueURL,
+				Message:      issueResult.Message,
+			})
+		} else {
+			// Issue creation failed
+			log.Printf("⚠️  Failed to create enhancement issue for %s: %v", scenarioName, issueErr)
+			response.Results = append(response.Results, BatchGenerateResult{
+				ScenarioName: scenarioName,
+				Status:       "error",
+				Reason:       fmt.Sprintf("Issue creation failed: %v", issueErr),
+			})
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // Test execution functions
 func executeTestCase(testCase TestCase, environment string) TestResult {
 	log.Printf("🧪 Executing test case: %s", testCase.Name)
@@ -5312,6 +5426,7 @@ func main() {
 		// Test suite management
 		api.POST("/test-suite/generate", generateTestSuiteHandler)
 		api.POST("/test-suite/generate-batch", generateBatchTestSuiteHandler)
+		api.POST("/test-suite/enhance-batch", enhanceBatchTestSuiteHandler)
 		api.GET("/test-suite/:suite_id", getTestSuiteHandler)
 		api.GET("/test-suites", listTestSuitesHandler)
 		api.POST("/test-suite/:suite_id/execute", executeTestSuiteHandler)
