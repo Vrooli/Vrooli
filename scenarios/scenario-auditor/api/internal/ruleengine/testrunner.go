@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"html"
 	"os"
 	"regexp"
 	"strconv"
@@ -94,7 +95,8 @@ func (tr *TestHarness) ExtractTestCases(content string) ([]TestCase, error) {
 			} else {
 				testCase.Language = "text"
 			}
-			testCase.Input = strings.TrimSpace(inputMatch[2])
+			// Decode HTML entities (e.g., &lt; -> <, &gt; -> >, &amp; -> &)
+			testCase.Input = strings.TrimSpace(html.UnescapeString(inputMatch[2]))
 		}
 
 		violationsRegex := regexp.MustCompile(`<expected-violations>(\d+)</expected-violations>`)

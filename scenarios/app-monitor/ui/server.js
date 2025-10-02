@@ -459,6 +459,21 @@ const parseForAffinity = (value, fallbackHost = '') => {
     }
 };
 
+const extractAppIdFromProxyPath = (path) => {
+    if (typeof path !== 'string') {
+        return null;
+    }
+    const match = path.match(new RegExp(`^${APP_PROXY_PREFIX}/([^/]+)/${APP_PROXY_SEGMENT}`));
+    if (!match) {
+        return null;
+    }
+    try {
+        return decodeURIComponent(match[1]);
+    } catch (error) {
+        return match[1];
+    }
+};
+
 const buildAffinityKey = ({ host, path, search }) => {
     const normalizedHost = normalizeHost(host);
     const normalizedPath = path || '/';
@@ -670,13 +685,25 @@ const resolveAppIdFromRequest = (req) => {
         return null;
     }
 
+    const refererHeader = req.headers.referer || req.headers.referrer;
+    let refererParts = null;
+    let refererKey = null;
+    if (typeof refererHeader === 'string' && refererHeader.length > 0) {
+        refererParts = parseForAffinity(refererHeader, hostHeader);
+        if (refererParts) {
+            refererKey = buildAffinityKey(refererParts);
+            const refererAppId = extractAppIdFromProxyPath(refererParts.path);
+            if (refererAppId) {
+                return refererAppId;
+            }
+        }
+    }
+
     const requestKey = buildAffinityKey({
         host: hostHeader,
         path: requestParts.path,
         search: requestParts.search,
     });
-
-    const refererKey = normalizeRefererKey(req.headers.referer || req.headers.referrer, hostHeader);
 
     const direct = resolveAppIdForKey(requestKey, refererKey);
     if (direct) {
@@ -924,12 +951,10 @@ app.use(async (req, res, next) => {
         return next();
     }
 
-    const match = refererDetails.path.match(new RegExp(`^${APP_PROXY_PREFIX}/([^/]+)/${APP_PROXY_SEGMENT}`));
-    if (!match) {
+    const appId = extractAppIdFromProxyPath(refererDetails.path);
+    if (!appId) {
         return next();
     }
-
-    const appId = decodeURIComponent(match[1]);
 
     try {
         await proxyHttpRequest({

@@ -112,29 +112,6 @@
     - consistency
   version: "1.0.0"
 
-- id: api-structured-logging
-  name: "Structured Logging"
-  description: "Ensures API uses structured logging for better observability"
-  category: api
-  severity: medium
-  enabled: true
-  condition:
-    type: file_content
-    target: "api/main.go"
-    operator: contains_any
-    value: ["log.Printf", "logger", "Logger"]
-  message: "API should use structured logging with proper log levels"
-  fix:
-    type: content_enhancement
-    action: add_structured_logging
-    target: "api/main.go"
-    description: "Add structured logging implementation"
-  tags:
-    - logging
-    - observability
-    - debugging
-  version: "1.0.0"
-
 - id: api-graceful-shutdown
   name: "Graceful Shutdown"
   description: "Ensures API implements graceful shutdown handling"
