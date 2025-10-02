@@ -35,15 +35,16 @@ function createToolbarDOM() {
   toolbar.className = 'mobile-toolbar hidden'
   toolbar.innerHTML = `
     <div class="mobile-toolbar-content">
-      <!-- Quick Keys Row -->
+      <!-- Quick Keys - will wrap to multiple rows if needed -->
       <div class="mobile-toolbar-keys-row">
         <button type="button" class="toolbar-btn quick-key" data-key="Escape" title="Escape">esc</button>
         <button type="button" class="toolbar-btn quick-key" data-key="Tab" title="Tab">tab</button>
         <button type="button" class="toolbar-btn modifier-key" data-modifier="ctrl" title="Control">ctrl</button>
         <button type="button" class="toolbar-btn modifier-key" data-modifier="alt" title="Alt">alt</button>
-        <button type="button" class="toolbar-btn quick-key" data-key="/" title="Slash">/</button>
-        <button type="button" class="toolbar-btn quick-key" data-key="|" title="Pipe">|</button>
-        <button type="button" class="toolbar-btn quick-key" data-key="~" title="Tilde">~</button>
+        <button type="button" class="toolbar-btn quick-key" data-key="ArrowUp" title="Up Arrow">↑</button>
+        <button type="button" class="toolbar-btn quick-key" data-key="ArrowDown" title="Down Arrow">↓</button>
+        <button type="button" class="toolbar-btn quick-key" data-key="ArrowLeft" title="Left Arrow">←</button>
+        <button type="button" class="toolbar-btn quick-key" data-key="ArrowRight" title="Right Arrow">→</button>
         <button type="button" class="toolbar-btn quick-key" data-key="-" title="Dash">-</button>
         <button type="button" class="toolbar-btn quick-key" data-key="\\x03" data-display="^C" title="Ctrl+C">^C</button>
       </div>
@@ -475,7 +476,26 @@ function sendQuickKey(key, sendKeyToTerminalFn) {
     const charCode = parseInt(key.slice(2), 16)
     const char = String.fromCharCode(charCode)
     sendKeyToTerminalFn(char)
+  } else if (key === 'Escape') {
+    // ESC key - send escape sequence
+    sendKeyToTerminalFn('\x1b')
+  } else if (key === 'Tab') {
+    // Tab key - send tab character
+    sendKeyToTerminalFn('\t')
+  } else if (key === 'ArrowUp') {
+    // Up arrow - send ANSI escape sequence
+    sendKeyToTerminalFn('\x1b[A')
+  } else if (key === 'ArrowDown') {
+    // Down arrow - send ANSI escape sequence
+    sendKeyToTerminalFn('\x1b[B')
+  } else if (key === 'ArrowRight') {
+    // Right arrow - send ANSI escape sequence
+    sendKeyToTerminalFn('\x1b[C')
+  } else if (key === 'ArrowLeft') {
+    // Left arrow - send ANSI escape sequence
+    sendKeyToTerminalFn('\x1b[D')
   } else {
+    // Regular character
     sendKeyToTerminalFn(key)
   }
 }
@@ -578,4 +598,87 @@ function showModifierHints(modifier, btn) {
       setTimeout(() => overlay.remove(), 200)
     }
   }, 5000)
+}
+
+/**
+ * Show snackbar notification
+ */
+export function showSnackbar(message, type = 'info', duration = 3000) {
+  // Create snackbar element
+  const snackbar = document.createElement('div')
+  snackbar.className = `snackbar snackbar-${type}`
+  snackbar.textContent = message
+  snackbar.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    padding: 12px 24px;
+    background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  `
+
+  document.body.appendChild(snackbar)
+
+  // Animate in
+  requestAnimationFrame(() => {
+    snackbar.style.transform = 'translateX(-50%) translateY(0)'
+    snackbar.style.opacity = '1'
+  })
+
+  // Auto-remove after duration
+  setTimeout(() => {
+    snackbar.style.transform = 'translateX(-50%) translateY(100px)'
+    snackbar.style.opacity = '0'
+    setTimeout(() => snackbar.remove(), 300)
+  }, duration)
+}
+
+/**
+ * Generate AI command (placeholder implementation)
+ * This feature requires backend API integration
+ */
+export async function generateAICommand(prompt, getActiveTabFn, sendKeyToTerminalFn) {
+  // This is a placeholder implementation
+  // In production, this would call a backend API that integrates with an AI service
+
+  try {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // For now, just return an error indicating the feature needs backend implementation
+    return {
+      success: false,
+      error: 'AI command generation requires backend API integration. This feature is not yet implemented.'
+    }
+
+    // Future implementation would look like:
+    // const response = await fetch('/api/ai/generate-command', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ prompt })
+    // })
+    // const data = await response.json()
+    // if (data.command) {
+    //   const tab = getActiveTabFn()
+    //   if (tab) {
+    //     sendKeyToTerminalFn(data.command + '\n')
+    //   }
+    //   return { success: true, command: data.command }
+    // }
+    // return { success: false, error: data.error }
+  } catch (error) {
+    console.error('AI command generation error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to generate command'
+    }
+  }
 }

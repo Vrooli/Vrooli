@@ -1220,14 +1220,9 @@ body:has(.mobile-toolbar.mode-top) .header {
 /* Quick Keys Row */
 .mobile-toolbar-keys-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
-  overflow-x: auto;
   padding: 0.25rem 0;
-  scrollbar-width: none;
-}
-
-.mobile-toolbar-keys-row::-webkit-scrollbar {
-  display: none;
 }
 
 .toolbar-btn {
