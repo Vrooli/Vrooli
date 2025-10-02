@@ -297,21 +297,10 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			Status        string `json:"status"`
 			Error         string `json:"error"`
 			Investigation struct {
-				Report       string   `json:"report"`
-				RootCause    string   `json:"root_cause"`
-				SuggestedFix string   `json:"suggested_fix"`
-				Confidence   int      `json:"confidence_score"`
-				Affected     []string `json:"affected_files"`
-				StartedAt    string   `json:"started_at"`
-				CompletedAt  string   `json:"completed_at"`
+				Report      string `json:"report"`
+				StartedAt   string `json:"started_at"`
+				CompletedAt string `json:"completed_at"`
 			} `json:"investigation"`
-			Fix struct {
-				Summary            string `json:"summary"`
-				ImplementationPlan string `json:"implementation_plan"`
-				TestPlan           string `json:"test_plan"`
-				RollbackPlan       string `json:"rollback_plan"`
-				Status             string `json:"status"`
-			} `json:"fix"`
 		}
 
 		if err := json.Unmarshal([]byte(cleanedOutput), &result); err != nil {
@@ -368,21 +357,10 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		}
 
 		now := time.Now().UTC()
+
+		// Store the full investigation report (unified-resolver.md includes fixes)
 		if result.Investigation.Report != "" {
 			issue.Investigation.Report = result.Investigation.Report
-		}
-		if result.Investigation.RootCause != "" {
-			issue.Investigation.RootCause = result.Investigation.RootCause
-		}
-		if result.Investigation.SuggestedFix != "" {
-			issue.Investigation.SuggestedFix = result.Investigation.SuggestedFix
-		}
-		if result.Investigation.Confidence > 0 {
-			confidence := result.Investigation.Confidence
-			issue.Investigation.ConfidenceScore = &confidence
-		}
-		if len(result.Investigation.Affected) > 0 {
-			issue.ErrorContext.AffectedFiles = result.Investigation.Affected
 		}
 		if result.Investigation.StartedAt != "" {
 			issue.Investigation.StartedAt = result.Investigation.StartedAt
@@ -391,23 +369,6 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			issue.Investigation.CompletedAt = result.Investigation.CompletedAt
 		} else {
 			issue.Investigation.CompletedAt = now.Format(time.RFC3339)
-		}
-
-		if strings.TrimSpace(result.Fix.Summary) != "" {
-			issue.Fix.SuggestedFix = strings.TrimSpace(result.Fix.Summary)
-		}
-		if strings.TrimSpace(result.Fix.ImplementationPlan) != "" {
-			issue.Fix.ImplementationPlan = strings.TrimSpace(result.Fix.ImplementationPlan)
-		}
-		if strings.TrimSpace(result.Fix.TestPlan) != "" {
-			issue.Fix.VerificationStatus = "pending-validation"
-			if issue.Metadata.Extra == nil {
-				issue.Metadata.Extra = make(map[string]string)
-			}
-			issue.Metadata.Extra["test_plan"] = strings.TrimSpace(result.Fix.TestPlan)
-		}
-		if strings.TrimSpace(result.Fix.RollbackPlan) != "" {
-			issue.Fix.RollbackPlan = strings.TrimSpace(result.Fix.RollbackPlan)
 		}
 
 		issue.Metadata.UpdatedAt = now.Format(time.RFC3339)
@@ -449,12 +410,7 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		case "cancelled", "canceled":
 			finalStatus = "failed"
 		default:
-			if strings.EqualFold(result.Fix.Status, "generated") || strings.EqualFold(result.Fix.Status, "completed") {
-				finalStatus = "completed"
-			}
-		}
-
-		if auto && finalStatus == "active" {
+			// Default to completed if investigation succeeded (unified-resolver.md includes fixes)
 			finalStatus = "completed"
 		}
 

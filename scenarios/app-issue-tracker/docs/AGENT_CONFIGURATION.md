@@ -129,9 +129,13 @@ curl -X PATCH http://localhost:${API_PORT}/api/v1/agent/settings \
 ```
 
 ### Manual Script Execution
-The investigation script automatically detects and uses the configured backend:
+The unified resolver script automatically detects and uses the configured backend:
 ```bash
-./scripts/claude-investigator.sh investigate <issue_id> <agent_id> [project_path]
+# Full investigation + fix generation (default)
+./scripts/claude-investigator.sh resolve <issue_id> <agent_id> [project_path]
+
+# Investigation only (no fix generation)
+./scripts/claude-investigator.sh resolve <issue_id> <agent_id> [project_path] "" false
 ```
 
 Backend information is shown in the script output:
