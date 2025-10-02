@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import type { DragEvent, WheelEvent, TouchEvent } from 'react';
 import { AlertTriangle, ArchiveRestore, CheckCircle2, CircleSlash, Clock, Construction, EyeOff } from 'lucide-react';
 import { Issue, IssueStatus } from '../data/sampleData';
@@ -53,7 +53,13 @@ export function IssuesBoard({
   const scrollLockRef = useRef<{ timeout: number | null }>({
     timeout: null,
   });
+  const autoScrollRef = useRef<{ animationId: number | null; speed: number }>({
+    animationId: null,
+    speed: 0,
+  });
   const POINTER_DRAG_THRESHOLD = 12;
+  const AUTO_SCROLL_THRESHOLD = 80; // pixels from edge to trigger auto-scroll
+  const AUTO_SCROLL_SPEED_MAX = 15; // max pixels per frame
 
   const grouped = useMemo(() => {
     const base: Record<IssueStatus, Issue[]> = {
@@ -84,11 +90,52 @@ export function IssuesBoard({
     [hiddenSet],
   );
 
-  // Cleanup scroll lock timeout on unmount
+  // Start auto-scroll (like ecosystem-manager)
+  const startAutoScroll = useCallback((scrollDirection: number) => {
+    const autoScroll = autoScrollRef.current;
+    autoScroll.speed = scrollDirection;
+
+    if (autoScroll.animationId !== null) {
+      return; // Already running
+    }
+
+    const step = () => {
+      const { speed } = autoScrollRef.current;
+      if (speed === 0) {
+        autoScrollRef.current.animationId = null;
+        return;
+      }
+
+      const kanbanGrid = kanbanGridRef.current;
+      if (kanbanGrid) {
+        kanbanGrid.scrollLeft += speed;
+      }
+
+      autoScrollRef.current.animationId = requestAnimationFrame(step);
+    };
+
+    autoScroll.animationId = requestAnimationFrame(step);
+  }, []);
+
+  // Stop auto-scroll
+  const stopAutoScroll = useCallback(() => {
+    const autoScroll = autoScrollRef.current;
+    autoScroll.speed = 0;
+
+    if (autoScroll.animationId !== null) {
+      cancelAnimationFrame(autoScroll.animationId);
+      autoScroll.animationId = null;
+    }
+  }, []);
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (scrollLockRef.current.timeout !== null) {
         clearTimeout(scrollLockRef.current.timeout);
+      }
+      if (autoScrollRef.current.animationId !== null) {
+        cancelAnimationFrame(autoScrollRef.current.animationId);
       }
     };
   }, []);
@@ -223,7 +270,7 @@ export function IssuesBoard({
     const offsetX = event.clientX - rect.left;
     const offsetY = event.clientY - rect.top;
 
-    setPointerDragState({
+    const state = {
       pointerId: event.pointerId,
       issueId: issue.id,
       fromStatus: issue.status,
@@ -233,26 +280,45 @@ export function IssuesBoard({
       offsetY,
       ghost: null,
       dragging: false,
-    });
+      card,
+    };
+
+    setPointerDragState(state as any);
 
     card.setPointerCapture?.(event.pointerId);
+
+    // Use document listeners like ecosystem-manager
+    const handleDocumentPointerMove = (e: PointerEvent) => handlePointerMoveDocument(e, state as any);
+    const handleDocumentPointerUp = (e: PointerEvent) => handlePointerUpDocument(e, state as any);
+
+    document.addEventListener('pointermove', handleDocumentPointerMove, { passive: false });
+    document.addEventListener('pointerup', handleDocumentPointerUp, { passive: false });
+    document.addEventListener('pointercancel', handleDocumentPointerUp, { passive: false });
+
+    // Store cleanup function
+    (state as any).cleanup = () => {
+      document.removeEventListener('pointermove', handleDocumentPointerMove);
+      document.removeEventListener('pointerup', handleDocumentPointerUp);
+      document.removeEventListener('pointercancel', handleDocumentPointerUp);
+    };
   };
 
-  const handlePointerCardMove = (event: React.PointerEvent<HTMLDivElement>, card: HTMLElement) => {
-    if (!pointerDragState || event.pointerId !== pointerDragState.pointerId) {
+  const handlePointerMoveDocument = (e: PointerEvent, state: any) => {
+    if (!state || e.pointerId !== state.pointerId) {
       return;
     }
 
-    const deltaX = Math.abs(event.clientX - pointerDragState.startX);
-    const deltaY = Math.abs(event.clientY - pointerDragState.startY);
+    const deltaX = Math.abs(e.clientX - state.startX);
+    const deltaY = Math.abs(e.clientY - state.startY);
 
-    if (!pointerDragState.dragging) {
+    if (!state.dragging) {
       if (deltaX <= POINTER_DRAG_THRESHOLD && deltaY <= POINTER_DRAG_THRESHOLD) {
         return;
       }
 
       // Activate drag
-      event.preventDefault();
+      e.preventDefault();
+      const { card, offsetX, offsetY } = state;
       const rect = card.getBoundingClientRect();
       const ghost = card.cloneNode(true) as HTMLElement;
       ghost.removeAttribute('id');
@@ -265,34 +331,50 @@ export function IssuesBoard({
       ghost.classList.add('touch-drag-ghost');
       ghost.style.transition = 'none';
 
-      const x = event.clientX - pointerDragState.offsetX;
-      const y = event.clientY - pointerDragState.offsetY;
+      const x = e.clientX - offsetX;
+      const y = e.clientY - offsetY;
       ghost.style.transform = `translate3d(${x}px, ${y}px, 0)`;
 
       document.body.appendChild(ghost);
-
       card.classList.add('dragging');
 
-      setPointerDragState({
-        ...pointerDragState,
-        ghost,
-        dragging: true,
-      });
-
+      state.ghost = ghost;
+      state.dragging = true;
+      setPointerDragState({ ...state });
       return;
     }
 
-    event.preventDefault();
+    if (!state.dragging) {
+      return;
+    }
+
+    e.preventDefault();
 
     // Update ghost position
-    if (pointerDragState.ghost) {
-      const x = event.clientX - pointerDragState.offsetX;
-      const y = event.clientY - pointerDragState.offsetY;
-      pointerDragState.ghost.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    if (state.ghost) {
+      const x = e.clientX - state.offsetX;
+      const y = e.clientY - state.offsetY;
+      state.ghost.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    }
+
+    // Auto-scroll near VIEWPORT edges (like ecosystem-manager)
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+
+    let horizontalScroll = 0;
+    if (e.clientX < AUTO_SCROLL_THRESHOLD) {
+      horizontalScroll = -1;
+    } else if (e.clientX > viewportWidth - AUTO_SCROLL_THRESHOLD) {
+      horizontalScroll = 1;
+    }
+
+    if (horizontalScroll === 0) {
+      stopAutoScroll();
+    } else {
+      startAutoScroll(horizontalScroll * 18); // Direct speed like ecosystem-manager
     }
 
     // Highlight column
-    const element = document.elementFromPoint(event.clientX, event.clientY);
+    const element = document.elementFromPoint(e.clientX, e.clientY);
     const column = element?.closest('.kanban-column');
 
     document.querySelectorAll('.kanban-column').forEach((col) => {
@@ -308,38 +390,55 @@ export function IssuesBoard({
     }
   };
 
-  const handlePointerCardUp = async (event: React.PointerEvent<HTMLDivElement>, card: HTMLElement) => {
-    if (!pointerDragState || event.pointerId !== pointerDragState.pointerId) {
+  const handlePointerUpDocument = async (e: PointerEvent, state: any) => {
+    if (!state || e.pointerId !== state.pointerId) {
       return;
     }
 
-    const wasDragging = pointerDragState.dragging;
+    const wasDragging = state.dragging;
 
     if (wasDragging) {
-      event.preventDefault();
+      e.preventDefault();
+      // Prevent click event after drag
+      setTimeout(() => {
+        state.card.dataset.preventClick = 'true';
+        setTimeout(() => {
+          delete state.card.dataset.preventClick;
+        }, 100);
+      }, 0);
     }
 
+    const { card, issueId, fromStatus, ghost } = state;
+
+    // Cleanup
     card.classList.remove('dragging');
-    card.releasePointerCapture?.(event.pointerId);
+    card.releasePointerCapture?.(e.pointerId);
 
-    if (pointerDragState.ghost && pointerDragState.ghost.parentElement) {
-      pointerDragState.ghost.parentElement.removeChild(pointerDragState.ghost);
+    if (ghost && ghost.parentElement) {
+      ghost.parentElement.removeChild(ghost);
     }
 
-    if (wasDragging) {
-      const dropTarget = document.elementFromPoint(event.clientX, event.clientY);
-      const column = dropTarget?.closest('.kanban-column');
+    // Clear highlights and stop scroll (like ecosystem-manager)
+    document.querySelectorAll('.kanban-column').forEach((col) => {
+      col.classList.remove('kanban-column--drag-over');
+    });
+    stopAutoScroll();
 
-      document.querySelectorAll('.kanban-column').forEach((col) => {
-        col.classList.remove('kanban-column--drag-over');
-      });
+    if (wasDragging) {
+      const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+      const column = dropTarget?.closest('.kanban-column');
 
       if (column) {
         const targetStatus = column.getAttribute('data-status') as IssueStatus | null;
-        if (targetStatus && targetStatus !== pointerDragState.fromStatus && onIssueDrop) {
-          await onIssueDrop(pointerDragState.issueId, pointerDragState.fromStatus, targetStatus);
+        if (targetStatus && targetStatus !== fromStatus && onIssueDrop) {
+          await onIssueDrop(issueId, fromStatus, targetStatus);
         }
       }
+    }
+
+    // Remove document listeners
+    if (state.cleanup) {
+      state.cleanup();
     }
 
     setPointerDragState(null);
@@ -405,8 +504,6 @@ export function IssuesBoard({
                         onDragStart={handleCardDragStart}
                         onDragEnd={handleCardDragEnd}
                         onPointerDown={handlePointerCardDown}
-                        onPointerMove={handlePointerCardMove}
-                        onPointerUp={handlePointerCardUp}
                         draggable
                       />
                     );

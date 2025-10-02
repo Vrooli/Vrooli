@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { DragEvent, KeyboardEventHandler, MouseEvent, PointerEvent, TouchEvent } from 'react';
 import { Archive, Brain, CalendarClock, GripVertical, Hash, Tag, Trash2, AlertCircle } from 'lucide-react';
 import { Issue } from '../data/sampleData';
@@ -17,8 +17,6 @@ interface IssueCardProps {
   onDragStart?: (issue: Issue, event: DragEvent<HTMLDivElement>) => void;
   onDragEnd?: (issue: Issue, event: DragEvent<HTMLDivElement>) => void;
   onPointerDown?: (issue: Issue, event: PointerEvent<HTMLDivElement>, card: HTMLElement) => void;
-  onPointerMove?: (event: PointerEvent<HTMLDivElement>, card: HTMLElement) => void;
-  onPointerUp?: (event: PointerEvent<HTMLDivElement>, card: HTMLElement) => void;
 }
 
 export function IssueCard({
@@ -32,12 +30,11 @@ export function IssueCard({
   onDragStart,
   onDragEnd,
   onPointerDown,
-  onPointerMove,
-  onPointerUp,
 }: IssueCardProps) {
   const ignoreClickRef = useRef(false);
   const dragHandleActiveRef = useRef(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const isRunning = !!runningProcess;
   const isFailed = issue.status === 'failed';
@@ -55,6 +52,10 @@ export function IssueCard({
   const handleSelect = () => {
     if (ignoreClickRef.current) {
       ignoreClickRef.current = false;
+      return;
+    }
+    // Check if drag just happened
+    if (cardRef.current && (cardRef.current as any).dataset.preventClick === 'true') {
       return;
     }
     onSelect?.(issue.id);
@@ -78,45 +79,59 @@ export function IssueCard({
   };
 
   const handleDragStartInternal = (event: DragEvent<HTMLDivElement>) => {
-    if (!dragHandleActiveRef.current) {
+    const card = cardRef.current;
+    if (!card || (card as any).dataset.mouseDragState !== 'pending') {
       event.preventDefault();
       return;
     }
+    (card as any).dataset.mouseDragState = 'active';
     onDragStart?.(issue, event);
   };
 
   const handleDragEndInternal = (event: DragEvent<HTMLDivElement>) => {
-    dragHandleActiveRef.current = false;
+    const card = cardRef.current;
+    if (card) {
+      delete (card as any).dataset.mouseDragState;
+      (card as any).draggable = false;
+    }
     onDragEnd?.(issue, event);
   };
 
-  const handleCardPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement | null;
-    const handle = target?.closest('.issue-card-drag-handle');
+  const isArchived = issue.status === 'archived';
 
+  const handleCardPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    const handle = (event.target as HTMLElement)?.closest('.issue-card-drag-handle');
     if (!handle || !cardRef.current) {
       return;
     }
 
     event.stopPropagation();
+    pointerStartRef.current = { x: event.clientX, y: event.clientY };
+
+    // Mouse drag: enable native drag
+    if (event.pointerType !== 'touch') {
+      const card = cardRef.current as any;
+      card.dataset.mouseDragState = 'pending';
+      card.draggable = true;
+
+      const onPointerEnd = () => {
+        if (card.dataset.mouseDragState === 'pending') {
+          delete card.dataset.mouseDragState;
+          card.draggable = false;
+        }
+        card.removeEventListener('pointerup', onPointerEnd);
+        card.removeEventListener('pointercancel', onPointerEnd);
+      };
+
+      card.addEventListener('pointerup', onPointerEnd, { once: true });
+      card.addEventListener('pointercancel', onPointerEnd, { once: true });
+      return;
+    }
+
+    // Touch drag: use custom pointer handling
     onPointerDown?.(issue, event, cardRef.current);
   };
 
-  const handleCardPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (!cardRef.current) {
-      return;
-    }
-    onPointerMove?.(event, cardRef.current);
-  };
-
-  const handleCardPointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    if (!cardRef.current) {
-      return;
-    }
-    onPointerUp?.(event, cardRef.current);
-  };
-
-  const isArchived = issue.status === 'archived';
 
   return (
     <div
@@ -128,13 +143,10 @@ export function IssueCard({
       aria-pressed={isFocused}
       onClick={handleSelect}
       onKeyDown={handleKeyDown}
-      draggable={draggable}
+      draggable={false}
       onDragStart={handleDragStartInternal}
       onDragEnd={handleDragEndInternal}
       onPointerDown={handleCardPointerDown}
-      onPointerMove={handleCardPointerMove}
-      onPointerUp={handleCardPointerUp}
-      onPointerCancel={handleCardPointerUp}
     >
       <header className="issue-card-header">
         <div className="issue-card-meta">
@@ -145,6 +157,10 @@ export function IssueCard({
             type="button"
             className="issue-card-action issue-card-drag-handle"
             aria-label={`Drag ${issue.id}`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
           >
             <GripVertical size={16} />
           </button>

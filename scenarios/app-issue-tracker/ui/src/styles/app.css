@@ -1072,7 +1072,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   transition: background 0.2s ease;
-  touch-action: pan-y;
+  touch-action: pan-x pan-y;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   min-height: 0;
@@ -1125,6 +1125,7 @@
     box-shadow 0.2s ease,
     border-color 0.2s ease;
   outline: none;
+  touch-action: pan-x pan-y;
 }
 
 .dark .issue-card {
@@ -2037,6 +2038,115 @@ textarea::placeholder {
     width: 100%;
     max-height: 100vh;
     border-radius: 0;
+  }
+
+  .modal-body--dashboard .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .modal-body--dashboard .chart-row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .modal-body--dashboard .chart-card .chart-wrapper {
+    height: 220px;
+  }
+
+  .modal-body--dashboard .dashboard-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-header {
+    padding: 20px 20px 12px;
+  }
+
+  .modal-body {
+    padding: 12px 20px 20px;
+  }
+
+  .modal-footer {
+    padding: 0 20px 20px;
+  }
+
+  .stats-card {
+    padding: 16px;
+  }
+
+  .stats-icon {
+    padding: 8px;
+  }
+
+  .stats-value {
+    font-size: 20px;
+  }
+
+  .chart-card {
+    padding: 16px;
+  }
+
+  .modal-body--dashboard .settings-summary {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .modal-body--dashboard .page-header {
+    margin-bottom: 16px;
+  }
+
+  .modal-body--dashboard .page-header h2 {
+    font-size: 20px;
+  }
+
+  .modal-body--dashboard .page-header p {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-panel--wide .modal-header {
+    padding: 16px 16px 10px;
+  }
+
+  .modal-panel--wide .modal-body {
+    padding: 10px 16px 16px;
+  }
+
+  .modal-panel--wide .modal-footer {
+    padding: 0 16px 16px;
+  }
+
+  .modal-body--dashboard .stats-grid {
+    gap: 10px;
+  }
+
+  .modal-body--dashboard .stats-card {
+    padding: 14px;
+  }
+
+  .modal-body--dashboard .chart-card {
+    padding: 14px;
+  }
+
+  .modal-body--dashboard .chart-card .chart-wrapper {
+    height: 180px;
+  }
+
+  .modal-title {
+    font-size: 20px;
+  }
+
+  .modal-eyebrow {
+    font-size: 11px;
+  }
+
+  .modal-body--dashboard .recent-issue-list {
+    gap: 10px;
+  }
+
+  .modal-body--dashboard .recent-issue-button {
+    padding: 10px 12px;
   }
 }
 

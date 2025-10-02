@@ -1,0 +1,18 @@
+{
+  "name": "Simple CNN",
+  "version": "1.0.0",
+  "description": "Lightweight CNN for basic NSFW detection",
+  "created": "2025-09-30T05:56:15.675Z",
+  "inputShape": [
+    224,
+    224,
+    3
+  ],
+  "categories": [
+    "adult",
+    "racy",
+    "safe"
+  ],
+  "framework": "tensorflow.js",
+  "format": "tfjs-layers-model"
+}
