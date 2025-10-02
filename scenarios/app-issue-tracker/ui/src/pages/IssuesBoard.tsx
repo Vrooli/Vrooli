@@ -1,6 +1,6 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import type { DragEvent, WheelEvent, TouchEvent } from 'react';
-import { AlertTriangle, ArchiveRestore, CheckCircle2, CircleSlash, Clock, Construction, EyeOff } from 'lucide-react';
+import type { DragEvent, TouchEvent } from 'react';
+import { AlertTriangle, ArchiveRestore, CheckCircle2, CircleSlash, Construction, EyeOff } from 'lucide-react';
 import { Issue, IssueStatus } from '../data/sampleData';
 import { IssueCard } from '../components/IssueCard';
 
@@ -19,7 +19,6 @@ interface IssuesBoardProps {
 export const columnMeta: Record<IssueStatus, { title: string; icon: React.ComponentType<{ size?: number }> }> = {
   open: { title: 'Open', icon: AlertTriangle },
   active: { title: 'Active', icon: Construction },
-  waiting: { title: 'Waiting', icon: Clock },
   completed: { title: 'Completed', icon: CheckCircle2 },
   failed: { title: 'Failed', icon: CircleSlash },
   archived: { title: 'Archived', icon: ArchiveRestore },
@@ -61,11 +60,60 @@ export function IssuesBoard({
   const AUTO_SCROLL_THRESHOLD = 80; // pixels from edge to trigger auto-scroll
   const AUTO_SCROLL_SPEED_MAX = 15; // max pixels per frame
 
+  // Attach native wheel listener with { passive: false }
+  useEffect(() => {
+    const kanbanGrid = kanbanGridRef.current;
+    if (!kanbanGrid) return;
+
+    const handleWheelNative = (event: globalThis.WheelEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+
+      const scrollLock = scrollLockRef.current;
+      const horizontalLockActive = scrollLock.timeout !== null;
+
+      // Check if we're scrolling within a column
+      const columnBody = (event.target as HTMLElement).closest('.kanban-column-body');
+      if (columnBody && !horizontalLockActive) {
+        const canScrollVertically = columnBody.scrollHeight > columnBody.clientHeight;
+        if (canScrollVertically) {
+          const scrollTop = columnBody.scrollTop;
+          const atTop = scrollTop <= 0;
+          const atBottom = (columnBody.scrollHeight - columnBody.clientHeight - scrollTop) <= 1;
+
+          // Allow vertical scrolling within column if not at boundaries
+          if ((event.deltaY < 0 && !atTop) || (event.deltaY > 0 && !atBottom)) {
+            return;
+          }
+        }
+      }
+
+      // Convert vertical scroll to horizontal scroll
+      if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+        event.preventDefault();
+        if (kanbanGrid) {
+          kanbanGrid.scrollLeft += event.deltaY;
+        }
+
+        // Set horizontal scroll lock for 250ms
+        if (scrollLock.timeout !== null) {
+          clearTimeout(scrollLock.timeout);
+        }
+        scrollLock.timeout = window.setTimeout(() => {
+          scrollLock.timeout = null;
+        }, 250);
+      }
+    };
+
+    kanbanGrid.addEventListener('wheel', handleWheelNative, { passive: false });
+    return () => kanbanGrid.removeEventListener('wheel', handleWheelNative);
+  }, []);
+
   const grouped = useMemo(() => {
     const base: Record<IssueStatus, Issue[]> = {
       open: [],
       active: [],
-      waiting: [],
       completed: [],
       failed: [],
       archived: [],
@@ -139,49 +187,6 @@ export function IssuesBoard({
       }
     };
   }, []);
-
-  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
-    if (event.defaultPrevented) {
-      return;
-    }
-
-    const scrollLock = scrollLockRef.current;
-    const now = Date.now();
-    const horizontalLockActive = scrollLock.timeout !== null;
-
-    // Check if we're scrolling within a column
-    const columnBody = (event.target as HTMLElement).closest('.kanban-column-body');
-    if (columnBody && !horizontalLockActive) {
-      const canScrollVertically = columnBody.scrollHeight > columnBody.clientHeight;
-      if (canScrollVertically) {
-        const scrollTop = columnBody.scrollTop;
-        const atTop = scrollTop <= 0;
-        const atBottom = (columnBody.scrollHeight - columnBody.clientHeight - scrollTop) <= 1;
-
-        // Allow vertical scrolling within column if not at boundaries
-        if ((event.deltaY < 0 && !atTop) || (event.deltaY > 0 && !atBottom)) {
-          return;
-        }
-      }
-    }
-
-    // Convert vertical scroll to horizontal scroll
-    if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
-      event.preventDefault();
-      const kanbanGrid = kanbanGridRef.current;
-      if (kanbanGrid) {
-        kanbanGrid.scrollLeft += event.deltaY;
-      }
-
-      // Set horizontal scroll lock for 250ms
-      if (scrollLock.timeout !== null) {
-        clearTimeout(scrollLock.timeout);
-      }
-      scrollLock.timeout = window.setTimeout(() => {
-        scrollLock.timeout = null;
-      }, 250);
-    }
-  };
 
   const confirmDelete = (issue: Issue) => {
     if (!onIssueDelete) {
@@ -447,7 +452,7 @@ export function IssuesBoard({
 
   return (
     <div className="issues-board">
-      <div className="kanban-grid" data-columns={visibleStatuses.length} ref={kanbanGridRef} onWheel={handleWheel}>
+      <div className="kanban-grid" data-columns={visibleStatuses.length} ref={kanbanGridRef}>
         {visibleStatuses.length === 0 ? (
           <div className="kanban-empty-state">
             <p>All columns are hidden. Use the column controls to show them again.</p>

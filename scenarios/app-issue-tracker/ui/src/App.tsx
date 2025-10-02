@@ -1392,8 +1392,16 @@ function App() {
     setProcessorSettings(settings);
   };
 
-  // Sync processor settings to API (excluding active which is synced separately)
+  // Sync processor settings to API
+  // Use ref to skip initial mount to avoid race condition with data fetch
+  const processorSettingsInitializedRef = useRef(false);
   useEffect(() => {
+    // Skip on initial mount - let the fetch load the real state first
+    if (!processorSettingsInitializedRef.current) {
+      processorSettingsInitializedRef.current = true;
+      return;
+    }
+
     const saveProcessorSettings = async () => {
       try {
         const response = await fetch(buildApiUrl('/automation/processor'), {
@@ -1402,6 +1410,7 @@ function App() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            active: processorSettings.active,
             concurrent_slots: processorSettings.concurrentSlots,
             refresh_interval: processorSettings.refreshInterval,
             max_issues: processorSettings.maxIssues,
@@ -1420,12 +1429,20 @@ function App() {
     };
 
     void saveProcessorSettings();
-  }, [processorSettings.concurrentSlots, processorSettings.refreshInterval, processorSettings.maxIssues, showSnackbar]);
+  }, [processorSettings.active, processorSettings.concurrentSlots, processorSettings.refreshInterval, processorSettings.maxIssues, showSnackbar]);
 
   // Sync agent backend settings to API
+  // Use ref to skip initial mount to avoid race condition with data fetch
+  const agentSettingsInitializedRef = useRef(false);
   useEffect(() => {
     const backend = agentSettings.backend;
     if (!backend) {
+      return;
+    }
+
+    // Skip on initial mount - let the fetch load the real state first
+    if (!agentSettingsInitializedRef.current) {
+      agentSettingsInitializedRef.current = true;
       return;
     }
 

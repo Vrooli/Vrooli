@@ -1086,16 +1086,26 @@ func (s *Server) getAppsHandler(w http.ResponseWriter, r *http.Request) {
 
 // getAgentSettingsHandler returns the current agent backend settings
 func (s *Server) getAgentSettingsHandler(w http.ResponseWriter, r *http.Request) {
-	// For now, return default settings
-	// In a full implementation, these would be loaded from a config file or database
+	settingsPath := filepath.Join(s.config.ScenarioRoot, "initialization/configuration/agent-settings.json")
+
+	// Load settings from file
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		log.Printf("Failed to read agent settings: %v", err)
+		http.Error(w, "Failed to load agent settings", http.StatusInternalServerError)
+		return
+	}
+
+	var settings map[string]interface{}
+	if err := json.Unmarshal(data, &settings); err != nil {
+		log.Printf("Failed to parse agent settings: %v", err)
+		http.Error(w, "Failed to parse agent settings", http.StatusInternalServerError)
+		return
+	}
+
 	response := ApiResponse{
 		Success: true,
-		Data: map[string]interface{}{
-			"agent_backend": map[string]interface{}{
-				"provider":      "codex",
-				"auto_fallback": true,
-			},
-		},
+		Data:    settings,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -1125,18 +1135,56 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// In a full implementation, these settings would be persisted
-	// For now, we just acknowledge the update
-	log.Printf("Agent settings updated: provider=%s, auto_fallback=%v", req.Provider, req.AutoFallback)
+	settingsPath := filepath.Join(s.config.ScenarioRoot, "initialization/configuration/agent-settings.json")
+
+	// Load current settings
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		log.Printf("Failed to read agent settings: %v", err)
+		http.Error(w, "Failed to load agent settings", http.StatusInternalServerError)
+		return
+	}
+
+	var settings map[string]interface{}
+	if err := json.Unmarshal(data, &settings); err != nil {
+		log.Printf("Failed to parse agent settings: %v", err)
+		http.Error(w, "Failed to parse agent settings", http.StatusInternalServerError)
+		return
+	}
+
+	// Update the agent_backend section
+	if agentBackend, ok := settings["agent_backend"].(map[string]interface{}); ok {
+		agentBackend["provider"] = req.Provider
+		agentBackend["auto_fallback"] = req.AutoFallback
+	} else {
+		settings["agent_backend"] = map[string]interface{}{
+			"provider":      req.Provider,
+			"auto_fallback": req.AutoFallback,
+			"fallback_order": []string{"codex", "claude-code"},
+		}
+	}
+
+	// Write back to file with proper formatting
+	updatedData, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		log.Printf("Failed to marshal agent settings: %v", err)
+		http.Error(w, "Failed to save agent settings", http.StatusInternalServerError)
+		return
+	}
+
+	if err := os.WriteFile(settingsPath, updatedData, 0644); err != nil {
+		log.Printf("Failed to write agent settings: %v", err)
+		http.Error(w, "Failed to save agent settings", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Agent settings updated and persisted: provider=%s, auto_fallback=%v", req.Provider, req.AutoFallback)
 
 	response := ApiResponse{
 		Success: true,
 		Message: "Agent settings updated successfully",
 		Data: map[string]interface{}{
-			"agent_backend": map[string]interface{}{
-				"provider":      req.Provider,
-				"auto_fallback": req.AutoFallback,
-			},
+			"agent_backend": settings["agent_backend"],
 		},
 	}
 

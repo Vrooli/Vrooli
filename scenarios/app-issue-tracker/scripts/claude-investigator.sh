@@ -93,9 +93,17 @@ detect_agent_backend() {
         fallback_order=("codex" "claude-code")
     fi
 
-    # If preferred provider not in fallback order, add it first
-    if [[ ! " ${fallback_order[*]} " =~ " ${preferred_provider} " ]]; then
-        fallback_order=("$preferred_provider" "${fallback_order[@]}")
+    # Ensure preferred provider is tried first by reordering fallback array
+    if [[ -n "$preferred_provider" ]]; then
+        # Remove preferred provider from fallback list if it exists
+        local temp_fallback=()
+        for p in "${fallback_order[@]}"; do
+            if [[ "$p" != "$preferred_provider" ]]; then
+                temp_fallback+=("$p")
+            fi
+        done
+        # Put preferred provider at the front
+        fallback_order=("$preferred_provider" "${temp_fallback[@]}")
     fi
 
     # Try each provider in order
@@ -103,19 +111,28 @@ detect_agent_backend() {
         local cli_cmd=""
         local operation_cmd=""
 
-        case "$provider" in
-            codex)
-                cli_cmd="resource-codex"
-                operation_cmd="run -"
-                ;;
-            claude-code)
-                cli_cmd="resource-claude-code"
-                operation_cmd="run -"
-                ;;
-            *)
-                continue
-                ;;
-        esac
+        # Try to read provider config from agent-settings.json
+        if [[ -f "$AGENT_SETTINGS" ]] && command -v jq >/dev/null 2>&1; then
+            cli_cmd=$(jq -r ".providers[\"$provider\"].cli_command // empty" "$AGENT_SETTINGS")
+            operation_cmd=$(jq -r ".providers[\"$provider\"].operations.investigate.command // empty" "$AGENT_SETTINGS")
+        fi
+
+        # Fallback to defaults if not found in config
+        if [[ -z "$cli_cmd" ]]; then
+            case "$provider" in
+                codex)
+                    cli_cmd="resource-codex"
+                    operation_cmd="run -"
+                    ;;
+                claude-code)
+                    cli_cmd="resource-claude-code"
+                    operation_cmd="run -"
+                    ;;
+                *)
+                    continue
+                    ;;
+            esac
+        fi
 
         # Check if CLI is available (don't check status - these are on-demand tools, not persistent services)
         if command -v "$cli_cmd" >/dev/null 2>&1; then

@@ -1,75 +1,78 @@
 {
   "$schema": "agent-settings-schema",
-  "description": "Agent backend configuration for AI-powered investigation and fix generation",
   "agent_backend": {
-    "provider": "codex",
-    "fallback_order": ["codex", "claude-code"],
-    "auto_fallback": true
+    "auto_fallback": true,
+    "fallback_order": [
+      "codex",
+      "claude-code"
+    ],
+    "provider": "claude-code"
   },
+  "description": "Agent backend configuration for AI-powered investigation and fix generation",
   "providers": {
-    "codex": {
-      "enabled": true,
-      "cli_command": "resource-codex",
-      "config_file": "codex-config.json",
-      "operations": {
-        "investigate": {
-          "command": "content execute --context text --operation analyze",
-          "timeout_seconds": 300
-        },
-        "fix": {
-          "command": "content execute --context text --operation analyze",
-          "timeout_seconds": 600
-        }
-      },
-      "capabilities": [
-        "investigation",
-        "fix_generation",
-        "code_analysis",
-        "pattern_detection"
-      ]
-    },
     "claude-code": {
-      "enabled": true,
-      "cli_command": "resource-claude-code",
-      "config_file": null,
-      "operations": {
-        "investigate": {
-          "command": "content execute --context text --operation analyze",
-          "timeout_seconds": 300
-        },
-        "fix": {
-          "command": "content execute --context text --operation analyze",
-          "timeout_seconds": 600
-        }
-      },
       "capabilities": [
         "investigation",
         "fix_generation",
         "code_analysis",
         "pattern_detection",
         "interactive_fixes"
-      ]
+      ],
+      "cli_command": "resource-claude-code",
+      "config_file": null,
+      "enabled": true,
+      "operations": {
+        "fix": {
+          "command": "run -",
+          "timeout_seconds": 600
+        },
+        "investigate": {
+          "command": "run -",
+          "timeout_seconds": 300
+        }
+      }
+    },
+    "codex": {
+      "capabilities": [
+        "investigation",
+        "fix_generation",
+        "code_analysis",
+        "pattern_detection"
+      ],
+      "cli_command": "resource-codex",
+      "config_file": "codex-config.json",
+      "enabled": true,
+      "operations": {
+        "fix": {
+          "command": "content execute --context text --operation analyze",
+          "timeout_seconds": 600
+        },
+        "investigate": {
+          "command": "content execute --context text --operation analyze",
+          "timeout_seconds": 300
+        }
+      }
     }
   },
   "shared_settings": {
-    "rate_limits": {
-      "requests_per_minute": 10,
-      "concurrent_investigations": 3
+    "fix_generation_settings": {
+      "backup_before_fix": true,
+      "create_pull_request": false,
+      "require_human_approval": true,
+      "rollback_on_failure": true,
+      "run_tests_before_commit": true
     },
     "investigation_settings": {
-      "timeout_seconds": 300,
-      "max_retries": 2,
       "context_window_files": 20,
+      "include_dependencies": true,
       "include_git_history": true,
       "include_test_results": true,
-      "include_dependencies": true
+      "max_retries": 2,
+      "timeout_seconds": 300
     },
-    "fix_generation_settings": {
-      "create_pull_request": false,
-      "run_tests_before_commit": true,
-      "require_human_approval": true,
-      "backup_before_fix": true,
-      "rollback_on_failure": true
+    "rate_limits": {
+      "concurrent_investigations": 3,
+      "requests_per_minute": 10
     }
   }
 }

@@ -113,6 +113,20 @@ func buildInvestigationPromptMarkdown(template, issueID, agentID, projectPath, t
 }
 
 // detectRateLimit checks if script output indicates a rate limit
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// stripANSI removes ANSI escape codes from a string
+func stripANSI(str string) string {
+	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*[mGKHf]`)
+	return ansiRegex.ReplaceAllString(str, "")
+}
+
 func detectRateLimit(output string) (bool, string) {
 	outputLower := strings.ToLower(output)
 
@@ -274,6 +288,9 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			return
 		}
 
+		// Strip ANSI escape codes before parsing JSON
+		cleanedOutput := stripANSI(string(output))
+
 		var result struct {
 			IssueID       string `json:"issue_id"`
 			AgentID       string `json:"agent_id"`
@@ -297,8 +314,44 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			} `json:"fix"`
 		}
 
-		if err := json.Unmarshal(output, &result); err != nil {
+		if err := json.Unmarshal([]byte(cleanedOutput), &result); err != nil {
 			log.Printf("Failed to parse investigation output for issue %s: %v", issueID, err)
+			log.Printf("Output preview (first 500 chars): %s", cleanedOutput[:min(500, len(cleanedOutput))])
+
+			// Load issue and mark as failed with parsing error
+			issueDir, _, findErr := s.findIssueDirectory(issueID)
+			if findErr != nil {
+				log.Printf("Cannot locate issue %s to mark failed: %v", issueID, findErr)
+				return
+			}
+
+			issue, loadErr := s.loadIssueFromDir(issueDir)
+			if loadErr != nil {
+				log.Printf("Cannot load issue %s to mark failed: %v", issueID, loadErr)
+				return
+			}
+
+			// Store error information in investigation
+			issue.Investigation.Report = fmt.Sprintf("Investigation failed due to output parsing error: %v\n\nRaw output:\n%s", err, cleanedOutput)
+			issue.Investigation.CompletedAt = time.Now().UTC().Format(time.RFC3339)
+			issue.Metadata.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+
+			if err := s.writeIssueMetadata(issueDir, issue); err != nil {
+				log.Printf("Failed to save parsing error for issue %s: %v", issueID, err)
+			}
+
+			// Move to failed status
+			s.moveIssue(issueID, "failed")
+
+			// Publish agent failed event
+			s.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
+				IssueID:   issueID,
+				AgentID:   agent,
+				Success:   false,
+				EndTime:   time.Now(),
+				NewStatus: "failed",
+			}))
+
 			return
 		}
 
