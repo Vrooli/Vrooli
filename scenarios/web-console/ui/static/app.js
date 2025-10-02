@@ -24,7 +24,8 @@ const elements = {
   tabContextCancel: document.getElementById('tabContextCancel'),
   tabContextReset: document.getElementById('tabContextReset'),
   tabContextBackdrop: document.getElementById('tabContextBackdrop'),
-  signOutAllSessions: document.getElementById('signOutAllSessions')
+  signOutAllSessions: document.getElementById('signOutAllSessions'),
+  keyboardToolbarMode: document.getElementById('keyboardToolbarMode')
 }
 
 const shortcutButtons = Array.from(document.querySelectorAll('[data-shortcut-id]'))
@@ -190,6 +191,12 @@ async function initializeWorkspace() {
     }
     const workspace = await response.json()
 
+    // Restore keyboard toolbar mode
+    if (workspace.keyboardToolbarMode && elements.keyboardToolbarMode) {
+      elements.keyboardToolbarMode.value = workspace.keyboardToolbarMode
+      applyKeyboardToolbarMode(workspace.keyboardToolbarMode)
+    }
+
     // Restore tabs from workspace
     if (workspace.tabs && workspace.tabs.length > 0) {
       workspace.tabs.forEach((tabMeta) => {
@@ -277,6 +284,10 @@ shortcutButtons.forEach((button) => {
 
 if (elements.signOutAllSessions) {
   elements.signOutAllSessions.addEventListener('click', handleSignOutAllSessions)
+}
+
+if (elements.keyboardToolbarMode) {
+  elements.keyboardToolbarMode.addEventListener('change', handleKeyboardToolbarModeChange)
 }
 
 initializeTabCustomizationUI()
@@ -421,6 +432,10 @@ function createTerminalTab({ focus = false, id = null, label = null, colorId = T
   const fitAddon = new window.FitAddon.FitAddon()
   term.loadAddon(fitAddon)
   term.open(container)
+
+  // Write initial prompt to ensure terminal renders content immediately
+  term.write('\r')
+
   fitAddon.fit()
 
   const tab = {
@@ -451,7 +466,22 @@ function createTerminalTab({ focus = false, id = null, label = null, colorId = T
     sendResize(tab, cols, rows)
   })
 
+  // Track last input time to prevent duplicate visual input bug
+  let lastInputTime = 0
+  let lastInputData = ''
+
   term.onData((data) => {
+    const now = Date.now()
+
+    // Deduplicate rapid identical inputs (visual bug workaround)
+    // If same data arrives within 50ms, it's likely a duplicate event
+    if (data === lastInputData && (now - lastInputTime) < 50) {
+      console.log('Duplicate input event detected and ignored:', data)
+      return
+    }
+
+    lastInputTime = now
+    lastInputData = data
     handleTerminalData(tab, data)
   })
 
@@ -1844,6 +1874,9 @@ function handleWorkspaceEvent(event) {
     case 'session-detached':
       handleSessionDetached(event.payload)
       break
+    case 'keyboard-toolbar-mode-changed':
+      handleKeyboardToolbarModeChanged(event.payload)
+      break
     default:
       console.log('Unknown workspace event:', event.type)
   }
@@ -1933,6 +1966,28 @@ function handleSessionDetached(payload) {
   }
 }
 
+function handleKeyboardToolbarModeChanged(payload) {
+  if (!payload || !payload.mode) return
+
+  console.log('Keyboard toolbar mode changed via WebSocket:', payload.mode)
+
+  // Update the select dropdown
+  if (elements.keyboardToolbarMode) {
+    elements.keyboardToolbarMode.value = payload.mode
+  }
+
+  // Apply the new mode
+  applyKeyboardToolbarMode(payload.mode)
+
+  // Show info message (changed from another tab/client)
+  const modeLabels = {
+    'disabled': 'Disabled',
+    'floating': 'Floating (above keyboard)',
+    'top': 'Top (replaces header)'
+  }
+  showSnackbar(`Toolbar updated to: ${modeLabels[payload.mode] || payload.mode}`, 'info', 2000)
+}
+
 async function reconnectSession(tab, sessionId) {
   try {
     const response = await proxyToApi(`/api/v1/sessions/${sessionId}`)
@@ -1949,6 +2004,167 @@ async function reconnectSession(tab, sessionId) {
     setTabPhase(tab, 'running')
   } catch (error) {
     console.error('Failed to reconnect session:', error)
+  }
+}
+
+// Handle keyboard toolbar mode changes
+async function handleKeyboardToolbarModeChange(event) {
+  const mode = event.target.value
+  console.log('[Toolbar Settings] Changing mode to:', mode)
+
+  // Disable select during update
+  const select = elements.keyboardToolbarMode
+  if (select) {
+    select.disabled = true
+  }
+
+  try {
+    const response = await proxyToApi('/api/v1/workspace', {
+      method: 'PATCH',
+      json: { keyboardToolbarMode: mode }
+    })
+
+    console.log('[Toolbar Settings] API response:', response.status, response.statusText)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[Toolbar Settings] API error response:', errorText)
+      showSnackbar(`Failed to save toolbar setting: ${response.status}`, 'error', 4000)
+      throw new Error(`Failed to update keyboard toolbar mode: ${response.status} - ${errorText}`)
+    }
+
+    const result = await response.json()
+    console.log('[Toolbar Settings] API result:', result)
+    console.log('[Toolbar Settings] Mode successfully updated to:', mode)
+
+    // Apply mode immediately
+    applyKeyboardToolbarMode(mode)
+
+    // Show success message
+    const modeLabels = {
+      'disabled': 'Disabled',
+      'floating': 'Floating (above keyboard)',
+      'top': 'Top (replaces header)'
+    }
+    showSnackbar(`Toolbar set to: ${modeLabels[mode] || mode}`, 'success', 2000)
+  } catch (error) {
+    console.error('[Toolbar Settings] Failed to update:', error)
+    // Revert select to previous value
+    const workspace = await getWorkspaceState()
+    if (workspace && workspace.keyboardToolbarMode) {
+      if (select) {
+        select.value = workspace.keyboardToolbarMode
+      }
+    }
+    // Show error if not already shown
+    if (error.message && !error.message.includes('Failed to save')) {
+      showSnackbar('Failed to save toolbar setting', 'error', 4000)
+    }
+  } finally {
+    // Re-enable select
+    if (select) {
+      select.disabled = false
+    }
+  }
+}
+
+// Apply keyboard toolbar mode to the mobile toolbar
+function applyKeyboardToolbarMode(mode) {
+  if (window.__mobileToolbar) {
+    window.__mobileToolbar.setMode(mode)
+  }
+  // Store mode for when toolbar initializes
+  window.__keyboardToolbarMode = mode
+}
+
+// Show snackbar notification
+function showSnackbar(message, type = 'info', duration = 3000) {
+  // Remove any existing snackbar
+  const existing = document.querySelector('.snackbar')
+  if (existing) {
+    existing.remove()
+  }
+
+  // Create snackbar element
+  const snackbar = document.createElement('div')
+  snackbar.className = `snackbar ${type}`
+  snackbar.textContent = message
+
+  // Add to DOM
+  document.body.appendChild(snackbar)
+
+  // Trigger show animation
+  requestAnimationFrame(() => {
+    snackbar.classList.add('show')
+  })
+
+  // Auto-hide after duration
+  setTimeout(() => {
+    snackbar.classList.remove('show')
+    setTimeout(() => {
+      snackbar.remove()
+    }, 300) // Wait for fade out animation
+  }, duration)
+}
+
+// Get current workspace state
+async function getWorkspaceState() {
+  try {
+    const response = await proxyToApi('/api/v1/workspace')
+    if (!response.ok) return null
+    return await response.json()
+  } catch (error) {
+    console.error('Failed to get workspace state:', error)
+    return null
+  }
+}
+
+// Mobile toolbar initialization (loaded dynamically as ES6 module)
+if (typeof window !== 'undefined' && document.readyState === 'complete' || document.readyState === 'interactive') {
+  initMobileToolbarAsync()
+} else {
+  window.addEventListener('DOMContentLoaded', initMobileToolbarAsync)
+}
+
+async function initMobileToolbarAsync() {
+  try {
+    const { initializeMobileToolbar } = await import('./modules/mobile-toolbar.js')
+
+    // Helper function to get active tab
+    const getActiveTabFn = () => getActiveTab()
+
+    // Helper function to send keys to active terminal
+    const sendKeyToTerminalFn = (key) => {
+      const tab = getActiveTab()
+      if (!tab) {
+        console.warn('No active terminal to send key to')
+        return
+      }
+
+      // Send key directly to terminal via WebSocket if connected
+      if (tab.socket && tab.socket.readyState === WebSocket.OPEN) {
+        transmitInput(tab, key, { appendNewline: false, clearError: true })
+      } else {
+        // Queue for when session starts
+        queueInput(tab, key, { appendNewline: false })
+        if (tab.phase === 'idle' || tab.phase === 'closed') {
+          startSession(tab, { reason: 'mobile-toolbar-input' }).catch((error) => {
+            appendEvent(tab, 'session-error', error)
+            showError(tab, error instanceof Error ? error.message : 'Unable to start terminal session')
+          })
+        }
+      }
+    }
+
+    const mobileToolbar = initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn)
+
+    if (mobileToolbar) {
+      console.log('Mobile toolbar initialized successfully')
+      // Store reference globally if needed for debugging
+      window.__mobileToolbar = mobileToolbar
+    }
+  } catch (error) {
+    console.error('Failed to initialize mobile toolbar:', error)
   }
 }
 

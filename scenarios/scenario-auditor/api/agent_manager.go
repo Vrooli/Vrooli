@@ -26,11 +26,14 @@ const (
 )
 
 const (
-	agentActionAddRuleTests     = "add_rule_tests"
-	agentActionFixRuleTests     = "fix_rule_tests"
 	agentActionStandardsFix     = "standards_fix"
 	agentActionVulnerabilityFix = "vulnerability_fix"
 	agentActionCreateRule       = "create_rule"
+
+	// DEPRECATED: Rule test actions moved to app-issue-tracker integration
+	// These constants are kept for backward compatibility with logging/history
+	agentActionAddRuleTests = "add_rule_tests"
+	agentActionFixRuleTests = "fix_rule_tests"
 )
 
 const (

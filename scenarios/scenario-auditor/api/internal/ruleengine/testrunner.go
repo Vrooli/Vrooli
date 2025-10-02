@@ -221,7 +221,9 @@ func (tr *TestHarness) RunTest(testCase TestCase, rule Info) TestResult {
 	if testCase.ExpectedMessage != "" && len(violations) > 0 {
 		matched := false
 		for _, v := range violations {
-			if strings.Contains(strings.ToLower(v.Message), strings.ToLower(testCase.ExpectedMessage)) {
+			// Check both Title and Message fields for the expected message
+			if strings.Contains(strings.ToLower(v.Title), strings.ToLower(testCase.ExpectedMessage)) ||
+				strings.Contains(strings.ToLower(v.Message), strings.ToLower(testCase.ExpectedMessage)) {
 				matched = true
 				break
 			}

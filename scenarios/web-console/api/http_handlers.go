@@ -24,8 +24,10 @@ func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metric
 			handleGetWorkspace(w, r, ws)
 		case http.MethodPut:
 			handleUpdateWorkspace(w, r, ws)
+		case http.MethodPatch:
+			handlePatchWorkspace(w, r, ws)
 		default:
-			w.Header().Set("Allow", "GET, PUT")
+			w.Header().Set("Allow", "GET, PUT, PATCH")
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
 	}))
@@ -71,6 +73,17 @@ func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metric
 		}
 	}))
 	mux.Handle("/api/v1/workspace/tabs/", workspaceTabDetailHandler)
+
+	// AI command generation endpoint
+	generateCommandHandler := manager.makeProxyGuard(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", "POST")
+			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		handleGenerateCommand(w, r)
+	}))
+	mux.Handle("/api/generate-command", generateCommandHandler)
 
 	// Session endpoints
 	sessionsHandler := manager.makeProxyGuard(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -184,6 +197,25 @@ func handleUpdateWorkspace(w http.ResponseWriter, r *http.Request, ws *workspace
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
+func handlePatchWorkspace(w http.ResponseWriter, r *http.Request, ws *workspace) {
+	var req struct {
+		KeyboardToolbarMode *string `json:"keyboardToolbarMode,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+
+	if req.KeyboardToolbarMode != nil {
+		if err := ws.setKeyboardToolbarMode(*req.KeyboardToolbarMode); err != nil {
+			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
 func handleCreateTab(w http.ResponseWriter, r *http.Request, ws *workspace) {
 	var tab tabMeta
 	if err := json.NewDecoder(r.Body).Decode(&tab); err != nil {
@@ -268,4 +300,30 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 
 func writeJSONError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, apiError{Message: message})
+}
+
+func handleGenerateCommand(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Prompt  string   `json:"prompt"`
+		Context []string `json:"context"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+
+	if req.Prompt == "" {
+		writeJSONError(w, http.StatusBadRequest, "prompt is required")
+		return
+	}
+
+	command, err := generateCommandWithOllama(req.Prompt, req.Context)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"command": command,
+	})
 }

@@ -1,15 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"text/template"
-
-	re "scenario-auditor/internal/ruleengine"
 )
 
 type ruleAgentPromptData struct {
@@ -33,6 +29,11 @@ type RuleCreationSpec struct {
 	Motivation  string
 }
 
+// DEPRECATED: Rule test agent prompts moved to app-issue-tracker integration
+// This function is no longer used since "Add Tests (AI)" and "Fix Tests (AI)"
+// buttons were replaced with the unified "Report" button that creates issues
+// in app-issue-tracker for AI agents to pick up.
+/*
 func buildRuleAgentPrompt(rule RuleInfo, action string) (string, string, map[string]string, error) {
 	ruleSource, err := os.ReadFile(rule.FilePath)
 	if err != nil {
@@ -183,6 +184,7 @@ func describeFailingTests(results []re.TestResult) string {
 
 	return builder.String()
 }
+*/
 
 func trimForPrompt(text string) string {
 	trimmed := strings.TrimSpace(text)

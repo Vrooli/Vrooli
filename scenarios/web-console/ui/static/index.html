@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>Terminal Console</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
     <link rel="stylesheet" href="./styles.css" />
@@ -98,6 +98,19 @@
               <button id="signOutAllSessions" class="btn btn-danger" type="button">Sign out all sessions</button>
               <p class="panel-note">Closes every active terminal session for this console.</p>
             </div>
+          </section>
+
+          <section class="panel">
+            <h2>Mobile Keyboard Toolbar</h2>
+            <div class="settings-group">
+              <label for="keyboardToolbarMode" class="settings-label">Toolbar Behavior</label>
+              <select id="keyboardToolbarMode" class="settings-select">
+                <option value="floating">Floating (above keyboard)</option>
+                <option value="top">Top (replaces header)</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </div>
+            <p class="panel-note">Controls how the mobile keyboard toolbar appears on touch devices. Changes apply immediately.</p>
           </section>
 
           <section class="panel">

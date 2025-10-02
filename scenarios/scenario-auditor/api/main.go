@@ -155,6 +155,9 @@ type VrooliScenario struct {
 // Global database connection
 var db *sql.DB
 
+// Global agent manager (used by Claude Fix and Automated Fix features)
+var agentManager = NewAgentManager()
+
 // getVrooliScenarios calls the Vrooli CLI to get real scenario information
 func getVrooliScenarios() (*VrooliScenarioResponse, error) {
 	cmd := exec.Command("vrooli", "scenario", "list", "--json")

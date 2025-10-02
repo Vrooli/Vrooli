@@ -9,7 +9,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -93,7 +96,7 @@ func reportIssueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build payload based on report type
-	payload, err := buildIssuePayload(req, rule)
+	payload, err := buildIssuePayload(req, rule, ruleInfo)
 	if err != nil {
 		HTTPError(w, "Failed to build issue payload", http.StatusInternalServerError, err)
 		return
@@ -135,7 +138,7 @@ func reportIssueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func buildIssuePayload(req reportIssueRequest, rule Rule) (map[string]interface{}, error) {
+func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (map[string]interface{}, error) {
 	var title, description, issueType, priority string
 	var tags []string
 	var artifacts []map[string]interface{}
@@ -154,14 +157,14 @@ func buildIssuePayload(req reportIssueRequest, rule Rule) (map[string]interface{
 	switch req.ReportType {
 	case "add_tests":
 		title = fmt.Sprintf("[scenario-auditor] Add test cases for rule %s", safeFallback(rule.Name, rule.ID))
-		description = buildAddTestsDescription(rule, req.CustomInstructions)
+		description = buildAddTestsDescription(rule, ruleInfo, req.CustomInstructions)
 		issueType = "task"
 		priority = "medium"
 		tags = []string{"scenario-auditor", "test-generation", "rule-tests"}
 
 	case "fix_tests":
 		title = fmt.Sprintf("[scenario-auditor] Fix failing test cases for rule %s", safeFallback(rule.Name, rule.ID))
-		description = buildFixTestsDescription(rule, req.CustomInstructions)
+		description = buildFixTestsDescription(rule, ruleInfo, req.CustomInstructions)
 		issueType = "bug"
 		priority = "high"
 		tags = []string{"scenario-auditor", "test-failures", "rule-tests"}
@@ -169,7 +172,7 @@ func buildIssuePayload(req reportIssueRequest, rule Rule) (map[string]interface{
 	case "fix_violations":
 		title = fmt.Sprintf("[scenario-auditor] Fix %d violations of %s across %d scenarios",
 			len(req.SelectedScenarios), safeFallback(rule.Name, rule.ID), len(req.SelectedScenarios))
-		description = buildFixViolationsDescription(rule, req.CustomInstructions, req.SelectedScenarios)
+		description = buildFixViolationsDescription(rule, ruleInfo, req.CustomInstructions, req.SelectedScenarios)
 		issueType = "bug"
 		priority = mapSeverityToPriority(rule.Severity)
 		tags = []string{"scenario-auditor", "rule-violations", "auto-fix"}
@@ -210,75 +213,382 @@ func buildIssuePayload(req reportIssueRequest, rule Rule) (map[string]interface{
 	return payload, nil
 }
 
-func buildAddTestsDescription(rule Rule, customInstructions string) string {
+func buildAddTestsDescription(rule Rule, ruleInfo RuleInfo, customInstructions string) string {
 	var b strings.Builder
 	b.WriteString("Scenario Auditor requests automated test generation for this rule.\n\n")
 	b.WriteString(fmt.Sprintf("**Rule**: %s\n", safeFallback(rule.Name, rule.ID)))
+	b.WriteString(fmt.Sprintf("**Rule ID**: %s\n", rule.ID))
 	b.WriteString(fmt.Sprintf("**Category**: %s\n", rule.Category))
 	b.WriteString(fmt.Sprintf("**Severity**: %s\n", rule.Severity))
 	if rule.Description != "" {
 		b.WriteString(fmt.Sprintf("**Description**: %s\n", rule.Description))
 	}
 
-	b.WriteString("\n### Requirements\n")
-	b.WriteString("- Analyze the rule implementation and create comprehensive test coverage\n")
-	b.WriteString("- Generate both positive and negative test cases\n")
-	b.WriteString("- Test should be deterministic and fast\n")
-	b.WriteString("- Follow existing test patterns in the codebase\n")
+	// Rule implementation context
+	b.WriteString("\n## Rule Implementation Context\n\n")
+	b.WriteString(fmt.Sprintf("**Rule File**: `%s`\n\n", relativePathFrom(ruleInfo.FilePath, getScenarioRoot())))
+
+	// Read and include rule implementation
+	if ruleSource, err := os.ReadFile(ruleInfo.FilePath); err == nil {
+		b.WriteString("### Current Implementation\n")
+		b.WriteString("```go\n")
+		b.WriteString(string(ruleSource))
+		b.WriteString("\n```\n\n")
+	}
+
+	// Extract and describe existing test cases
+	existingTests, _ := extractRuleTestCases(ruleInfo)
+	if len(existingTests) > 0 {
+		b.WriteString("### Existing Test Cases\n")
+		b.WriteString(fmt.Sprintf("Rule currently has %d test case(s):\n\n", len(existingTests)))
+		for _, tc := range existingTests {
+			b.WriteString(fmt.Sprintf("- **%s**: %s (should-fail=%t, language=%s)\n",
+				tc.ID, tc.Description, tc.ShouldFail, safeFallback(tc.Language, "text")))
+		}
+		b.WriteString("\n")
+	} else {
+		b.WriteString("### Existing Test Cases\n")
+		b.WriteString("Rule currently has **no embedded test cases**.\n\n")
+	}
+
+	// Test case format requirements
+	b.WriteString("## Test Case Requirements\n\n")
+	b.WriteString("**Format**: Test cases MUST be embedded as XML comments in the rule file using this structure:\n")
+	b.WriteString("```xml\n")
+	b.WriteString("<test-case id=\"unique-test-id\" should-fail=\"true|false\" path=\"relative/file/path\">\n")
+	b.WriteString("  <description>Clear description of what this test validates</description>\n")
+	b.WriteString("  <input language=\"go|json|text\">\n")
+	b.WriteString("    ... realistic test input code/content ...\n")
+	b.WriteString("  </input>\n")
+	b.WriteString("  <expected-violations>0|1|2...</expected-violations>\n")
+	b.WriteString("  <expected-message>partial message to match (optional)</expected-message>\n")
+	b.WriteString("</test-case>\n")
+	b.WriteString("```\n\n")
+
+	b.WriteString("**Attributes**:\n")
+	b.WriteString("- `id`: Unique kebab-case identifier (e.g., \"missing-health-endpoint\")\n")
+	b.WriteString("- `should-fail`: \"true\" if rule should detect violations, \"false\" if valid\n")
+	b.WriteString("- `path`: Simulated file path matching rule's target (e.g., \"api/main.go\", \".vrooli/service.json\")\n")
+	b.WriteString("- `language`: Code language for syntax context (\"go\", \"json\", \"text\", etc.)\n\n")
+
+	b.WriteString("**Test Coverage Requirements**:\n")
+	b.WriteString("1. **Happy Path**: At least 1 test where rule passes (should-fail=\"false\")\n")
+	b.WriteString("2. **Violation Detection**: At least 2-3 tests detecting different violation types (should-fail=\"true\")\n")
+	b.WriteString("3. **Edge Cases**: Boundary conditions, empty inputs, comments vs actual code\n")
+	b.WriteString("4. **False Positives**: Tests ensuring rule doesn't trigger incorrectly\n\n")
+
+	b.WriteString("**Validation**: Tests validate:\n")
+	b.WriteString("- Violation count matches `<expected-violations>`\n")
+	b.WriteString("- Violation message contains `<expected-message>` substring (if specified)\n")
+	b.WriteString("- Rule executes without errors\n\n")
+
+	// Testing integration
+	b.WriteString("## Testing Integration\n\n")
+	b.WriteString(fmt.Sprintf("**Run Tests**: After adding test cases, execute:\n```bash\nscenario-auditor test %s\n```\n\n", rule.ID))
+	b.WriteString("**Verification**: All tests must pass before considering task complete.\n\n")
+
+	// Reference examples
+	b.WriteString("## Reference Examples\n\n")
+	b.WriteString(fmt.Sprintf("**Gold Standard Example**: See `api/rules/api/health_check.go` for comprehensive test coverage (5+ test cases covering various scenarios).\n\n"))
+	if rule.Category != "" {
+		b.WriteString(fmt.Sprintf("**Category**: This is a `%s` rule. Review other rules in `api/rules/%s/` for similar patterns.\n\n", rule.Category, rule.Category))
+	}
+
+	// File modification instructions
+	b.WriteString("## File Modification Instructions\n\n")
+	b.WriteString("1. **DO NOT create separate test files** - Tests MUST be embedded in the rule file itself\n")
+	b.WriteString("2. Add test-case XML blocks in comments AFTER the rule metadata but BEFORE the implementation\n")
+	b.WriteString("3. Maintain existing code style and structure\n")
+	b.WriteString("4. Ensure test inputs are realistic and representative of actual scenario code\n\n")
+
+	// Rule engine context
+	b.WriteString("## Rule Engine Context\n\n")
+	b.WriteString("- Rules implement `Check(content, filepath, scenario) ([]Violation, error)`\n")
+	b.WriteString("- Rules receive file content as raw string\n")
+	b.WriteString("- Rules must be deterministic and fast\n")
+	b.WriteString("- Rules registered in `api/rule_registry.go`\n\n")
 
 	if customInstructions != "" {
-		b.WriteString("\n### Custom Instructions\n")
+		b.WriteString("## Custom Instructions\n\n")
 		b.WriteString(customInstructions)
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 	}
+
+	// Success criteria
+	b.WriteString("## Success Criteria\n\n")
+	b.WriteString(fmt.Sprintf("- [ ] All rule test cases pass (`scenario-auditor test %s`)\n", rule.ID))
+	b.WriteString("- [ ] Test coverage includes happy path + violations + edge cases\n")
+	b.WriteString("- [ ] Tests are deterministic and fast\n")
+	b.WriteString("- [ ] Test inputs are realistic and representative\n")
 
 	return b.String()
 }
 
-func buildFixTestsDescription(rule Rule, customInstructions string) string {
+func buildFixTestsDescription(rule Rule, ruleInfo RuleInfo, customInstructions string) string {
 	var b strings.Builder
 	b.WriteString("Scenario Auditor detected failing test cases for this rule.\n\n")
 	b.WriteString(fmt.Sprintf("**Rule**: %s\n", safeFallback(rule.Name, rule.ID)))
+	b.WriteString(fmt.Sprintf("**Rule ID**: %s\n", rule.ID))
 	b.WriteString(fmt.Sprintf("**Category**: %s\n", rule.Category))
+	b.WriteString(fmt.Sprintf("**Severity**: %s\n", rule.Severity))
 
-	b.WriteString("\n### Requirements\n")
-	b.WriteString("- Investigate why tests are failing\n")
-	b.WriteString("- Fix the tests or update the rule implementation as needed\n")
-	b.WriteString("- Ensure all test cases pass\n")
-	b.WriteString("- Maintain backward compatibility\n")
+	// Rule implementation context
+	b.WriteString("\n## Rule Implementation Context\n\n")
+	b.WriteString(fmt.Sprintf("**Rule File**: `%s`\n\n", relativePathFrom(ruleInfo.FilePath, getScenarioRoot())))
+
+	// Read and include rule implementation
+	if ruleSource, err := os.ReadFile(ruleInfo.FilePath); err == nil {
+		b.WriteString("### Rule Implementation\n")
+		b.WriteString("```go\n")
+		b.WriteString(string(ruleSource))
+		b.WriteString("\n```\n\n")
+	}
+
+	// Run tests and get failure details
+	b.WriteString("## Failing Test Details\n\n")
+	testResults, err := runRuleTests(rule.ID, ruleInfo)
+	if err != nil {
+		b.WriteString(fmt.Sprintf("**Test Execution Error**: %v\n\n", err))
+	}
+
+	if len(testResults) > 0 {
+		failingCount := 0
+		passingCount := 0
+		for _, result := range testResults {
+			if !result.Passed {
+				failingCount++
+			} else {
+				passingCount++
+			}
+		}
+
+		b.WriteString(fmt.Sprintf("**Summary**: %d failing, %d passing (total: %d tests)\n\n", failingCount, passingCount, len(testResults)))
+
+		if failingCount > 0 {
+			b.WriteString("### Failing Tests:\n\n")
+			for _, result := range testResults {
+				if !result.Passed {
+					b.WriteString(fmt.Sprintf("#### Test: `%s`\n", result.TestCase.ID))
+					if result.TestCase.Description != "" {
+						b.WriteString(fmt.Sprintf("**Description**: %s\n\n", result.TestCase.Description))
+					}
+					b.WriteString(fmt.Sprintf("- **Should Fail**: %t\n", result.TestCase.ShouldFail))
+					b.WriteString(fmt.Sprintf("- **Expected Violations**: %d\n", result.TestCase.ExpectedViolations))
+					b.WriteString(fmt.Sprintf("- **Actual Violations**: %d\n", len(result.ActualViolations)))
+
+					if result.TestCase.ExpectedMessage != "" {
+						b.WriteString(fmt.Sprintf("- **Expected Message**: \"%s\"\n", result.TestCase.ExpectedMessage))
+					}
+
+					if len(result.ActualViolations) > 0 {
+						b.WriteString("\n**Actual Violations Found**:\n")
+						for i, v := range result.ActualViolations {
+							b.WriteString(fmt.Sprintf("%d. [%s] %s\n", i+1, safeFallback(v.Severity, "unknown"), v.Message))
+						}
+					}
+
+					if result.Error != "" {
+						b.WriteString(fmt.Sprintf("\n**Error**: %s\n", result.Error))
+					}
+					b.WriteString("\n")
+				}
+			}
+		}
+	} else {
+		b.WriteString("No test results available. Tests may not be running correctly.\n\n")
+	}
+
+	// Diagnostic approach
+	b.WriteString("## Diagnostic Approach\n\n")
+	b.WriteString("1. **Analyze Discrepancy**: Determine if:\n")
+	b.WriteString("   - Test expectations are wrong (update test-case)\n")
+	b.WriteString("   - Rule implementation has bug (fix Check() method)\n")
+	b.WriteString("   - Test input doesn't match rule's target context\n\n")
+
+	b.WriteString("2. **Common Failure Patterns**:\n")
+	b.WriteString("   - Rule too strict: Adjust detection logic\n")
+	b.WriteString("   - Rule too lenient: Strengthen validation\n")
+	b.WriteString("   - Test input unrealistic: Update test scenarios\n")
+	b.WriteString("   - Message mismatch: Align violation messages with expected-message\n\n")
+
+	b.WriteString("3. **Verification**:\n")
+	b.WriteString(fmt.Sprintf("   - Run `scenario-auditor test %s` after fixes\n", rule.ID))
+	b.WriteString("   - Ensure ALL test cases pass\n")
+	b.WriteString("   - Verify no regressions in previously passing tests\n\n")
+
+	// Test case modification format
+	b.WriteString("## Test Case Modification Format\n\n")
+	b.WriteString("Test cases are embedded XML in rule file comments:\n")
+	b.WriteString("```xml\n")
+	b.WriteString("<test-case id=\"{id}\" should-fail=\"{true|false}\" path=\"{path}\">\n")
+	b.WriteString("  <description>{description}</description>\n")
+	b.WriteString("  <input language=\"{language}\">...</input>\n")
+	b.WriteString("  <expected-violations>{count}</expected-violations>\n")
+	b.WriteString("  <expected-message>{partial-match}</expected-message>\n")
+	b.WriteString("</test-case>\n")
+	b.WriteString("```\n\n")
+
+	// Rule implementation signature
+	b.WriteString("## Rule Implementation Signature\n\n")
+	b.WriteString("```go\n")
+	b.WriteString("func (r *{RuleStruct}) Check(content string, filepath string, scenario string) ([]Violation, error)\n")
+	b.WriteString("```\n\n")
+	b.WriteString("- `content`: Raw file content as string\n")
+	b.WriteString("- `filepath`: Relative file path for context\n")
+	b.WriteString("- `scenario`: Scenario name (empty during tests)\n")
+	b.WriteString("- Returns: Slice of violations or error\n\n")
 
 	if customInstructions != "" {
-		b.WriteString("\n### Custom Instructions\n")
+		b.WriteString("## Custom Instructions\n\n")
 		b.WriteString(customInstructions)
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 	}
+
+	// Success criteria
+	b.WriteString("## Success Criteria\n\n")
+	b.WriteString(fmt.Sprintf("- [ ] All test cases pass (`scenario-auditor test %s`)\n", rule.ID))
+	b.WriteString("- [ ] No regressions in previously passing tests\n")
+	b.WriteString("- [ ] Test expectations match rule behavior\n")
+	b.WriteString("- [ ] Rule implementation is correct and maintainable\n")
 
 	return b.String()
 }
 
-func buildFixViolationsDescription(rule Rule, customInstructions string, scenarios []string) string {
+func buildFixViolationsDescription(rule Rule, ruleInfo RuleInfo, customInstructions string, scenarios []string) string {
 	var b strings.Builder
 	b.WriteString("Scenario Auditor detected rule violations in multiple scenarios.\n\n")
-	b.WriteString(fmt.Sprintf("**Rule**: %s\n", safeFallback(rule.Name, rule.ID)))
-	b.WriteString(fmt.Sprintf("**Severity**: %s\n", rule.Severity))
-	b.WriteString(fmt.Sprintf("**Scenarios Affected**: %d\n\n", len(scenarios)))
 
-	b.WriteString("### Affected Scenarios\n")
-	for _, scenario := range scenarios {
-		b.WriteString(fmt.Sprintf("- %s\n", scenario))
+	// Rule details
+	b.WriteString("## Rule Details\n\n")
+	b.WriteString(fmt.Sprintf("**Rule**: %s\n", safeFallback(rule.Name, rule.ID)))
+	b.WriteString(fmt.Sprintf("**ID**: %s\n", rule.ID))
+	b.WriteString(fmt.Sprintf("**Severity**: %s\n", rule.Severity))
+	b.WriteString(fmt.Sprintf("**Category**: %s\n\n", rule.Category))
+
+	if rule.Description != "" {
+		b.WriteString("### Rule Purpose\n")
+		b.WriteString(fmt.Sprintf("%s\n\n", rule.Description))
 	}
 
-	b.WriteString("\n### Requirements\n")
-	b.WriteString("- Review the violation details in the attached artifact\n")
-	b.WriteString("- Fix all violations across the affected scenarios\n")
-	b.WriteString("- Ensure fixes align with the rule's intent\n")
-	b.WriteString("- Run tests after applying fixes\n")
+	if ruleInfo.Reason != "" {
+		b.WriteString("### Why This Matters\n")
+		b.WriteString(fmt.Sprintf("%s\n\n", ruleInfo.Reason))
+	}
+
+	// Affected scenarios
+	b.WriteString(fmt.Sprintf("## Affected Scenarios (%d)\n\n", len(scenarios)))
+	for _, scenario := range scenarios {
+		b.WriteString(fmt.Sprintf("- `%s`\n", scenario))
+	}
+	b.WriteString("\n")
+
+	// Note about detailed violations
+	b.WriteString("**Note**: Detailed violation information (file paths, line numbers, specific messages) is available ")
+	b.WriteString("in the attached artifact. Review the artifact for complete violation details per scenario.\n\n")
+
+	// Fix validation requirements
+	b.WriteString("## Fix Validation Requirements\n\n")
+	b.WriteString("After applying fixes to each scenario:\n\n")
+	b.WriteString("1. **Re-run Rule**: Execute rule against fixed scenario:\n")
+	b.WriteString("   ```bash\n")
+	b.WriteString(fmt.Sprintf("   scenario-auditor scan {scenario-name} --rule %s\n", rule.ID))
+	b.WriteString("   ```\n\n")
+
+	b.WriteString("2. **Verify Zero Violations**: Ensure rule no longer triggers\n\n")
+
+	b.WriteString("3. **Run Scenario Tests**: Execute scenario's test suite:\n")
+	b.WriteString("   ```bash\n")
+	b.WriteString("   cd scenarios/{scenario-name} && make test\n")
+	b.WriteString("   ```\n\n")
+
+	b.WriteString("4. **Check Service Health**: Start scenario and verify it works:\n")
+	b.WriteString("   ```bash\n")
+	b.WriteString("   vrooli scenario run {scenario-name}\n")
+	b.WriteString("   vrooli scenario status {scenario-name}\n")
+	b.WriteString("   ```\n\n")
+
+	// Common fix patterns by category
+	if rule.Category != "" {
+		b.WriteString(fmt.Sprintf("## Common Fix Patterns for %s Rules\n\n", rule.Category))
+
+		switch rule.Category {
+		case "api":
+			b.WriteString("**API Standards Fixes**:\n")
+			b.WriteString("- Health endpoints: Add `r.HandleFunc(\"/health\", healthHandler).Methods(\"GET\")`\n")
+			b.WriteString("- HTTP status codes: Use appropriate codes (200, 201, 400, 404, 500)\n")
+			b.WriteString("- Content-Type headers: Set `w.Header().Set(\"Content-Type\", \"application/json\")`\n")
+			b.WriteString("- Error handling: Return proper error responses with consistent format\n\n")
+
+		case "config":
+			b.WriteString("**Configuration Fixes**:\n")
+			b.WriteString("- service.json: Ensure valid JSON with required lifecycle fields\n")
+			b.WriteString("- Ports: Use approved ranges (API: 15000-19999, UI: 35000-39999)\n")
+			b.WriteString("- Environment variables: Use standard names (API_PORT, UI_PORT)\n")
+			b.WriteString("- Makefile: Include required targets (run, test, logs, stop, clean)\n\n")
+
+		case "ui":
+			b.WriteString("**UI Standards Fixes**:\n")
+			b.WriteString("- Security headers: Configure helmet.js with frameAncestors\n")
+			b.WriteString("- Element IDs: Add unique data-testid attributes\n")
+			b.WriteString("- Accessibility: Use semantic HTML and ARIA labels\n")
+			b.WriteString("- Tunnel integration: Use iframe bridge for secure preview\n\n")
+
+		case "test":
+			b.WriteString("**Testing Fixes**:\n")
+			b.WriteString("- Test structure: Organize tests in test/phases/\n")
+			b.WriteString("- Exit codes: Ensure test scripts return non-zero on failure\n")
+			b.WriteString("- Coverage: Add test coverage reporting and thresholds\n")
+			b.WriteString("- Integration: Use centralized testing helpers\n\n")
+
+		case "cli":
+			b.WriteString("**CLI Fixes**:\n")
+			b.WriteString("- Lightweight main: Keep CLI entry point simple, delegate to libraries\n")
+			b.WriteString("- Structured logging: Use consistent log format with levels\n")
+			b.WriteString("- Error handling: Exit with appropriate codes (0=success, 1=error)\n")
+			b.WriteString("- Help text: Include usage examples and flag descriptions\n\n")
+
+		case "structure":
+			b.WriteString("**Structure Fixes**:\n")
+			b.WriteString("- Required layout: Ensure api/, cli/, ui/, test/ directories exist\n")
+			b.WriteString("- Documentation: Include PRD.md, README.md in scenario root\n")
+			b.WriteString("- Lifecycle files: Add .vrooli/service.json, Makefile\n")
+			b.WriteString("- Test coverage: Include coverage reports in test/coverage/\n\n")
+		}
+	}
+
+	// Rule implementation reference
+	b.WriteString("## Rule Implementation Reference\n\n")
+	b.WriteString("To understand exact detection logic, see rule implementation:\n")
+	b.WriteString(fmt.Sprintf("**File**: `%s`\n\n", relativePathFrom(ruleInfo.FilePath, getScenarioRoot())))
+
+	// Read and include relevant portions of rule Check() method
+	if ruleSource, err := os.ReadFile(ruleInfo.FilePath); err == nil {
+		// Try to extract just the Check method for brevity
+		checkMethodPattern := `func \([^)]+\) Check\([^)]+\) \([^)]+\) \{`
+		if matched, _ := regexp.MatchString(checkMethodPattern, string(ruleSource)); matched {
+			b.WriteString("<details>\n")
+			b.WriteString("<summary>Click to view rule detection logic</summary>\n\n")
+			b.WriteString("```go\n")
+			// Include full source for now - could be optimized to extract just Check method
+			b.WriteString(string(ruleSource))
+			b.WriteString("\n```\n")
+			b.WriteString("</details>\n\n")
+		}
+	}
 
 	if customInstructions != "" {
-		b.WriteString("\n### Custom Instructions\n")
+		b.WriteString("## Custom Instructions\n\n")
 		b.WriteString(customInstructions)
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 	}
+
+	// Success criteria
+	b.WriteString("## Success Criteria\n\n")
+	b.WriteString("- [ ] All violations fixed across all affected scenarios\n")
+	b.WriteString(fmt.Sprintf("- [ ] Rule `%s` passes on all scenarios\n", rule.ID))
+	b.WriteString("- [ ] Scenario tests pass after fixes\n")
+	b.WriteString("- [ ] Scenarios start and function correctly\n")
+	b.WriteString("- [ ] Fixes align with rule's intent and best practices\n")
 
 	return b.String()
 }
@@ -343,6 +653,14 @@ func sanitizeForFilename(value string) string {
 		return "file"
 	}
 	return result
+}
+
+func relativePathFrom(absPath, base string) string {
+	rel, err := filepath.Rel(base, absPath)
+	if err != nil {
+		return absPath
+	}
+	return rel
 }
 
 type issueTrackerResult struct {

@@ -11,13 +11,14 @@ import (
 
 // workspace represents the persisted layout and tab configuration
 type workspace struct {
-	mu            sync.RWMutex
-	storagePath   string
-	ActiveTabID   string    `json:"activeTabId"`
-	Version       int64     `json:"version"`
-	Tabs          []tabMeta `json:"tabs"`
-	broadcasters  map[chan workspaceEvent]struct{}
-	broadcasterMu sync.RWMutex
+	mu                    sync.RWMutex
+	storagePath           string
+	ActiveTabID           string    `json:"activeTabId"`
+	Version               int64     `json:"version"`
+	Tabs                  []tabMeta `json:"tabs"`
+	KeyboardToolbarMode   string    `json:"keyboardToolbarMode,omitempty"` // "disabled", "floating", or "top"
+	broadcasters          map[chan workspaceEvent]struct{}
+	broadcasterMu         sync.RWMutex
 }
 
 // tabMeta represents a single tab's persistent state
@@ -39,10 +40,11 @@ type workspaceEvent struct {
 // newWorkspace creates or loads a workspace from disk
 func newWorkspace(storagePath string) (*workspace, error) {
 	ws := &workspace{
-		storagePath:  storagePath,
-		Version:      0,
-		Tabs:         []tabMeta{},
-		broadcasters: make(map[chan workspaceEvent]struct{}),
+		storagePath:         storagePath,
+		Version:             0,
+		Tabs:                []tabMeta{},
+		KeyboardToolbarMode: "floating", // Default to floating mode
+		broadcasters:        make(map[chan workspaceEvent]struct{}),
 	}
 
 	if err := ws.load(); err != nil {
@@ -66,9 +68,10 @@ func (ws *workspace) load() error {
 	}
 
 	var loaded struct {
-		ActiveTabID string    `json:"activeTabId"`
-		Version     int64     `json:"version"`
-		Tabs        []tabMeta `json:"tabs"`
+		ActiveTabID         string    `json:"activeTabId"`
+		Version             int64     `json:"version"`
+		Tabs                []tabMeta `json:"tabs"`
+		KeyboardToolbarMode string    `json:"keyboardToolbarMode"`
 	}
 
 	if err := json.Unmarshal(data, &loaded); err != nil {
@@ -78,6 +81,9 @@ func (ws *workspace) load() error {
 	ws.ActiveTabID = loaded.ActiveTabID
 	ws.Version = loaded.Version
 	ws.Tabs = loaded.Tabs
+	if loaded.KeyboardToolbarMode != "" {
+		ws.KeyboardToolbarMode = loaded.KeyboardToolbarMode
+	}
 
 	return nil
 }
@@ -86,13 +92,15 @@ func (ws *workspace) load() error {
 func (ws *workspace) save() error {
 	ws.mu.RLock()
 	snapshot := struct {
-		ActiveTabID string    `json:"activeTabId"`
-		Version     int64     `json:"version"`
-		Tabs        []tabMeta `json:"tabs"`
+		ActiveTabID         string    `json:"activeTabId"`
+		Version             int64     `json:"version"`
+		Tabs                []tabMeta `json:"tabs"`
+		KeyboardToolbarMode string    `json:"keyboardToolbarMode,omitempty"`
 	}{
-		ActiveTabID: ws.ActiveTabID,
-		Version:     ws.Version,
-		Tabs:        append([]tabMeta{}, ws.Tabs...),
+		ActiveTabID:         ws.ActiveTabID,
+		Version:             ws.Version,
+		Tabs:                append([]tabMeta{}, ws.Tabs...),
+		KeyboardToolbarMode: ws.KeyboardToolbarMode,
 	}
 	ws.mu.RUnlock()
 
@@ -125,13 +133,15 @@ func (ws *workspace) getState() ([]byte, error) {
 	defer ws.mu.RUnlock()
 
 	snapshot := struct {
-		ActiveTabID string    `json:"activeTabId"`
-		Version     int64     `json:"version"`
-		Tabs        []tabMeta `json:"tabs"`
+		ActiveTabID         string    `json:"activeTabId"`
+		Version             int64     `json:"version"`
+		Tabs                []tabMeta `json:"tabs"`
+		KeyboardToolbarMode string    `json:"keyboardToolbarMode,omitempty"`
 	}{
-		ActiveTabID: ws.ActiveTabID,
-		Version:     ws.Version,
-		Tabs:        append([]tabMeta{}, ws.Tabs...),
+		ActiveTabID:         ws.ActiveTabID,
+		Version:             ws.Version,
+		Tabs:                append([]tabMeta{}, ws.Tabs...),
+		KeyboardToolbarMode: ws.KeyboardToolbarMode,
 	}
 
 	return json.Marshal(snapshot)
@@ -383,6 +393,36 @@ func (ws *workspace) unsubscribe(ch chan workspaceEvent) {
 
 	delete(ws.broadcasters, ch)
 	close(ch)
+}
+
+// setKeyboardToolbarMode updates the keyboard toolbar mode setting
+func (ws *workspace) setKeyboardToolbarMode(mode string) error {
+	// Validate mode
+	validModes := map[string]bool{
+		"disabled": true,
+		"floating": true,
+		"top":      true,
+	}
+	if !validModes[mode] {
+		return fmt.Errorf("invalid keyboard toolbar mode: %s (must be disabled, floating, or top)", mode)
+	}
+
+	ws.mu.Lock()
+	ws.KeyboardToolbarMode = mode
+	ws.Version++
+	ws.mu.Unlock()
+
+	if err := ws.save(); err != nil {
+		return err
+	}
+
+	ws.broadcast(workspaceEvent{
+		Type:      "keyboard-toolbar-mode-changed",
+		Timestamp: time.Now().UTC(),
+		Payload:   mustJSON(map[string]string{"mode": mode}),
+	})
+
+	return nil
 }
 
 // broadcast sends an event to all subscribers
