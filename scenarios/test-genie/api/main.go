@@ -245,6 +245,36 @@ type GenerateTestSuiteResponse struct {
 	TestFiles         map[string][]string `json:"test_files,omitempty"`
 }
 
+type GenerateBatchTestSuiteRequest struct {
+	ScenarioNames  []string              `json:"scenario_names" binding:"required"`
+	TestTypes      []string              `json:"test_types" binding:"required"`
+	CoverageTarget float64               `json:"coverage_target"`
+	Options        TestGenerationOptions `json:"options"`
+	Model          string                `json:"model,omitempty"`
+}
+
+type GenerateBatchTestSuiteResponse struct {
+	Created int                    `json:"created"`
+	Skipped int                    `json:"skipped"`
+	Results []BatchGenerateResult  `json:"results"`
+	Issues  []IssueCreationResult  `json:"issues"`
+}
+
+type BatchGenerateResult struct {
+	ScenarioName string `json:"scenario_name"`
+	Status       string `json:"status"` // "created", "skipped", "error"
+	Reason       string `json:"reason,omitempty"`
+	IssueID      string `json:"issue_id,omitempty"`
+	IssueURL     string `json:"issue_url,omitempty"`
+}
+
+type IssueCreationResult struct {
+	ScenarioName string `json:"scenario_name"`
+	IssueID      string `json:"issue_id"`
+	IssueURL     string `json:"issue_url"`
+	Message      string `json:"message"`
+}
+
 type ExecuteTestSuiteRequest struct {
 	ExecutionType        string               `json:"execution_type"`
 	Environment          string               `json:"environment"`
@@ -1196,6 +1226,120 @@ func generateTestSuiteHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, response)
+}
+
+func generateBatchTestSuiteHandler(c *gin.Context) {
+	var req GenerateBatchTestSuiteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := GenerateBatchTestSuiteResponse{
+		Results: []BatchGenerateResult{},
+		Issues:  []IssueCreationResult{},
+	}
+
+	for _, scenarioName := range req.ScenarioNames {
+		// Check if scenario already has tests
+		var existingSuites int
+		err := db.QueryRow(`
+			SELECT COUNT(*) FROM test_suites
+			WHERE scenario_name = $1 AND status = 'active'
+		`, scenarioName).Scan(&existingSuites)
+
+		if err != nil {
+			log.Printf("⚠️  Error checking existing suites for %s: %v", scenarioName, err)
+			response.Results = append(response.Results, BatchGenerateResult{
+				ScenarioName: scenarioName,
+				Status:       "error",
+				Reason:       "Database error",
+			})
+			continue
+		}
+
+		// Skip if already has active test suites
+		if existingSuites > 0 {
+			response.Skipped++
+			response.Results = append(response.Results, BatchGenerateResult{
+				ScenarioName: scenarioName,
+				Status:       "skipped",
+				Reason:       "Already has active test suites",
+			})
+			continue
+		}
+
+		// Create individual request for this scenario
+		individualReq := GenerateTestSuiteRequest{
+			ScenarioName:   scenarioName,
+			TestTypes:      req.TestTypes,
+			CoverageTarget: req.CoverageTarget,
+			Options:        req.Options,
+			Model:          req.Model,
+		}
+
+		suiteID := uuid.New()
+		requestedAt := time.Now().UTC()
+
+		// Try to submit issue
+		issueResult, issueErr := submitTestGenerationIssue(c.Request.Context(), suiteID, individualReq)
+		if issueErr == nil {
+			// Successfully created issue
+			metrics := CoverageMetrics{
+				CodeCoverage:       req.CoverageTarget,
+				BranchCoverage:     math.Max(req.CoverageTarget*0.9, 0),
+				FunctionCoverage:   math.Max(req.CoverageTarget*0.95, 0),
+				IssueID:            issueResult.IssueID,
+				IssueURL:           issueResult.IssueURL,
+				RequestID:          suiteID.String(),
+				RequestStatus:      "submitted",
+				RequestedAt:        requestedAt.Format(time.RFC3339),
+				RequestedBy:        "test-genie",
+				RequestedTestTypes: append([]string(nil), req.TestTypes...),
+				Notes:              "Awaiting automated test generation via app-issue-tracker",
+			}
+
+			coverageJSON, _ := json.Marshal(metrics)
+			suiteType := fmt.Sprintf("pending-%s", suiteID.String()[:8])
+
+			if _, err := db.Exec(`
+				INSERT INTO test_suites (id, scenario_name, suite_type, coverage_metrics, generated_at, status)
+				VALUES ($1, $2, $3, $4, $5, $6)
+			`, suiteID, scenarioName, suiteType, coverageJSON, requestedAt, "maintenance_required"); err != nil {
+				log.Printf("⚠️  Failed to record delegated test generation request for %s: %v", scenarioName, err)
+				response.Results = append(response.Results, BatchGenerateResult{
+					ScenarioName: scenarioName,
+					Status:       "error",
+					Reason:       "Failed to record request",
+				})
+				continue
+			}
+
+			response.Created++
+			response.Results = append(response.Results, BatchGenerateResult{
+				ScenarioName: scenarioName,
+				Status:       "created",
+				IssueID:      issueResult.IssueID,
+				IssueURL:     issueResult.IssueURL,
+			})
+			response.Issues = append(response.Issues, IssueCreationResult{
+				ScenarioName: scenarioName,
+				IssueID:      issueResult.IssueID,
+				IssueURL:     issueResult.IssueURL,
+				Message:      issueResult.Message,
+			})
+		} else {
+			// Issue creation failed
+			log.Printf("⚠️  Failed to create issue for %s: %v", scenarioName, issueErr)
+			response.Results = append(response.Results, BatchGenerateResult{
+				ScenarioName: scenarioName,
+				Status:       "error",
+				Reason:       fmt.Sprintf("Issue creation failed: %v", issueErr),
+			})
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // Test execution functions
@@ -5167,6 +5311,7 @@ func main() {
 
 		// Test suite management
 		api.POST("/test-suite/generate", generateTestSuiteHandler)
+		api.POST("/test-suite/generate-batch", generateBatchTestSuiteHandler)
 		api.GET("/test-suite/:suite_id", getTestSuiteHandler)
 		api.GET("/test-suites", listTestSuitesHandler)
 		api.POST("/test-suite/:suite_id/execute", executeTestSuiteHandler)

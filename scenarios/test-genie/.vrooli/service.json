@@ -182,7 +182,7 @@
         },
         {
           "name": "setup-database",
-          "run": "resource-postgres exec --database test_genie --file initialization/storage/postgres/schema.sql",
+          "run": "docker exec vrooli-postgres-main psql -h localhost -U vrooli -d vrooli -f /tmp/test-genie-schema.sql 2>&1 || { echo 'Copying schema and retrying...'; docker cp initialization/storage/postgres/schema.sql vrooli-postgres-main:/tmp/test-genie-schema.sql && docker exec vrooli-postgres-main psql -h localhost -U vrooli -d vrooli -f /tmp/test-genie-schema.sql; }",
           "description": "Initialize database schema",
           "condition": {
             "file_exists": "initialization/storage/postgres/schema.sql"

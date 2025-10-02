@@ -1,3 +1,8 @@
+html {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 :root {
   color-scheme: dark;
   --surface: #0f172a;
@@ -22,6 +27,8 @@ body {
   min-height: 100vh;
   /* iOS keyboard positioning fix - ensure body has height for absolute positioning */
   position: relative;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 .page {
@@ -30,6 +37,8 @@ body {
   gap: 0;
   padding: 0;
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 .header {
@@ -37,6 +46,9 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
+  min-height: 5.25rem;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 .header-title-group {
@@ -161,6 +173,7 @@ body {
   min-height: 0;
   overflow: hidden;
   transition: grid-template-columns 0.28s cubic-bezier(0.33, 1, 0.68, 1);
+  max-width: 100vw;
 }
 
 .layout-main {
@@ -189,7 +202,7 @@ body {
   gap: 1.25rem;
   overflow-y: auto;
   box-shadow: -32px 0 64px rgba(8, 11, 20, 0.45);
-  z-index: 20;
+  z-index: 10001;
 }
 
 .details-drawer-header {
@@ -435,6 +448,7 @@ body {
   border-radius: 1rem;
   overflow: hidden;
   min-height: 0;
+  max-width: 100%;
 }
 
 .console-header {
@@ -647,16 +661,34 @@ body {
   flex: 1;
   min-height: 0;
   background: #0b1120;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .terminal-screen {
   position: absolute;
   inset: 0;
   display: none;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .terminal-screen.active {
   display: block;
+}
+
+/* Prevent xterm from creating horizontal overflow */
+.xterm {
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.xterm .xterm-viewport {
+  overflow-x: hidden !important;
+}
+
+.xterm .xterm-screen {
+  max-width: 100% !important;
 }
 
 .error-banner {
@@ -692,7 +724,7 @@ textarea {
     padding: min(6vh, 2.5rem) min(6vw, 2rem);
     transform: translate3d(100%, 0, 0);
     transition: transform 0.28s cubic-bezier(0.33, 1, 0.68, 1);
-    z-index: 100;
+    z-index: 10001;
   }
 
   .layout.drawer-open .details-drawer {
@@ -708,7 +740,7 @@ textarea {
     opacity: 0;
     transition: opacity 0.2s ease;
     pointer-events: none;
-    z-index: 90;
+    z-index: 10000;
     visibility: hidden;
   }
 
@@ -922,12 +954,15 @@ textarea {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-top: 1px solid var(--surface-border);
-  padding: 0.75rem 0.5rem;
+  padding: 0.75rem 1.5rem;
+  min-height: 5.25rem;
   z-index: 9999; /* Above everything including keyboard */
   box-shadow: 0 -4px 12px rgba(8, 12, 24, 0.45);
   transition: opacity 0.2s ease, transform 0.2s ease;
   will-change: transform;
   transform: translateY(0);
+  display: flex;
+  align-items: center;
 }
 
 /* iOS-specific positioning using top property for keyboard compatibility */
@@ -966,10 +1001,34 @@ textarea {
   opacity: 1 !important;
   pointer-events: auto !important;
   z-index: 10000;
+  border-top: none;
+  border-bottom: 1px solid var(--surface-border);
+  box-shadow: 0 4px 12px rgba(8, 12, 24, 0.45);
 }
 
 .mobile-toolbar.mode-top.hidden {
   display: none;
+}
+
+/* Hide header when toolbar is in top mode */
+body:has(.mobile-toolbar.mode-top) .header {
+  display: none;
+}
+
+/* Desktop mode: AI-only toolbar */
+.mobile-toolbar.desktop-mode {
+  /* Always visible at bottom on desktop */
+  position: fixed !important;
+  bottom: 0 !important;
+  top: auto !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: none !important;
+}
+
+/* Hide keyboard shortcuts on desktop */
+.mobile-toolbar.desktop-mode .mobile-toolbar-keys-row {
+  display: none !important;
 }
 
 .mobile-toolbar-content {
@@ -977,6 +1036,7 @@ textarea {
   flex-direction: column;
   gap: 0.5rem;
   max-width: 100%;
+  width: 100%;
 }
 
 /* AI Command Generation Row */
@@ -1031,6 +1091,35 @@ textarea {
   cursor: not-allowed;
 }
 
+.toolbar-menu-toggle {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.75rem;
+  background: rgba(148, 163, 184, 0.08);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.toolbar-menu-toggle:hover,
+.toolbar-menu-toggle:focus-visible {
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(148, 163, 184, 0.55);
+}
+
+.toolbar-menu-toggle:active {
+  transform: scale(0.95);
+}
+
+/* Show hamburger menu only in top mode */
+.mobile-toolbar.mode-top .toolbar-menu-toggle {
+  display: flex !important;
+}
+
 .loading-spinner {
   display: inline-block;
   width: 16px;
@@ -1050,22 +1139,19 @@ textarea {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem;
-  background: rgba(56, 189, 248, 0.08);
-  border-radius: 0.75rem;
-  border: 1px solid rgba(56, 189, 248, 0.2);
 }
 
 .context-btn {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.85rem;
+  gap: 0.3rem;
+  padding: 0.4rem 0.7rem;
   background: rgba(56, 189, 248, 0.15);
   border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 0.6rem;
   color: var(--accent);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .context-btn.active {
@@ -1075,13 +1161,7 @@ textarea {
 }
 
 .context-icon {
-  font-size: 1.1rem;
-}
-
-.context-hint {
-  flex: 1;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  font-size: 0.9rem;
 }
 
 /* Quick Keys Row */
@@ -1099,13 +1179,13 @@ textarea {
 
 .toolbar-btn {
   flex: 0 0 auto;
-  min-width: 3rem;
-  height: 2.5rem;
+  min-width: 2.5rem;
+  height: 2rem;
   border: 1px solid var(--surface-border);
-  border-radius: 0.6rem;
+  border-radius: 0.5rem;
   background: rgba(148, 163, 184, 0.12);
   color: var(--text-primary);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
   font-family: 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
   cursor: pointer;
@@ -1113,7 +1193,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 0.75rem;
+  padding: 0 0.6rem;
 }
 
 .toolbar-btn:active {

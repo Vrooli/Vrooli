@@ -287,6 +287,14 @@ class TestGenieApp {
             });
         }
 
+        const suitesBulkGenerateButton = document.getElementById('suites-bulk-generate-btn');
+        if (suitesBulkGenerateButton) {
+            suitesBulkGenerateButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                this.openGenerateDialog(suitesBulkGenerateButton, '', true);
+            });
+        }
+
         const suitesRefreshButton = document.getElementById('suites-refresh-btn');
         if (suitesRefreshButton) {
             suitesRefreshButton.addEventListener('click', async (event) => {
@@ -1039,25 +1047,102 @@ class TestGenieApp {
 
     updateGenerateScenarioDisplay() {
         const scenarioDisplay = document.getElementById('scenario-name-display');
-        if (!scenarioDisplay) {
+        const scenarioChecklist = document.getElementById('scenario-checklist');
+        const scenariosLabelSuffix = document.getElementById('scenarios-label-suffix');
+
+        if (!scenarioDisplay || !scenarioChecklist) {
             return;
         }
 
-        if (this.generateDialogScenarioName) {
-            scenarioDisplay.textContent = this.generateDialogScenarioName;
-            scenarioDisplay.classList.remove('placeholder');
-        } else {
-            scenarioDisplay.textContent = 'Select a scenario from the table to generate a test suite.';
-            scenarioDisplay.classList.add('placeholder');
+        // Bulk mode: show checklist, hide single display
+        if (this.generateDialogIsBulkMode) {
+            scenarioDisplay.hidden = true;
+            scenarioChecklist.hidden = false;
+            if (scenariosLabelSuffix) {
+                scenariosLabelSuffix.textContent = 's';
+            }
+            this.populateScenarioChecklist();
+        }
+        // Single mode: show single display, hide checklist
+        else {
+            scenarioDisplay.hidden = false;
+            scenarioChecklist.hidden = true;
+            if (scenariosLabelSuffix) {
+                scenariosLabelSuffix.textContent = '';
+            }
+
+            if (this.generateDialogScenarioName) {
+                scenarioDisplay.textContent = this.generateDialogScenarioName;
+                scenarioDisplay.classList.remove('placeholder');
+            } else {
+                scenarioDisplay.textContent = 'Select a scenario from the table to generate a test suite.';
+                scenarioDisplay.classList.add('placeholder');
+            }
         }
     }
 
-    openGenerateDialog(triggerElement = null, scenarioName = '') {
+    populateScenarioChecklist() {
+        const checklistItems = document.getElementById('scenario-checklist-items');
+        const selectAllCheckbox = document.getElementById('scenario-select-all');
+
+        if (!checklistItems) {
+            return;
+        }
+
+        // Get scenarios without tests (isMissing = true)
+        const scenariosWithoutTests = (this.currentSuiteRows || []).filter(scenario => scenario.isMissing);
+
+        if (scenariosWithoutTests.length === 0) {
+            checklistItems.innerHTML = '<p style="padding: var(--spacing-sm); color: var(--text-muted); text-align: center;">All scenarios have tests!</p>';
+            if (selectAllCheckbox) {
+                selectAllCheckbox.disabled = true;
+            }
+            return;
+        }
+
+        // Enable select all
+        if (selectAllCheckbox) {
+            selectAllCheckbox.disabled = false;
+            selectAllCheckbox.checked = false;
+        }
+
+        // Render checklist items
+        checklistItems.innerHTML = scenariosWithoutTests.map((scenario, index) => `
+            <div class="scenario-checklist-item">
+                <input type="checkbox" id="scenario-check-${index}" data-scenario-name="${this.escapeHtml(scenario.scenarioName)}">
+                <label for="scenario-check-${index}">${this.escapeHtml(scenario.scenarioName)}</label>
+            </div>
+        `).join('');
+
+        // Bind Select All functionality
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', (e) => {
+                const checkboxes = checklistItems.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    cb.checked = e.target.checked;
+                });
+            });
+        }
+
+        // Update Select All when individual checkboxes change
+        checklistItems.addEventListener('change', () => {
+            if (selectAllCheckbox) {
+                const checkboxes = checklistItems.querySelectorAll('input[type="checkbox"]');
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                selectAllCheckbox.checked = allChecked;
+            }
+        });
+
+        this.refreshIcons();
+    }
+
+    openGenerateDialog(triggerElement = null, scenarioName = '', isBulkMode = false) {
         if (!this.generateDialogOverlay) {
             return;
         }
 
         this.lastGenerateDialogTrigger = triggerElement || null;
+        this.generateDialogIsBulkMode = isBulkMode;
         this.generateDialogOverlay.classList.add('active');
         this.generateDialogOverlay.setAttribute('aria-hidden', 'false');
         this.lockDialogScroll();
@@ -1066,6 +1151,28 @@ class TestGenieApp {
 
         this.generateDialogScenarioName = typeof scenarioName === 'string' ? scenarioName.trim() : '';
         this.updateGenerateScenarioDisplay();
+
+        // Update dialog title and button text based on mode
+        const dialogTitle = document.getElementById('generate-dialog-title');
+        const generateBtn = document.getElementById('generate-btn');
+
+        if (isBulkMode) {
+            if (dialogTitle) {
+                dialogTitle.textContent = 'Bulk Request Tests';
+            }
+            if (generateBtn) {
+                generateBtn.innerHTML = '<i data-lucide="sparkles"></i> <span id="generate-btn-text">Create Requests</span>';
+                this.refreshIcons();
+            }
+        } else {
+            if (dialogTitle) {
+                dialogTitle.textContent = 'Request Test Suite';
+            }
+            if (generateBtn) {
+                generateBtn.innerHTML = '<i data-lucide="zap"></i> <span id="generate-btn-text">Create Request</span>';
+                this.refreshIcons();
+            }
+        }
 
         const firstPhaseCheckbox = this.generateForm?.querySelector('#generate-phase-selector input[type="checkbox"]')
             || document.querySelector('#generate-phase-selector input[type="checkbox"]');
@@ -2752,7 +2859,23 @@ class TestGenieApp {
             return;
         }
 
-        const scenarioName = (this.generateDialogScenarioName || '').trim();
+        // Get scenarios to generate tests for
+        let scenarioNames = [];
+        if (this.generateDialogIsBulkMode) {
+            // Bulk mode: collect checked scenarios from checklist
+            const checklistItems = document.getElementById('scenario-checklist-items');
+            if (checklistItems) {
+                const checkedInputs = checklistItems.querySelectorAll('input[type="checkbox"]:checked');
+                scenarioNames = Array.from(checkedInputs).map(input => input.dataset.scenarioName).filter(Boolean);
+            }
+        } else {
+            // Single mode: use the single scenario name
+            const scenarioName = (this.generateDialogScenarioName || '').trim();
+            if (scenarioName) {
+                scenarioNames = [scenarioName];
+            }
+        }
+
         let phaseInputs = Array.from(form.querySelectorAll('#generate-phase-selector input[type="checkbox"]'));
         if (!phaseInputs.length) {
             phaseInputs = Array.from(document.querySelectorAll('#generate-phase-selector input[type="checkbox"]'));
@@ -2768,7 +2891,7 @@ class TestGenieApp {
         const coverageTarget = Number.isFinite(coverageRaw) ? coverageRaw : 80;
         const normalizedCoverage = Math.min(100, Math.max(50, coverageTarget));
 
-        if (!scenarioName || selectedPhases.length === 0) {
+        if (scenarioNames.length === 0 || selectedPhases.length === 0) {
             this.showError('Please fill in all required fields');
             return;
         }
@@ -2778,28 +2901,57 @@ class TestGenieApp {
 
         this.showGenerateForm(false, false);
         btn.disabled = true;
-        btn.innerHTML = '<div class="spinner"></div> Generating...';
+        const buttonText = this.generateDialogIsBulkMode
+            ? `<div class="spinner"></div> Creating ${scenarioNames.length} ${scenarioNames.length === 1 ? 'Request' : 'Requests'}...`
+            : '<div class="spinner"></div> Creating Request...';
+        btn.innerHTML = buttonText;
 
         try {
-            const requestData = {
-                scenario_name: scenarioName,
-                test_types: selectedPhases,
-                coverage_target: normalizedCoverage,
-                options: {
-                    include_performance_tests: includePerformance,
-                    include_security_tests: includeSecurity,
-                    custom_test_patterns: [],
-                    execution_timeout: 300
-                }
-            };
+            let response;
 
-            const response = await fetch(`${this.apiBaseUrl}/test-suite/generate`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-            });
+            if (this.generateDialogIsBulkMode && scenarioNames.length > 1) {
+                // Bulk mode: call batch endpoint
+                const requestData = {
+                    scenario_names: scenarioNames,
+                    test_types: selectedPhases,
+                    coverage_target: normalizedCoverage,
+                    options: {
+                        include_performance_tests: includePerformance,
+                        include_security_tests: includeSecurity,
+                        custom_test_patterns: [],
+                        execution_timeout: 300
+                    }
+                };
+
+                response = await fetch(`${this.apiBaseUrl}/test-suite/generate-batch`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+            } else {
+                // Single mode: call regular endpoint
+                const requestData = {
+                    scenario_name: scenarioNames[0],
+                    test_types: selectedPhases,
+                    coverage_target: normalizedCoverage,
+                    options: {
+                        include_performance_tests: includePerformance,
+                        include_security_tests: includeSecurity,
+                        custom_test_patterns: [],
+                        execution_timeout: 300
+                    }
+                };
+
+                response = await fetch(`${this.apiBaseUrl}/test-suite/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+            }
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -2807,72 +2959,101 @@ class TestGenieApp {
 
             const result = await response.json();
 
-            const requestId = result.request_id || result.suite_id || 'unknown';
-            const status = (result.status || 'submitted').toUpperCase();
-            const baseMetadata = [
-                { label: 'Request ID', value: requestId },
-                { label: 'Status', value: status }
-            ];
+            // Handle bulk mode response
+            if (this.generateDialogIsBulkMode && result.results) {
+                const created = result.created || 0;
+                const skipped = result.skipped || 0;
+                const issues = result.issues || [];
 
-            if ((result.status || '').toLowerCase() === 'generated_locally') {
-                const metadata = [...baseMetadata];
+                const metadata = [
+                    { label: 'Created', value: `${created} ${created === 1 ? 'request' : 'requests'}` },
+                    { label: 'Skipped', value: `${skipped} (already tested)` }
+                ];
 
-                if (Number.isFinite(Number(result.generated_tests))) {
-                    metadata.push({ label: 'Generated Tests', value: String(result.generated_tests) });
-                }
+                const message = created > 0
+                    ? `Created ${created} test ${created === 1 ? 'request' : 'requests'}${skipped > 0 ? `, skipped ${skipped} already tested` : ''}.`
+                    : 'All selected scenarios already have tests.';
 
-                if (Number.isFinite(Number(result.estimated_coverage))) {
-                    metadata.push({ label: 'Estimated Coverage', value: `${result.estimated_coverage}%` });
-                }
+                this.showGenerateResultCard({
+                    icon: created > 0 ? 'send' : 'info',
+                    tone: created > 0 ? 'info' : 'warning',
+                    title: `Bulk Test Requests ${created > 0 ? 'Created' : 'Skipped'}`,
+                    message,
+                    metadata,
+                    issueUrl: issues.length > 0 ? issues[0].issue_url : ''
+                });
 
-                if (Number.isFinite(Number(result.generation_time))) {
-                    metadata.push({ label: 'Generation Time', value: `${result.generation_time}s` });
-                }
+                this.showSuccess(message);
+            }
+            // Handle single mode response
+            else {
+                const requestId = result.request_id || result.suite_id || 'unknown';
+                const status = (result.status || 'submitted').toUpperCase();
+                const baseMetadata = [
+                    { label: 'Request ID', value: requestId },
+                    { label: 'Status', value: status }
+                ];
 
-                if (result.test_files && typeof result.test_files === 'object') {
-                    Object.entries(result.test_files).forEach(([type, files]) => {
-                        const count = Array.isArray(files) ? files.length : 0;
-                        metadata.push({
-                            label: `${this.formatLabel(type)} Files`,
-                            value: `${count} ${count === 1 ? 'file' : 'files'}`
+                if ((result.status || '').toLowerCase() === 'generated_locally') {
+                    const metadata = [...baseMetadata];
+
+                    if (Number.isFinite(Number(result.generated_tests))) {
+                        metadata.push({ label: 'Generated Tests', value: String(result.generated_tests) });
+                    }
+
+                    if (Number.isFinite(Number(result.estimated_coverage))) {
+                        metadata.push({ label: 'Estimated Coverage', value: `${result.estimated_coverage}%` });
+                    }
+
+                    if (Number.isFinite(Number(result.generation_time))) {
+                        metadata.push({ label: 'Generation Time', value: `${result.generation_time}s` });
+                    }
+
+                    if (result.test_files && typeof result.test_files === 'object') {
+                        Object.entries(result.test_files).forEach(([type, files]) => {
+                            const count = Array.isArray(files) ? files.length : 0;
+                            metadata.push({
+                                label: `${this.formatLabel(type)} Files`,
+                                value: `${count} ${count === 1 ? 'file' : 'files'}`
+                            });
                         });
+                    }
+
+                    const generatedTests = Number.isFinite(Number(result.generated_tests)) ? Number(result.generated_tests) : 0;
+                    const successMessage = generatedTests > 0
+                        ? `Generated ${generatedTests} fallback ${generatedTests === 1 ? 'test' : 'tests'} locally.`
+                        : 'Local test suite created without detected test cases.';
+
+                    this.showGenerateResultCard({
+                        icon: 'check-circle',
+                        tone: 'success',
+                        title: 'Local Test Suite Generated',
+                        message: successMessage,
+                        metadata,
+                        issueUrl: ''
                     });
+
+                    this.showSuccess(successMessage);
+                } else {
+                    const metadata = [...baseMetadata];
+                    if (result.issue_id) {
+                        metadata.push({ label: 'Issue ID', value: String(result.issue_id) });
+                    }
+                    if (!result.issue_url) {
+                        metadata.push({ label: 'Follow-up', value: 'Track progress in app-issue-tracker.' });
+                    }
+
+                    this.showGenerateResultCard({
+                        icon: 'send',
+                        tone: 'info',
+                        title: 'Test Request Created',
+                        message: result.message || 'Delegated to app-issue-tracker.',
+                        metadata,
+                        issueUrl: result.issue_url || ''
+                    });
+
+                    this.showSuccess('Test request created in app-issue-tracker.');
                 }
-
-                const generatedTests = Number.isFinite(Number(result.generated_tests)) ? Number(result.generated_tests) : 0;
-                const successMessage = generatedTests > 0
-                    ? `Generated ${generatedTests} fallback ${generatedTests === 1 ? 'test' : 'tests'} locally.`
-                    : 'Local test suite created without detected test cases.';
-
-                this.showGenerateResultCard({
-                    icon: 'check-circle',
-                    tone: 'success',
-                    title: 'Local Test Suite Generated',
-                    message: successMessage,
-                    metadata,
-                    issueUrl: ''
-                });
-
-                this.showSuccess(successMessage);
-            } else {
-                const metadata = [...baseMetadata];
-                if (result.issue_id) {
-                    metadata.push({ label: 'Issue ID', value: String(result.issue_id) });
-                }
-                if (!result.issue_url) {
-                    metadata.push({ label: 'Follow-up', value: 'Track progress in app-issue-tracker.' });
-                }
-
-                this.showGenerateResultCard({
-                    icon: 'send',
-                    tone: 'info',
-                    title: 'Test Generation Request Submitted',
-                    message: result.message || 'Delegated to app-issue-tracker.',
-                    metadata,
-                    issueUrl: result.issue_url || ''
-                });
-
-                this.showSuccess('Delegated test generation request to app-issue-tracker.');
             }
 
             await Promise.all([
@@ -2885,7 +3066,11 @@ class TestGenieApp {
             this.showError(`Test generation failed: ${error.message}`);
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '⚡ Generate Test Suite';
+            const finalButtonText = this.generateDialogIsBulkMode
+                ? '<i data-lucide="sparkles"></i> Create Requests'
+                : '<i data-lucide="zap"></i> Create Request';
+            btn.innerHTML = finalButtonText;
+            this.refreshIcons();
         }
     }
 

@@ -946,6 +946,70 @@
             font-style: italic;
         }
 
+        .scenario-checklist {
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            background: var(--bg-secondary);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .scenario-checklist-header {
+            padding: 0.75rem var(--spacing-sm);
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-panel);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .scenario-checklist-select-all {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--accent-primary);
+        }
+
+        .scenario-checklist-select-all input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent-primary);
+        }
+
+        .scenario-checklist-items {
+            padding: var(--spacing-xs);
+        }
+
+        .scenario-checklist-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: 0.5rem var(--spacing-sm);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .scenario-checklist-item:hover {
+            background: var(--bg-panel);
+        }
+
+        .scenario-checklist-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent-primary);
+        }
+
+        .scenario-checklist-item label {
+            flex: 1;
+            cursor: pointer;
+            color: var(--text-primary);
+        }
+
         .form-range-group {
             display: flex;
             align-items: center;
@@ -2608,6 +2672,10 @@
                                 <i data-lucide="play"></i>
                                 <span id="suites-run-selected-label">Run Selected</span>
                             </button>
+                            <button class="btn secondary" type="button" id="suites-bulk-generate-btn">
+                                <i data-lucide="sparkles"></i>
+                                Bulk Request Tests
+                            </button>
                             <button class="btn" type="button" id="suites-refresh-btn">
                                 <i data-lucide="refresh-cw"></i>
                                 Refresh
@@ -3045,8 +3113,19 @@ test-genie help
             <div class="suite-detail-content">
                 <form id="generate-form" class="generate-form">
                     <div class="form-group">
-                        <span class="form-label">Scenario</span>
+                        <span class="form-label">Scenario<span id="scenarios-label-suffix"></span></span>
                         <div id="scenario-name-display" class="scenario-name-display placeholder">Select a scenario from the table to generate a test suite.</div>
+                        <div id="scenario-checklist" class="scenario-checklist" hidden>
+                            <div class="scenario-checklist-header">
+                                <label class="scenario-checklist-select-all">
+                                    <input type="checkbox" id="scenario-select-all">
+                                    <span>Select All</span>
+                                </label>
+                            </div>
+                            <div class="scenario-checklist-items" id="scenario-checklist-items">
+                                <!-- Populated by JavaScript -->
+                            </div>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -3110,7 +3189,7 @@ test-genie help
                     <div class="form-group">
                         <button type="submit" class="btn" id="generate-btn">
                             <i data-lucide="zap"></i>
-                            Generate Test Suite
+                            <span id="generate-btn-text">Create Request</span>
                         </button>
                     </div>
                 </form>

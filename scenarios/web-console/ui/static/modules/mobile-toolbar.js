@@ -52,15 +52,21 @@ function createToolbarDOM() {
             <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
           </svg>
         </button>
+        <button type="button" id="toolbarMenuToggle" class="toolbar-menu-toggle hidden" title="Open menu" aria-label="Open session details">
+          <span class="drawer-icon-lines">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+        </button>
       </div>
 
       <!-- Context Mode Row (shown when AI input has text) -->
       <div class="mobile-toolbar-context-row hidden">
         <button type="button" id="contextModeBtn" class="toolbar-btn context-btn">
           <span class="context-icon">⚡</span>
-          Context (0 lines)
+          Context (0)
         </button>
-        <div class="context-hint">Tap terminal lines to select context</div>
       </div>
 
       <!-- Quick Keys Row (default) -->
@@ -85,17 +91,22 @@ function createToolbarDOM() {
  * Initialize mobile toolbar
  */
 export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
-  if (!isMobileDevice()) {
-    console.log('Mobile toolbar: Not a mobile device, skipping initialization')
-    return null
+  const isMobile = isMobileDevice()
+
+  // Create toolbar for both mobile and desktop
+  const toolbar = createToolbarDOM()
+
+  // Add desktop-specific class if not mobile
+  if (!isMobile) {
+    toolbar.classList.add('desktop-mode')
   }
 
-  const toolbar = createToolbarDOM()
   const aiInput = document.getElementById('aiCommandInput')
   const aiGenerateBtn = document.getElementById('aiGenerateBtn')
   const contextRow = toolbar.querySelector('.mobile-toolbar-context-row')
   const keysRow = toolbar.querySelector('.mobile-toolbar-keys-row')
   const contextModeBtn = document.getElementById('contextModeBtn')
+  const toolbarMenuToggle = document.getElementById('toolbarMenuToggle')
 
   // Store toolbar and keyboard detection cleanup function
   let keyboardDetectionCleanup = null
@@ -116,6 +127,14 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
     toolbarState.contextMode = !toolbarState.contextMode
     updateToolbarUI(contextRow, keysRow, contextModeBtn)
     toggleContextSelectionMode(getActiveTabFn, contextRow, keysRow, contextModeBtn)
+  })
+
+  // Handle toolbar menu toggle (opens main drawer)
+  toolbarMenuToggle?.addEventListener('click', () => {
+    const drawerToggle = document.getElementById('drawerToggle')
+    if (drawerToggle) {
+      drawerToggle.click()
+    }
   })
 
   // Handle quick keys
@@ -174,6 +193,15 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
     // Remove all mode-related classes
     toolbar.classList.remove('mode-disabled', 'mode-floating', 'mode-top')
 
+    // Desktop mode: Hide toolbar by default
+    if (!isMobile) {
+      // On desktop, toolbar should be disabled by default
+      toolbar.classList.add('mode-disabled', 'hidden')
+      console.log(`Toolbar mode set to: disabled (desktop - use mobile view to test)`)
+      return
+    }
+
+    // Mobile mode: Full mode support
     switch (mode) {
       case 'disabled':
         toolbar.classList.add('mode-disabled', 'hidden')
@@ -200,7 +228,9 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
 
   setupMode(initialMode)
 
-  console.log('Mobile toolbar initialized with mode:', initialMode)
+  const deviceType = isMobile ? 'mobile' : 'desktop'
+  console.log(`Mobile toolbar initialized with mode: ${initialMode} (${deviceType})`)
+
   return {
     show: () => showToolbar(toolbar),
     hide: () => hideToolbar(toolbar),
@@ -299,6 +329,13 @@ function setupKeyboardDetection(toolbar) {
       const keyboardHeight = window.innerHeight - viewport.height
       const keyboardVisible = keyboardHeight > 100
 
+      console.log('[Toolbar Detection] Viewport change:', {
+        windowHeight: window.innerHeight,
+        viewportHeight: viewport.height,
+        keyboardHeight,
+        keyboardVisible
+      })
+
       if (keyboardVisible) {
         toolbar.style.bottom = `${keyboardHeight}px`
         showToolbar(toolbar)
@@ -310,12 +347,30 @@ function setupKeyboardDetection(toolbar) {
 
     window.visualViewport.addEventListener('resize', updateToolbarPosition)
     window.visualViewport.addEventListener('scroll', updateToolbarPosition)
+
+    // Also listen to focus events as a fallback detection method
+    const handleFocus = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.classList.contains('xterm-helper-textarea')) {
+        console.log('[Toolbar Detection] Focus detected, forcing show')
+        // Force show toolbar when input is focused
+        setTimeout(updateToolbarPosition, 100)
+        setTimeout(updateToolbarPosition, 300)
+      }
+    }
+    document.addEventListener('focusin', handleFocus)
+
+    // Initial check
     updateToolbarPosition()
+
+    // Re-check after delay for reliability
+    setTimeout(updateToolbarPosition, 100)
+    setTimeout(updateToolbarPosition, 500)
 
     // Return cleanup function
     return () => {
       window.visualViewport.removeEventListener('resize', updateToolbarPosition)
       window.visualViewport.removeEventListener('scroll', updateToolbarPosition)
+      document.removeEventListener('focusin', handleFocus)
     }
   } else {
     // Fallback: show when input is focused
@@ -380,10 +435,13 @@ function hideToolbar(toolbar) {
 
 /**
  * Update toolbar UI based on state
+ * When AI input has text: show context button only
+ * When AI input is empty: show shortcut keys only
  */
 function updateToolbarUI(contextRow, keysRow, contextModeBtn) {
   const hasAIInput = toolbarState.aiInputValue.trim().length > 0
 
+  // Mutually exclusive visibility
   if (hasAIInput) {
     contextRow?.classList.remove('hidden')
     keysRow?.classList.add('hidden')
@@ -397,7 +455,7 @@ function updateToolbarUI(contextRow, keysRow, contextModeBtn) {
     const count = toolbarState.selectedLines.length
     contextModeBtn.innerHTML = `
       <span class="context-icon">⚡</span>
-      Context (${count} ${count === 1 ? 'line' : 'lines'})
+      Context (${count})
     `
   }
 }

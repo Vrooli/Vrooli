@@ -568,7 +568,7 @@ lifecycle::is_scenario_healthy() {
     
     # Extract health endpoints
     local api_endpoint=$(jq -r '.lifecycle.health.endpoints.api // "/health"' "$service_json" 2>/dev/null)
-    local ui_endpoint=$(jq -r '.lifecycle.health.endpoints.ui // "/"' "$service_json" 2>/dev/null)
+    local ui_endpoint=$(jq -r '.lifecycle.health.endpoints.ui // "/health"' "$service_json" 2>/dev/null)
     
     # Get ports from environment or process files
     local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
