@@ -12,6 +12,7 @@ interface IssuesBoardProps {
   onIssueDelete?: (issue: Issue) => void;
   onIssueDrop?: (issueId: string, fromStatus: IssueStatus, toStatus: IssueStatus) => void | Promise<void>;
   onIssueArchive?: (issue: Issue) => void;
+  onStopAgent?: (issueId: string) => void;
   hiddenColumns?: IssueStatus[];
   onHideColumn?: (status: IssueStatus) => void;
 }
@@ -32,6 +33,7 @@ export function IssuesBoard({
   onIssueDelete,
   onIssueDrop,
   onIssueArchive,
+  onStopAgent,
   hiddenColumns,
   onHideColumn,
 }: IssuesBoardProps) {
@@ -506,6 +508,7 @@ export function IssuesBoard({
                         onSelect={onIssueSelect}
                         onDelete={confirmDelete}
                         onArchive={confirmArchive}
+                        onStopAgent={onStopAgent}
                         onDragStart={handleCardDragStart}
                         onDragEnd={handleCardDragEnd}
                         onPointerDown={handlePointerCardDown}

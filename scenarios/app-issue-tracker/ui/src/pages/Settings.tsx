@@ -239,15 +239,6 @@ export function SettingsPage({
 
   return (
     <div className="settings-page">
-      <header className="page-header">
-        <div>
-          <h2>Scenario Settings</h2>
-          <p>
-            Configure automation capacity, the unified agent, and UI
-            preferences.
-          </p>
-        </div>
-      </header>
       <div className="settings-layout">
         <nav className="settings-tabs">
           {tabConfig.map((tab) => {
@@ -273,7 +264,7 @@ export function SettingsPage({
                 Control how many issues the unified agent tackles
                 simultaneously.
               </p>
-              <div className="form-grid">
+              <div className="form-grid-processor">
                 <label className="slider-field">
                   <div className="slider-label">
                     <span>Concurrent slots</span>
@@ -298,6 +289,16 @@ export function SettingsPage({
                     <span>1</span>
                     <span>8</span>
                   </div>
+                </label>
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={processor.active}
+                    onChange={(event) =>
+                      handleProcessorChange("active", event.target.checked)
+                    }
+                  />
+                  <span>Processor active</span>
                 </label>
                 <label>
                   <span>Refresh interval (seconds)</span>
@@ -337,28 +338,18 @@ export function SettingsPage({
                     )}
                   </small>
                 </label>
-                <label className="checkbox-field">
-                  <input
-                    type="checkbox"
-                    checked={processor.active}
-                    onChange={(event) =>
-                      handleProcessorChange("active", event.target.checked)
-                    }
-                  />
-                  <span>Processor active</span>
-                </label>
               </div>
             </div>
           )}
 
           {activeTab === "agent" && (
             <div className="settings-group">
-              <h3>Unified Agent</h3>
+              <h3>Agent</h3>
               <p>
                 Configure the single automation agent responsible for
                 investigation and remediation.
               </p>
-              <div className="form-grid">
+              <div className="form-grid-agent">
                 <label>
                   <span>AI Backend Provider</span>
                   <select
@@ -387,16 +378,6 @@ export function SettingsPage({
                   />
                   <span>Auto-fallback to alternative backend</span>
                 </label>
-                <label>
-                  <span>Agent identifier</span>
-                  <input
-                    type="text"
-                    value={agent.agentId}
-                    onChange={(event) =>
-                      handleAgentChange("agentId", event.target.value)
-                    }
-                  />
-                </label>
                 <label className="slider-field">
                   <div className="slider-label">
                     <span>Maximum turns</span>
@@ -421,17 +402,6 @@ export function SettingsPage({
                     <span>5</span>
                     <span>80</span>
                   </div>
-                </label>
-                <label>
-                  <span>Allowed tools</span>
-                  <input
-                    type="text"
-                    value={allowedToolsString}
-                    onChange={(event) =>
-                      handleAgentChange("allowedTools", event.target.value)
-                    }
-                    placeholder="Comma separated"
-                  />
                 </label>
                 <label className="slider-field">
                   <div className="slider-label">
@@ -458,7 +428,18 @@ export function SettingsPage({
                     <span>240</span>
                   </div>
                 </label>
-                <label className="checkbox-field">
+                <label className="form-grid-agent-full">
+                  <span>Allowed tools</span>
+                  <input
+                    type="text"
+                    value={allowedToolsString}
+                    onChange={(event) =>
+                      handleAgentChange("allowedTools", event.target.value)
+                    }
+                    placeholder="Comma separated"
+                  />
+                </label>
+                <label className="checkbox-field form-grid-agent-full">
                   <input
                     type="checkbox"
                     checked={agent.skipPermissionChecks}
@@ -479,30 +460,28 @@ export function SettingsPage({
             <div className="settings-group">
               <h3>Display</h3>
               <p>Pick between light and dark presentations.</p>
-              <div className="form-grid">
-                <label className="toggle-field">
-                  <span>Theme</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={display.theme === "dark"}
-                    className={`toggle-switch ${display.theme === "dark" ? "active" : ""}`}
-                    onClick={() =>
-                      handleDisplayChange(
-                        "theme",
-                        display.theme === "dark" ? "light" : "dark",
-                      )
-                    }
-                  >
-                    <span className="toggle-track">
-                      <span className="toggle-thumb" />
-                    </span>
-                    <span className="toggle-text">
-                      {display.theme === "dark" ? "Dark" : "Light"}
-                    </span>
-                  </button>
-                </label>
-              </div>
+              <label className="toggle-field">
+                <span>Theme</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={display.theme === "dark"}
+                  className={`toggle-switch ${display.theme === "dark" ? "active" : ""}`}
+                  onClick={() =>
+                    handleDisplayChange(
+                      "theme",
+                      display.theme === "dark" ? "light" : "dark",
+                    )
+                  }
+                >
+                  <span className="toggle-track">
+                    <span className="toggle-thumb" />
+                  </span>
+                  <span className="toggle-text">
+                    {display.theme === "dark" ? "Dark" : "Light"}
+                  </span>
+                </button>
+              </label>
             </div>
           )}
 

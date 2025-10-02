@@ -60,6 +60,7 @@ type Relationship struct {
 	AffinityScore        *float64               `json:"affinity_score" db:"affinity_score"`
 	Metadata             map[string]interface{} `json:"metadata" db:"metadata"`
 	Notes                *string                `json:"notes" db:"notes"`
+	DeletedAt            *time.Time             `json:"deleted_at" db:"deleted_at"`
 }
 
 type Organization struct {
@@ -218,9 +219,9 @@ func initDB() {
 			float64(maxDelay),
 		))
 
-		// Add progressive jitter to prevent thundering herd
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(time.Now().UnixNano() % int64(jitterRange))
 		actualDelay := delay + jitter
 
 		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)

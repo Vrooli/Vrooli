@@ -30,8 +30,8 @@ source "${NEO4J_RESOURCE_DIR}/lib/inject.sh" 2>/dev/null || true
 neo4j_install_apoc() {
     echo "Installing APOC plugin for enhanced graph algorithms..."
     
-    # Use latest compatible APOC version
-    local apoc_version="2025.09.0"
+    # Use APOC version compatible with Neo4j 5.15.0
+    local apoc_version="5.26.12"
     local apoc_url="https://github.com/neo4j/apoc/releases/download/${apoc_version}/apoc-${apoc_version}-core.jar"
     local temp_file="/tmp/apoc-${apoc_version}-core.jar"
     

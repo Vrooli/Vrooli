@@ -39,7 +39,7 @@ if [[ -f "${ERPNEXT_CLI_DIR}/lib/main.sh" ]]; then
 fi
 
 # Source ERPNext libraries
-for lib in config docker install status inject content test workflow reporting ecommerce manufacturing multi-tenant mobile-ui crm accounting hr; do
+for lib in config docker install status inject content test workflow reporting ecommerce manufacturing multi-tenant mobile-ui crm accounting hr inventory projects; do
     lib_file="${ERPNEXT_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -154,6 +154,23 @@ cli::register_subcommand "mobile-ui" "configure-pwa" "Configure Progressive Web 
 cli::register_subcommand "mobile-ui" "configure-menu" "Configure mobile menu" "erpnext::mobile_ui::configure_mobile_menu"
 cli::register_subcommand "mobile-ui" "optimize-touch" "Optimize for touch devices" "erpnext::mobile_ui::optimize_touch"
 cli::register_subcommand "mobile-ui" "create-dashboard" "Create mobile dashboard" "erpnext::mobile_ui::create_mobile_dashboard"
+
+# Inventory Management Module
+cli::register_command_group "inventory" "Manage inventory and stock"
+cli::register_subcommand "inventory" "list-items" "List inventory items" "erpnext::inventory::cli::list_items"
+cli::register_subcommand "inventory" "add-item" "Add new inventory item" "erpnext::inventory::cli::add_item"
+cli::register_subcommand "inventory" "check-stock" "Check stock balance" "erpnext::inventory::cli::check_stock"
+cli::register_subcommand "inventory" "list-warehouses" "List warehouses" "erpnext::inventory::cli::list_warehouses"
+cli::register_subcommand "inventory" "create-po" "Create purchase order" "erpnext::inventory::cli::create_po"
+
+# Project Management Module
+cli::register_command_group "projects" "Manage projects and tasks"
+cli::register_subcommand "projects" "list" "List all projects" "erpnext::projects::cli::list"
+cli::register_subcommand "projects" "create" "Create new project" "erpnext::projects::cli::create"
+cli::register_subcommand "projects" "add-task" "Add task to project" "erpnext::projects::cli::add_task"
+cli::register_subcommand "projects" "list-tasks" "List project tasks" "erpnext::projects::cli::list_tasks"
+cli::register_subcommand "projects" "update-progress" "Update project progress" "erpnext::projects::cli::update_progress"
+cli::register_subcommand "projects" "log-time" "Log time to project" "erpnext::projects::cli::log_time"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

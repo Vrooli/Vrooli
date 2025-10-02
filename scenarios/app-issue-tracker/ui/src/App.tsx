@@ -1865,11 +1865,6 @@ function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModal
                 </div>
               )}
               <MarkdownView content={issue.investigation.report} />
-              {issue.investigation.confidence_score !== undefined && (
-                <div className="investigation-confidence">
-                  Confidence Score: {issue.investigation.confidence_score}/10
-                </div>
-              )}
             </div>
           </section>
         )}

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { DragEvent, KeyboardEventHandler, MouseEvent, PointerEvent, TouchEvent } from 'react';
-import { Archive, Brain, CalendarClock, GripVertical, Hash, Tag, Trash2, AlertCircle } from 'lucide-react';
+import { Archive, Brain, CalendarClock, GripVertical, Hash, Tag, Trash2, AlertCircle, StopCircle } from 'lucide-react';
 import { Issue } from '../data/sampleData';
 import { formatDistanceToNow } from '../utils/date';
 
@@ -13,6 +13,7 @@ interface IssueCardProps {
   onSelect?: (issueId: string) => void;
   onDelete?: (issue: Issue) => void;
   onArchive?: (issue: Issue) => void;
+  onStopAgent?: (issueId: string) => void;
   draggable?: boolean;
   onDragStart?: (issue: Issue, event: DragEvent<HTMLDivElement>) => void;
   onDragEnd?: (issue: Issue, event: DragEvent<HTMLDivElement>) => void;
@@ -26,6 +27,7 @@ export function IssueCard({
   onSelect,
   onDelete,
   onArchive,
+  onStopAgent,
   draggable = true,
   onDragStart,
   onDragEnd,
@@ -76,6 +78,11 @@ export function IssueCard({
   const handleArchiveClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     onArchive?.(issue);
+  };
+
+  const handleStopClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    onStopAgent?.(issue.id);
   };
 
   const handleDragStartInternal = (event: DragEvent<HTMLDivElement>) => {
@@ -188,11 +195,21 @@ export function IssueCard({
         <div className="issue-running-indicator">
           <Brain size={14} className="issue-running-icon" />
           <div className="issue-running-details">
-            <span className="issue-running-text">Executing with {runningProcess.agent_id}</span>
+            <span className="issue-running-text">
+              Executing<span className="ellipsis-animated">...</span>
+            </span>
             {runningProcess.duration && (
               <span className="issue-running-duration">{runningProcess.duration}</span>
             )}
           </div>
+          <button
+            type="button"
+            className="issue-stop-button"
+            aria-label="Stop agent"
+            onClick={handleStopClick}
+          >
+            <StopCircle size={14} />
+          </button>
         </div>
       )}
       {errorMessage && (

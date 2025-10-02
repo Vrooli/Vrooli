@@ -91,21 +91,21 @@ EOF
     success "Created test issue: $TEST_ISSUE_ID"
 fi
 
-# Test 3: Run investigation using claude-investigator.sh
-info "Test 3: Testing investigation script..."
+# Test 3: Run unified investigation (includes fix recommendations)
+info "Test 3: Testing unified investigation workflow..."
 INVESTIGATION_OUTPUT=$(mktemp)
 
-if "$SCRIPT_DIR/claude-investigator.sh" investigate "$TEST_ISSUE_ID" "test-agent" "$SCRIPT_DIR/.." "Analyze this test issue and provide a brief summary" > "$INVESTIGATION_OUTPUT" 2>&1; then
-    success "Investigation script executed successfully"
-    
+if "$SCRIPT_DIR/claude-investigator.sh" resolve "$TEST_ISSUE_ID" "test-agent" "$SCRIPT_DIR/.." "Analyze this test issue and provide a brief summary" > "$INVESTIGATION_OUTPUT" 2>&1; then
+    success "Investigation executed successfully"
+
     # Check if output contains expected JSON structure
     if jq -e '.issue_id' "$INVESTIGATION_OUTPUT" > /dev/null 2>&1; then
         success "Investigation returned valid JSON"
         info "Issue ID from response: $(jq -r '.issue_id' "$INVESTIGATION_OUTPUT")"
         info "Status: $(jq -r '.status' "$INVESTIGATION_OUTPUT")"
-        
-        # Show a snippet of the investigation report
-        REPORT_SNIPPET=$(jq -r '.investigation_report' "$INVESTIGATION_OUTPUT" 2>/dev/null | head -c 200)
+
+        # Show a snippet of the investigation report (includes fixes)
+        REPORT_SNIPPET=$(jq -r '.investigation.report' "$INVESTIGATION_OUTPUT" 2>/dev/null | head -c 200)
         if [[ -n "$REPORT_SNIPPET" ]]; then
             info "Report snippet: ${REPORT_SNIPPET}..."
         fi
@@ -121,37 +121,8 @@ fi
 
 rm -f "$INVESTIGATION_OUTPUT"
 
-# Test 4: Test fix generation (optional)
-info "Test 4: Testing fix generation script..."
-if [[ -f "$SCRIPT_DIR/claude-fix-generator.sh" ]]; then
-    # First check if POSTGRES_PASSWORD is set (required by the script)
-    if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
-        warn "Skipping fix generation test - POSTGRES_PASSWORD not set"
-        info "To test fix generation, run: export POSTGRES_PASSWORD=your_password"
-    else
-        FIX_OUTPUT=$(mktemp)
-        
-        if "$SCRIPT_DIR/claude-fix-generator.sh" generate "$TEST_ISSUE_ID" "$SCRIPT_DIR/.." false false > "$FIX_OUTPUT" 2>&1; then
-            success "Fix generation script executed"
-            
-            if jq -e '.issue_id' "$FIX_OUTPUT" > /dev/null 2>&1; then
-                success "Fix generation returned valid JSON"
-                info "Fix status: $(jq -r '.fix_generation_status' "$FIX_OUTPUT")"
-            else
-                warn "Fix output is not valid JSON"
-            fi
-        else
-            warn "Fix generation failed (this may be expected if no investigation report exists)"
-        fi
-        
-        rm -f "$FIX_OUTPUT"
-    fi
-else
-    warn "Fix generator script not found"
-fi
-
-# Test 5: Verify resource-codex direct execution
-info "Test 5: Testing direct resource-codex execution..."
+# Test 4: Verify resource-codex direct execution
+info "Test 4: Testing direct resource-codex execution..."
 TEST_PROMPT="Say 'Hello from App Issue Tracker!' in exactly 5 words."
 DIRECT_OUTPUT=$(mktemp)
 
@@ -169,9 +140,9 @@ echo
 success "🎉 Codex integration tests completed!"
 echo
 info "Summary:"
-echo "  ✓ resource-codex CLI is available"
-echo "  ✓ Investigation script updated with proper integration"
-echo "  ✓ Fix generation script updated with proper integration"
+echo "  ✓ resource-codex or resource-claude-code CLI is available"
+echo "  ✓ Unified investigation script (claude-investigator.sh) tested"
+echo "  ✓ Fix generation via unified script tested"
 echo "  ✓ Test infrastructure is in place"
 echo
 info "Next steps:"

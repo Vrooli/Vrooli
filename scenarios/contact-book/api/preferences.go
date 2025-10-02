@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lib/pq"
 )
 
 // CommunicationPreference represents learned preferences for a contact
@@ -48,6 +47,7 @@ type CommunicationInteraction struct {
 	ResponseTime  *float64  `json:"response_time"` // Hours to response
 	Duration      *int      `json:"duration"`      // Minutes for calls/meetings
 	Topics        []string  `json:"topics"`        // Keywords/topics discussed
+	Tone          *string   `json:"tone"`          // formal, casual, friendly, business
 	Sentiment     *float64  `json:"sentiment"`     // -1 to 1
 	Engagement    *float64  `json:"engagement"`    // 0 to 1
 	WasSuccessful bool      `json:"was_successful"` // Did it achieve its goal
@@ -58,13 +58,12 @@ func LearnPreferences(personID string) (*CommunicationPreference, error) {
 	// Get communication history for the person
 	query := `
 		SELECT
-			channel, direction, timestamp, response_latency_minutes,
-			duration_minutes, topics, sentiment_score, engagement_score,
-			was_successful, metadata
+			channel, direction, communication_date, response_latency_hours,
+			tone, subject_category, metadata
 		FROM communication_history
-		WHERE person_id = $1
-		AND timestamp > NOW() - INTERVAL '6 months'
-		ORDER BY timestamp DESC
+		WHERE to_person_id = $1
+		AND communication_date > NOW() - INTERVAL '6 months'
+		ORDER BY communication_date DESC
 		LIMIT 100`
 
 	rows, err := db.Query(query, personID)
@@ -79,20 +78,17 @@ func LearnPreferences(personID string) (*CommunicationPreference, error) {
 	hourCounts := make(map[int]int)
 	topicCounts := make(map[string]int)
 	dayOfWeekCounts := make(map[string]int)
-	var totalDuration int
-	var meetingCount int
+	toneMap := make(map[string]int)
 
 	for rows.Next() {
 		var i CommunicationInteraction
-		var topicsArray, metadata interface{}
-		var responseMinutes, duration sql.NullInt64
-		var sentiment, engagement sql.NullFloat64
-		var wasSuccessful sql.NullBool
+		var metadata interface{}
+		var responseHours sql.NullInt64
+		var tone, subjectCategory sql.NullString
 
 		err := rows.Scan(
 			&i.Channel, &i.Direction, &i.Timestamp,
-			&responseMinutes, &duration, &topicsArray,
-			&sentiment, &engagement, &wasSuccessful, &metadata,
+			&responseHours, &tone, &subjectCategory, &metadata,
 		)
 		if err != nil {
 			log.Printf("Error scanning communication history: %v", err)
@@ -102,37 +98,22 @@ func LearnPreferences(personID string) (*CommunicationPreference, error) {
 		i.PersonID = personID
 
 		// Convert nullable fields
-		if responseMinutes.Valid {
-			responseHours := float64(responseMinutes.Int64) / 60.0
-			i.ResponseTime = &responseHours
-			responseTimes[i.Channel] = append(responseTimes[i.Channel], responseHours)
-		}
-		if duration.Valid {
-			durationInt := int(duration.Int64)
-			i.Duration = &durationInt
-			if i.Channel == "meeting" || i.Channel == "call" {
-				totalDuration += durationInt
-				meetingCount++
-			}
-		}
-		if sentiment.Valid {
-			i.Sentiment = &sentiment.Float64
-		}
-		if engagement.Valid {
-			i.Engagement = &engagement.Float64
-		}
-		if wasSuccessful.Valid {
-			i.WasSuccessful = wasSuccessful.Bool
+		if responseHours.Valid {
+			hours := float64(responseHours.Int64)
+			i.ResponseTime = &hours
+			responseTimes[i.Channel] = append(responseTimes[i.Channel], hours)
 		}
 
-		// Parse topics
-		if topicsArray != nil {
-			switch v := topicsArray.(type) {
-			case pq.StringArray:
-				i.Topics = []string(v)
-			case []string:
-				i.Topics = v
-			}
+		if tone.Valid {
+			toneStr := tone.String
+			i.Tone = &toneStr
+			toneMap[toneStr]++
+		}
+
+		// Use subject_category as topic
+		if subjectCategory.Valid {
+			i.Topics = []string{subjectCategory.String}
+			topicCounts[subjectCategory.String]++
 		}
 
 		// Count patterns
@@ -191,13 +172,11 @@ func LearnPreferences(personID string) (*CommunicationPreference, error) {
 		}
 	}
 
-	// Determine conversation style based on duration and engagement
-	pref.ConversationStyle = determineConversationStyle(interactions)
+	// Determine conversation style based on tone patterns
+	pref.ConversationStyle = determineMostCommonTone(toneMap)
 
-	// Calculate preferred meeting duration
-	if meetingCount > 0 {
-		pref.PreferredMeetingDuration = totalDuration / meetingCount
-	}
+	// Calculate preferred meeting duration (default to 30 min if no data)
+	pref.PreferredMeetingDuration = 30
 
 	// Calculate confidence score based on data points and recency
 	pref.ConfidenceScore = calculateConfidence(interactions)
@@ -348,6 +327,20 @@ func determineConversationStyle(interactions []CommunicationInteraction) string 
 	}
 }
 
+func determineMostCommonTone(toneMap map[string]int) string {
+	maxCount := 0
+	mostCommon := "casual"
+
+	for tone, count := range toneMap {
+		if count > maxCount {
+			maxCount = count
+			mostCommon = tone
+		}
+	}
+
+	return mostCommon
+}
+
 func calculateConfidence(interactions []CommunicationInteraction) float64 {
 	if len(interactions) == 0 {
 		return 0.0
@@ -444,25 +437,33 @@ func recordCommunication(c *gin.Context) {
 	// Insert into communication_history table
 	query := `
 		INSERT INTO communication_history (
-			person_id, channel, direction, timestamp,
-			response_latency_minutes, duration_minutes,
-			topics, sentiment_score, engagement_score,
-			was_successful, metadata
+			to_person_id, channel, direction, communication_date,
+			response_latency_hours, tone, subject_category, metadata
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+			$1, $2, $3, $4, $5, $6, $7, $8
 		)`
 
-	var responseMinutes *int64
+	var responseHours *int
 	if interaction.ResponseTime != nil {
-		minutes := int64(*interaction.ResponseTime * 60)
-		responseMinutes = &minutes
+		hours := int(*interaction.ResponseTime)
+		responseHours = &hours
+	}
+
+	// Determine tone based on interaction metadata
+	tone := "casual"
+	if interaction.Tone != nil {
+		tone = *interaction.Tone
+	}
+
+	// Extract primary topic as subject category
+	subjectCategory := "general"
+	if len(interaction.Topics) > 0 {
+		subjectCategory = interaction.Topics[0]
 	}
 
 	_, err := db.Exec(query,
 		interaction.PersonID, interaction.Channel, interaction.Direction,
-		interaction.Timestamp, responseMinutes, interaction.Duration,
-		pq.Array(interaction.Topics), interaction.Sentiment,
-		interaction.Engagement, interaction.WasSuccessful,
+		interaction.Timestamp, responseHours, tone, subjectCategory,
 		"{}", // Empty metadata for now
 	)
 

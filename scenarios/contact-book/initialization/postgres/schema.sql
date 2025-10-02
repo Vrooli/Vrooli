@@ -132,30 +132,33 @@ CREATE TABLE relationships (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    
+
     -- Graph edge
     from_person_id UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
     to_person_id UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
-    
+
     -- Relationship details
     relationship_type TEXT NOT NULL, -- 'friend', 'family', 'sibling', 'coworker', 'ex-coworker'
     strength DECIMAL(3, 2) CHECK (strength >= 0 AND strength <= 1), -- 0.0 to 1.0
     recency_score DECIMAL(3, 2) CHECK (recency_score >= 0 AND recency_score <= 1), -- Computed from last_contact
     last_contact_date DATE,
-    
+
     -- Introduction tracking
     introduced_by_person_id UUID REFERENCES persons(id),
     introduction_date DATE,
     introduction_context TEXT,
-    
+
     -- Shared interests and affinity
     shared_interests TEXT[], -- Common interest tags
     affinity_score DECIMAL(3, 2), -- Computed similarity score
-    
+
     -- Metadata
     metadata JSONB DEFAULT '{}',
     notes TEXT,
-    
+
+    -- Soft delete
+    deleted_at TIMESTAMP WITH TIME ZONE,
+
     -- Constraints
     CONSTRAINT no_self_relationship CHECK (from_person_id != to_person_id),
     UNIQUE(from_person_id, to_person_id)
@@ -388,6 +391,7 @@ CREATE INDEX idx_relationships_type ON relationships (relationship_type);
 CREATE INDEX idx_relationships_strength ON relationships (strength) WHERE strength IS NOT NULL;
 CREATE INDEX idx_relationships_recency ON relationships (recency_score) WHERE recency_score IS NOT NULL;
 CREATE INDEX idx_relationships_last_contact ON relationships (last_contact_date) WHERE last_contact_date IS NOT NULL;
+CREATE INDEX idx_relationships_deleted ON relationships (deleted_at) WHERE deleted_at IS NULL;
 
 -- Time-bounded data
 CREATE INDEX idx_addresses_valid ON addresses (valid_from, valid_to) WHERE valid_to IS NULL OR valid_to >= CURRENT_DATE;
@@ -475,6 +479,60 @@ FROM persons p
 LEFT JOIN social_analytics sa ON p.id = sa.person_id
 LEFT JOIN current_addresses ca ON p.id = ca.person_id AND ca.is_primary = true
 WHERE p.deleted_at IS NULL;
+
+-- =============================================================================
+-- ATTACHMENTS
+-- =============================================================================
+
+-- Attachments: Photos, documents, and files linked to persons or organizations
+CREATE TABLE attachments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    -- Links
+    person_id UUID REFERENCES persons(id) ON DELETE CASCADE,
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- File information
+    file_name TEXT NOT NULL,
+    file_type TEXT NOT NULL, -- photo, document, video, etc.
+    mime_type TEXT NOT NULL,
+    file_size_bytes INTEGER NOT NULL,
+
+    -- Storage information
+    storage_backend TEXT NOT NULL DEFAULT 'filesystem', -- minio, filesystem, url
+    storage_path TEXT NOT NULL,
+    storage_bucket TEXT, -- For MinIO/S3
+    thumbnail_path TEXT,
+    thumbnail_bucket TEXT,
+
+    -- Metadata
+    description TEXT,
+    tags TEXT[],
+    is_primary BOOLEAN DEFAULT false, -- Primary photo for person
+    is_public BOOLEAN DEFAULT false, -- Public vs private
+
+    -- Privacy and consent
+    consent_verified BOOLEAN DEFAULT false,
+    consent_verified_at TIMESTAMP WITH TIME ZONE,
+
+    -- Additional metadata (EXIF, etc.)
+    metadata JSONB DEFAULT '{}',
+
+    -- Soft delete
+    deleted_at TIMESTAMP WITH TIME ZONE,
+
+    CONSTRAINT attachment_subject_check CHECK (
+        (person_id IS NOT NULL AND organization_id IS NULL) OR
+        (person_id IS NULL AND organization_id IS NOT NULL)
+    )
+);
+
+CREATE INDEX idx_attachments_person ON attachments(person_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_attachments_organization ON attachments(organization_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_attachments_file_type ON attachments(file_type);
+CREATE INDEX idx_attachments_storage ON attachments(storage_backend, storage_bucket);
 
 -- =============================================================================
 -- COMMENTS FOR DOCUMENTATION

@@ -69,11 +69,14 @@ vrooli resource opentripplanner content execute \
 
 ### Access Debug UI
 ```bash
-# Open in browser
-xdg-open http://localhost:8080/
+# Get the configured port
+OTP_PORT=$(./scripts/resources/port_registry.sh opentripplanner | grep opentripplanner | awk '{print $3}')
+
+# Open in browser (default: 8080)
+xdg-open "http://localhost:${OTP_PORT:-8080}/"
 
 # Or check API status
-curl http://localhost:8080/otp/ | jq '.version'
+curl "http://localhost:${OTP_PORT:-8080}/otp/" | jq '.version'
 ```
 
 ### Export to PostGIS
@@ -102,10 +105,11 @@ vrooli resource opentripplanner content execute --action plan-trip \
 
 ### Environment Variables
 ```bash
-OTP_PORT=8080              # API port
-OTP_HEAP_SIZE=2G          # JVM heap memory
-OTP_BUILD_TIMEOUT=300     # Graph build timeout (seconds)
-OTP_CACHE_DIR=/var/cache/otp  # Graph cache location
+OTP_PORT=8080                     # API port (registered in port_registry.sh)
+OTP_HEAP_SIZE=2G                  # JVM heap memory
+OTP_BUILD_TIMEOUT=300             # Graph build timeout (seconds)
+OTP_DATA_DIR=~/.vrooli/opentripplanner/data   # Data directory
+OTP_CACHE_DIR=~/.vrooli/opentripplanner/cache # Graph cache location
 ```
 
 ### Graph Configuration
@@ -212,6 +216,7 @@ docker exec -i vrooli-postgres psql -U postgres -d postgres \
 ### With N8n Workflows
 ```javascript
 // N8n webhook for trip planning using GraphQL
+// Note: Use Docker network hostname 'opentripplanner' or localhost with ${OTP_PORT}
 const query = `{
   trip(
     from: { coordinates: { latitude: ${$json.fromLat}, longitude: ${$json.fromLon} } }
@@ -226,7 +231,8 @@ const query = `{
   }
 }`;
 
-const otp = await $http.post('http://opentripplanner:8080/otp/transmodel/v3', {
+// Use Docker network hostname (container-to-container)
+const otp = await $http.post('http://vrooli-opentripplanner:8080/otp/transmodel/v3', {
   body: { query }
 });
 ```
