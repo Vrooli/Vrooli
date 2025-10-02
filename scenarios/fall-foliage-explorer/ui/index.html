@@ -23,6 +23,7 @@
                     <button class="nav-btn" data-view="timeline">Timeline</button>
                     <button class="nav-btn" data-view="regions">Regions</button>
                     <button class="nav-btn" data-view="planner">Trip Planner</button>
+                    <button class="nav-btn" data-view="gallery">Photo Gallery</button>
                 </nav>
             </div>
         </header>
@@ -84,7 +85,13 @@
             <!-- Regions View -->
             <div id="regions-view" class="view-panel">
                 <div class="regions-container">
-                    <h2>Popular Foliage Destinations</h2>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h2 style="margin: 0;">Popular Foliage Destinations</h2>
+                        <div class="export-buttons">
+                            <button onclick="exportPredictionsCSV()" class="export-btn">Export CSV</button>
+                            <button onclick="exportPredictionsJSON()" class="export-btn">Export JSON</button>
+                        </div>
+                    </div>
                     <div class="regions-grid" id="regions-grid">
                         <!-- Regions will be populated by JavaScript -->
                     </div>
@@ -119,10 +126,70 @@
                         <button class="save-trip-btn">Save Trip Plan</button>
                     </div>
                     <div class="saved-trips">
-                        <h3>Saved Trips</h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="margin: 0;">Saved Trips</h3>
+                            <div class="export-buttons">
+                                <button onclick="exportTripsCSV()" class="export-btn">Export CSV</button>
+                                <button onclick="exportTripsJSON()" class="export-btn">Export JSON</button>
+                            </div>
+                        </div>
                         <div id="saved-trips-list">
                             <!-- Saved trips will appear here -->
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Photo Gallery View -->
+            <div id="gallery-view" class="view-panel">
+                <div class="gallery-container">
+                    <h2>Foliage Photo Gallery</h2>
+                    <div class="gallery-filters">
+                        <div class="filter-group">
+                            <label for="gallery-region-filter">Filter by Region:</label>
+                            <select id="gallery-region-filter" class="gallery-select">
+                                <option value="">All Regions</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="gallery-date-filter">Filter by Date:</label>
+                            <input type="date" id="gallery-date-filter" class="gallery-date-input">
+                        </div>
+                    </div>
+                    <div class="photo-upload-section">
+                        <h3>Share Your Foliage Photo</h3>
+                        <form id="photo-upload-form" class="upload-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="upload-region">Region</label>
+                                    <select id="upload-region" class="gallery-select" required>
+                                        <option value="">Select a region</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="upload-status">Foliage Status</label>
+                                    <select id="upload-status" class="gallery-select" required>
+                                        <option value="not_started">Not Started</option>
+                                        <option value="progressing">Progressing</option>
+                                        <option value="near_peak">Near Peak</option>
+                                        <option value="peak">Peak</option>
+                                        <option value="past_peak">Past Peak</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="upload-photo-url">Photo URL</label>
+                                <input type="url" id="upload-photo-url" placeholder="https://example.com/photo.jpg" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="upload-description">Description</label>
+                                <textarea id="upload-description" rows="3" placeholder="Describe the foliage conditions..."></textarea>
+                            </div>
+                            <button type="submit" class="submit-photo-btn">Share Photo</button>
+                        </form>
+                    </div>
+                    <div class="photo-grid" id="photo-grid">
+                        <!-- Photos will be populated by JavaScript -->
                     </div>
                 </div>
             </div>

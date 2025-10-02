@@ -20,33 +20,33 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "OPTIONS" {
 		return
 	}
-	
+
 	// Check database connection
 	dbHealthy := false
 	if db.DB != nil {
 		err := db.DB.Ping()
 		dbHealthy = (err == nil)
 	}
-	
+
 	// Check Redis connection
 	redisHealthy := false
 	if db.RedisClient != nil {
 		err := db.RedisClient.Ping(db.Ctx).Err()
 		redisHealthy = (err == nil)
 	}
-	
+
 	status := "healthy"
 	if !dbHealthy || !redisHealthy {
 		status = "degraded"
 	}
-	
+
 	response := HealthResponse{
 		Status:   status,
 		Database: dbHealthy,
 		Redis:    redisHealthy,
 		Version:  "1.0.0",
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }

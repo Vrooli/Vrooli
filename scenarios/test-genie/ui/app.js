@@ -1,35 +1,47 @@
 // Test Genie Dashboard JavaScript
-const DEFAULT_VAULT_PHASES = ['setup', 'develop', 'test'];
-const VAULT_PHASE_DEFINITIONS = {
-    setup: {
-        label: 'Setup',
-        description: 'Provision dependencies, seed data, confirm configuration drift.',
-        defaultTimeout: 600
-    },
-    develop: {
-        label: 'Develop',
-        description: 'Run developer-focused checks: lint, unit, integration, feature toggles.',
-        defaultTimeout: 900
-    },
-    test: {
-        label: 'Test',
-        description: 'Execute regression and smoke suites that guard critical flows.',
-        defaultTimeout: 1200
-    },
-    deploy: {
-        label: 'Deploy',
-        description: 'Validate rollout scripts, migrations, and packaging steps.',
-        defaultTimeout: 900
-    },
-    monitor: {
-        label: 'Monitor',
-        description: 'Observe health metrics, load, and canary checks post-deploy.',
-        defaultTimeout: 900
-    }
-};
+// ES6 Module Imports
+import { DEFAULT_VAULT_PHASES, VAULT_PHASE_DEFINITIONS, DEFAULT_GENERATION_PHASES, STORAGE_KEYS } from './utils/constants.js';
+import { dashboardPage } from './pages/DashboardPage.js';
+import { executionsPage } from './pages/ExecutionsPage.js';
+import { coveragePage } from './pages/CoveragePage.js';
+import { settingsPage } from './pages/SettingsPage.js';
+import { reportsPage } from './pages/ReportsPage.js';
+import { suitesPage } from './pages/SuitesPage.js';
+import { vaultPage } from './pages/VaultPage.js';
+import { eventBus, EVENT_TYPES } from './core/EventBus.js';
+import { stateManager } from './core/StateManager.js';
+import { apiClient } from './core/ApiClient.js';
+import { wsClient } from './core/WebSocketClient.js';
+import { notificationManager } from './managers/NotificationManager.js';
+import { dialogManager } from './managers/DialogManager.js';
+import { navigationManager } from './managers/NavigationManager.js';
+import { selectionManager } from './managers/SelectionManager.js';
+import {
+    formatTimestamp,
+    formatDateTime,
+    formatDateRange,
+    formatDurationSeconds,
+    formatPercent,
+    formatPhaseLabel,
+    parseDate,
+    getStatusDescriptor,
+    getStatusClass,
+    formatLabel,
+    formatRelativeTime,
+    formatDetailedTimestamp,
+    clampPercentage,
+    extractSuiteTypes,
+    countBy,
+    summarizeCounts,
+    calculateDuration,
+    normalizeCollection,
+    normalizeId,
+    stringifyValue,
+    escapeHtml
+} from './utils/index.js';
 
-const DEFAULT_GENERATION_PHASES = ['dependencies', 'structure', 'unit', 'integration', 'business', 'performance'];
-const DEFAULT_SETTINGS_STORAGE_KEY = 'testGenie.defaultSettings';
+// Legacy compatibility - these constants are now imported from utils/constants.js
+const DEFAULT_SETTINGS_STORAGE_KEY = STORAGE_KEYS.DEFAULT_SETTINGS;
 
 class TestGenieApp {
     constructor() {
@@ -154,17 +166,10 @@ class TestGenieApp {
 
     async init() {
         this.setupEventListeners();
-        this.setupNavigation();
-        this.setupSuiteDetailPanel();
-        this.setupExecutionDetailPanel();
-        this.setupCoverageDetailDialog();
-        this.setupGenerateDialog();
-        this.setupVaultDialog();
-        this.setupHealthDialog();
-        this.initializeDefaultSettings();
-        this.initializeScrollableContainers();
+        navigationManager.initialize();
+        // Settings are now handled by SettingsPage module
+        // Scrollable containers are handled by individual page modules
         await this.loadInitialData();
-        this.startPeriodicUpdates();
     }
 
     setupEventListeners() {
@@ -174,7 +179,7 @@ class TestGenieApp {
             if (navItem) {
                 const page = navItem.getAttribute('data-page');
                 if (page) {
-                    this.navigateTo(page);
+                    navigationManager.navigateTo(page);
                     if (window.innerWidth <= this.mobileBreakpoint) {
                         this.closeMobileSidebar();
                     }
@@ -242,41 +247,11 @@ class TestGenieApp {
             this.coverageTargetInput.addEventListener('change', () => this.updateCoverageTargetDisplay());
         }
 
-        this.suitesSearchInput = document.getElementById('suites-search-input');
-        if (this.suitesSearchInput) {
-            this.suitesSearchInput.value = this.suiteFilters.search;
-            this.suitesSearchInput.addEventListener('input', (event) => {
-                this.suiteFilters.search = event.target.value;
-                this.renderSuitesTableWithCurrentData();
-            });
-        }
-
-        this.suitesStatusFilter = document.getElementById('suites-status-filter');
-        if (this.suitesStatusFilter) {
-            this.suitesStatusFilter.value = this.suiteFilters.status;
-            this.suitesStatusFilter.addEventListener('change', (event) => {
-                this.suiteFilters.status = event.target.value;
-                this.renderSuitesTableWithCurrentData();
-            });
-        }
-
-        this.executionsSearchInput = document.getElementById('executions-search-input');
-        if (this.executionsSearchInput) {
-            this.executionsSearchInput.value = this.executionFilters.search;
-            this.executionsSearchInput.addEventListener('input', (event) => {
-                this.executionFilters.search = event.target.value;
-                this.renderExecutionsTableWithCurrentData();
-            });
-        }
-
-        this.executionsStatusFilter = document.getElementById('executions-status-filter');
-        if (this.executionsStatusFilter) {
-            this.executionsStatusFilter.value = this.executionFilters.status;
-            this.executionsStatusFilter.addEventListener('change', (event) => {
-                this.executionFilters.status = event.target.value;
-                this.renderExecutionsTableWithCurrentData();
-            });
-        }
+        // Filter event listeners are now handled by SuitesPage and ExecutionsPage modules
+        // this.suitesSearchInput = document.getElementById('suites-search-input');
+        // this.suitesStatusFilter = document.getElementById('suites-status-filter');
+        // this.executionsSearchInput = document.getElementById('executions-search-input');
+        // this.executionsStatusFilter = document.getElementById('executions-status-filter');
 
         this.runSelectedSuitesButton = document.getElementById('suites-run-selected-btn');
         this.runSelectedSuitesLabel = document.getElementById('suites-run-selected-label');
@@ -291,7 +266,7 @@ class TestGenieApp {
         if (suitesBulkGenerateButton) {
             suitesBulkGenerateButton.addEventListener('click', (event) => {
                 event.preventDefault();
-                this.openGenerateDialog(suitesBulkGenerateButton, '', true);
+                dialogManager.openGenerateDialog(suitesBulkGenerateButton, '', true);
             });
         }
 
@@ -302,7 +277,7 @@ class TestGenieApp {
                 const previousDisabled = suitesRefreshButton.disabled;
                 suitesRefreshButton.disabled = true;
                 try {
-                    await this.loadTestSuites();
+                    await suitesPage.load();
                     this.showSuccess('Test suites refreshed');
                 } catch (error) {
                     console.error('Failed to refresh test suites:', error);
@@ -320,8 +295,7 @@ class TestGenieApp {
                 const previousDisabled = executionsRefreshButton.disabled;
                 executionsRefreshButton.disabled = true;
                 try {
-                    await this.loadExecutions();
-                    await this.loadRecentExecutions();
+                    await executionsPage.load();
                     this.showSuccess('Test executions refreshed');
                 } catch (error) {
                     console.error('Failed to refresh executions:', error);
@@ -339,7 +313,7 @@ class TestGenieApp {
                 if (this.reportsIsLoading) {
                     return;
                 }
-                await this.loadReports();
+                await reportsPage.load();
             });
         }
 
@@ -354,7 +328,7 @@ class TestGenieApp {
                 if (this.reportsIsLoading) {
                     return;
                 }
-                await this.loadReports();
+                await reportsPage.load();
             });
         }
 
@@ -384,7 +358,7 @@ class TestGenieApp {
                 const previousDisabled = this.coverageRefreshButton.disabled;
                 this.coverageRefreshButton.disabled = true;
                 try {
-                    await this.loadCoverageSummaries();
+                    await coveragePage.load();
                     this.showSuccess('Coverage summaries refreshed');
                 } catch (error) {
                     console.error('Failed to refresh coverage summaries:', error);
@@ -398,33 +372,33 @@ class TestGenieApp {
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                if (this.isSuiteDetailOpen()) {
+                if (dialogManager.isSuiteDetailOpen()) {
                     e.preventDefault();
-                    this.closeSuiteDetail();
+                    dialogManager.closeSuiteDetail();
                     return;
                 }
 
-                if (this.isExecutionDetailOpen()) {
+                if (dialogManager.isExecutionDetailOpen()) {
                     e.preventDefault();
-                    this.closeExecutionDetail();
+                    dialogManager.closeExecutionDetail();
                     return;
                 }
 
-                if (this.isOverlayActive(this.coverageDetailOverlay)) {
+                if (dialogManager.isDialogOpen(this.coverageDetailOverlay)) {
                     e.preventDefault();
-                    this.closeCoverageDetailDialog();
+                    dialogManager.closeCoverageDetailDialog();
                     return;
                 }
 
-                if (this.isOverlayActive(this.generateDialogOverlay)) {
+                if (dialogManager.isDialogOpen(this.generateDialogOverlay)) {
                     e.preventDefault();
-                    this.closeGenerateDialog();
+                    dialogManager.closeGenerateDialog();
                     return;
                 }
 
-                if (this.isOverlayActive(this.vaultDialogOverlay)) {
+                if (dialogManager.isDialogOpen(this.vaultDialogOverlay)) {
                     e.preventDefault();
-                    this.closeVaultDialog();
+                    dialogManager.closeVaultDialog();
                     return;
                 }
 
@@ -437,19 +411,19 @@ class TestGenieApp {
                 switch (e.key) {
                     case '1':
                         e.preventDefault();
-                        this.navigateTo('dashboard');
+                        navigationManager.navigateTo('dashboard');
                         break;
                     case '2':
                         e.preventDefault();
-                        this.navigateTo('suites');
+                        navigationManager.navigateTo('suites');
                         break;
                     case '3':
                         e.preventDefault();
-                        this.navigateTo('executions');
+                        navigationManager.navigateTo('executions');
                         break;
                     case '4':
                         e.preventDefault();
-                        this.navigateTo('coverage');
+                        navigationManager.navigateTo('coverage');
                         break;
                     case 'r':
                         e.preventDefault();
@@ -464,484 +438,13 @@ class TestGenieApp {
         this.handleResize();
     }
 
-    setupNavigation() {
-        // Handle browser back/forward
-        window.addEventListener('popstate', (e) => {
-            const page = e.state?.page || 'dashboard';
-            this.navigateTo(page, false);
-        });
-
-        // Set initial state
-        const initialPage = window.location.hash.replace('#', '') || 'dashboard';
-        this.navigateTo(initialPage, false);
-    }
-
-    setupSuiteDetailPanel() {
-        this.suiteDetailOverlay = document.getElementById('suite-detail-overlay');
-        if (!this.suiteDetailOverlay) {
-            return;
-        }
-
-        this.suiteDetailContent = document.getElementById('suite-detail-content');
-        this.suiteDetailCloseButton = document.getElementById('suite-detail-close');
-        this.suiteDetailExecuteButton = document.getElementById('suite-detail-execute');
-        this.suiteDetailTitle = document.getElementById('suite-detail-title');
-        this.suiteDetailId = document.getElementById('suite-detail-id');
-        this.suiteDetailSubtitle = document.getElementById('suite-detail-subtitle');
-
-        this.suiteDetailOverlay.addEventListener('click', (event) => {
-            if (event.target === this.suiteDetailOverlay) {
-                this.closeSuiteDetail();
-            }
-        });
-
-        if (this.suiteDetailCloseButton) {
-            this.suiteDetailCloseButton.addEventListener('click', () => this.closeSuiteDetail());
-        }
-
-        if (this.suiteDetailExecuteButton) {
-            this.suiteDetailExecuteButton.addEventListener('click', () => {
-                if (this.activeSuiteDetailId) {
-                    this.executeSuite(this.activeSuiteDetailId);
-                }
-            });
-        }
-    }
-
-    setupExecutionDetailPanel() {
-        this.executionDetailOverlay = document.getElementById('execution-detail-overlay');
-        if (!this.executionDetailOverlay) {
-            return;
-        }
-
-        this.executionDetailContent = document.getElementById('execution-detail-content');
-        this.executionDetailCloseButton = document.getElementById('execution-detail-close');
-        this.executionDetailTitle = document.getElementById('execution-detail-title');
-        this.executionDetailId = document.getElementById('execution-detail-id');
-        this.executionDetailSubtitle = document.getElementById('execution-detail-subtitle');
-        this.executionDetailStatus = document.getElementById('execution-detail-status');
-
-        this.executionDetailOverlay.addEventListener('click', (event) => {
-            if (event.target === this.executionDetailOverlay) {
-                this.closeExecutionDetail();
-            }
-        });
-
-        if (this.executionDetailCloseButton) {
-            this.executionDetailCloseButton.addEventListener('click', () => this.closeExecutionDetail());
-        }
-    }
-
-    setupCoverageDetailDialog() {
-        this.coverageDetailOverlay = document.getElementById('coverage-detail-overlay');
-        if (!this.coverageDetailOverlay) {
-            return;
-        }
-
-        this.coverageDetailContent = document.getElementById('coverage-detail-content');
-        this.coverageDetailTitle = document.getElementById('coverage-detail-title');
-        this.coverageDetailCloseButton = document.getElementById('coverage-detail-close');
-
-        this.coverageDetailOverlay.addEventListener('click', (event) => {
-            if (event.target === this.coverageDetailOverlay) {
-                this.closeCoverageDetailDialog();
-            }
-        });
-
-        if (this.coverageDetailCloseButton) {
-            this.coverageDetailCloseButton.addEventListener('click', () => this.closeCoverageDetailDialog());
-        }
-    }
-
-    setupGenerateDialog() {
-        this.generateDialogOverlay = document.getElementById('generate-dialog-overlay');
-        if (!this.generateDialogOverlay) {
-            return;
-        }
-
-        this.generateDialogCloseButton = document.getElementById('generate-dialog-close');
-        this.generateForm = document.getElementById('generate-form');
-        this.generateResultCard = document.getElementById('generation-result');
-        this.generateResultIcon = document.getElementById('generate-result-icon');
-        this.generateResultTitle = document.getElementById('generate-result-title');
-        this.generateResultMessage = document.getElementById('generate-result-message');
-        this.generateResultMetadata = document.getElementById('generate-result-metadata');
-        this.generateResultLinks = document.getElementById('generate-result-links');
-        this.generateResultIssueButton = document.getElementById('generate-open-issue-btn');
-        this.generateResultAgainButton = document.getElementById('generate-another-btn');
-        this.generateResultCloseButton = document.getElementById('generate-close-btn');
-
-        this.generateDialogOverlay.addEventListener('click', (event) => {
-            if (event.target === this.generateDialogOverlay) {
-                this.closeGenerateDialog();
-            }
-        });
-
-        if (this.generateDialogCloseButton) {
-            this.generateDialogCloseButton.addEventListener('click', () => this.closeGenerateDialog());
-        }
-
-        if (this.generateResultIssueButton) {
-            this.generateResultIssueButton.addEventListener('click', () => {
-                const url = this.generateResultIssueButton?.dataset.issueUrl;
-                if (!url) {
-                    return;
-                }
-                window.open(url, '_blank', 'noopener,noreferrer');
-            });
-        }
-
-        if (this.generateResultAgainButton) {
-            this.generateResultAgainButton.addEventListener('click', () => {
-                this.showGenerateForm(false, true);
-            });
-        }
-
-        if (this.generateResultCloseButton) {
-            this.generateResultCloseButton.addEventListener('click', () => {
-                this.closeGenerateDialog();
-            });
-        }
-
-        this.showGenerateForm(true, false);
-    }
-
-    setupVaultDialog() {
-        this.vaultDialogOverlay = document.getElementById('vault-dialog-overlay');
-        if (!this.vaultDialogOverlay) {
-            return;
-        }
-
-        this.vaultDialogCloseButton = document.getElementById('vault-dialog-close');
-
-        this.vaultDialogOverlay.addEventListener('click', (event) => {
-            if (event.target === this.vaultDialogOverlay) {
-                this.closeVaultDialog();
-            }
-        });
-
-        if (this.vaultDialogCloseButton) {
-            this.vaultDialogCloseButton.addEventListener('click', () => this.closeVaultDialog());
-        }
-
-        const openButton = document.getElementById('vault-dialog-open');
-        if (openButton) {
-            openButton.addEventListener('click', (event) => {
-                event.preventDefault();
-                this.openVaultDialog(openButton);
-            });
-        }
-    }
-
-    setupHealthDialog() {
-        this.healthDialogOverlay = document.getElementById('health-status-overlay');
-        if (!this.healthDialogOverlay) {
-            return;
-        }
-
-        this.healthDialogCloseButton = document.getElementById('health-status-close');
-        this.healthDialogContent = document.getElementById('health-status-content');
-        this.healthStatusSubtitle = document.getElementById('health-status-subtitle');
-
-        this.healthDialogOverlay.addEventListener('click', (event) => {
-            if (event.target === this.healthDialogOverlay) {
-                this.closeHealthDialog();
-            }
-        });
-
-        if (this.healthDialogCloseButton) {
-            this.healthDialogCloseButton.addEventListener('click', () => this.closeHealthDialog());
-        }
-    }
-
-    initializeDefaultSettings() {
-        const stored = this.loadStoredDefaultSettings();
-        this.defaultSettings.coverageTarget = stored.coverageTarget;
-        this.defaultSettings.phases = new Set(stored.phases);
-        this.pendingSettings.coverageTarget = stored.coverageTarget;
-        this.pendingSettings.phases = new Set(stored.phases);
-
-        this.settingsCoverageSlider = document.getElementById('settings-default-coverage');
-        this.settingsCoverageDisplay = document.getElementById('settings-default-coverage-display');
-        this.settingsPhaseCheckboxes = Array.from(document.querySelectorAll('#settings-default-phases input[type="checkbox"][data-phase]'));
-        this.settingsSaveButton = document.getElementById('settings-save-btn');
-
-        this.applyDefaultSettingsToSettingsControls();
-
-        if (this.settingsCoverageSlider) {
-            const handleSliderInput = () => {
-                const value = this.normalizeCoverageTarget(this.settingsCoverageSlider.value, this.pendingSettings.coverageTarget);
-                this.pendingSettings.coverageTarget = value;
-                if (this.settingsCoverageSlider.value !== String(value)) {
-                    this.settingsCoverageSlider.value = String(value);
-                }
-                this.updateSettingsCoverageDisplay(value);
-            };
-            this.settingsCoverageSlider.addEventListener('input', handleSliderInput);
-            this.settingsCoverageSlider.addEventListener('change', handleSliderInput);
-        }
-
-        if (this.settingsPhaseCheckboxes.length) {
-            this.settingsPhaseCheckboxes.forEach((checkbox) => {
-                checkbox.addEventListener('change', () => {
-                    const phase = checkbox.dataset.phase;
-                    if (!phase) {
-                        return;
-                    }
-                    if (checkbox.checked) {
-                        this.pendingSettings.phases.add(phase);
-                    } else {
-                        this.pendingSettings.phases.delete(phase);
-                    }
-                });
-            });
-        }
-
-        if (this.settingsSaveButton) {
-            this.settingsSaveButton.addEventListener('click', (event) => {
-                event.preventDefault();
-                this.saveDefaultSettings();
-            });
-        }
-
-        this.applyDefaultSettingsToGenerateDialog(true);
-    }
-
-    initializeScrollableContainers() {
-        const selectors = [
-            '#suites-table',
-            '#executions-table',
-            '#coverage-table',
-            '#recent-executions',
-            '.vault-activity-panel .panel-body'
-        ];
-
-        selectors.forEach((selector) => {
-            document.querySelectorAll(selector).forEach((container) => {
-                this.enableDragScroll(container);
-            });
-        });
-    }
-
-    enableDragScroll(container) {
-        if (!container) {
-            return;
-        }
-
-        container.classList.add('table-scroll');
-
-        if (container.dataset.dragScrollBound === 'true') {
-            return;
-        }
-
-        container.dataset.dragScrollBound = 'true';
-        container.scrollLeft = 0;
-
-        let isDragging = false;
-        let startX = 0;
-        let initialScrollLeft = 0;
-        const skipSelector = 'button, a, input, textarea, select, label';
-
-        const onPointerDown = (event) => {
-            if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') {
-                return;
-            }
-            if (event.button !== 0) {
-                return;
-            }
-            if (event.target.closest(skipSelector)) {
-                return;
-            }
-
-            isDragging = true;
-            startX = event.clientX;
-            initialScrollLeft = container.scrollLeft;
-            container.classList.add('is-dragging');
-            container.setPointerCapture?.(event.pointerId);
-        };
-
-        const onPointerMove = (event) => {
-            if (!isDragging) {
-                return;
-            }
-            const delta = event.clientX - startX;
-            container.scrollLeft = initialScrollLeft - delta;
-            event.preventDefault();
-        };
-
-        const onPointerUp = (event) => {
-            if (!isDragging) {
-                return;
-            }
-            isDragging = false;
-            container.classList.remove('is-dragging');
-            container.releasePointerCapture?.(event.pointerId);
-        };
-
-        container.addEventListener('pointerdown', onPointerDown);
-        container.addEventListener('pointermove', onPointerMove);
-        container.addEventListener('pointerup', onPointerUp);
-        container.addEventListener('pointerleave', onPointerUp);
-        container.addEventListener('pointercancel', onPointerUp);
-    }
-
-    applyDefaultSettingsToSettingsControls() {
-        const coverageValue = this.pendingSettings.coverageTarget;
-        if (this.settingsCoverageSlider) {
-            this.settingsCoverageSlider.value = String(coverageValue);
-        }
-        this.updateSettingsCoverageDisplay(coverageValue);
-
-        if (this.settingsPhaseCheckboxes.length) {
-            this.settingsPhaseCheckboxes.forEach((checkbox) => {
-                const phase = checkbox.dataset.phase;
-                checkbox.checked = phase ? this.pendingSettings.phases.has(phase) : false;
-            });
-        }
-    }
-
-    updateSettingsCoverageDisplay(value) {
-        if (this.settingsCoverageDisplay) {
-            this.settingsCoverageDisplay.textContent = `${value}%`;
-        }
-    }
-
-    loadStoredDefaultSettings() {
-        try {
-            const raw = localStorage.getItem(DEFAULT_SETTINGS_STORAGE_KEY);
-            if (!raw) {
-                return {
-                    coverageTarget: 80,
-                    phases: DEFAULT_GENERATION_PHASES.slice()
-                };
-            }
-
-            const parsed = JSON.parse(raw);
-            const coverageTarget = this.normalizeCoverageTarget(parsed?.coverageTarget, 80);
-            const phases = this.normalizePhaseList(parsed?.phases);
-            return {
-                coverageTarget,
-                phases
-            };
-        } catch (error) {
-            console.warn('Failed to parse stored default settings:', error);
-            return {
-                coverageTarget: 80,
-                phases: DEFAULT_GENERATION_PHASES.slice()
-            };
-        }
-    }
-
-    normalizeCoverageTarget(value, fallback = 80) {
-        const numeric = Number.parseInt(value, 10);
-        const base = Number.isFinite(numeric) ? numeric : Number.parseInt(fallback, 10);
-        const valid = Number.isFinite(base) ? base : 80;
-        return Math.min(100, Math.max(50, valid));
-    }
-
-    normalizePhaseList(phases) {
-        const allowList = new Set(DEFAULT_GENERATION_PHASES);
-        if (!Array.isArray(phases)) {
-            return DEFAULT_GENERATION_PHASES.slice();
-        }
-        const normalized = phases
-            .map(phase => String(phase || '').trim().toLowerCase())
-            .filter(phase => allowList.has(phase));
-        if (!normalized.length) {
-            return DEFAULT_GENERATION_PHASES.slice();
-        }
-        return Array.from(new Set(normalized));
-    }
-
-    isHealthPayloadHealthy(payload) {
-        if (!payload || typeof payload !== 'object') {
-            return false;
-        }
-        if (typeof payload.healthy === 'boolean') {
-            return payload.healthy;
-        }
-        const status = (payload.status || '').toString().toLowerCase();
-        return status === 'healthy' || status === 'ok' || status === 'up';
-    }
-
-    saveDefaultSettings() {
-        if (this.pendingSettings.phases.size === 0) {
-            this.showError('Select at least one default phase.');
-            return;
-        }
-
-        this.defaultSettings.coverageTarget = this.pendingSettings.coverageTarget;
-        this.defaultSettings.phases = new Set(this.pendingSettings.phases);
-        this.persistDefaultSettings();
-        this.applyDefaultSettingsToSettingsControls();
-        this.applyDefaultSettingsToGenerateDialog(true);
-        this.showSuccess('Default settings updated');
-    }
-
-    persistDefaultSettings() {
-        try {
-            const payload = {
-                coverageTarget: this.defaultSettings.coverageTarget,
-                phases: Array.from(this.defaultSettings.phases)
-            };
-            localStorage.setItem(DEFAULT_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
-        } catch (error) {
-            console.warn('Failed to persist default settings:', error);
-        }
-    }
-
-    applyDefaultSettingsToGenerateDialog(updateAttribute = false) {
-        if (this.coverageTargetInput) {
-            const coverage = this.defaultSettings.coverageTarget;
-            this.coverageTargetInput.value = String(coverage);
-            if (updateAttribute) {
-                this.coverageTargetInput.setAttribute('value', String(coverage));
-            }
-        }
-
-        const checkboxes = document.querySelectorAll('#generate-phase-selector input[type="checkbox"]');
-        if (checkboxes.length) {
-            checkboxes.forEach((checkbox) => {
-                const phase = String(checkbox.value || '').trim().toLowerCase();
-                checkbox.checked = this.defaultSettings.phases.has(phase);
-            });
-        }
-
-        this.updateCoverageTargetDisplay();
-    }
-
-    openCoverageDetailDialog(triggerElement = null, scenarioName = '') {
-        if (!this.coverageDetailOverlay) {
-            return;
-        }
-
-        this.lastCoverageDialogTrigger = triggerElement || null;
-        this.coverageDetailOverlay.classList.add('active');
-        this.coverageDetailOverlay.setAttribute('aria-hidden', 'false');
-        this.lockDialogScroll();
-
-        if (this.coverageDetailTitle) {
-            this.coverageDetailTitle.textContent = scenarioName || 'Coverage Analysis';
-        }
-    }
-
-    closeCoverageDetailDialog() {
-        if (!this.coverageDetailOverlay) {
-            return;
-        }
-
-        this.coverageDetailOverlay.classList.remove('active');
-        this.coverageDetailOverlay.setAttribute('aria-hidden', 'true');
-        this.unlockDialogScrollIfIdle();
-
-        if (this.lastCoverageDialogTrigger) {
-            this.focusElement(this.lastCoverageDialogTrigger);
-            this.lastCoverageDialogTrigger = null;
-        }
-    }
+    // ========================================================================
+    // LEGACY SETTINGS PAGE METHODS - Replaced by SettingsPage module
+    // Kept for reference during migration. Will be removed in Phase 7 cleanup.
+    // ========================================================================
 
     handleSystemStatusChipActivate() {
-        this.openHealthDialog();
+        dialogManager.openHealthDialog();
     }
 
     async openHealthDialog() {
@@ -960,24 +463,6 @@ class TestGenieApp {
 
         await this.ensureHealthDataFresh();
         this.renderHealthDialogContent();
-    }
-
-    closeHealthDialog() {
-        if (!this.healthDialogOverlay) {
-            return;
-        }
-
-        this.healthDialogOverlay.classList.remove('active');
-        this.healthDialogOverlay.setAttribute('aria-hidden', 'true');
-        if (this.systemStatusChip) {
-            this.systemStatusChip.setAttribute('aria-expanded', 'false');
-        }
-        this.unlockDialogScrollIfIdle();
-
-        if (this.lastHealthDialogTrigger && typeof this.lastHealthDialogTrigger.focus === 'function') {
-            this.focusElement(this.lastHealthDialogTrigger);
-        }
-        this.lastHealthDialogTrigger = null;
     }
 
     renderHealthDialogContent({ loading = false } = {}) {
@@ -1014,7 +499,7 @@ class TestGenieApp {
             const healthy = this.isHealthPayloadHealthy(data);
             const statusLabel = healthy ? 'Healthy' : 'Degraded';
             const updatedLabel = this.healthStatusUpdatedAt
-                ? this.formatDetailedTimestamp(this.healthStatusUpdatedAt)
+                ? formatDetailedTimestamp(this.healthStatusUpdatedAt)
                 : 'unknown';
             this.healthStatusSubtitle.textContent = `${statusLabel} • Updated ${updatedLabel}`;
         }
@@ -1109,8 +594,8 @@ class TestGenieApp {
         // Render checklist items
         checklistItems.innerHTML = scenariosWithoutTests.map((scenario, index) => `
             <div class="scenario-checklist-item">
-                <input type="checkbox" id="scenario-check-${index}" data-scenario-name="${this.escapeHtml(scenario.scenarioName)}">
-                <label for="scenario-check-${index}">${this.escapeHtml(scenario.scenarioName)}</label>
+                <input type="checkbox" id="scenario-check-${index}" data-scenario-name="${escapeHtml(scenario.scenarioName)}">
+                <label for="scenario-check-${index}">${escapeHtml(scenario.scenarioName)}</label>
             </div>
         `).join('');
 
@@ -1136,72 +621,6 @@ class TestGenieApp {
         this.refreshIcons();
     }
 
-    openGenerateDialog(triggerElement = null, scenarioName = '', isBulkMode = false) {
-        if (!this.generateDialogOverlay) {
-            return;
-        }
-
-        this.lastGenerateDialogTrigger = triggerElement || null;
-        this.generateDialogIsBulkMode = isBulkMode;
-        this.generateDialogOverlay.classList.add('active');
-        this.generateDialogOverlay.setAttribute('aria-hidden', 'false');
-        this.lockDialogScroll();
-
-        this.showGenerateForm(true, false);
-
-        this.generateDialogScenarioName = typeof scenarioName === 'string' ? scenarioName.trim() : '';
-        this.updateGenerateScenarioDisplay();
-
-        // Update dialog title and button text based on mode
-        const dialogTitle = document.getElementById('generate-dialog-title');
-        const generateBtn = document.getElementById('generate-btn');
-
-        if (isBulkMode) {
-            if (dialogTitle) {
-                dialogTitle.textContent = 'Bulk Request Tests';
-            }
-            if (generateBtn) {
-                generateBtn.innerHTML = '<i data-lucide="sparkles"></i> <span id="generate-btn-text">Create Requests</span>';
-                this.refreshIcons();
-            }
-        } else {
-            if (dialogTitle) {
-                dialogTitle.textContent = 'Request Test Suite';
-            }
-            if (generateBtn) {
-                generateBtn.innerHTML = '<i data-lucide="zap"></i> <span id="generate-btn-text">Create Request</span>';
-                this.refreshIcons();
-            }
-        }
-
-        const firstPhaseCheckbox = this.generateForm?.querySelector('#generate-phase-selector input[type="checkbox"]')
-            || document.querySelector('#generate-phase-selector input[type="checkbox"]');
-        if (firstPhaseCheckbox) {
-            this.focusElement(firstPhaseCheckbox);
-        } else if (this.coverageTargetInput) {
-            this.focusElement(this.coverageTargetInput);
-        }
-    }
-
-    closeGenerateDialog() {
-        if (!this.generateDialogOverlay) {
-            return;
-        }
-
-        this.generateDialogOverlay.classList.remove('active');
-        this.generateDialogOverlay.setAttribute('aria-hidden', 'true');
-        this.unlockDialogScrollIfIdle();
-
-        this.showGenerateForm(true, false);
-        this.generateDialogScenarioName = '';
-        this.updateGenerateScenarioDisplay();
-
-        if (this.lastGenerateDialogTrigger) {
-            this.focusElement(this.lastGenerateDialogTrigger);
-            this.lastGenerateDialogTrigger = null;
-        }
-    }
-
     showGenerateForm(resetSelections = false, shouldFocus = false) {
         const form = this.generateForm || document.getElementById('generate-form');
         if (form) {
@@ -1212,7 +631,7 @@ class TestGenieApp {
         }
 
         if (resetSelections) {
-            this.applyDefaultSettingsToGenerateDialog(false);
+            // Settings handled by SettingsPage;
         }
 
         this.updateCoverageTargetDisplay();
@@ -1271,7 +690,7 @@ class TestGenieApp {
         }
 
         if (this.generateResultIcon) {
-            this.generateResultIcon.innerHTML = `<i data-lucide="${this.escapeHtml(icon)}"></i>`;
+            this.generateResultIcon.innerHTML = `<i data-lucide="${escapeHtml(icon)}"></i>`;
             this.generateResultIcon.classList.remove('success', 'info');
             const toneClass = tone === 'info' ? 'info' : 'success';
             this.generateResultIcon.classList.add(toneClass);
@@ -1292,8 +711,8 @@ class TestGenieApp {
         if (this.generateResultMetadata) {
             if (preparedMetadata.length) {
                 this.generateResultMetadata.innerHTML = preparedMetadata.map(({ label, value }) => {
-                    const labelHtml = this.escapeHtml(label);
-                    const valueHtml = this.escapeHtml(String(value));
+                    const labelHtml = escapeHtml(label);
+                    const valueHtml = escapeHtml(String(value));
                     return `<dt>${labelHtml}</dt><dd>${valueHtml}</dd>`;
                 }).join('');
                 this.generateResultMetadata.removeAttribute('hidden');
@@ -1326,42 +745,6 @@ class TestGenieApp {
             this.focusElement(this.generateResultAgainButton);
         } else if (this.generateResultCloseButton) {
             this.focusElement(this.generateResultCloseButton);
-        }
-    }
-
-    openVaultDialog(triggerElement = null) {
-        if (!this.vaultDialogOverlay) {
-            return;
-        }
-
-        this.lastVaultDialogTrigger = triggerElement || null;
-        this.vaultDialogOverlay.classList.add('active');
-        this.vaultDialogOverlay.setAttribute('aria-hidden', 'false');
-        this.lockDialogScroll();
-
-        const scenarioInput = document.getElementById('vault-scenario');
-        if (scenarioInput) {
-            this.focusElement(scenarioInput);
-        }
-
-        if (this.vaultResultCard) {
-            this.vaultResultCard.classList.remove('visible');
-            this.vaultResultCard.innerHTML = '';
-        }
-    }
-
-    closeVaultDialog() {
-        if (!this.vaultDialogOverlay) {
-            return;
-        }
-
-        this.vaultDialogOverlay.classList.remove('active');
-        this.vaultDialogOverlay.setAttribute('aria-hidden', 'true');
-        this.unlockDialogScrollIfIdle();
-
-        if (this.lastVaultDialogTrigger) {
-            this.focusElement(this.lastVaultDialogTrigger);
-            this.lastVaultDialogTrigger = null;
         }
     }
 
@@ -1431,46 +814,11 @@ class TestGenieApp {
         }
     }
 
-    navigateTo(page, pushState = true) {
-        let resolvedPage = page;
-        if (!document.getElementById(resolvedPage)) {
-            resolvedPage = 'dashboard';
-        }
-		// Update active nav item
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        document.querySelector(`.nav-item[data-page="${resolvedPage}"]`)?.classList.add('active');
-
-        // Update active page
-        document.querySelectorAll('.page').forEach(p => {
-            p.classList.remove('active');
-        });
-        document.getElementById(resolvedPage)?.classList.add('active');
-
-        // Update URL
-        if (pushState) {
-            history.pushState({ page: resolvedPage }, '', `#${resolvedPage}`);
-        }
-
-        this.activePage = resolvedPage;
-
-        if (resolvedPage !== 'suites') {
-            this.closeSuiteDetail();
-        }
-
-        if (resolvedPage !== 'executions') {
-            this.closeExecutionDetail();
-        }
-
-        // Load page-specific data
-        this.loadPageData(resolvedPage);
-    }
-
     async loadInitialData() {
         try {
             await this.checkApiHealth();
-            await this.loadDashboardData();
+            // Use new DashboardPage module
+            await dashboardPage.load();
         } catch (error) {
             console.error('Failed to load initial data:', error);
             this.showError('Failed to connect to Test Genie API');
@@ -1491,6 +839,17 @@ class TestGenieApp {
                 error: error instanceof Error ? error.message : String(error)
             });
         }
+    }
+
+    isHealthPayloadHealthy(payload) {
+        if (!payload) {
+            return false;
+        }
+        if (typeof payload.healthy === 'boolean') {
+            return payload.healthy;
+        }
+        const status = (payload.status || '').toString().toLowerCase();
+        return status === 'healthy' || status === 'ok' || status === 'up';
     }
 
     updateSystemStatus(payload) {
@@ -1523,128 +882,15 @@ class TestGenieApp {
         this.healthStatusData = resolvedPayload || null;
         this.healthStatusUpdatedAt = new Date();
 
-        if (this.isOverlayActive(this.healthDialogOverlay)) {
+        if (dialogManager.isDialogOpen(this.healthDialogOverlay)) {
             this.renderHealthDialogContent();
         }
     }
 
-    async loadDashboardData() {
-        try {
-            // Load system metrics from API
-            const [systemMetrics, testSuitesData, executionsData] = await Promise.all([
-                this.fetchWithErrorHandling('/system/metrics'),
-                this.fetchWithErrorHandling('/test-suites'),
-                this.fetchWithErrorHandling('/test-executions')
-            ]);
-
-            const suites = this.normalizeCollection(testSuitesData, 'test_suites');
-            const executions = this.normalizeCollection(executionsData, 'executions');
-
-            this.currentData.suites = suites;
-            this.currentData.executions = executions;
-
-            // Calculate dashboard metrics from real data
-            const activeSuites = suites.filter(s => (s.status || '').toLowerCase() === 'active').length;
-            const runningExecutions = executions.filter(e => (e.status || '').toLowerCase() === 'running').length;
-            
-            let avgCoverage = 0;
-            if (suites.length > 0) {
-                const totalCoverage = suites.reduce((sum, suite) => {
-                    const coverage = suite.coverage_metrics?.code_coverage ?? suite.coverage ?? 0;
-                    return sum + Number(coverage);
-                }, 0);
-                avgCoverage = Math.round(totalCoverage / suites.length);
-            }
-
-            // Update header stats with real data
-            this.updateHeaderStats({
-                activeSuites,
-                runningTests: runningExecutions,
-                avgCoverage
-            });
-
-            // Calculate additional metrics
-            const totalSuites = suites.length;
-            const totalTestCases = suites.reduce((sum, suite) => {
-                if (typeof suite.total_tests === 'number') {
-                    return sum + suite.total_tests;
-                }
-                if (Array.isArray(suite.test_cases)) {
-                    return sum + suite.test_cases.length;
-                }
-                return sum;
-            }, 0);
-            const failedTests = executions.filter(e => (e.status || '').toLowerCase() === 'failed').length;
-
-            this.updateDashboardMetrics({
-                totalSuites,
-                testsGenerated: totalTestCases,
-                avgCoverage,
-                failedTests
-            });
-
-            // Load recent executions with real data
-            await this.loadRecentExecutions();
-            
-        } catch (error) {
-            console.error('Failed to load dashboard data:', error);
-            this.showError('Failed to load dashboard data');
-        }
-    }
-
-    updateHeaderStats(stats) {
-        document.getElementById('active-suites').textContent = stats.activeSuites;
-        document.getElementById('running-tests').textContent = stats.runningTests;
-        document.getElementById('avg-coverage').textContent = `${stats.avgCoverage}%`;
-    }
-
-    updateDashboardMetrics(metrics) {
-        document.getElementById('metric-total-suites').textContent = metrics.totalSuites;
-        document.getElementById('metric-tests-generated').textContent = metrics.testsGenerated;
-        document.getElementById('metric-avg-coverage').textContent = `${metrics.avgCoverage}%`;
-        document.getElementById('metric-failed-tests').textContent = metrics.failedTests;
-    }
-
-    async loadRecentExecutions() {
-        const container = document.getElementById('recent-executions');
-        
-        try {
-            const executionsResponse = await this.fetchWithErrorHandling('/test-executions?limit=5&sort=desc');
-            const executions = this.normalizeCollection(executionsResponse, 'executions');
-
-            if (executions && executions.length > 0) {
-                // Transform API data to match our display format
-                const formattedExecutions = executions.map(exec => ({
-                    id: exec.id,
-                    suiteName: this.lookupSuiteName(exec.suite_id) || exec.suite_name || 'Unknown Suite',
-                    status: exec.status,
-                    statusClass: this.getStatusClass(exec.status),
-                    duration: this.calculateDuration(exec.start_time, exec.end_time),
-                    passed: exec.passed_tests || 0,
-                    failed: exec.failed_tests || 0,
-                    timestamp: exec.start_time
-                }));
-                
-                container.innerHTML = this.renderExecutionsTable(formattedExecutions, { selectable: false });
-                container.scrollLeft = 0;
-                this.enableDragScroll(container);
-                this.bindExecutionsTableActions(container);
-                this.refreshIcons();
-            } else {
-                container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No recent executions found</p>';
-                container.scrollLeft = 0;
-                this.enableDragScroll(container);
-            }
-        } catch (error) {
-            console.error('Failed to load recent executions:', error);
-            container.innerHTML = '<p style="color: var(--accent-error); text-align: center; padding: 2rem;">Failed to load recent executions</p>';
-            container.scrollLeft = 0;
-            this.enableDragScroll(container);
-        }
-        finally {
-            container.classList.remove('loading');
-        }
-    }
+    // ========================================================================
+    // LEGACY DASHBOARD METHODS - Replaced by DashboardPage module
+    // Kept for reference during migration. Will be removed in Phase 7 cleanup.
+    // ========================================================================
 
     renderExecutionsTable(executions, options = {}) {
         if (!executions || executions.length === 0) {
@@ -1661,24 +907,24 @@ class TestGenieApp {
                 <thead>
                     <tr>
                         ${selectionHeader}
-                        <th>Suite Name</th>
-                        <th>Status</th>
-                        <th>Duration</th>
-                        <th>Passed</th>
-                        <th>Failed</th>
-                        <th>Time</th>
+                        <th data-sortable="suite">Suite Name</th>
+                        <th data-sortable="status">Status</th>
+                        <th data-sortable="duration">Duration</th>
+                        <th data-sortable="passed">Passed</th>
+                        <th data-sortable="failed">Failed</th>
+                        <th data-sortable="time">Time</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${executions.map(exec => {
-                        const executionId = this.normalizeId(exec.id);
+                        const executionId = normalizeId(exec.id);
                         const isChecked = selectable && executionId && this.selectedExecutionIds.has(executionId);
                         const failedClass = exec.failed > 0 ? 'text-error' : 'text-muted';
                         const durationLabel = Number.isFinite(exec.duration) ? `${exec.duration}s` : '—';
-                        const statusClass = exec.statusClass || this.getStatusClass(exec.status);
+                        const statusClass = exec.statusClass || getStatusClass(exec.status);
                         const selectionCell = selectable
-                            ? `<td class="cell-select"><input type="checkbox" data-execution-id="${executionId}" ${isChecked ? 'checked' : ''} aria-label="Select execution ${this.escapeHtml(exec.suiteName || executionId || '')}"></td>`
+                            ? `<td class="cell-select"><input type="checkbox" data-execution-id="${executionId}" ${isChecked ? 'checked' : ''} aria-label="Select execution ${escapeHtml(exec.suiteName || executionId || '')}"></td>`
                             : '';
                         return `
                         <tr>
@@ -1688,7 +934,7 @@ class TestGenieApp {
                             <td>${durationLabel}</td>
                             <td class="text-success">${exec.passed}</td>
                             <td class="${failedClass}">${exec.failed}</td>
-                            <td class="cell-created">${this.formatTimestamp(exec.timestamp)}</td>
+                            <td class="cell-created">${formatTimestamp(exec.timestamp)}</td>
                             <td class="cell-actions">
                                 <button class="btn icon-btn" type="button" data-action="view-execution" data-execution-id="${executionId}" aria-label="View execution details">
                                     <i data-lucide="bar-chart-3"></i>
@@ -1705,155 +951,6 @@ class TestGenieApp {
         `;
     }
 
-    getStatusClass(status) {
-        const normalized = (status || '').toString().toLowerCase();
-
-        if (['completed', 'active', 'success', 'ready', 'passed'].includes(normalized)) {
-            return 'success';
-        }
-
-        if (['running', 'in_progress', 'queued', 'pending', 'scheduled'].includes(normalized)) {
-            return 'info';
-        }
-
-        if (['failed', 'error', 'blocked', 'cancelled', 'aborted'].includes(normalized)) {
-            return 'error';
-        }
-
-        return 'warning';
-    }
-
-    formatTimestamp(timestamp) {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / (1000 * 60));
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        
-        if (diffMins < 60) {
-            return `${diffMins}m ago`;
-        } else if (diffHours < 24) {
-            return `${diffHours}h ago`;
-        } else {
-            return date.toLocaleDateString();
-        }
-    }
-
-    formatDateTime(value) {
-        const date = this.parseDate(value);
-        if (!date) {
-            return '—';
-        }
-        return date.toLocaleString();
-    }
-
-    formatDateRange(startValue, endValue) {
-        const start = this.parseDate(startValue);
-        const end = this.parseDate(endValue);
-
-        if (!start || !end) {
-            return '';
-        }
-
-        const sameDay = start.toDateString() === end.toDateString();
-        const options = { month: 'short', day: 'numeric' };
-        const startLabel = start.toLocaleDateString(undefined, options);
-        const endLabel = end.toLocaleDateString(undefined, options);
-        const startYear = start.getFullYear();
-        const endYear = end.getFullYear();
-
-        if (sameDay) {
-            return `${startLabel} ${startYear}`;
-        }
-
-        if (startYear === endYear) {
-            return `${startLabel} → ${endLabel} ${endYear}`;
-        }
-
-        return `${startLabel} ${startYear} → ${endLabel} ${endYear}`;
-    }
-
-    formatDurationSeconds(totalSeconds) {
-        if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) {
-            return '—';
-        }
-        const seconds = Math.round(totalSeconds);
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        const remainingSeconds = seconds % 60;
-        const parts = [];
-        if (hours) parts.push(`${hours}h`);
-        if (minutes) parts.push(`${minutes}m`);
-        if (!hours && (remainingSeconds || parts.length === 0)) {
-            parts.push(`${remainingSeconds}s`);
-        }
-        return parts.join(' ');
-    }
-
-    formatPercent(value, digits = 1) {
-        if (!Number.isFinite(value)) {
-            return '0%';
-        }
-        return `${value.toFixed(digits)}%`;
-    }
-
-    formatPhaseLabel(phase) {
-        if (!phase) {
-            return 'Phase';
-        }
-        return phase
-            .toString()
-            .replace(/[_-]+/g, ' ')
-            .split(' ')
-            .filter(Boolean)
-            .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-            .join(' ');
-    }
-
-    parseDate(value) {
-        if (!value) {
-            return null;
-        }
-        const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? null : date;
-    }
-
-    getStatusDescriptor(status) {
-        const normalized = (status || '').toString().toLowerCase();
-
-        if ([
-            'completed',
-            'active',
-            'success',
-            'ready',
-            'passed',
-            'done'
-        ].includes(normalized)) {
-            return { key: 'completed', label: 'Completed', icon: 'check' };
-        }
-
-        if ([
-            'running',
-            'in_progress',
-            'active_run',
-            'ongoing',
-            'processing'
-        ].includes(normalized)) {
-            return { key: 'running', label: 'In Progress', icon: 'zap' };
-        }
-
-        if ([
-            'failed',
-            'error',
-            'blocked',
-            'cancelled',
-            'aborted'
-        ].includes(normalized)) {
-            return { key: 'failed', label: 'Failed', icon: 'x' };
-        }
-
-        return { key: 'pending', label: 'Pending', icon: 'clock' };
-    }
 
     ensurePhaseOrder(configuredPhases = [], executionDetails = null, latestExecution = null) {
         const order = [];
@@ -1881,974 +978,53 @@ class TestGenieApp {
         return order;
     }
 
-    setupVaultPage() {
-        if (this.vaultInitialized) {
-            return;
-        }
-
-        this.vaultForm = document.getElementById('vault-form');
-        this.vaultPhaseConfigContainer = document.getElementById('vault-phase-configurations');
-        this.vaultResultCard = document.getElementById('vault-result');
-        this.vaultRefreshButton = document.getElementById('vault-refresh-btn');
-        this.vaultListContainer = document.getElementById('vault-list');
-        this.vaultTimelineContainer = document.getElementById('execution-timeline');
-        this.vaultTimelineContent = document.getElementById('timeline-phases');
-        this.vaultHistoryContainer = document.getElementById('vault-history');
-        this.vaultHistoryContent = document.getElementById('vault-history-content');
-        this.vaultPhaseCheckboxes = Array.from(document.querySelectorAll('#vault-phase-selector [data-vault-phase]'));
-
-        this.vaultSelectedPhases = new Set();
-        this.vaultPhaseDrafts = new Map();
-
-        this.vaultPhaseCheckboxes.forEach((checkbox) => {
-            const phase = checkbox.dataset.vaultPhase;
-            if (!phase) {
-                return;
-            }
-            if (checkbox.checked) {
-                this.vaultSelectedPhases.add(phase);
-            }
-            checkbox.addEventListener('change', () => {
-                if (checkbox.checked) {
-                    this.vaultSelectedPhases.add(phase);
-                } else {
-                    this.vaultSelectedPhases.delete(phase);
-                }
-                this.updateVaultPhaseConfigurations();
-            });
-        });
-
-        if (this.vaultForm) {
-            this.vaultForm.addEventListener('reset', () => {
-                this.vaultPhaseDrafts.clear();
-                window.setTimeout(() => this.resetVaultPhaseSelection(), 0);
-            });
-        }
-
-        if (this.vaultRefreshButton) {
-            this.vaultRefreshButton.addEventListener('click', async (event) => {
-                event.preventDefault();
-                await this.loadVaultList();
-            });
-        }
-
-        this.resetVaultPhaseSelection();
-        this.hideVaultDetails('Select a vault to inspect execution details.');
-
-        this.vaultInitialized = true;
-    }
-
-    resetVaultPhaseSelection() {
-        this.vaultSelectedPhases.clear();
-        this.vaultPhaseDrafts.clear();
-
-        if (Array.isArray(this.vaultPhaseCheckboxes)) {
-            this.vaultPhaseCheckboxes.forEach((checkbox) => {
-                const phase = checkbox.dataset.vaultPhase;
-                if (!phase) {
-                    return;
-                }
-                const shouldSelect = DEFAULT_VAULT_PHASES.includes(phase);
-                checkbox.checked = shouldSelect;
-                if (shouldSelect) {
-                    this.vaultSelectedPhases.add(phase);
-                }
-            });
-        }
-
-        this.updateVaultPhaseConfigurations();
-    }
-
-    updateVaultPhaseConfigurations() {
-        if (!this.vaultPhaseConfigContainer) {
-            return;
-        }
-
-        // Capture current drafts before rebuilding
-        this.vaultPhaseConfigContainer.querySelectorAll('.phase-config').forEach((config) => {
-            const timeoutInput = config.querySelector('[data-vault-timeout]');
-            if (!timeoutInput) {
-                return;
-            }
-            const phase = timeoutInput.dataset.vaultTimeout;
-            if (!phase) {
-                return;
-            }
-            const notesField = config.querySelector('[data-vault-desc]');
-            this.vaultPhaseDrafts.set(phase, {
-                timeout: timeoutInput.value,
-                description: notesField?.value || ''
-            });
-        });
-
-        this.vaultPhaseConfigContainer.innerHTML = '';
-
-        if (this.vaultSelectedPhases.size === 0) {
-            const helper = document.createElement('div');
-            helper.className = 'form-helper';
-            helper.textContent = 'Select at least one phase above to configure timeouts and intent.';
-            this.vaultPhaseConfigContainer.appendChild(helper);
-            return;
-        }
-
-        const selected = Array.from(this.vaultSelectedPhases);
-        const orderedPhases = [
-            ...DEFAULT_VAULT_PHASES.filter((phase) => this.vaultSelectedPhases.has(phase)),
-            ...selected.filter((phase) => !DEFAULT_VAULT_PHASES.includes(phase)).sort()
-        ];
-
-        orderedPhases.forEach((phase) => {
-            const definition = VAULT_PHASE_DEFINITIONS[phase] || {
-                label: this.formatPhaseLabel(phase),
-                description: '',
-                defaultTimeout: 600
-            };
-            const draft = this.vaultPhaseDrafts.get(phase) || {};
-            const timeoutValue = Number(draft.timeout) || definition.defaultTimeout;
-            const notesValue = draft.description || '';
-
-            const config = document.createElement('div');
-            config.className = 'phase-config';
-            config.innerHTML = `
-                <div class="phase-config-header">
-                    <span class="phase-name">${this.escapeHtml(definition.label)}</span>
-                    <div class="phase-timeout">
-                        <label>Timeout:</label>
-                        <input type="number" class="timeout-input" data-vault-timeout="${phase}" value="${timeoutValue}" min="30">
-                        <span>seconds</span>
-                    </div>
-                </div>
-                <textarea class="form-textarea" placeholder="${this.escapeHtml(definition.description)}" data-vault-desc="${phase}"></textarea>
-            `;
-            this.vaultPhaseConfigContainer.appendChild(config);
-
-            const timeoutInput = config.querySelector('[data-vault-timeout]');
-            const notesField = config.querySelector('[data-vault-desc]');
-
-            if (timeoutInput) {
-                timeoutInput.value = timeoutValue;
-            }
-            if (notesField && notesValue) {
-                notesField.value = notesValue;
-            }
-
-            const persistDraft = () => {
-                this.vaultPhaseDrafts.set(phase, {
-                    timeout: timeoutInput?.value || definition.defaultTimeout,
-                    description: notesField?.value || ''
-                });
-            };
-
-            timeoutInput?.addEventListener('input', persistDraft);
-            notesField?.addEventListener('input', persistDraft);
-        });
-    }
-
-    async loadVaultScenarioOptions(forceRefresh = false) {
-        const datalist = document.getElementById('vault-scenario-options');
-        if (!datalist) {
-            return;
-        }
-
-        if (this.vaultScenarioOptionsLoaded && !forceRefresh) {
-            return;
-        }
-
-        const scenariosResponse = await this.fetchWithErrorHandling('/scenarios');
-        if (!scenariosResponse) {
-            return;
-        }
-
-        const scenarios = this.normalizeCollection(scenariosResponse, 'scenarios');
-        const names = Array.from(new Set((scenarios || [])
-            .map((scenario) => scenario?.name || scenario?.scenario_name)
-            .filter(Boolean)))
-            .sort((a, b) => a.localeCompare(b));
-
-        if (names.length) {
-            datalist.innerHTML = names.map((name) => `<option value="${this.escapeHtml(name)}"></option>`).join('');
-            this.vaultScenarioOptionsLoaded = true;
-        }
-    }
-
-    async loadVaultList() {
-        if (!this.vaultListContainer) {
-            return;
-        }
-
-        this.vaultListContainer.innerHTML = '<div class="loading-message">Loading vaults...</div>';
-
-        try {
-            const response = await this.fetchWithErrorHandling('/test-vaults');
-            const vaults = this.normalizeCollection(response, 'vaults');
-            this.currentData.vaults = Array.isArray(vaults) ? vaults : [];
-
-            if (!this.currentData.vaults.length) {
-                this.vaultListContainer.innerHTML = '<div class="empty-message">No vaults created yet</div>';
-                this.vaultIndexById.clear();
-                this.hideVaultDetails('Create a vault to populate execution data.');
-                return;
-            }
-
-            this.renderVaultList(this.currentData.vaults);
-        } catch (error) {
-            console.error('Failed to load vaults:', error);
-            this.vaultListContainer.innerHTML = '<div class="error-message">Failed to load vaults</div>';
-            this.hideVaultDetails('Unable to load vault details.');
-        }
-    }
-
-    renderVaultList(vaults) {
-        if (!this.vaultListContainer) {
-            return;
-        }
-
-        if (!Array.isArray(vaults) || vaults.length === 0) {
-            this.vaultListContainer.innerHTML = '<div class="empty-message">No vaults created yet</div>';
-            this.hideVaultDetails('Create a vault to populate execution data.');
-            return;
-        }
-
-        const fragments = [];
-        this.vaultIndexById = new Map();
-
-        vaults.forEach((vault) => {
-            const id = this.normalizeId(vault.id);
-            this.vaultIndexById.set(id, vault);
-            const descriptor = this.getStatusDescriptor(vault.status);
-            const phaseCount = Array.isArray(vault.phases) ? vault.phases.length : 0;
-
-            fragments.push(`
-                <div class="vault-item" data-vault-id="${this.escapeHtml(id)}">
-                    <div class="vault-item-header">
-                        <span class="vault-item-name">${this.escapeHtml(vault.vault_name || id)}</span>
-                        <span class="status-pill" data-status="${descriptor.key}"><i data-lucide="${descriptor.icon}"></i>${descriptor.label}</span>
-                    </div>
-                    <div class="vault-item-meta">
-                        <span><i data-lucide="package"></i> ${this.escapeHtml(vault.scenario_name || 'Unknown')}</span>
-                        <span><i data-lucide="layers"></i> ${phaseCount} phase${phaseCount === 1 ? '' : 's'}</span>
-                        <span><i data-lucide="clock"></i> ${this.formatTimestamp(vault.created_at || vault.updated_at || Date.now())}</span>
-                    </div>
-                </div>
-            `);
-        });
-
-        this.vaultListContainer.innerHTML = fragments.join('');
-        const vaultPanelBody = this.vaultListContainer.parentElement;
-        if (vaultPanelBody) {
-            vaultPanelBody.scrollLeft = 0;
-            this.enableDragScroll(vaultPanelBody);
-        }
-        this.refreshIcons();
-
-        this.vaultListContainer.querySelectorAll('.vault-item').forEach((item) => {
-            item.addEventListener('click', () => {
-                const id = item.dataset.vaultId;
-                this.setActiveVaultItem(id);
-                this.showVaultExecution(id);
-            });
-        });
-
-        let targetId = this.activeVaultId && this.vaultIndexById.has(this.activeVaultId)
-            ? this.activeVaultId
-            : null;
-        if (!targetId && vaults.length > 0) {
-            targetId = this.normalizeId(vaults[0].id);
-        }
-
-        if (targetId) {
-            this.setActiveVaultItem(targetId);
-            this.showVaultExecution(targetId);
-        } else {
-            this.hideVaultDetails('Select a vault to inspect execution details.');
-        }
-    }
-
-    setActiveVaultItem(vaultId) {
-        this.activeVaultId = vaultId;
-        if (!this.vaultListContainer) {
-            return;
-        }
-        this.vaultListContainer.querySelectorAll('.vault-item').forEach((item) => {
-            item.classList.toggle('is-active', item.dataset.vaultId === vaultId);
-        });
-    }
-
-    hideVaultDetails(message = '') {
-        if (this.vaultTimelineContainer && this.vaultTimelineContent) {
-            if (message) {
-                this.vaultTimelineContainer.style.display = 'block';
-                this.vaultTimelineContent.innerHTML = `<div class="history-empty">${this.escapeHtml(message)}</div>`;
-            } else {
-                this.vaultTimelineContainer.style.display = 'none';
-                this.vaultTimelineContent.innerHTML = '';
-            }
-        }
-
-        if (this.vaultHistoryContainer && this.vaultHistoryContent) {
-            if (message) {
-                this.vaultHistoryContainer.style.display = 'block';
-                this.vaultHistoryContent.innerHTML = `<div class="history-empty">${this.escapeHtml(message)}</div>`;
-            } else {
-                this.vaultHistoryContainer.style.display = 'none';
-                this.vaultHistoryContent.innerHTML = '';
-            }
-        }
-    }
-
-    async showVaultExecution(vaultId) {
-        if (!vaultId || !this.vaultTimelineContent || !this.vaultHistoryContent) {
-            return;
-        }
-
-        this.vaultTimelineContainer.style.display = 'block';
-        this.vaultHistoryContainer.style.display = 'block';
-        this.vaultTimelineContent.innerHTML = '<div class="loading-message">Loading execution details...</div>';
-        this.vaultHistoryContent.innerHTML = '<div class="loading-message">Loading vault history...</div>';
-
-        try {
-            const [vaultDetails, executionsResponse] = await Promise.all([
-                this.fetchWithErrorHandling(`/test-vault/${vaultId}`),
-                this.fetchWithErrorHandling(`/vault-executions?vault_id=${encodeURIComponent(vaultId)}`)
-            ]);
-
-            const vault = vaultDetails || this.vaultIndexById.get(vaultId) || null;
-            const configuredPhases = Array.isArray(vault?.phases) ? vault.phases : [];
-
-            const executionsRaw = this.normalizeCollection(executionsResponse, 'executions');
-            let executions = Array.isArray(executionsRaw) ? executionsRaw : [];
-
-            if (executions.length) {
-                const normalizedId = vaultId.toLowerCase();
-                const filtered = executions.filter((execution) => this.normalizeId(execution.vault_id).toLowerCase() === normalizedId);
-                if (filtered.length) {
-                    executions = filtered;
-                }
-            }
-
-            if (!executions.length) {
-                this.vaultTimelineContent.innerHTML = '<div class="history-empty">No vault executions yet. Trigger the vault to see progress.</div>';
-                this.vaultHistoryContent.innerHTML = '<div class="history-empty">No execution history available.</div>';
-                this.refreshIcons();
-                return;
-            }
-
-            executions.sort((a, b) => {
-                const aDate = this.parseDate(a.start_time) || new Date(0);
-                const bDate = this.parseDate(b.start_time) || new Date(0);
-                return bDate.getTime() - aDate.getTime();
-            });
-
-            const latestExecution = executions[0];
-            let executionDetails = null;
-            const latestExecutionId = this.normalizeId(latestExecution.id);
-            if (latestExecutionId) {
-                executionDetails = await this.fetchWithErrorHandling(`/vault-execution/${latestExecutionId}/results`);
-            }
-
-            this.renderVaultTimeline(configuredPhases, executionDetails, latestExecution);
-            this.renderVaultHistory(executions);
-        } catch (error) {
-            console.error('Failed to load vault execution data:', error);
-            this.vaultTimelineContent.innerHTML = '<div class="error-message">Failed to load execution details</div>';
-            this.vaultHistoryContent.innerHTML = '<div class="error-message">Failed to load execution history</div>';
-        } finally {
-            this.refreshIcons();
-        }
-    }
-
-    renderVaultTimeline(phases, executionDetails, latestExecution) {
-        if (!this.vaultTimelineContent) {
-            return;
-        }
-
-        const phaseResultsRaw = executionDetails?.phase_results || {};
-        const phaseResults = {};
-        Object.entries(phaseResultsRaw).forEach(([key, value]) => {
-            phaseResults[key.toLowerCase()] = value;
-        });
-
-        const completedSet = new Set((executionDetails?.completed_phases || latestExecution?.completed_phases || []).map((phase) => phase.toLowerCase()));
-        const failedSet = new Set((executionDetails?.failed_phases || latestExecution?.failed_phases || []).map((phase) => phase.toLowerCase()));
-        const currentPhase = (executionDetails?.current_phase || latestExecution?.current_phase || '').toLowerCase();
-
-        const orderedPhases = this.ensurePhaseOrder(phases, executionDetails, latestExecution);
-
-        if (!orderedPhases.length) {
-            this.vaultTimelineContent.innerHTML = '<div class="history-empty">No phase data available yet. Run the vault to populate results.</div>';
-            return;
-        }
-
-        const timelineHtml = orderedPhases.map((phaseName) => {
-            const lowerPhase = phaseName.toLowerCase();
-            let descriptor = this.getStatusDescriptor(phaseResults[lowerPhase]?.status);
-
-            if (failedSet.has(lowerPhase)) {
-                descriptor = { key: 'failed', label: 'Failed', icon: 'x' };
-            } else if (completedSet.has(lowerPhase)) {
-                descriptor = { key: 'completed', label: 'Completed', icon: 'check' };
-            } else if (currentPhase === lowerPhase) {
-                descriptor = { key: 'running', label: 'In Progress', icon: 'zap' };
-            }
-
-            const result = phaseResults[lowerPhase];
-            const detailParts = [];
-            const duration = result?.duration;
-            if (Number.isFinite(duration)) {
-                detailParts.push(`Duration: ${this.formatDurationSeconds(duration)}`);
-            }
-            let testCount = result?.test_count;
-            if (!Number.isFinite(testCount) && Array.isArray(result?.test_results)) {
-                testCount = result.test_results.length;
-            }
-            if (Number.isFinite(testCount)) {
-                detailParts.push(`${testCount} tests`);
-            }
-            if (!detailParts.length) {
-                if (descriptor.key === 'pending') {
-                    detailParts.push('Waiting to start');
-                } else {
-                    detailParts.push(descriptor.label);
-                }
-            }
-
-            const iconHtml = descriptor.icon ? `<i data-lucide="${descriptor.icon}"></i>` : '';
-            const label = this.formatPhaseLabel(phaseName);
-
-            return `
-                <div class="timeline-phase">
-                    <div class="timeline-indicator ${descriptor.key}">${iconHtml}</div>
-                    <div class="timeline-content">
-                        <div class="timeline-phase-name">${this.escapeHtml(label)}</div>
-                        <div class="timeline-phase-status">${detailParts.map((part) => this.escapeHtml(part)).join(' • ')}</div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        this.vaultTimelineContent.innerHTML = timelineHtml;
-    }
-
-    renderVaultHistory(executions) {
-        if (!this.vaultHistoryContent) {
-            return;
-        }
-
-        if (!Array.isArray(executions) || executions.length === 0) {
-            this.vaultHistoryContent.innerHTML = '<div class="history-empty">No execution history available.</div>';
-            return;
-        }
-
-        const rows = executions.map((execution, index) => {
-            const descriptor = this.getStatusDescriptor(execution.status);
-            const statusHtml = `<span class="status-pill" data-status="${descriptor.key}"><i data-lucide="${descriptor.icon}"></i>${descriptor.label}</span>`;
-
-            let durationSeconds = Number(execution.duration);
-            if (!Number.isFinite(durationSeconds)) {
-                const start = this.parseDate(execution.start_time);
-                const end = this.parseDate(execution.end_time);
-                if (start && end) {
-                    durationSeconds = (end.getTime() - start.getTime()) / 1000;
-                }
-            }
-
-            const completedCount = Array.isArray(execution.completed_phases) ? execution.completed_phases.length : 0;
-            const failedCount = Array.isArray(execution.failed_phases) ? execution.failed_phases.length : 0;
-
-            return `
-                <tr ${index === 0 ? 'data-latest="true"' : ''}>
-                    <td>${this.escapeHtml(this.formatDateTime(execution.start_time))}</td>
-                    <td>${statusHtml}</td>
-                    <td>${completedCount}</td>
-                    <td>${failedCount}</td>
-                    <td>${this.escapeHtml(this.formatDurationSeconds(durationSeconds))}</td>
-                </tr>
-            `;
-        }).join('');
-
-        this.vaultHistoryContent.innerHTML = `
-            <table class="history-table">
-                <thead>
-                    <tr>
-                        <th>Started</th>
-                        <th>Status</th>
-                        <th>Completed</th>
-                        <th>Failed</th>
-                        <th>Duration</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows}
-                </tbody>
-            </table>
-        `;
-
-        this.refreshIcons();
-    }
+    // ========================================================================
+    // LEGACY VAULT PAGE METHODS - Replaced by VaultPage module
+    // Kept for reference during migration. Will be removed in Phase 7 cleanup.
+    // ========================================================================
 
     async loadPageData(page) {
         switch (page) {
             case 'suites':
-                await this.loadTestSuites();
+                // Use new SuitesPage module
+                await suitesPage.load();
                 break;
             case 'executions':
-                await this.loadExecutions();
+                // Use new ExecutionsPage module
+                await executionsPage.load();
                 break;
             case 'dashboard':
-                await this.loadDashboardData();
+                // Use new DashboardPage module
+                await dashboardPage.load();
                 break;
             case 'coverage':
-                await this.loadCoverageSummaries();
+                // Use new CoveragePage module
+                await coveragePage.load();
                 break;
             case 'vault':
-                this.setupVaultPage();
-                await Promise.all([
-                    this.loadVaultScenarioOptions(),
-                    this.loadVaultList()
-                ]);
+                // Use new VaultPage module
+                await vaultPage.load();
                 break;
             case 'reports':
-                await this.loadReports();
+                // Use new ReportsPage module
+                await reportsPage.load();
+                break;
+            case 'settings':
+                // Use new SettingsPage module
+                await settingsPage.load();
                 break;
         }
     }
 
-    async loadTestSuites() {
-        const container = document.getElementById('suites-table');
-        container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading test suites...</div>';
+    // ========================================================================
+    // LEGACY SUITES PAGE METHODS - Replaced by SuitesPage module
+    // Kept for reference during migration. Will be removed in Phase 7 cleanup.
+    // ========================================================================
 
-        try {
-            const [scenariosResponse, suitesResponse] = await Promise.all([
-                this.fetchWithErrorHandling('/scenarios'),
-                this.fetchWithErrorHandling('/test-suites')
-            ]);
-
-            const scenarios = this.normalizeCollection(scenariosResponse, 'scenarios');
-            const suites = this.normalizeCollection(suitesResponse, 'test_suites');
-
-            this.currentData.scenarios = scenarios;
-            this.currentData.suites = suites;
-
-            const suitesByScenario = new Map();
-            if (Array.isArray(suites)) {
-                suites.forEach((suite) => {
-                    const scenarioName = suite?.scenario_name || suite?.scenarioName;
-                    if (!scenarioName) {
-                        return;
-                    }
-
-                    const normalized = scenarioName.trim();
-                    if (!suitesByScenario.has(normalized)) {
-                        suitesByScenario.set(normalized, []);
-                    }
-                    suitesByScenario.get(normalized).push(suite);
-                });
-            }
-
-            const seenIds = new Set();
-            const scenarioRows = [];
-
-            const buildRowFromScenario = (scenario, attachedSuites = []) => {
-                const rawName = scenario?.name || scenario?.scenario_name;
-                if (!rawName) {
-                    return;
-                }
-
-                const scenarioName = String(rawName).trim();
-                if (!scenarioName) {
-                    return;
-                }
-
-                const suiteCount = Number(scenario?.suite_count ?? attachedSuites.length ?? 0) || 0;
-                const suiteArray = attachedSuites.length ? attachedSuites : (suitesByScenario.get(scenarioName) || []);
-                const testCaseCount = Number(scenario?.test_case_count ?? 0) || suiteArray.reduce((sum, suite) => {
-                    if (Array.isArray(suite?.test_cases) && suite.test_cases.length) {
-                        return sum + suite.test_cases.length;
-                    }
-                    const total = Number(suite?.total_tests);
-                    if (Number.isFinite(total) && total > 0) {
-                        return sum + total;
-                    }
-                    return sum;
-                }, 0);
-
-                const typeSet = new Set(Array.isArray(scenario?.suite_types) ? scenario.suite_types : []);
-                if (!typeSet.size && suiteArray.length) {
-                    suiteArray.forEach((suite) => {
-                        const rawType = Array.isArray(suite?.test_types)
-                            ? suite.test_types
-                            : (suite?.suite_type ? String(suite.suite_type).split(',') : []);
-                        rawType.forEach((type) => {
-                            const trimmed = String(type || '').trim().toLowerCase();
-                            if (trimmed) {
-                                typeSet.add(trimmed);
-                            }
-                        });
-                    });
-                }
-
-                const latestSuiteId = scenario?.latest_suite_id
-                    || suiteArray.reduce((latest, suite) => {
-                        const id = this.normalizeId(suite?.id);
-                        if (!id) {
-                            return latest;
-                        }
-                        if (!latest) {
-                            return id;
-                        }
-
-                        const currentTime = suite?.generated_at || suite?.created_at;
-                        const latestSuite = suiteArray.find((item) => this.normalizeId(item?.id) === latest);
-                        const latestTime = latestSuite?.generated_at || latestSuite?.created_at;
-
-                        if (!latestTime) {
-                            return id;
-                        }
-
-                        if (!currentTime) {
-                            return latest;
-                        }
-
-                        return new Date(currentTime).getTime() > new Date(latestTime).getTime() ? id : latest;
-                    }, '');
-
-                const latestGeneratedAt = scenario?.latest_suite_generated_at
-                    || (latestSuiteId
-                        ? (suiteArray.find((suite) => this.normalizeId(suite?.id) === latestSuiteId)?.generated_at
-                            || suiteArray.find((suite) => this.normalizeId(suite?.id) === latestSuiteId)?.created_at)
-                        : null);
-
-                const latestStatus = scenario?.latest_suite_status
-                    || (suiteArray.find((suite) => this.normalizeId(suite?.id) === latestSuiteId)?.status)
-                    || (suiteCount > 0 ? 'unknown' : 'missing');
-
-                const latestCoverage = Number(scenario?.latest_suite_coverage ?? 0)
-                    || (() => {
-                        const suite = suiteArray.find((item) => this.normalizeId(item?.id) === latestSuiteId) || suiteArray[0];
-                        if (!suite) {
-                            return 0;
-                        }
-                        const coverage = Number(suite?.coverage_metrics?.code_coverage ?? suite?.coverage ?? 0);
-                        return Number.isFinite(coverage) ? coverage : 0;
-                    })();
-
-                const phases = Array.from(typeSet).map((type) => this.formatLabel(type));
-                const statusClass = this.getStatusClass(latestStatus);
-
-                const row = {
-                    scenarioName,
-                    phases,
-                    testsCount: testCaseCount,
-                    coverage: latestCoverage,
-                    status: latestStatus,
-                    statusClass,
-                    createdAt: latestGeneratedAt || null,
-                    latestSuiteId: this.normalizeId(latestSuiteId),
-                    suiteCount,
-                    hasTests: Boolean(scenario?.has_tests || suiteCount > 0),
-                    hasTestDirectory: Boolean(scenario?.has_test_directory),
-                    isMissing: !(scenario?.has_tests || suiteCount > 0),
-                };
-
-                scenarioRows.push(row);
-
-                if (row.latestSuiteId) {
-                    seenIds.add(row.latestSuiteId);
-                }
-            };
-
-            if (Array.isArray(scenarios) && scenarios.length) {
-                scenarios.forEach((scenario) => buildRowFromScenario(scenario));
-            }
-
-            suitesByScenario.forEach((suiteArray, scenarioName) => {
-                const alreadyListed = Array.isArray(scenarios) && scenarios.some((scenario) => scenario?.name === scenarioName || scenario?.scenario_name === scenarioName);
-                if (!alreadyListed) {
-                const fallback = {
-                    name: scenarioName,
-                    has_tests: suiteArray.length > 0,
-                    suite_count: suiteArray.length,
-                    test_case_count: suiteArray.reduce((sum, suite) => {
-                            if (Array.isArray(suite?.test_cases)) {
-                                return sum + suite.test_cases.length;
-                            }
-                            const total = Number(suite?.total_tests);
-                            if (Number.isFinite(total) && total > 0) {
-                                return sum + total;
-                            }
-                            return sum;
-                        }, 0),
-                    };
-                    buildRowFromScenario(fallback, suiteArray);
-                }
-            });
-
-            const renderedIds = Array.from(seenIds);
-            this.availableSuiteIds = renderedIds;
-            this.pruneSuiteSelection(renderedIds);
-
-            if (scenarioRows.length === 0) {
-                this.currentSuiteRows = [];
-                this.renderedSuiteIds = [];
-                container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No scenarios found</p>';
-                this.selectedSuiteIds.clear();
-                this.updateSuiteSelectionUI();
-                return;
-            }
-
-            scenarioRows.sort((a, b) => a.scenarioName.localeCompare(b.scenarioName));
-            this.currentSuiteRows = scenarioRows;
-            this.renderSuitesTableWithCurrentData(container);
-        } catch (error) {
-            console.error('Failed to load test suites:', error);
-            container.innerHTML = '<p style="color: var(--accent-error); text-align: center; padding: 2rem;">Failed to load test suites</p>';
-            this.currentSuiteRows = [];
-            this.renderedSuiteIds = [];
-            this.availableSuiteIds = [];
-            this.updateSuiteSelectionUI();
-        }
-    }
-
-    applySuiteFilters(rows) {
-        if (!Array.isArray(rows)) {
-            return [];
-        }
-
-        let filtered = rows;
-        const search = (this.suiteFilters.search || '').trim().toLowerCase();
-        if (search) {
-            filtered = filtered.filter((row) => {
-                const nameMatch = (row.scenarioName || '').toLowerCase().includes(search);
-                const phaseMatch = Array.isArray(row.phases) && row.phases.some((phase) => phase.toLowerCase().includes(search));
-                const statusMatch = (row.status || '').toLowerCase().includes(search);
-                const idMatch = row.latestSuiteId && this.normalizeId(row.latestSuiteId).includes(search);
-                return nameMatch || phaseMatch || statusMatch || idMatch;
-            });
-        }
-
-        const statusFilter = this.suiteFilters.status;
-        if (statusFilter && statusFilter !== 'all') {
-            filtered = filtered.filter((row) => (row.statusClass || this.getStatusClass(row.status)) === statusFilter);
-        }
-
-        return filtered;
-    }
-
-    renderSuitesTableWithCurrentData(container = document.getElementById('suites-table')) {
-        if (!container) {
-            return;
-        }
-
-        if (!Array.isArray(this.currentSuiteRows) || this.currentSuiteRows.length === 0) {
-            container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No scenarios found</p>';
-            this.renderedSuiteIds = [];
-            this.suiteSelectAllCheckbox = null;
-            this.updateSuiteSelectionUI();
-            return;
-        }
-
-        const filtered = this.applySuiteFilters(this.currentSuiteRows);
-
-        if (!filtered.length) {
-            container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No suites match the current filters.</p>';
-            this.renderedSuiteIds = [];
-            this.suiteSelectAllCheckbox = null;
-            this.updateSuiteSelectionUI();
-            return;
-        }
-
-        container.innerHTML = this.renderSuitesTable(filtered);
-        container.scrollLeft = 0;
-        this.renderedSuiteIds = filtered
-            .map((row) => this.normalizeId(row.latestSuiteId))
-            .filter(Boolean);
-        this.enableDragScroll(container);
-        this.bindSuitesTableActions(container);
-        this.refreshIcons();
-        this.updateSuiteSelectionUI();
-    }
-
-    renderSuitesTable(scenarios) {
-        if (!scenarios || scenarios.length === 0) {
-            return '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No scenarios found</p>';
-        }
-
-        return `
-            <table class="table suites-table" data-selectable="true">
-                <thead>
-                    <tr>
-                        <th class="cell-select">
-                            <input type="checkbox" data-suite-select-all aria-label="Select all suites">
-                        </th>
-                        <th>Scenario</th>
-                        <th>Phases</th>
-                        <th>Coverage</th>
-                        <th>Status</th>
-                        <th>Latest Suite</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${scenarios.map((scenario) => {
-                        const suiteId = scenario.latestSuiteId ? this.normalizeId(scenario.latestSuiteId) : '';
-                        const isChecked = suiteId && this.selectedSuiteIds.has(suiteId);
-                        const rawCoverage = Number(scenario.coverage ?? 0);
-                        const coverageValue = Math.max(0, Math.min(100, Number.isFinite(rawCoverage) ? Math.round(rawCoverage) : 0));
-                        const hasSuite = Boolean(suiteId);
-                        const isMissing = Boolean(scenario.isMissing);
-                        const phases = Array.isArray(scenario.phases) && scenario.phases.length
-                            ? scenario.phases.join(', ')
-                            : (hasSuite ? '—' : 'None yet');
-                        const statusRaw = isMissing ? 'missing' : (scenario.status || 'unknown');
-                        const statusLabel = this.formatLabel(statusRaw);
-                        const statusClass = scenario.statusClass || this.getStatusClass(statusRaw);
-                        const rowClass = isMissing ? 'scenario-row missing-scenario' : 'scenario-row has-suite';
-                        const createdLabel = scenario.createdAt ? this.formatTimestamp(scenario.createdAt) : '—';
-
-                        const coverageCell = hasSuite
-                            ? `
-                                <div class="coverage-meter">
-                                    <div class="progress">
-                                        <div class="progress-bar" style="width: ${coverageValue}%"></div>
-                                    </div>
-                                    <span>${coverageValue}%</span>
-                                </div>
-                              `
-                            : '<span class="coverage-empty">—</span>';
-
-        return `
-                        <tr class="${rowClass}">
-                            <td class="cell-select">
-                                ${hasSuite ? `<input type="checkbox" data-suite-id="${suiteId}" ${isChecked ? 'checked' : ''} aria-label="Select suite for ${this.escapeHtml(scenario.scenarioName)}">` : ''}
-                            </td>
-                            <td class="cell-scenario">
-                                <strong>${this.escapeHtml(scenario.scenarioName)}</strong>
-                            </td>
-                            <td class="cell-phases">${phases}</td>
-                            <td class="cell-coverage">${coverageCell}</td>
-                            <td class="cell-status"><span class="status ${statusClass}">${statusLabel}</span></td>
-                            <td class="cell-created">${createdLabel}</td>
-                            <td class="cell-actions">
-                                ${hasSuite ? `
-                                    <button class="btn icon-btn" type="button" data-action="execute" data-suite-id="${suiteId}" aria-label="Execute latest suite for ${this.escapeHtml(scenario.scenarioName)}">
-                                        <i data-lucide="play"></i>
-                                    </button>
-                                    <button class="btn icon-btn secondary" type="button" data-action="view" data-suite-id="${suiteId}" aria-label="View latest suite for ${this.escapeHtml(scenario.scenarioName)}">
-                                        <i data-lucide="eye"></i>
-                                    </button>
-                                ` : ''}
-                                ${!hasSuite ? `
-                                    <button class="btn icon-btn highlighted" type="button" data-action="generate" data-scenario="${this.escapeHtml(scenario.scenarioName)}" aria-label="Generate tests for ${this.escapeHtml(scenario.scenarioName)}">
-                                        <i data-lucide="sparkles"></i>
-                                    </button>
-                                ` : ''}
-                            </td>
-                        </tr>
-                        `;
-                    }).join('')}
-                </tbody>
-            </table>
-        `;
-    }
-
-    async loadExecutions() {
-        const container = document.getElementById('executions-table');
-        container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading test executions...</div>';
-
-        try {
-            const executionsResponse = await this.fetchWithErrorHandling('/test-executions');
-            const executions = this.normalizeCollection(executionsResponse, 'executions');
-            this.currentData.executions = executions;
-            this.pruneExecutionSelection(executions);
-
-            if (executions && executions.length > 0) {
-                // Transform API data to match our display format
-                const formattedExecutions = executions.map(exec => ({
-                    id: this.normalizeId(exec.id),
-                    suiteName: this.lookupSuiteName(exec.suite_id) || exec.suite_name || 'Unknown Suite',
-                    status: exec.status,
-                    statusClass: this.getStatusClass(exec.status),
-                    duration: this.calculateDuration(exec.start_time, exec.end_time),
-                    passed: exec.passed_tests || 0,
-                    failed: exec.failed_tests || 0,
-                    timestamp: exec.start_time
-                }));
-
-                this.currentExecutionRows = formattedExecutions;
-                this.renderExecutionsTableWithCurrentData(container);
-            } else {
-                this.currentExecutionRows = [];
-                this.renderedExecutionIds = [];
-                container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No test executions found</p>';
-                this.selectedExecutionIds.clear();
-                this.updateExecutionSelectionUI();
-            }
-        } catch (error) {
-            console.error('Failed to load test executions:', error);
-            container.innerHTML = '<p style="color: var(--accent-error); text-align: center; padding: 2rem;">Failed to load test executions</p>';
-            this.currentExecutionRows = [];
-            this.renderedExecutionIds = [];
-            this.updateExecutionSelectionUI();
-        }
-    }
-
-    applyExecutionFilters(rows) {
-        if (!Array.isArray(rows)) {
-            return [];
-        }
-
-        let filtered = rows;
-        const search = (this.executionFilters.search || '').trim().toLowerCase();
-        if (search) {
-            filtered = filtered.filter((row) => {
-                const nameMatch = (row.suiteName || '').toLowerCase().includes(search);
-                const statusMatch = (row.status || '').toLowerCase().includes(search);
-                const idMatch = row.id && this.normalizeId(row.id).includes(search);
-                return nameMatch || statusMatch || idMatch;
-            });
-        }
-
-        const statusFilter = this.executionFilters.status;
-        if (statusFilter && statusFilter !== 'all') {
-            filtered = filtered.filter((row) => (row.statusClass || this.getStatusClass(row.status)) === statusFilter);
-        }
-
-        return filtered;
-    }
-
-    renderExecutionsTableWithCurrentData(container = document.getElementById('executions-table')) {
-        if (!container) {
-            return;
-        }
-
-        if (!Array.isArray(this.currentExecutionRows) || this.currentExecutionRows.length === 0) {
-            container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No test executions found</p>';
-            this.renderedExecutionIds = [];
-            this.executionSelectAllCheckbox = null;
-            this.updateExecutionSelectionUI();
-            return;
-        }
-
-        const filtered = this.applyExecutionFilters(this.currentExecutionRows);
-
-        if (!filtered.length) {
-            container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No executions match the current filters.</p>';
-            this.renderedExecutionIds = [];
-            this.executionSelectAllCheckbox = null;
-            this.updateExecutionSelectionUI();
-            return;
-        }
-
-        container.innerHTML = this.renderExecutionsTable(filtered);
-        container.scrollLeft = 0;
-        this.renderedExecutionIds = filtered
-            .map((row) => this.normalizeId(row.id))
-            .filter(Boolean);
-        this.enableDragScroll(container);
-        this.bindExecutionsTableActions(container);
-        this.refreshIcons();
-        this.updateExecutionSelectionUI();
-    }
+    // ========================================================================
+    // LEGACY EXECUTIONS PAGE METHODS - Replaced by ExecutionsPage module
+    // Kept for reference during migration. Will be removed in Phase 7 cleanup.
+    // ========================================================================
 
     async handleGenerateSubmit() {
         const form = this.generateForm || document.getElementById('generate-form');
@@ -3013,7 +1189,7 @@ class TestGenieApp {
                         Object.entries(result.test_files).forEach(([type, files]) => {
                             const count = Array.isArray(files) ? files.length : 0;
                             metadata.push({
-                                label: `${this.formatLabel(type)} Files`,
+                                label: `${formatLabel(type)} Files`,
                                 value: `${count} ${count === 1 ? 'file' : 'files'}`
                             });
                         });
@@ -3058,7 +1234,7 @@ class TestGenieApp {
 
             await Promise.all([
                 this.loadTestSuites(),
-                this.loadVaultScenarioOptions(true)
+                // Vault scenario options handled by VaultPage
             ]);
 
         } catch (error) {
@@ -3074,544 +1250,15 @@ class TestGenieApp {
         }
     }
 
-    async loadCoverageSummaries() {
-        if (!this.coverageTableContainer) {
-            return;
-        }
-
-        this.coverageTableContainer.innerHTML = '<div class="loading"><div class="spinner"></div>Loading coverage summaries...</div>';
-
-        try {
-            const response = await this.fetchWithErrorHandling('/test-analysis/coverage');
-            const coverages = this.normalizeCollection(response, 'coverages');
-            this.currentData.coverage = coverages || [];
-
-            if (!coverages || coverages.length === 0) {
-                this.coverageTableContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No coverage analyses found. Run a scenario\'s unit tests to generate coverage data.</p>';
-                this.coverageTableContainer.scrollLeft = 0;
-                this.enableDragScroll(this.coverageTableContainer);
-                return;
-            }
-
-            this.coverageTableContainer.innerHTML = this.renderCoverageTable(coverages);
-            this.coverageTableContainer.scrollLeft = 0;
-            this.enableDragScroll(this.coverageTableContainer);
-            this.bindCoverageTableActions();
-        } catch (error) {
-            console.error('Failed to load coverage summaries:', error);
-            this.coverageTableContainer.innerHTML = '<p style="color: var(--accent-error); text-align: center; padding: 2rem;">Failed to load coverage summaries.</p>';
-            this.coverageTableContainer.scrollLeft = 0;
-            this.enableDragScroll(this.coverageTableContainer);
-        }
-    }
-
-    async loadReports() {
-        const scenariosContainer = document.getElementById('reports-scenarios');
-        if (!scenariosContainer) {
-            return;
-        }
-
-        const windowSelect = document.getElementById('reports-window-select');
-        if (windowSelect && Number(windowSelect.value) !== this.reportsWindowDays) {
-            windowSelect.value = String(this.reportsWindowDays);
-        }
-
-        this.reportsIsLoading = true;
-        this.showReportsLoading();
-
-        const query = `?window_days=${encodeURIComponent(this.reportsWindowDays)}`;
-
-        try {
-            const [overview, trends, insights] = await Promise.all([
-                this.fetchWithErrorHandling(`/reports/overview${query}`),
-                this.fetchWithErrorHandling(`/reports/trends${query}`),
-                this.fetchWithErrorHandling(`/reports/insights${query}`)
-            ]);
-
-            if (!overview || !trends || !insights) {
-                throw new Error('reports endpoints returned empty responses');
-            }
-
-            this.currentData.reports = { overview, trends, insights };
-            this.updateReportsWindowMeta(overview);
-            this.renderReportsOverview(overview);
-            this.renderReportsTrends(trends);
-            this.renderReportsScenarioTable(overview);
-            this.renderReportsInsights(insights);
-            this.refreshIcons();
-        } catch (error) {
-            console.error('Failed to load reports:', error);
-            this.renderReportsError('Failed to load analytics. Please try again.');
-        } finally {
-            this.reportsIsLoading = false;
-        }
-    }
-
-    showReportsLoading() {
-        const metricValueIds = ['report-quality-index', 'report-regressions', 'report-coverage', 'report-vault'];
-        const metricSubtitleIds = ['report-quality-subtitle', 'report-regressions-subtitle', 'report-coverage-subtitle', 'report-vault-subtitle'];
-
-        metricValueIds.forEach((id) => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.textContent = '--';
-            }
-        });
-
-        metricSubtitleIds.forEach((id) => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.textContent = 'Loading…';
-            }
-        });
-
-        const meta = document.getElementById('reports-window-meta');
-        if (meta) {
-            meta.textContent = '';
-        }
-
-        const containers = [
-            document.getElementById('reports-trend-body'),
-            document.getElementById('reports-scenarios'),
-            document.getElementById('reports-insights')
-        ];
-
-        containers.forEach((container) => {
-            if (!container) {
-                return;
-            }
-            container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading analytics…</div>';
-        });
-    }
-
-    updateReportsWindowMeta(overview) {
-        const meta = document.getElementById('reports-window-meta');
-        if (!meta || !overview) {
-            return;
-        }
-
-        const rangeLabel = this.formatDateRange(overview.window_start, overview.window_end);
-        if (rangeLabel) {
-            meta.textContent = `Window: ${rangeLabel}`;
-        } else {
-            meta.textContent = '';
-        }
-    }
-
-    renderReportsOverview(overview) {
-        if (!overview) {
-            return;
-        }
-
-        const scenarios = Array.isArray(overview.scenarios) ? overview.scenarios : [];
-        const global = overview.global || {};
-        const vaults = overview.vaults || {};
-        const scenarioCount = scenarios.length;
-        const averageHealth = scenarioCount
-            ? scenarios.reduce((sum, item) => sum + (Number(item.health_score) || 0), 0) / scenarioCount
-            : 0;
-
-        const qualityValue = document.getElementById('report-quality-index');
-        if (qualityValue) {
-            qualityValue.textContent = Math.round(averageHealth);
-        }
-
-        const qualitySubtitle = document.getElementById('report-quality-subtitle');
-        if (qualitySubtitle) {
-            qualitySubtitle.textContent = `${scenarioCount} scenario${scenarioCount === 1 ? '' : 's'} tracked`;
-        }
-
-        const regressionsValue = document.getElementById('report-regressions');
-        if (regressionsValue) {
-            regressionsValue.textContent = Number(global.active_regressions || 0);
-        }
-
-        const regressionsSubtitle = document.getElementById('report-regressions-subtitle');
-        if (regressionsSubtitle) {
-            const running = Number(global.active_executions || 0);
-            const runningLabel = running > 0 ? `${running} running execution${running === 1 ? '' : 's'}` : 'No active runs';
-            regressionsSubtitle.textContent = runningLabel;
-        }
-
-        const avgCoverage = Number(global.average_coverage || 0);
-        const coverageTarget = 95;
-        const coverageValue = document.getElementById('report-coverage');
-        if (coverageValue) {
-            coverageValue.textContent = this.formatPercent(avgCoverage, 1);
-        }
-
-        const coverageSubtitle = document.getElementById('report-coverage-subtitle');
-        if (coverageSubtitle) {
-            const delta = avgCoverage - coverageTarget;
-            const deltaLabel = `${delta >= 0 ? '+' : '-'}${Math.abs(delta).toFixed(1)}% vs target`;
-            coverageSubtitle.textContent = `Target ${coverageTarget}% (${deltaLabel})`;
-        }
-
-        const vaultValue = document.getElementById('report-vault');
-        if (vaultValue) {
-            const successRate = Number(vaults.success_rate || 0);
-            vaultValue.textContent = this.formatPercent(successRate, 1);
-        }
-
-        const vaultSubtitle = document.getElementById('report-vault-subtitle');
-        if (vaultSubtitle) {
-            const totalExec = Number(vaults.total_executions || 0);
-            const failedExec = Number(vaults.failed_executions || 0);
-            vaultSubtitle.textContent = totalExec
-                ? `${totalExec} execution${totalExec === 1 ? '' : 's'} • ${failedExec} failure${failedExec === 1 ? '' : 's'}`
-                : 'No vault executions in window';
-        }
-    }
-
-    renderReportsTrends(trends) {
-        const container = document.getElementById('reports-trend-body');
-        if (!container) {
-            return;
-        }
-
-        const series = trends && Array.isArray(trends.series) ? trends.series : [];
-        if (series.length === 0) {
-            container.innerHTML = '<div class="reports-empty">No trend data available yet. Execute test suites to build history.</div>';
-            this.reportsTrendCanvas = null;
-            this.reportsTrendCtx = null;
-            return;
-        }
-
-        container.innerHTML = `
-            <canvas id="reports-trend-canvas" height="220"></canvas>
-            <div class="chart-legend">
-                <span class="legend-item"><span class="legend-swatch pass"></span>Pass rate</span>
-                <span class="legend-item"><span class="legend-swatch fail"></span>Failed executions</span>
-            </div>
-        `;
-
-        this.reportsTrendCanvas = document.getElementById('reports-trend-canvas');
-        if (!this.reportsTrendCanvas) {
-            return;
-        }
-
-        this.drawReportsTrendChart(series);
-    }
-
-    drawReportsTrendChart(series) {
-        if (!this.reportsTrendCanvas) {
-            return;
-        }
-
-        const devicePixelRatio = window.devicePixelRatio || 1;
-        const displayWidth = this.reportsTrendCanvas.clientWidth || 600;
-        const displayHeight = this.reportsTrendCanvas.getAttribute('height') ? Number(this.reportsTrendCanvas.getAttribute('height')) : 220;
-
-        this.reportsTrendCanvas.width = Math.max(displayWidth * devicePixelRatio, 1);
-        this.reportsTrendCanvas.height = Math.max(displayHeight * devicePixelRatio, 1);
-
-        const ctx = this.reportsTrendCanvas.getContext('2d');
-        if (!ctx) {
-            return;
-        }
-
-        ctx.save();
-        ctx.scale(devicePixelRatio, devicePixelRatio);
-
-        const width = displayWidth;
-        const height = displayHeight;
-        ctx.clearRect(0, 0, width, height);
-
-        const margin = { top: 20, right: 24, bottom: 32, left: 40 };
-        const chartWidth = width - margin.left - margin.right;
-        const chartHeight = height - margin.top - margin.bottom;
-
-        if (chartWidth <= 0 || chartHeight <= 0) {
-            ctx.restore();
-            return;
-        }
-
-        const passRates = series.map((point) => {
-            const passed = Number(point.passed_tests || 0);
-            const failed = Number(point.failed_tests || 0);
-            const total = passed + failed;
-            if (total === 0) {
-                return null;
-            }
-            return (passed / total) * 100;
-        });
-
-        const failureCounts = series.map((point) => Number(point.failed_executions || 0));
-        const maxFailure = failureCounts.reduce((max, value) => Math.max(max, value), 0) || 1;
-
-        const stepCount = series.length > 1 ? series.length - 1 : 1;
-        const stepX = chartWidth / stepCount;
-        const baseY = margin.top + chartHeight;
-        const barMaxHeight = chartHeight * 0.35;
-        const barWidth = Math.max(6, chartWidth / (series.length * 2));
-
-        // Grid lines
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 1;
-        [0, 25, 50, 75, 100].forEach((pct) => {
-            const y = margin.top + chartHeight - (pct / 100) * chartHeight;
-            ctx.beginPath();
-            ctx.moveTo(margin.left, y);
-            ctx.lineTo(margin.left + chartWidth, y);
-            ctx.stroke();
-
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-            ctx.font = '10px Inter, sans-serif';
-            ctx.fillText(`${pct}%`, 4, y + 3);
-        });
-
-        // Failure bars
-        ctx.fillStyle = 'rgba(255, 0, 64, 0.35)';
-        series.forEach((point, index) => {
-            const fail = failureCounts[index];
-            if (!Number.isFinite(fail)) {
-                return;
-            }
-            const x = margin.left + stepX * index;
-            const barHeight = Math.min(barMaxHeight, (fail / maxFailure) * barMaxHeight);
-            ctx.fillRect(x - barWidth / 2, baseY - barHeight, barWidth, barHeight);
-        });
-
-        // Pass rate line
-        ctx.strokeStyle = '#00ff41';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        passRates.forEach((value, index) => {
-            const x = margin.left + stepX * index;
-            const y = value === null ? baseY : margin.top + chartHeight - (value / 100) * chartHeight;
-            if (index === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-        });
-        ctx.stroke();
-
-        // Pass rate markers
-        ctx.fillStyle = '#00ff41';
-        passRates.forEach((value, index) => {
-            if (value === null) {
-                return;
-            }
-            const x = margin.left + stepX * index;
-            const y = margin.top + chartHeight - (value / 100) * chartHeight;
-            ctx.beginPath();
-            ctx.arc(x, y, 3, 0, Math.PI * 2, false);
-            ctx.fill();
-        });
-
-        // X-axis labels
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.font = '10px Inter, sans-serif';
-        series.forEach((point, index) => {
-            const bucket = point.bucket ? new Date(point.bucket) : null;
-            if (!bucket || Number.isNaN(bucket.getTime())) {
-                return;
-            }
-            const label = bucket.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-            const x = margin.left + stepX * index;
-            ctx.fillText(label, x - 18, height - 8);
-        });
-
-        ctx.restore();
-    }
-
-    renderReportsScenarioTable(overview) {
-        const container = document.getElementById('reports-scenarios');
-        if (!container) {
-            return;
-        }
-
-        const scenarios = overview && Array.isArray(overview.scenarios) ? [...overview.scenarios] : [];
-        if (scenarios.length === 0) {
-            container.innerHTML = '<p class="reports-empty">No scenario analytics yet. Generate and execute suites to populate this view.</p>';
-            return;
-        }
-
-        scenarios.sort((a, b) => {
-            const scoreA = Number(a.health_score || 0);
-            const scoreB = Number(b.health_score || 0);
-            return scoreA - scoreB;
-        });
-
-        const rows = scenarios.map((scenario) => {
-            const name = this.escapeHtml(scenario.scenario_name || 'Unknown');
-            const healthScore = Math.round(Number(scenario.health_score || 0));
-            const passRate = Number(scenario.pass_rate || 0);
-            const coverage = Number(scenario.coverage || 0);
-            const coverageTarget = Number(scenario.target_coverage || 95);
-            const activeFailures = Number(scenario.active_failures || 0);
-            const runningExecutions = Number(scenario.running_executions || 0);
-            const executionCount = Number(scenario.execution_count || 0);
-            const avgDuration = Number(scenario.average_test_duration || 0);
-            const lastStatus = scenario.last_execution_status || 'unknown';
-            const lastEndedAt = scenario.last_execution_ended_at || null;
-            const lastExecutionId = scenario.last_execution_id ? this.escapeHtml(scenario.last_execution_id) : '';
-
-            const descriptor = this.getStatusDescriptor(lastStatus);
-            const statusClass = this.getStatusClass(lastStatus);
-            const statusLabel = descriptor ? descriptor.label : this.formatLabel(lastStatus || 'unknown');
-            const statusIcon = descriptor?.icon ? `<i data-lucide="${descriptor.icon}"></i>` : '';
-
-            const vault = scenario.vault || {};
-            let vaultHtml = '<span class="text-muted">—</span>';
-            if (vault.has_vault) {
-                const vaultDescriptor = this.getStatusDescriptor(vault.latest_status || 'completed');
-                const vaultStatusClass = this.getStatusClass(vault.latest_status || 'completed');
-                const vaultLabel = vaultDescriptor ? vaultDescriptor.label : this.formatLabel(vault.latest_status || 'completed');
-                const vaultIcon = vaultDescriptor?.icon ? `<i data-lucide="${vaultDescriptor.icon}"></i>` : '';
-                const successRate = this.formatPercent(Number(vault.success_rate || 0), 1);
-                vaultHtml = `
-                    <div class="vault-summary">
-                        <span class="status ${vaultStatusClass}">${vaultIcon}${this.escapeHtml(vaultLabel)}</span>
-                        <span class="vault-meta">${successRate}</span>
-                    </div>
-                `;
-            }
-
-            const healthBarWidth = Math.min(Math.max(healthScore, 0), 100);
-            const passClass = activeFailures > 0 ? 'text-error' : 'text-success';
-            const passRateLabel = this.formatPercent(passRate, 1);
-            const coverageLabel = this.formatPercent(coverage, 1);
-            const durationLabel = this.formatDurationSeconds(avgDuration);
-            const lastRunLabel = lastEndedAt ? this.formatTimestamp(lastEndedAt) : '—';
-
-            return `
-                <tr>
-                    <td class="reports-cell-scenario">
-                        <div class="scenario-name">${name}</div>
-                        <div class="scenario-meta">${executionCount} execution${executionCount === 1 ? '' : 's'} · ${runningExecutions} running</div>
-                    </td>
-                    <td class="reports-cell-health">
-                        <div class="progress">
-                            <div class="progress-bar" style="width: ${healthBarWidth}%;"></div>
-                        </div>
-                        <span class="health-score">${healthScore}</span>
-                    </td>
-                    <td class="reports-cell-pass ${passClass}">${passRateLabel}</td>
-                    <td class="reports-cell-fail ${activeFailures > 0 ? 'text-error' : 'text-muted'}">${activeFailures}</td>
-                    <td class="reports-cell-coverage">
-                        <div class="coverage-meter">
-                            <div class="progress"><div class="progress-bar" style="width: ${Math.min(coverage, 100)}%;"></div></div>
-                            <span>${coverageLabel}</span>
-                        </div>
-                        <small class="coverage-target">Target ${coverageTarget}%</small>
-                    </td>
-                    <td class="reports-cell-vault">${vaultHtml}</td>
-                    <td class="reports-cell-last">
-                        <div class="last-status status ${statusClass}">${statusIcon}${this.escapeHtml(statusLabel)}</div>
-                        <div class="last-meta">${lastRunLabel}${lastExecutionId ? ` · <span class="code">${lastExecutionId.slice(0, 8)}</span>` : ''}</div>
-                        <div class="last-meta">Avg test ${durationLabel}</div>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        container.innerHTML = `
-            <div class="table-wrapper">
-                <table class="table reports-table">
-                    <thead>
-                        <tr>
-                            <th>Scenario</th>
-                            <th>Quality Index</th>
-                            <th>Pass Rate</th>
-                            <th>Active Failures</th>
-                            <th>Coverage</th>
-                            <th>Vault</th>
-                            <th>Last Execution</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                </table>
-            </div>
-        `;
-    }
-
-    renderReportsInsights(insightsResponse) {
-        const container = document.getElementById('reports-insights');
-        if (!container) {
-            return;
-        }
-
-        const insights = insightsResponse && Array.isArray(insightsResponse.insights)
-            ? insightsResponse.insights
-            : [];
-
-        if (insights.length === 0) {
-            container.innerHTML = '<p class="reports-empty">No insights generated for this window.</p>';
-            return;
-        }
-
-        const severityClassMap = {
-            high: 'insight-severity-high',
-            medium: 'insight-severity-medium',
-            info: 'insight-severity-info',
-            low: 'insight-severity-low'
-        };
-
-        const severityIconMap = {
-            high: 'alert-triangle',
-            medium: 'alert-circle',
-            info: 'info',
-            low: 'sparkles'
-        };
-
-        const items = insights.map((insight) => {
-            const severityKey = (insight.severity || 'info').toLowerCase();
-            const severityClass = severityClassMap[severityKey] || severityClassMap.info;
-            const severityIcon = severityIconMap[severityKey] || severityIconMap.info;
-            const severityLabel = this.formatLabel(insight.severity || 'info');
-            const actions = Array.isArray(insight.actions) ? insight.actions : [];
-            const scenarioBadge = insight.scenario_name
-                ? `<span class="insight-scenario"><i data-lucide="box"></i>${this.escapeHtml(insight.scenario_name)}</span>`
-                : '';
-
-            const actionsHtml = actions.length
-                ? `<ul class="insight-actions">${actions.map((action) => `<li>${this.escapeHtml(action)}</li>`).join('')}</ul>`
-                : '';
-
-            return `
-                <article class="insight-card">
-                    <header class="insight-header">
-                        <div>
-                            <h3 class="insight-title">${this.escapeHtml(insight.title || 'Insight')}</h3>
-                            <div class="insight-meta">${scenarioBadge}</div>
-                        </div>
-                        <span class="insight-severity ${severityClass}"><i data-lucide="${severityIcon}"></i>${this.escapeHtml(severityLabel)}</span>
-                    </header>
-                    <p class="insight-detail">${this.escapeHtml(insight.detail || '')}</p>
-                    ${actionsHtml}
-                </article>
-            `;
-        }).join('');
-
-        container.innerHTML = items;
-    }
-
-    renderReportsError(message) {
-        const errorHtml = `<div class="reports-error">${this.escapeHtml(message)}</div>`;
-        const trend = document.getElementById('reports-trend-body');
-        const scenarios = document.getElementById('reports-scenarios');
-        const insights = document.getElementById('reports-insights');
-
-        if (trend) {
-            trend.innerHTML = errorHtml;
-        }
-        if (scenarios) {
-            scenarios.innerHTML = errorHtml;
-        }
-        if (insights) {
-            insights.innerHTML = errorHtml;
-        }
-
-        const metricSubtitleIds = ['report-quality-subtitle', 'report-regressions-subtitle', 'report-coverage-subtitle', 'report-vault-subtitle'];
-        metricSubtitleIds.forEach((id) => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.textContent = 'Error loading metrics';
-            }
-        });
-    }
+    // ========================================================================
+    // LEGACY COVERAGE PAGE METHODS - Replaced by CoveragePage module
+    // Kept for reference during migration. Will be removed in Phase 7 cleanup.
+    // ========================================================================
+
+    // ========================================================================
+    // LEGACY REPORTS PAGE METHODS - Replaced by ReportsPage module
+    // Kept for reference during migration. Will be removed in Phase 7 cleanup.
+    // ========================================================================
 
     handleWindowResize() {
         if (this.activePage !== 'reports') {
@@ -3629,29 +1276,29 @@ class TestGenieApp {
     renderCoverageTable(coverages) {
         const rows = coverages.map((coverage) => {
             const overall = Number(coverage.overall_coverage || 0).toFixed(1);
-            const generatedAt = coverage.generated_at ? this.formatTimestamp(coverage.generated_at) : '—';
+            const generatedAt = coverage.generated_at ? formatTimestamp(coverage.generated_at) : '—';
             const languages = Array.isArray(coverage.languages)
                 ? coverage.languages.map((lang) => {
                     const statements = Number(lang.metrics?.statements ?? lang.metrics?.lines ?? 0).toFixed(1);
-                    return `${this.escapeHtml(this.formatLabel(lang.language))} (${statements}%)`;
+                    return `${escapeHtml(formatLabel(lang.language))} (${statements}%)`;
                   }).join(', ')
                 : '—';
 
             const warnings = Array.isArray(coverage.warnings) && coverage.warnings.length > 0
-                ? coverage.warnings.map((w) => `<div class="coverage-warning">⚠ ${this.escapeHtml(w)}</div>`).join('')
+                ? coverage.warnings.map((w) => `<div class="coverage-warning">⚠ ${escapeHtml(w)}</div>`).join('')
                 : '';
 
             return `
                 <tr>
-                    <td class="cell-scenario"><strong>${this.escapeHtml(coverage.scenario_name || 'unknown')}</strong>${warnings}</td>
+                    <td class="cell-scenario"><strong>${escapeHtml(coverage.scenario_name || 'unknown')}</strong>${warnings}</td>
                     <td class="cell-coverage">${overall}%</td>
                     <td>${languages || '—'}</td>
                     <td>${generatedAt}</td>
                     <td class="cell-actions">
-                        <button class="btn icon-btn" type="button" data-action="coverage-view" data-scenario="${this.escapeHtml(coverage.scenario_name)}">
+                        <button class="btn icon-btn" type="button" data-action="coverage-view" data-scenario="${escapeHtml(coverage.scenario_name)}">
                             <i data-lucide="eye"></i>
                         </button>
-                        <button class="btn icon-btn secondary" type="button" data-action="coverage-generate" data-scenario="${this.escapeHtml(coverage.scenario_name)}">
+                        <button class="btn icon-btn secondary" type="button" data-action="coverage-generate" data-scenario="${escapeHtml(coverage.scenario_name)}">
                             <i data-lucide="zap"></i>
                         </button>
                     </td>
@@ -3711,7 +1358,7 @@ class TestGenieApp {
             return;
         }
 
-        this.openCoverageDetailDialog(triggerButton, scenarioName);
+        dialogManager.openCoverageDetailDialog(triggerButton, scenarioName);
         this.coverageDetailContent.innerHTML = '<div class="loading"><div class="spinner"></div>Loading coverage analysis...</div>';
 
         try {
@@ -3734,15 +1381,15 @@ class TestGenieApp {
         const coverageRows = Object.entries(analysis.coverage_by_file || {})
             .sort((a, b) => Number(b[1]) - Number(a[1]))
             .slice(0, 15)
-            .map(([file, pct]) => `<tr><td>${this.escapeHtml(file)}</td><td>${Number(pct).toFixed(1)}%</td></tr>`)
+            .map(([file, pct]) => `<tr><td>${escapeHtml(file)}</td><td>${Number(pct).toFixed(1)}%</td></tr>`)
             .join('');
 
         const gaps = analysis.coverage_gaps || {};
         const suggestions = Array.isArray(analysis.improvement_suggestions) && analysis.improvement_suggestions.length
-            ? analysis.improvement_suggestions.map((item) => `<li>${this.escapeHtml(item)}</li>`).join('')
+            ? analysis.improvement_suggestions.map((item) => `<li>${escapeHtml(item)}</li>`).join('')
             : '<li>No immediate improvements suggested.</li>';
         const priorities = Array.isArray(analysis.priority_areas) && analysis.priority_areas.length
-            ? analysis.priority_areas.map((item) => `<li>${this.escapeHtml(item)}</li>`).join('')
+            ? analysis.priority_areas.map((item) => `<li>${escapeHtml(item)}</li>`).join('')
             : '<li>Monitor coverage trends over time.</li>';
 
         const gapSection = [
@@ -3755,8 +1402,8 @@ class TestGenieApp {
             }
             return `
                 <div class="coverage-gap-section">
-                    <strong>${this.escapeHtml(label)}</strong>
-                    <ul>${items.map((item) => `<li>${this.escapeHtml(item)}</li>`).join('')}</ul>
+                    <strong>${escapeHtml(label)}</strong>
+                    <ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
                 </div>
             `;
         }).join('');
@@ -3768,7 +1415,7 @@ class TestGenieApp {
         return `
             <div class="coverage-detail">
                 <div class="coverage-detail-header">
-                    <h3 style="margin-bottom: 0.25rem;">${this.escapeHtml(scenarioName)}</h3>
+                    <h3 style="margin-bottom: 0.25rem;">${escapeHtml(scenarioName)}</h3>
                     <p style="color: var(--text-muted);">Overall coverage: <strong>${overall}%</strong></p>
                 </div>
                 <div class="coverage-detail-grid">
@@ -3814,7 +1461,7 @@ class TestGenieApp {
             }
 
             this.showSuccess(`Coverage analysis generated for ${scenarioName}`);
-            await this.loadCoverageSummaries();
+            await coveragePage.load();
             await this.viewCoverageAnalysis(scenarioName, null);
         } catch (error) {
             console.error('Coverage analysis generation failed:', error);
@@ -3929,19 +1576,19 @@ class TestGenieApp {
             const result = await response.json();
 
             if (resultCard) {
-                const phaseLabels = phases.map((phase) => this.formatPhaseLabel(phase));
+                const phaseLabels = phases.map((phase) => formatPhaseLabel(phase));
                 const executionHint = result?.vault_id
                     ? `POST /api/v1/test-vault/${result.vault_id}/execute`
                     : 'POST /api/v1/test-vault/{vault_id}/execute';
 
                 resultCard.innerHTML = `
                     <div style="font-weight:600; margin-bottom: 0.5rem;">Vault created successfully.</div>
-                    <div><strong>Name:</strong> ${this.escapeHtml(vaultName)}</div>
-                    <div><strong>Scenario:</strong> ${this.escapeHtml(scenarioName)}</div>
-                    <div><strong>Phases:</strong> ${phaseLabels.map((label) => this.escapeHtml(label)).join(', ')}</div>
-                    <div><strong>Total timeout:</strong> ${this.formatDurationSeconds(totalTimeout)}</div>
+                    <div><strong>Name:</strong> ${escapeHtml(vaultName)}</div>
+                    <div><strong>Scenario:</strong> ${escapeHtml(scenarioName)}</div>
+                    <div><strong>Phases:</strong> ${phaseLabels.map((label) => escapeHtml(label)).join(', ')}</div>
+                    <div><strong>Total timeout:</strong> ${formatDurationSeconds(totalTimeout)}</div>
                     <div style="margin-top:0.75rem; font-size:0.8rem; color: var(--text-secondary);">
-                        Execute via <code>${this.escapeHtml(executionHint)}</code>
+                        Execute via <code>${escapeHtml(executionHint)}</code>
                     </div>
                 `;
                 resultCard.classList.add('visible');
@@ -3953,8 +1600,8 @@ class TestGenieApp {
             this.vaultPhaseDrafts.clear();
             this.resetVaultPhaseSelection();
             this.vaultScenarioOptionsLoaded = false;
-            await this.loadVaultScenarioOptions(true);
-            await this.loadVaultList();
+            // Vault scenario options handled by VaultPage;
+            await vaultPage.load();
         } catch (error) {
             console.error('Test vault creation failed:', error);
             this.showError(`Test vault creation failed: ${error.message}`);
@@ -3998,7 +1645,7 @@ class TestGenieApp {
             }
 
             if (navigate) {
-                this.navigateTo('executions');
+                navigationManager.navigateTo('executions');
             }
 
             return true;
@@ -4044,7 +1691,7 @@ class TestGenieApp {
         }
 
         this.selectedSuiteIds.clear();
-        this.updateSuiteSelectionUI();
+        selectionManager.updateSuiteSelectionUI();
 
         if (button) {
             button.disabled = false;
@@ -4059,7 +1706,7 @@ class TestGenieApp {
                 this.loadExecutions(),
                 this.loadRecentExecutions()
             ]);
-            this.navigateTo('executions');
+            navigationManager.navigateTo('executions');
         }
 
         if (failureCount > 0) {
@@ -4068,7 +1715,7 @@ class TestGenieApp {
     }
 
     viewSuite(suiteId, triggerElement = null) {
-        this.openSuiteDetail(suiteId, triggerElement);
+        dialogManager.openSuiteDetail(suiteId, triggerElement);
     }
 
     async openSuiteDetail(suiteId, triggerElement = null) {
@@ -4118,35 +1765,6 @@ class TestGenieApp {
         }
     }
 
-    closeSuiteDetail() {
-        if (!this.suiteDetailOverlay) {
-            return;
-        }
-
-        this.suiteDetailOverlay.classList.remove('active');
-        this.suiteDetailOverlay.setAttribute('aria-hidden', 'true');
-        document.body.classList.remove('suite-detail-open');
-        this.activeSuiteDetailId = null;
-
-        if (this.suiteDetailExecuteButton) {
-            this.suiteDetailExecuteButton.disabled = false;
-            delete this.suiteDetailExecuteButton.dataset.suiteId;
-        }
-
-        if (this.lastSuiteDetailTrigger) {
-            this.focusElement(this.lastSuiteDetailTrigger);
-            this.lastSuiteDetailTrigger = null;
-        }
-    }
-
-    isSuiteDetailOpen() {
-        return this.suiteDetailOverlay ? this.suiteDetailOverlay.classList.contains('active') : false;
-    }
-
-    isOverlayActive(overlay) {
-        return overlay ? overlay.classList.contains('active') : false;
-    }
-
     renderSuiteDetail(suite) {
         if (!this.suiteDetailContent) {
             return;
@@ -4168,8 +1786,8 @@ class TestGenieApp {
         }
 
         if (this.suiteDetailSubtitle) {
-            const createdText = createdAt ? `Generated ${this.formatDetailedTimestamp(createdAt)}` : 'Generated date unavailable';
-            const executedText = lastExecutedAt ? `Last executed ${this.formatDetailedTimestamp(lastExecutedAt)}` : 'Not executed yet';
+            const createdText = createdAt ? `Generated ${formatDetailedTimestamp(createdAt)}` : 'Generated date unavailable';
+            const executedText = lastExecutedAt ? `Last executed ${formatDetailedTimestamp(lastExecutedAt)}` : 'Not executed yet';
             this.suiteDetailSubtitle.textContent = `${createdText} • ${executedText}`;
         }
 
@@ -4189,16 +1807,16 @@ class TestGenieApp {
 
     buildSuiteSummary(suite, testCases) {
         const totalTests = testCases.length;
-        const statusLabel = this.formatLabel(suite.status || 'unknown');
-        const statusClass = this.getStatusClass(suite.status);
+        const statusLabel = formatLabel(suite.status || 'unknown');
+        const statusClass = getStatusClass(suite.status);
         const lastExecutedAt = suite.last_executed || suite.lastExecuted;
-        const lastExecutedSummary = lastExecutedAt ? `Ran ${this.formatRelativeTime(lastExecutedAt)}` : 'No executions yet';
+        const lastExecutedSummary = lastExecutedAt ? `Ran ${formatRelativeTime(lastExecutedAt)}` : 'No executions yet';
 
-        const suiteTypes = this.extractSuiteTypes(suite, testCases);
-        const suiteTypeSummary = suiteTypes.length ? suiteTypes.map(type => this.formatLabel(type)).join(', ') : 'No types recorded';
+        const suiteTypes = extractSuiteTypes(suite, testCases);
+        const suiteTypeSummary = suiteTypes.length ? suiteTypes.map(type => formatLabel(type)).join(', ') : 'No types recorded';
 
-        const priorityCounts = this.countBy(testCases.map(testCase => (testCase.priority || 'unspecified')));
-        const prioritySummary = this.summarizeCounts(priorityCounts, 'priority');
+        const priorityCounts = countBy(testCases.map(testCase => (testCase.priority || 'unspecified')));
+        const prioritySummary = summarizeCounts(priorityCounts, 'priority');
 
         const timeouts = testCases
             .map(testCase => Number(testCase.execution_timeout))
@@ -4228,21 +1846,21 @@ class TestGenieApp {
                 <div class="suite-detail-grid">
                     <div class="suite-detail-card">
                         <span class="label">Status</span>
-                        <span class="value"><span class="status ${statusClass}">${this.escapeHtml(statusLabel)}</span></span>
-                        <span class="value-small">${this.escapeHtml(lastExecutedSummary)}</span>
+                        <span class="value"><span class="status ${statusClass}">${escapeHtml(statusLabel)}</span></span>
+                        <span class="value-small">${escapeHtml(lastExecutedSummary)}</span>
                     </div>
                     <div class="suite-detail-card">
                         <span class="label">Test Cases</span>
                         <span class="value">${totalTests}</span>
-                        <span class="value-small">${this.escapeHtml(prioritySummary)}</span>
+                        <span class="value-small">${escapeHtml(prioritySummary)}</span>
                     </div>
                     <div class="suite-detail-card">
                         <span class="label">Suite Types</span>
-                        <span class="value-small">${this.escapeHtml(suiteTypeSummary)}</span>
+                        <span class="value-small">${escapeHtml(suiteTypeSummary)}</span>
                     </div>
                     <div class="suite-detail-card">
                         <span class="label">Metadata</span>
-                        <span class="value-small">${this.escapeHtml(metadataPieces.length ? metadataPieces.join(' • ') : 'No metadata captured')}</span>
+                        <span class="value-small">${escapeHtml(metadataPieces.length ? metadataPieces.join(' • ') : 'No metadata captured')}</span>
                     </div>
                 </div>
             </div>
@@ -4267,11 +1885,11 @@ class TestGenieApp {
         }
 
         const bars = entries.map(entry => {
-            const percent = this.clampPercentage(Number(entry.value));
+            const percent = clampPercentage(Number(entry.value));
             return `
                 <div class="coverage-item">
                     <div class="coverage-item-header">
-                        <span>${this.escapeHtml(entry.label)}</span>
+                        <span>${escapeHtml(entry.label)}</span>
                         <span>${percent}%</span>
                     </div>
                     <div class="progress">
@@ -4302,24 +1920,24 @@ class TestGenieApp {
         }
 
         const rows = testCases.map((testCase, index) => {
-            const name = this.escapeHtml(testCase.name || `Test ${index + 1}`);
-            const description = testCase.description ? this.escapeHtml(testCase.description) : '';
-            const testType = this.escapeHtml(this.formatLabel(testCase.test_type || 'unspecified'));
-            const priority = this.escapeHtml(this.formatLabel(testCase.priority || 'unspecified'));
+            const name = escapeHtml(testCase.name || `Test ${index + 1}`);
+            const description = testCase.description ? escapeHtml(testCase.description) : '';
+            const testType = escapeHtml(formatLabel(testCase.test_type || 'unspecified'));
+            const priority = escapeHtml(formatLabel(testCase.priority || 'unspecified'));
             const timeout = Number(testCase.execution_timeout);
             const timeoutText = Number.isFinite(timeout) ? `${timeout}s` : '—';
-            const expected = this.escapeHtml(testCase.expected_result || '—');
+            const expected = escapeHtml(testCase.expected_result || '—');
 
             const tags = Array.isArray(testCase.tags) && testCase.tags.length > 0
-                ? testCase.tags.filter(Boolean).map(tag => `<span class="suite-detail-tag">${this.escapeHtml(tag)}</span>`).join('')
+                ? testCase.tags.filter(Boolean).map(tag => `<span class="suite-detail-tag">${escapeHtml(tag)}</span>`).join('')
                 : '<span class="suite-detail-subtitle">None</span>';
 
             const dependencies = Array.isArray(testCase.dependencies) && testCase.dependencies.length > 0
-                ? testCase.dependencies.filter(Boolean).map(dep => `<span class="suite-detail-tag">${this.escapeHtml(dep)}</span>`).join('')
+                ? testCase.dependencies.filter(Boolean).map(dep => `<span class="suite-detail-tag">${escapeHtml(dep)}</span>`).join('')
                 : '<span class="suite-detail-subtitle">None</span>';
 
             const codeBlock = testCase.test_code
-                ? `<details><summary>View Generated Test</summary><pre class="suite-detail-code">${this.escapeHtml(testCase.test_code)}</pre></details>`
+                ? `<details><summary>View Generated Test</summary><pre class="suite-detail-code">${escapeHtml(testCase.test_code)}</pre></details>`
                 : '';
 
             return `
@@ -4368,7 +1986,7 @@ class TestGenieApp {
     }
 
     viewExecution(executionId, triggerElement = null) {
-        this.openExecutionDetail(executionId, triggerElement);
+        dialogManager.openExecutionDetail(executionId, triggerElement);
     }
 
     async deleteExecution(executionId, triggerButton = null, options = {}) {
@@ -4396,11 +2014,11 @@ class TestGenieApp {
                 throw new Error(errorText || `HTTP ${response.status}`);
             }
 
-            const normalizedId = this.normalizeId(executionId);
+            const normalizedId = normalizeId(executionId);
             this.selectedExecutionIds.delete(normalizedId);
 
-            if (this.normalizeId(this.activeExecutionDetailId) === normalizedId) {
-                this.closeExecutionDetail();
+            if (normalizeId(this.activeExecutionDetailId) === normalizedId) {
+                dialogManager.closeExecutionDetail();
             }
 
             if (!deferReload) {
@@ -4409,7 +2027,7 @@ class TestGenieApp {
                     this.loadRecentExecutions()
                 ]);
             } else {
-                this.updateExecutionSelectionUI();
+                selectionManager.updateExecutionSelectionUI();
             }
 
             if (!suppressNotifications) {
@@ -4464,7 +2082,7 @@ class TestGenieApp {
             }
         }
 
-        this.updateExecutionSelectionUI();
+        selectionManager.updateExecutionSelectionUI();
 
         if (deletedCount > 0) {
             this.showSuccess(`Deleted ${deletedCount} execution${deletedCount === 1 ? '' : 's'}.`);
@@ -4546,7 +2164,7 @@ class TestGenieApp {
 
         if (this.executionDetailStatus) {
             const statusText = execution.status || 'unknown';
-            const statusClass = this.getStatusClass(statusText);
+            const statusClass = getStatusClass(statusText);
             const summary = execution.summary || {};
             const coverageValue = Number(summary.coverage);
             const durationValue = Number(summary.duration);
@@ -4554,7 +2172,7 @@ class TestGenieApp {
             const durationLabel = Number.isFinite(durationValue) ? `${durationValue.toFixed(1)}s runtime` : 'Duration unavailable';
 
             this.executionDetailStatus.innerHTML = `
-                <span class="status ${statusClass}">${this.escapeHtml(statusText)}</span>
+                <span class="status ${statusClass}">${escapeHtml(statusText)}</span>
                 <span class="execution-detail-chip"><i data-lucide="target"></i>${coverageLabel}</span>
                 <span class="execution-detail-chip"><i data-lucide="clock"></i>${durationLabel}</span>
             `;
@@ -4565,26 +2183,6 @@ class TestGenieApp {
         }
 
         this.refreshIcons();
-    }
-
-    closeExecutionDetail() {
-        if (!this.executionDetailOverlay) {
-            return;
-        }
-
-        this.executionDetailOverlay.classList.remove('active');
-        this.executionDetailOverlay.setAttribute('aria-hidden', 'true');
-        document.body.classList.remove('execution-detail-open');
-        this.activeExecutionDetailId = null;
-
-        if (this.lastExecutionDetailTrigger) {
-            this.focusElement(this.lastExecutionDetailTrigger);
-            this.lastExecutionDetailTrigger = null;
-        }
-    }
-
-    isExecutionDetailOpen() {
-        return Boolean(this.executionDetailOverlay && this.executionDetailOverlay.classList.contains('active'));
     }
 
     renderExecutionDetail(execution) {
@@ -4681,7 +2279,7 @@ class TestGenieApp {
                     ${additionalUsage.length > 0 ? `
                         <div class="suite-detail-subtitle">Resource Usage</div>
                         <div class="execution-detail-badges">
-                            ${additionalUsage.map(([key, value]) => `<span class="execution-detail-badge">${this.escapeHtml(this.formatLabel(key))}: ${this.escapeHtml(this.stringifyValue(value))}</span>`).join('')}
+                            ${additionalUsage.map(([key, value]) => `<span class="execution-detail-badge">${escapeHtml(formatLabel(key))}: ${escapeHtml(stringifyValue(value))}</span>`).join('')}
                         </div>
                     ` : ''}
                 </div>
@@ -4702,7 +2300,7 @@ class TestGenieApp {
                 <div class="suite-detail-section">
                     <h3>Recommendations</h3>
                     <ul class="execution-detail-recommendations">
-                        ${recommendations.map(item => `<li>${this.escapeHtml(item)}</li>`).join('')}
+                        ${recommendations.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
                     </ul>
                 </div>
             `
@@ -4714,15 +2312,15 @@ class TestGenieApp {
     }
 
     renderFailedTest(test, index) {
-        const name = this.escapeHtml(test.test_case_name || `Test ${index + 1}`);
-        const description = test.test_case_description ? `<div class="suite-detail-subtitle">${this.escapeHtml(test.test_case_description)}</div>` : '';
+        const name = escapeHtml(test.test_case_name || `Test ${index + 1}`);
+        const description = test.test_case_description ? `<div class="suite-detail-subtitle">${escapeHtml(test.test_case_description)}</div>` : '';
         const durationValue = Number(test.duration);
         const durationLabel = Number.isFinite(durationValue) ? `${durationValue.toFixed(2)}s` : '—';
-        const errorMessage = test.error_message ? `<div class="suite-detail-subtitle text-error">${this.escapeHtml(test.error_message)}</div>` : '';
+        const errorMessage = test.error_message ? `<div class="suite-detail-subtitle text-error">${escapeHtml(test.error_message)}</div>` : '';
         const assertionsMarkup = this.renderAssertions(test.assertions);
         const artifactsMarkup = this.renderArtifacts(test.artifacts);
         const stackTrace = test.stack_trace
-            ? `<details class="execution-detail-stack"><summary>Stack Trace</summary><pre class="suite-detail-code">${this.escapeHtml(test.stack_trace)}</pre></details>`
+            ? `<details class="execution-detail-stack"><summary>Stack Trace</summary><pre class="suite-detail-code">${escapeHtml(test.stack_trace)}</pre></details>`
             : '';
 
         return `
@@ -4748,12 +2346,12 @@ class TestGenieApp {
         const blocks = assertions.map(assertion => {
             const status = assertion.passed ? 'Passed' : 'Failed';
             const statusClass = assertion.passed ? 'text-success' : 'text-error';
-            const name = this.escapeHtml(assertion.name || 'Assertion');
-            const message = assertion.message ? `<div class="suite-detail-subtitle">${this.escapeHtml(assertion.message)}</div>` : '';
-            const expected = this.stringifyValue(assertion.expected);
-            const actual = this.stringifyValue(assertion.actual);
-            const expectedLine = expected ? `<div class="suite-detail-subtitle">Expected: ${this.escapeHtml(expected)}</div>` : '';
-            const actualLine = actual ? `<div class="suite-detail-subtitle">Actual: ${this.escapeHtml(actual)}</div>` : '';
+            const name = escapeHtml(assertion.name || 'Assertion');
+            const message = assertion.message ? `<div class="suite-detail-subtitle">${escapeHtml(assertion.message)}</div>` : '';
+            const expected = stringifyValue(assertion.expected);
+            const actual = stringifyValue(assertion.actual);
+            const expectedLine = expected ? `<div class="suite-detail-subtitle">Expected: ${escapeHtml(expected)}</div>` : '';
+            const actualLine = actual ? `<div class="suite-detail-subtitle">Actual: ${escapeHtml(actual)}</div>` : '';
 
             return `
                 <div class="execution-detail-assertion">
@@ -4779,7 +2377,7 @@ class TestGenieApp {
         }
 
         const items = Object.entries(artifacts).map(([key, value]) => {
-            return `<span class="execution-detail-badge">${this.escapeHtml(this.formatLabel(key))}: ${this.escapeHtml(this.stringifyValue(value))}</span>`;
+            return `<span class="execution-detail-badge">${escapeHtml(formatLabel(key))}: ${escapeHtml(stringifyValue(value))}</span>`;
         }).join('');
 
         return `
@@ -4818,8 +2416,8 @@ class TestGenieApp {
             const deleted = typeof result.deleted === 'number' ? result.deleted : 'All';
             this.showSuccess(`Cleared ${deleted} test executions`);
             this.selectedExecutionIds.clear();
-            this.updateExecutionSelectionUI();
-            this.closeExecutionDetail();
+            selectionManager.updateExecutionSelectionUI();
+            dialogManager.closeExecutionDetail();
 
             await Promise.all([
                 this.loadExecutions(),
@@ -4839,35 +2437,78 @@ class TestGenieApp {
 
     bindSuitesTableActions(container) {
         const table = container.querySelector('.suites-table');
-        if (!table || table.dataset.bound === 'true') {
+        const alreadyBound = container.dataset.bound === 'true';
+        if (alreadyBound) {
             return;
         }
 
-        this.suiteSelectAllCheckbox = table.querySelector('input[data-suite-select-all]') || null;
+        this.suiteSelectAllCheckbox = table ? table.querySelector('input[data-suite-select-all]') || null : null;
 
-        table.addEventListener('click', event => {
+        // Add sorting functionality
+        if (table) {
+            const thead = table.querySelector('thead');
+            if (thead) {
+                thead.addEventListener('click', event => {
+                    const th = event.target.closest('th[data-sortable]');
+                    if (!th) return;
+
+                    const sortKey = th.dataset.sortable;
+                    const currentDirection = th.dataset.sortDirection || 'none';
+                    const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+
+                    // Reset all other headers
+                    thead.querySelectorAll('th[data-sortable]').forEach(header => {
+                        header.dataset.sortDirection = 'none';
+                        header.style.position = 'relative';
+                    });
+
+                    th.dataset.sortDirection = newDirection;
+                    this.sortSuitesTable(table, sortKey, newDirection);
+                });
+            }
+        }
+
+        container.addEventListener('click', event => {
+            // Check if clicking on a button first
             const button = event.target.closest('[data-action]');
-            if (!button) {
-                return;
+            if (button) {
+                const { action, suiteId, scenario } = button.dataset;
+
+                if (action === 'generate' && scenario) {
+                    dialogManager.openGenerateDialog(button, scenario);
+                    return;
+                }
+
+                if (action === 'execute' && suiteId) {
+                    this.executeSuite(suiteId);
+                    return;
+                }
+
+                if (action === 'view' && suiteId) {
+                    this.viewSuite(suiteId, button);
+                    return;
+                }
             }
 
-            const { action, suiteId, scenario } = button.dataset;
+            // If not clicking a button, check for row or card click
+            const row = event.target.closest('tr[data-suite-id]');
+            const card = event.target.closest('.suite-card[data-suite-id]');
+            const clickTarget = row || card;
 
-            if (action === 'generate' && scenario) {
-                this.openGenerateDialog(button, scenario);
-                return;
-            }
+            if (clickTarget) {
+                // Ignore clicks on checkboxes and buttons
+                if (event.target.closest('input[type="checkbox"]') || event.target.closest('button')) {
+                    return;
+                }
 
-            if (action === 'execute' && suiteId) {
-                this.executeSuite(suiteId);
-            }
-
-            if (action === 'view' && suiteId) {
-                this.viewSuite(suiteId, button);
+                const suiteId = clickTarget.dataset.suiteId;
+                if (suiteId) {
+                    this.viewSuite(suiteId, clickTarget);
+                }
             }
         });
 
-        table.addEventListener('change', event => {
+        container.addEventListener('change', event => {
             const checkbox = event.target;
             if (!(checkbox instanceof HTMLInputElement)) {
                 return;
@@ -4875,9 +2516,9 @@ class TestGenieApp {
 
             if (checkbox.matches('[data-suite-select-all]')) {
                 const shouldSelectAll = checkbox.checked;
-                const rowCheckboxes = table.querySelectorAll('input[data-suite-id]');
-                rowCheckboxes.forEach(rowCheckbox => {
-                    const suiteId = this.normalizeId(rowCheckbox.dataset.suiteId);
+                const allCheckboxes = container.querySelectorAll('input[data-suite-id]');
+                allCheckboxes.forEach(rowCheckbox => {
+                    const suiteId = normalizeId(rowCheckbox.dataset.suiteId);
                     if (!suiteId) {
                         return;
                     }
@@ -4888,12 +2529,12 @@ class TestGenieApp {
                         this.selectedSuiteIds.delete(suiteId);
                     }
                 });
-                this.updateSuiteSelectionUI();
+                selectionManager.updateSuiteSelectionUI();
                 return;
             }
 
             if (checkbox.matches('input[data-suite-id]')) {
-                const suiteId = this.normalizeId(checkbox.dataset.suiteId);
+                const suiteId = normalizeId(checkbox.dataset.suiteId);
                 if (!suiteId) {
                     return;
                 }
@@ -4903,11 +2544,11 @@ class TestGenieApp {
                 } else {
                     this.selectedSuiteIds.delete(suiteId);
                 }
-                this.updateSuiteSelectionUI();
+                selectionManager.updateSuiteSelectionUI();
             }
         });
 
-        table.dataset.bound = 'true';
+        container.dataset.bound = 'true';
     }
 
     bindExecutionsTableActions(container) {
@@ -4920,6 +2561,28 @@ class TestGenieApp {
         this.executionSelectAllCheckbox = supportsSelection
             ? table.querySelector('input[data-execution-select-all]') || null
             : null;
+
+        // Add sorting functionality
+        const thead = table.querySelector('thead');
+        if (thead) {
+            thead.addEventListener('click', event => {
+                const th = event.target.closest('th[data-sortable]');
+                if (!th) return;
+
+                const sortKey = th.dataset.sortable;
+                const currentDirection = th.dataset.sortDirection || 'none';
+                const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+
+                // Reset all other headers
+                thead.querySelectorAll('th[data-sortable]').forEach(header => {
+                    header.dataset.sortDirection = 'none';
+                    header.style.position = 'relative';
+                });
+
+                th.dataset.sortDirection = newDirection;
+                this.sortExecutionsTable(table, sortKey, newDirection);
+            });
+        }
 
         table.addEventListener('click', event => {
             const button = event.target.closest('[data-action]');
@@ -4948,7 +2611,7 @@ class TestGenieApp {
                     const shouldSelectAll = checkbox.checked;
                     const rowCheckboxes = table.querySelectorAll('input[data-execution-id]');
                     rowCheckboxes.forEach(rowCheckbox => {
-                        const executionId = this.normalizeId(rowCheckbox.dataset.executionId);
+                        const executionId = normalizeId(rowCheckbox.dataset.executionId);
                         if (!executionId) {
                             return;
                         }
@@ -4959,12 +2622,12 @@ class TestGenieApp {
                             this.selectedExecutionIds.delete(executionId);
                         }
                     });
-                    this.updateExecutionSelectionUI();
+                    selectionManager.updateExecutionSelectionUI();
                     return;
                 }
 
                 if (checkbox.matches('input[data-execution-id]')) {
-                    const executionId = this.normalizeId(checkbox.dataset.executionId);
+                    const executionId = normalizeId(checkbox.dataset.executionId);
                     if (!executionId) {
                         return;
                     }
@@ -4974,7 +2637,7 @@ class TestGenieApp {
                     } else {
                         this.selectedExecutionIds.delete(executionId);
                     }
-                    this.updateExecutionSelectionUI();
+                    selectionManager.updateExecutionSelectionUI();
                 }
             });
         }
@@ -4995,82 +2658,6 @@ class TestGenieApp {
         element.classList.toggle('is-hidden', !shouldShow);
     }
 
-    updateSuiteSelectionUI() {
-        const suiteIdsSource = (Array.isArray(this.renderedSuiteIds) && this.renderedSuiteIds.length)
-            ? this.renderedSuiteIds
-            : (Array.isArray(this.availableSuiteIds) && this.availableSuiteIds.length
-                ? this.availableSuiteIds
-                : (this.currentData.suites || []).map(suite => this.normalizeId(suite.id)).filter(Boolean));
-        const suiteIds = suiteIdsSource.filter(Boolean);
-        const selectedCount = suiteIds.filter(id => this.selectedSuiteIds.has(id)).length;
-        const hasSelection = selectedCount > 0;
-        const allSelected = suiteIds.length > 0 && selectedCount === suiteIds.length;
-
-        this.toggleElementVisibility(this.runSelectedSuitesButton, hasSelection);
-
-        if (this.runSelectedSuitesLabel) {
-            this.runSelectedSuitesLabel.textContent = allSelected ? 'Run All' : 'Run Selected';
-        }
-
-        if (this.suiteSelectAllCheckbox) {
-            this.suiteSelectAllCheckbox.checked = allSelected;
-            this.suiteSelectAllCheckbox.indeterminate = !allSelected && selectedCount > 0;
-        }
-    }
-
-    updateExecutionSelectionUI() {
-        const hasSelection = this.selectedExecutionIds.size > 0;
-        this.toggleElementVisibility(this.deleteSelectedExecutionsButton, hasSelection);
-
-        if (this.executionSelectAllCheckbox) {
-            const executionIds = (Array.isArray(this.renderedExecutionIds) && this.renderedExecutionIds.length)
-                ? this.renderedExecutionIds
-                : (this.currentData.executions || []).map(execution => this.normalizeId(execution.id)).filter(Boolean);
-            const selectedCount = executionIds.filter(id => this.selectedExecutionIds.has(id)).length;
-            const allSelected = executionIds.length > 0 && selectedCount === executionIds.length;
-            this.executionSelectAllCheckbox.checked = allSelected;
-            this.executionSelectAllCheckbox.indeterminate = !allSelected && selectedCount > 0;
-        }
-    }
-
-    pruneSuiteSelection(suites) {
-        const validIds = new Set();
-        (suites || []).forEach((suite) => {
-            if (!suite) {
-                return;
-            }
-
-            if (typeof suite === 'string') {
-                const id = this.normalizeId(suite);
-                if (id) {
-                    validIds.add(id);
-                }
-                return;
-            }
-
-            if (typeof suite === 'object') {
-                const candidate = this.normalizeId(suite.id ?? suite.latestSuiteId ?? suite);
-                if (candidate) {
-                    validIds.add(candidate);
-                }
-            }
-        });
-        Array.from(this.selectedSuiteIds).forEach(id => {
-            if (!validIds.has(id)) {
-                this.selectedSuiteIds.delete(id);
-            }
-        });
-    }
-
-    pruneExecutionSelection(executions) {
-        const validIds = new Set((executions || []).map(execution => this.normalizeId(execution.id)).filter(Boolean));
-        Array.from(this.selectedExecutionIds).forEach(id => {
-            if (!validIds.has(id)) {
-                this.selectedExecutionIds.delete(id);
-            }
-        });
-    }
-
     // Utility methods
     async refreshCurrentPage() {
         await this.loadPageData(this.activePage);
@@ -5078,39 +2665,10 @@ class TestGenieApp {
     }
 
     refreshDashboard() {
-        this.loadDashboardData();
-    }
-
-    startPeriodicUpdates() {
-        // Update system status every 30 seconds
-        setInterval(() => {
-            this.checkApiHealth();
-        }, 30000);
-
-        // Update dashboard metrics every 60 seconds
-        setInterval(() => {
-            if (this.activePage === 'dashboard') {
-                this.loadDashboardData();
-            }
-        }, 60000);
+        dashboardPage.load();
     }
 
     // Notification methods
-    lockDialogScroll() {
-        document.body.classList.add('dialog-open');
-    }
-
-    unlockDialogScrollIfIdle() {
-        const dialogsOpen = this.isOverlayActive(this.coverageDetailOverlay)
-            || this.isOverlayActive(this.generateDialogOverlay)
-            || this.isOverlayActive(this.vaultDialogOverlay)
-            || this.isOverlayActive(this.healthDialogOverlay);
-
-        if (!dialogsOpen) {
-            document.body.classList.remove('dialog-open');
-        }
-    }
-
     showSuccess(message) {
         this.showNotification(message, 'success');
     }
@@ -5175,308 +2733,8 @@ class TestGenieApp {
         }
     }
 
-    normalizeCollection(data, primaryKey) {
-        if (!data) return [];
-        if (Array.isArray(data)) {
-            return data;
-        }
-        if (primaryKey && Array.isArray(data[primaryKey])) {
-            return data[primaryKey];
-        }
-        if (Array.isArray(data.items)) {
-            return data.items;
-        }
-        if (Array.isArray(data.data)) {
-            return data.data;
-        }
-        return [];
-    }
-
-    normalizeId(value) {
-        if (value === null || value === undefined) {
-            return '';
-        }
-        return String(value);
-    }
-
-    stringifyValue(value) {
-        if (value === null || value === undefined) {
-            return '';
-        }
-
-        if (typeof value === 'string') {
-            return value;
-        }
-
-        if (typeof value === 'number' || typeof value === 'boolean') {
-            return String(value);
-        }
-
-        try {
-            return JSON.stringify(value);
-        } catch (error) {
-            return String(value);
-        }
-    }
-
-    escapeHtml(value) {
-        if (value === null || value === undefined) {
-            return '';
-        }
-
-        return String(value)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-
-    formatLabel(text) {
-        if (!text) {
-            return 'Unknown';
-        }
-
-        return String(text)
-            .replace(/[_-]+/g, ' ')
-            .split(' ')
-            .filter(Boolean)
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-    }
-
-    formatRelativeTime(timestamp) {
-        if (!timestamp) {
-            return '';
-        }
-
-        const reference = timestamp instanceof Date ? timestamp : new Date(timestamp);
-        if (Number.isNaN(reference.getTime())) {
-            return '';
-        }
-
-        const now = Date.now();
-        const diffMs = reference.getTime() - now;
-        const absDiff = Math.abs(diffMs);
-        const minute = 60 * 1000;
-        const hour = 60 * minute;
-        const day = 24 * hour;
-        const isFuture = diffMs > 0;
-
-        if (absDiff < minute) {
-            return isFuture ? 'in <1m' : 'just now';
-        }
-        if (absDiff < hour) {
-            const mins = Math.round(absDiff / minute);
-            return `${mins}m ${isFuture ? 'from now' : 'ago'}`;
-        }
-        if (absDiff < day) {
-            const hours = Math.round(absDiff / hour);
-            return `${hours}h ${isFuture ? 'from now' : 'ago'}`;
-        }
-        if (absDiff < day * 7) {
-            const days = Math.round(absDiff / day);
-            return `${days}d ${isFuture ? 'from now' : 'ago'}`;
-        }
-
-        return reference.toLocaleDateString();
-    }
-
-    formatDetailedTimestamp(timestamp) {
-        if (!timestamp) {
-            return 'unknown time';
-        }
-
-        const reference = timestamp instanceof Date ? timestamp : new Date(timestamp);
-        if (Number.isNaN(reference.getTime())) {
-            return 'unknown time';
-        }
-
-        const absolute = reference.toLocaleString(undefined, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-
-        const relative = this.formatRelativeTime(reference);
-        return relative ? `${absolute} (${relative})` : absolute;
-    }
-
-    clampPercentage(value) {
-        if (!Number.isFinite(value)) {
-            return 0;
-        }
-        const bounded = Math.max(0, Math.min(100, value));
-        return Math.round(bounded);
-    }
-
-    extractSuiteTypes(suite, testCases) {
-        const types = new Set();
-
-        if (Array.isArray(suite.test_types)) {
-            suite.test_types.filter(Boolean).forEach(type => types.add(type));
-        }
-
-        const rawSuiteType = suite.suite_type || suite.suiteType;
-        if (typeof rawSuiteType === 'string') {
-            rawSuiteType.split(',').map(token => token.trim()).filter(Boolean).forEach(type => types.add(type));
-        }
-
-        testCases.forEach(testCase => {
-            if (testCase && testCase.test_type) {
-                types.add(testCase.test_type);
-            }
-        });
-
-        return Array.from(types);
-    }
-
-    countBy(items) {
-        const result = {};
-        items.forEach(item => {
-            const key = (item || 'unspecified').toString().toLowerCase();
-            if (!result[key]) {
-                result[key] = 0;
-            }
-            result[key] += 1;
-        });
-        return result;
-    }
-
-    summarizeCounts(counts, context = 'items') {
-        const entries = Object.entries(counts || {}).filter(([, value]) => value > 0);
-
-        if (entries.length === 0) {
-            return `No ${context} data`;
-        }
-
-        entries.sort((a, b) => b[1] - a[1]);
-        return entries.map(([key, value]) => `${this.formatLabel(key)} (${value})`).join(' • ');
-    }
-
-    lookupSuiteName(suiteId) {
-        if (!suiteId || !this.currentData.suites) {
-            return null;
-        }
-        const match = this.currentData.suites.find(suite => suite.id === suiteId);
-        return match ? match.scenario_name || match.name : null;
-    }
-
-    calculateDuration(startTime, endTime) {
-        if (!startTime) return 0;
-        if (!endTime) {
-            // For running executions, calculate current duration
-            const start = new Date(startTime);
-            const now = new Date();
-            return Math.round((now - start) / 1000 * 10) / 10; // Round to 1 decimal
-        }
-        const start = new Date(startTime);
-        const end = new Date(endTime);
-        return Math.round((end - start) / 1000 * 10) / 10; // Round to 1 decimal
-    }
-
     // WebSocket connection for real-time updates
-    initWebSocket() {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws`;
-        
-        try {
-            this.wsConnection = new WebSocket(wsUrl);
-            
-            this.wsConnection.onopen = () => {
-                console.log('WebSocket connection established');
-                
-                // Subscribe to relevant topics
-                this.wsConnection.send(JSON.stringify({
-                    type: 'subscribe',
-                    payload: {
-                        topics: ['system_status', 'executions', 'test_completion']
-                    }
-                }));
-            };
-            
-            this.wsConnection.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                this.handleWebSocketMessage(data);
-            };
-            
-            this.wsConnection.onclose = () => {
-                console.log('WebSocket connection closed');
-                // Reconnect after 5 seconds
-                setTimeout(() => this.initWebSocket(), 5000);
-            };
-            
-            this.wsConnection.onerror = (error) => {
-                console.error('WebSocket error:', error);
-            };
-        } catch (error) {
-            console.error('Failed to initialize WebSocket:', error);
-        }
-    }
-
-    handleWebSocketMessage(data) {
-        switch (data.type) {
-            case 'execution_update':
-                this.handleExecutionUpdate(data.payload);
-                break;
-            case 'test_completion':
-                this.handleTestCompletion(data.payload);
-                break;
-            case 'system_status':
-                this.updateSystemStatus(data.payload);
-                break;
-            default:
-                console.log('Unknown WebSocket message type:', data.type);
-        }
-    }
-
-    handleExecutionUpdate(payload) {
-        // Update execution status in real-time
-        if (this.activePage === 'executions' || this.activePage === 'dashboard') {
-            this.loadPageData(this.activePage);
-        }
-        
-        // Show notification for execution status changes
-        if (payload.status === 'completed') {
-            this.showSuccess(`Test execution ${payload.execution_id} completed successfully`);
-        } else if (payload.status === 'failed') {
-            this.showError(`Test execution ${payload.execution_id} failed`);
-        }
-    }
-
-    handleTestCompletion(payload) {
-        // Refresh dashboard metrics
-        if (this.activePage === 'dashboard') {
-            this.loadDashboardData();
-        }
-        
-        this.showInfo(`Test ${payload.test_name} completed with status: ${payload.status}`);
-    }
-
     // Enhanced periodic updates with better error handling
-    startPeriodicUpdates() {
-        // Update system status every 30 seconds
-        setInterval(async () => {
-            await this.checkApiHealth();
-        }, 30000);
-
-        // Update current page data every 60 seconds
-        this.refreshInterval = setInterval(async () => {
-            if (this.activePage === 'dashboard') {
-                await this.loadDashboardData();
-            } else if (this.activePage === 'executions') {
-                await this.loadExecutions();
-            } else if (this.activePage === 'suites') {
-                await this.loadTestSuites();
-            }
-        }, 60000);
-
-        // Initialize WebSocket for real-time updates
-        this.initWebSocket();
-    }
-
     // Clean up resources
     destroy() {
         if (this.refreshInterval) {

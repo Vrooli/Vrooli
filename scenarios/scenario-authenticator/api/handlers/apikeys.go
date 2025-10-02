@@ -18,15 +18,15 @@ import (
 
 // APIKey represents an API key in the database
 type APIKey struct {
-	ID          string    `json:"id"`
-	UserID      string    `json:"user_id"`
-	Name        string    `json:"name"`
-	Key         string    `json:"key,omitempty"` // Only returned on creation
-	Permissions []string  `json:"permissions"`
-	RateLimit   int       `json:"rate_limit"`
+	ID          string     `json:"id"`
+	UserID      string     `json:"user_id"`
+	Name        string     `json:"name"`
+	Key         string     `json:"key,omitempty"` // Only returned on creation
+	Permissions []string   `json:"permissions"`
+	RateLimit   int        `json:"rate_limit"`
 	LastUsed    *time.Time `json:"last_used,omitempty"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
+	CreatedAt   time.Time  `json:"created_at"`
 }
 
 // GenerateAPIKey generates a new secure API key

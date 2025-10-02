@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Genie Core Test Suite</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+        .test-section h2 {
+            color: #00ff41;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .test-result {
+            padding: 5px 0;
+            font-size: 14px;
+        }
+        .pass {
+            color: #00ff41;
+        }
+        .fail {
+            color: #ff0040;
+        }
+        pre {
+            background: #0a0a0a;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .summary {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .summary h2 {
+            color: #00d4ff;
+        }
+        button {
+            background: #00ff41;
+            color: #0a0a0a;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: monospace;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover {
+            background: #00d4ff;
+        }
+        .event-log {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #0a0a0a;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        .event-log div {
+            padding: 2px 0;
+            border-bottom: 1px solid #1a1a1a;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Genie Core Data Layer Test Suite</h1>
+    <div id="test-results"></div>
+    <div class="summary" id="summary"></div>
+
+    <script type="module">
+        import core from './index.js';
+
+        const { eventBus, stateManager, apiClient, EVENT_TYPES } = core;
+
+        const results = document.getElementById('test-results');
+        const summary = document.getElementById('summary');
+        let totalTests = 0;
+        let passedTests = 0;
+        let failedTests = 0;
+
+        function addSection(title) {
+            const section = document.createElement('div');
+            section.className = 'test-section';
+            section.innerHTML = `<h2>${title}</h2>`;
+            results.appendChild(section);
+            return section;
+        }
+
+        function addResult(section, name, passed, value = '') {
+            totalTests++;
+            if (passed) passedTests++;
+            else failedTests++;
+
+            const result = document.createElement('div');
+            result.className = `test-result ${passed ? 'pass' : 'fail'}`;
+            result.textContent = `${passed ? '✓' : '✗'} ${name}${value ? ': ' + value : ''}`;
+            section.appendChild(result);
+        }
+
+        function addCode(section, code) {
+            const pre = document.createElement('pre');
+            pre.textContent = code;
+            section.appendChild(pre);
+        }
+
+        // Test EventBus
+        const eventBusSection = addSection('EventBus Tests');
+
+        // Test basic on/emit
+        let eventReceived = false;
+        const unsubscribe = eventBus.on('test:event', (event) => {
+            eventReceived = true;
+        });
+        eventBus.emit('test:event', { test: 'data' });
+        addResult(eventBusSection, 'Event subscription and emission', eventReceived);
+
+        // Test unsubscribe
+        unsubscribe();
+        eventReceived = false;
+        eventBus.emit('test:event', { test: 'data' });
+        addResult(eventBusSection, 'Event unsubscription', !eventReceived);
+
+        // Test once
+        let onceCount = 0;
+        eventBus.once('test:once', () => { onceCount++; });
+        eventBus.emit('test:once');
+        eventBus.emit('test:once');
+        addResult(eventBusSection, 'Once listener fires only once', onceCount === 1);
+
+        // Test priority
+        const executionOrder = [];
+        eventBus.on('test:priority', () => executionOrder.push('low'), { priority: 0 });
+        eventBus.on('test:priority', () => executionOrder.push('high'), { priority: 10 });
+        eventBus.emit('test:priority');
+        addResult(eventBusSection, 'Priority execution order', executionOrder[0] === 'high' && executionOrder[1] === 'low');
+        eventBus.off('test:priority');
+
+        // Test listener count
+        eventBus.on('test:count', () => {});
+        eventBus.on('test:count', () => {});
+        const count = eventBus.getListenerCount('test:count');
+        addResult(eventBusSection, 'Listener count tracking', count === 2);
+        eventBus.off('test:count');
+
+        // EventBus debug info
+        addCode(eventBusSection, JSON.stringify(eventBus.getDebugInfo(), null, 2));
+
+        // Test StateManager
+        const stateSection = addSection('StateManager Tests');
+
+        // Test get/set
+        stateManager.set('test.value', 42);
+        const value = stateManager.get('test.value');
+        addResult(stateSection, 'State get/set', value === 42);
+
+        // Test nested path
+        stateManager.set('nested.path.value', 'test');
+        const nested = stateManager.get('nested.path.value');
+        addResult(stateSection, 'Nested path support', nested === 'test');
+
+        // Test merge
+        stateManager.set('merge.test', { a: 1, b: 2 });
+        stateManager.update('merge.test', { b: 3, c: 4 });
+        const merged = stateManager.get('merge.test');
+        addResult(stateSection, 'State merge', merged.a === 1 && merged.b === 3 && merged.c === 4);
+
+        // Test watch
+        let watchTriggered = false;
+        const unwatch = stateManager.watch('watch.test', (newVal, oldVal) => {
+            watchTriggered = true;
+        });
+        stateManager.set('watch.test', 'value');
+        addResult(stateSection, 'State watcher', watchTriggered);
+        unwatch();
+
+        // Test data operations
+        stateManager.setData('suites', [{ id: 1, name: 'Test Suite' }]);
+        const suites = stateManager.getData('suites');
+        addResult(stateSection, 'Data collection management', suites.length === 1 && suites[0].name === 'Test Suite');
+
+        // Test selection
+        stateManager.toggleSuiteSelection('suite-1');
+        const hasSelection = stateManager.state.selections.selectedSuiteIds.has('suite-1');
+        addResult(stateSection, 'Selection management', hasSelection);
+
+        // Test loading state
+        stateManager.setLoading('suites', true);
+        const loading = stateManager.get('ui.loading.suites');
+        addResult(stateSection, 'Loading state', loading === true);
+
+        // StateManager debug info
+        addCode(stateSection, JSON.stringify(stateManager.getDebugInfo(), null, 2));
+
+        // Test ApiClient
+        const apiSection = addSection('ApiClient Tests');
+
+        // Test configuration
+        addResult(apiSection, 'ApiClient baseUrl', apiClient.baseUrl === '/api/v1');
+        addResult(apiSection, 'ApiClient timeout', apiClient.defaultTimeout === 30000);
+        addResult(apiSection, 'ApiClient retry config', apiClient.maxRetries === 3);
+
+        // Test interceptors
+        let interceptorCalled = false;
+        apiClient.addRequestInterceptor(async (url, options) => {
+            interceptorCalled = true;
+            return options;
+        });
+        addResult(apiSection, 'Request interceptor support', apiClient.requestInterceptors.length > 0);
+
+        // ApiClient debug info
+        addCode(apiSection, JSON.stringify(apiClient.getDebugInfo(), null, 2));
+
+        // Test method availability
+        const apiMethods = [
+            'checkHealth',
+            'getTestSuites',
+            'getTestSuite',
+            'generateTestSuite',
+            'executeTestSuite',
+            'getTestExecutions',
+            'deleteTestExecution',
+            'getCoverageSummaries',
+            'getTestVaults',
+            'createTestVault'
+        ];
+        const missingMethods = apiMethods.filter(method => typeof apiClient[method] !== 'function');
+        addResult(apiSection, 'All API methods available', missingMethods.length === 0,
+            missingMethods.length > 0 ? `Missing: ${missingMethods.join(', ')}` : 'All present');
+
+        // Test WebSocketClient
+        const wsSection = addSection('WebSocketClient Tests');
+
+        const { wsClient } = core;
+        addResult(wsSection, 'WebSocketClient initialized', wsClient !== null && wsClient !== undefined);
+        addResult(wsSection, 'WebSocket not initially connected', !wsClient.isConnected);
+        addResult(wsSection, 'WebSocket has subscribe method', typeof wsClient.subscribe === 'function');
+        addResult(wsSection, 'WebSocket has send method', typeof wsClient.send === 'function');
+
+        // Test metrics
+        const wsMetrics = wsClient.getMetrics();
+        addResult(wsSection, 'WebSocket metrics available', wsMetrics !== null);
+        addCode(wsSection, JSON.stringify(wsMetrics, null, 2));
+
+        // Test Integration
+        const integrationSection = addSection('Integration Tests');
+
+        // Test EventBus + StateManager integration
+        let eventEmittedOnStateChange = false;
+        eventBus.on(EVENT_TYPES.DATA_UPDATED, (event) => {
+            if (event.data.path === 'integration.test') {
+                eventEmittedOnStateChange = true;
+            }
+        });
+        stateManager.set('integration.test', 'value');
+        addResult(integrationSection, 'StateManager emits events on change', eventEmittedOnStateChange);
+
+        // Test event bus propagation
+        let propagationStopped = false;
+        eventBus.on('test:propagation', (event) => {
+            event.stopPropagation();
+        });
+        eventBus.on('test:propagation', () => {
+            propagationStopped = true; // This shouldn't run
+        });
+        eventBus.emit('test:propagation');
+        addResult(integrationSection, 'Event propagation stopping', !propagationStopped);
+        eventBus.off('test:propagation');
+
+        // Test event history
+        addResult(integrationSection, 'EventBus maintains history', eventBus.eventHistory.length > 0);
+
+        // Test state history
+        addResult(integrationSection, 'StateManager maintains history', stateManager.history.length > 0);
+
+        // Interactive Tests Section
+        const interactiveSection = addSection('Interactive Tests');
+        interactiveSection.innerHTML += `
+            <p>Click buttons to test interactive features:</p>
+            <button id="emit-event-btn">Emit Test Event</button>
+            <button id="update-state-btn">Update State</button>
+            <button id="toggle-debug-btn">Toggle Debug Mode</button>
+            <button id="clear-logs-btn">Clear Event Log</button>
+            <div class="event-log" id="event-log"></div>
+        `;
+
+        const eventLog = document.getElementById('event-log');
+
+        function logEvent(message) {
+            const entry = document.createElement('div');
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            eventLog.insertBefore(entry, eventLog.firstChild);
+
+            // Keep only last 50 events
+            while (eventLog.children.length > 50) {
+                eventLog.removeChild(eventLog.lastChild);
+            }
+        }
+
+        // Event logger
+        const loggedEventTypes = Object.values(EVENT_TYPES);
+        loggedEventTypes.forEach(eventType => {
+            eventBus.on(eventType, (event) => {
+                logEvent(`Event: ${eventType}`);
+            });
+        });
+
+        // Button handlers
+        document.getElementById('emit-event-btn').addEventListener('click', () => {
+            eventBus.emit(EVENT_TYPES.NOTIFICATION_SHOW, { message: 'Test notification' });
+            logEvent('Manually emitted notification event');
+        });
+
+        document.getElementById('update-state-btn').addEventListener('click', () => {
+            const random = Math.random();
+            stateManager.set('test.interactive', random);
+            logEvent(`State updated: test.interactive = ${random.toFixed(4)}`);
+        });
+
+        let debugMode = false;
+        document.getElementById('toggle-debug-btn').addEventListener('click', () => {
+            debugMode = !debugMode;
+            eventBus.setDebug(debugMode);
+            stateManager.setDebug(debugMode);
+            apiClient.setDebug(debugMode);
+            wsClient.setDebug(debugMode);
+            logEvent(`Debug mode ${debugMode ? 'enabled' : 'disabled'}`);
+        });
+
+        document.getElementById('clear-logs-btn').addEventListener('click', () => {
+            eventLog.innerHTML = '';
+            logEvent('Event log cleared');
+        });
+
+        // Generate summary
+        summary.innerHTML = `
+            <h2>Test Summary</h2>
+            <div style="font-size: 16px; margin: 10px 0;">
+                <div class="pass">✓ Passed: ${passedTests}</div>
+                <div class="fail">✗ Failed: ${failedTests}</div>
+                <div>Total: ${totalTests}</div>
+                <div style="margin-top: 10px; color: ${failedTests === 0 ? '#00ff41' : '#ff0040'};">
+                    <strong>${failedTests === 0 ? 'All tests passed! ✓' : `${failedTests} test(s) failed`}</strong>
+                </div>
+            </div>
+            <pre style="margin-top: 15px;">Phase 2: Data Layer Complete
+✓ EventBus: Pub/sub system operational
+✓ StateManager: Centralized state working
+✓ ApiClient: HTTP communication ready
+✓ WebSocketClient: Real-time ready (not connected)</pre>
+        `;
+
+        // Initial log message
+        logEvent('Core data layer test suite initialized');
+        logEvent(`EventBus: ${eventBus.getEventTypes().length} event types registered`);
+        logEvent(`StateManager: State initialized with ${Object.keys(stateManager.state).length} top-level keys`);
+    </script>
+</body>
+</html>

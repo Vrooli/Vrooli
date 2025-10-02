@@ -20,8 +20,12 @@ vrooli scenario setup funnel-builder
 # Start the services
 vrooli scenario run funnel-builder
 
-# Access the UI
-open http://localhost:20000
+# Check status and ports
+vrooli scenario status funnel-builder
+
+# Access the UI (port is dynamically allocated, typically around 20001)
+# Check actual port with: vrooli scenario status funnel-builder
+open http://localhost:20001
 ```
 
 ## 💡 Use Cases

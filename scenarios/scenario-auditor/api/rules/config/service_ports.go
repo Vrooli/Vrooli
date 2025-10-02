@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -159,8 +160,8 @@ Targets: service_json
   <expected-message>ports.ui.range</expected-message>
 </test-case>
 
-<test-case id="ui-fixed-port" should-fail="false" path=".vrooli/service.json">
-  <description>UI port uses fixed assignment instead of range</description>
+<test-case id="ui-port-fixed-valid" should-fail="false" path=".vrooli/service.json">
+  <description>UI port uses fixed assignment with port field in valid range</description>
   <input language="json">
 {
   "ports": {
@@ -170,11 +171,79 @@ Targets: service_json
     },
     "ui": {
       "env_var": "UI_PORT",
-      "fixed": 38000
+      "port": 38000
     }
   }
 }
   </input>
+</test-case>
+
+<test-case id="ui-port-fixed-reserved" should-fail="true" path=".vrooli/service.json">
+  <description>UI port uses fixed assignment in reserved range</description>
+  <input language="json">
+{
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 3500
+    }
+  }
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>reserved range</expected-message>
+</test-case>
+
+<test-case id="api-range-invalid-format" should-fail="true" path=".vrooli/service.json">
+  <description>API range has invalid format</description>
+  <input language="json">
+{
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-notanumber"
+    }
+  }
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>invalid format</expected-message>
+</test-case>
+
+<test-case id="api-range-inverted" should-fail="true" path=".vrooli/service.json">
+  <description>API range has start greater than end</description>
+  <input language="json">
+{
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "19999-15000"
+    }
+  }
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>start must be less than end</expected-message>
+</test-case>
+
+<test-case id="api-range-overlaps-reserved" should-fail="true" path=".vrooli/service.json">
+  <description>API range overlaps with reserved ranges</description>
+  <input language="json">
+{
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "3000-4000"
+    }
+  }
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>reserved range</expected-message>
 </test-case>
 
 <test-case id="ports-api-not-object" should-fail="true" path=".vrooli/service.json">
@@ -281,6 +350,20 @@ func validateAPIPort(entry map[string]interface{}, source, filePath string, viol
 		return
 	}
 
+	// Parse and validate range format
+	start, end, err := parsePortRange(rangeStr)
+	if err != nil {
+		*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.api.range has %s", err.Error())))
+		return
+	}
+
+	// Check for overlap with reserved ranges FIRST (more specific error)
+	if overlaps, reservedName := checkReservedRangeOverlap(start, end); overlaps {
+		*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.api.range overlaps with reserved range: %s", reservedName)))
+		return
+	}
+
+	// Check if range is the approved one
 	if rangeStr != "15000-19999" {
 		*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.api.range must be \"15000-19999\""))
 	}
@@ -293,6 +376,7 @@ func validateUIPort(entry map[string]interface{}, source, filePath string, viola
 		*violations = append(*violations, newPortsViolation(filePath, envVarLine, "ports.ui.env_var must be \"UI_PORT\" when the ui port is defined"))
 	}
 
+	// Check for range field
 	if rangeVal, hasRange := entry["range"]; hasRange {
 		rangeLine := findPortsJSONLine(source, "\"ui\"", "\"range\"")
 		rangeStr, ok := rangeVal.(string)
@@ -300,8 +384,70 @@ func validateUIPort(entry map[string]interface{}, source, filePath string, viola
 			*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.ui.range must be \"35000-39999\" when a range is specified"))
 			return
 		}
+
+		// Parse and validate range format
+		start, end, err := parsePortRange(rangeStr)
+		if err != nil {
+			*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.ui.range has %s", err.Error())))
+			return
+		}
+
+		// Check if range is the approved one
 		if rangeStr != "35000-39999" {
 			*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.ui.range must be \"35000-39999\" when a range is specified"))
+			return
+		}
+
+		// Check for overlap with reserved ranges
+		if overlaps, reservedName := checkReservedRangeOverlap(start, end); overlaps {
+			*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.ui.range overlaps with reserved range: %s", reservedName)))
+		}
+	}
+
+	// Check for fixed port field
+	if portVal, hasPort := entry["port"]; hasPort {
+		portLine := findPortsJSONLine(source, "\"ui\"", "\"port\"")
+
+		// Port can be either a number or a string (with env var substitution like "${PORT:-3500}")
+		var port int
+		switch v := portVal.(type) {
+		case float64:
+			port = int(v)
+		case int:
+			port = v
+		case string:
+			// If it's a string with env var substitution like "${PORT:-3500}", extract the default
+			if strings.Contains(v, "${") {
+				// Skip validation for env var strings - they're validated at runtime
+				return
+			}
+			// Try to parse as number
+			parsed, err := strconv.Atoi(strings.TrimSpace(v))
+			if err != nil {
+				*violations = append(*violations, newPortsViolation(filePath, portLine, "ports.ui.port must be a valid port number"))
+				return
+			}
+			port = parsed
+		default:
+			*violations = append(*violations, newPortsViolation(filePath, portLine, "ports.ui.port must be a number"))
+			return
+		}
+
+		// Validate port is in valid range
+		if port < 1 || port > 65535 {
+			*violations = append(*violations, newPortsViolation(filePath, portLine, "ports.ui.port must be between 1 and 65535"))
+			return
+		}
+
+		// Check if fixed port is in a reserved range FIRST (more specific error)
+		if inReserved, reservedName := checkFixedPortInReserved(port); inReserved {
+			*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.ui.port %d is in reserved range: %s", port, reservedName)))
+			return
+		}
+
+		// Verify fixed port is in the UI range (35000-39999)
+		if port < 35000 || port > 39999 {
+			*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.ui.port %d should be in range 35000-39999", port)))
 		}
 	}
 }
@@ -366,4 +512,62 @@ func findPortsJSONLine(content string, tokens ...string) int {
 		}
 	}
 	return 1
+}
+
+// Reserved port ranges that scenarios must NOT use (from port_registry.sh)
+var reservedRanges = map[string][2]int{
+	"vrooli_core": {3000, 4100},
+	"databases":   {5432, 5499},
+	"cache":       {6379, 6399},
+	"debug":       {9200, 9299},
+	"system":      {1, 1023},
+}
+
+// parsePortRange parses a range string like "15000-19999" and returns start, end, error
+func parsePortRange(rangeStr string) (int, int, error) {
+	parts := strings.Split(rangeStr, "-")
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("invalid format: expected 'start-end'")
+	}
+
+	start, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid format: start port must be a number")
+	}
+
+	end, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid format: end port must be a number")
+	}
+
+	if start < 1 || start > 65535 || end < 1 || end > 65535 {
+		return 0, 0, fmt.Errorf("ports must be between 1 and 65535")
+	}
+
+	if start >= end {
+		return 0, 0, fmt.Errorf("start must be less than end")
+	}
+
+	return start, end, nil
+}
+
+// checkReservedRangeOverlap checks if a port range overlaps with any reserved ranges
+func checkReservedRangeOverlap(start, end int) (bool, string) {
+	for name, reserved := range reservedRanges {
+		// Check for overlap: range overlaps if start <= reserved_end && end >= reserved_start
+		if start <= reserved[1] && end >= reserved[0] {
+			return true, fmt.Sprintf("%s (%d-%d)", name, reserved[0], reserved[1])
+		}
+	}
+	return false, ""
+}
+
+// checkFixedPortInReserved checks if a fixed port is in a reserved range
+func checkFixedPortInReserved(port int) (bool, string) {
+	for name, reserved := range reservedRanges {
+		if port >= reserved[0] && port <= reserved[1] {
+			return true, fmt.Sprintf("%s (%d-%d)", name, reserved[0], reserved[1])
+		}
+	}
+	return false, ""
 }

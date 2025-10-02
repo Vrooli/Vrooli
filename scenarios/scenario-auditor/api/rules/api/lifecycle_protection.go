@@ -334,6 +334,165 @@ func main() {
   <expected-violations>1</expected-violations>
   <expected-message>os.Exit must use non-zero</expected-message>
 </test-case>
+
+<test-case id="deferred-exit" should-fail="true" path="api/main.go" scenario="demo-app">
+  <description>defer os.Exit(1) doesn't stop execution - CRITICAL VULNERABILITY</description>
+  <input language="go">
+package main
+
+import (
+    "fmt"
+    "os"
+)
+
+func main() {
+    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start demo-app
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+        defer os.Exit(1)  // DEFERRED - execution continues!
+    }
+
+    fmt.Println("This code still runs even without lifecycle!")
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Missing os.Exit</expected-message>
+</test-case>
+
+<test-case id="conditional-exit" should-fail="true" path="api/main.go" scenario="demo-app">
+  <description>os.Exit inside nested condition - might not execute</description>
+  <input language="go">
+package main
+
+import (
+    "fmt"
+    "os"
+)
+
+func main() {
+    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start demo-app
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+        // Nested condition - exit might not happen!
+        if true {
+            os.Exit(1)
+        }
+    }
+
+    fmt.Println("Server starting anyway!")
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Missing os.Exit</expected-message>
+</test-case>
+
+<test-case id="message-in-comment" should-fail="true" path="api/main.go" scenario="demo-app">
+  <description>Required message in comment but wrong message in code - should fail with proper block extraction</description>
+  <input language="go">
+package main
+
+import (
+    "fmt"
+    "os"
+)
+
+// ❌ This binary must be run through the Vrooli lifecycle system.
+// 🚀 Instead, use: vrooli scenario start demo-app
+// Required message is here in comment!
+
+func main() {
+    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+        fmt.Fprintln(os.Stderr, "Nope!")  // Wrong message!
+        os.Exit(1)
+    }
+
+    fmt.Println("Running...")
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Missing Lifecycle Protection</expected-message>
+</test-case>
+
+<test-case id="log-setflags-before-check" should-fail="false" path="api/main.go" scenario="demo-app">
+  <description>log.SetFlags before lifecycle check - should PASS (whitelisted harmless setup)</description>
+  <input language="go">
+package main
+
+import (
+    "fmt"
+    "log"
+    "os"
+)
+
+func main() {
+    log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
+    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start demo-app
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+        os.Exit(1)
+    }
+
+    log.Println("Starting...")
+}
+  </input>
+</test-case>
+
+<test-case id="variable-assignment-with-intervening-code" should-fail="true" path="api/main.go" scenario="demo-app">
+  <description>Variable assignment with business logic before check - should fail</description>
+  <input language="go">
+package main
+
+import (
+    "fmt"
+    "os"
+)
+
+func main() {
+    lifecycleManaged := os.Getenv("VROOLI_LIFECYCLE_MANAGED")
+
+    // Business logic runs before the check!
+    fmt.Println("Initializing...")
+    doSomethingDangerous()
+
+    if lifecycleManaged != "true" {
+        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start demo-app
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+        os.Exit(1)
+    }
+}
+
+func doSomethingDangerous() {
+    fmt.Println("Critical operation executed without protection!")
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Lifecycle check not first statement</expected-message>
+</test-case>
 */
 
 // CheckLifecycleProtection validates that main functions include lifecycle protection
@@ -452,8 +611,8 @@ func analyzeMainFunction(mainFunc *ast.FuncDecl, fset *token.FileSet, scenarioNa
 				info.hasCorrectLogic = hasCorrectConditionalLogic(ifStmt.Cond, varAssignments)
 
 				// Validate the error block
-				info.hasErrorMessage = hasLifecycleErrorMessage(ifStmt.Body, scenarioName, content)
-				info.hasOsExit, info.exitCodeNonZero = hasOsExitCall(ifStmt.Body)
+				info.hasErrorMessage = hasLifecycleErrorMessage(ifStmt.Body, scenarioName, content, fset)
+				info.hasOsExit, info.exitCodeNonZero = hasOsExitCall(ifStmt.Body, fset)
 
 				break
 			}
@@ -536,20 +695,64 @@ func resolveScenarioName(provided string, filePath string) string {
 		return scenario
 	}
 
+	// Normalize path separators
 	clean := strings.ReplaceAll(filePath, "\\", "/")
 	parts := strings.Split(clean, "/")
+
+	// Strategy 1: Look for "scenarios" directory in path
 	for i := 0; i < len(parts); i++ {
 		if parts[i] == "scenarios" && i+1 < len(parts) {
-			return parts[i+1]
+			candidate := parts[i+1]
+			// Skip common non-scenario directories
+			if candidate != "api" && candidate != "cli" && candidate != "ui" {
+				return candidate
+			}
 		}
 	}
 
-	base := filepath.Base(filepath.Dir(filePath))
-	if base != "." && base != "" {
+	// Strategy 2: Look for common project patterns (api, cli, ui subdirectories)
+	// If file is in /foo/bar/api/main.go, scenario is likely "bar"
+	for i := len(parts) - 1; i >= 0; i-- {
+		if parts[i] == "api" || parts[i] == "cli" || parts[i] == "ui" {
+			if i > 0 {
+				candidate := parts[i-1]
+				// Skip "scenarios" directory itself
+				if candidate != "scenarios" && candidate != "." && candidate != "" {
+					return candidate
+				}
+			}
+		}
+	}
+
+	// Strategy 3: Use parent directory of file
+	parentDir := filepath.Dir(filePath)
+	base := filepath.Base(parentDir)
+
+	// If parent is "api", "cli", or "ui", go one level up
+	if base == "api" || base == "cli" || base == "ui" {
+		grandparentDir := filepath.Dir(parentDir)
+		base = filepath.Base(grandparentDir)
+	}
+
+	if base != "." && base != "" && base != "scenarios" {
 		return base
 	}
 
-	return "your-scenario"
+	// Strategy 4: Try to extract from absolute path
+	absPath, err := filepath.Abs(filePath)
+	if err == nil {
+		absClean := strings.ReplaceAll(absPath, "\\", "/")
+		absParts := strings.Split(absClean, "/")
+		for i := 0; i < len(absParts); i++ {
+			if absParts[i] == "scenarios" && i+1 < len(absParts) {
+				return absParts[i+1]
+			}
+		}
+	}
+
+	// Last resort: use generic placeholder
+	// This will at least make it obvious something went wrong
+	return "SCENARIO_NAME_HERE"
 }
 
 // Helper functions
@@ -716,13 +919,48 @@ func isLifecycleExpression(expr ast.Expr, varAssignments map[string]bool) bool {
 }
 
 // hasOsExitCall checks if the block contains os.Exit() with non-zero code
-func hasOsExitCall(block *ast.BlockStmt) (hasExit bool, nonZeroCode bool) {
+// Also detects if exit is deferred or conditional (both are security issues)
+func hasOsExitCall(block *ast.BlockStmt, fset *token.FileSet) (hasExit bool, nonZeroCode bool) {
+	var isDeferred bool
+	var isConditional bool
+
+	// Track the depth of if-statements to detect conditional exits
+	ifDepth := 0
+
 	ast.Inspect(block, func(n ast.Node) bool {
+		// Track when we enter/exit if-statements
+		if _, ok := n.(*ast.IfStmt); ok {
+			ifDepth++
+		}
+
+		// Check for defer statements
+		if deferStmt, ok := n.(*ast.DeferStmt); ok {
+			// deferStmt.Call is already a *ast.CallExpr
+			call := deferStmt.Call
+			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+				if ident, ok := sel.X.(*ast.Ident); ok && ident.Name == "os" {
+					if sel.Sel.Name == "Exit" {
+						hasExit = true
+						isDeferred = true
+						return false // Found it, stop searching
+					}
+				}
+			}
+		}
+
+		// Check for os.Exit() call
 		if call, ok := n.(*ast.CallExpr); ok {
 			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
 				if ident, ok := sel.X.(*ast.Ident); ok && ident.Name == "os" {
 					if sel.Sel.Name == "Exit" {
 						hasExit = true
+
+						// Check if exit is inside a nested if-statement (conditional)
+						// We're already in the lifecycle protection if-block (depth 0)
+						// If ifDepth > 0, we're in a nested if
+						if ifDepth > 0 {
+							isConditional = true
+						}
 
 						// Check exit code
 						if len(call.Args) > 0 {
@@ -743,11 +981,18 @@ func hasOsExitCall(block *ast.BlockStmt) (hasExit bool, nonZeroCode bool) {
 		return true
 	})
 
+	// If exit is deferred or conditional, treat as if it doesn't exist
+	// (because it won't reliably prevent execution)
+	if isDeferred || isConditional {
+		hasExit = false
+		nonZeroCode = false
+	}
+
 	return hasExit, nonZeroCode
 }
 
 // hasLifecycleErrorMessage checks if the block contains the required error message
-func hasLifecycleErrorMessage(block *ast.BlockStmt, scenarioName, content string) bool {
+func hasLifecycleErrorMessage(block *ast.BlockStmt, scenarioName, content string, fset *token.FileSet) bool {
 	// Check for key phrases in the content
 	// We require: lifecycle system mention + correct command with scenario name
 	requiredPhrases := []string{
@@ -756,7 +1001,7 @@ func hasLifecycleErrorMessage(block *ast.BlockStmt, scenarioName, content string
 		scenarioName, // Must mention the correct scenario name
 	}
 
-	blockText := getBlockText(block, content)
+	blockText := getBlockText(block, content, fset)
 
 	for _, phrase := range requiredPhrases {
 		if !strings.Contains(blockText, phrase) {
@@ -767,12 +1012,43 @@ func hasLifecycleErrorMessage(block *ast.BlockStmt, scenarioName, content string
 	return true
 }
 
-// getBlockText extracts the text content of a block statement
-func getBlockText(block *ast.BlockStmt, fullContent string) string {
-	// Simple approach: extract block content from source
-	// In a real implementation, we'd use fset.Position to get exact location
-	// For now, we'll check if the full content contains the required phrases
-	return fullContent
+// getBlockText extracts the text content of a block statement using AST positions
+func getBlockText(block *ast.BlockStmt, fullContent string, fset *token.FileSet) string {
+	if block == nil || fset == nil {
+		return ""
+	}
+
+	// Use fset to convert token positions to byte offsets
+	startPos := fset.Position(block.Pos())
+	endPos := fset.Position(block.End())
+
+	// For safety, scan through the content to find byte offsets
+	// (since Position gives us line:column, not byte offset)
+	lines := strings.Split(fullContent, "\n")
+
+	// Calculate byte offset for start position
+	startOffset := 0
+	for i := 1; i < startPos.Line && i <= len(lines); i++ {
+		startOffset += len(lines[i-1]) + 1 // +1 for newline
+	}
+	startOffset += startPos.Column - 1
+
+	// Calculate byte offset for end position
+	endOffset := 0
+	for i := 1; i < endPos.Line && i <= len(lines); i++ {
+		endOffset += len(lines[i-1]) + 1 // +1 for newline
+	}
+	endOffset += endPos.Column - 1
+
+	// Ensure offsets are within bounds
+	if startOffset < 0 || endOffset > len(fullContent) || startOffset >= endOffset {
+		// Fallback: search for the required phrases in full content
+		// This maintains backward compatibility but is less precise
+		return fullContent
+	}
+
+	// Extract just the block content
+	return fullContent[startOffset:endOffset]
 }
 
 // isLifecycleRelated checks if a statement is related to lifecycle checking
@@ -785,6 +1061,37 @@ func isLifecycleRelated(stmt ast.Stmt, varAssignments map[string]bool) bool {
 	// Check if it's the lifecycle if statement
 	if ifStmt, ok := stmt.(*ast.IfStmt); ok {
 		return isLifecycleIfStmt(ifStmt, varAssignments)
+	}
+
+	// Check if it's a whitelisted harmless setup call
+	if exprStmt, ok := stmt.(*ast.ExprStmt); ok {
+		return isHarmlessSetup(exprStmt)
+	}
+
+	return false
+}
+
+// isHarmlessSetup checks if a statement is a harmless setup call that's safe before lifecycle check
+func isHarmlessSetup(exprStmt *ast.ExprStmt) bool {
+	call, ok := exprStmt.X.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+
+	// Whitelist of harmless setup patterns
+	// log.SetFlags(), log.SetOutput(), log.SetPrefix()
+	if ident, ok := sel.X.(*ast.Ident); ok {
+		if ident.Name == "log" {
+			switch sel.Sel.Name {
+			case "SetFlags", "SetOutput", "SetPrefix":
+				return true
+			}
+		}
 	}
 
 	return false

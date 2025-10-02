@@ -214,33 +214,12 @@
       ]
     },
     "test": {
-      "description": "Test authentication service functionality",
+      "description": "Comprehensive phased testing using modern testing architecture",
       "steps": [
         {
-          "name": "test-api-build",
-          "run": "cd api && go test ./...",
-          "description": "Run API unit tests"
-        },
-        {
-          "name": "test-integration",
-          "run": "./test/integration.sh",
-          "description": "Run integration tests",
-          "condition": {
-            "file_exists": "test/integration.sh"
-          }
-        },
-        {
-          "name": "test-cli",
-          "run": "./cli/scenario-authenticator status --json",
-          "description": "Test CLI functionality"
-        },
-        {
-          "name": "test-auth-flow",
-          "run": "./test/auth-flow.sh",
-          "description": "Test complete authentication flow",
-          "condition": {
-            "file_exists": "test/auth-flow.sh"
-          }
+          "name": "run-comprehensive-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute comprehensive phased testing"
         }
       ]
     },

@@ -30,14 +30,16 @@ func SendValidationResponse(w http.ResponseWriter, valid bool, claims *models.Cl
 	response := models.ValidationResponse{
 		Valid: valid,
 	}
-	
+
 	if valid && claims != nil {
 		response.UserID = claims.UserID
 		response.Email = claims.Email
 		response.Roles = claims.Roles
-		response.ExpiresAt = time.Unix(claims.ExpiresAt, 0)
+		if claims.ExpiresAt != nil {
+			response.ExpiresAt = claims.ExpiresAt.Time
+		}
 	}
-	
+
 	SendJSON(w, response, http.StatusOK)
 }
 

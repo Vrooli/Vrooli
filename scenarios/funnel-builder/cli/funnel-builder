@@ -6,7 +6,20 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-API_URL="${FUNNEL_API_URL:-http://localhost:${API_PORT:-15000}}"
+SCENARIO_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Discover API port if not set
+if [ -z "$API_PORT" ]; then
+    # Try to discover port from running scenario
+    DISCOVERED_PORT=$("$SCENARIO_DIR/scripts/get-api-port.sh" 2>/dev/null)
+    if [ -n "$DISCOVERED_PORT" ]; then
+        API_PORT="$DISCOVERED_PORT"
+    else
+        API_PORT="15000"  # Default fallback
+    fi
+fi
+
+API_URL="${FUNNEL_API_URL:-http://localhost:${API_PORT}}"
 API_BASE="${API_URL}/api/v1"
 
 # Colors for output

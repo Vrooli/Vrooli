@@ -8,8 +8,8 @@ import (
 
 /*
 Rule: Makefile Core Structure
-Description: Enforces the canonical Makefile header, phony declarations, goal, scenario variable, colour palette, and help target structure
-Reason: Consistent scaffolding keeps lifecycle messaging accurate for agents and humans
+Description: Enforces canonical Makefile structure with STRICT consistency for interoperability. All scenarios must follow identical structure including fmt-go/lint-go/fmt-ui/lint-ui targets (use no-op stubs if needed).
+Reason: STRICT consistency ensures agents and humans can rely on standard targets across all scenarios. Any deviation breaks tooling and creates confusion.
 Category: makefile
 Severity: high
 Targets: makefile
@@ -30,7 +30,7 @@ Targets: makefile
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui
 
 .DEFAULT_GOAL := help
 
@@ -46,7 +46,7 @@ help: ## Show this help message
 	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
+	@echo "  make &lt;command&gt;"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -54,7 +54,47 @@ help: ## Show this help message
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
 	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
-  </input>
+
+start: ## Start this scenario
+	@echo "Starting..."
+
+stop: ## Stop this scenario
+	@echo "Stopping..."
+
+test: ## Run scenario tests
+	@echo "Testing..."
+
+logs: ## Show scenario logs
+	@echo "Logs..."
+
+status: ## Show scenario status
+	@echo "Status..."
+
+clean: ## Clean build artifacts
+	@echo "Cleaning..."
+
+build: ## Build the scenario
+	@echo "Building..."
+
+dev: ## Start development mode
+	@echo "Dev mode..."
+
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-go: ## Format Go code
+	@echo "Formatting Go..."
+
+fmt-ui: ## Format UI code
+	@echo "Formatting UI..."
+
+lint: lint-go lint-ui ## Lint all code
+
+lint-go: ## Lint Go code
+	@echo "Linting Go..."
+
+lint-ui: ## Lint UI code
+	@echo "Linting UI..."
+</input>
 </test-case>
 
 <test-case id="structure-missing-header" should-fail="true">
@@ -73,7 +113,7 @@ help: ## Show this help message
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui
 
 .DEFAULT_GOAL := help
 
@@ -89,7 +129,7 @@ help: ## Show this help message
 	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
+	@echo "  make &lt;command&gt;"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -97,9 +137,49 @@ help: ## Show this help message
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
 	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
-  </input>
-  <expected-violations>1</expected-violations>
-  <expected-message>Header must explain lifecycle requirement</expected-message>
+
+start: ## Start this scenario
+	@echo "Starting..."
+
+stop: ## Stop this scenario
+	@echo "Stopping..."
+
+test: ## Run scenario tests
+	@echo "Testing..."
+
+logs: ## Show scenario logs
+	@echo "Logs..."
+
+status: ## Show scenario status
+	@echo "Status..."
+
+clean: ## Clean build artifacts
+	@echo "Cleaning..."
+
+build: ## Build the scenario
+	@echo "Building..."
+
+dev: ## Start development mode
+	@echo "Dev mode..."
+
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-go: ## Format Go code
+	@echo "Formatting Go..."
+
+fmt-ui: ## Format UI code
+	@echo "Formatting UI..."
+
+lint: lint-go lint-ui ## Lint all code
+
+lint-go: ## Lint Go code
+	@echo "Linting Go..."
+
+lint-ui: ## Lint UI code
+	@echo "Linting UI..."
+</input>
+<expected-violations>1</expected-violations>
+<expected-message>Header must explain lifecycle requirement</expected-message>
 </test-case>
 
 <test-case id="structure-order-phony" should-fail="true">
@@ -120,7 +200,7 @@ help: ## Show this help message
 
 .DEFAULT_GOAL := help
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui
 
 SCENARIO_NAME := $(notdir $(CURDIR))
 
@@ -134,7 +214,7 @@ help: ## Show this help message
 	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
+	@echo "  make &lt;command&gt;"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -142,9 +222,49 @@ help: ## Show this help message
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
 	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
-  </input>
-  <expected-violations>2</expected-violations>
-  <expected-message>.PHONY target declaration</expected-message>
+
+start: ## Start this scenario
+	@echo "Starting..."
+
+stop: ## Stop this scenario
+	@echo "Stopping..."
+
+test: ## Run scenario tests
+	@echo "Testing..."
+
+logs: ## Show scenario logs
+	@echo "Logs..."
+
+status: ## Show scenario status
+	@echo "Status..."
+
+clean: ## Clean build artifacts
+	@echo "Cleaning..."
+
+build: ## Build the scenario
+	@echo "Building..."
+
+dev: ## Start development mode
+	@echo "Dev mode..."
+
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-go: ## Format Go code
+	@echo "Formatting Go..."
+
+fmt-ui: ## Format UI code
+	@echo "Formatting UI..."
+
+lint: lint-go lint-ui ## Lint all code
+
+lint-go: ## Lint Go code
+	@echo "Linting Go..."
+
+lint-ui: ## Lint UI code
+	@echo "Linting UI..."
+</input>
+<expected-violations>2</expected-violations>
+<expected-message>.PHONY target declaration</expected-message>
 </test-case>
 
 <test-case id="structure-help-first" should-fail="true">
@@ -163,7 +283,7 @@ help: ## Show this help message
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui
 
 .DEFAULT_GOAL := help
 
@@ -182,7 +302,7 @@ help: ## Show this help message
 	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
+	@echo "  make &lt;command&gt;"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -190,9 +310,46 @@ help: ## Show this help message
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
 	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
-  </input>
-  <expected-violations>2</expected-violations>
-  <expected-message>help target must be defined before any other targets</expected-message>
+
+start: ## Start this scenario
+	@echo "Starting..."
+
+stop: ## Stop this scenario
+	@echo "Stopping..."
+
+test: ## Run scenario tests
+	@echo "Testing..."
+
+status: ## Show scenario status
+	@echo "Status..."
+
+clean: ## Clean build artifacts
+	@echo "Cleaning..."
+
+build: ## Build the scenario
+	@echo "Building..."
+
+dev: ## Start development mode
+	@echo "Dev mode..."
+
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-go: ## Format Go code
+	@echo "Formatting Go..."
+
+fmt-ui: ## Format UI code
+	@echo "Formatting UI..."
+
+lint: lint-go lint-ui ## Lint all code
+
+lint-go: ## Lint Go code
+	@echo "Linting Go..."
+
+lint-ui: ## Lint UI code
+	@echo "Linting UI..."
+</input>
+<expected-violations>2</expected-violations>
+<expected-message>help target must be defined before any other targets</expected-message>
 </test-case>
 
 <test-case id="structure-shortcuts-terminal" should-fail="true">
@@ -211,7 +368,7 @@ help: ## Show this help message
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui
 
 .DEFAULT_GOAL := help
 
@@ -227,7 +384,7 @@ help: ## Show this help message
 	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
+	@echo "  make &lt;command&gt;"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -236,6 +393,43 @@ help: ## Show this help message
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
 	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
+start: ## Start this scenario
+	@echo "Starting..."
+
+stop: ## Stop this scenario
+	@echo "Stopping..."
+
+test: ## Run scenario tests
+	@echo "Testing..."
+
+logs: ## Show scenario logs
+	@echo "Logs..."
+
+status: ## Show scenario status
+	@echo "Status..."
+
+clean: ## Clean build artifacts
+	@echo "Cleaning..."
+
+build: ## Build the scenario
+	@echo "Building..."
+
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-go: ## Format Go code
+	@echo "Formatting Go..."
+
+fmt-ui: ## Format UI code
+	@echo "Formatting UI..."
+
+lint: lint-go lint-ui ## Lint all code
+
+lint-go: ## Lint Go code
+	@echo "Linting Go..."
+
+lint-ui: ## Lint UI code
+	@echo "Linting UI..."
+
 # Development shortcuts
 dev: start
 restart: stop start
@@ -243,9 +437,9 @@ restart: stop start
 .PHONY: make-executable
 make-executable:
 	@echo "fix permissions"
-  </input>
-  <expected-violations>3</expected-violations>
-  <expected-message>Shortcut targets must be the final content in the Makefile</expected-message>
+</input>
+<expected-violations>3</expected-violations>
+<expected-message>Shortcut targets must be the final content in the Makefile</expected-message>
 </test-case>
 
 <test-case id="structure-shortcuts-valid" should-fail="false">
@@ -264,7 +458,7 @@ make-executable:
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui
 
 .DEFAULT_GOAL := help
 
@@ -280,7 +474,7 @@ help: ## Show this help message
 	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
+	@echo "  make &lt;command&gt;"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -289,11 +483,101 @@ help: ## Show this help message
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
 	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
+start: ## Start this scenario
+	@echo "Starting..."
+
+stop: ## Stop this scenario
+	@echo "Stopping..."
+
+test: ## Run scenario tests
+	@echo "Testing..."
+
+logs: ## Show scenario logs
+	@echo "Logs..."
+
+status: ## Show scenario status
+	@echo "Status..."
+
+clean: ## Clean build artifacts
+	@echo "Cleaning..."
+
+build: ## Build the scenario
+	@echo "Building..."
+
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-go: ## Format Go code
+	@echo "Formatting Go..."
+
+fmt-ui: ## Format UI code
+	@echo "Formatting UI..."
+
+lint: lint-go lint-ui ## Lint all code
+
+lint-go: ## Lint Go code
+	@echo "Linting Go..."
+
+lint-ui: ## Lint UI code
+	@echo "Linting UI..."
+
 # Development shortcuts
 dev: start
 restart: stop start
 rebuild: clean build
-  </input>
+</input>
+</test-case>
+
+<test-case id="structure-missing-target-definitions" should-fail="true">
+  <description>Targets declared in .PHONY but not defined</description>
+  <input language="make">
+# Demo Scenario Makefile
+#
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/demo-api). ALWAYS use these commands.
+#
+# Usage:
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
+
+.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui
+
+.DEFAULT_GOAL := help
+
+SCENARIO_NAME := $(notdir $(CURDIR))
+
+GREEN := \033[1;32m
+YELLOW := \033[1;33m
+BLUE := \033[1;34m
+RED := \033[1;31m
+RESET := \033[0m
+
+help: ## Show this help message
+	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)Usage:$(RESET)"
+	@echo "  make &lt;command&gt;"
+	@echo ""
+	@echo "$(YELLOW)Commands:$(RESET)"
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
+
+start: ## Start this scenario
+	@echo "Starting..."
+
+# Missing: stop, test, logs, status, clean, build, fmt, fmt-go, fmt-ui, lint, lint-go, lint-ui (12 targets)
+
+# Development shortcuts
+dev: start
+</input>
+<expected-violations>12</expected-violations>
+<expected-message>Required target</expected-message>
 </test-case>
 
 */
@@ -356,7 +640,7 @@ func structureValidateHeader(data structureMakefileData, path string) []Makefile
 	}{
 		{0, func(line string) bool {
 			return strings.HasPrefix(strings.TrimSpace(line), "# ") && strings.HasSuffix(strings.TrimSpace(line), "Scenario Makefile")
-		}, "Header must start with '# <Scenario> Scenario Makefile'"},
+		}, "Header must be a comment ending with 'Scenario Makefile' (e.g., '# Demo Scenario Makefile')"},
 		{1, func(line string) bool { return strings.TrimSpace(line) == "#" }, "Second header line must be '# '"},
 		{2, func(line string) bool {
 			return strings.TrimSpace(line) == "# This Makefile ensures scenarios are always run through the Vrooli lifecycle system."
@@ -402,13 +686,15 @@ func structureValidateHeader(data structureMakefileData, path string) []Makefile
 }
 
 func structureValidatePhony(data structureMakefileData, path string) []MakefileStructureViolation {
-	required := []string{"help", "start", "stop", "test", "logs", "status", "clean", "build", "dev", "fmt", "fmt-go", "fmt-ui", "lint", "lint-go", "lint-ui", "check"}
+	// STRICT: All targets required for consistency and interoperability across scenarios
+	// Scenarios without UI/Go code should provide no-op implementations
+	required := []string{"help", "start", "stop", "test", "logs", "status", "clean", "build", "dev", "fmt", "fmt-go", "fmt-ui", "lint", "lint-go", "lint-ui"}
 	var violations []MakefileStructureViolation
 
 	if len(data.phony) == 0 {
 		violations = append(violations, MakefileStructureViolation{
 			Severity: "high",
-			Message:  ".PHONY declaration missing required targets",
+			Message:  ".PHONY declaration missing required targets (STRICT: required for consistency and interoperability)",
 			FilePath: path,
 			Line:     structureFindLine(data.lines, ".PHONY"),
 		})
@@ -418,7 +704,7 @@ func structureValidatePhony(data structureMakefileData, path string) []MakefileS
 	if data.phony[0] != "help" {
 		violations = append(violations, MakefileStructureViolation{
 			Severity: "high",
-			Message:  "help must be the first entry in .PHONY",
+			Message:  "help must be the first entry in .PHONY (STRICT: maintains standard structure)",
 			FilePath: path,
 			Line:     structureFindLine(data.lines, ".PHONY"),
 		})
@@ -427,10 +713,27 @@ func structureValidatePhony(data structureMakefileData, path string) []MakefileS
 	if !structureContainsAll(required, data.phony) {
 		violations = append(violations, MakefileStructureViolation{
 			Severity: "high",
-			Message:  "Missing required targets in .PHONY",
+			Message:  "Missing required targets in .PHONY (STRICT: required for consistency. Use no-op implementations if needed)",
 			FilePath: path,
 			Line:     structureFindLine(data.lines, ".PHONY"),
 		})
+	}
+
+	// Validate that all required targets actually exist as definitions
+	for _, target := range required {
+		if _, exists := data.targets[target]; !exists {
+			// Find the line where this target should be defined, or default to .PHONY line
+			lineNum := data.phonyLine
+			if lineNum == 0 {
+				lineNum = structureFindLine(data.lines, ".PHONY")
+			}
+			violations = append(violations, MakefileStructureViolation{
+				Severity: "high",
+				Message:  fmt.Sprintf("Required target '%s' declared in .PHONY but not defined (STRICT: all .PHONY targets must have definitions)", target),
+				FilePath: path,
+				Line:     lineNum,
+			})
+		}
 	}
 
 	return violations
@@ -470,6 +773,8 @@ func structureValidateColors(data structureMakefileData, path string) []Makefile
 	}
 
 	var violations []MakefileStructureViolation
+
+	// Check that all expected colors are defined correctly
 	for name, value := range expected {
 		if data.colors[name] != value {
 			violations = append(violations, MakefileStructureViolation{
@@ -481,11 +786,24 @@ func structureValidateColors(data structureMakefileData, path string) []Makefile
 		}
 	}
 
+	// Reject any unexpected color definitions (STRICT: only predefined palette allowed)
+	for name := range data.colors {
+		if _, isExpected := expected[name]; !isExpected {
+			violations = append(violations, MakefileStructureViolation{
+				Severity: "high",
+				Message:  fmt.Sprintf("Unexpected color definition '%s' (STRICT: only GREEN, YELLOW, BLUE, RED, RESET allowed)", name),
+				FilePath: path,
+				Line:     structureFindLine(data.lines, name+" :="),
+			})
+		}
+	}
+
 	return violations
 }
 
 func structureValidateHelp(data structureMakefileData, path string) []MakefileStructureViolation {
 	lines := structureNormalizeRecipes(data.targets["help"])
+	// STRICT: Required for consistent help output across all scenarios
 	requiredSnippets := []string{
 		"@echo \"$(BLUE)",
 		"Scenario Commands$(RESET)\"",
@@ -493,9 +811,10 @@ func structureValidateHelp(data structureMakefileData, path string) []MakefileSt
 		"@echo \"  make <command>\"",
 		"@echo \"$(YELLOW)Commands:$(RESET)\"",
 		"@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST)",
-		"awk 'BEGIN {FS = \":.*?## \"}; {printf \"  $(GREEN)%-",
+		"awk",  // Relaxed: allow any awk formatting
+		"printf", // Must use printf for formatting
+		"$(GREEN)", // Must use color variables
 		"Never run ./api/",
-		"Always use 'make start' or 'vrooli scenario start",
 	}
 
 	var violations []MakefileStructureViolation
@@ -518,6 +837,18 @@ func structureValidateHelp(data structureMakefileData, path string) []MakefileSt
 				Line:     structureFindLine(data.lines, "help:"),
 			})
 		}
+	}
+
+	// Check for either 'make start' or 'make run' variant
+	hasStartOrRun := structureContainsSnippet(lines, "Always use 'make start' or 'vrooli scenario start") ||
+		structureContainsSnippet(lines, "Always use 'make run' or 'vrooli scenario start")
+	if !hasStartOrRun {
+		violations = append(violations, MakefileStructureViolation{
+			Severity: "high",
+			Message:  "help target must include text containing \"Always use 'make start' or 'vrooli scenario start\" (or 'make run' variant)",
+			FilePath: path,
+			Line:     structureFindLine(data.lines, "help:"),
+		})
 	}
 
 	return violations
@@ -736,8 +1067,8 @@ func parseStructureMakefile(content string) structureMakefileData {
 		}
 
 		if strings.HasPrefix(strings.TrimLeft(raw, " \t"), "#") {
-			lower := strings.ToLower(trimmed)
-			if strings.Contains(lower, "shortcut") && data.shortcutsCommentLine == 0 {
+			// STRICT: Only accept exact "# Development shortcuts" format
+			if trimmed == "# Development shortcuts" && data.shortcutsCommentLine == 0 {
 				data.shortcutsCommentLine = i + 1
 			}
 		}
@@ -864,7 +1195,7 @@ func structureFindLine(lines []string, needle string) int {
 			return idx + 1
 		}
 	}
-	return 1
+	return 0 // Return 0 to indicate "not found" instead of defaulting to line 1
 }
 
 func structureContainsAll(required []string, actual []string) bool {

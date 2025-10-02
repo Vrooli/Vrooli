@@ -402,24 +402,263 @@ h1 {
     cursor: pointer;
 }
 
+/* Photo Gallery Styles */
+.gallery-container {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.gallery-filters {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: var(--autumn-brown);
+}
+
+.gallery-select,
+.gallery-date-input {
+    padding: 0.6rem 1rem;
+    border: 2px solid var(--autumn-brown);
+    border-radius: 8px;
+    background: white;
+    font-size: 1rem;
+    min-width: 200px;
+}
+
+.photo-upload-section {
+    background: linear-gradient(135deg, #fff5e6 0%, #ffe9cc 100%);
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 3rem;
+    border: 2px solid var(--autumn-orange);
+}
+
+.photo-upload-section h3 {
+    margin-top: 0;
+    color: var(--autumn-brown);
+}
+
+.upload-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.submit-photo-btn {
+    background: linear-gradient(135deg, var(--autumn-red) 0%, var(--autumn-orange) 100%);
+    color: white;
+    padding: 0.8rem 2rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.submit-photo-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 20, 60, 0.3);
+}
+
+.photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.photo-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.photo-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+}
+
+.photo-image-container {
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background: #f0f0f0;
+}
+
+.photo-image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photo-info {
+    padding: 1rem;
+}
+
+.photo-info h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--autumn-brown);
+}
+
+.photo-status {
+    margin: 0.5rem 0;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.status-not_started {
+    background: #e8f5e9;
+    color: #2d5a2d;
+}
+
+.status-progressing {
+    background: #fff3e0;
+    color: #8b7355;
+}
+
+.status-near_peak {
+    background: #ffe0b2;
+    color: #ff8c00;
+}
+
+.status-peak {
+    background: #ffebee;
+    color: #dc143c;
+}
+
+.status-past_peak {
+    background: #efebe9;
+    color: #8b4513;
+}
+
+.photo-date {
+    font-size: 0.9rem;
+    color: #666;
+    margin: 0.3rem 0;
+}
+
+.photo-description {
+    margin-top: 0.8rem;
+    font-size: 0.95rem;
+    color: #333;
+    line-height: 1.5;
+}
+
+.no-photos {
+    text-align: center;
+    color: #666;
+    padding: 3rem;
+    font-size: 1.1rem;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .header-content {
         flex-direction: column;
         gap: 1rem;
     }
-    
+
     .nav-menu {
         flex-wrap: wrap;
         justify-content: center;
     }
-    
+
+    .nav-btn {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.8rem;
+    }
+
     .form-row {
         grid-template-columns: 1fr;
     }
-    
+
     .info-panel {
         width: 100%;
         right: -100%;
+    }
+
+    .gallery-container {
+        padding: 1rem;
+    }
+
+    .gallery-filters {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .photo-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .photo-upload-section {
+        padding: 1rem;
+    }
+
+    .map-controls {
+        flex-direction: column;
+    }
+
+    .time-slider-container {
+        width: 100%;
+    }
+}
+
+/* Export Button Styles */
+.export-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.export-btn {
+    background: linear-gradient(135deg, var(--autumn-orange) 0%, var(--autumn-red) 100%);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+.export-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px var(--shadow);
+}
+
+.export-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+@media (max-width: 768px) {
+    .export-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .export-btn {
+        width: 100%;
     }
 }

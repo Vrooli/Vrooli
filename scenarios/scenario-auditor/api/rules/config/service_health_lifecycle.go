@@ -9,12 +9,18 @@ import (
 
 /*
 Rule: Health Lifecycle Event
-Description: Ensure lifecycle.health defines required endpoints and checks for API/UI services
-Reason: Missing health checks break lifecycle orchestration and monitoring
+Description: Enforce standardized /health endpoints for lifecycle monitoring and cross-scenario interoperability
+Reason: The /health endpoint standard enables consistent health checks, service discovery, and lifecycle orchestration across all Vrooli scenarios. Non-standard endpoints break automated monitoring and prevent scenarios from integrating with ecosystem-wide health dashboards.
 Category: config
 Severity: high
 Standard: configuration-v1
 Targets: service_json
+
+Interoperability Requirements:
+- All API services MUST expose /health endpoint (not /api/health, /healthz, etc.)
+- All UI services MUST expose /health endpoint (not /, /status, etc.)
+- Health checks MUST reference these standardized endpoints with proper port variables
+- This enables uniform lifecycle management (start/stop/status), cross-scenario monitoring, and service discovery
 
 <test-case id="missing-lifecycle" should-fail="true" path=".vrooli/service.json">
   <description>service.json missing lifecycle section</description>
@@ -141,6 +147,80 @@ Targets: service_json
 }
   </input>
 </test-case>
+
+<test-case id="wrong-api-endpoint-path" should-fail="true" path=".vrooli/service.json">
+  <description>API endpoint using non-standard path</description>
+  <input language="json">
+{
+  "ports": {"api": {"env_var": "API_PORT"}},
+  "lifecycle": {
+    "health": {
+      "endpoints": {"api": "/api/v1/health"},
+      "checks": [
+        {"name": "api_endpoint", "type": "http", "target": "http://localhost:${API_PORT}/api/v1/health", "critical": true, "timeout": 5000, "interval": 30000}
+      ]
+    }
+  }
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>must be '/health'</expected-message>
+</test-case>
+
+<test-case id="ui-root-endpoint" should-fail="true" path=".vrooli/service.json">
+  <description>UI endpoint using root path instead of /health</description>
+  <input language="json">
+{
+  "ports": {"api": {"env_var": "API_PORT"}, "ui": {"env_var": "UI_PORT"}},
+  "lifecycle": {
+    "health": {
+      "endpoints": {"api": "/health", "ui": "/"},
+      "checks": [
+        {"name": "api_endpoint", "type": "http", "target": "http://localhost:${API_PORT}/health", "critical": true, "timeout": 5000, "interval": 30000}
+      ]
+    }
+  }
+}
+  </input>
+  <expected-violations>2</expected-violations>
+  <expected-message>must be '/health'</expected-message>
+</test-case>
+
+<test-case id="ui-no-health-check" should-fail="true" path=".vrooli/service.json">
+  <description>UI port exists but no ui_endpoint health check defined</description>
+  <input language="json">
+{
+  "ports": {"api": {"env_var": "API_PORT"}, "ui": {"env_var": "UI_PORT"}},
+  "lifecycle": {
+    "health": {
+      "endpoints": {"api": "/health", "ui": "/health"},
+      "checks": [
+        {"name": "api_endpoint", "type": "http", "target": "http://localhost:${API_PORT}/health", "critical": true, "timeout": 5000, "interval": 30000}
+      ]
+    }
+  }
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>ui_endpoint</expected-message>
+</test-case>
+
+<test-case id="empty-ui-port-object" should-fail="false" path=".vrooli/service.json">
+  <description>Empty UI port object should not require UI health endpoint</description>
+  <input language="json">
+{
+  "ports": {"api": {"env_var": "API_PORT"}, "ui": {}},
+  "lifecycle": {
+    "health": {
+      "endpoints": {"api": "/health"},
+      "checks": [
+        {"name": "api_endpoint", "type": "http", "target": "http://localhost:${API_PORT}/health", "critical": true, "timeout": 5000, "interval": 30000}
+      ]
+    }
+  }
+}
+  </input>
+</test-case>
 */
 
 // CheckServiceHealthLifecycle validates lifecycle health configuration in service.json.
@@ -199,7 +279,7 @@ func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
 		if !apiOk || strings.TrimSpace(apiEndpoint) == "" {
 			violations = append(violations, newHealthViolation(filePath, findHealthJSONLine(source, "\"api\"", "\"endpoints\""), "lifecycle.health must define an api endpoint at '/health'"))
 		} else if apiEndpoint != "/health" {
-			violations = append(violations, newHealthViolation(filePath, findHealthJSONLine(source, "\"api\"", "\"endpoints\""), "lifecycle.health api endpoint must be '/health'"))
+			violations = append(violations, newHealthViolation(filePath, findHealthJSONLine(source, "\"api\"", "\"endpoints\""), fmt.Sprintf("lifecycle.health api endpoint must be '/health' (found: '%s') - non-standard endpoints break cross-scenario monitoring", apiEndpoint)))
 		}
 
 		if hasUI {
@@ -207,22 +287,26 @@ func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
 			if !uiOk || strings.TrimSpace(uiEndpoint) == "" {
 				violations = append(violations, newHealthViolation(filePath, findHealthJSONLine(source, "\"ui\"", "\"endpoints\""), "lifecycle.health must define a ui endpoint at '/health' when UI ports are configured"))
 			} else if uiEndpoint != "/health" {
-				violations = append(violations, newHealthViolation(filePath, findHealthJSONLine(source, "\"ui\"", "\"endpoints\""), "lifecycle.health ui endpoint must be '/health' when UI ports are configured"))
+				violations = append(violations, newHealthViolation(filePath, findHealthJSONLine(source, "\"ui\"", "\"endpoints\""), fmt.Sprintf("lifecycle.health ui endpoint must be '/health' (found: '%s') - UI services require the same /health standard for consistent lifecycle management", uiEndpoint)))
 			}
 		}
 	}
 
 	// Validate checks
+	// NOTE: The checks array provides structured health check configuration for monitoring tools
+	// and future lifecycle enhancements. While the current lifecycle system primarily uses endpoints,
+	// the checks array enables richer monitoring (postgres health, redis health, etc.) and serves
+	// as documentation for health check requirements.
 	checksLine := findHealthJSONLine(source, "\"checks\"")
 	checksRaw, checksOk := healthMap["checks"].([]interface{})
 	if !checksOk {
-		violations = append(violations, newHealthViolation(filePath, checksLine, "lifecycle.health must define checks"))
+		violations = append(violations, newHealthViolation(filePath, checksLine, "lifecycle.health must define checks array for structured health monitoring"))
 		return dedupeHealthViolations(violations)
 	}
 
 	apiCheck := findHealthCheck(checksRaw, "api_endpoint")
 	if apiCheck == nil {
-		violations = append(violations, newHealthViolation(filePath, checksLine, "lifecycle.health.checks must include an api_endpoint entry"))
+		violations = append(violations, newHealthViolation(filePath, checksLine, "lifecycle.health.checks must include an api_endpoint entry - this enables monitoring tools to track API health"))
 	} else {
 		violations = append(violations, validateCheck(apiCheck, filePath, source, "api_endpoint", "${API_PORT}")...)
 	}
@@ -230,7 +314,7 @@ func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
 	if hasUI {
 		uiCheck := findHealthCheck(checksRaw, "ui_endpoint")
 		if uiCheck == nil {
-			violations = append(violations, newHealthViolation(filePath, checksLine, "lifecycle.health.checks must include a ui_endpoint entry when UI ports are configured"))
+			violations = append(violations, newHealthViolation(filePath, checksLine, "lifecycle.health.checks must include a ui_endpoint entry when UI ports are configured - this enables monitoring tools to track UI health"))
 		} else {
 			violations = append(violations, validateCheck(uiCheck, filePath, source, "ui_endpoint", "${UI_PORT}")...)
 		}
@@ -335,7 +419,10 @@ func scenarioHasUIPort(payload map[string]interface{}) bool {
 	if _, ok := uiMap["fixed"]; ok {
 		return true
 	}
-	return true
+	if portNum, ok := uiMap["port"].(float64); ok && portNum > 0 {
+		return true
+	}
+	return false
 }
 
 func newHealthViolation(filePath string, line int, message string) Violation {
@@ -349,7 +436,7 @@ func newHealthViolation(filePath string, line int, message string) Violation {
 		Description:    message,
 		FilePath:       filePath,
 		LineNumber:     line,
-		Recommendation: "Define lifecycle.health endpoints and checks for API_PORT and UI_PORT services",
+		Recommendation: "All scenarios must use '/health' for both API and UI endpoints to ensure ecosystem interoperability. Update lifecycle.health.endpoints to: {\"api\": \"/health\", \"ui\": \"/health\"} and ensure corresponding health checks reference these standardized paths. This enables cross-scenario monitoring, service discovery, and uniform lifecycle orchestration.",
 		Standard:       "configuration-v1",
 	}
 }

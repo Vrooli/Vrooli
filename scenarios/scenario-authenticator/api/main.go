@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"scenario-authenticator/auth"
@@ -32,8 +33,12 @@ func main() {
 	}
 
 	// Change to project root directory for consistent file operations
-	if err := os.Chdir("../.."); err != nil {
-		log.Printf("⚠️  Warning: Could not change to project root: %v", err)
+	if rootDir := resolveRepoRoot(); rootDir != "" {
+		if err := os.Chdir(rootDir); err != nil {
+			log.Printf("⚠️  Warning: Could not change to project root (%s): %v", rootDir, err)
+		}
+	} else {
+		log.Printf("⚠️  Warning: Could not determine repository root; continuing with current working directory")
 	}
 
 	// Load configuration from environment variables
@@ -64,9 +69,14 @@ func main() {
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 
-	// Configure CORS - this properly handles OPTIONS requests
+	// Configure CORS with environment-based origins for security
+	allowedOrigins := []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:8080"}
+	if corsOrigins := os.Getenv("CORS_ALLOWED_ORIGINS"); corsOrigins != "" {
+		allowedOrigins = strings.Split(corsOrigins, ",")
+	}
+
 	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"}, // Allow all origins for development
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
@@ -86,6 +96,12 @@ func main() {
 	router.Post("/api/v1/auth/logout", handlers.LogoutHandler)
 	router.Post("/api/v1/auth/reset-password", handlers.ResetPasswordHandler)
 	router.Post("/api/v1/auth/complete-reset", handlers.CompleteResetHandler)
+
+	// Two-Factor Authentication endpoints
+	router.Post("/api/v1/auth/2fa/setup", apimiddleware.AuthMiddleware(handlers.Setup2FAHandler))
+	router.Post("/api/v1/auth/2fa/enable", apimiddleware.AuthMiddleware(handlers.Enable2FAHandler))
+	router.Post("/api/v1/auth/2fa/disable", apimiddleware.AuthMiddleware(handlers.Disable2FAHandler))
+	router.Post("/api/v1/auth/2fa/verify", handlers.Verify2FAHandler)
 
 	// User management endpoints
 	router.Get("/api/v1/users", apimiddleware.RequireRole("admin", handlers.GetUsersHandler))
@@ -124,8 +140,13 @@ func main() {
 	log.Printf("[scenario-authenticator/api] 🔑 JWT keys loaded successfully")
 	log.Printf("[scenario-authenticator/api] 🎯 Ready to process authentication requests")
 	log.Printf("[scenario-authenticator/api] ✨ CORS enabled with Chi router")
+	log.Printf("[scenario-authenticator/api] 🔒 Security headers enabled for all responses")
 
-	if err := http.ListenAndServe(":"+port, router); err != nil {
+	// Wrap router with security middleware (request size limit, then security headers)
+	handler := apimiddleware.RequestSizeLimitMiddleware(router)
+	handler = apimiddleware.SecurityHeadersMiddleware(handler)
+
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatalf("[scenario-authenticator/api] ❌ Server failed to start: %v", err)
 	}
 }
@@ -171,4 +192,40 @@ func getDBURL() string {
 
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		dbUser, dbPassword, dbHost, dbPort, dbName)
+}
+
+// resolveRepoRoot attempts to locate the repository root so relative assets (like JWT keys) persist between runs.
+func resolveRepoRoot() string {
+	if root := os.Getenv("VROOLI_ROOT"); root != "" {
+		return root
+	}
+
+	if exePath, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exePath)
+		if candidate := verifyRepoRoot(filepath.Join(dir, "..", "..", "..")); candidate != "" {
+			return candidate
+		}
+	}
+
+	if cwd, err := os.Getwd(); err == nil {
+		if candidate := verifyRepoRoot(filepath.Join(cwd, "..", "..", "..")); candidate != "" {
+			return candidate
+		}
+	}
+
+	return ""
+}
+
+// verifyRepoRoot ensures the candidate path looks like the repository root.
+func verifyRepoRoot(candidate string) string {
+	candidate = filepath.Clean(candidate)
+	if candidate == "" {
+		return ""
+	}
+
+	if info, err := os.Stat(filepath.Join(candidate, "scenarios")); err == nil && info.IsDir() {
+		return candidate
+	}
+
+	return ""
 }

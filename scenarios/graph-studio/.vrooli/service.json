@@ -172,7 +172,7 @@
             "OLLAMA_URL": "${resource.ollama.url}",
             "QDRANT_URL": "${resource.qdrant.url}",
             "LOG_LEVEL": "info",
-            "CORS_ORIGINS": "*",
+            "CORS_ORIGINS": "http://localhost:${UI_PORT},http://127.0.0.1:${UI_PORT}",
             "MAX_GRAPH_SIZE": "10000",
             "PLUGIN_DIR": "./plugins"
           }
@@ -200,35 +200,15 @@
       ]
     },
     "test": {
-      "description": "Test Graph Studio API and CLI",
+      "description": "Run comprehensive Graph Studio test suite",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
+          "name": "run-phased-tests",
+          "run": "cd test && ./run-tests.sh",
+          "description": "Execute phased test suite (unit, integration, API, CLI, UI)",
           "condition": {
-            "file_exists": "api/main.go"
+            "file_exists": "test/run-tests.sh"
           }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-plugins-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/plugins",
-          "description": "Test plugins listing endpoint"
-        },
-        {
-          "name": "test-graph-creation",
-          "run": "curl -sf -X POST http://localhost:$API_PORT/api/v1/graphs -H 'Content-Type: application/json' -d '{\"name\":\"Test Graph\",\"type\":\"mind-maps\"}'",
-          "description": "Test graph creation endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "graph-studio help && graph-studio status",
-          "description": "Test CLI help and status commands"
         }
       ]
     },

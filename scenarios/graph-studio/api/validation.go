@@ -41,81 +41,81 @@ func NewGraphValidator(plugins map[string]*Plugin) *GraphValidator {
 // ValidateCreateGraphRequest validates a create graph request
 func (gv *GraphValidator) ValidateCreateGraphRequest(req *CreateGraphRequest) ValidationErrors {
 	var errors ValidationErrors
-	
+
 	// Validate name
 	if err := gv.validateGraphName(req.Name); err != nil {
 		errors = append(errors, *err)
 	}
-	
+
 	// Validate type
 	if err := gv.validateGraphType(req.Type); err != nil {
 		errors = append(errors, *err)
 	}
-	
+
 	// Validate description length
 	if err := gv.validateDescription(req.Description); err != nil {
 		errors = append(errors, *err)
 	}
-	
+
 	// Validate tags
 	if err := gv.validateTags(req.Tags); err != nil {
 		errors = append(errors, err...)
 	}
-	
+
 	// Validate data structure if provided
 	if req.Data != nil && len(req.Data) > 0 {
 		if err := gv.validateGraphData(req.Type, req.Data); err != nil {
 			errors = append(errors, *err)
 		}
 	}
-	
+
 	// Validate metadata
 	if err := gv.validateMetadata(req.Metadata); err != nil {
 		errors = append(errors, *err)
 	}
-	
+
 	return errors
 }
 
 // ValidateUpdateGraphRequest validates an update graph request
 func (gv *GraphValidator) ValidateUpdateGraphRequest(req *UpdateGraphRequest) ValidationErrors {
 	var errors ValidationErrors
-	
+
 	// Validate name if provided
 	if req.Name != "" {
 		if err := gv.validateGraphName(req.Name); err != nil {
 			errors = append(errors, *err)
 		}
 	}
-	
+
 	// Validate description if provided
 	if req.Description != "" {
 		if err := gv.validateDescription(req.Description); err != nil {
 			errors = append(errors, *err)
 		}
 	}
-	
+
 	// Validate tags if provided
 	if req.Tags != nil {
 		if err := gv.validateTags(req.Tags); err != nil {
 			errors = append(errors, err...)
 		}
 	}
-	
+
 	// Validate metadata if provided
 	if req.Metadata != nil {
 		if err := gv.validateMetadata(req.Metadata); err != nil {
 			errors = append(errors, *err)
 		}
 	}
-	
+
 	return errors
 }
 
 // ValidateConversionRequest validates a conversion request
 func (gv *GraphValidator) ValidateConversionRequest(req *ConversionRequest) ValidationErrors {
 	var errors ValidationErrors
-	
+
 	// Validate target format
 	if req.TargetFormat == "" {
 		errors = append(errors, ValidationError{
@@ -129,14 +129,14 @@ func (gv *GraphValidator) ValidateConversionRequest(req *ConversionRequest) Vali
 			Value:   req.TargetFormat,
 		})
 	}
-	
+
 	// Validate options
 	if req.Options != nil {
 		if err := gv.validateConversionOptions(req.Options); err != nil {
 			errors = append(errors, *err)
 		}
 	}
-	
+
 	return errors
 }
 
@@ -148,7 +148,7 @@ func (gv *GraphValidator) validateGraphName(name string) *ValidationError {
 			Message: "Name is required",
 		}
 	}
-	
+
 	if len(name) < 3 {
 		return &ValidationError{
 			Field:   "name",
@@ -156,7 +156,7 @@ func (gv *GraphValidator) validateGraphName(name string) *ValidationError {
 			Value:   name,
 		}
 	}
-	
+
 	if len(name) > 255 {
 		return &ValidationError{
 			Field:   "name",
@@ -164,7 +164,7 @@ func (gv *GraphValidator) validateGraphName(name string) *ValidationError {
 			Value:   fmt.Sprintf("%d characters", utf8.RuneCountInString(name)),
 		}
 	}
-	
+
 	// Check for valid characters (letters, numbers, spaces, hyphens, underscores)
 	if matched, _ := regexp.MatchString(`^[a-zA-Z0-9\s\-_]+$`, name); !matched {
 		return &ValidationError{
@@ -173,7 +173,7 @@ func (gv *GraphValidator) validateGraphName(name string) *ValidationError {
 			Value:   name,
 		}
 	}
-	
+
 	return nil
 }
 
@@ -185,7 +185,7 @@ func (gv *GraphValidator) validateGraphType(graphType string) *ValidationError {
 			Message: "Type is required",
 		}
 	}
-	
+
 	if !gv.isValidPluginID(graphType) {
 		return &ValidationError{
 			Field:   "type",
@@ -193,7 +193,7 @@ func (gv *GraphValidator) validateGraphType(graphType string) *ValidationError {
 			Value:   graphType,
 		}
 	}
-	
+
 	// Check if plugin is enabled
 	if plugin, exists := gv.plugins[graphType]; exists && !plugin.Enabled {
 		return &ValidationError{
@@ -202,7 +202,7 @@ func (gv *GraphValidator) validateGraphType(graphType string) *ValidationError {
 			Value:   graphType,
 		}
 	}
-	
+
 	return nil
 }
 
@@ -215,14 +215,14 @@ func (gv *GraphValidator) validateDescription(description string) *ValidationErr
 			Value:   fmt.Sprintf("%d characters", utf8.RuneCountInString(description)),
 		}
 	}
-	
+
 	return nil
 }
 
 // validateTags validates tags
 func (gv *GraphValidator) validateTags(tags []string) ValidationErrors {
 	var errors ValidationErrors
-	
+
 	if len(tags) > 20 {
 		errors = append(errors, ValidationError{
 			Field:   "tags",
@@ -230,7 +230,7 @@ func (gv *GraphValidator) validateTags(tags []string) ValidationErrors {
 			Value:   fmt.Sprintf("%d tags", len(tags)),
 		})
 	}
-	
+
 	seenTags := make(map[string]bool)
 	for i, tag := range tags {
 		// Check for duplicates
@@ -243,7 +243,7 @@ func (gv *GraphValidator) validateTags(tags []string) ValidationErrors {
 			continue
 		}
 		seenTags[tag] = true
-		
+
 		// Validate tag format
 		if len(tag) == 0 {
 			errors = append(errors, ValidationError{
@@ -252,7 +252,7 @@ func (gv *GraphValidator) validateTags(tags []string) ValidationErrors {
 			})
 			continue
 		}
-		
+
 		if len(tag) > 50 {
 			errors = append(errors, ValidationError{
 				Field:   fmt.Sprintf("tags[%d]", i),
@@ -261,7 +261,7 @@ func (gv *GraphValidator) validateTags(tags []string) ValidationErrors {
 			})
 			continue
 		}
-		
+
 		// Check for valid tag characters
 		if matched, _ := regexp.MatchString(`^[a-zA-Z0-9\-_]+$`, tag); !matched {
 			errors = append(errors, ValidationError{
@@ -271,7 +271,7 @@ func (gv *GraphValidator) validateTags(tags []string) ValidationErrors {
 			})
 		}
 	}
-	
+
 	return errors
 }
 
@@ -286,7 +286,7 @@ func (gv *GraphValidator) validateGraphData(graphType string, data json.RawMessa
 			Value:   err.Error(),
 		}
 	}
-	
+
 	// Size validation (max 10MB)
 	if len(data) > 10*1024*1024 {
 		return &ValidationError{
@@ -295,7 +295,7 @@ func (gv *GraphValidator) validateGraphData(graphType string, data json.RawMessa
 			Value:   fmt.Sprintf("%d bytes", len(data)),
 		}
 	}
-	
+
 	// Type-specific validation
 	switch graphType {
 	case "mind-maps":
@@ -307,7 +307,7 @@ func (gv *GraphValidator) validateGraphData(graphType string, data json.RawMessa
 	case "mermaid":
 		return gv.validateMermaidData(data)
 	}
-	
+
 	return nil
 }
 
@@ -321,7 +321,7 @@ func (gv *GraphValidator) validateMindMapData(data json.RawMessage) *ValidationE
 			Value:   err.Error(),
 		}
 	}
-	
+
 	// Check for root node
 	if _, hasRoot := mindMap["root"]; !hasRoot {
 		return &ValidationError{
@@ -329,7 +329,7 @@ func (gv *GraphValidator) validateMindMapData(data json.RawMessage) *ValidationE
 			Message: "Mind map must have a root node",
 		}
 	}
-	
+
 	return nil
 }
 
@@ -343,7 +343,7 @@ func (gv *GraphValidator) validateBPMNData(data json.RawMessage) *ValidationErro
 			Value:   err.Error(),
 		}
 	}
-	
+
 	// Check for nodes
 	if _, hasNodes := bpmn["nodes"]; !hasNodes {
 		return &ValidationError{
@@ -351,7 +351,7 @@ func (gv *GraphValidator) validateBPMNData(data json.RawMessage) *ValidationErro
 			Message: "BPMN must have nodes",
 		}
 	}
-	
+
 	return nil
 }
 
@@ -365,7 +365,7 @@ func (gv *GraphValidator) validateNetworkData(data json.RawMessage) *ValidationE
 			Value:   err.Error(),
 		}
 	}
-	
+
 	// Check for nodes
 	if _, hasNodes := network["nodes"]; !hasNodes {
 		return &ValidationError{
@@ -373,7 +373,7 @@ func (gv *GraphValidator) validateNetworkData(data json.RawMessage) *ValidationE
 			Message: "Network graph must have nodes",
 		}
 	}
-	
+
 	return nil
 }
 
@@ -387,7 +387,7 @@ func (gv *GraphValidator) validateMermaidData(data json.RawMessage) *ValidationE
 			Value:   err.Error(),
 		}
 	}
-	
+
 	// Check for diagram or type
 	if _, hasDiagram := mermaid["diagram"]; !hasDiagram {
 		if _, hasType := mermaid["type"]; !hasType {
@@ -397,7 +397,7 @@ func (gv *GraphValidator) validateMermaidData(data json.RawMessage) *ValidationE
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -406,7 +406,7 @@ func (gv *GraphValidator) validateMetadata(metadata map[string]interface{}) *Val
 	if metadata == nil {
 		return nil
 	}
-	
+
 	// Serialize to check size
 	metadataBytes, err := json.Marshal(metadata)
 	if err != nil {
@@ -416,7 +416,7 @@ func (gv *GraphValidator) validateMetadata(metadata map[string]interface{}) *Val
 			Value:   err.Error(),
 		}
 	}
-	
+
 	// Size validation (max 1MB)
 	if len(metadataBytes) > 1024*1024 {
 		return &ValidationError{
@@ -425,7 +425,7 @@ func (gv *GraphValidator) validateMetadata(metadata map[string]interface{}) *Val
 			Value:   fmt.Sprintf("%d bytes", len(metadataBytes)),
 		}
 	}
-	
+
 	return nil
 }
 
@@ -434,7 +434,7 @@ func (gv *GraphValidator) validateConversionOptions(options map[string]interface
 	if options == nil {
 		return nil
 	}
-	
+
 	// Serialize to check size
 	optionsBytes, err := json.Marshal(options)
 	if err != nil {
@@ -444,7 +444,7 @@ func (gv *GraphValidator) validateConversionOptions(options map[string]interface
 			Value:   err.Error(),
 		}
 	}
-	
+
 	// Size validation (max 100KB)
 	if len(optionsBytes) > 100*1024 {
 		return &ValidationError{
@@ -453,7 +453,7 @@ func (gv *GraphValidator) validateConversionOptions(options map[string]interface
 			Value:   fmt.Sprintf("%d bytes", len(optionsBytes)),
 		}
 	}
-	
+
 	return nil
 }
 
@@ -469,11 +469,11 @@ func (gv *GraphValidator) isValidPluginID(pluginID string) bool {
 func SanitizeGraphName(name string) string {
 	// Trim whitespace
 	name = strings.TrimSpace(name)
-	
+
 	// Replace multiple spaces with single space
 	re := regexp.MustCompile(`\s+`)
 	name = re.ReplaceAllString(name, " ")
-	
+
 	return name
 }
 
@@ -481,10 +481,10 @@ func SanitizeGraphName(name string) string {
 func SanitizeDescription(description string) string {
 	// Trim whitespace
 	description = strings.TrimSpace(description)
-	
+
 	// Remove null bytes
 	description = strings.ReplaceAll(description, "\x00", "")
-	
+
 	return description
 }
 
@@ -492,20 +492,20 @@ func SanitizeDescription(description string) string {
 func SanitizeTags(tags []string) []string {
 	var sanitized []string
 	seen := make(map[string]bool)
-	
+
 	for _, tag := range tags {
 		// Trim and lowercase
 		tag = strings.ToLower(strings.TrimSpace(tag))
-		
+
 		// Skip empty or duplicate tags
 		if tag == "" || seen[tag] {
 			continue
 		}
-		
+
 		seen[tag] = true
 		sanitized = append(sanitized, tag)
 	}
-	
+
 	return sanitized
 }
 
@@ -516,7 +516,7 @@ func IsValidUserID(userID string) bool {
 	if len(userID) < 3 || len(userID) > 255 {
 		return false
 	}
-	
+
 	// Allow alphanumeric, hyphens, underscores, and @ symbol
 	matched, _ := regexp.MatchString(`^[a-zA-Z0-9\-_@\.]+$`, userID)
 	return matched
@@ -545,12 +545,12 @@ func ValidateGraphOwnership(userID, createdBy string, isPublic bool) bool {
 	if userID == "system" {
 		return true
 	}
-	
+
 	// Owner can always access
 	if userID == createdBy {
 		return true
 	}
-	
+
 	// Public graphs can be read by anyone
 	return isPublic
 }
@@ -561,12 +561,12 @@ func ValidateConversionCompatibility(from, to string) error {
 	if from == to {
 		return fmt.Errorf("source and target formats are identical")
 	}
-	
+
 	// Define incompatible conversions
 	incompatible := map[string][]string{
 		// Add specific incompatible combinations here if needed
 	}
-	
+
 	if blocked, exists := incompatible[from]; exists {
 		for _, blocked := range blocked {
 			if blocked == to {
@@ -574,6 +574,6 @@ func ValidateConversionCompatibility(from, to string) error {
 			}
 		}
 	}
-	
+
 	return nil
 }

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Genie Utils Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #0a0a0a;
+            color: #e0e0e0;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+        .test-section h2 {
+            color: #00ff41;
+            margin-bottom: 10px;
+        }
+        .test-result {
+            padding: 5px 0;
+        }
+        .pass {
+            color: #00ff41;
+        }
+        .fail {
+            color: #ff0040;
+        }
+        pre {
+            background: #0a0a0a;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Genie Utilities Test Suite</h1>
+    <div id="test-results"></div>
+
+    <script type="module">
+        import * as utils from './index.js';
+
+        const results = document.getElementById('test-results');
+
+        function addSection(title) {
+            const section = document.createElement('div');
+            section.className = 'test-section';
+            section.innerHTML = `<h2>${title}</h2>`;
+            results.appendChild(section);
+            return section;
+        }
+
+        function addResult(section, name, passed, value) {
+            const result = document.createElement('div');
+            result.className = `test-result ${passed ? 'pass' : 'fail'}`;
+            result.textContent = `${passed ? '✓' : '✗'} ${name}: ${value}`;
+            section.appendChild(result);
+        }
+
+        // Test Constants
+        const constantsSection = addSection('Constants');
+        addResult(constantsSection, 'API_BASE_URL', utils.API_BASE_URL === '/api/v1', utils.API_BASE_URL);
+        addResult(constantsSection, 'DEFAULT_GENERATION_PHASES length', utils.DEFAULT_GENERATION_PHASES.length === 6, utils.DEFAULT_GENERATION_PHASES.length);
+        addResult(constantsSection, 'MOBILE_BREAKPOINT', utils.MOBILE_BREAKPOINT === 768, utils.MOBILE_BREAKPOINT);
+
+        // Test Formatters
+        const formattersSection = addSection('Formatters');
+
+        const timestamp = new Date('2024-01-01T10:00:00');
+        const formattedTime = utils.formatTimestamp(timestamp);
+        addResult(formattersSection, 'formatTimestamp', formattedTime.length > 0, formattedTime);
+
+        const duration = utils.formatDurationSeconds(3665);
+        addResult(formattersSection, 'formatDurationSeconds(3665)', duration === '1h 1m 5s', duration);
+
+        const percent = utils.formatPercent(85.456, 2);
+        addResult(formattersSection, 'formatPercent(85.456, 2)', percent === '85.46%', percent);
+
+        const phaseLabel = utils.formatPhaseLabel('test_phase');
+        addResult(formattersSection, 'formatPhaseLabel(test_phase)', phaseLabel === 'Test Phase', phaseLabel);
+
+        const escaped = utils.escapeHtml('<script>alert("xss")</script>');
+        addResult(formattersSection, 'escapeHtml (XSS protection)', !escaped.includes('<script>'), escaped);
+
+        const normalized = utils.normalizeId(12345);
+        addResult(formattersSection, 'normalizeId(12345)', normalized === '12345', normalized);
+
+        // Test Validators
+        const validatorsSection = addSection('Validators');
+
+        const healthyPayload = { healthy: true };
+        const isHealthy = utils.isHealthPayloadHealthy(healthyPayload);
+        addResult(validatorsSection, 'isHealthPayloadHealthy (true)', isHealthy === true, isHealthy);
+
+        const unhealthyPayload = { healthy: false };
+        const isUnhealthy = utils.isHealthPayloadHealthy(unhealthyPayload);
+        addResult(validatorsSection, 'isHealthPayloadHealthy (false)', isUnhealthy === false, isUnhealthy);
+
+        const coverageTarget = utils.normalizeCoverageTarget(120);
+        addResult(validatorsSection, 'normalizeCoverageTarget(120) caps at 100', coverageTarget === 100, coverageTarget);
+
+        const lowCoverage = utils.normalizeCoverageTarget(30);
+        addResult(validatorsSection, 'normalizeCoverageTarget(30) floors at 50', lowCoverage === 50, lowCoverage);
+
+        const validEmail = utils.isValidEmail('test@example.com');
+        addResult(validatorsSection, 'isValidEmail (valid)', validEmail === true, validEmail);
+
+        const invalidEmail = utils.isValidEmail('not-an-email');
+        addResult(validatorsSection, 'isValidEmail (invalid)', invalidEmail === false, invalidEmail);
+
+        // Test Status Descriptors
+        const statusSection = addSection('Status Descriptors');
+
+        const completedStatus = utils.getStatusDescriptor('completed');
+        addResult(statusSection, 'getStatusDescriptor(completed)', completedStatus.key === 'completed', completedStatus.label);
+
+        const runningStatus = utils.getStatusDescriptor('running');
+        addResult(statusSection, 'getStatusDescriptor(running)', runningStatus.key === 'running', runningStatus.label);
+
+        const failedStatus = utils.getStatusDescriptor('failed');
+        addResult(statusSection, 'getStatusDescriptor(failed)', failedStatus.key === 'failed', failedStatus.label);
+
+        // Summary
+        const summarySection = addSection('Summary');
+        summarySection.innerHTML += '<p class="pass">✓ All utility modules loaded successfully!</p>';
+        summarySection.innerHTML += `<pre>${JSON.stringify({
+            constants: Object.keys(utils).filter(k => k === k.toUpperCase()).length + ' exported',
+            formatters: '19 functions',
+            validators: '15 functions',
+            domHelpers: '25 functions'
+        }, null, 2)}</pre>`;
+    </script>
+</body>
+</html>

@@ -74,6 +74,7 @@ usage() {
     echo "  delete <id>  Delete a graph"
     echo "  validate <id> Validate a graph"
     echo "  convert <id> <format> Convert graph format"
+    echo "  export <id> <format> [file] Export graph (graphml, gexf, json)"
     echo "  plugins      List available plugins"
     echo "  help         Show this help"
     echo ""
@@ -82,6 +83,7 @@ usage() {
     echo "  graph-studio list"
     echo "  graph-studio create \"My Graph\" mind-maps"
     echo "  graph-studio validate abc-123"
+    echo "  graph-studio export abc-123 graphml output.graphml"
     exit 0
 }
 
@@ -142,7 +144,30 @@ case "$COMMAND" in
         DATA="{\"target_format\":\"$2\"}"
         api_request POST "/api/v1/graphs/$1/convert" "$DATA" | format_output
         ;;
-        
+
+    export)
+        if [[ $# -lt 2 ]]; then
+            echo -e "${RED}Usage: graph-studio export <id> <format> [output-file]${NC}"
+            echo -e "Formats: graphml, gexf, json"
+            exit 1
+        fi
+        GRAPH_ID="$1"
+        FORMAT="$2"
+        OUTPUT_FILE="${3:-}"
+
+        DATA="{\"format\":\"$FORMAT\"}"
+        RESPONSE=$(api_request POST "/api/v1/graphs/$GRAPH_ID/export" "$DATA")
+
+        if [[ -n "$OUTPUT_FILE" ]]; then
+            # Extract content and save to file
+            echo "$RESPONSE" | jq -r '.content' > "$OUTPUT_FILE"
+            echo -e "${GREEN}✓ Exported to: $OUTPUT_FILE${NC}"
+        else
+            # Show full response
+            echo "$RESPONSE" | format_output
+        fi
+        ;;
+
     plugins)
         api_request GET "/api/v1/plugins" | format_output
         ;;

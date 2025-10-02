@@ -135,6 +135,9 @@ function switchView(view) {
         case 'planner':
             loadPlannerRegions();
             break;
+        case 'gallery':
+            initializeGallery();
+            break;
     }
 }
 
@@ -408,4 +411,371 @@ async function showRegionDetails(regionId) {
 // Close info panel
 function closeInfoPanel() {
     document.getElementById('info-panel').classList.remove('open');
+}
+
+// Photo Gallery Functions
+let currentGalleryPhotos = [];
+
+// Initialize gallery when view is activated
+async function initializeGallery() {
+    // Populate region filters
+    const regionFilter = document.getElementById('gallery-region-filter');
+    const uploadRegion = document.getElementById('upload-region');
+
+    // Clear existing options (except "All Regions" for filter)
+    uploadRegion.innerHTML = '<option value="">Select a region</option>';
+
+    // Add regions to both selects
+    regionsData.forEach(region => {
+        const filterOption = document.createElement('option');
+        filterOption.value = region.id;
+        filterOption.textContent = region.name;
+        regionFilter.appendChild(filterOption);
+
+        const uploadOption = document.createElement('option');
+        uploadOption.value = region.id;
+        uploadOption.textContent = region.name;
+        uploadRegion.appendChild(uploadOption);
+    });
+
+    // Setup form submission
+    const form = document.getElementById('photo-upload-form');
+    form.addEventListener('submit', handlePhotoSubmit);
+
+    // Setup filter listeners
+    regionFilter.addEventListener('change', filterGallery);
+    document.getElementById('gallery-date-filter').addEventListener('change', filterGallery);
+
+    // Load initial photos
+    loadGalleryPhotos();
+}
+
+// Load photos from API
+async function loadGalleryPhotos(regionId = null) {
+    try {
+        let url = `${API_BASE}/api/reports`;
+        if (regionId) {
+            url += `?region_id=${regionId}`;
+        }
+
+        const response = await fetch(url);
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            currentGalleryPhotos = result.data || [];
+            // If no regionId filter, load from all regions
+            if (!regionId && regionsData.length > 0) {
+                const allPhotos = [];
+                for (const region of regionsData) {
+                    const regionResponse = await fetch(`${API_BASE}/api/reports?region_id=${region.id}`);
+                    const regionResult = await regionResponse.json();
+                    if (regionResult.status === 'success' && regionResult.data) {
+                        allPhotos.push(...regionResult.data);
+                    }
+                }
+                currentGalleryPhotos = allPhotos;
+            }
+            displayGalleryPhotos(currentGalleryPhotos);
+        }
+    } catch (error) {
+        console.error('Failed to load gallery photos:', error);
+        displayGalleryPhotos([]);
+    }
+}
+
+// Display photos in the gallery
+function displayGalleryPhotos(photos) {
+    const grid = document.getElementById('photo-grid');
+
+    if (!photos || photos.length === 0) {
+        grid.innerHTML = '<p class="no-photos">No photos available. Share the first photo!</p>';
+        return;
+    }
+
+    grid.innerHTML = photos
+        .filter(photo => photo.photo_url) // Only show reports with photos
+        .map(photo => {
+            const region = regionsData.find(r => r.id === photo.region_id);
+            const regionName = region ? region.name : 'Unknown Region';
+            const date = photo.report_date || 'Date unknown';
+
+            return `
+                <div class="photo-card">
+                    <div class="photo-image-container">
+                        <img src="${photo.photo_url}" alt="${regionName} foliage"
+                             onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22200%22%3E%3Crect fill=%22%23ddd%22 width=%22300%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22%3EImage not available%3C/text%3E%3C/svg%3E'">
+                    </div>
+                    <div class="photo-info">
+                        <h4>${regionName}</h4>
+                        <p class="photo-status">
+                            <span class="status-badge status-${photo.foliage_status}">${formatStatus(photo.foliage_status)}</span>
+                        </p>
+                        <p class="photo-date">${formatDate(date)}</p>
+                        ${photo.description ? `<p class="photo-description">${photo.description}</p>` : ''}
+                    </div>
+                </div>
+            `;
+        })
+        .join('');
+}
+
+// Filter gallery based on selected filters
+function filterGallery() {
+    const regionFilter = document.getElementById('gallery-region-filter').value;
+    const dateFilter = document.getElementById('gallery-date-filter').value;
+
+    let filtered = currentGalleryPhotos;
+
+    if (regionFilter) {
+        filtered = filtered.filter(photo => photo.region_id === parseInt(regionFilter));
+    }
+
+    if (dateFilter) {
+        filtered = filtered.filter(photo => photo.report_date === dateFilter);
+    }
+
+    displayGalleryPhotos(filtered);
+}
+
+// Handle photo submission
+async function handlePhotoSubmit(e) {
+    e.preventDefault();
+
+    const regionId = parseInt(document.getElementById('upload-region').value);
+    const status = document.getElementById('upload-status').value;
+    const photoUrl = document.getElementById('upload-photo-url').value;
+    const description = document.getElementById('upload-description').value;
+
+    if (!regionId || !status || !photoUrl) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api/reports`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                region_id: regionId,
+                foliage_status: status,
+                photo_url: photoUrl,
+                description: description
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            alert('Photo shared successfully!');
+            // Clear form
+            e.target.reset();
+            // Reload gallery
+            loadGalleryPhotos();
+        } else {
+            alert('Failed to share photo: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Failed to submit photo:', error);
+        alert('Failed to share photo. Please try again.');
+    }
+}
+
+// Format status for display
+function formatStatus(status) {
+    return status.split('_').map(word =>
+        word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+}
+
+// Format date for display
+function formatDate(dateStr) {
+    if (!dateStr) return 'Date unknown';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
+
+// Export Functions
+
+// Export predictions as CSV
+async function exportPredictionsCSV() {
+    try {
+        const predictions = [];
+
+        for (const region of regionsData) {
+            // Fetch foliage data for each region
+            const foliageResponse = await fetch(`${API_BASE}/api/foliage?region_id=${region.id}`);
+            const foliageData = await foliageResponse.json();
+
+            predictions.push({
+                region: region.name,
+                state: region.state,
+                latitude: region.latitude,
+                longitude: region.longitude,
+                elevation: region.elevation_meters || 'N/A',
+                current_status: foliageData.data?.peak_status || 'unknown',
+                color_intensity: foliageData.data?.color_intensity || 0,
+                typical_peak_week: region.typical_peak_week || 'N/A'
+            });
+        }
+
+        // Convert to CSV
+        const headers = ['Region', 'State', 'Latitude', 'Longitude', 'Elevation (m)', 'Current Status', 'Color Intensity', 'Typical Peak Week'];
+        const csvRows = [headers.join(',')];
+
+        predictions.forEach(pred => {
+            const row = [
+                `"${pred.region}"`,
+                `"${pred.state}"`,
+                pred.latitude,
+                pred.longitude,
+                pred.elevation,
+                `"${pred.current_status}"`,
+                pred.color_intensity,
+                pred.typical_peak_week
+            ];
+            csvRows.push(row.join(','));
+        });
+
+        const csvContent = csvRows.join('\n');
+        downloadFile(csvContent, 'foliage-predictions.csv', 'text/csv');
+
+    } catch (error) {
+        console.error('Failed to export predictions:', error);
+        alert('Failed to export predictions. Please try again.');
+    }
+}
+
+// Export predictions as JSON
+async function exportPredictionsJSON() {
+    try {
+        const predictions = [];
+
+        for (const region of regionsData) {
+            // Fetch foliage data for each region
+            const foliageResponse = await fetch(`${API_BASE}/api/foliage?region_id=${region.id}`);
+            const foliageData = await foliageResponse.json();
+
+            predictions.push({
+                region: region.name,
+                state: region.state,
+                coordinates: {
+                    latitude: region.latitude,
+                    longitude: region.longitude
+                },
+                elevation_meters: region.elevation_meters || null,
+                current_status: foliageData.data?.peak_status || 'unknown',
+                color_intensity: foliageData.data?.color_intensity || 0,
+                typical_peak_week: region.typical_peak_week || null,
+                exported_at: new Date().toISOString()
+            });
+        }
+
+        const jsonContent = JSON.stringify({
+            export_date: new Date().toISOString(),
+            predictions: predictions
+        }, null, 2);
+
+        downloadFile(jsonContent, 'foliage-predictions.json', 'application/json');
+
+    } catch (error) {
+        console.error('Failed to export predictions:', error);
+        alert('Failed to export predictions. Please try again.');
+    }
+}
+
+// Export trip plans as CSV
+async function exportTripsCSV() {
+    try {
+        const tripsResponse = await fetch(`${API_BASE}/api/trips`);
+        const tripsData = await tripsResponse.json();
+
+        if (!tripsData.trips || tripsData.trips.length === 0) {
+            alert('No trip plans to export');
+            return;
+        }
+
+        const headers = ['Trip Name', 'Start Date', 'End Date', 'Regions', 'Created'];
+        const csvRows = [headers.join(',')];
+
+        tripsData.trips.forEach(trip => {
+            const regionNames = trip.region_ids?.map(id => {
+                const region = regionsData.find(r => r.id === id);
+                return region ? region.name : `Region ${id}`;
+            }).join('; ') || '';
+
+            const row = [
+                `"${trip.name}"`,
+                trip.start_date,
+                trip.end_date,
+                `"${regionNames}"`,
+                new Date(trip.created_at).toLocaleDateString()
+            ];
+            csvRows.push(row.join(','));
+        });
+
+        const csvContent = csvRows.join('\n');
+        downloadFile(csvContent, 'foliage-trips.csv', 'text/csv');
+
+    } catch (error) {
+        console.error('Failed to export trips:', error);
+        alert('Failed to export trips. Please try again.');
+    }
+}
+
+// Export trip plans as JSON
+async function exportTripsJSON() {
+    try {
+        const tripsResponse = await fetch(`${API_BASE}/api/trips`);
+        const tripsData = await tripsResponse.json();
+
+        if (!tripsData.trips || tripsData.trips.length === 0) {
+            alert('No trip plans to export');
+            return;
+        }
+
+        // Enhance trips with region names
+        const enhancedTrips = tripsData.trips.map(trip => ({
+            ...trip,
+            regions: trip.region_ids?.map(id => {
+                const region = regionsData.find(r => r.id === id);
+                return region ? {
+                    id: region.id,
+                    name: region.name,
+                    state: region.state,
+                    coordinates: {
+                        latitude: region.latitude,
+                        longitude: region.longitude
+                    }
+                } : { id: id, name: `Unknown Region ${id}` };
+            }) || []
+        }));
+
+        const jsonContent = JSON.stringify({
+            export_date: new Date().toISOString(),
+            trips: enhancedTrips
+        }, null, 2);
+
+        downloadFile(jsonContent, 'foliage-trips.json', 'application/json');
+
+    } catch (error) {
+        console.error('Failed to export trips:', error);
+        alert('Failed to export trips. Please try again.');
+    }
+}
+
+// Utility function to download file
+function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 }

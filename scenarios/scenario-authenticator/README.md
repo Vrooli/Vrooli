@@ -45,7 +45,7 @@ scenario-authenticator user get <user-id>
 
 # Admin actions require AUTH_TOKEN exported from an admin login
 export AUTH_TOKEN=$(curl -s -X POST \
-  http://localhost:$(vrooli scenario port scenario-authenticator AUTH_API_PORT)/api/v1/auth/login \
+  http://localhost:$(vrooli scenario port scenario-authenticator API_PORT)/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"SecurePass123!"}' | jq -r '.token')
 
@@ -53,7 +53,7 @@ scenario-authenticator user update <user-id> roles admin,moderator
 scenario-authenticator user delete <user-id>
 
 # Via API (replace port with actual API port)
-curl -X POST http://localhost:$(vrooli scenario port scenario-authenticator AUTH_API_PORT)/api/v1/auth/register \
+curl -X POST http://localhost:$(vrooli scenario port scenario-authenticator API_PORT)/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"SecurePass123!"}'
 
@@ -72,7 +72,7 @@ scenario-authenticator token validate $AUTH_TOKEN
 
 # Validate via API (using dynamic port discovery)
 curl -H "Authorization: Bearer $AUTH_TOKEN" \
-  http://localhost:$(vrooli scenario port scenario-authenticator AUTH_API_PORT)/api/v1/auth/validate
+  http://localhost:$(vrooli scenario port scenario-authenticator API_PORT)/api/v1/auth/validate
 ```
 
 ## 🔧 Integration Guide
@@ -91,9 +91,9 @@ const validateAuth = async (req, res, next) => {
     
     try {
         // Get auth API port dynamically
-        const authApiPort = process.env.AUTH_API_PORT || process.env.API_PORT;
+        const authApiPort = process.env.API_PORT;
         const authApiUrl = `http://localhost:${authApiPort}`;
-        
+
         const response = await fetch(`${authApiUrl}/api/v1/auth/validate`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -130,12 +130,9 @@ func authMiddleware(next http.Handler) http.Handler {
         }
         
         token = strings.Replace(token, "Bearer ", "", 1)
-        
+
         // Get auth API port from environment
-        authPort := os.Getenv("AUTH_API_PORT")
-        if authPort == "" {
-            authPort = os.Getenv("API_PORT")
-        }
+        authPort := os.Getenv("API_PORT")
         authURL := fmt.Sprintf("http://localhost:%s/api/v1/auth/validate?token=%s", authPort, token)
         
         resp, err := http.Get(authURL)
@@ -169,17 +166,17 @@ async function checkAuth() {
     
     try {
         // Get auth API port dynamically from environment or configuration
-        const authApiPort = window.AUTH_API_PORT || getAuthAPIPortFromConfig();
+        const authApiPort = window.API_PORT || getAuthAPIPortFromConfig();
         const authApiUrl = `http://localhost:${authApiPort}`;
-        
+
         const response = await fetch(`${authApiUrl}/api/v1/auth/validate`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
+
         const validation = await response.json();
         if (!validation.valid) {
             localStorage.removeItem('auth_token');
-            const authUiPort = window.AUTH_UI_PORT || getAuthUIPortFromConfig();
+            const authUiPort = window.UI_PORT || getAuthUIPortFromConfig();
             window.location.href = `http://localhost:${authUiPort}/login?redirect=` + 
                                   encodeURIComponent(window.location.href);
             return false;
@@ -232,13 +229,20 @@ scenario-authenticator status --verbose
 ## 🛡️ Security Features
 
 - **BCrypt Password Hashing**: Industry-standard password protection
-- **JWT with RSA Signing**: Secure, stateless authentication
+- **Password Complexity Requirements**: Enforced minimum length, uppercase, lowercase, and numbers
+- **Email Validation**: RFC-compliant email format validation
+- **JWT with RSA Signing**: Secure, stateless authentication with configurable expiry
 - **Token Blacklisting**: Immediate token revocation via Redis
-- **Session Management**: Secure session tracking and cleanup  
+- **Session Management**: Secure session tracking and cleanup
+- **CORS Protection**: Configurable origin whitelisting (defaults to localhost for development)
 - **Rate Limiting**: Per-user API rate limiting
 - **Audit Logging**: Complete authentication event tracking
 - **Password Reset Security**: Time-limited, single-use reset tokens
 - **Role-Based Permissions**: Granular access control
+- **Two-Factor Authentication (2FA)**: TOTP-based 2FA with backup codes
+- **OAuth2 Integration**: Social login with Google and GitHub
+- **Security Headers**: Comprehensive HTTP security headers (X-Frame-Options, CSP, X-XSS-Protection, etc.)
+- **Request Size Limiting**: DoS protection via configurable request body size limits (default: 1MB)
 
 ## 📋 API Reference
 
@@ -252,6 +256,10 @@ scenario-authenticator status --verbose
 | `/api/v1/auth/refresh` | POST | Refresh expired token |
 | `/api/v1/auth/logout` | POST | Invalidate session |
 | `/api/v1/auth/reset-password` | POST | Initiate password reset |
+| `/api/v1/auth/oauth/providers` | GET | List available OAuth providers |
+| `/api/v1/auth/oauth/login?provider=google` | GET | Initiate OAuth2 login |
+| `/api/v1/auth/oauth/google/callback` | GET | OAuth2 callback (Google) |
+| `/api/v1/auth/oauth/github/callback` | GET | OAuth2 callback (GitHub) |
 
 ### User Management Endpoints
 
@@ -288,8 +296,8 @@ vrooli scenario test scenario-authenticator
 scenario-authenticator status --json
 
 # Test health endpoints (using dynamic port discovery)
-curl -f http://localhost:$(vrooli scenario port scenario-authenticator AUTH_API_PORT)/health
-curl -f http://localhost:$(vrooli scenario port scenario-authenticator AUTH_UI_PORT)/health
+curl -f http://localhost:$(vrooli scenario port scenario-authenticator API_PORT)/health
+curl -f http://localhost:$(vrooli scenario port scenario-authenticator UI_PORT)/health
 ```
 
 ## 📊 Monitoring
@@ -313,15 +321,88 @@ scenario-authenticator status --verbose
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `AUTH_API_PORT` | Dynamic (15000-19999) | API server port |
-| `AUTH_UI_PORT` | Dynamic (35000-39999) | UI server port |
+| `API_PORT` | Dynamic (15000-19999) | API server port |
+| `UI_PORT` | Dynamic (35000-39999) | UI server port |
 | `DATABASE_URL` | auto | PostgreSQL connection |
 | `REDIS_URL` | auto | Redis connection |
-| `JWT_EXPIRY` | 1h | Token expiration time |
+| `CORS_ALLOWED_ORIGINS` | localhost:3000,5173,8080 | Comma-separated list of allowed CORS origins |
+| `CSP_POLICY` | (auto) | Custom Content-Security-Policy header (defaults to development-friendly CSP) |
+| `JWT_EXPIRY_MINUTES` | 60 | JWT token expiry in minutes (max: 1440 = 24 hours) |
+| `MAX_REQUEST_SIZE_MB` | 1 | Maximum request body size in MB (max: 100) |
+| `GOOGLE_CLIENT_ID` | (optional) | Google OAuth2 client ID |
+| `GOOGLE_CLIENT_SECRET` | (optional) | Google OAuth2 client secret |
+| `GITHUB_CLIENT_ID` | (optional) | GitHub OAuth2 client ID |
+| `GITHUB_CLIENT_SECRET` | (optional) | GitHub OAuth2 client secret |
+| `AUTH_BASE_URL` | http://localhost:8105 | Base URL for OAuth2 callbacks |
 | `REFRESH_EXPIRY` | 7d | Refresh token expiry |
 | `CONTACT_BOOK_URL` | none | Base URL for the Contact Book UI (used by the Manage Profile action) |
 
 If `CONTACT_BOOK_URL` is unset but the lifecycle exposes `CONTACT_BOOK_API_PORT`, the UI falls back to `http://localhost:${CONTACT_BOOK_API_PORT}`.
+
+### OAuth2 Configuration (Optional)
+
+The scenario includes **full OAuth2 social login support** for Google and GitHub. OAuth2 is disabled by default and can be enabled by setting the required environment variables.
+
+#### Enabling Google OAuth2
+
+1. **Create OAuth2 Credentials** at [Google Cloud Console](https://console.cloud.google.com/):
+   - Create a new project or select existing
+   - Navigate to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "OAuth 2.0 Client ID"
+   - Application type: "Web application"
+   - Authorized redirect URI: `http://localhost:$(vrooli scenario port scenario-authenticator API_PORT)/api/v1/auth/oauth/google/callback`
+   - Copy the Client ID and Client Secret
+
+2. **Set Environment Variables**:
+   ```bash
+   export GOOGLE_CLIENT_ID="your-google-client-id"
+   export GOOGLE_CLIENT_SECRET="your-google-client-secret"
+   ```
+
+3. **Restart the Service**:
+   ```bash
+   vrooli scenario restart scenario-authenticator
+   ```
+
+4. **Verify OAuth2 is Active**:
+   ```bash
+   curl http://localhost:$(vrooli scenario port scenario-authenticator API_PORT)/api/v1/auth/oauth/providers | jq .
+   # Should show Google provider as enabled
+   ```
+
+#### Enabling GitHub OAuth2
+
+1. **Create OAuth App** at [GitHub Developer Settings](https://github.com/settings/developers):
+   - Click "New OAuth App"
+   - Application name: "Vrooli Authentication"
+   - Homepage URL: `http://localhost:$(vrooli scenario port scenario-authenticator API_PORT)`
+   - Authorization callback URL: `http://localhost:$(vrooli scenario port scenario-authenticator API_PORT)/api/v1/auth/oauth/github/callback`
+   - Copy the Client ID and generate a Client Secret
+
+2. **Set Environment Variables**:
+   ```bash
+   export GITHUB_CLIENT_ID="your-github-client-id"
+   export GITHUB_CLIENT_SECRET="your-github-client-secret"
+   ```
+
+3. **Restart the Service** and verify as shown above.
+
+#### OAuth2 Flow
+
+When OAuth2 is enabled:
+1. Users see "Sign in with Google/GitHub" buttons in the UI
+2. Clicking initiates OAuth2 authorization flow
+3. After successful authentication, users are automatically created or linked
+4. OAuth users are marked with `email_verified: true`
+5. All OAuth events are logged in audit logs
+
+**Security Features**:
+- CSRF protection via state tokens (10-minute expiration)
+- Automatic user linking by email
+- Session creation after OAuth login
+- Audit logging for all OAuth events
+
+For detailed OAuth2 implementation details, see `docs/oauth2-implementation-guide.md`.
 
 ### Database Configuration
 
@@ -380,11 +461,20 @@ journalctl -u scenario-authenticator -f
 
 ## 🔐 Security Notice
 
-- **Change default passwords** immediately in production
+⚠️ **IMPORTANT - Development Seed Data**
+This scenario includes seed data (`initialization/postgres/seed.sql`) with **default test accounts**:
+- `admin@vrooli.local` / `Admin123!`
+- `test@vrooli.local` / `Test123!`
+- `demo@vrooli.local` / `Demo123!`
+
+**For Production Deployments:**
+- **DELETE or DISABLE** all seed accounts before production use
+- **Change all default passwords** immediately
 - **Use HTTPS** for all authentication endpoints
-- **Rotate JWT keys** regularly
-- **Monitor failed login attempts**
-- **Enable audit logging** in production environments
+- **Rotate JWT keys** regularly (set up automated rotation)
+- **Monitor failed login attempts** for security threats
+- **Enable audit logging** and review logs regularly
+- **Configure CORS_ALLOWED_ORIGINS** environment variable for production domains
 
 ---
 

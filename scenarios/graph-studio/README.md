@@ -87,6 +87,16 @@ curl -X POST http://localhost:$API_PORT/api/v1/graphs \
   }'
 ```
 
+### Search Graphs
+```bash
+# Search by keyword across name, description, and tags
+API_PORT=$(vrooli scenario port graph-studio API_PORT)
+curl "http://localhost:$API_PORT/api/v1/graphs?search=architecture"
+
+# Combine search with filters
+curl "http://localhost:$API_PORT/api/v1/graphs?search=system&type=mind-maps"
+```
+
 ### Validate a Graph
 ```bash
 API_PORT=$(vrooli scenario port graph-studio API_PORT)
@@ -155,16 +165,33 @@ Conversions are handled through a compatibility matrix. To add a new conversion:
 
 ## 🧪 Testing
 
+Graph Studio includes a comprehensive phased testing architecture:
+
 ```bash
-# Run all tests
-./test.sh
+# Run complete test suite (recommended)
+./test/run-tests.sh
 
-# Test specific plugin
-./test.sh --plugin mind-maps
+# Run via Makefile
+make test
 
-# Validate all graphs
-graph-studio validate --all
+# Run individual test phases
+./test/phases/test-unit.sh         # Go code quality
+./test/phases/test-integration.sh  # End-to-end workflows
+./test/phases/test-api.sh          # API endpoints
+./test/phases/test-cli.sh          # CLI commands
+./test/phases/test-ui.sh           # UI accessibility
+
+# Quick validation
+graph-studio status                # Check service health
+curl http://localhost:$API_PORT/health  # API health check
 ```
+
+**Test Coverage**:
+- 33+ individual tests across 5 phases
+- Unit, Integration, API, CLI, and UI testing
+- Automated via lifecycle system
+
+See [test/README.md](test/README.md) for complete testing documentation.
 
 ## 📖 Documentation
 

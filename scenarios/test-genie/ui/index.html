@@ -877,6 +877,10 @@
             padding: 0;
         }
 
+        #executions .panel-body {
+            padding: 0;
+        }
+
         #recent-executions {
             padding: 0;
         }
@@ -1296,6 +1300,40 @@
             letter-spacing: 0.05em;
         }
 
+        .table th[data-sortable] {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            padding-right: 24px;
+        }
+
+        .table th[data-sortable]:hover {
+            background: var(--bg-panel);
+            color: var(--accent-primary);
+        }
+
+        .table th[data-sortable]::after {
+            content: '⇅';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.3;
+            font-size: 0.9rem;
+        }
+
+        .table th[data-sortable][data-sort-direction="asc"]::after {
+            content: '↑';
+            opacity: 1;
+            color: var(--accent-primary);
+        }
+
+        .table th[data-sortable][data-sort-direction="desc"]::after {
+            content: '↓';
+            opacity: 1;
+            color: var(--accent-primary);
+        }
+
         .table td {
             color: var(--text-secondary);
         }
@@ -1456,14 +1494,33 @@
         }
 
         .coverage-meter {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            min-width: 140px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            width: 140px;
+            max-width: 140px;
         }
 
         .coverage-meter .progress {
-            width: 80px;
+            width: 100%;
+            flex-shrink: 0;
+        }
+
+        .coverage-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .coverage-percentage {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .coverage-phases {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
         }
 
         .progress-bar {
@@ -1967,19 +2024,123 @@
             }
         }
 
+        /* Card Views - Mobile First */
+        .suites-cards-view,
+        .executions-cards-view {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm);
+        }
+
+        .suites-table-view,
+        .executions-table-view {
+            display: none;
+        }
+
+        .suite-card,
+        .execution-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--panel-border-radius);
+            padding: var(--spacing-md);
+            transition: all 0.2s ease;
+        }
+
+        .suite-card:hover,
+        .execution-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 12px var(--glow-primary);
+        }
+
+        .suite-card-header,
+        .execution-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .suite-card-title,
+        .execution-card-title {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            flex: 1;
+        }
+
+        .suite-card-title strong,
+        .execution-card-title strong {
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .suite-card-checkbox,
+        .execution-card-checkbox {
+            margin-right: var(--spacing-xs);
+            flex-shrink: 0;
+        }
+
+        .suite-card-body,
+        .execution-card-body {
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .suite-card-metric,
+        .execution-card-metric {
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .suite-card-actions,
+        .execution-card-actions {
+            display: flex;
+            gap: var(--spacing-xs);
+            flex-wrap: wrap;
+        }
+
+        .suite-card-actions .btn,
+        .execution-card-actions .btn {
+            flex: 1;
+            min-width: fit-content;
+        }
+
+        @media (min-width: 640px) {
+            .suites-cards-view,
+            .executions-cards-view {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 768px) {
+            /* Switch to table view on tablets and up */
+            .suites-cards-view,
+            .executions-cards-view {
+                display: none;
+            }
+
+            .suites-table-view,
+            .executions-table-view {
+                display: block;
+            }
+        }
+
         @media (max-width: 768px) {
             :root {
                 --sidebar-width: 100%;
             }
 
-            .suites-table,
-            .executions-table,
-            .coverage-table {
-                min-width: 720px;
-            }
-
-            #suites .panel-body {
-                padding: var(--spacing-sm);
+            #suites .panel-body,
+            #executions .panel-body {
+                padding: 0;
             }
 
             #suites-table {
@@ -3379,7 +3540,7 @@ test-genie help
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
     <script>
         // Initialize Lucide icons with multiple fallbacks
         function initLucideIcons() {
