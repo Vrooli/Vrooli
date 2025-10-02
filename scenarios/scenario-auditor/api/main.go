@@ -365,7 +365,7 @@ func main() {
 	api.HandleFunc("/rules/test-cache", clearTestCacheHandler).Methods("DELETE")
 	api.HandleFunc("/rules/test-coverage", getTestCoverageHandler).Methods("GET")
 	api.HandleFunc("/rules/categories", getRuleCategoriesHandler).Methods("GET")
-	api.HandleFunc("/rules/ai/create", createRuleWithAIHandler).Methods("POST")
+	api.HandleFunc("/rules/create", createRuleHandler).Methods("POST")
 	api.HandleFunc("/rules/ai/edit/{ruleId}", editRuleWithAIHandler).Methods("POST")
 	api.HandleFunc("/rules/report-issue", reportIssueHandler).Methods("POST")
 	// Parameterized routes come last

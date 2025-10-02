@@ -11,6 +11,8 @@
     <script type="module">
         import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
 
+        const LOGIN_ROUTE = '/auth/login';
+
         if (typeof window !== 'undefined' && window.parent !== window && !window.__scenarioAuthenticatorBridgeInitialized) {
             let parentOrigin;
             try {
@@ -1683,7 +1685,7 @@ scenario-authenticator protect your-scenario ui
             authToken = authData.token || localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
             
             if (!authToken) {
-                window.location.href = '/';
+                window.location.href = LOGIN_ROUTE;
                 return;
             }
 
@@ -1691,7 +1693,7 @@ scenario-authenticator protect your-scenario ui
             if (!roleList.includes('admin')) {
                 showSnackbar('Admin access required. Redirecting…', 'warning');
                 setTimeout(() => {
-                    window.location.href = '/dashboard';
+                    window.location.href = '/';
                 }, 1400);
                 return;
             }
@@ -1700,7 +1702,7 @@ scenario-authenticator protect your-scenario ui
                 userCard = window.AuthUserCard.mount(userCardContainer, {
                     onProfile: viewProfile,
                     onAdmin: () => {
-                        window.location.href = '/dashboard';
+                        window.location.href = '/';
                     },
                     labels: {
                         admin: 'Dashboard',
@@ -3002,7 +3004,7 @@ scenario-authenticator protect your-scenario ui
             
             localStorage.clear();
             sessionStorage.clear();
-            window.location.href = '/';
+            window.location.href = LOGIN_ROUTE;
         }
 
         // Show snackbar

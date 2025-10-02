@@ -1,4 +1,80 @@
 /* Ecosystem Manager UI Styles */
+
+/* ============================================================================
+   📑 TABLE OF CONTENTS
+   ============================================================================
+
+   Use your editor's "Go to Line" feature (Ctrl+G / Cmd+L) for quick navigation
+
+   CORE STYLES
+   ├─ Variables & Configuration .................... Line 2
+   ├─ Reset & Base Styles .......................... Line 63
+   └─ Dark Mode Variables .......................... Line 92
+       └─ ⚠️  Dark Mode Warning .................... Line 103
+
+   LAYOUT & STRUCTURE
+   ├─ Fixed Top Container .......................... Line 207
+   ├─ Header ....................................... Line 217
+   ├─ Main Content ................................. Line 567
+   └─ Kanban Board ................................. Line 581
+       ├─ Columns .................................. Line ~650
+       └─ Floating Controls ........................ Line ~640
+
+   COMPONENTS
+   ├─ Buttons ...................................... Line 509
+   ├─ Filters Dialog ............................... Line 272
+   ├─ Task Cards ................................... Line 931
+   │   ├─ Task Header .............................. Line ~950
+   │   ├─ Task Meta ................................ Line ~1160
+   │   ├─ Priority Chips ........................... Line 1358
+   │   ├─ Category Tags ............................ Line 1240
+   │   ├─ Task Phase Chip .......................... Line 1291
+   │   └─ Task Actions ............................. Line ~1400
+   ├─ Modals ....................................... Line 1483
+   │   ├─ Log Viewer Modal ......................... Line 1568
+   │   └─ Settings Modal ........................... Line 3882
+   ├─ Forms ........................................ Line 1841
+   │   ├─ Task Form Grid ........................... Line 2556
+   │   └─ Toggle Button Groups ..................... Line 2598
+   ├─ Loading ...................................... Line 2861
+   ├─ Toast Notifications .......................... Line 2894
+   └─ Queue Status Indicators ...................... Line 3625
+
+   FEATURES
+   ├─ Drag and Drop ................................ Line 3398
+   ├─ Condensed Mode ............................... Line 3470
+   ├─ Process Monitor Widget ....................... Line 3664
+   ├─ Prompt Tester (⚠️  ~600 lines) ............... Line 3987
+   └─ Rate Limit Notification ...................... Line 4834
+
+   THEMING & STATES
+   ├─ Dark Mode Toggle Button ...................... Line 185
+   ├─ Dark Mode Overrides (scattered) .............. Lines 103-4850
+   ├─ High Contrast Mode ........................... Line 3378
+   └─ Reduced Motion ............................... Line 3386
+
+   RESPONSIVE
+   ├─ Responsive Design (main) ..................... Line 2945
+   └─ Mobile Responsive Styles ..................... Line 4629
+
+   UTILITIES
+   ├─ Hidden Elements .............................. Line 3238
+   ├─ Focus States ................................. Line 3245
+   ├─ Hover Effects ................................ Line 3251
+   └─ Animations ................................... Lines 1337, 2908, 3268, 3304, 3453
+
+   ============================================================================
+   📊 FILE STATISTICS
+   ============================================================================
+   Total Lines: ~4,990
+   CSS Classes: 242 unique selectors
+   Media Queries: 21 responsive breakpoints
+   Dark Mode Selectors: 121 (⚠️  technical debt)
+
+   Last Audit: 2025-10-01
+   See: CSS_AUDIT_SUMMARY.md for detailed analysis
+   ============================================================================ */
+
 :root {
     /* Colors */
     --primary-color: #4a90e2;
@@ -55,12 +131,38 @@
     --floating-panel-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
     --column-gap: 0px;
     --column-padding: 0px;
-    --border-radius: 8px;
+
+    /* Border Radius Scale */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-2xl: 18px;
+    --radius-full: 999px;
+    --radius-circle: 50%;
+    --border-radius: var(--radius-md);  /* Default radius */
+
+    /* Spacing Scale (⚠️  TODO: Not yet systematically applied)
+       Current padding values are inconsistent (40+ unique values).
+       For future refactoring, use:
+       --space-1: 0.25rem (4px)
+       --space-2: 0.5rem (8px)
+       --space-3: 0.75rem (12px)
+       --space-4: 1rem (16px)
+       --space-5: 1.25rem (20px)
+       --space-6: 1.5rem (24px)
+       See CSS_REFACTORING_PLAN.md for systematic implementation */
+
+    /* Shadows */
     --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
-/* Reset and Base Styles */
+/* ============================================================================
+   RESET & BASE STYLES
+   ========================================================================= */
+
 * {
     margin: 0;
     padding: 0;
@@ -99,6 +201,31 @@ body.dark-mode {
     --header-bg: var(--dark-header-bg);
     --white: #ffffff;
 }
+
+/* ============================================================================
+   ⚠️  DARK MODE TECHNICAL DEBT WARNING
+   ============================================================================
+
+   This file contains 121 legacy dark mode override selectors scattered
+   throughout (e.g., body.dark-mode .btn-primary, body.dark-mode .task-card).
+
+   🔴 CRITICAL: DO NOT ADD MORE SELECTOR-BASED OVERRIDES!
+
+   ❌ BAD (creates duplicate selectors):
+   .my-component { background: white; }
+   body.dark-mode .my-component { background: black; }
+
+   ✅ GOOD (use CSS variables):
+   :root { --my-component-bg: white; }
+   body.dark-mode { --my-component-bg: black; }
+   .my-component { background: var(--my-component-bg); }
+
+   📋 TODO: Consolidate 121 dark mode selectors into variable system
+   📖 See: CSS_REFACTORING_PLAN.md Phase 2 for migration strategy
+   📊 Impact: Would save ~600-800 lines, improve maintainability 10x
+
+   Last Audit: 2025-10-01
+   ============================================================================ */
 
 body.dark-mode .loading-overlay {
     background: rgba(26, 26, 26, 0.9);
@@ -163,7 +290,7 @@ body.dark-mode .column-toggle-chip[aria-pressed="true"] {
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: var(--white);
     padding: 0.5rem;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     cursor: pointer;
     transition: all 0.2s ease;
     width: 2.5rem;
@@ -178,6 +305,10 @@ body.dark-mode .column-toggle-chip[aria-pressed="true"] {
     background: rgba(255, 255, 255, 0.2);
     transform: scale(1.05);
 }
+
+/* ============================================================================
+   LAYOUT & STRUCTURE
+   ========================================================================= */
 
 /* Fixed Top Container */
 .fixed-top-container {
@@ -248,7 +379,7 @@ body.dark-mode .column-toggle-chip[aria-pressed="true"] {
 .filters {
     position: fixed;
     inset: 0;
-    z-index: 1200;
+    z-index: 1500;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -284,7 +415,7 @@ body.dark-mode .column-toggle-chip[aria-pressed="true"] {
     overflow-y: auto;
     margin: clamp(12px, 4vw, 32px);
     padding: 1.5rem;
-    border-radius: 18px;
+    border-radius: var(--radius-2xl);
     background: var(--floating-panel-bg);
     border: 1px solid var(--floating-panel-border);
     box-shadow: var(--floating-panel-shadow);
@@ -328,7 +459,7 @@ body.dark-mode .column-toggle-chip[aria-pressed="true"] {
     color: var(--medium-gray);
     width: 2.25rem;
     height: 2.25rem;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     cursor: pointer;
     transition: background-color 0.2s ease, color 0.2s ease;
 }
@@ -358,7 +489,7 @@ body.dark-mode .column-toggle-chip[aria-pressed="true"] {
     width: 100%;
     padding: 0.6rem 0.75rem;
     border: 1px solid var(--border-gray);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     font-size: 0.95rem;
     background: var(--card-bg);
     color: var(--text-color);
@@ -376,7 +507,7 @@ body.dark-mode .column-toggle-chip[aria-pressed="true"] {
     align-items: center;
     gap: 0.75rem;
     padding: 0.55rem 0.75rem;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border-gray);
     background: var(--card-bg);
 }
@@ -409,7 +540,7 @@ body.dark-mode .column-toggle-chip[aria-pressed="true"] {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     padding: 0.4rem 0.9rem;
     font-size: 0.9rem;
     border: 1px solid var(--border-gray);
@@ -444,7 +575,7 @@ body.dark-mode .column-toggle-chip[aria-pressed="true"] {
     justify-content: center;
     min-width: 1.4rem;
     height: 1.4rem;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     font-size: 0.7rem;
     background: var(--primary-color);
     color: #fff;
@@ -456,11 +587,35 @@ body.dark-mode .column-toggle-chip[aria-pressed="true"] {
     display: none !important;
 }
 
+.processor-remaining-count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4rem;
+    height: 1.4rem;
+    border-radius: var(--radius-full);
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+}
+
+.processor-remaining-count[hidden] {
+    display: none !important;
+}
+
 .filter-clear-group .btn {
     white-space: nowrap;
 }
 
-/* Buttons */
+/* ============================================================================
+   BUTTONS & CONTROLS
+   ========================================================================= */
+
 .btn {
     display: inline-flex;
     align-items: center;
@@ -506,7 +661,7 @@ body.dark-mode .column-toggle-chip[aria-pressed="true"] {
     width: 2rem;
     height: 2rem;
     border: none;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     background: transparent;
     color: var(--medium-gray);
     cursor: pointer;
@@ -532,7 +687,10 @@ main {
     display: flex;
 }
 
-/* Kanban Board */
+/* ============================================================================
+   KANBAN BOARD
+   ========================================================================= */
+
 .kanban-board {
     display: flex;
     flex: 1;
@@ -556,12 +714,12 @@ main {
 
 .kanban-board::-webkit-scrollbar-thumb {
     background: rgba(90, 144, 255, 0.35);
-    border-radius: 999px;
+    border-radius: var(--radius-full);
 }
 
 .kanban-board::-webkit-scrollbar-track {
     background: rgba(0, 0, 0, 0.05);
-    border-radius: 999px;
+    border-radius: var(--radius-full);
 }
 
 .kanban-column {
@@ -608,7 +766,7 @@ main {
     align-items: center;
     gap: 0.55rem;
     padding: 0.55rem 0.75rem;
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
     background: var(--floating-panel-bg);
     border: 1px solid var(--floating-panel-border);
     box-shadow: var(--floating-panel-shadow);
@@ -663,7 +821,7 @@ main {
     display: inline-flex;
     align-items: center;
     padding: 0.4rem 0.65rem;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     background: rgba(74, 144, 226, 0.08);
     font-size: 0.85rem;
     color: var(--medium-gray);
@@ -677,7 +835,7 @@ main {
 .floating-controls-secondary .btn-icon {
     width: 2.5rem;
     height: 2.5rem;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     border: 1px solid rgba(148, 163, 184, 0.35);
     background: var(--card-bg);
     color: var(--medium-gray);
@@ -787,7 +945,7 @@ body.dark-mode .btn-icon-primary:focus-visible {
     justify-content: center;
     width: 2.5rem;
     height: 2.5rem;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     border: 1px solid rgba(148, 163, 184, 0.35);
     background: var(--card-bg);
     color: var(--medium-gray);
@@ -882,7 +1040,10 @@ body.dark-mode .queue-timer {
     overflow-y: auto;
 }
 
-/* Task Cards */
+/* ============================================================================
+   TASK CARDS
+   ========================================================================= */
+
 .task-card {
     background: var(--card-bg);
     border: 1px solid var(--border-gray);
@@ -1027,7 +1188,7 @@ body.dark-mode .task-drag-handle:focus-visible {
     align-items: center;
     gap: 0.25rem;
     padding: 0.2rem 0.6rem;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     font-size: 0.75rem;
     font-weight: 600;
     background: rgba(90, 171, 255, 0.15);
@@ -1055,7 +1216,7 @@ body.dark-mode .task-completions {
     align-items: center;
     gap: 0.3rem;
     padding: 0.2rem 0.5rem;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     font-size: 0.75rem;
     font-weight: 600;
     background: rgba(52, 152, 219, 0.15);
@@ -1090,7 +1251,7 @@ body.dark-mode .task-notes {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     color: var(--white);
     flex-shrink: 0;
 }
@@ -1249,7 +1410,7 @@ body.dark-mode .task-meta-value {
     border: 1px solid rgba(52, 152, 219, 0.3);
     color: var(--primary-color);
     padding: 0.25rem 0.75rem;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     font-size: 0.85rem;
     margin-top: 0.5rem;
     font-weight: 500;
@@ -1298,7 +1459,7 @@ body.dark-mode .task-phase-chip {
     margin: 0.5rem 0;
     padding: 0.3rem 0.6rem;
     background: var(--light-gray);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border-gray);
     text-transform: capitalize;
 }
@@ -1314,7 +1475,7 @@ body.dark-mode .task-phase-chip {
     display: inline-flex;
     align-items: center;
     padding: 0.25rem 0.75rem;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -1377,7 +1538,7 @@ body.dark-mode .task-phase-chip {
     right: 0.75rem;
     width: 2rem;
     height: 2rem;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     background: transparent;
     border: 1.5px solid var(--border-gray);
     color: var(--text-secondary);
@@ -1434,7 +1595,10 @@ body.dark-mode .task-restore-btn:hover {
     color: #8ae890;
 }
 
-/* Modals */
+/* ============================================================================
+   MODALS & DIALOGS
+   ========================================================================= */
+
 .modal {
     display: none;
     position: fixed;
@@ -1510,7 +1674,7 @@ body.dark-mode .task-restore-btn:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     transition: all 0.2s;
 }
 
@@ -1754,7 +1918,7 @@ body.dark-mode .task-restore-btn:hover {
     background: var(--error-color);
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     padding: 0.3rem 0.5rem;
     cursor: pointer;
     font-size: 0.75rem;
@@ -1781,7 +1945,7 @@ body.dark-mode .task-restore-btn:hover {
     color: white;
     border: none;
     padding: 0.25rem 0.5rem;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     cursor: pointer;
     font-size: 0.8rem;
     transition: all 0.2s;
@@ -1792,7 +1956,10 @@ body.dark-mode .task-restore-btn:hover {
     transform: scale(1.05);
 }
 
-/* Forms */
+/* ============================================================================
+   FORMS & INPUTS
+   ========================================================================= */
+
 form {
     padding: 1.5rem;
 }
@@ -1852,7 +2019,7 @@ body.dark-mode .info-card {
 .recycler-result-skeleton .skeleton-line,
 .recycler-result-skeleton .skeleton-block {
     background: rgba(0, 0, 0, 0.08);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     position: relative;
     overflow: hidden;
 }
@@ -2072,7 +2239,7 @@ body.dark-mode .recycler-suite-body tr.mismatch {
     align-items: center;
     gap: 0.3rem;
     padding: 0.15rem 0.5rem;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     font-weight: 600;
     font-size: 0.75rem;
     text-transform: capitalize;
@@ -2133,7 +2300,7 @@ body.dark-mode .status-chip.fallback {
     align-items: center;
     gap: 0.3rem;
     padding: 0.2rem 0.6rem;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     background: rgba(52, 152, 219, 0.18);
     color: var(--primary-color);
     font-weight: 600;
@@ -2217,7 +2384,7 @@ body.dark-mode .recycler-note-preview {
     right: 0.7rem;
     width: 0.85rem;
     height: 0.85rem;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     border: 2px solid rgba(74, 144, 226, 0.25);
     border-top-color: var(--primary-color);
     animation: tag-multiselect-spin 0.8s linear infinite;
@@ -2298,7 +2465,7 @@ body.dark-mode .recycler-note-preview {
     background: rgba(74, 144, 226, 0.12);
     color: var(--primary-color);
     border: 1px solid rgba(74, 144, 226, 0.35);
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     padding: 0.15rem 0.55rem;
     font-size: 0.75rem;
     line-height: 1.2;
@@ -2311,7 +2478,7 @@ body.dark-mode .recycler-note-preview {
     width: 1.1rem;
     height: 1.1rem;
     border: none;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     background: transparent;
     color: var(--medium-gray);
     cursor: pointer;
@@ -2896,7 +3063,10 @@ body.dark-mode .form-help[data-tone='error'] {
     }
 }
 
-/* Responsive Design */
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ========================================================================= */
+
 @media (max-width: 1200px) {
     .kanban-board {
         gap: 0;
@@ -3194,41 +3364,10 @@ body.dark-mode .form-help[data-tone='error'] {
     display: none !important;
 }
 
-/* Utility classes */
-.text-center {
-    text-align: center;
-}
-
-.text-muted {
-    color: var(--medium-gray);
-}
-
-.mb-0 {
-    margin-bottom: 0;
-}
-
-.mb-1 {
-    margin-bottom: 0.5rem;
-}
-
-.mb-2 {
-    margin-bottom: 1rem;
-}
-
-.mb-3 {
-    margin-bottom: 1.5rem;
-}
-
 /* Additional UI improvements */
 
 /* Better focus states */
 *:focus {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
-}
-
-button:focus,
-.btn:focus {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
 }
@@ -3274,12 +3413,12 @@ button:focus,
 
 .column-content::-webkit-scrollbar-track {
     background: var(--light-gray);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
 }
 
 .column-content::-webkit-scrollbar-thumb {
     background: var(--medium-gray);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
 }
 
 .column-content::-webkit-scrollbar-thumb:hover {
@@ -3380,7 +3519,10 @@ button:focus,
     }
 }
 
-/* Drag and Drop Styles */
+/* ============================================================================
+   DRAG & DROP
+   ========================================================================= */
+
 .task-card[draggable="true"] {
     cursor: grab;
 }
@@ -3575,7 +3717,7 @@ body.dark-mode .touch-drag-ghost {
 .task-error {
     background: rgba(220, 53, 69, 0.1);
     border: 1px solid rgba(220, 53, 69, 0.3);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     padding: 0.5rem;
     margin-top: 0.5rem;
     display: flex;
@@ -3620,7 +3762,7 @@ body.dark-mode .task-error .error-message {
     gap: 0.75rem;
     background: var(--light-gray);
     border: 1px solid var(--border-gray);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     padding: 0.45rem 0.85rem;
     font-size: 0.82rem;
     color: var(--text-secondary);
@@ -3649,7 +3791,7 @@ body.dark-mode .task-error .error-message {
 /* Process Monitor Widget */
 .process-monitor {
     position: relative;
-    animation: pulse 2s ease-in-out infinite alternate;
+    animation: process-monitor-pulse 2s ease-in-out infinite alternate;
 }
 
 .process-monitor-toggle {
@@ -3658,7 +3800,7 @@ body.dark-mode .task-error .error-message {
     gap: 0.6rem;
     background: rgba(255, 215, 0, 0.15);
     border: 1px solid rgba(255, 215, 0, 0.3);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     padding: 0.35rem 0.75rem;
     color: inherit;
     cursor: pointer;
@@ -3735,7 +3877,7 @@ body.dark-mode .task-error .error-message {
     color: var(--text-muted, #6b7280);
 }
 
-@keyframes pulse {
+@keyframes process-monitor-pulse {
     from {
         background: rgba(255, 215, 0, 0.1);
         border-color: rgba(255, 215, 0, 0.2);
@@ -3788,7 +3930,7 @@ body.dark-mode .task-error .error-message {
 .refresh-all-btn {
     width: 2.25rem;
     height: 2.25rem;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -3843,7 +3985,7 @@ body.dark-mode .queue-info {
 .btn-icon.logs-btn {
     width: 2.25rem;
     height: 2.25rem;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     background: transparent;
     border: 1.5px solid var(--border-gray);
     color: var(--text-secondary);
@@ -4086,7 +4228,7 @@ body.dark-mode .prompt-operation-empty {
     display: inline-flex;
     align-items: center;
     padding: 0.2rem 0.6rem;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     background: rgba(74, 144, 226, 0.12);
     color: var(--primary-color);
     font-size: 0.8rem;
@@ -4122,7 +4264,7 @@ body.dark-mode .prompt-chip {
 
 .prompt-section-card {
     border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     overflow: hidden;
     background: #fff;
     box-shadow: 0 6px 18px rgba(15, 30, 90, 0.08);
@@ -4152,7 +4294,7 @@ body.dark-mode .prompt-chip {
     justify-content: center;
     width: 2rem;
     height: 2rem;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     color: #fff;
     font-weight: 700;
     font-size: 0.95rem;
@@ -4407,7 +4549,7 @@ body.dark-mode .prompt-summary-value {
 .prompt-preview-toggle {
     border: none;
     background: rgba(74, 144, 226, 0.12);
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     padding: 0.35rem 0.85rem;
     font-size: 0.85rem;
     font-weight: 600;
@@ -4514,7 +4656,7 @@ body.dark-mode .prompt-meta-json {
     right: 0.75rem;
     border: none;
     background: rgba(74, 144, 226, 0.12);
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     padding: 0.4rem;
     display: inline-flex;
     align-items: center;
@@ -4671,7 +4813,7 @@ body.dark-mode .input-error {
     appearance: none;
     width: 20px;
     height: 20px;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     background: var(--primary-color);
     cursor: pointer;
 }
@@ -4679,7 +4821,7 @@ body.dark-mode .input-error {
 .slider-container input[type="range"]::-moz-range-thumb {
     width: 20px;
     height: 20px;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     background: var(--primary-color);
     cursor: pointer;
     border: none;
@@ -4754,7 +4896,7 @@ body.dark-mode .input-error {
 .execution-results .claude-output {
     background: #f5f5f5;
     padding: 0.8rem;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     margin-top: 0.5rem;
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -4851,10 +4993,10 @@ body.dark-mode .slider-container input[type="range"] {
 
 .rate-limit-content i {
     font-size: 1.5rem;
-    animation: pulse 2s infinite;
+    animation: rate-limit-pulse 2s infinite;
 }
 
-@keyframes pulse {
+@keyframes rate-limit-pulse {
 
     0%,
     100% {

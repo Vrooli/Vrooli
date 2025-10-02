@@ -95,6 +95,11 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		log.Println(summary)
 		systemlog.Info(summary)
 
+		// Increment task counter for max_tasks tracking
+		qp.tasksProcessedMu.Lock()
+		qp.tasksProcessedCount++
+		qp.tasksProcessedMu.Unlock()
+
 		// Update task with results including timing and prompt size
 		task.Results = map[string]interface{}{
 			"success":         true,

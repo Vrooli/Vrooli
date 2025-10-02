@@ -237,32 +237,32 @@ INSERT INTO mcp.templates (name, description, template_type, template_code, mani
 ('basic-api', 'Basic MCP server for API exposure', 'api', 
 'const { Server } = require("@modelcontextprotocol/sdk/server/stdio");
 const server = new Server({
-  name: "{{SCENARIO_NAME}}",
+  name: "scenario_name",
   version: "1.0.0"
 });
 
 // Tool implementations
 server.setRequestHandler("tools/list", async () => ({
-  tools: {{TOOLS_ARRAY}}
+  tools: []
 }));
 
-{{TOOL_HANDLERS}}
+// Tool handlers go here
 
-server.start();', 
-'{"name": "{{SCENARIO_NAME}}", "version": "1.0.0", "tools": {{TOOLS_DEFINITION}}}'::jsonb),
+server.start();',
+'{"name": "scenario_name", "version": "1.0.0", "tools": []}'::jsonb),
 
 ('data-processor', 'MCP server for data processing scenarios', 'data',
 'const { Server } = require("@modelcontextprotocol/sdk/server/stdio");
 const server = new Server({
-  name: "{{SCENARIO_NAME}}",
+  name: "scenario_name",
   version: "1.0.0"
 });
 
 // Data processing tools
-{{DATA_TOOLS}}
+// Tools go here
 
 server.start();',
-'{"name": "{{SCENARIO_NAME}}", "version": "1.0.0", "tools": {{TOOLS_DEFINITION}}}'::jsonb);
+'{"name": "scenario_name", "version": "1.0.0", "tools": []}'::jsonb);
 
 -- Grant permissions
 GRANT ALL ON SCHEMA mcp TO PUBLIC;

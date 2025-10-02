@@ -25,6 +25,14 @@ type reportIssueRequest struct {
 	SelectedScenarios   []string `json:"selectedScenarios"`
 }
 
+type createRuleRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Category    string `json:"category"`
+	Severity    string `json:"severity"`
+	Motivation  string `json:"motivation"`
+}
+
 type issueTrackerResponse struct {
 	Success bool                   `json:"success"`
 	Message string                 `json:"message"`
@@ -776,4 +784,222 @@ func parsePortValue(value string) (int, error) {
 	}
 
 	return port, nil
+}
+
+// buildCreateRuleIssuePayload builds the payload for creating a rule creation issue
+func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]interface{}, error) {
+
+	title := fmt.Sprintf("[scenario-auditor] Create new rule: %s", req.Name)
+	description := buildCreateRuleDescription(req)
+
+	metadata := map[string]string{
+		"reported_by":   "scenario-auditor",
+		"report_type":   "create_rule",
+		"rule_name":     req.Name,
+		"rule_category": req.Category,
+		"rule_severity": req.Severity,
+	}
+
+	environment := map[string]string{
+		"rule_name":     req.Name,
+		"rule_category": req.Category,
+		"rule_severity": req.Severity,
+	}
+
+	// Read and attach rule creation prompt template
+	promptPath := filepath.Join(getScenarioRoot(), "prompts", "rule-creation.txt")
+	promptContent, err := os.ReadFile(promptPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read rule creation prompt: %w", err)
+	}
+
+	artifacts := []map[string]interface{}{
+		{
+			"name":         "rule-creation-guidelines.txt",
+			"category":     "rule_creation",
+			"content":      string(promptContent),
+			"encoding":     "plain",
+			"content_type": "text/plain",
+		},
+	}
+
+	payload := map[string]interface{}{
+		"title":          title,
+		"description":    description,
+		"type":           "task",
+		"priority":       "medium",
+		"app_id":         "scenario-auditor",
+		"status":         "open",
+		"tags":           []string{"scenario-auditor", "rule-creation", "ai-task"},
+		"metadata_extra": metadata,
+		"environment":    environment,
+		"artifacts":      artifacts,
+		"reporter_name":  "Scenario Auditor",
+		"reporter_email": "auditor@vrooli.local",
+	}
+
+	return payload, nil
+}
+
+// buildCreateRuleDescription builds the detailed description for rule creation issue
+func buildCreateRuleDescription(req createRuleRequest) string {
+	var b strings.Builder
+
+	b.WriteString("Scenario Auditor requests creation of a new quality rule.\n\n")
+
+	// Rule Specification
+	b.WriteString("## Rule Specification\n\n")
+	b.WriteString(fmt.Sprintf("**Name**: %s\n", req.Name))
+	b.WriteString(fmt.Sprintf("**Description**: %s\n", req.Description))
+	b.WriteString(fmt.Sprintf("**Category**: %s\n", req.Category))
+	b.WriteString(fmt.Sprintf("**Severity**: %s\n\n", req.Severity))
+
+	if req.Motivation != "" {
+		b.WriteString("### Motivation\n")
+		b.WriteString(fmt.Sprintf("%s\n\n", req.Motivation))
+	}
+
+	// Implementation Requirements
+	b.WriteString("## Implementation Requirements\n\n")
+	b.WriteString("### 1. Create Rule File\n")
+	b.WriteString(fmt.Sprintf("**Location**: `api/rules/%s/{descriptive-name}.go`\n\n", req.Category))
+	b.WriteString("**Structure**:\n")
+	b.WriteString("```go\n")
+	b.WriteString("package " + req.Category + "\n\n")
+	b.WriteString("/*\n")
+	b.WriteString(fmt.Sprintf("Rule: %s\n", req.Name))
+	b.WriteString(fmt.Sprintf("Description: %s\n", req.Description))
+	b.WriteString(fmt.Sprintf("Category: %s\n", req.Category))
+	b.WriteString(fmt.Sprintf("Severity: %s\n", req.Severity))
+	b.WriteString("Targets: {file_pattern}\n")
+	b.WriteString("Version: 1.0.0\n\n")
+	b.WriteString("// Add comprehensive test-case blocks here following this format:\n")
+	b.WriteString("<test-case id=\"{id}\" should-fail=\"{true|false}\" path=\"{relative/path}\">\n")
+	b.WriteString("  <description>{description}</description>\n")
+	b.WriteString("  <input language=\"{language}\">...</input>\n")
+	b.WriteString("  <expected-violations>{count}</expected-violations>\n")
+	b.WriteString("  <expected-message>{partial-match}</expected-message>\n")
+	b.WriteString("</test-case>\n")
+	b.WriteString("*/\n\n")
+	b.WriteString("func Check" + sanitizeForFunctionName(req.Name) + "(content []byte, filePath string) []Violation {\n")
+	b.WriteString("    // Implementation here\n")
+	b.WriteString("    return nil\n")
+	b.WriteString("}\n")
+	b.WriteString("```\n\n")
+
+	// Test Requirements
+	b.WriteString("### 2. Embedded Test Cases\n")
+	b.WriteString("**Minimum Coverage**:\n")
+	b.WriteString("- At least 1 happy path test (should-fail=\"false\")\n")
+	b.WriteString("- At least 2-3 violation detection tests (should-fail=\"true\")\n")
+	b.WriteString("- Edge cases and false positive prevention\n\n")
+
+	// Registration
+	b.WriteString("### 3. Rule Registration\n")
+	b.WriteString("Add to `api/rule_registry.go`:\n")
+	b.WriteString("```go\n")
+	b.WriteString(fmt.Sprintf("registry.Register(\"%s\", %s.Check%s)\n", generateRuleID(req.Name, req.Category), req.Category, sanitizeForFunctionName(req.Name)))
+	b.WriteString("```\n\n")
+
+	// Reference Materials
+	b.WriteString("## Reference Materials\n\n")
+	b.WriteString("**Gold Standard Example**: `api/rules/api/health_check.go`\n")
+	b.WriteString("- Comprehensive test coverage (5+ test cases)\n")
+	b.WriteString("- Clear violation messages with recommendations\n")
+	b.WriteString("- Context-aware detection logic\n\n")
+
+	b.WriteString("**Rule Creation Guidelines**: See attached `rule-creation-guidelines.txt` artifact\n\n")
+
+	// Category-Specific Guidance
+	b.WriteString(fmt.Sprintf("## Category-Specific Guidance: %s\n\n", req.Category))
+	switch req.Category {
+	case "api":
+		b.WriteString("**API Rules Focus On**:\n")
+		b.WriteString("- Go best practices and patterns\n")
+		b.WriteString("- HTTP standards (status codes, headers, CORS)\n")
+		b.WriteString("- Security patterns (input validation, sanitization)\n")
+		b.WriteString("- Health check endpoints\n")
+		b.WriteString("- Error handling consistency\n\n")
+	case "config":
+		b.WriteString("**Config Rules Focus On**:\n")
+		b.WriteString("- service.json schema validation\n")
+		b.WriteString("- Lifecycle completeness (health, setup, develop, test, stop)\n")
+		b.WriteString("- Port range compliance\n")
+		b.WriteString("- Environment variable naming\n")
+		b.WriteString("- Makefile required targets\n\n")
+	case "ui":
+		b.WriteString("**UI Rules Focus On**:\n")
+		b.WriteString("- Testing best practices\n")
+		b.WriteString("- Accessibility standards (ARIA, semantic HTML)\n")
+		b.WriteString("- Security headers configuration\n")
+		b.WriteString("- Iframe bridge integration\n")
+		b.WriteString("- Element testability (data-testid)\n\n")
+	case "test":
+		b.WriteString("**Test Rules Focus On**:\n")
+		b.WriteString("- Phase-based test structure\n")
+		b.WriteString("- Integration with centralized testing library\n")
+		b.WriteString("- Coverage reporting and thresholds\n")
+		b.WriteString("- Exit code correctness\n")
+		b.WriteString("- Test runner compatibility\n\n")
+	default:
+		b.WriteString("**General Rule Guidelines**:\n")
+		b.WriteString("- Clear, specific detection criteria\n")
+		b.WriteString("- Actionable violation messages\n")
+		b.WriteString("- Comprehensive test coverage\n")
+		b.WriteString("- Performance-conscious implementation\n\n")
+	}
+
+	// Validation Workflow
+	b.WriteString("## Validation Workflow\n\n")
+	b.WriteString("1. **Test Rule Tests**:\n")
+	b.WriteString("   ```bash\n")
+	b.WriteString(fmt.Sprintf("   scenario-auditor test %s\n", generateRuleID(req.Name, req.Category)))
+	b.WriteString("   ```\n\n")
+
+	b.WriteString("2. **Scan Test Scenario**:\n")
+	b.WriteString("   ```bash\n")
+	b.WriteString(fmt.Sprintf("   scenario-auditor scan {test-scenario} --rule %s\n", generateRuleID(req.Name, req.Category)))
+	b.WriteString("   ```\n\n")
+
+	b.WriteString("3. **Verify Rule Registration**:\n")
+	b.WriteString("   ```bash\n")
+	b.WriteString("   scenario-auditor list-rules | grep " + generateRuleID(req.Name, req.Category) + "\n")
+	b.WriteString("   ```\n\n")
+
+	// Success Criteria
+	b.WriteString("## Success Criteria\n\n")
+	b.WriteString("- [ ] Rule file created with proper structure\n")
+	b.WriteString("- [ ] All embedded test cases pass\n")
+	b.WriteString("- [ ] Rule registered in rule_registry.go\n")
+	b.WriteString("- [ ] Rule compiles without errors\n")
+	b.WriteString("- [ ] Rule detects violations correctly\n")
+	b.WriteString("- [ ] No false positives on valid code\n")
+	b.WriteString("- [ ] Clear, actionable violation messages\n")
+
+	return b.String()
+}
+
+// generateRuleID creates a rule ID from name and category
+func generateRuleID(name, category string) string {
+	// Convert "Health Check Endpoint" → "health-check-endpoint"
+	id := strings.ToLower(name)
+	id = strings.ReplaceAll(id, " ", "-")
+	// Remove special characters
+	id = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(id, "")
+	return category + "-" + id
+}
+
+// sanitizeForFunctionName converts a rule name to a valid Go function name
+func sanitizeForFunctionName(name string) string {
+	// Convert to title case and remove spaces
+	words := strings.Fields(name)
+	for i, word := range words {
+		if len(word) > 0 {
+			words[i] = strings.ToUpper(word[:1]) + strings.ToLower(word[1:])
+		}
+	}
+	funcName := strings.Join(words, "")
+	// Remove non-alphanumeric characters
+	funcName = regexp.MustCompile(`[^a-zA-Z0-9]`).ReplaceAllString(funcName, "")
+	return funcName
 }

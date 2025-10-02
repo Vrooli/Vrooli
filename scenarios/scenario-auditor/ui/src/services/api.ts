@@ -377,8 +377,8 @@ class ApiService {
     })
   }
 
-  async createRuleWithAI(payload: { name: string; description: string; category: string; severity: string; motivation?: string }): Promise<{ success: boolean; message: string; agent: AgentInfo; metadata?: Record<string, string> }> {
-    return this.fetch('/rules/ai/create', {
+  async createRuleWithAI(payload: { name: string; description: string; category: string; severity: string; motivation?: string }): Promise<{ issueId: string; issueUrl: string; message: string }> {
+    return this.fetch('/rules/create', {
       method: 'POST',
       body: JSON.stringify(payload),
     })

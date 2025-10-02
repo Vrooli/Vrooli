@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -319,9 +321,82 @@ func computeRuleTestStatuses(svc *re.Service, ruleInfos map[string]re.Info) map[
 	return statuses
 }
 
-// createRuleHandler creates a new rule (not yet implemented)
+// createRuleHandler creates an issue in app-issue-tracker for rule creation
 func createRuleHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Rule creation not yet implemented", http.StatusNotImplemented, nil)
+	logger := NewLogger()
+
+	var req createRuleRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
+		return
+	}
+
+	// Validation
+	if req.Name == "" || req.Description == "" {
+		HTTPError(w, "name and description are required", http.StatusBadRequest, nil)
+		return
+	}
+
+	if req.Category == "" {
+		req.Category = "api"
+	}
+
+	if req.Severity == "" {
+		req.Severity = "medium"
+	}
+
+	// Resolve app-issue-tracker port
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	trackerPort, err := resolveIssueTrackerPort(ctx)
+	if err != nil {
+		HTTPError(w, "Failed to locate app-issue-tracker", http.StatusServiceUnavailable, err)
+		return
+	}
+
+	// Build payload
+	payload, err := buildCreateRuleIssuePayload(req)
+	if err != nil {
+		HTTPError(w, "Failed to build issue payload", http.StatusInternalServerError, err)
+		return
+	}
+
+	// Submit to app-issue-tracker
+	result, err := submitIssueToTracker(ctx, trackerPort, payload)
+	if err != nil {
+		HTTPError(w, "Failed to create issue in tracker", http.StatusInternalServerError, err)
+		return
+	}
+
+	// Build issue URL
+	issueURL := ""
+	if result.IssueID != "" {
+		if uiPort, err := resolveIssueTrackerUIPort(ctx); err == nil {
+			u := url.URL{
+				Scheme: "http",
+				Host:   fmt.Sprintf("localhost:%d", uiPort),
+			}
+			query := u.Query()
+			query.Set("issue", result.IssueID)
+			u.RawQuery = query.Encode()
+			issueURL = u.String()
+		} else {
+			logger.Warn("Failed to resolve app-issue-tracker UI port", map[string]interface{}{"error": err.Error()})
+		}
+	}
+
+	response := map[string]interface{}{
+		"issueId":  result.IssueID,
+		"issueUrl": issueURL,
+		"message":  result.Message,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.Error("Failed to encode create rule response", err)
+	}
 }
 
 // updateRuleHandler updates an existing rule (not yet implemented)

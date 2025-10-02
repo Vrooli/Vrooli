@@ -10,6 +10,8 @@
     <script type="module">
         import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
 
+        const LOGIN_ROUTE = '/auth/login';
+
         if (typeof window !== 'undefined' && window.parent !== window && !window.__scenarioAuthenticatorBridgeInitialized) {
             let parentOrigin;
             try {
@@ -908,7 +910,7 @@
                     showSnackbar('No active authentication token. Redirecting to login.', 'error');
                     setSessionStatus('inactive', 'Session inactive');
                     window.setTimeout(() => {
-                        window.location.href = '/';
+                        window.location.href = LOGIN_ROUTE;
                     }, 2000);
                     return;
                 }
@@ -942,7 +944,7 @@
                         setSessionStatus('inactive', 'Session inactive');
                         showSnackbar('Session expired. Please log in again.', 'error');
                         window.setTimeout(() => {
-                            window.location.href = '/';
+                            window.location.href = LOGIN_ROUTE;
                         }, 2000);
                     }
                 } catch (error) {
@@ -965,7 +967,7 @@
                     } else if (token) {
                         await validateCurrentToken();
                     } else {
-                        window.location.href = '/';
+                        window.location.href = LOGIN_ROUTE;
                     }
                 } catch (error) {
                     console.error('Failed to initialize dashboard:', error);
@@ -1082,7 +1084,7 @@
                     setSessionStatus('inactive', 'Session ended');
                     showSnackbar('You have been signed out.', 'info');
                     window.setTimeout(() => {
-                        window.location.href = '/';
+                        window.location.href = LOGIN_ROUTE;
                     }, 1200);
                     showLoading(false);
                 }

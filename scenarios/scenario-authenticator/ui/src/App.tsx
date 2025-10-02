@@ -58,6 +58,43 @@ type RedirectContext = {
   roles?: unknown;
 };
 
+type SessionCheckState = 'unknown' | 'checking' | 'valid' | 'invalid';
+
+type RedirectOptions = {
+  delayMs?: number;
+  replace?: boolean;
+};
+
+function getTabFromPath(pathname: string): Tab {
+  if (!pathname) return 'login';
+  const normalized = pathname.toLowerCase();
+  if (
+    normalized.startsWith('/auth/signup') ||
+    normalized.startsWith('/auth/register')
+  ) {
+    return 'register';
+  }
+  if (
+    normalized.startsWith('/auth/forgot-password') ||
+    normalized.startsWith('/auth/reset')
+  ) {
+    return 'reset';
+  }
+  return 'login';
+}
+
+function tabToPath(tab: Tab): string {
+  switch (tab) {
+    case 'register':
+      return '/auth/signup';
+    case 'reset':
+      return '/auth/forgot-password';
+    case 'login':
+    default:
+      return '/auth/login';
+  }
+}
+
 function normalizeRoles(input: unknown): string[] {
   if (!input) return [];
   if (Array.isArray(input)) {
@@ -84,7 +121,7 @@ function getDefaultDestination(context?: RedirectContext): string {
   normalizeRoles(context?.user).forEach((role) => combinedRoles.add(role));
   normalizeRoles(storedUser).forEach((role) => combinedRoles.add(role));
 
-  return combinedRoles.has('admin') ? '/admin' : '/dashboard';
+  return combinedRoles.has('admin') ? '/admin' : '/';
 }
 
 function evaluatePasswordStrength(password: string): '' | 'weak' | 'medium' | 'strong' {
@@ -158,7 +195,11 @@ function getStoredUser(): unknown {
   }
 }
 
-const redirectAfterAuth = (redirectUrl: string | null, context?: RedirectContext) => {
+const redirectAfterAuth = (
+  redirectUrl: string | null,
+  context?: RedirectContext,
+  options: RedirectOptions = {}
+) => {
   const destination = (() => {
     const defaultDestination = getDefaultDestination(context);
     if (!redirectUrl) {
@@ -174,12 +215,28 @@ const redirectAfterAuth = (redirectUrl: string | null, context?: RedirectContext
       return defaultDestination;
     }
 
+    if (normalized === '/' && defaultDestination !== '/') {
+      return defaultDestination;
+    }
+
     return normalized;
   })();
 
+  const delay = options.delayMs ?? 1000;
+  const navigate = options.replace
+    ? (url: string) => window.location.replace(url)
+    : (url: string) => {
+        window.location.href = url;
+      };
+
+  if (delay <= 0) {
+    navigate(destination);
+    return;
+  }
+
   window.setTimeout(() => {
-    window.location.href = destination;
-  }, 1000);
+    navigate(destination);
+  }, delay);
 };
 
 export default function App() {
@@ -188,7 +245,9 @@ export default function App() {
     return params.get('redirect');
   }, []);
 
-  const [activeTab, setActiveTab] = useState<Tab>('login');
+  const [activeTab, setActiveTab] = useState<Tab>(() =>
+    getTabFromPath(typeof window !== 'undefined' ? window.location.pathname : '')
+  );
   const [apiUrl, setApiUrl] = useState('');
   const [configError, setConfigError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
@@ -199,6 +258,8 @@ export default function App() {
       message: 'Checking connection...',
     }
   );
+  const [sessionCheckState, setSessionCheckState] =
+    useState<SessionCheckState>('unknown');
   const [snackbar, setSnackbar] = useState<SnackbarState>({
     message: '',
     type: 'info',
@@ -389,6 +450,40 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const path = window.location.pathname;
+    if (path === '/auth' || path === '/auth/') {
+      window.history.replaceState({}, '', '/auth/login' + window.location.search);
+      setActiveTab('login');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePop = () => {
+      setActiveTab(getTabFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => {
+      window.removeEventListener('popstate', handlePop);
+    };
+  }, []);
+
+  const navigateToTabPath = useCallback((tab: Tab, replace = false) => {
+    if (typeof window === 'undefined') return;
+    const desiredPath = tabToPath(tab);
+    if (window.location.pathname === desiredPath) {
+      return;
+    }
+    const search = window.location.search || '';
+    if (replace) {
+      window.history.replaceState({}, '', `${desiredPath}${search}`);
+    } else {
+      window.history.pushState({}, '', `${desiredPath}${search}`);
+    }
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     const loadConfig = async () => {
@@ -434,11 +529,22 @@ export default function App() {
 
   useEffect(() => {
     const token = getStoredToken();
-    if (!token || !apiUrl) {
+
+    if (!token) {
+      setSessionCheckState('invalid');
       return;
     }
 
+    if (!apiUrl) {
+      setSessionCheckState((prev) =>
+        prev === 'unknown' ? 'checking' : prev
+      );
+      return;
+    }
+
+    let cancelled = false;
     const validate = async () => {
+      setSessionCheckState('checking');
       try {
         const response = await fetch(`${apiUrl}/api/v1/auth/validate`, {
           headers: {
@@ -446,15 +552,29 @@ export default function App() {
           },
         });
         const data = await response.json();
-        if (data.valid) {
-          redirectAfterAuth(redirectUrl, { roles: data.roles });
+        if (!cancelled && data.valid) {
+          setSessionCheckState('valid');
+          redirectAfterAuth(
+            redirectUrl,
+            { roles: data.roles },
+            { delayMs: 0, replace: true }
+          );
+          return;
         }
       } catch (error) {
         console.error('Token validation error', error);
       }
+
+      if (!cancelled) {
+        setSessionCheckState('invalid');
+      }
     };
 
     void validate();
+
+    return () => {
+      cancelled = true;
+    };
   }, [apiUrl, redirectUrl]);
 
   useEffect(() => {
@@ -475,7 +595,7 @@ export default function App() {
           }
         }
         clearStoredAuth();
-        window.location.href = '/login';
+        window.location.href = '/auth/login';
       },
       validateToken: async (token: string) => {
         if (!apiUrl) return false;
@@ -503,13 +623,14 @@ export default function App() {
   const handleTabChange = useCallback(
     (tab: Tab) => {
       setActiveTab(tab);
+      navigateToTabPath(tab);
       clearErrors();
       clearSuccessMessage();
       if (tab === 'login') {
         setResetState((prev) => ({ ...prev, email: '' }));
       }
     },
-    [clearErrors, clearSuccessMessage]
+    [clearErrors, clearSuccessMessage, navigateToTabPath]
   );
 
   const handleLogin = useCallback(
@@ -764,6 +885,19 @@ export default function App() {
             <h2>Configuration Error</h2>
             <p>{configError}</p>
             <code>vrooli scenario run scenario-authenticator</code>
+          </div>
+        </div>
+      ) : sessionCheckState === 'checking' ? (
+        <div className="auth-wrapper">
+          <div className="auth-card auth-card--loading">
+            <div className="logo">
+              <h1>Vrooli</h1>
+              <p>Secure Authentication Service</p>
+            </div>
+            <div className="loading-state" role="status">
+              <Loader2 size={24} className="icon-rotate" />
+              <span>Restoring your session…</span>
+            </div>
           </div>
         </div>
       ) : (

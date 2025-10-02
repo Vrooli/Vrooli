@@ -188,6 +188,7 @@
             <button class="queue-processor-status btn-processor-toggle" id="processor-toggle-btn" onclick="ecosystemManager.toggleProcessor()" title="Click to toggle processor" aria-live="polite">
                 <i class="fas fa-play" id="processor-status-icon"></i>
                 <span id="processor-status" class="sr-only">Active</span>
+                <span class="processor-remaining-count" id="processor-remaining-count" hidden>0</span>
             </button>
             <button type="button" class="btn-icon filter-btn" id="filter-toggle-btn" onclick="ecosystemManager.toggleFilterPanel()" aria-controls="filter-panel" aria-expanded="false" title="Open filters">
                 <i class="fas fa-sliders-h" aria-hidden="true"></i>
@@ -473,21 +474,28 @@
                                 <div class="form-group">
                                     <label for="settings-slots">Concurrent Task Slots</label>
                                     <div class="slider-container">
-                                        <input type="range" id="settings-slots" name="slots" min="1" max="5" value="1" 
+                                        <input type="range" id="settings-slots" name="slots" min="1" max="5" value="1"
                                                oninput="ecosystemManager.updateSliderValue('settings-slots', 'slots-value')">
                                         <span id="slots-value" class="slider-value">1</span>
                                     </div>
                                     <small class="form-help">Number of tasks that can run simultaneously</small>
                                 </div>
-                                
+
                                 <div class="form-group">
                                     <label for="settings-refresh">Refresh Interval (seconds)</label>
-                                    <input type="number" id="settings-refresh" name="refresh_interval" 
+                                    <input type="number" id="settings-refresh" name="refresh_interval"
                                            min="5" max="300" value="30" step="1">
                                     <small class="form-help">How often to check for new tasks</small>
                                 </div>
                             </div>
-                            
+
+                            <div class="form-group">
+                                <label for="settings-max-tasks">Maximum Tasks to Process</label>
+                                <input type="number" id="settings-max-tasks" name="max_tasks"
+                                       min="0" max="1000" value="0" step="1">
+                                <small class="form-help">Maximum number of tasks to process (0 = unlimited). <span id="tasks-remaining-display"></span></small>
+                            </div>
+
                             <div class="form-group">
                                 <label for="settings-active">
                                     <input type="checkbox" id="settings-active" name="active">

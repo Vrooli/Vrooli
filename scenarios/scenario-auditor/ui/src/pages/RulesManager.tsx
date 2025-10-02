@@ -530,11 +530,18 @@ export default function RulesManager() {
       const response = await apiService.createRuleWithAI(payload)
 
       setIsCreateModalOpen(false)
-      setCreateSuccess(response.message || `Started rule creation agent for ${payload.name}`)
-      await queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
+
+      // Show success with clickable link to issue
+      const successMessage = response.issueUrl
+        ? `Rule creation issue created for "${payload.name}". View at: ${response.issueUrl}`
+        : response.message || `Rule creation issue created for ${payload.name}`
+
+      setCreateSuccess(successMessage)
+
+      // No need to refresh agents - issue is in app-issue-tracker now
       await refetch()
     } catch (error) {
-      setCreateError(error instanceof Error ? error.message : 'Failed to start rule creation agent')
+      setCreateError(error instanceof Error ? error.message : 'Failed to create rule creation issue')
     } finally {
       setIsCreatingRule(false)
     }

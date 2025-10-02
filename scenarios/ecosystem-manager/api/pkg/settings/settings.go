@@ -23,6 +23,7 @@ type Settings struct {
 	Slots           int  `json:"slots"`
 	RefreshInterval int  `json:"refresh_interval"`
 	Active          bool `json:"active"`
+	MaxTasks        int  `json:"max_tasks"` // Maximum tasks to process (0 = unlimited)
 
 	// Agent settings
 	MaxTurns        int    `json:"max_turns"`
@@ -41,6 +42,7 @@ var (
 		Slots:           1,
 		RefreshInterval: 30,
 		Active:          false, // ALWAYS start inactive for safety
+		MaxTasks:        0,     // 0 = unlimited
 		MaxTurns:        60,
 		AllowedTools:    "Read,Write,Edit,Bash,LS,Glob,Grep",
 		SkipPermissions: true,
@@ -81,6 +83,7 @@ func ResetSettings() Settings {
 		Slots:           1,
 		RefreshInterval: 30,
 		Active:          false, // ALWAYS reset to inactive for safety
+		MaxTasks:        0,     // 0 = unlimited
 		MaxTurns:        60,
 		AllowedTools:    "Read,Write,Edit,Bash,LS,Glob,Grep",
 		SkipPermissions: true,
@@ -138,4 +141,11 @@ func GetRecyclerSettings() RecyclerSettings {
 	settingsMutex.RLock()
 	defer settingsMutex.RUnlock()
 	return currentSettings.Recycler
+}
+
+// GetMaxTasks returns the maximum number of tasks to process (0 = unlimited)
+func GetMaxTasks() int {
+	settingsMutex.RLock()
+	defer settingsMutex.RUnlock()
+	return currentSettings.MaxTasks
 }

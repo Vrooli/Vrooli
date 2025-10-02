@@ -17,6 +17,7 @@ export class SettingsManager {
             skip_permissions: true,
             task_timeout: 30,
             condensed_mode: false,
+            max_tasks: 0, // 0 = unlimited
             recycler: {
                 enabled_for: 'off',
                 interval_seconds: 60,
@@ -95,7 +96,8 @@ export class SettingsManager {
             'max_turns': 'settings-max-turns',
             'allowed_tools': 'settings-tools',
             'skip_permissions': 'settings-skip-permissions',
-            'task_timeout': 'settings-task-timeout'
+            'task_timeout': 'settings-task-timeout',
+            'max_tasks': 'settings-max-tasks'
         };
         
         // Update form fields with settings values
@@ -208,7 +210,8 @@ export class SettingsManager {
             'settings-max-turns': 'max_turns',
             'settings-tools': 'allowed_tools',
             'settings-skip-permissions': 'skip_permissions',
-            'settings-task-timeout': 'task_timeout'
+            'settings-task-timeout': 'task_timeout',
+            'settings-max-tasks': 'max_tasks'
         };
         
         // Collect settings from form using mapped field IDs

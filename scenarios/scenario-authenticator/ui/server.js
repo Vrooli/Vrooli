@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = Number(process.env.UI_PORT || process.env.PORT || 4173);
-const API_PORT = process.env.API_PORT;
+const API_PORT = process.env.AUTH_API_PORT || process.env.API_PORT;
 
 const distDir = path.join(__dirname, 'dist');
 const indexHtmlPath = path.join(distDir, 'index.html');
@@ -27,6 +27,36 @@ const SCENARIO_CACHE_TTL_MS = 60_000;
 
 let cachedScenarios;
 let cachedScenariosFetchedAt = 0;
+let cachedApiPort = API_PORT;
+
+async function resolveApiPort() {
+  if (cachedApiPort) {
+    return cachedApiPort;
+  }
+
+  try {
+    const { stdout } = await execAsync(
+      'vrooli scenario port scenario-authenticator API_PORT',
+      {
+        cwd: workspaceRoot,
+        env: process.env,
+      }
+    );
+
+    const port = stdout.trim();
+    if (port) {
+      cachedApiPort = port;
+      return cachedApiPort;
+    }
+  } catch (error) {
+    console.warn(
+      '[scenario-authenticator-ui] Unable to resolve API port via CLI lookup',
+      error
+    );
+  }
+
+  return null;
+}
 
 async function loadScenariosFromCli() {
   const { stdout } = await execAsync('vrooli scenario list --json', {
@@ -89,23 +119,50 @@ if (!fs.existsSync(indexHtmlPath)) {
   process.exit(1);
 }
 
-app.use(express.static(distDir));
+app.use(express.static(distDir, { index: false }));
+
+// Auth SPA routes
+const authRoutes = [
+  '/auth',
+  '/auth/',
+  '/auth/login',
+  '/auth/signup',
+  '/auth/register',
+  '/auth/forgot-password',
+];
+
+authRoutes.forEach((route) => {
+  app.get(route, (_req, res) => {
+    res.sendFile(indexHtmlPath);
+  });
+});
+
+app.get('/auth/*', (_req, res) => {
+  res.sendFile(indexHtmlPath);
+});
+
+// Legacy shortcuts
+app.get(['/login', '/signup', '/forgot-password'], (_req, res) => {
+  res.redirect(301, '/auth/login');
+});
 
 app.get('/user-card.js', (_req, res) => {
   res.sendFile(userCardScriptPath);
 });
 
-app.get('/config', (_req, res) => {
-  if (!API_PORT) {
+app.get('/config', async (_req, res) => {
+  const port = await resolveApiPort();
+  if (!port) {
     res.status(500).json({
       error: 'AUTH_API_PORT_UNDEFINED',
-      message: 'Authentication API port is not configured. Ensure the scenario is started via the lifecycle system.',
+      message:
+        'Authentication API port is not configured. Ensure the scenario is started via the lifecycle system.',
     });
     return;
   }
 
   res.json({
-    apiUrl: `http://localhost:${API_PORT}`,
+    apiUrl: `http://localhost:${port}`,
     contactBookUrl: CONTACT_BOOK_URL || null,
     version: '2.0.0',
     service: 'authentication-ui',
@@ -128,6 +185,10 @@ app.get('/scenarios', async (_req, res) => {
     console.error('[scenario-authenticator-ui] Failed to list scenarios', error);
     res.status(500).json({ error: 'FAILED_TO_LIST_SCENARIOS' });
   }
+});
+
+app.get('/', (_req, res) => {
+  res.sendFile(dashboardPagePath);
 });
 
 app.get('/dashboard', (_req, res) => {

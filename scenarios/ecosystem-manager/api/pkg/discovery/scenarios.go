@@ -60,16 +60,11 @@ func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
 }
 
 // CheckResourceHealth checks if a resource is healthy
+// Note: Health checking is now handled by vrooli CLI's resource status command
+// This function is kept for backward compatibility and always returns true
 func CheckResourceHealth(resourceName, resourceDir string) bool {
-	// Try to find and execute health check script
-	healthScript := filepath.Join(resourceDir, "lib", "health.sh")
-	if _, err := os.Stat(healthScript); os.IsNotExist(err) {
-		// No health script found, assume healthy if service.json exists
-		return true
-	}
-
-	// TODO: Actually execute the health script
-	// For now, just return true to avoid blocking
+	// Health checks are now delegated to vrooli CLI
+	// Use: vrooli resource status <resource-name>
 	return true
 }
 
@@ -247,8 +242,9 @@ func inferScenarioCategory(name string) string {
 	return "productivity" // default
 }
 
-// Obsolete filesystem functions kept for compatibility
-// TODO: Remove these once fully migrated to CLI-based discovery
+// Legacy filesystem functions kept for backward compatibility
+// Note: CLI-based discovery is now the primary method (see DiscoverScenarios)
+// These functions remain as fallbacks for scenarios not registered with vrooli CLI
 
 func extractScenarioDescription(scenarioPath string) string {
 	// Try to read PRD.md first

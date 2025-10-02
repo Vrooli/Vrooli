@@ -7,9 +7,10 @@ set -e
 # Configuration - Get port dynamically from vrooli CLI
 API_PORT="${AUTH_API_PORT:-$(vrooli scenario port scenario-authenticator API_PORT 2>/dev/null || echo "15000")}"
 BASE_URL="http://localhost:${API_PORT}"
-TEST_EMAIL="test_$(date +%s)@example.com"
+# Add RANDOM for additional uniqueness to prevent conflicts
+TEST_EMAIL="test_$(date +%s)_${RANDOM}@example.com"
 TEST_PASSWORD="SecureTest123!"
-TEST_USERNAME="testuser_$(date +%s)"
+TEST_USERNAME="testuser_$(date +%s)_${RANDOM}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -68,20 +69,24 @@ REGISTER_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/v1/auth/register" \
 if echo "$REGISTER_RESPONSE" | grep -q "token"; then
     log_info "✓ Registration successful"
     TOKEN=$(echo "$REGISTER_RESPONSE" | grep -o '"token":"[^"]*' | cut -d'"' -f4)
-elif echo "$REGISTER_RESPONSE" | grep -q "already registered"; then
-    log_warning "User already exists, attempting login instead"
-    # Try to login with the same credentials
-    LOGIN_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/v1/auth/login" \
+elif echo "$REGISTER_RESPONSE" | grep -q "already registered\|already exists"; then
+    log_warning "User already exists (unlikely with random suffix), trying with new email"
+    # Generate a completely new email with additional entropy
+    TEST_EMAIL="test_$(date +%s)_$$_${RANDOM}@example.com"
+    TEST_USERNAME="testuser_$(date +%s)_$$_${RANDOM}"
+    REGISTER_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/v1/auth/register" \
         -H "Content-Type: application/json" \
         -d "{
             \"email\": \"${TEST_EMAIL}\",
-            \"password\": \"${TEST_PASSWORD}\"
+            \"password\": \"${TEST_PASSWORD}\",
+            \"username\": \"${TEST_USERNAME}\"
         }")
-    if echo "$LOGIN_RESPONSE" | grep -q "token"; then
-        log_info "✓ Login successful for existing user"
-        TOKEN=$(echo "$LOGIN_RESPONSE" | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+    if echo "$REGISTER_RESPONSE" | grep -q "token"; then
+        log_info "✓ Registration successful with new email"
+        TOKEN=$(echo "$REGISTER_RESPONSE" | grep -o '"token":"[^"]*' | cut -d'"' -f4)
     else
-        log_error "✗ Could not login with existing user"
+        log_error "✗ Could not register even with new email"
+        echo "Response: $REGISTER_RESPONSE"
         exit 1
     fi
 else

@@ -114,6 +114,16 @@ body {
   animation: fade-in 0.3s ease;
 }
 
+.auth-card--loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-height: 320px;
+  text-align: center;
+}
+
 @media (prefers-color-scheme: dark) {
   .auth-card {
     background: var(--card-bg-dark);
@@ -150,6 +160,15 @@ body {
   color: var(--text-secondary);
   margin-top: 8px;
   font-size: 14px;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 15px;
 }
 
 @media (prefers-color-scheme: dark) {

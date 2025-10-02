@@ -72,6 +72,10 @@ type Processor struct {
 	// Bookkeeping for queue activity
 	lastProcessedMu sync.RWMutex
 	lastProcessedAt time.Time
+
+	// Task count tracking for max_tasks limit
+	tasksProcessedMu    sync.RWMutex
+	tasksProcessedCount int
 }
 
 // NewProcessor creates a new queue processor
@@ -253,6 +257,18 @@ func (qp *Processor) ProcessQueue() {
 	if availableSlots <= 0 {
 		log.Printf("Queue processor: %d tasks already executing, %d available slots", executingCount, availableSlots)
 		return
+	}
+
+	// Check if we've reached the max_tasks limit
+	if currentSettings.MaxTasks > 0 {
+		qp.tasksProcessedMu.RLock()
+		processedCount := qp.tasksProcessedCount
+		qp.tasksProcessedMu.RUnlock()
+
+		if processedCount >= currentSettings.MaxTasks {
+			log.Printf("Queue processor: max tasks limit reached (%d/%d)", processedCount, currentSettings.MaxTasks)
+			return
+		}
 	}
 
 	// Sort tasks by priority (critical > high > medium > low)
@@ -879,6 +895,23 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 		lastProcessedAt = lastProcessed.Format(time.RFC3339)
 	}
 
+	// Get task count for max_tasks tracking
+	qp.tasksProcessedMu.RLock()
+	tasksProcessed := qp.tasksProcessedCount
+	qp.tasksProcessedMu.RUnlock()
+
+	maxTasks := currentSettings.MaxTasks
+	var tasksRemaining interface{}
+	if maxTasks > 0 {
+		remaining := maxTasks - tasksProcessed
+		if remaining < 0 {
+			remaining = 0
+		}
+		tasksRemaining = remaining
+	} else {
+		tasksRemaining = "unlimited"
+	}
+
 	return map[string]interface{}{
 		"processor_active":          processorActive,
 		"settings_active":           settingsActive,
@@ -901,6 +934,9 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 		"processor_running":         processorActive,
 		"timestamp":                 time.Now().Unix(),
 		"last_processed_at":         lastProcessedAt,
+		"tasks_processed":           tasksProcessed,
+		"max_tasks":                 maxTasks,
+		"tasks_remaining":           tasksRemaining,
 	}
 }
 
@@ -1341,4 +1377,12 @@ func detectVrooliRoot() string {
 	}
 
 	return "."
+}
+
+// ResetTaskCounter resets the task counter to 0
+func (qp *Processor) ResetTaskCounter() {
+	qp.tasksProcessedMu.Lock()
+	qp.tasksProcessedCount = 0
+	qp.tasksProcessedMu.Unlock()
+	log.Printf("Task counter reset to 0")
 }

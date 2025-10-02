@@ -1,4 +1,5 @@
 // Ecosystem Manager - Main Application
+import { ApiClient } from './modules/ApiClient.js';
 import { TaskManager } from './modules/TaskManager.js';
 import { SettingsManager } from './modules/SettingsManager.js';
 import { ProcessMonitor } from './modules/ProcessMonitor.js';
@@ -463,17 +464,20 @@ class EcosystemManager {
     constructor() {
         // API Configuration - Use relative path so Vite proxy handles it
         this.apiBase = '/api';
-        
+
+        // Initialize API client
+        this.api = new ApiClient(this.apiBase);
+
         // Initialize modules
         this.taskManager = new TaskManager(
-            this.apiBase, 
-            this.showToast.bind(this), 
+            this.apiBase,
+            this.showToast.bind(this),
             this.showLoading.bind(this)
         );
         this.settingsManager = new SettingsManager(this.apiBase, this.showToast.bind(this));
         this.processMonitor = new ProcessMonitor(this.apiBase, this.showToast.bind(this));
         this.webSocketHandler = new WebSocketHandler(
-            this.apiBase, 
+            this.apiBase,
             this.handleWebSocketMessage.bind(this)
         );
         this.dragDropHandler = new DragDropHandler(this.handleTaskDrop.bind(this));
@@ -2970,6 +2974,40 @@ class EcosystemManager {
         }
 
         this.handleRateLimitStateUpdate(paused, rateLimitInfo);
+
+        // Update task counter display in settings and badge
+        this.updateTaskCounterDisplay(status);
+    }
+
+    updateTaskCounterDisplay(status) {
+        const tasksRemainingDisplay = document.getElementById('tasks-remaining-display');
+        const processorRemainingBadge = document.getElementById('processor-remaining-count');
+
+        if (!status) {
+            return;
+        }
+
+        const maxTasks = status.max_tasks || 0;
+        const tasksRemaining = status.tasks_remaining;
+
+        // Update settings display
+        if (tasksRemainingDisplay) {
+            if (maxTasks > 0) {
+                tasksRemainingDisplay.textContent = `(${tasksRemaining} remaining)`;
+            } else {
+                tasksRemainingDisplay.textContent = '';
+            }
+        }
+
+        // Update notification badge
+        if (processorRemainingBadge) {
+            if (maxTasks > 0 && typeof tasksRemaining === 'number') {
+                processorRemainingBadge.textContent = tasksRemaining;
+                processorRemainingBadge.hidden = false;
+            } else {
+                processorRemainingBadge.hidden = true;
+            }
+        }
     }
 
     getRateLimitRemainingSeconds(info) {
