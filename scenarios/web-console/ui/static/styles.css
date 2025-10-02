@@ -49,6 +49,25 @@ body {
   min-height: 5.25rem;
   max-width: 100vw;
   overflow-x: hidden;
+  gap: 1rem;
+}
+
+.header-ai-group {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  flex: 1;
+  max-width: 600px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid var(--surface-border);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.header-ai-group:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
 }
 
 .header-title-group {
@@ -383,6 +402,33 @@ body {
 .panel.warning p {
   margin: 0;
   color: #fde68a;
+}
+
+/* Debug options */
+.debug-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.debug-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.debug-option input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.debug-option span {
+  color: var(--text-primary);
+  font-size: 0.95rem;
 }
 
 .info-list {
@@ -955,31 +1001,28 @@ textarea {
   -webkit-backdrop-filter: blur(10px);
   border-top: 1px solid var(--surface-border);
   padding: 0.75rem 1.5rem;
+  /* Add safe-area padding for notched iOS devices */
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
   min-height: 5.25rem;
-  z-index: 9999; /* Above everything including keyboard */
+  /* Increased z-index for iOS keyboard compatibility */
+  z-index: 2147483647; /* Max z-index to ensure toolbar appears above keyboard */
   box-shadow: 0 -4px 12px rgba(8, 12, 24, 0.45);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  will-change: transform;
-  transform: translateY(0);
+  transition: opacity 0.2s ease, bottom 0.2s ease;
+  will-change: bottom, opacity;
   display: flex;
   align-items: center;
-}
-
-/* iOS-specific positioning using top property for keyboard compatibility */
-.mobile-toolbar.ios-keyboard-mode {
-  bottom: auto;
-  top: 0;
-  transform: translateY(-100%);
+  /* Ensure toolbar doesn't get clipped */
+  contain: none;
+  isolation: isolate;
+  /* Prevent focus stealing from terminal */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-toolbar.hidden {
   opacity: 0;
   pointer-events: none;
-}
-
-/* When hidden in iOS keyboard mode, slide up */
-.mobile-toolbar.hidden.ios-keyboard-mode {
-  transform: translateY(-200%);
 }
 
 /* Mode: Disabled - completely hidden */
@@ -1015,7 +1058,7 @@ body:has(.mobile-toolbar.mode-top) .header {
   display: none;
 }
 
-/* Desktop mode: AI-only toolbar */
+/* Desktop mode: Show toolbar when debug mode is active */
 .mobile-toolbar.desktop-mode {
   /* Always visible at bottom on desktop */
   position: fixed !important;
@@ -1024,11 +1067,6 @@ body:has(.mobile-toolbar.mode-top) .header {
   opacity: 1 !important;
   pointer-events: auto !important;
   transform: none !important;
-}
-
-/* Hide keyboard shortcuts on desktop */
-.mobile-toolbar.desktop-mode .mobile-toolbar-keys-row {
-  display: none !important;
 }
 
 .mobile-toolbar-content {
@@ -1049,9 +1087,8 @@ body:has(.mobile-toolbar.mode-top) .header {
 .ai-command-input {
   flex: 1;
   padding: 0.65rem 0.85rem;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid var(--surface-border);
-  border-radius: 0.75rem;
+  background: transparent;
+  border: none;
   color: var(--text-primary);
   font-size: 0.95rem;
   font-family: inherit;
@@ -1059,8 +1096,6 @@ body:has(.mobile-toolbar.mode-top) .header {
 
 .ai-command-input:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
 }
 
 .ai-command-input::placeholder {
@@ -1069,26 +1104,44 @@ body:has(.mobile-toolbar.mode-top) .header {
 }
 
 .ai-generate-btn {
-  width: 2.75rem;
-  height: 2.75rem;
+  width: auto;
+  min-width: 2.75rem;
+  padding: 0.65rem 0.85rem;
   border: none;
-  border-radius: 0.75rem;
+  border-radius: 0;
+  border-left: 1px solid rgba(148, 163, 184, 0.3);
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   color: #0f172a;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+  box-shadow: none;
 }
 
-.ai-generate-btn:active {
-  transform: scale(0.95);
+.ai-generate-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+}
+
+.ai-generate-btn:active:not(:disabled) {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
 }
 
 .ai-generate-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
+}
+
+.ai-generate-btn .ai-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.5;
+}
+
+.ai-generate-btn.loading .loading-spinner {
+  border-color: rgba(15, 23, 42, 0.2);
+  border-top-color: #0f172a;
 }
 
 .toolbar-menu-toggle {
@@ -1194,6 +1247,11 @@ body:has(.mobile-toolbar.mode-top) .header {
   align-items: center;
   justify-content: center;
   padding: 0 0.6rem;
+  /* Prevent focus stealing and improve touch behavior */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .toolbar-btn:active {

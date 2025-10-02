@@ -21,9 +21,9 @@ type Converter interface {
 type ConversionMetadata struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
-	DataLoss    bool     `json:"data_loss"`      // Whether conversion may lose data
-	Quality     string   `json:"quality"`        // high, medium, low
-	Features    []string `json:"features"`       // List of supported features
+	DataLoss    bool     `json:"data_loss"` // Whether conversion may lose data
+	Quality     string   `json:"quality"`   // high, medium, low
+	Features    []string `json:"features"`  // List of supported features
 }
 
 // NewConversionEngine creates a new conversion engine
@@ -41,17 +41,17 @@ func (ce *ConversionEngine) registerDefaultConverters() {
 	ce.RegisterConverter("mind-maps", "mermaid", &MindMapToMermaidConverter{})
 	ce.RegisterConverter("mind-maps", "bpmn", &MindMapToBPMNConverter{})
 	ce.RegisterConverter("mind-maps", "network-graphs", &MindMapToNetworkConverter{})
-	
+
 	// BPMN to other formats
 	ce.RegisterConverter("bpmn", "mermaid", &BPMNToMermaidConverter{})
 	ce.RegisterConverter("bpmn", "mind-maps", &BPMNToMindMapConverter{})
 	ce.RegisterConverter("bpmn", "network-graphs", &BPMNToNetworkConverter{})
-	
+
 	// Network graphs to other formats
 	ce.RegisterConverter("network-graphs", "mermaid", &NetworkToMermaidConverter{})
 	ce.RegisterConverter("network-graphs", "mind-maps", &NetworkToMindMapConverter{})
 	ce.RegisterConverter("network-graphs", "bpmn", &NetworkToBPMNConverter{})
-	
+
 	// Mermaid to other formats
 	ce.RegisterConverter("mermaid", "mind-maps", &MermaidToMindMapConverter{})
 	ce.RegisterConverter("mermaid", "bpmn", &MermaidToBPMNConverter{})
@@ -76,7 +76,7 @@ func (ce *ConversionEngine) Convert(from, to string, data json.RawMessage, optio
 	if !ce.CanConvert(from, to) {
 		return nil, fmt.Errorf("conversion from %s to %s not supported", from, to)
 	}
-	
+
 	converter := ce.converters[from][to]
 	return converter.Convert(data, options)
 }
@@ -97,7 +97,7 @@ func (ce *ConversionEngine) GetConversionMetadata(from, to string) (*ConversionM
 	if !ce.CanConvert(from, to) {
 		return nil, fmt.Errorf("conversion from %s to %s not supported", from, to)
 	}
-	
+
 	converter := ce.converters[from][to]
 	metadata := converter.GetMetadata()
 	return &metadata, nil
@@ -111,31 +111,31 @@ func (c *MindMapToMermaidConverter) Convert(source json.RawMessage, options map[
 	if err := json.Unmarshal(source, &mindMap); err != nil {
 		return nil, fmt.Errorf("invalid mind map data: %w", err)
 	}
-	
+
 	// Extract root node
 	root, ok := mindMap["root"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("mind map must have a root node")
 	}
-	
+
 	// Build Mermaid diagram
 	diagram := "graph TD\n"
 	nodeCounter := 0
 	nodeMap := make(map[string]string)
-	
+
 	// Process nodes recursively
 	rootID := fmt.Sprintf("n%d", nodeCounter)
 	nodeCounter++
 	nodeMap["root"] = rootID
-	
+
 	if text, ok := root["text"].(string); ok {
 		diagram += fmt.Sprintf("    %s[\"%s\"]\n", rootID, escapeMermaidText(text))
 	}
-	
+
 	if children, ok := root["children"].([]interface{}); ok {
 		diagram += c.processChildren(children, rootID, &nodeCounter, nodeMap)
 	}
-	
+
 	result := map[string]interface{}{
 		"type":    "mermaid",
 		"diagram": diagram,
@@ -144,29 +144,29 @@ func (c *MindMapToMermaidConverter) Convert(source json.RawMessage, options map[
 			"node_count":     nodeCounter,
 		},
 	}
-	
+
 	return json.Marshal(result)
 }
 
 func (c *MindMapToMermaidConverter) processChildren(children []interface{}, parentID string, nodeCounter *int, nodeMap map[string]string) string {
 	var result strings.Builder
-	
+
 	for _, child := range children {
 		if childMap, ok := child.(map[string]interface{}); ok {
 			childID := fmt.Sprintf("n%d", *nodeCounter)
 			*nodeCounter++
-			
+
 			if text, ok := childMap["text"].(string); ok {
 				result.WriteString(fmt.Sprintf("    %s[\"%s\"]\n", childID, escapeMermaidText(text)))
 				result.WriteString(fmt.Sprintf("    %s --> %s\n", parentID, childID))
 			}
-			
+
 			if grandchildren, ok := childMap["children"].([]interface{}); ok {
 				result.WriteString(c.processChildren(grandchildren, childID, nodeCounter, nodeMap))
 			}
 		}
 	}
-	
+
 	return result.String()
 }
 
@@ -188,9 +188,9 @@ func (c *BPMNToMermaidConverter) Convert(source json.RawMessage, options map[str
 	if err := json.Unmarshal(source, &bpmn); err != nil {
 		return nil, fmt.Errorf("invalid BPMN data: %w", err)
 	}
-	
+
 	diagram := "flowchart LR\n"
-	
+
 	// Process nodes
 	if nodes, ok := bpmn["nodes"].([]interface{}); ok {
 		for _, node := range nodes {
@@ -198,7 +198,7 @@ func (c *BPMNToMermaidConverter) Convert(source json.RawMessage, options map[str
 				id := nodeMap["id"].(string)
 				label := nodeMap["label"].(string)
 				nodeType := nodeMap["type"].(string)
-				
+
 				switch nodeType {
 				case "startEvent":
 					diagram += fmt.Sprintf("    %s(((\"%s\")))\n", id, escapeMermaidText(label))
@@ -214,7 +214,7 @@ func (c *BPMNToMermaidConverter) Convert(source json.RawMessage, options map[str
 			}
 		}
 	}
-	
+
 	// Process edges
 	if edges, ok := bpmn["edges"].([]interface{}); ok {
 		for _, edge := range edges {
@@ -225,7 +225,7 @@ func (c *BPMNToMermaidConverter) Convert(source json.RawMessage, options map[str
 			}
 		}
 	}
-	
+
 	result := map[string]interface{}{
 		"type":    "mermaid",
 		"diagram": diagram,
@@ -234,7 +234,7 @@ func (c *BPMNToMermaidConverter) Convert(source json.RawMessage, options map[str
 			"process_type":   "workflow",
 		},
 	}
-	
+
 	return json.Marshal(result)
 }
 
@@ -256,28 +256,28 @@ func (c *NetworkToMermaidConverter) Convert(source json.RawMessage, options map[
 	if err := json.Unmarshal(source, &network); err != nil {
 		return nil, fmt.Errorf("invalid network data: %w", err)
 	}
-	
+
 	diagram := "graph TD\n"
-	
+
 	// Process nodes
 	if nodes, ok := network["nodes"].([]interface{}); ok {
 		for _, node := range nodes {
 			if nodeMap, ok := node.(map[string]interface{}); ok {
 				id := nodeMap["id"].(string)
 				label := nodeMap["label"].(string)
-				
+
 				diagram += fmt.Sprintf("    %s[\"%s\"]\n", id, escapeMermaidText(label))
 			}
 		}
 	}
-	
+
 	// Process edges
 	if edges, ok := network["edges"].([]interface{}); ok {
 		for _, edge := range edges {
 			if edgeMap, ok := edge.(map[string]interface{}); ok {
 				source := edgeMap["source"].(string)
 				target := edgeMap["target"].(string)
-				
+
 				// Check if it's bidirectional
 				if bidirectional, ok := edgeMap["bidirectional"].(bool); ok && bidirectional {
 					diagram += fmt.Sprintf("    %s <--> %s\n", source, target)
@@ -287,7 +287,7 @@ func (c *NetworkToMermaidConverter) Convert(source json.RawMessage, options map[
 			}
 		}
 	}
-	
+
 	result := map[string]interface{}{
 		"type":    "mermaid",
 		"diagram": diagram,
@@ -296,7 +296,7 @@ func (c *NetworkToMermaidConverter) Convert(source json.RawMessage, options map[
 			"graph_type":     "network",
 		},
 	}
-	
+
 	return json.Marshal(result)
 }
 
@@ -312,6 +312,7 @@ func (c *NetworkToMermaidConverter) GetMetadata() ConversionMetadata {
 
 // Placeholder converters for other combinations
 type MindMapToBPMNConverter struct{}
+
 func (c *MindMapToBPMNConverter) Convert(source json.RawMessage, options map[string]interface{}) (json.RawMessage, error) {
 	return c.convertToPlaceholder("bpmn", "mind-maps")
 }
@@ -320,6 +321,7 @@ func (c *MindMapToBPMNConverter) GetMetadata() ConversionMetadata {
 }
 
 type MindMapToNetworkConverter struct{}
+
 func (c *MindMapToNetworkConverter) Convert(source json.RawMessage, options map[string]interface{}) (json.RawMessage, error) {
 	return c.convertToPlaceholder("network-graphs", "mind-maps")
 }
@@ -328,6 +330,7 @@ func (c *MindMapToNetworkConverter) GetMetadata() ConversionMetadata {
 }
 
 type BPMNToMindMapConverter struct{}
+
 func (c *BPMNToMindMapConverter) Convert(source json.RawMessage, options map[string]interface{}) (json.RawMessage, error) {
 	return c.convertToPlaceholder("mind-maps", "bpmn")
 }
@@ -336,6 +339,7 @@ func (c *BPMNToMindMapConverter) GetMetadata() ConversionMetadata {
 }
 
 type BPMNToNetworkConverter struct{}
+
 func (c *BPMNToNetworkConverter) Convert(source json.RawMessage, options map[string]interface{}) (json.RawMessage, error) {
 	return c.convertToPlaceholder("network-graphs", "bpmn")
 }
@@ -344,6 +348,7 @@ func (c *BPMNToNetworkConverter) GetMetadata() ConversionMetadata {
 }
 
 type NetworkToMindMapConverter struct{}
+
 func (c *NetworkToMindMapConverter) Convert(source json.RawMessage, options map[string]interface{}) (json.RawMessage, error) {
 	return c.convertToPlaceholder("mind-maps", "network-graphs")
 }
@@ -352,6 +357,7 @@ func (c *NetworkToMindMapConverter) GetMetadata() ConversionMetadata {
 }
 
 type NetworkToBPMNConverter struct{}
+
 func (c *NetworkToBPMNConverter) Convert(source json.RawMessage, options map[string]interface{}) (json.RawMessage, error) {
 	return c.convertToPlaceholder("bpmn", "network-graphs")
 }
@@ -360,6 +366,7 @@ func (c *NetworkToBPMNConverter) GetMetadata() ConversionMetadata {
 }
 
 type MermaidToMindMapConverter struct{}
+
 func (c *MermaidToMindMapConverter) Convert(source json.RawMessage, options map[string]interface{}) (json.RawMessage, error) {
 	return c.convertToPlaceholder("mind-maps", "mermaid")
 }
@@ -368,6 +375,7 @@ func (c *MermaidToMindMapConverter) GetMetadata() ConversionMetadata {
 }
 
 type MermaidToBPMNConverter struct{}
+
 func (c *MermaidToBPMNConverter) Convert(source json.RawMessage, options map[string]interface{}) (json.RawMessage, error) {
 	return c.convertToPlaceholder("bpmn", "mermaid")
 }
@@ -376,6 +384,7 @@ func (c *MermaidToBPMNConverter) GetMetadata() ConversionMetadata {
 }
 
 type MermaidToNetworkConverter struct{}
+
 func (c *MermaidToNetworkConverter) Convert(source json.RawMessage, options map[string]interface{}) (json.RawMessage, error) {
 	return c.convertToPlaceholder("network-graphs", "mermaid")
 }
@@ -387,9 +396,9 @@ func (c *MermaidToNetworkConverter) GetMetadata() ConversionMetadata {
 
 func (c *MindMapToBPMNConverter) convertToPlaceholder(targetType, sourceType string) (json.RawMessage, error) {
 	result := map[string]interface{}{
-		"type": targetType,
+		"type":        targetType,
 		"placeholder": true,
-		"message": fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
+		"message":     fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
 		"nodes": []map[string]interface{}{
 			{"id": "placeholder", "label": "Converted Graph", "type": "placeholder"},
 		},
@@ -399,9 +408,9 @@ func (c *MindMapToBPMNConverter) convertToPlaceholder(targetType, sourceType str
 
 func (c *MindMapToNetworkConverter) convertToPlaceholder(targetType, sourceType string) (json.RawMessage, error) {
 	result := map[string]interface{}{
-		"type": targetType,
+		"type":        targetType,
 		"placeholder": true,
-		"message": fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
+		"message":     fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
 		"nodes": []map[string]interface{}{
 			{"id": "placeholder", "label": "Converted Graph", "type": "placeholder"},
 		},
@@ -411,11 +420,11 @@ func (c *MindMapToNetworkConverter) convertToPlaceholder(targetType, sourceType 
 
 func (c *BPMNToMindMapConverter) convertToPlaceholder(targetType, sourceType string) (json.RawMessage, error) {
 	result := map[string]interface{}{
-		"type": targetType,
+		"type":        targetType,
 		"placeholder": true,
-		"message": fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
+		"message":     fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
 		"root": map[string]interface{}{
-			"text": "Converted Graph",
+			"text":     "Converted Graph",
 			"children": []interface{}{},
 		},
 	}
@@ -424,9 +433,9 @@ func (c *BPMNToMindMapConverter) convertToPlaceholder(targetType, sourceType str
 
 func (c *BPMNToNetworkConverter) convertToPlaceholder(targetType, sourceType string) (json.RawMessage, error) {
 	result := map[string]interface{}{
-		"type": targetType,
+		"type":        targetType,
 		"placeholder": true,
-		"message": fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
+		"message":     fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
 		"nodes": []map[string]interface{}{
 			{"id": "placeholder", "label": "Converted Graph", "type": "placeholder"},
 		},
@@ -436,11 +445,11 @@ func (c *BPMNToNetworkConverter) convertToPlaceholder(targetType, sourceType str
 
 func (c *NetworkToMindMapConverter) convertToPlaceholder(targetType, sourceType string) (json.RawMessage, error) {
 	result := map[string]interface{}{
-		"type": targetType,
+		"type":        targetType,
 		"placeholder": true,
-		"message": fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
+		"message":     fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
 		"root": map[string]interface{}{
-			"text": "Converted Graph",
+			"text":     "Converted Graph",
 			"children": []interface{}{},
 		},
 	}
@@ -449,9 +458,9 @@ func (c *NetworkToMindMapConverter) convertToPlaceholder(targetType, sourceType 
 
 func (c *NetworkToBPMNConverter) convertToPlaceholder(targetType, sourceType string) (json.RawMessage, error) {
 	result := map[string]interface{}{
-		"type": targetType,
+		"type":        targetType,
 		"placeholder": true,
-		"message": fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
+		"message":     fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
 		"nodes": []map[string]interface{}{
 			{"id": "placeholder", "label": "Converted Graph", "type": "placeholder"},
 		},
@@ -461,11 +470,11 @@ func (c *NetworkToBPMNConverter) convertToPlaceholder(targetType, sourceType str
 
 func (c *MermaidToMindMapConverter) convertToPlaceholder(targetType, sourceType string) (json.RawMessage, error) {
 	result := map[string]interface{}{
-		"type": targetType,
+		"type":        targetType,
 		"placeholder": true,
-		"message": fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
+		"message":     fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
 		"root": map[string]interface{}{
-			"text": "Converted Graph",
+			"text":     "Converted Graph",
 			"children": []interface{}{},
 		},
 	}
@@ -474,9 +483,9 @@ func (c *MermaidToMindMapConverter) convertToPlaceholder(targetType, sourceType 
 
 func (c *MermaidToBPMNConverter) convertToPlaceholder(targetType, sourceType string) (json.RawMessage, error) {
 	result := map[string]interface{}{
-		"type": targetType,
+		"type":        targetType,
 		"placeholder": true,
-		"message": fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
+		"message":     fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
 		"nodes": []map[string]interface{}{
 			{"id": "placeholder", "label": "Converted Graph", "type": "placeholder"},
 		},
@@ -486,9 +495,9 @@ func (c *MermaidToBPMNConverter) convertToPlaceholder(targetType, sourceType str
 
 func (c *MermaidToNetworkConverter) convertToPlaceholder(targetType, sourceType string) (json.RawMessage, error) {
 	result := map[string]interface{}{
-		"type": targetType,
+		"type":        targetType,
 		"placeholder": true,
-		"message": fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
+		"message":     fmt.Sprintf("Conversion from %s to %s is not yet fully implemented", sourceType, targetType),
 		"nodes": []map[string]interface{}{
 			{"id": "placeholder", "label": "Converted Graph", "type": "placeholder"},
 		},

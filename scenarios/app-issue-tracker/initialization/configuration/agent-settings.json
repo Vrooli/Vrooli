@@ -23,12 +23,16 @@
       "enabled": true,
       "operations": {
         "fix": {
+          "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
           "command": "run -",
+          "max_turns": 80,
           "timeout_seconds": 600
         },
         "investigate": {
+          "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
           "command": "run -",
-          "timeout_seconds": 300
+          "max_turns": 80,
+          "timeout_seconds": 600
         }
       }
     },

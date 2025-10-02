@@ -54,12 +54,7 @@ class ApiClient {
   
   // Stats
   async getStats() {
-    // Mock stats for now - would come from API
-    return {
-      totalGraphs: 42,
-      conversionsToday: 7,
-      activeUsers: 3,
-    }
+    return this.client.get('/api/v1/stats')
   }
   
   // Plugins

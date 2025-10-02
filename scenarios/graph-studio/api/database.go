@@ -12,11 +12,11 @@ import (
 
 // DatabaseConfig holds database configuration
 type DatabaseConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Database string
+	Host       string
+	Port       string
+	User       string
+	Password   string
+	Database   string
 	MaxRetries int
 }
 
@@ -24,18 +24,18 @@ type DatabaseConfig struct {
 func ConnectWithRetry(config DatabaseConfig) (*sql.DB, error) {
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		config.Host, config.Port, config.User, config.Password, config.Database)
-	
+
 	var db *sql.DB
 	var err error
-	
+
 	maxRetries := config.MaxRetries
 	if maxRetries == 0 {
 		maxRetries = 10
 	}
-	
+
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		log.Printf("🔌 Attempting database connection (attempt %d/%d)...", attempt, maxRetries)
-		
+
 		db, err = sql.Open("postgres", dsn)
 		if err != nil {
 			log.Printf("❌ Failed to open database connection: %v", err)
@@ -47,12 +47,12 @@ func ConnectWithRetry(config DatabaseConfig) (*sql.DB, error) {
 			}
 			return nil, fmt.Errorf("failed to open database after %d attempts: %w", maxRetries, err)
 		}
-		
+
 		// Configure connection pool
 		db.SetMaxOpenConns(25)
 		db.SetMaxIdleConns(5)
 		db.SetConnMaxLifetime(5 * time.Minute)
-		
+
 		// Test the connection
 		err = db.Ping()
 		if err != nil {
@@ -66,11 +66,11 @@ func ConnectWithRetry(config DatabaseConfig) (*sql.DB, error) {
 			}
 			return nil, fmt.Errorf("database ping failed after %d attempts: %w", maxRetries, err)
 		}
-		
+
 		log.Println("✅ Database connected successfully")
 		return db, nil
 	}
-	
+
 	return nil, fmt.Errorf("failed to connect to database after %d attempts", maxRetries)
 }
 
@@ -78,36 +78,23 @@ func ConnectWithRetry(config DatabaseConfig) (*sql.DB, error) {
 func calculateBackoff(attempt int) time.Duration {
 	// Base wait time with exponential increase
 	base := time.Duration(math.Min(float64(attempt*attempt), 30)) * time.Second
-	
+
 	// Add jitter (up to 25% of base time)
 	jitter := time.Duration(float64(base) * 0.25 * math.Min(1.0, float64(attempt)/4))
-	
+
 	return base + jitter
 }
 
-// MonitorConnection monitors database connection and attempts reconnection if needed
+// MonitorConnection monitors database connection health
+// Note: sql.DB handles reconnection automatically via its connection pool
 func MonitorConnection(db *sql.DB, config DatabaseConfig) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		if err := db.Ping(); err != nil {
-			log.Printf("⚠️  Database connection lost: %v", err)
-			log.Println("🔄 Attempting to reconnect...")
-			
-			// Close the existing connection
-			db.Close()
-			
-			// Attempt to reconnect
-			newDB, err := ConnectWithRetry(config)
-			if err != nil {
-				log.Printf("❌ Failed to reconnect to database: %v", err)
-				continue
-			}
-			
-			// Replace the database connection
-			*db = *newDB
-			log.Println("✅ Database reconnected successfully")
+			log.Printf("⚠️  Database connection issue detected: %v", err)
+			log.Println("🔄 Database pool will handle reconnection automatically")
 		}
 	}
 }

@@ -17,6 +17,13 @@ type Plugin struct {
 	Metadata    map[string]interface{} `json:"metadata"`
 }
 
+// GraphPermissions represents access control for a graph
+type GraphPermissions struct {
+	Public       bool     `json:"public"`                  // Public read access
+	AllowedUsers []string `json:"allowed_users,omitempty"` // User IDs with access
+	Editors      []string `json:"editors,omitempty"`       // User IDs who can edit
+}
+
 // Graph represents a graph document
 type Graph struct {
 	ID          string                 `json:"id"`
@@ -30,6 +37,7 @@ type Graph struct {
 	CreatedAt   time.Time              `json:"created_at"`
 	UpdatedAt   time.Time              `json:"updated_at"`
 	Tags        []string               `json:"tags"`
+	Permissions *GraphPermissions      `json:"permissions,omitempty"`
 }
 
 // GraphVersion represents a version of a graph
@@ -196,20 +204,27 @@ type UpdateTemplateRequest struct {
 
 // ConversionMatrixResponse represents the conversion capabilities matrix
 type ConversionMatrixResponse struct {
-	Matrix      map[string][]string                `json:"matrix"`       // from -> [to]
+	Matrix      map[string][]string                 `json:"matrix"`      // from -> [to]
 	Conversions map[string][]map[string]interface{} `json:"conversions"` // detailed conversion info
-	TotalPaths  int                                `json:"total_paths"`
+	TotalPaths  int                                 `json:"total_paths"`
 }
 
 // GraphStatsResponse represents graph statistics
+// DashboardStatsResponse represents dashboard statistics
+type DashboardStatsResponse struct {
+	TotalGraphs      int `json:"totalGraphs"`
+	ConversionsToday int `json:"conversionsToday"`
+	ActiveUsers      int `json:"activeUsers"`
+}
+
 type GraphStatsResponse struct {
-	TotalGraphs       int                            `json:"total_graphs"`
-	GraphsByType      map[string]int                 `json:"graphs_by_type"`
-	RecentActivity    []map[string]interface{}       `json:"recent_activity"`
-	PopularTemplates  []GraphTemplate                `json:"popular_templates"`
-	ConversionStats   map[string]int                 `json:"conversion_stats"`
-	ActiveUsers       int                            `json:"active_users"`
-	StorageUsed       int64                          `json:"storage_used_bytes"`
+	TotalGraphs      int                      `json:"total_graphs"`
+	GraphsByType     map[string]int           `json:"graphs_by_type"`
+	RecentActivity   []map[string]interface{} `json:"recent_activity"`
+	PopularTemplates []GraphTemplate          `json:"popular_templates"`
+	ConversionStats  map[string]int           `json:"conversion_stats"`
+	ActiveUsers      int                      `json:"active_users"`
+	StorageUsed      int64                    `json:"storage_used_bytes"`
 }
 
 // SearchGraphsRequest represents a graph search request
@@ -235,4 +250,18 @@ type BulkOperationResponse struct {
 	Failed     []string `json:"failed"`
 	TotalCount int      `json:"total_count"`
 	Errors     []string `json:"errors,omitempty"`
+}
+
+// ExportRequest represents a graph export request
+type ExportRequest struct {
+	Format  string                 `json:"format" binding:"required"` // graphml, gexf, json, csv
+	Options map[string]interface{} `json:"options,omitempty"`
+}
+
+// ExportResponse represents a graph export response
+type ExportResponse struct {
+	Format   string `json:"format"`
+	Filename string `json:"filename"`
+	Content  string `json:"content"` // Base64 encoded for binary formats
+	MimeType string `json:"mime_type"`
 }

@@ -6,6 +6,49 @@ import { formatDistanceToNow } from '../utils/date';
 
 const TOUCH_MOVE_THRESHOLD = 14;
 
+// Extract a concise error summary from investigation report
+function extractErrorSummary(report: string): string | null {
+  if (!report) return null;
+
+  // Check for specific error types with user-friendly messages
+  if (/reached max turns/i.test(report)) {
+    const match = report.match(/max turns \((\d+)\)/i);
+    const turns = match ? match[1] : 'limit';
+    return `Agent reached maximum turns (${turns}) - work may be incomplete`;
+  }
+
+  if (/timeout/i.test(report)) {
+    return 'Agent execution timed out';
+  }
+
+  if (/parsing error/i.test(report)) {
+    return 'Agent output could not be parsed - check investigation report for details';
+  }
+
+  // Look for common error patterns
+  const errorPatterns = [
+    /Error: (.+?)(?:\n|$)/i,
+    /failed[^:]*: (.+?)(?:\n|$)/i,
+    /Investigation failed[^:]*: (.+?)(?:\n|$)/i,
+  ];
+
+  for (const pattern of errorPatterns) {
+    const match = report.match(pattern);
+    if (match && match[1]) {
+      // Return first 200 chars of the error message
+      return match[1].trim().substring(0, 200);
+    }
+  }
+
+  // If no specific pattern matched, return first line if it contains "error" or "fail"
+  const firstLine = report.split('\n')[0];
+  if (firstLine && /error|fail/i.test(firstLine)) {
+    return firstLine.substring(0, 200);
+  }
+
+  return null;
+}
+
 interface IssueCardProps {
   issue: Issue;
   isFocused?: boolean;
@@ -40,7 +83,11 @@ export function IssueCard({
 
   const isRunning = !!runningProcess;
   const isFailed = issue.status === 'failed';
-  const errorMessage = isFailed && issue.metadata?.extra?.agent_last_error;
+  // Check multiple error sources: metadata.extra.agent_last_error first, then investigation.report
+  const errorMessage = isFailed && (
+    issue.metadata?.extra?.agent_last_error ||
+    (issue.investigation?.report && extractErrorSummary(issue.investigation.report))
+  );
 
   const className = [
     'issue-card',

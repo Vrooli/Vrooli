@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -85,6 +86,9 @@ func main() {
 
 	// Add middleware
 	router.Use(ErrorHandlerMiddleware())
+	router.Use(SecurityHeadersMiddleware())
+	router.Use(RateLimitMiddleware(50, 100))                 // 50 req/sec, burst of 100
+	router.Use(RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10 MB limit
 	router.Use(RequestIDMiddleware())
 	router.Use(LoggingMiddleware())
 	router.Use(DatabaseMiddleware(db))
@@ -95,7 +99,20 @@ func main() {
 
 	// Configure CORS
 	corsConfig := cors.DefaultConfig()
-	corsConfig.AllowAllOrigins = true
+
+	// Get allowed origins from environment or use sensible defaults
+	allowedOrigins := os.Getenv("CORS_ORIGINS")
+	if allowedOrigins == "" || allowedOrigins == "*" {
+		// Default to localhost for development
+		corsConfig.AllowOrigins = []string{
+			"http://localhost:" + os.Getenv("UI_PORT"),
+			"http://127.0.0.1:" + os.Getenv("UI_PORT"),
+		}
+	} else {
+		// Parse comma-separated origins from environment
+		corsConfig.AllowOrigins = strings.Split(allowedOrigins, ",")
+	}
+
 	corsConfig.AllowHeaders = append(corsConfig.AllowHeaders, "Authorization", "X-User-ID", "X-Request-ID")
 	router.Use(cors.New(corsConfig))
 
@@ -105,6 +122,9 @@ func main() {
 	// API v1 routes
 	v1 := router.Group("/api/v1")
 	{
+		// Dashboard stats
+		v1.GET("/stats", api.GetStats)
+
 		// Plugin routes
 		v1.GET("/plugins", api.ListPlugins)
 
@@ -119,6 +139,7 @@ func main() {
 		v1.POST("/graphs/:id/validate", api.ValidateGraph)
 		v1.POST("/graphs/:id/convert", api.ConvertGraph)
 		v1.POST("/graphs/:id/render", api.RenderGraph)
+		v1.POST("/graphs/:id/export", api.ExportGraph)
 
 		// Conversion capabilities
 		v1.GET("/conversions", api.ListConversions)

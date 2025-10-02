@@ -127,6 +127,54 @@ func stripANSI(str string) string {
 	return ansiRegex.ReplaceAllString(str, "")
 }
 
+// extractJSON finds and extracts the first JSON object from a string that may contain log messages
+func extractJSON(str string) string {
+	// Find the first '{' and matching '}'
+	start := strings.Index(str, "{")
+	if start == -1 {
+		return ""
+	}
+
+	// Count braces to find the matching closing brace
+	depth := 0
+	inString := false
+	escape := false
+
+	for i := start; i < len(str); i++ {
+		c := str[i]
+
+		if escape {
+			escape = false
+			continue
+		}
+
+		if c == '\\' {
+			escape = true
+			continue
+		}
+
+		if c == '"' {
+			inString = !inString
+			continue
+		}
+
+		if inString {
+			continue
+		}
+
+		if c == '{' {
+			depth++
+		} else if c == '}' {
+			depth--
+			if depth == 0 {
+				return str[start : i+1]
+			}
+		}
+	}
+
+	return ""
+}
+
 func detectRateLimit(output string) (bool, string) {
 	outputLower := strings.ToLower(output)
 
@@ -207,47 +255,24 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		cmd.Dir = s.config.ScenarioRoot
 
 		output, err := cmd.CombinedOutput()
-		if err != nil {
-			outputStr := string(output)
-			log.Printf("Investigation script failed for issue %s: %v\nOutput: %s", issueID, err, outputStr)
+		outputStr := string(output)
 
-			// Check if failure is due to rate limit
-			isRateLimit, resetTime := detectRateLimit(outputStr)
-			if isRateLimit {
-				log.Printf("Rate limit detected for issue %s, moving to waiting status until %s", issueID, resetTime)
+		// CRITICAL: resource-claude-code exit codes cannot be trusted (ecosystem-manager lesson)
+		// The agent may exit non-zero even when it successfully completes its work:
+		// - Test commands that fail during investigation
+		// - Permission warnings on non-critical files
+		// - Shell error handling for edge cases
+		// - Timeout signals after agent finishes useful work
+		//
+		// Solution: Check output QUALITY, not exit codes. Only treat as failure if BOTH
+		// non-zero exit AND no valid report generated.
 
-				// Load issue and update metadata with rate limit info
-				issueDir, _, findErr := s.findIssueDirectory(issueID)
-				if findErr == nil {
-					issue, loadErr := s.loadIssueFromDir(issueDir)
-					if loadErr == nil {
-						if issue.Metadata.Extra == nil {
-							issue.Metadata.Extra = make(map[string]string)
-						}
-						issue.Metadata.Extra["rate_limit_until"] = resetTime
-						issue.Metadata.Extra["rate_limit_agent"] = agent
-						s.writeIssueMetadata(issueDir, issue)
-					}
-				}
+		// First, always check for rate limit (regardless of exit code)
+		isRateLimit, resetTime := detectRateLimit(outputStr)
+		if isRateLimit {
+			log.Printf("Rate limit detected for issue %s, moving to waiting status until %s", issueID, resetTime)
 
-				// Move to waiting status instead of failed
-				s.moveIssue(issueID, "waiting")
-				return
-			}
-
-			// Not a rate limit - save error and move to failed
-			// Build error message with context
-			errorMsg := fmt.Sprintf("Agent execution failed: %v", err)
-			if len(outputStr) > 0 {
-				// Include first 1000 chars of output for context
-				if len(outputStr) > 1000 {
-					errorMsg = fmt.Sprintf("%s\n\nOutput (truncated):\n%s...", errorMsg, outputStr[:1000])
-				} else {
-					errorMsg = fmt.Sprintf("%s\n\nOutput:\n%s", errorMsg, outputStr)
-				}
-			}
-
-			// Load issue, update with error, and write before moving
+			// Load issue and update metadata with rate limit info
 			issueDir, _, findErr := s.findIssueDirectory(issueID)
 			if findErr == nil {
 				issue, loadErr := s.loadIssueFromDir(issueDir)
@@ -255,28 +280,62 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 					if issue.Metadata.Extra == nil {
 						issue.Metadata.Extra = make(map[string]string)
 					}
-
-					// Store agent execution failure details
-					issue.Metadata.Extra["agent_last_error"] = errorMsg
-					issue.Metadata.Extra["agent_last_status"] = "execution_failed"
-					issue.Metadata.Extra["agent_failure_time"] = time.Now().UTC().Format(time.RFC3339)
-					issue.Metadata.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-
-					// Write updated metadata before moving
-					if writeErr := s.writeIssueMetadata(issueDir, issue); writeErr != nil {
-						log.Printf("Warning: failed to write error metadata for issue %s: %v", issueID, writeErr)
-					}
-				} else {
-					log.Printf("Warning: failed to load issue %s for error recording: %v", issueID, loadErr)
+					issue.Metadata.Extra["rate_limit_until"] = resetTime
+					issue.Metadata.Extra["rate_limit_agent"] = agent
+					s.writeIssueMetadata(issueDir, issue)
 				}
-			} else {
-				log.Printf("Warning: failed to find issue %s for error recording: %v", issueID, findErr)
 			}
 
-			// Move to failed status
-			s.moveIssue(issueID, "failed")
+			// Move to waiting status instead of failed
+			s.moveIssue(issueID, "waiting")
+			return
+		}
 
-			// Publish agent failed event
+		// STRATEGY CHANGE: Don't check raw output for structure.
+		// Always try to parse JSON and check the report field.
+		// This ensures we show user what happened even on errors.
+		if err != nil {
+			log.Printf("Script exited non-zero for issue %s: %v (will check JSON for actual report quality)", issueID, err)
+		}
+
+		// Strip ANSI escape codes before parsing JSON
+		cleanedOutput := stripANSI(outputStr)
+
+		// Extract JSON portion from output (may contain log messages before/after JSON)
+		jsonOutput := extractJSON(cleanedOutput)
+		if jsonOutput == "" {
+			log.Printf("No JSON found in output for issue %s", issueID)
+			log.Printf("Output preview (first 500 chars): %s", cleanedOutput[:min(500, len(cleanedOutput))])
+
+			// Build user-visible error with actual output
+			errorMsg := fmt.Sprintf("Agent execution failed: no valid JSON response")
+			if err != nil {
+				errorMsg = fmt.Sprintf("Agent execution failed: %v", err)
+			}
+			if len(cleanedOutput) > 0 {
+				if len(cleanedOutput) > 500 {
+					errorMsg = fmt.Sprintf("%s\n\nAgent output:\n%s...", errorMsg, cleanedOutput[:500])
+				} else {
+					errorMsg = fmt.Sprintf("%s\n\nAgent output:\n%s", errorMsg, cleanedOutput)
+				}
+			}
+
+			// Save error and move to failed
+			issueDir, _, findErr := s.findIssueDirectory(issueID)
+			if findErr == nil {
+				issue, loadErr := s.loadIssueFromDir(issueDir)
+				if loadErr == nil {
+					if issue.Metadata.Extra == nil {
+						issue.Metadata.Extra = make(map[string]string)
+					}
+					issue.Metadata.Extra["agent_last_error"] = errorMsg
+					issue.Metadata.Extra["agent_last_status"] = "no_json_output"
+					issue.Metadata.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+					s.writeIssueMetadata(issueDir, issue)
+				}
+			}
+
+			s.moveIssue(issueID, "failed")
 			s.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
 				IssueID:   issueID,
 				AgentID:   agent,
@@ -284,12 +343,8 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 				EndTime:   time.Now(),
 				NewStatus: "failed",
 			}))
-
 			return
 		}
-
-		// Strip ANSI escape codes before parsing JSON
-		cleanedOutput := stripANSI(string(output))
 
 		var result struct {
 			IssueID       string `json:"issue_id"`
@@ -297,15 +352,17 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			Status        string `json:"status"`
 			Error         string `json:"error"`
 			Investigation struct {
-				Report      string `json:"report"`
-				StartedAt   string `json:"started_at"`
-				CompletedAt string `json:"completed_at"`
+				Report            string `json:"report"`
+				StartedAt         string `json:"started_at"`
+				CompletedAt       string `json:"completed_at"`
+				MaxTurnsExceeded  bool   `json:"max_turns_exceeded"`
+				ExitCode          int    `json:"exit_code"`
 			} `json:"investigation"`
 		}
 
-		if err := json.Unmarshal([]byte(cleanedOutput), &result); err != nil {
-			log.Printf("Failed to parse investigation output for issue %s: %v", issueID, err)
-			log.Printf("Output preview (first 500 chars): %s", cleanedOutput[:min(500, len(cleanedOutput))])
+		if err := json.Unmarshal([]byte(jsonOutput), &result); err != nil {
+			log.Printf("Failed to parse investigation JSON for issue %s: %v", issueID, err)
+			log.Printf("Raw output (first 500 chars): %s", cleanedOutput[:min(500, len(cleanedOutput))])
 
 			// Load issue and mark as failed with parsing error
 			issueDir, _, findErr := s.findIssueDirectory(issueID)
@@ -321,9 +378,17 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			}
 
 			// Store error information in investigation
+			errorSummary := fmt.Sprintf("Investigation failed: output parsing error - %v", err)
 			issue.Investigation.Report = fmt.Sprintf("Investigation failed due to output parsing error: %v\n\nRaw output:\n%s", err, cleanedOutput)
 			issue.Investigation.CompletedAt = time.Now().UTC().Format(time.RFC3339)
 			issue.Metadata.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+
+			// Also store in metadata.extra so it shows in the UI card
+			if issue.Metadata.Extra == nil {
+				issue.Metadata.Extra = make(map[string]string)
+			}
+			issue.Metadata.Extra["agent_last_error"] = errorSummary
+			issue.Metadata.Extra["agent_last_status"] = "parsing_failed"
 
 			if err := s.writeIssueMetadata(issueDir, issue); err != nil {
 				log.Printf("Failed to save parsing error for issue %s: %v", issueID, err)
@@ -401,17 +466,63 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			delete(issue.Metadata.Extra, "agent_last_error")
 		}
 
+		// Handle max turns exceeded (ecosystem-manager pattern)
+		if result.Investigation.MaxTurnsExceeded {
+			issue.Metadata.Extra["max_turns_exceeded"] = "true"
+			log.Printf("Issue %s: MAX_TURNS limit reached - output may be partial", issueID)
+		}
+
+		// Check report quality from parsed JSON (ecosystem-manager pattern)
+		reportContent := strings.TrimSpace(result.Investigation.Report)
+		hasValidReport := false
+		if len(reportContent) > 500 {
+			lowerReport := strings.ToLower(reportContent)
+			hasValidReport = strings.Contains(lowerReport, "investigation summary") ||
+				strings.Contains(lowerReport, "root cause") ||
+				strings.Contains(lowerReport, "remediation") ||
+				strings.Contains(lowerReport, "validation plan") ||
+				strings.Contains(lowerReport, "confidence assessment")
+		}
+
+		// Log report quality for debugging
+		if result.Investigation.ExitCode != 0 {
+			log.Printf("Agent exit code %d for issue %s: report length=%d, hasValidReport=%v",
+				result.Investigation.ExitCode, issueID, len(reportContent), hasValidReport)
+			if !hasValidReport && len(reportContent) > 0 {
+				// Show what we got if it's not a valid structured report
+				preview := reportContent
+				if len(preview) > 500 {
+					preview = preview[:500] + "..."
+				}
+				log.Printf("Report preview: %s", preview)
+			}
+		}
+
 		finalStatus := "active"
 		switch strings.ToLower(originalStatus) {
 		case "completed", "success":
 			finalStatus = "completed"
 		case "failed", "error":
-			finalStatus = "failed"
+			// Only fail if truly no valid report
+			if hasValidReport && result.Investigation.ExitCode != 0 {
+				// Override failure - agent produced valid work despite non-zero exit
+				log.Printf("Overriding failure status for issue %s: exit code %d but valid report exists",
+					issueID, result.Investigation.ExitCode)
+				finalStatus = "completed"
+			} else {
+				finalStatus = "failed"
+			}
 		case "cancelled", "canceled":
 			finalStatus = "failed"
 		default:
-			// Default to completed if investigation succeeded (unified-resolver.md includes fixes)
-			finalStatus = "completed"
+			// Check if we have a valid report to determine status
+			if hasValidReport {
+				finalStatus = "completed"
+			} else if result.Investigation.ExitCode != 0 {
+				finalStatus = "failed"
+			} else {
+				finalStatus = "completed"
+			}
 		}
 
 		if finalStatus == "completed" && strings.TrimSpace(issue.Metadata.ResolvedAt) == "" {

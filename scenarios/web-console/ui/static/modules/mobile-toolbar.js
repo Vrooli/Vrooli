@@ -12,10 +12,7 @@ const toolbarState = {
   modifiers: {
     ctrl: false,
     alt: false
-  },
-  contextMode: false,
-  selectedLines: [],
-  aiInputValue: ''
+  }
 }
 
 /**
@@ -38,38 +35,7 @@ function createToolbarDOM() {
   toolbar.className = 'mobile-toolbar hidden'
   toolbar.innerHTML = `
     <div class="mobile-toolbar-content">
-      <!-- AI Command Generation Row -->
-      <div class="mobile-toolbar-ai-row">
-        <input
-          type="text"
-          id="aiCommandInput"
-          class="ai-command-input"
-          placeholder="Ask AI to generate a command"
-          autocomplete="off"
-        />
-        <button type="button" id="aiGenerateBtn" class="ai-generate-btn" title="Generate command">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
-          </svg>
-        </button>
-        <button type="button" id="toolbarMenuToggle" class="toolbar-menu-toggle hidden" title="Open menu" aria-label="Open session details">
-          <span class="drawer-icon-lines">
-            <span></span>
-            <span></span>
-            <span></span>
-          </span>
-        </button>
-      </div>
-
-      <!-- Context Mode Row (shown when AI input has text) -->
-      <div class="mobile-toolbar-context-row hidden">
-        <button type="button" id="contextModeBtn" class="toolbar-btn context-btn">
-          <span class="context-icon">⚡</span>
-          Context (0)
-        </button>
-      </div>
-
-      <!-- Quick Keys Row (default) -->
+      <!-- Quick Keys Row -->
       <div class="mobile-toolbar-keys-row">
         <button type="button" class="toolbar-btn quick-key" data-key="Escape" title="Escape">esc</button>
         <button type="button" class="toolbar-btn quick-key" data-key="Tab" title="Tab">tab</button>
@@ -101,71 +67,98 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
     toolbar.classList.add('desktop-mode')
   }
 
-  const aiInput = document.getElementById('aiCommandInput')
-  const aiGenerateBtn = document.getElementById('aiGenerateBtn')
-  const contextRow = toolbar.querySelector('.mobile-toolbar-context-row')
-  const keysRow = toolbar.querySelector('.mobile-toolbar-keys-row')
-  const contextModeBtn = document.getElementById('contextModeBtn')
-  const toolbarMenuToggle = document.getElementById('toolbarMenuToggle')
-
   // Store toolbar and keyboard detection cleanup function
   let keyboardDetectionCleanup = null
 
-  // Handle AI input changes
-  aiInput?.addEventListener('input', (e) => {
-    toolbarState.aiInputValue = e.target.value
-    updateToolbarUI(contextRow, keysRow, contextModeBtn)
-  })
-
-  // Handle AI generate button
-  aiGenerateBtn?.addEventListener('click', () => {
-    handleAIGenerate(aiInput, getActiveTabFn, sendKeyToTerminalFn)
-  })
-
-  // Handle context mode toggle
-  contextModeBtn?.addEventListener('click', () => {
-    toolbarState.contextMode = !toolbarState.contextMode
-    updateToolbarUI(contextRow, keysRow, contextModeBtn)
-    toggleContextSelectionMode(getActiveTabFn, contextRow, keysRow, contextModeBtn)
-  })
-
-  // Handle toolbar menu toggle (opens main drawer)
-  toolbarMenuToggle?.addEventListener('click', () => {
-    const drawerToggle = document.getElementById('drawerToggle')
-    if (drawerToggle) {
-      drawerToggle.click()
-    }
-  })
-
   // Handle quick keys
   toolbar.querySelectorAll('.quick-key').forEach(btn => {
-    btn.addEventListener('click', () => {
+    // Use touchstart/mousedown to handle action immediately before focus can change
+    const handlePress = (e) => {
+      e.preventDefault() // Prevent default behavior that can cause focus loss
+      e.stopPropagation() // Stop event from bubbling
+
       const key = btn.dataset.key
       sendQuickKey(key, sendKeyToTerminalFn)
+
+      // Refocus terminal immediately to keep keyboard open
+      const activeTab = getActiveTabFn()
+      if (activeTab && activeTab.term) {
+        // Focus the xterm textarea directly
+        const textarea = activeTab.container.querySelector('.xterm-helper-textarea')
+        if (textarea) {
+          textarea.focus()
+        } else {
+          activeTab.term.focus()
+        }
+      }
+    }
+
+    btn.addEventListener('touchstart', handlePress, { passive: false })
+    btn.addEventListener('mousedown', handlePress)
+
+    // Prevent click event from firing (to avoid double-trigger)
+    btn.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
     })
   })
 
   // Handle modifier keys (toggle)
   toolbar.querySelectorAll('.modifier-key').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const modifier = btn.dataset.modifier
-      toggleModifier(modifier, btn)
-    })
-
-    // Long press to show hints
+    // Long press to show hints, short press to toggle
     let longPressTimer = null
-    btn.addEventListener('pointerdown', (e) => {
+    let isLongPress = false
+
+    const handleStart = (e) => {
+      e.preventDefault() // Prevent focus loss
+      e.stopPropagation()
+      isLongPress = false
+
       longPressTimer = setTimeout(() => {
+        isLongPress = true
         showModifierHints(btn.dataset.modifier, btn)
       }, 800)
-    })
+    }
 
-    btn.addEventListener('pointerup', () => {
-      if (longPressTimer) clearTimeout(longPressTimer)
-    })
+    const handleEnd = (e) => {
+      e.preventDefault()
+      e.stopPropagation()
 
-    btn.addEventListener('pointerleave', () => {
       if (longPressTimer) clearTimeout(longPressTimer)
+
+      // Only toggle if it wasn't a long press
+      if (!isLongPress) {
+        const modifier = btn.dataset.modifier
+        toggleModifier(modifier, btn)
+
+        // Refocus terminal to keep keyboard open
+        const activeTab = getActiveTabFn()
+        if (activeTab && activeTab.term) {
+          const textarea = activeTab.container.querySelector('.xterm-helper-textarea')
+          if (textarea) {
+            textarea.focus()
+          } else {
+            activeTab.term.focus()
+          }
+        }
+      }
+    }
+
+    const handleCancel = () => {
+      if (longPressTimer) clearTimeout(longPressTimer)
+    }
+
+    btn.addEventListener('touchstart', handleStart, { passive: false })
+    btn.addEventListener('mousedown', handleStart)
+    btn.addEventListener('touchend', handleEnd, { passive: false })
+    btn.addEventListener('mouseup', handleEnd)
+    btn.addEventListener('touchcancel', handleCancel)
+    btn.addEventListener('mouseleave', handleCancel)
+
+    // Prevent click event from firing
+    btn.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
     })
   })
 
@@ -176,11 +169,25 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
     }
   })
 
-  // Apply initial mode from window global (set during workspace load)
-  const initialMode = window.__keyboardToolbarMode || 'floating'
+  // Apply initial mode from window global (set during workspace load) or debug checkbox
+  // Check if debug toggle checkbox is checked to determine initial state
+  // Also check localStorage for persisted state
+  const debugToggle = document.getElementById('debugToolbarToggle')
+  const persistedDebugMode = localStorage.getItem('debugToolbarEnabled') === 'true'
+
+  // Set checkbox to match persisted state if available
+  if (debugToggle && persistedDebugMode) {
+    debugToggle.checked = true
+  }
+
+  const shouldEnableDebug = debugToggle ? debugToggle.checked : persistedDebugMode
+  const initialMode = window.__keyboardToolbarMode || (shouldEnableDebug ? 'floating' : 'disabled')
+
+  // Track if debug mode is active
+  let debugModeActive = shouldEnableDebug
 
   // Setup mode with keyboard detection
-  const setupMode = (mode) => {
+  const setupMode = (mode, forceDebug = false) => {
     // Clean up previous keyboard detection
     if (keyboardDetectionCleanup) {
       keyboardDetectionCleanup()
@@ -190,14 +197,19 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
     // Update mode
     toolbarState.mode = mode
 
+    // Track debug mode
+    if (forceDebug) {
+      debugModeActive = true
+    }
+
     // Remove all mode-related classes
     toolbar.classList.remove('mode-disabled', 'mode-floating', 'mode-top')
 
-    // Desktop mode: Hide toolbar by default
-    if (!isMobile) {
+    // Desktop mode: Hide toolbar by default unless debug mode is active
+    if (!isMobile && !debugModeActive) {
       // On desktop, toolbar should be disabled by default
       toolbar.classList.add('mode-disabled', 'hidden')
-      console.log(`Toolbar mode set to: disabled (desktop - use mobile view to test)`)
+      console.log(`Toolbar mode set to: disabled (desktop - use debug toggle to test)`)
       return
     }
 
@@ -234,15 +246,25 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
   return {
     show: () => showToolbar(toolbar),
     hide: () => hideToolbar(toolbar),
-    getContextLines: () => toolbarState.selectedLines,
-    setMode: (mode) => setupMode(mode)
+    setMode: (mode, forceDebug = false) => {
+      if (forceDebug) {
+        debugModeActive = true
+      } else if (mode === 'disabled') {
+        debugModeActive = false
+      }
+      setupMode(mode, forceDebug)
+    }
   }
 }
 
 /**
  * Setup keyboard visibility detection
- * iOS 26 has major bugs with visualViewport.offsetTop and fixed positioning
- * This uses a more robust approach with position: absolute
+ * iOS Safari has unique viewport behavior that requires special handling
+ *
+ * Key insights:
+ * - iOS doesn't support 'interactive-widget=resizes-content'
+ * - visualViewport is the best API for keyboard detection
+ * - Position fixed with env(safe-area-inset-bottom) is most reliable
  *
  * Returns a cleanup function to remove event listeners
  */
@@ -253,47 +275,54 @@ function setupKeyboardDetection(toolbar) {
                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
   if (window.visualViewport && isIOS) {
-    // iOS-specific handling due to iOS 26 bugs
-    // Switch toolbar to absolute positioning on iOS
-    toolbar.style.position = 'absolute'
+    // iOS-specific handling
+    console.log('[iOS Toolbar] Initializing iOS keyboard detection')
+
+    // Keep position fixed for smoother behavior
+    toolbar.style.position = 'fixed'
 
     const updateToolbarPosition = () => {
       const viewport = window.visualViewport
       const keyboardHeight = window.innerHeight - viewport.height
       const keyboardVisible = keyboardHeight > 100
 
-      // Debug logging
+      // Enhanced debug logging
       console.log('[iOS Toolbar] Update:', {
         windowHeight: window.innerHeight,
+        windowWidth: window.innerWidth,
         viewportHeight: viewport.height,
+        viewportWidth: viewport.width,
         viewportOffsetTop: viewport.offsetTop,
+        viewportOffsetLeft: viewport.offsetLeft,
         keyboardHeight,
         keyboardVisible,
-        scrollY: window.pageYOffset || document.documentElement.scrollTop
+        toolbarVisible: !toolbar.classList.contains('hidden'),
+        toolbarZIndex: window.getComputedStyle(toolbar).zIndex,
+        toolbarBottom: window.getComputedStyle(toolbar).bottom,
+        toolbarPosition: window.getComputedStyle(toolbar).position
       })
 
       if (keyboardVisible) {
-        // Calculate position accounting for page scroll and viewport
-        const scrollY = window.pageYOffset || document.documentElement.scrollTop
-        const toolbarHeight = toolbar.offsetHeight || 150
-        const toolbarTop = scrollY + viewport.height - toolbarHeight
+        // Position toolbar just above the keyboard
+        // Use bottom positioning for more reliable results
+        toolbar.style.bottom = `${keyboardHeight}px`
+        toolbar.style.top = 'auto'
+
+        // Ensure highest z-index
+        toolbar.style.zIndex = '2147483647' // Max z-index value
 
         console.log('[iOS Toolbar] Positioning above keyboard:', {
-          toolbarTop,
-          toolbarHeight,
-          calculatedPosition: Math.max(0, toolbarTop)
+          bottom: `${keyboardHeight}px`,
+          zIndex: toolbar.style.zIndex
         })
 
-        toolbar.style.top = `${Math.max(0, toolbarTop)}px`
-        toolbar.style.bottom = 'auto'
-        toolbar.style.position = 'absolute'
         showToolbar(toolbar)
       } else {
-        // Reset to fixed bottom when keyboard is gone
-        console.log('[iOS Toolbar] Keyboard hidden, resetting to fixed bottom')
-        toolbar.style.position = 'fixed'
-        toolbar.style.top = 'auto'
+        // Reset to bottom when keyboard is gone
+        console.log('[iOS Toolbar] Keyboard hidden, resetting to bottom')
         toolbar.style.bottom = '0px'
+        toolbar.style.top = 'auto'
+        toolbar.style.zIndex = '9999'
         hideToolbar(toolbar)
       }
     }
@@ -301,26 +330,31 @@ function setupKeyboardDetection(toolbar) {
     // Listen to multiple events for iOS
     window.visualViewport.addEventListener('resize', updateToolbarPosition)
     window.visualViewport.addEventListener('scroll', updateToolbarPosition)
-    window.addEventListener('scroll', updateToolbarPosition, true)
 
-    const touchMoveHandler = () => {
-      // Debounced update on scroll
-      requestAnimationFrame(updateToolbarPosition)
+    // Also listen to focus events for immediate response
+    const handleFocus = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.classList.contains('xterm-helper-textarea')) {
+        console.log('[iOS Toolbar] Input focused, checking keyboard state')
+        setTimeout(updateToolbarPosition, 100)
+        setTimeout(updateToolbarPosition, 300)
+        setTimeout(updateToolbarPosition, 500)
+      }
     }
-    document.addEventListener('touchmove', touchMoveHandler, { passive: true })
+    document.addEventListener('focusin', handleFocus)
 
     // Initial positioning
     updateToolbarPosition()
 
-    // Re-check after slight delay (iOS rendering quirk)
+    // Multiple checks for iOS rendering quirks
     setTimeout(updateToolbarPosition, 100)
+    setTimeout(updateToolbarPosition, 300)
+    setTimeout(updateToolbarPosition, 500)
 
     // Return cleanup function
     return () => {
       window.visualViewport.removeEventListener('resize', updateToolbarPosition)
       window.visualViewport.removeEventListener('scroll', updateToolbarPosition)
-      window.removeEventListener('scroll', updateToolbarPosition, true)
-      document.removeEventListener('touchmove', touchMoveHandler)
+      document.removeEventListener('focusin', handleFocus)
     }
   } else if (window.visualViewport) {
     // Android and other modern browsers - use simpler approach
@@ -426,38 +460,10 @@ function hideToolbar(toolbar) {
   toolbarState.visible = false
   // Reset position when hiding
   setTimeout(() => {
-    toolbar.classList.remove('ios-keyboard-mode')
     toolbar.style.top = 'auto'
     toolbar.style.bottom = '0px'
     toolbar.style.position = 'fixed'
   }, 200) // After transition completes
-}
-
-/**
- * Update toolbar UI based on state
- * When AI input has text: show context button only
- * When AI input is empty: show shortcut keys only
- */
-function updateToolbarUI(contextRow, keysRow, contextModeBtn) {
-  const hasAIInput = toolbarState.aiInputValue.trim().length > 0
-
-  // Mutually exclusive visibility
-  if (hasAIInput) {
-    contextRow?.classList.remove('hidden')
-    keysRow?.classList.add('hidden')
-  } else {
-    contextRow?.classList.add('hidden')
-    keysRow?.classList.remove('hidden')
-  }
-
-  if (contextModeBtn) {
-    contextModeBtn.classList.toggle('active', toolbarState.contextMode)
-    const count = toolbarState.selectedLines.length
-    contextModeBtn.innerHTML = `
-      <span class="context-icon">⚡</span>
-      Context (${count})
-    `
-  }
 }
 
 /**
@@ -486,9 +492,6 @@ function toggleModifier(modifier, btn) {
  * Handle modified keypress (ctrl/alt + key)
  */
 function handleModifiedKey(e, sendKeyToTerminalFn) {
-  // Don't intercept if user is typing in AI input
-  if (e.target.id === 'aiCommandInput') return
-
   const { ctrl, alt } = toolbarState.modifiers
   if (!ctrl && !alt) return
 
@@ -514,217 +517,6 @@ function handleModifiedKey(e, sendKeyToTerminalFn) {
   toolbarState.modifiers.ctrl = false
   toolbarState.modifiers.alt = false
   document.querySelectorAll('.modifier-key').forEach(btn => btn.classList.remove('active'))
-}
-
-/**
- * Handle AI command generation
- */
-async function handleAIGenerate(aiInput, getActiveTabFn, sendKeyToTerminalFn) {
-  const prompt = aiInput.value.trim()
-  if (!prompt) return
-
-  const tab = getActiveTabFn()
-  if (!tab) {
-    alert('No active terminal')
-    return
-  }
-
-  // Show loading state
-  const generateBtn = document.getElementById('aiGenerateBtn')
-  const originalHTML = generateBtn.innerHTML
-  generateBtn.disabled = true
-  generateBtn.innerHTML = '<span class="loading-spinner"></span>'
-
-  try {
-    // Get context if in context mode
-    const contextLines = toolbarState.selectedLines.map(l => l.text)
-
-    // Call AI command generation API
-    const response = await fetch('/api/generate-command', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, context: contextLines })
-    })
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`)
-    }
-
-    const data = await response.json()
-    const command = data.command
-
-    if (command) {
-      // Send command to terminal
-      sendKeyToTerminalFn(command)
-
-      // Clear input
-      aiInput.value = ''
-      toolbarState.aiInputValue = ''
-      toolbarState.contextMode = false
-      toolbarState.selectedLines = []
-
-      // Update UI
-      const contextRow = document.querySelector('.mobile-toolbar-context-row')
-      const keysRow = document.querySelector('.mobile-toolbar-keys-row')
-      const contextModeBtn = document.getElementById('contextModeBtn')
-      updateToolbarUI(contextRow, keysRow, contextModeBtn)
-    }
-  } catch (error) {
-    console.error('AI generation error:', error)
-    alert(`Failed to generate command: ${error.message}`)
-  } finally {
-    generateBtn.disabled = false
-    generateBtn.innerHTML = originalHTML
-  }
-}
-
-/**
- * Toggle context selection mode
- */
-function toggleContextSelectionMode(getActiveTabFn, contextRow, keysRow, contextModeBtn) {
-  const tab = getActiveTabFn()
-  if (!tab || !tab.container) return
-
-  if (toolbarState.contextMode) {
-    // Enable context selection mode
-    tab.container.classList.add('context-selection-mode')
-    enableLineSelection(tab)
-  } else {
-    // Disable context selection mode
-    tab.container.classList.remove('context-selection-mode')
-    disableLineSelection(tab)
-    // Clear selection highlights
-    clearLineSelections(tab)
-  }
-}
-
-/**
- * Enable line selection in terminal
- */
-function enableLineSelection(tab) {
-  if (!tab.term || !tab.container) return
-
-  // We need to intercept clicks on terminal rows
-  // xterm.js doesn't expose individual lines easily, so we'll use a workaround
-  // by reading the terminal buffer
-
-  const handleTerminalClick = (e) => {
-    // Get click position relative to terminal
-    const rect = tab.container.getBoundingClientRect()
-    const y = e.clientY - rect.top
-
-    // Estimate which line was clicked based on terminal row height
-    const rowHeight = rect.height / tab.term.rows
-    const lineIndex = Math.floor(y / rowHeight)
-
-    if (lineIndex >= 0 && lineIndex < tab.term.rows) {
-      toggleLineSelection(tab, lineIndex)
-    }
-  }
-
-  // Store handler for cleanup
-  tab._contextClickHandler = handleTerminalClick
-  tab.container.addEventListener('click', handleTerminalClick)
-}
-
-/**
- * Disable line selection
- */
-function disableLineSelection(tab) {
-  if (tab._contextClickHandler && tab.container) {
-    tab.container.removeEventListener('click', tab._contextClickHandler)
-    delete tab._contextClickHandler
-  }
-}
-
-/**
- * Toggle line selection
- */
-function toggleLineSelection(tab, lineIndex) {
-  try {
-    // Get line content from terminal buffer
-    const buffer = tab.term.buffer.active
-    const line = buffer.getLine(lineIndex)
-
-    if (!line) return
-
-    // Get line text
-    let lineText = ''
-    for (let i = 0; i < line.length; i++) {
-      const cell = line.getCell(i)
-      if (cell) {
-        lineText += cell.getChars()
-      }
-    }
-    lineText = lineText.trim()
-
-    if (!lineText) return
-
-    // Check if line already selected
-    const existingIndex = toolbarState.selectedLines.findIndex(l => l.index === lineIndex)
-
-    if (existingIndex >= 0) {
-      // Deselect
-      toolbarState.selectedLines.splice(existingIndex, 1)
-      removeLineHighlight(tab, lineIndex)
-    } else {
-      // Select
-      toolbarState.selectedLines.push({ index: lineIndex, text: lineText })
-      addLineHighlight(tab, lineIndex)
-    }
-
-    // Update context button
-    updateContextButton()
-  } catch (error) {
-    console.error('Error toggling line selection:', error)
-  }
-}
-
-/**
- * Add visual highlight to selected line
- */
-function addLineHighlight(tab, lineIndex) {
-  // Add a CSS class to highlight the line
-  // This is tricky with xterm.js, so we'll use a decorations API if available
-  // For now, we'll just keep track and the CSS will handle hover states
-  if (!tab._selectedLineIndexes) {
-    tab._selectedLineIndexes = new Set()
-  }
-  tab._selectedLineIndexes.add(lineIndex)
-}
-
-/**
- * Remove highlight from line
- */
-function removeLineHighlight(tab, lineIndex) {
-  if (tab._selectedLineIndexes) {
-    tab._selectedLineIndexes.delete(lineIndex)
-  }
-}
-
-/**
- * Clear all line selections
- */
-function clearLineSelections(tab) {
-  toolbarState.selectedLines = []
-  if (tab._selectedLineIndexes) {
-    tab._selectedLineIndexes.clear()
-  }
-  updateContextButton()
-}
-
-/**
- * Update context button label
- */
-function updateContextButton() {
-  const contextModeBtn = document.getElementById('contextModeBtn')
-  if (!contextModeBtn) return
-
-  const count = toolbarState.selectedLines.length
-  contextModeBtn.innerHTML = `
-    <span class="context-icon">⚡</span>
-    Context (${count} ${count === 1 ? 'line' : 'lines'})
-  `
 }
 
 /**

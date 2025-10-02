@@ -25,7 +25,8 @@ const elements = {
   tabContextReset: document.getElementById('tabContextReset'),
   tabContextBackdrop: document.getElementById('tabContextBackdrop'),
   signOutAllSessions: document.getElementById('signOutAllSessions'),
-  keyboardToolbarMode: document.getElementById('keyboardToolbarMode')
+  aiCommandInput: document.getElementById('aiCommandInput'),
+  aiGenerateBtn: document.getElementById('aiGenerateBtn')
 }
 
 const shortcutButtons = Array.from(document.querySelectorAll('[data-shortcut-id]'))
@@ -191,12 +192,6 @@ async function initializeWorkspace() {
     }
     const workspace = await response.json()
 
-    // Restore keyboard toolbar mode
-    if (workspace.keyboardToolbarMode && elements.keyboardToolbarMode) {
-      elements.keyboardToolbarMode.value = workspace.keyboardToolbarMode
-      applyKeyboardToolbarMode(workspace.keyboardToolbarMode)
-    }
-
     // Restore tabs from workspace
     if (workspace.tabs && workspace.tabs.length > 0) {
       workspace.tabs.forEach((tabMeta) => {
@@ -284,10 +279,6 @@ shortcutButtons.forEach((button) => {
 
 if (elements.signOutAllSessions) {
   elements.signOutAllSessions.addEventListener('click', handleSignOutAllSessions)
-}
-
-if (elements.keyboardToolbarMode) {
-  elements.keyboardToolbarMode.addEventListener('change', handleKeyboardToolbarModeChange)
 }
 
 initializeTabCustomizationUI()
@@ -1967,25 +1958,8 @@ function handleSessionDetached(payload) {
 }
 
 function handleKeyboardToolbarModeChanged(payload) {
-  if (!payload || !payload.mode) return
-
-  console.log('Keyboard toolbar mode changed via WebSocket:', payload.mode)
-
-  // Update the select dropdown
-  if (elements.keyboardToolbarMode) {
-    elements.keyboardToolbarMode.value = payload.mode
-  }
-
-  // Apply the new mode
-  applyKeyboardToolbarMode(payload.mode)
-
-  // Show info message (changed from another tab/client)
-  const modeLabels = {
-    'disabled': 'Disabled',
-    'floating': 'Floating (above keyboard)',
-    'top': 'Top (replaces header)'
-  }
-  showSnackbar(`Toolbar updated to: ${modeLabels[payload.mode] || payload.mode}`, 'info', 2000)
+  // Deprecated - keyboard toolbar mode has been removed
+  console.log('Keyboard toolbar mode changed event (deprecated):', payload)
 }
 
 async function reconnectSession(tab, sessionId) {
@@ -2007,105 +1981,6 @@ async function reconnectSession(tab, sessionId) {
   }
 }
 
-// Handle keyboard toolbar mode changes
-async function handleKeyboardToolbarModeChange(event) {
-  const mode = event.target.value
-  console.log('[Toolbar Settings] Changing mode to:', mode)
-
-  // Disable select during update
-  const select = elements.keyboardToolbarMode
-  if (select) {
-    select.disabled = true
-  }
-
-  try {
-    const response = await proxyToApi('/api/v1/workspace', {
-      method: 'PATCH',
-      json: { keyboardToolbarMode: mode }
-    })
-
-    console.log('[Toolbar Settings] API response:', response.status, response.statusText)
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('[Toolbar Settings] API error response:', errorText)
-      showSnackbar(`Failed to save toolbar setting: ${response.status}`, 'error', 4000)
-      throw new Error(`Failed to update keyboard toolbar mode: ${response.status} - ${errorText}`)
-    }
-
-    const result = await response.json()
-    console.log('[Toolbar Settings] API result:', result)
-    console.log('[Toolbar Settings] Mode successfully updated to:', mode)
-
-    // Apply mode immediately
-    applyKeyboardToolbarMode(mode)
-
-    // Show success message
-    const modeLabels = {
-      'disabled': 'Disabled',
-      'floating': 'Floating (above keyboard)',
-      'top': 'Top (replaces header)'
-    }
-    showSnackbar(`Toolbar set to: ${modeLabels[mode] || mode}`, 'success', 2000)
-  } catch (error) {
-    console.error('[Toolbar Settings] Failed to update:', error)
-    // Revert select to previous value
-    const workspace = await getWorkspaceState()
-    if (workspace && workspace.keyboardToolbarMode) {
-      if (select) {
-        select.value = workspace.keyboardToolbarMode
-      }
-    }
-    // Show error if not already shown
-    if (error.message && !error.message.includes('Failed to save')) {
-      showSnackbar('Failed to save toolbar setting', 'error', 4000)
-    }
-  } finally {
-    // Re-enable select
-    if (select) {
-      select.disabled = false
-    }
-  }
-}
-
-// Apply keyboard toolbar mode to the mobile toolbar
-function applyKeyboardToolbarMode(mode) {
-  if (window.__mobileToolbar) {
-    window.__mobileToolbar.setMode(mode)
-  }
-  // Store mode for when toolbar initializes
-  window.__keyboardToolbarMode = mode
-}
-
-// Show snackbar notification
-function showSnackbar(message, type = 'info', duration = 3000) {
-  // Remove any existing snackbar
-  const existing = document.querySelector('.snackbar')
-  if (existing) {
-    existing.remove()
-  }
-
-  // Create snackbar element
-  const snackbar = document.createElement('div')
-  snackbar.className = `snackbar ${type}`
-  snackbar.textContent = message
-
-  // Add to DOM
-  document.body.appendChild(snackbar)
-
-  // Trigger show animation
-  requestAnimationFrame(() => {
-    snackbar.classList.add('show')
-  })
-
-  // Auto-hide after duration
-  setTimeout(() => {
-    snackbar.classList.remove('show')
-    setTimeout(() => {
-      snackbar.remove()
-    }, 300) // Wait for fade out animation
-  }, duration)
-}
 
 // Get current workspace state
 async function getWorkspaceState() {
@@ -2119,16 +1994,16 @@ async function getWorkspaceState() {
   }
 }
 
-// Mobile toolbar initialization (loaded dynamically as ES6 module)
+// AI Command Generation initialization
 if (typeof window !== 'undefined' && document.readyState === 'complete' || document.readyState === 'interactive') {
-  initMobileToolbarAsync()
+  initAICommandAsync()
 } else {
-  window.addEventListener('DOMContentLoaded', initMobileToolbarAsync)
+  window.addEventListener('DOMContentLoaded', initAICommandAsync)
 }
 
-async function initMobileToolbarAsync() {
+async function initAICommandAsync() {
   try {
-    const { initializeMobileToolbar } = await import('./modules/mobile-toolbar.js')
+    const { generateAICommand, showSnackbar, initializeMobileToolbar } = await import('./modules/mobile-toolbar.js')
 
     // Helper function to get active tab
     const getActiveTabFn = () => getActiveTab()
@@ -2148,7 +2023,7 @@ async function initMobileToolbarAsync() {
         // Queue for when session starts
         queueInput(tab, key, { appendNewline: false })
         if (tab.phase === 'idle' || tab.phase === 'closed') {
-          startSession(tab, { reason: 'mobile-toolbar-input' }).catch((error) => {
+          startSession(tab, { reason: 'ai-command-input' }).catch((error) => {
             appendEvent(tab, 'session-error', error)
             showError(tab, error instanceof Error ? error.message : 'Unable to start terminal session')
           })
@@ -2156,15 +2031,74 @@ async function initMobileToolbarAsync() {
       }
     }
 
+    // Initialize mobile toolbar
     const mobileToolbar = initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn)
 
-    if (mobileToolbar) {
-      console.log('Mobile toolbar initialized successfully')
-      // Store reference globally if needed for debugging
-      window.__mobileToolbar = mobileToolbar
+    // Set up AI command input handlers
+    if (elements.aiGenerateBtn && elements.aiCommandInput) {
+      elements.aiGenerateBtn.addEventListener('click', async () => {
+        const prompt = elements.aiCommandInput.value.trim()
+        if (!prompt) return
+
+        // Show loading state
+        const iconElement = elements.aiGenerateBtn.querySelector('.ai-icon')
+        const originalIcon = iconElement ? iconElement.outerHTML : ''
+        elements.aiGenerateBtn.disabled = true
+        elements.aiGenerateBtn.classList.add('loading')
+        elements.aiGenerateBtn.innerHTML = '<span class="loading-spinner"></span>'
+
+        try {
+          const result = await generateAICommand(prompt, getActiveTabFn, sendKeyToTerminalFn)
+
+          if (result.success) {
+            // Clear input on success
+            elements.aiCommandInput.value = ''
+            showSnackbar('Command generated successfully', 'success', 2000)
+          } else {
+            showSnackbar(result.error || 'Failed to generate command', 'error', 4000)
+          }
+        } finally {
+          elements.aiGenerateBtn.disabled = false
+          elements.aiGenerateBtn.classList.remove('loading')
+          elements.aiGenerateBtn.innerHTML = originalIcon
+          // Re-initialize lucide icons after replacing HTML
+          if (window.lucide) {
+            lucide.createIcons()
+          }
+        }
+      })
+
+      // Allow Enter key to trigger generation
+      elements.aiCommandInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          elements.aiGenerateBtn.click()
+        }
+      })
+
+      console.log('AI command generation initialized successfully')
+    }
+
+    // Set up debug toolbar toggle
+    const debugToolbarToggle = document.getElementById('debugToolbarToggle')
+    if (debugToolbarToggle && mobileToolbar) {
+      debugToolbarToggle.addEventListener('change', (e) => {
+        const isEnabled = e.target.checked
+        // Persist state to localStorage
+        localStorage.setItem('debugToolbarEnabled', isEnabled.toString())
+
+        if (isEnabled) {
+          // Enable floating mode with debug flag to override desktop behavior
+          mobileToolbar.setMode('floating', true)
+          mobileToolbar.show()
+        } else {
+          mobileToolbar.setMode('disabled', false)
+          mobileToolbar.hide()
+        }
+      })
     }
   } catch (error) {
-    console.error('Failed to initialize mobile toolbar:', error)
+    console.error('Failed to initialize AI command generation:', error)
   }
 }
 

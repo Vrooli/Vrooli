@@ -2,33 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Terminal Console</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
     <link rel="stylesheet" href="./styles.css" />
+    <script src="https://unpkg.com/lucide@latest"></script>
   </head>
   <body>
     <main class="page">
       <header class="header">
-        <div class="header-title-group">
-          <h1 class="header-title">
-            <span class="header-icon" aria-hidden="true">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <polyline points="4 17 10 11 4 5"></polyline>
-                <line x1="12" y1="19" x2="20" y2="19"></line>
-              </svg>
-            </span>
-            Web Console
-          </h1>
+        <div class="header-ai-group">
+          <input
+            type="text"
+            id="aiCommandInput"
+            class="ai-command-input"
+            placeholder="Ask AI to generate a command"
+            autocomplete="off"
+          />
+          <button type="button" id="aiGenerateBtn" class="ai-generate-btn" title="Generate command">
+            <i data-lucide="brain" class="ai-icon"></i>
+          </button>
         </div>
         <div class="header-actions">
           <button
@@ -77,7 +70,24 @@
           tabindex="-1"
         >
           <div class="details-drawer-header">
-            <span></span>
+            <div class="drawer-title-group">
+              <span class="drawer-icon" aria-hidden="true">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="4 17 10 11 4 5"></polyline>
+                  <line x1="12" y1="19" x2="20" y2="19"></line>
+                </svg>
+              </span>
+              <h1 class="drawer-title">Web Console</h1>
+            </div>
             <button
               id="drawerClose"
               class="details-drawer-close"
@@ -98,19 +108,6 @@
               <button id="signOutAllSessions" class="btn btn-danger" type="button">Sign out all sessions</button>
               <p class="panel-note">Closes every active terminal session for this console.</p>
             </div>
-          </section>
-
-          <section class="panel">
-            <h2>Mobile Keyboard Toolbar</h2>
-            <div class="settings-group">
-              <label for="keyboardToolbarMode" class="settings-label">Toolbar Behavior</label>
-              <select id="keyboardToolbarMode" class="settings-select">
-                <option value="floating">Floating (above keyboard)</option>
-                <option value="top">Top (replaces header)</option>
-                <option value="disabled">Disabled</option>
-              </select>
-            </div>
-            <p class="panel-note">Controls how the mobile keyboard toolbar appears on touch devices. Changes apply immediately.</p>
           </section>
 
           <section class="panel">
@@ -136,6 +133,17 @@
             <h2>Event Feed</h2>
             <div id="eventMeta" class="event-meta hidden"></div>
             <ul id="eventFeed" class="event-feed"></ul>
+          </section>
+
+          <section class="panel">
+            <h2>Debug Options</h2>
+            <div class="debug-options">
+              <label class="debug-option">
+                <input type="checkbox" id="debugToolbarToggle" />
+                <span>Show floating keyboard toolbar</span>
+              </label>
+            </div>
+            <p class="panel-note">Enable to test the mobile keyboard toolbar on desktop.</p>
           </section>
 
           <section class="panel warning">
@@ -183,6 +191,14 @@
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script>
+      // Initialize lucide icons after DOM is loaded
+      document.addEventListener('DOMContentLoaded', () => {
+        if (window.lucide) {
+          lucide.createIcons();
+        }
+      });
+    </script>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

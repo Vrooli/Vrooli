@@ -38,28 +38,50 @@ FIX_ROLLBACK=""
 FIX_STATUS="skipped"
 FIX_ERROR=""
 
-# Colors for output
+# Colors for output (only used in TTY mode)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Logging function
+# Detect if stderr is a TTY (for color output)
+USE_COLORS=false
+if [[ -t 2 ]]; then
+    USE_COLORS=true
+fi
+
+# Logging functions with conditional color support
 log() {
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $*" >&2
+    if [[ "$USE_COLORS" == "true" ]]; then
+        echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $*" >&2
+    else
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >&2
+    fi
 }
 
 error() {
-    echo -e "${RED}[ERROR]${NC} $*" >&2
+    if [[ "$USE_COLORS" == "true" ]]; then
+        echo -e "${RED}[ERROR]${NC} $*" >&2
+    else
+        echo "[ERROR] $*" >&2
+    fi
 }
 
 success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $*" >&2
+    if [[ "$USE_COLORS" == "true" ]]; then
+        echo -e "${GREEN}[SUCCESS]${NC} $*" >&2
+    else
+        echo "[SUCCESS] $*" >&2
+    fi
 }
 
 warn() {
-    echo -e "${YELLOW}[WARN]${NC} $*" >&2
+    if [[ "$USE_COLORS" == "true" ]]; then
+        echo -e "${YELLOW}[WARN]${NC} $*" >&2
+    else
+        echo "[WARN] $*" >&2
+    fi
 }
 
 DEFAULT_PROMPT_TEMPLATE="Perform a full investigation and provide code-level remediation guidance."
@@ -277,25 +299,34 @@ resolve_workflow() {
         ISSUE_METADATA_PATH=""
     fi
 
-    if ! investigate_issue "$issue_id" "$agent_id" "$project_path" "$prompt_template" false; then
-        error "Investigation failed"
-        exit 1
-    fi
+    # Run investigation (don't fail on non-zero exit, check result instead)
+    # CRITICAL: Capture JSON output separately from logs (logs go to stderr via log() function)
+    local investigation_json
+    investigation_json=$(investigate_issue "$issue_id" "$agent_id" "$project_path" "$prompt_template" true)
+    local invest_exit_code=$?
 
-    # unified-resolver.md already includes fix generation in its output
-    # No need for separate fix generation call
+    # Extract max_turns_exceeded and error from investigation JSON
+    local max_turns_exceeded=$(echo "$investigation_json" | jq -r '.max_turns_exceeded // false' 2>/dev/null || echo "false")
+    local invest_error=$(echo "$investigation_json" | jq -r '.error // ""' 2>/dev/null || echo "")
+
+    # Determine final status
     local run_status="completed"
-    local investigation_json="${INVESTIGATION_JSON:-"{}"}"
+    if [[ $invest_exit_code -ne 0 ]] && [[ "$max_turns_exceeded" != "true" ]]; then
+        # Real failure (not just max turns)
+        run_status="failed"
+    fi
 
     local output=$(jq -n \
         --arg issue_id "$issue_id" \
         --arg agent_id "$agent_id" \
         --arg status "$run_status" \
+        --arg error "$invest_error" \
         --argjson investigation "$investigation_json" \
         '{
             issue_id: $issue_id,
             agent_id: $agent_id,
             status: $status,
+            error: (if $error != "" then $error else null end),
             investigation: $investigation
         }')
 
@@ -379,17 +410,46 @@ investigate_issue() {
     local prompt_payload
     prompt_payload="$(cat "$prompt_file")"
 
-    if $AGENT_CLI_COMMAND $AGENT_OPERATION_CMD <<< "$prompt_payload" > "$investigation_output" 2>&1; then
+    # Load settings from agent-settings.json if available (similar to ecosystem-manager)
+    local max_turns=80
+    local allowed_tools="Read,Write,Edit,Bash,LS,Glob,Grep"
+    local skip_permissions="yes"
+    local timeout_seconds=600
+
+    if [[ -f "$AGENT_SETTINGS" ]] && command -v jq >/dev/null 2>&1; then
+        # Try to load provider-specific settings
+        local provider_max_turns=$(jq -r ".providers[\"$AGENT_PROVIDER\"].operations.investigate.max_turns // empty" "$AGENT_SETTINGS" 2>/dev/null)
+        local provider_allowed_tools=$(jq -r ".providers[\"$AGENT_PROVIDER\"].operations.investigate.allowed_tools // empty" "$AGENT_SETTINGS" 2>/dev/null)
+        local provider_timeout=$(jq -r ".providers[\"$AGENT_PROVIDER\"].operations.investigate.timeout_seconds // empty" "$AGENT_SETTINGS" 2>/dev/null)
+
+        # Use provider-specific settings if available
+        [[ -n "$provider_max_turns" ]] && max_turns="$provider_max_turns"
+        [[ -n "$provider_allowed_tools" ]] && allowed_tools="$provider_allowed_tools"
+        [[ -n "$provider_timeout" ]] && timeout_seconds="$provider_timeout"
+    fi
+
+    # Set environment variables for resource-claude-code (ecosystem-manager pattern)
+    # Go uses: cmd.Env = append(os.Environ(), "MAX_TURNS=...", ...)
+    # Bash equivalent: export the vars then call the command
+    export MAX_TURNS="$max_turns"
+    export ALLOWED_TOOLS="$allowed_tools"
+    export TIMEOUT="$timeout_seconds"
+    export SKIP_PERMISSIONS="$skip_permissions"
+
+    log "Agent execution settings: MAX_TURNS=$MAX_TURNS, ALLOWED_TOOLS=$ALLOWED_TOOLS, TIMEOUT=${TIMEOUT}s"
+
+    # Execute agent and capture exit code (disable errexit for this command)
+    # CRITICAL: Pipe prompt via stdin with '-' argument (ecosystem-manager pattern)
+    set +e
+    $AGENT_CLI_COMMAND $AGENT_OPERATION_CMD < "$prompt_file" > "$investigation_output" 2>&1
+    agent_exit_code=$?
+    set -e
+
+    if [[ $agent_exit_code -eq 0 ]]; then
         success "$AGENT_PROVIDER investigation completed successfully"
     else
-        agent_exit_code=$?
         error "$AGENT_PROVIDER investigation failed with exit code: $agent_exit_code"
-        # Try to show the error content for debugging
-        if [[ -f "$investigation_output" ]]; then
-            warn "Error output: $(head -n 20 "$investigation_output")"
-        fi
-        cd "$original_dir"
-        return $agent_exit_code
+        # Don't fail yet - check if it's a max turns error below
     fi
 
     cd "$original_dir"
@@ -410,17 +470,83 @@ investigate_issue() {
     INVESTIGATION_REPORT="$report_content"
     INVESTIGATION_COMPLETED_AT="${INVESTIGATION_COMPLETED_AT:-$(date -Iseconds)}"
 
+    # CRITICAL: resource-claude-code exit codes cannot be trusted (ecosystem-manager lesson)
+    # The agent may exit non-zero even when it successfully completes its work:
+    # - Test commands that fail during investigation
+    # - Permission warnings on non-critical files
+    # - Shell error handling for edge cases
+    # - Timeout signals after agent finishes useful work
+    #
+    # Solution: Check output QUALITY, not exit codes. If the agent produced a substantial,
+    # structured report, treat as success regardless of exit code.
+
+    local has_substantial_output="false"
+
+    # Check for structured sections from unified-resolver.md prompt (NO size gate - ecosystem-manager pattern)
+    local lower_output=$(echo "$report_content" | tr '[:upper:]' '[:lower:]')
+    if echo "$lower_output" | grep -q "investigation summary" || \
+       echo "$lower_output" | grep -q "root cause" || \
+       echo "$lower_output" | grep -q "remediation" || \
+       echo "$lower_output" | grep -q "validation plan" || \
+       echo "$lower_output" | grep -q "confidence assessment" || \
+       echo "$lower_output" | grep -q "implementation steps"; then
+        has_substantial_output="true"
+        if [[ $agent_exit_code -ne 0 ]]; then
+            warn "Agent exited with code $agent_exit_code but produced structured report - treating as success"
+        fi
+    # Fallback: very large output is probably valid even without specific markers
+    elif [[ ${#report_content} -gt 2000 ]]; then
+        has_substantial_output="true"
+        warn "Agent produced large output (${#report_content} chars) without specific markers - treating as success"
+    fi
+
+    # Detect max turns exceeded (ecosystem-manager pattern)
+    local max_turns_exceeded="false"
+    local error_message=""
+    local timeout_exceeded="false"
+
+    if [[ $agent_exit_code -ne 0 ]]; then
+        local lower_output=$(echo "$report_content" | tr '[:upper:]' '[:lower:]')
+
+        # Exit code 143 = SIGTERM (128 + 15), usually from timeout
+        # Exit code 124 = timeout command's own timeout exit code
+        if [[ $agent_exit_code -eq 143 ]] || [[ $agent_exit_code -eq 124 ]]; then
+            timeout_exceeded="true"
+            # Check if we have substantial output despite timeout
+            if [[ ${#report_content} -gt 1000 ]] || [[ "$has_substantial_output" == "true" ]]; then
+                warn "Agent hit timeout limit but produced substantial output (${#report_content} chars)"
+                error_message="Agent execution exceeded timeout but completed useful work. Consider increasing timeout in Settings for complex tasks."
+                # Treat as success since we have structured output
+                agent_exit_code=0
+            else
+                error_message="Agent execution timed out without producing sufficient output"
+            fi
+        elif echo "$lower_output" | grep -q "max turns" && echo "$lower_output" | grep -q "reached"; then
+            max_turns_exceeded="true"
+            error_message="Claude reached the configured MAX_TURNS limit. The output may contain partial results. Consider increasing max_turns in Settings or simplifying the task."
+            warn "$error_message"
+        else
+            error_message="Agent execution failed with exit code $agent_exit_code"
+        fi
+    fi
+
     local json_output=$(jq -n \
         --arg report "$INVESTIGATION_REPORT" \
         --arg started "$INVESTIGATION_STARTED_AT" \
         --arg completed "$INVESTIGATION_COMPLETED_AT" \
         --arg workspace "$workspace_dir" \
+        --arg max_turns "$max_turns_exceeded" \
+        --arg error "$error_message" \
+        --argjson exit_code "$agent_exit_code" \
         '{
             report: $report,
             started_at: $started,
             completed_at: $completed,
             status: "analysis_completed",
-            workspace_path: $workspace
+            workspace_path: $workspace,
+            max_turns_exceeded: ($max_turns == "true"),
+            error: (if $error != "" then $error else null end),
+            exit_code: $exit_code
         }')
 
     INVESTIGATION_JSON="$json_output"
@@ -430,8 +556,16 @@ investigate_issue() {
         echo "$json_output"
     fi
 
-    success "Investigation completed for issue: $issue_id"
-    return 0
+    # CRITICAL: Check output quality, not exit codes (ecosystem-manager pattern)
+    # resource-claude-code exit codes are unreliable - check if investigation succeeded
+    if [[ $agent_exit_code -eq 0 ]] || [[ "$has_substantial_output" == "true" ]]; then
+        success "Investigation completed for issue: $issue_id"
+        return 0
+    else
+        # Only fail if BOTH non-zero exit AND no substantial output
+        error "Investigation failed: no structured report and non-zero exit code ($agent_exit_code)"
+        return $agent_exit_code
+    fi
 }
 
 # Main function

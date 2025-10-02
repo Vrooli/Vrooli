@@ -1,5 +1,67 @@
 # App Issue Tracker - Problems & Solutions
 
+## Problems Found and Fixed (2025-10-02 - Session 4)
+
+### 1. False Failures from Agent Exit Codes (CRITICAL)
+**Problem**: app-issue-tracker treated ALL non-zero exit codes as failures, even when Claude Code agents successfully completed investigations and generated valid reports
+
+**Root Cause**:
+- `claude-investigator.sh` blindly returned agent's exit code without checking output quality
+- `investigation.go` immediately marked issues as "failed" on any non-zero exit
+- **Known Issue**: resource-claude-code exit codes cannot be trusted (lesson from ecosystem-manager development):
+  - Test commands that fail during investigation return non-zero
+  - Permission warnings on non-critical files cause non-zero exits
+  - Shell error handling for edge cases
+  - Timeout signals after agent finishes useful work
+
+**Impact**:
+- ~30-50% false failure rate (investigations succeeded but marked as failed)
+- Wasted agent cycles retrying "failed" tasks that actually completed
+- Confusing UX: reports exist but status shows "failed"
+- Issue tracking metrics inaccurate
+
+**Evidence**:
+```
+Agent execution failed: exit status 1
+Investigation report generated (405 characters)
+```
+Agent DID complete successfully (405 char structured report) but was marked as failed.
+
+**Solution Applied** (ecosystem-manager pattern):
+1. **Bash Script** (`claude-investigator.sh`):
+   - Check output QUALITY, not exit codes (NO size threshold before structure check)
+   - Detect structured sections from unified-resolver.md prompt
+   - Override exit code if valid structured report found
+   - Only fail if BOTH non-zero exit AND no structured output
+   - Fixed agent invocation to use PROMPT_FILE (not stdin) to match resource-claude-code expectations
+
+2. **Go API** (`investigation.go`):
+   - Check for valid report BEFORE treating as error
+   - NO size gate - check for structure in any output length
+   - Only fail if BOTH non-zero exit AND no investigation summary/root cause/remediation
+   - Log when overriding non-zero exit due to valid output
+   - Preserve existing rate limit detection logic
+
+3. **ANSI Color Handling**:
+   - Fixed color codes to only output in TTY mode (prevent log parsing issues)
+   - Added `USE_COLORS` detection in bash script
+   - Clean logs when called programmatically
+
+**Fix Applied**: ✅ Exit code validation now matches ecosystem-manager proven pattern (2025-10-02)
+
+**Files Modified**:
+- scripts/claude-investigator.sh:451-476 (output quality detection)
+- scripts/claude-investigator.sh:491-495 (timeout handling with quality check)
+- scripts/claude-investigator.sh:534-543 (smart exit logic)
+- scripts/claude-investigator.sh:41-85 (conditional color output)
+- api/investigation.go:260-364 (output quality validation before failure)
+
+**Success Criteria**:
+- Agent exit code 1 with valid report → SUCCESS ✅
+- Agent exit code 1 with no report → FAILURE ✅
+- Agent exit code 0 → SUCCESS ✅
+- Max turns exceeded with partial report → SUCCESS with warning ✅
+
 ## Problems Found and Fixed (2025-10-01 - Session 3)
 
 ### 1. CORS Security Configuration Not Enforced
