@@ -29,6 +29,40 @@
   width: 100%;
 }
 
+.connection-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  width: 100%;
+}
+
+.connection-banner--connecting {
+  background-color: #3b82f6;
+  color: #fff;
+}
+
+.connection-banner--error {
+  background-color: #ef4444;
+  color: #fff;
+}
+
+.connection-banner .spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .app-header {
   display: flex;
   align-items: center;
@@ -664,6 +698,33 @@
   box-shadow: 0 28px 48px rgba(2, 6, 23, 0.5);
 }
 
+.running-agents-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6366f1;
+}
+
+.dark .running-agents-indicator {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.running-agents-icon {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.running-agents-count {
+  min-width: 18px;
+  text-align: center;
+}
+
 .issues-toolbar-popover--floating {
   position: absolute;
   bottom: calc(100% + 14px);
@@ -1242,6 +1303,97 @@
 
 .issue-tags svg {
   color: var(--issue-accent-color);
+}
+
+.issue-running-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.dark .issue-running-indicator {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.issue-running-icon {
+  color: #6366f1;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.issue-running-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.issue-running-text {
+  color: #6366f1;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.issue-running-duration {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.issue-card--running {
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08), 0 20px 40px rgba(15, 23, 42, 0.12);
+}
+
+.dark .issue-card--running {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), 0 20px 40px rgba(0, 0, 0, 0.45);
+}
+
+.issue-error-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #dc2626;
+}
+
+.dark .issue-error-message {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.issue-error-message svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.issue-error-message span {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
 }
 
 .empty-column {
@@ -2584,4 +2736,46 @@ textarea::placeholder {
 
 .issue-detail-inline a:hover {
   text-decoration: underline;
+}
+
+.investigation-report {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 12px;
+}
+
+.dark .investigation-report {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.investigation-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6366f1;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.dark .investigation-meta {
+  border-bottom-color: rgba(99, 102, 241, 0.3);
+}
+
+.investigation-confidence {
+  padding-top: 8px;
+  border-top: 1px solid rgba(99, 102, 241, 0.2);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.dark .investigation-confidence {
+  border-top-color: rgba(99, 102, 241, 0.3);
 }

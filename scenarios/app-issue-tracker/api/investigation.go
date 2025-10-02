@@ -183,7 +183,12 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		autoFlag = "true"
 	}
 
+	// Register this process as running
+	s.registerRunningProcess(issueID, agentID, now)
+
 	go func(issueID, agent string, auto bool, template string) {
+		defer s.unregisterRunningProcess(issueID)
+
 		cmd := exec.Command("bash", scriptPath, "resolve", issueID, agent, projectPath, template, autoFlag)
 		cmd.Dir = s.config.ScenarioRoot
 
@@ -216,8 +221,43 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 				return
 			}
 
-			// Not a rate limit, move to failed
+			// Not a rate limit - save error and move to failed
+			issueDir, _, findErr := s.findIssueDirectory(issueID)
+			if findErr == nil {
+				issue, loadErr := s.loadIssueFromDir(issueDir)
+				if loadErr == nil {
+					if issue.Metadata.Extra == nil {
+						issue.Metadata.Extra = make(map[string]string)
+					}
+
+					// Store script failure error
+					errorMsg := fmt.Sprintf("Investigation script failed: %v", err)
+					if len(outputStr) > 0 {
+						// Include first 500 chars of output for context
+						if len(outputStr) > 500 {
+							errorMsg = fmt.Sprintf("%s\n\nOutput (truncated): %s...", errorMsg, outputStr[:500])
+						} else {
+							errorMsg = fmt.Sprintf("%s\n\nOutput: %s", errorMsg, outputStr)
+						}
+					}
+					issue.Metadata.Extra["agent_last_error"] = errorMsg
+					issue.Metadata.Extra["agent_last_status"] = "failed"
+					issue.Metadata.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+					s.writeIssueMetadata(issueDir, issue)
+				}
+			}
+
 			s.moveIssue(issueID, "failed")
+
+			// Publish agent failed event
+			s.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
+				IssueID:   issueID,
+				AgentID:   agent,
+				Success:   false,
+				EndTime:   time.Now(),
+				NewStatus: "failed",
+			}))
+
 			return
 		}
 
@@ -366,6 +406,15 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		}
 
 		log.Printf("Investigation completed for issue %s: status=%s", issueID, finalStatus)
+
+		// Publish agent completed event
+		s.hub.Publish(NewEvent(EventAgentCompleted, AgentCompletedData{
+			IssueID:   issueID,
+			AgentID:   agent,
+			Success:   finalStatus == "completed",
+			EndTime:   now,
+			NewStatus: finalStatus,
+		}))
 	}(issueID, agentID, autoResolve, promptTemplate)
 
 	return nil

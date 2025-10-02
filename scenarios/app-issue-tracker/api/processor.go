@@ -15,7 +15,7 @@ func (s *Server) currentProcessorState() ProcessorState {
 }
 
 // updateProcessorState updates the processor configuration
-func (s *Server) updateProcessorState(active *bool, slots *int, interval *int) {
+func (s *Server) updateProcessorState(active *bool, slots *int, interval *int, maxIssues *int) {
 	s.processorMutex.Lock()
 	defer s.processorMutex.Unlock()
 
@@ -27,6 +27,9 @@ func (s *Server) updateProcessorState(active *bool, slots *int, interval *int) {
 	}
 	if interval != nil && *interval > 0 {
 		s.processorState.RefreshInterval = *interval
+	}
+	if maxIssues != nil && *maxIssues >= 0 {
+		s.processorState.MaxIssues = *maxIssues
 	}
 }
 
@@ -40,6 +43,7 @@ func (s *Server) initializeProcessorState() {
 		ConcurrentSlots:  2,
 		RefreshInterval:  45,
 		CurrentlyRunning: 0,
+		MaxIssues:        0, // 0 = unlimited
 	}
 }
 
@@ -47,10 +51,28 @@ func (s *Server) initializeProcessorState() {
 func (s *Server) getProcessorHandler(w http.ResponseWriter, r *http.Request) {
 	state := s.currentProcessorState()
 
+	// Get issue count for max_issues tracking
+	s.issuesProcessedMutex.RLock()
+	issuesProcessed := s.issuesProcessedCount
+	s.issuesProcessedMutex.RUnlock()
+
+	var issuesRemaining interface{}
+	if state.MaxIssues > 0 {
+		remaining := state.MaxIssues - issuesProcessed
+		if remaining < 0 {
+			remaining = 0
+		}
+		issuesRemaining = remaining
+	} else {
+		issuesRemaining = "unlimited"
+	}
+
 	response := ApiResponse{
 		Success: true,
 		Data: map[string]interface{}{
-			"processor": state,
+			"processor":         state,
+			"issues_processed":  issuesProcessed,
+			"issues_remaining":  issuesRemaining,
 		},
 	}
 
@@ -64,6 +86,7 @@ func (s *Server) updateProcessorHandler(w http.ResponseWriter, r *http.Request) 
 		Active          *bool `json:"active"`
 		ConcurrentSlots *int  `json:"concurrent_slots"`
 		RefreshInterval *int  `json:"refresh_interval"`
+		MaxIssues       *int  `json:"max_issues"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -71,17 +94,37 @@ func (s *Server) updateProcessorHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	s.updateProcessorState(req.Active, req.ConcurrentSlots, req.RefreshInterval)
+	s.updateProcessorState(req.Active, req.ConcurrentSlots, req.RefreshInterval, req.MaxIssues)
 	state := s.currentProcessorState()
 
-	log.Printf("Processor state updated: active=%v, slots=%d, interval=%d",
-		state.Active, state.ConcurrentSlots, state.RefreshInterval)
+	log.Printf("Processor state updated: active=%v, slots=%d, interval=%d, max_issues=%d",
+		state.Active, state.ConcurrentSlots, state.RefreshInterval, state.MaxIssues)
 
 	response := ApiResponse{
 		Success: true,
 		Message: "Processor settings updated",
 		Data: map[string]interface{}{
 			"processor": state,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// resetIssueCounterHandler resets the issues processed counter to 0
+func (s *Server) resetIssueCounterHandler(w http.ResponseWriter, r *http.Request) {
+	s.issuesProcessedMutex.Lock()
+	s.issuesProcessedCount = 0
+	s.issuesProcessedMutex.Unlock()
+
+	log.Printf("Issue counter reset to 0")
+
+	response := ApiResponse{
+		Success: true,
+		Message: "Issue counter reset to 0",
+		Data: map[string]interface{}{
+			"issues_processed": 0,
 		},
 	}
 
@@ -149,6 +192,52 @@ func (s *Server) getRateLimitStatusHandler(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(response)
 }
 
+// registerRunningProcess adds a process to the running processes map
+func (s *Server) registerRunningProcess(issueID, agentID, startTime string) {
+	s.runningProcessesMutex.Lock()
+	s.runningProcesses[issueID] = &RunningProcess{
+		IssueID:   issueID,
+		AgentID:   agentID,
+		StartTime: startTime,
+	}
+	s.runningProcessesMutex.Unlock()
+
+	// Publish agent started event
+	startTimeParsed, _ := time.Parse(time.RFC3339, startTime)
+	s.hub.Publish(NewEvent(EventAgentStarted, AgentStartedData{
+		IssueID:   issueID,
+		AgentID:   agentID,
+		StartTime: startTimeParsed,
+	}))
+}
+
+// unregisterRunningProcess removes a process from the running processes map
+func (s *Server) unregisterRunningProcess(issueID string) {
+	s.runningProcessesMutex.Lock()
+	defer s.runningProcessesMutex.Unlock()
+	delete(s.runningProcesses, issueID)
+}
+
+// getRunningProcessesHandler returns the list of currently running processes
+func (s *Server) getRunningProcessesHandler(w http.ResponseWriter, r *http.Request) {
+	s.runningProcessesMutex.RLock()
+	processes := make([]*RunningProcess, 0, len(s.runningProcesses))
+	for _, proc := range s.runningProcesses {
+		processes = append(processes, proc)
+	}
+	s.runningProcessesMutex.RUnlock()
+
+	response := ApiResponse{
+		Success: true,
+		Data: map[string]interface{}{
+			"processes": processes,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 // runProcessorLoop is the background goroutine that automatically processes open issues
 func (s *Server) runProcessorLoop() {
 	log.Println("Processor loop started")
@@ -202,6 +291,21 @@ func (s *Server) runProcessorLoop() {
 			continue
 		}
 
+		// Check if we've reached the max_issues limit
+		if state.MaxIssues > 0 {
+			s.issuesProcessedMutex.RLock()
+			processedCount := s.issuesProcessedCount
+			s.issuesProcessedMutex.RUnlock()
+
+			if processedCount >= state.MaxIssues {
+				log.Printf("Processor: max_issues limit reached (%d/%d), automatically disabling processor", processedCount, state.MaxIssues)
+				falseVal := false
+				s.updateProcessorState(&falseVal, nil, nil, nil)
+				time.Sleep(time.Duration(state.RefreshInterval) * time.Second)
+				continue
+			}
+		}
+
 		// Calculate how many issues to process
 		processCount := state.ConcurrentSlots
 		if len(openIssues) < processCount {
@@ -217,6 +321,18 @@ func (s *Server) runProcessorLoop() {
 
 			if err := s.triggerInvestigation(issue.ID, agentID, true); err != nil {
 				log.Printf("Processor: Failed to trigger investigation for issue %s: %v", issue.ID, err)
+			} else {
+				// Increment issue counter for max_issues tracking
+				s.issuesProcessedMutex.Lock()
+				s.issuesProcessedCount++
+				processedCount := s.issuesProcessedCount
+				s.issuesProcessedMutex.Unlock()
+
+				if state.MaxIssues > 0 {
+					log.Printf("Processor: Issue processed (%d/%d)", processedCount, state.MaxIssues)
+				} else {
+					log.Printf("Processor: Issue processed (total: %d)", processedCount)
+				}
 			}
 		}
 

@@ -199,6 +199,9 @@ func (s *Server) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	// Publish event for real-time updates
+	s.hub.Publish(NewEvent(EventIssueCreated, IssueEventData{Issue: &issue}))
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -595,6 +598,14 @@ func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to move issue", http.StatusInternalServerError)
 			return
 		}
+
+		// Publish status change event
+		s.hub.Publish(NewEvent(EventIssueStatusChanged, IssueStatusChangedData{
+			IssueID:   issue.ID,
+			OldStatus: currentFolder,
+			NewStatus: targetStatus,
+		}))
+
 		issueDir = targetDir
 		currentFolder = targetStatus
 	}
@@ -627,6 +638,9 @@ func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	// Publish events for real-time updates
+	s.hub.Publish(NewEvent(EventIssueUpdated, IssueEventData{Issue: issue}))
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -651,6 +665,9 @@ func (s *Server) deleteIssueHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to delete issue", http.StatusInternalServerError)
 		return
 	}
+
+	// Publish event for real-time updates
+	s.hub.Publish(NewEvent(EventIssueDeleted, IssueDeletedData{IssueID: issueID}))
 
 	response := ApiResponse{
 		Success: true,

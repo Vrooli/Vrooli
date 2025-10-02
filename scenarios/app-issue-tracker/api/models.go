@@ -31,6 +31,14 @@ type ProcessorState struct {
 	ConcurrentSlots  int  `json:"concurrent_slots"`
 	RefreshInterval  int  `json:"refresh_interval"`
 	CurrentlyRunning int  `json:"currently_running"`
+	MaxIssues        int  `json:"max_issues"` // Maximum issues to process (0 = unlimited)
+}
+
+// RunningProcess tracks an actively running investigation/resolution
+type RunningProcess struct {
+	IssueID   string `json:"issue_id"`
+	AgentID   string `json:"agent_id"`
+	StartTime string `json:"start_time"`
 }
 
 // Issue represents a tracked issue with all its metadata

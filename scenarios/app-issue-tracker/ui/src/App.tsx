@@ -8,7 +8,10 @@ import type {
 } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useWebSocket } from './hooks/useWebSocket';
+import type { WebSocketEvent } from './types/events';
 import {
+  Brain,
   CalendarClock,
   CircleAlert,
   Clock,
@@ -578,6 +581,7 @@ function App() {
   const isMountedRef = useRef(true);
   const [metricsDialogOpen, setMetricsDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [wsConnectionStatus, setWsConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   const [processorSettings, setProcessorSettings] = useState<ProcessorSettings>(SampleData.processor);
   const [agentSettings, setAgentSettings] = useState(AppSettings.agent);
   const [displaySettings, setDisplaySettings] = useState(AppSettings.display);
@@ -592,6 +596,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [processorError, setProcessorError] = useState<string | null>(null);
+  const [issuesProcessed, setIssuesProcessed] = useState<number>(0);
+  const [issuesRemaining, setIssuesRemaining] = useState<number | string>('unlimited');
   const [rateLimitStatus, setRateLimitStatus] = useState<{
     rate_limited: boolean;
     rate_limited_count: number;
@@ -602,10 +608,120 @@ function App() {
   const [focusedIssueId, setFocusedIssueId] = useState<string | null>(() => getIssueIdFromLocation());
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
+  const [runningProcesses, setRunningProcesses] = useState<Map<string, { agent_id: string; start_time: string; duration?: string }>>(new Map());
 
   const showSnackbar = useCallback((message: string, tone: SnackbarTone = 'info') => {
     setSnackbar({ message, tone });
   }, []);
+
+  // WebSocket event handler
+  const handleWebSocketEvent = useCallback((event: WebSocketEvent) => {
+    switch (event.type) {
+      case 'issue.created':
+      case 'issue.updated': {
+        const updatedIssue = transformIssue(event.data.issue);
+        setIssues(prev => {
+          const index = prev.findIndex(i => i.id === updatedIssue.id);
+          if (index >= 0) {
+            return prev.map((i, idx) => idx === index ? updatedIssue : i);
+          }
+          return [...prev, updatedIssue];
+        });
+        break;
+      }
+
+      case 'issue.status_changed': {
+        const { issue_id, new_status } = event.data;
+        setIssues(prev => prev.map(i =>
+          i.id === issue_id ? { ...i, status: normalizeStatus(new_status) } : i
+        ));
+        break;
+      }
+
+      case 'issue.deleted': {
+        const { issue_id } = event.data;
+        setIssues(prev => prev.filter(i => i.id !== issue_id));
+        if (focusedIssueId === issue_id) {
+          setFocusedIssueId(null);
+          setIssueDetailOpen(false);
+        }
+        break;
+      }
+
+      case 'agent.started': {
+        const { issue_id, agent_id, start_time } = event.data;
+        setRunningProcesses(prev => {
+          const next = new Map(prev);
+          next.set(issue_id, { agent_id, start_time });
+          return next;
+        });
+        break;
+      }
+
+      case 'agent.completed':
+      case 'agent.failed': {
+        const { issue_id } = event.data;
+        setRunningProcesses(prev => {
+          const next = new Map(prev);
+          next.delete(issue_id);
+          return next;
+        });
+        break;
+      }
+
+      default:
+        break;
+    }
+  }, [focusedIssueId]);
+
+  // WebSocket connection
+  const wsUrl = useMemo(() => {
+    if (typeof window === 'undefined') return '';
+
+    // If API_BASE_URL is absolute (starts with http/https), extract host from it
+    if (API_BASE_INPUT.startsWith('http://') || API_BASE_INPUT.startsWith('https://')) {
+      const url = new URL(API_BASE_INPUT);
+      const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+      const finalUrl = `${wsProtocol}//${url.host}${API_BASE_URL}/ws`;
+      console.log('[WebSocket] URL (absolute):', finalUrl);
+      return finalUrl;
+    }
+
+    // Check if we're behind a proxy/tunnel (non-localhost hostname)
+    const hostname = window.location.hostname;
+    const isProxied = hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.match(/^192\.168\./);
+
+    if (isProxied) {
+      // Use the proxy - Vite will forward WebSocket connections
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const finalUrl = `${wsProtocol}//${window.location.host}${API_BASE_URL}/ws`;
+      console.log('[WebSocket] URL (proxied):', finalUrl);
+      return finalUrl;
+    }
+
+    // For local development, connect directly to API port
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const apiPort = typeof __API_PORT__ !== 'undefined' ? __API_PORT__ : '8090';
+    const finalUrl = `${wsProtocol}//${hostname}:${apiPort}${API_BASE_URL}/ws`;
+    console.log('[WebSocket] URL (direct):', finalUrl);
+    return finalUrl;
+  }, []);
+
+  const { status: wsStatus, error: wsError } = useWebSocket({
+    url: wsUrl,
+    onEvent: handleWebSocketEvent,
+    enabled: typeof window !== 'undefined',
+  });
+
+  useEffect(() => {
+    setWsConnectionStatus(wsStatus);
+  }, [wsStatus]);
+
+  useEffect(() => {
+    if (wsError) {
+      console.error('[App] WebSocket error:', wsError);
+    }
+  }, [wsError]);
 
   const handleProcessorError = useCallback(
     (message: string) => {
@@ -761,6 +877,7 @@ function App() {
       if (response.ok) {
         const payload = await response.json();
         const state = payload?.data?.processor ?? payload?.processor;
+        const data = payload?.data;
         if (state && isMountedRef.current) {
           setProcessorSettings((prev) => ({
             active: typeof state.active === 'boolean' ? state.active : prev.active,
@@ -772,7 +889,20 @@ function App() {
               typeof state.refresh_interval === 'number'
                 ? state.refresh_interval
                 : prev.refreshInterval,
+            maxIssues:
+              typeof state.max_issues === 'number'
+                ? state.max_issues
+                : prev.maxIssues,
           }));
+
+          // Update issues processed/remaining counters
+          if (typeof data?.issues_processed === 'number') {
+            setIssuesProcessed(data.issues_processed);
+          }
+          if (data?.issues_remaining !== undefined) {
+            setIssuesRemaining(data.issues_remaining);
+          }
+
           setProcessorError(null);
         }
       } else if (isMountedRef.current) {
@@ -832,24 +962,43 @@ function App() {
     void fetchAgentBackendSettings();
   }, []);
 
-  // Poll rate limit status every 10 seconds
+  // Running processes duration calculation (updates every second for display)
   useEffect(() => {
-    const fetchRateLimitStatus = async () => {
-      try {
-        const response = await fetch(buildApiUrl('/rate-limit-status'));
-        if (response.ok) {
-          const payload = await response.json();
-          const status = payload?.data;
-          if (status && isMountedRef.current) {
-            setRateLimitStatus(status);
+    const updateDurations = () => {
+      setRunningProcesses(prev => {
+        if (prev.size === 0) return prev;
+
+        const next = new Map(prev);
+        let changed = false;
+
+        for (const [issueId, proc] of next.entries()) {
+          const startTime = new Date(proc.start_time);
+          const now = new Date();
+          const durationMs = now.getTime() - startTime.getTime();
+          const seconds = Math.floor(durationMs / 1000);
+          const minutes = Math.floor(seconds / 60);
+          const hours = Math.floor(minutes / 60);
+
+          let duration = '';
+          if (hours > 0) {
+            duration = `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+          } else if (minutes > 0) {
+            duration = `${minutes}m ${seconds % 60}s`;
+          } else {
+            duration = `${seconds}s`;
+          }
+
+          if (proc.duration !== duration) {
+            next.set(issueId, { ...proc, duration });
+            changed = true;
           }
         }
-      } catch (error) {
-        console.warn('Failed to poll rate limit status', error);
-      }
+
+        return changed ? next : prev;
+      });
     };
 
-    const intervalId = setInterval(fetchRateLimitStatus, 10000); // Poll every 10 seconds
+    const intervalId = setInterval(updateDurations, 1000);
     return () => clearInterval(intervalId);
   }, []);
 
@@ -1216,6 +1365,10 @@ function App() {
               typeof state.refresh_interval === 'number'
                 ? state.refresh_interval
                 : prev.refreshInterval,
+            maxIssues:
+              typeof state.max_issues === 'number'
+                ? state.max_issues
+                : prev.maxIssues,
           }));
           setProcessorError(null);
         }
@@ -1235,6 +1388,36 @@ function App() {
   const processorSetter = (settings: ProcessorSettings) => {
     setProcessorSettings(settings);
   };
+
+  // Sync processor settings to API (excluding active which is synced separately)
+  useEffect(() => {
+    const saveProcessorSettings = async () => {
+      try {
+        const response = await fetch(buildApiUrl('/automation/processor'), {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            concurrent_slots: processorSettings.concurrentSlots,
+            refresh_interval: processorSettings.refreshInterval,
+            max_issues: processorSettings.maxIssues,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Processor settings update failed with status ${response.status}`);
+        }
+
+        console.log('Processor settings saved');
+      } catch (error) {
+        console.error('Failed to save processor settings', error);
+        showSnackbar('Failed to save processor settings', 'error');
+      }
+    };
+
+    void saveProcessorSettings();
+  }, [processorSettings.concurrentSlots, processorSettings.refreshInterval, processorSettings.maxIssues, showSnackbar]);
 
   // Sync agent backend settings to API
   useEffect(() => {
@@ -1279,6 +1462,18 @@ function App() {
     <>
       <div className={`app-shell ${displaySettings.theme}`}>
         <div className="main-panel">
+          {wsConnectionStatus === 'connecting' && (
+            <div className="connection-banner connection-banner--connecting">
+              <Loader2 size={18} className="spin" style={{ marginRight: '8px' }} />
+              <span>Connecting to live updates...</span>
+            </div>
+          )}
+          {wsConnectionStatus === 'error' && (
+            <div className="connection-banner connection-banner--error">
+              <CircleAlert size={18} style={{ marginRight: '8px' }} />
+              <span>Connection error - live updates unavailable</span>
+            </div>
+          )}
           {rateLimitStatus?.rate_limited && rateLimitStatus.seconds_until_reset > 0 && (
             <div className="rate-limit-banner">
               <Clock size={18} style={{ marginRight: '8px' }} />
@@ -1302,6 +1497,7 @@ function App() {
             <IssuesBoard
               issues={filteredIssues}
               focusedIssueId={focusedIssueId}
+              runningProcesses={runningProcesses}
               onIssueSelect={handleIssueSelect}
               onIssueDelete={handleIssueDelete}
               onIssueArchive={handleIssueArchive}
@@ -1322,6 +1518,12 @@ function App() {
                 >
                   {processorSettings.active ? <Pause size={18} /> : <Play size={18} />}
                 </button>
+                {runningProcesses.size > 0 && (
+                  <div className="running-agents-indicator">
+                    <Brain size={16} className="running-agents-icon" />
+                    <span className="running-agents-count">{runningProcesses.size}</span>
+                  </div>
+                )}
                 <button
                   type="button"
                   className="icon-button icon-button--primary"
@@ -1410,6 +1612,8 @@ function App() {
           onAgentChange={setAgentSettings}
           onDisplayChange={setDisplaySettings}
           onClose={handleCloseSettings}
+          issuesProcessed={issuesProcessed}
+          issuesRemaining={issuesRemaining}
         />
       )}
 
@@ -1626,6 +1830,26 @@ function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModal
                   {tag}
                 </span>
               ))}
+            </div>
+          </section>
+        )}
+
+        {issue.investigation?.report && (
+          <section className="issue-detail-section">
+            <h3>Investigation Report</h3>
+            <div className="investigation-report">
+              {issue.investigation.agent_id && (
+                <div className="investigation-meta">
+                  <Brain size={14} />
+                  <span>Agent: {issue.investigation.agent_id}</span>
+                </div>
+              )}
+              <MarkdownView content={issue.investigation.report} />
+              {issue.investigation.confidence_score !== undefined && (
+                <div className="investigation-confidence">
+                  Confidence Score: {issue.investigation.confidence_score}/10
+                </div>
+              )}
             </div>
           </section>
         )}
@@ -2493,6 +2717,8 @@ interface SettingsDialogProps {
   onAgentChange: (settings: AgentSettings) => void;
   onDisplayChange: (settings: DisplaySettings) => void;
   onClose: () => void;
+  issuesProcessed?: number;
+  issuesRemaining?: number | string;
 }
 
 function SettingsDialog({
@@ -2504,6 +2730,8 @@ function SettingsDialog({
   onAgentChange,
   onDisplayChange,
   onClose,
+  issuesProcessed,
+  issuesRemaining,
 }: SettingsDialogProps) {
   return (
     <Modal onClose={onClose} labelledBy="settings-dialog-title" panelClassName="modal-panel--wide">
@@ -2528,6 +2756,8 @@ function SettingsDialog({
           onProcessorChange={onProcessorChange}
           onAgentChange={onAgentChange}
           onDisplayChange={onDisplayChange}
+          issuesProcessed={issuesProcessed}
+          issuesRemaining={issuesRemaining}
         />
       </div>
     </Modal>

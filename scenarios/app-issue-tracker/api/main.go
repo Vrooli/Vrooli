@@ -18,6 +18,17 @@ type Server struct {
 	config         *Config
 	processorState ProcessorState
 	processorMutex sync.RWMutex
+
+	// Issue count tracking for max_issues limit
+	issuesProcessedMutex sync.RWMutex
+	issuesProcessedCount int
+
+	// Running process tracking
+	runningProcessesMutex sync.RWMutex
+	runningProcesses      map[string]*RunningProcess
+
+	// WebSocket hub for real-time updates
+	hub *Hub
 }
 
 // loadConfig loads application configuration from environment variables
@@ -104,7 +115,15 @@ func main() {
 
 	log.Printf("Using file-based storage at: %s", config.IssuesDir)
 
-	server := &Server{config: config}
+	// Initialize WebSocket hub
+	hub := NewHub()
+	go hub.Run()
+
+	server := &Server{
+		config:           config,
+		runningProcesses: make(map[string]*RunningProcess),
+		hub:              hub,
+	}
 
 	// Setup routes
 	r := mux.NewRouter()
@@ -114,6 +133,7 @@ func main() {
 
 	// API routes (v1)
 	v1 := r.PathPrefix("/api/v1").Subrouter()
+	v1.HandleFunc("/ws", server.handleWebSocket).Methods("GET")
 	v1.HandleFunc("/issues", server.getIssuesHandler).Methods("GET")
 	v1.HandleFunc("/issues", server.createIssueHandler).Methods("POST")
 	v1.HandleFunc("/issues/{id}/attachments/{attachment:.*}", server.getIssueAttachmentHandler).Methods("GET")
@@ -133,7 +153,9 @@ func main() {
 	v1.HandleFunc("/export", server.exportIssuesHandler).Methods("GET")
 	v1.HandleFunc("/automation/processor", server.getProcessorHandler).Methods("GET")
 	v1.HandleFunc("/automation/processor", server.updateProcessorHandler).Methods("PATCH")
+	v1.HandleFunc("/automation/processor/reset-counter", server.resetIssueCounterHandler).Methods("POST")
 	v1.HandleFunc("/rate-limit-status", server.getRateLimitStatusHandler).Methods("GET")
+	v1.HandleFunc("/processes/running", server.getRunningProcessesHandler).Methods("GET")
 
 	// Initialize processor state and start background loop
 	server.initializeProcessorState()

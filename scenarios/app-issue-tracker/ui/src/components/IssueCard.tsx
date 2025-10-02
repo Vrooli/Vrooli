@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import type { DragEvent, KeyboardEventHandler, MouseEvent, PointerEvent, TouchEvent } from 'react';
-import { Archive, CalendarClock, GripVertical, Hash, Tag, Trash2 } from 'lucide-react';
+import { Archive, Brain, CalendarClock, GripVertical, Hash, Tag, Trash2, AlertCircle } from 'lucide-react';
 import { Issue } from '../data/sampleData';
 import { formatDistanceToNow } from '../utils/date';
 
@@ -9,6 +9,7 @@ const TOUCH_MOVE_THRESHOLD = 14;
 interface IssueCardProps {
   issue: Issue;
   isFocused?: boolean;
+  runningProcess?: { agent_id: string; start_time: string; duration?: string };
   onSelect?: (issueId: string) => void;
   onDelete?: (issue: Issue) => void;
   onArchive?: (issue: Issue) => void;
@@ -23,6 +24,7 @@ interface IssueCardProps {
 export function IssueCard({
   issue,
   isFocused = false,
+  runningProcess,
   onSelect,
   onDelete,
   onArchive,
@@ -37,10 +39,15 @@ export function IssueCard({
   const dragHandleActiveRef = useRef(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
+  const isRunning = !!runningProcess;
+  const isFailed = issue.status === 'failed';
+  const errorMessage = isFailed && issue.metadata?.extra?.agent_last_error;
+
   const className = [
     'issue-card',
     `priority-${issue.priority.toLowerCase()}`,
     isFocused ? 'issue-card--focused' : '',
+    isRunning ? 'issue-card--running' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -161,6 +168,23 @@ export function IssueCard({
         </div>
       </header>
       <h3 className="issue-title">{issue.title}</h3>
+      {isRunning && (
+        <div className="issue-running-indicator">
+          <Brain size={14} className="issue-running-icon" />
+          <div className="issue-running-details">
+            <span className="issue-running-text">Executing with {runningProcess.agent_id}</span>
+            {runningProcess.duration && (
+              <span className="issue-running-duration">{runningProcess.duration}</span>
+            )}
+          </div>
+        </div>
+      )}
+      {errorMessage && (
+        <div className="issue-error-message">
+          <AlertCircle size={14} />
+          <span>{String(errorMessage)}</span>
+        </div>
+      )}
       <footer className="issue-footer">
         <span className="issue-meta">
           <Hash size={14} />

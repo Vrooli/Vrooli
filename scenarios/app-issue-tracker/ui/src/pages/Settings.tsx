@@ -23,6 +23,8 @@ interface SettingsPageProps {
   onProcessorChange: (settings: ProcessorSettings) => void;
   onAgentChange: (settings: AgentSettings) => void;
   onDisplayChange: (settings: DisplaySettings) => void;
+  issuesProcessed?: number;
+  issuesRemaining?: number | string;
 }
 
 type TabKey = "processor" | "agent" | "display" | "prompt";
@@ -58,6 +60,8 @@ export function SettingsPage({
   onProcessorChange,
   onAgentChange,
   onDisplayChange,
+  issuesProcessed = 0,
+  issuesRemaining = 'unlimited',
 }: SettingsPageProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("processor");
   const [selectedTestCaseId, setSelectedTestCaseId] = useState<string>(
@@ -309,6 +313,29 @@ export function SettingsPage({
                       )
                     }
                   />
+                </label>
+                <label>
+                  <span>Maximum issues to process</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={1000}
+                    value={processor.maxIssues}
+                    onChange={(event) =>
+                      handleProcessorChange(
+                        "maxIssues",
+                        Number(event.target.value),
+                      )
+                    }
+                  />
+                  <small style={{ display: "block", marginTop: "4px", color: "var(--text-secondary)" }}>
+                    Maximum number of issues to process (0 = unlimited).{" "}
+                    {processor.maxIssues > 0 && (
+                      <span style={{ fontWeight: 500 }}>
+                        {issuesProcessed} processed, {issuesRemaining} remaining
+                      </span>
+                    )}
+                  </small>
                 </label>
                 <label className="checkbox-field">
                   <input

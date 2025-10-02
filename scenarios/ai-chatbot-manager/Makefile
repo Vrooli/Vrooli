@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help run stop test logs status clean build dev health api-test ws-test widget-test cli-test ports errors restart
+.PHONY: help run stop test test-p1 logs status clean build dev health api-test ws-test widget-test cli-test ports errors restart
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -56,6 +56,14 @@ test: ## Run tests for this scenario
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test $(SCENARIO_NAME)
 	@echo "$(GREEN)✅ All tests completed successfully!$(RESET)"
+
+test-p1: ## Test P1 features (multi-tenant, A/B testing, CRM)
+	@echo "$(BLUE)🧪 Testing P1 features...$(RESET)"
+	@if [ -f test/test-p1-features.sh ]; then \
+		bash test/test-p1-features.sh; \
+	else \
+		echo "$(YELLOW)⚠️  test/test-p1-features.sh not found$(RESET)"; \
+	fi
 
 api-test: ## Test API endpoints
 	@echo "$(BLUE)🔌 Testing API endpoints...$(RESET)"

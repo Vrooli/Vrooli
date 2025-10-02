@@ -7,6 +7,7 @@ import { IssueCard } from '../components/IssueCard';
 interface IssuesBoardProps {
   issues: Issue[];
   focusedIssueId?: string | null;
+  runningProcesses?: Map<string, { agent_id: string; start_time: string; duration?: string }>;
   onIssueSelect?: (issueId: string) => void;
   onIssueDelete?: (issue: Issue) => void;
   onIssueDrop?: (issueId: string, fromStatus: IssueStatus, toStatus: IssueStatus) => void | Promise<void>;
@@ -27,6 +28,7 @@ export const columnMeta: Record<IssueStatus, { title: string; icon: React.Compon
 export function IssuesBoard({
   issues,
   focusedIssueId,
+  runningProcesses,
   onIssueSelect,
   onIssueDelete,
   onIssueDrop,
@@ -389,22 +391,26 @@ export function IssuesBoard({
                   )}
                 </header>
                 <div className="kanban-column-body">
-                  {columnIssues.map((issue) => (
-                    <IssueCard
-                      key={issue.id}
-                      issue={issue}
-                      isFocused={issue.id === focusedIssueId}
-                      onSelect={onIssueSelect}
-                      onDelete={confirmDelete}
-                      onArchive={confirmArchive}
-                      onDragStart={handleCardDragStart}
-                      onDragEnd={handleCardDragEnd}
-                      onPointerDown={handlePointerCardDown}
-                      onPointerMove={handlePointerCardMove}
-                      onPointerUp={handlePointerCardUp}
-                      draggable
-                    />
-                  ))}
+                  {columnIssues.map((issue) => {
+                    const runningInfo = runningProcesses?.get(issue.id);
+                    return (
+                      <IssueCard
+                        key={issue.id}
+                        issue={issue}
+                        isFocused={issue.id === focusedIssueId}
+                        runningProcess={runningInfo}
+                        onSelect={onIssueSelect}
+                        onDelete={confirmDelete}
+                        onArchive={confirmArchive}
+                        onDragStart={handleCardDragStart}
+                        onDragEnd={handleCardDragEnd}
+                        onPointerDown={handlePointerCardDown}
+                        onPointerMove={handlePointerCardMove}
+                        onPointerUp={handlePointerCardUp}
+                        draggable
+                      />
+                    );
+                  })}
                   {columnIssues.length === 0 && (
                     <div className="empty-column">
                       <p>No issues in this state.</p>
