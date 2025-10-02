@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"log"
-	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -110,6 +108,52 @@ func buildInvestigationPromptMarkdown(template, issueID, agentID, projectPath, t
 	builder.WriteString(template)
 	builder.WriteString(fmt.Sprintf(investigationPromptSuffix, issueRef, agentRef, projectRef, timeRef))
 	return builder.String()
+}
+
+// failInvestigation marks an investigation as failed with error details
+func (s *Server) failInvestigation(issueID, errorMsg, output string) {
+	issueDir, _, findErr := s.findIssueDirectory(issueID)
+	if findErr != nil {
+		log.Printf("Cannot locate issue %s to mark failed: %v", issueID, findErr)
+		return
+	}
+
+	issue, loadErr := s.loadIssueFromDir(issueDir)
+	if loadErr != nil {
+		log.Printf("Cannot load issue %s to mark failed: %v", issueID, loadErr)
+		return
+	}
+
+	nowUTC := time.Now().UTC()
+
+	// Store error in both investigation report and metadata
+	if output != "" {
+		issue.Investigation.Report = fmt.Sprintf("Investigation failed: %s\n\nOutput:\n%s", errorMsg, output)
+	} else {
+		issue.Investigation.Report = fmt.Sprintf("Investigation failed: %s", errorMsg)
+	}
+	issue.Investigation.CompletedAt = nowUTC.Format(time.RFC3339)
+	issue.Metadata.UpdatedAt = nowUTC.Format(time.RFC3339)
+
+	if issue.Metadata.Extra == nil {
+		issue.Metadata.Extra = make(map[string]string)
+	}
+	issue.Metadata.Extra["agent_last_error"] = errorMsg
+	issue.Metadata.Extra["agent_last_status"] = "failed"
+
+	if err := s.writeIssueMetadata(issueDir, issue); err != nil {
+		log.Printf("Failed to save error for issue %s: %v", issueID, err)
+	}
+
+	s.moveIssue(issueID, "failed")
+
+	s.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
+		IssueID:   issueID,
+		AgentID:   issue.Investigation.AgentID,
+		Success:   false,
+		EndTime:   nowUTC,
+		NewStatus: "failed",
+	}))
 }
 
 // detectRateLimit checks if script output indicates a rate limit
@@ -236,91 +280,77 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		}
 	}
 
-	promptTemplate := buildInvestigationPromptTemplate(issue)
-	scriptPath := filepath.Join(s.config.ScenarioRoot, "scripts", "claude-investigator.sh")
-	projectPath := s.config.ScenarioRoot
-
-	autoFlag := "false"
-	if autoResolve {
-		autoFlag = "true"
-	}
-
 	// Register this process as running
 	s.registerRunningProcess(issueID, agentID, now)
 
-	go func(issueID, agent string, auto bool, template string) {
+	go func(issueID, agent string) {
 		defer s.unregisterRunningProcess(issueID)
 
-		cmd := exec.Command("bash", scriptPath, "resolve", issueID, agent, projectPath, template, autoFlag)
-		cmd.Dir = s.config.ScenarioRoot
-
-		output, err := cmd.CombinedOutput()
-		outputStr := string(output)
-
-		// CRITICAL: resource-claude-code exit codes cannot be trusted (ecosystem-manager lesson)
-		// The agent may exit non-zero even when it successfully completes its work:
-		// - Test commands that fail during investigation
-		// - Permission warnings on non-critical files
-		// - Shell error handling for edge cases
-		// - Timeout signals after agent finishes useful work
-		//
-		// Solution: Check output QUALITY, not exit codes. Only treat as failure if BOTH
-		// non-zero exit AND no valid report generated.
-
-		// First, always check for rate limit (regardless of exit code)
-		isRateLimit, resetTime := detectRateLimit(outputStr)
-		if isRateLimit {
-			log.Printf("Rate limit detected for issue %s, moving to waiting status until %s", issueID, resetTime)
-
-			// Load issue and update metadata with rate limit info
-			issueDir, _, findErr := s.findIssueDirectory(issueID)
-			if findErr == nil {
-				issue, loadErr := s.loadIssueFromDir(issueDir)
-				if loadErr == nil {
-					if issue.Metadata.Extra == nil {
-						issue.Metadata.Extra = make(map[string]string)
-					}
-					issue.Metadata.Extra["rate_limit_until"] = resetTime
-					issue.Metadata.Extra["rate_limit_agent"] = agent
-					s.writeIssueMetadata(issueDir, issue)
-				}
-			}
-
-			// Move to waiting status instead of failed
-			s.moveIssue(issueID, "waiting")
+		// Build investigation prompt
+		issueDir, _, findErr := s.findIssueDirectory(issueID)
+		if findErr != nil {
+			log.Printf("Failed to find issue %s: %v", issueID, findErr)
 			return
 		}
 
-		// STRATEGY CHANGE: Don't check raw output for structure.
-		// Always try to parse JSON and check the report field.
-		// This ensures we show user what happened even on errors.
-		if err != nil {
-			log.Printf("Script exited non-zero for issue %s: %v (will check JSON for actual report quality)", issueID, err)
+		issue, loadErr := s.loadIssueFromDir(issueDir)
+		if loadErr != nil {
+			log.Printf("Failed to load issue %s: %v", issueID, loadErr)
+			return
 		}
 
-		// Strip ANSI escape codes before parsing JSON
-		cleanedOutput := stripANSI(outputStr)
+		promptTemplate := buildInvestigationPromptTemplate(issue)
+		fullPrompt := buildInvestigationPromptMarkdown(promptTemplate, issueID, agent, s.config.ScenarioRoot, now)
 
-		// Extract JSON portion from output (may contain log messages before/after JSON)
-		jsonOutput := extractJSON(cleanedOutput)
-		if jsonOutput == "" {
-			log.Printf("No JSON found in output for issue %s", issueID)
-			log.Printf("Output preview (first 500 chars): %s", cleanedOutput[:min(500, len(cleanedOutput))])
+		// Get agent settings and create timeout
+		settings := GetAgentSettings()
+		timeoutDuration := time.Duration(settings.TimeoutSeconds) * time.Second
+		startTime := time.Now()
 
-			// Build user-visible error with actual output
-			errorMsg := fmt.Sprintf("Agent execution failed: no valid JSON response")
-			if err != nil {
-				errorMsg = fmt.Sprintf("Agent execution failed: %v", err)
-			}
-			if len(cleanedOutput) > 0 {
-				if len(cleanedOutput) > 500 {
-					errorMsg = fmt.Sprintf("%s\n\nAgent output:\n%s...", errorMsg, cleanedOutput[:500])
-				} else {
-					errorMsg = fmt.Sprintf("%s\n\nAgent output:\n%s", errorMsg, cleanedOutput)
+		// Create context with timeout
+		ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
+		defer cancel()
+
+		// Execute Claude Code directly (ecosystem-manager pattern)
+		result, err := s.executeClaudeCode(ctx, fullPrompt, issueID, startTime, timeoutDuration)
+
+		if err != nil {
+			log.Printf("Failed to execute Claude Code for issue %s: %v", issueID, err)
+			s.failInvestigation(issueID, fmt.Sprintf("Execution error: %v", err), "")
+			return
+		}
+
+		// Handle rate limits (move to waiting, not failed)
+		if strings.Contains(result.Error, "RATE_LIMIT") {
+			isRateLimit, resetTime := detectRateLimit(result.Output)
+			if isRateLimit {
+				log.Printf("Rate limit detected for issue %s, moving to waiting status until %s", issueID, resetTime)
+
+				// Load issue and update metadata with rate limit info
+				issueDir, _, findErr := s.findIssueDirectory(issueID)
+				if findErr == nil {
+					issue, loadErr := s.loadIssueFromDir(issueDir)
+					if loadErr == nil {
+						if issue.Metadata.Extra == nil {
+							issue.Metadata.Extra = make(map[string]string)
+						}
+						issue.Metadata.Extra["rate_limit_until"] = resetTime
+						issue.Metadata.Extra["rate_limit_agent"] = agent
+						s.writeIssueMetadata(issueDir, issue)
+					}
 				}
-			}
 
-			// Save error and move to failed
+				// Move to waiting status instead of failed
+				s.moveIssue(issueID, "waiting")
+				return
+			}
+		}
+
+		// Handle failures (timeout, max turns, errors)
+		if !result.Success {
+			log.Printf("Investigation failed for issue %s: %s", issueID, result.Error)
+
+			// Store error metadata
 			issueDir, _, findErr := s.findIssueDirectory(issueID)
 			if findErr == nil {
 				issue, loadErr := s.loadIssueFromDir(issueDir)
@@ -328,8 +358,10 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 					if issue.Metadata.Extra == nil {
 						issue.Metadata.Extra = make(map[string]string)
 					}
-					issue.Metadata.Extra["agent_last_error"] = errorMsg
-					issue.Metadata.Extra["agent_last_status"] = "no_json_output"
+					issue.Metadata.Extra["agent_last_error"] = result.Error
+					if result.MaxTurnsExceeded {
+						issue.Metadata.Extra["max_turns_exceeded"] = "true"
+					}
 					issue.Metadata.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 					s.writeIssueMetadata(issueDir, issue)
 				}
@@ -346,209 +378,71 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			return
 		}
 
-		var result struct {
-			IssueID       string `json:"issue_id"`
-			AgentID       string `json:"agent_id"`
-			Status        string `json:"status"`
-			Error         string `json:"error"`
-			Investigation struct {
-				Report            string `json:"report"`
-				StartedAt         string `json:"started_at"`
-				CompletedAt       string `json:"completed_at"`
-				MaxTurnsExceeded  bool   `json:"max_turns_exceeded"`
-				ExitCode          int    `json:"exit_code"`
-			} `json:"investigation"`
-		}
+		// SUCCESS: Process the investigation report
+		log.Printf("Investigation succeeded for issue %s (execution time: %v)", issueID, result.ExecutionTime.Round(time.Second))
 
-		if err := json.Unmarshal([]byte(jsonOutput), &result); err != nil {
-			log.Printf("Failed to parse investigation JSON for issue %s: %v", issueID, err)
-			log.Printf("Raw output (first 500 chars): %s", cleanedOutput[:min(500, len(cleanedOutput))])
-
-			// Load issue and mark as failed with parsing error
-			issueDir, _, findErr := s.findIssueDirectory(issueID)
-			if findErr != nil {
-				log.Printf("Cannot locate issue %s to mark failed: %v", issueID, findErr)
-				return
-			}
-
-			issue, loadErr := s.loadIssueFromDir(issueDir)
-			if loadErr != nil {
-				log.Printf("Cannot load issue %s to mark failed: %v", issueID, loadErr)
-				return
-			}
-
-			// Store error information in investigation
-			errorSummary := fmt.Sprintf("Investigation failed: output parsing error - %v", err)
-			issue.Investigation.Report = fmt.Sprintf("Investigation failed due to output parsing error: %v\n\nRaw output:\n%s", err, cleanedOutput)
-			issue.Investigation.CompletedAt = time.Now().UTC().Format(time.RFC3339)
-			issue.Metadata.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-
-			// Also store in metadata.extra so it shows in the UI card
-			if issue.Metadata.Extra == nil {
-				issue.Metadata.Extra = make(map[string]string)
-			}
-			issue.Metadata.Extra["agent_last_error"] = errorSummary
-			issue.Metadata.Extra["agent_last_status"] = "parsing_failed"
-
-			if err := s.writeIssueMetadata(issueDir, issue); err != nil {
-				log.Printf("Failed to save parsing error for issue %s: %v", issueID, err)
-			}
-
-			// Move to failed status
-			s.moveIssue(issueID, "failed")
-
-			// Publish agent failed event
-			s.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
-				IssueID:   issueID,
-				AgentID:   agent,
-				Success:   false,
-				EndTime:   time.Now(),
-				NewStatus: "failed",
-			}))
-
+		// Load issue to store results
+		var findErr2 error
+		issueDir, _, findErr2 = s.findIssueDirectory(issueID)
+		if findErr2 != nil {
+			log.Printf("Failed to locate issue %s after investigation: %v", issueID, findErr2)
 			return
 		}
 
-		issueDir, _, err := s.findIssueDirectory(issueID)
-		if err != nil {
-			log.Printf("Failed to locate issue %s after investigation: %v", issueID, err)
+		var loadErr2 error
+		issue, loadErr2 = s.loadIssueFromDir(issueDir)
+		if loadErr2 != nil {
+			log.Printf("Failed to reload issue %s: %v", issueID, loadErr2)
 			return
 		}
 
-		issue, err := s.loadIssueFromDir(issueDir)
-		if err != nil {
-			log.Printf("Failed to reload issue %s: %v", issueID, err)
-			return
-		}
+		nowUTC := time.Now().UTC()
 
-		now := time.Now().UTC()
+		// Store the investigation report (clean ecosystem-manager pattern)
+		issue.Investigation.Report = result.Output
+		issue.Investigation.CompletedAt = nowUTC.Format(time.RFC3339)
+		issue.Metadata.UpdatedAt = nowUTC.Format(time.RFC3339)
 
-		// Store the full investigation report (unified-resolver.md includes fixes)
-		if result.Investigation.Report != "" {
-			issue.Investigation.Report = result.Investigation.Report
-		}
-		if result.Investigation.StartedAt != "" {
-			issue.Investigation.StartedAt = result.Investigation.StartedAt
-		}
-		if result.Investigation.CompletedAt != "" {
-			issue.Investigation.CompletedAt = result.Investigation.CompletedAt
-		} else {
-			issue.Investigation.CompletedAt = now.Format(time.RFC3339)
-		}
-
-		issue.Metadata.UpdatedAt = now.Format(time.RFC3339)
-
+		// Calculate investigation duration
 		if issue.Investigation.StartedAt != "" {
-			if startTime, err := time.Parse(time.RFC3339, issue.Investigation.StartedAt); err == nil {
-				duration := int(time.Since(startTime).Minutes())
-				issue.Investigation.InvestigationDurationMinutes = &duration
+			if parsedStart, err := time.Parse(time.RFC3339, issue.Investigation.StartedAt); err == nil {
+				durationMinutes := int(time.Since(parsedStart).Minutes())
+				issue.Investigation.InvestigationDurationMinutes = &durationMinutes
 			}
 		}
 
-		if err := s.writeIssueMetadata(issueDir, issue); err != nil {
-			log.Printf("Failed to save investigation results for issue %s: %v", issueID, err)
-		}
-
+		// Clear any previous error metadata (CRITICAL: no false timeout warnings)
 		if issue.Metadata.Extra == nil {
 			issue.Metadata.Extra = make(map[string]string)
 		}
+		delete(issue.Metadata.Extra, "agent_last_error")
+		delete(issue.Metadata.Extra, "max_turns_exceeded")
+		issue.Metadata.Extra["agent_last_status"] = "completed"
 
-		originalStatus := strings.TrimSpace(result.Status)
-		if originalStatus == "" {
-			originalStatus = "active"
-		}
-		issue.Metadata.Extra["agent_last_status"] = strings.ToLower(originalStatus)
+		// Set resolved timestamp
+		issue.Metadata.ResolvedAt = nowUTC.Format(time.RFC3339)
 
-		trimmedErr := strings.TrimSpace(result.Error)
-		if trimmedErr != "" {
-			issue.Metadata.Extra["agent_last_error"] = trimmedErr
-		} else {
-			delete(issue.Metadata.Extra, "agent_last_error")
+		// Save updated metadata
+		if saveErr := s.writeIssueMetadata(issueDir, issue); saveErr != nil {
+			log.Printf("Failed to save investigation results for issue %s: %v", issueID, saveErr)
 		}
 
-		// Handle max turns exceeded (ecosystem-manager pattern)
-		if result.Investigation.MaxTurnsExceeded {
-			issue.Metadata.Extra["max_turns_exceeded"] = "true"
-			log.Printf("Issue %s: MAX_TURNS limit reached - output may be partial", issueID)
+		// Move to completed status
+		if moveErr := s.moveIssue(issueID, "completed"); moveErr != nil {
+			log.Printf("Failed to move issue %s to completed: %v", issueID, moveErr)
 		}
 
-		// Check report quality from parsed JSON (ecosystem-manager pattern)
-		reportContent := strings.TrimSpace(result.Investigation.Report)
-		hasValidReport := false
-		if len(reportContent) > 500 {
-			lowerReport := strings.ToLower(reportContent)
-			hasValidReport = strings.Contains(lowerReport, "investigation summary") ||
-				strings.Contains(lowerReport, "root cause") ||
-				strings.Contains(lowerReport, "remediation") ||
-				strings.Contains(lowerReport, "validation plan") ||
-				strings.Contains(lowerReport, "confidence assessment")
-		}
+		log.Printf("Investigation completed successfully for issue %s", issueID)
 
-		// Log report quality for debugging
-		if result.Investigation.ExitCode != 0 {
-			log.Printf("Agent exit code %d for issue %s: report length=%d, hasValidReport=%v",
-				result.Investigation.ExitCode, issueID, len(reportContent), hasValidReport)
-			if !hasValidReport && len(reportContent) > 0 {
-				// Show what we got if it's not a valid structured report
-				preview := reportContent
-				if len(preview) > 500 {
-					preview = preview[:500] + "..."
-				}
-				log.Printf("Report preview: %s", preview)
-			}
-		}
-
-		finalStatus := "active"
-		switch strings.ToLower(originalStatus) {
-		case "completed", "success":
-			finalStatus = "completed"
-		case "failed", "error":
-			// Only fail if truly no valid report
-			if hasValidReport && result.Investigation.ExitCode != 0 {
-				// Override failure - agent produced valid work despite non-zero exit
-				log.Printf("Overriding failure status for issue %s: exit code %d but valid report exists",
-					issueID, result.Investigation.ExitCode)
-				finalStatus = "completed"
-			} else {
-				finalStatus = "failed"
-			}
-		case "cancelled", "canceled":
-			finalStatus = "failed"
-		default:
-			// Check if we have a valid report to determine status
-			if hasValidReport {
-				finalStatus = "completed"
-			} else if result.Investigation.ExitCode != 0 {
-				finalStatus = "failed"
-			} else {
-				finalStatus = "completed"
-			}
-		}
-
-		if finalStatus == "completed" && strings.TrimSpace(issue.Metadata.ResolvedAt) == "" {
-			issue.Metadata.ResolvedAt = now.Format(time.RFC3339)
-			if err := s.writeIssueMetadata(issueDir, issue); err != nil {
-				log.Printf("Failed to set resolution timestamp for issue %s: %v", issueID, err)
-			}
-		}
-
-		if finalStatus != "active" {
-			if err := s.moveIssue(issueID, finalStatus); err != nil {
-				log.Printf("Failed to move issue %s to %s: %v", issueID, finalStatus, err)
-			}
-		}
-
-		log.Printf("Investigation completed for issue %s: status=%s", issueID, finalStatus)
-
-		// Publish agent completed event
+		// Publish success event
 		s.hub.Publish(NewEvent(EventAgentCompleted, AgentCompletedData{
 			IssueID:   issueID,
 			AgentID:   agent,
-			Success:   finalStatus == "completed",
-			EndTime:   now,
-			NewStatus: finalStatus,
+			Success:   true,
+			EndTime:   nowUTC,
+			NewStatus: "completed",
 		}))
-	}(issueID, agentID, autoResolve, promptTemplate)
+	}(issueID, agentID)
 
 	return nil
 }

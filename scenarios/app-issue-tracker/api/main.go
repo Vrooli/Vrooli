@@ -104,6 +104,10 @@ func main() {
 
 	config := loadConfig()
 
+	// Load agent settings (ecosystem-manager pattern)
+	_ = LoadAgentSettings(config.ScenarioRoot)
+	log.Printf("Agent settings loaded successfully")
+
 	// Ensure issues directory structure exists
 	folders := []string{"open", "active", "waiting", "completed", "failed", "templates"}
 	for _, folder := range folders {
