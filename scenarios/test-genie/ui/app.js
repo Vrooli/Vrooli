@@ -1652,6 +1652,27 @@ class TestGenieApp {
                 });
 
                 this.showSuccess(message);
+            } else {
+                // Handle single mode response
+                const metadata = [
+                    { label: 'Request ID', value: result.request_id || 'N/A' },
+                    { label: 'Status', value: result.status || 'submitted' }
+                ];
+
+                if (result.issue_url) {
+                    metadata.push({ label: 'Follow-up', value: 'Track progress in app-issue-tracker.' });
+                }
+
+                this.showGenerateResultCard({
+                    icon: 'trending-up',
+                    tone: 'info',
+                    title: 'Test Enhancement Request Created',
+                    message: result.message || 'Enhancement request submitted to app-issue-tracker.',
+                    metadata,
+                    issues: result.issue_id ? [{ scenario_name: scenarioNames[0], issue_id: result.issue_id, issue_url: result.issue_url }] : []
+                });
+
+                this.showSuccess('Test enhancement request created in app-issue-tracker.');
             }
         } catch (error) {
             console.error('Test enhancement failed:', error);

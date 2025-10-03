@@ -66,6 +66,11 @@ type session struct {
 
 	readBuffer []byte
 
+	// Rolling output buffer for reconnection replay (stores recent output chunks)
+	outputBufferMu sync.RWMutex
+	outputBuffer   []outputPayload
+	maxBufferSize  int
+
 	termSizeMu sync.RWMutex
 	termRows   int
 	termCols   int
@@ -76,20 +81,22 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 
 	id := uuid.NewString()
 	s := &session{
-		id:         id,
-		createdAt:  time.Now().UTC(),
-		expiresAt:  time.Now().UTC().Add(cfg.sessionTTL),
-		cfg:        cfg,
-		metrics:    metrics,
-		manager:    manager,
-		ctx:        ctx,
-		cancel:     cancel,
-		done:       make(chan struct{}),
-		clients:    make(map[*wsClient]struct{}),
-		idleReset:  make(chan struct{}, 1),
-		readBuffer: make([]byte, cfg.readBufferSizeBytes),
-		termRows:   cfg.defaultTTYRows,
-		termCols:   cfg.defaultTTYCols,
+		id:            id,
+		createdAt:     time.Now().UTC(),
+		expiresAt:     time.Now().UTC().Add(cfg.sessionTTL),
+		cfg:           cfg,
+		metrics:       metrics,
+		manager:       manager,
+		ctx:           ctx,
+		cancel:        cancel,
+		done:          make(chan struct{}),
+		clients:       make(map[*wsClient]struct{}),
+		idleReset:     make(chan struct{}, 1),
+		readBuffer:    make([]byte, cfg.readBufferSizeBytes),
+		outputBuffer:  make([]outputPayload, 0, 100), // Keep last 100 chunks (~100KB typical)
+		maxBufferSize: 100,
+		termRows:      cfg.defaultTTYRows,
+		termCols:      cfg.defaultTTYCols,
 	}
 
 	command := strings.TrimSpace(req.Command)
@@ -281,6 +288,15 @@ func (s *session) handleOutput(chunk []byte) {
 		Encoding:  payload.Encoding,
 	})
 
+	// Add to rolling buffer for replay on reconnect
+	s.outputBufferMu.Lock()
+	s.outputBuffer = append(s.outputBuffer, payload)
+	if len(s.outputBuffer) > s.maxBufferSize {
+		// Keep only the most recent chunks
+		s.outputBuffer = s.outputBuffer[len(s.outputBuffer)-s.maxBufferSize:]
+	}
+	s.outputBufferMu.Unlock()
+
 	s.broadcast(websocketEnvelope{
 		Type:    "output",
 		Payload: mustJSON(payload),
@@ -428,6 +444,22 @@ func (s *session) addClient(client *wsClient) {
 	s.clientsMu.Lock()
 	s.clients[client] = struct{}{}
 	s.clientsMu.Unlock()
+}
+
+// replayBufferToClient sends recent output history to a newly connected client
+func (s *session) replayBufferToClient(client *wsClient) {
+	s.outputBufferMu.RLock()
+	buffer := make([]outputPayload, len(s.outputBuffer))
+	copy(buffer, s.outputBuffer)
+	s.outputBufferMu.RUnlock()
+
+	// Send buffered output to the client
+	for _, payload := range buffer {
+		client.enqueue(websocketEnvelope{
+			Type:    "output",
+			Payload: mustJSON(payload),
+		})
+	}
 }
 
 func (s *session) removeClient(client *wsClient) {

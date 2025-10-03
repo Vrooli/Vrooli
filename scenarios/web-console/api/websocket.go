@@ -54,6 +54,10 @@ func newWSClient(session *session, conn *websocket.Conn) *wsClient {
 func (c *wsClient) start() {
 	go c.writeLoop()
 	go c.readLoop()
+
+	// Replay buffered output for reconnecting clients
+	c.session.replayBufferToClient(c)
+
 	// Emit initial status snapshot
 	c.enqueue(websocketEnvelope{
 		Type: "status",

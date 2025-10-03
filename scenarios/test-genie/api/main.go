@@ -254,10 +254,10 @@ type GenerateBatchTestSuiteRequest struct {
 }
 
 type GenerateBatchTestSuiteResponse struct {
-	Created int                    `json:"created"`
-	Skipped int                    `json:"skipped"`
-	Results []BatchGenerateResult  `json:"results"`
-	Issues  []IssueCreationResult  `json:"issues"`
+	Created int                   `json:"created"`
+	Skipped int                   `json:"skipped"`
+	Results []BatchGenerateResult `json:"results"`
+	Issues  []IssueCreationResult `json:"issues"`
 }
 
 type BatchGenerateResult struct {
@@ -1240,31 +1240,27 @@ func generateBatchTestSuiteHandler(c *gin.Context) {
 		Issues:  []IssueCreationResult{},
 	}
 
-	for _, scenarioName := range req.ScenarioNames {
-		// Check if scenario already has tests
-		var existingSuites int
-		err := db.QueryRow(`
-			SELECT COUNT(*) FROM test_suites
-			WHERE scenario_name = $1 AND status = 'active'
-		`, scenarioName).Scan(&existingSuites)
+	var repoRootCache string
 
+	for _, scenarioName := range req.ScenarioNames {
+		hasTests, err := scenarioHasTests(c.Request.Context(), scenarioName, &repoRootCache)
 		if err != nil {
-			log.Printf("⚠️  Error checking existing suites for %s: %v", scenarioName, err)
+			log.Printf("⚠️  Failed to evaluate existing tests for %s: %v", scenarioName, err)
 			response.Results = append(response.Results, BatchGenerateResult{
 				ScenarioName: scenarioName,
 				Status:       "error",
-				Reason:       "Database error",
+				Reason:       "Failed to evaluate existing tests",
 			})
 			continue
 		}
 
-		// Skip if already has active test suites
-		if existingSuites > 0 {
+		// Skip if we already see tests (aligned with UI logic)
+		if hasTests {
 			response.Skipped++
 			response.Results = append(response.Results, BatchGenerateResult{
 				ScenarioName: scenarioName,
 				Status:       "skipped",
-				Reason:       "Already has active test suites",
+				Reason:       "Already has test suites",
 			})
 			continue
 		}
@@ -1354,26 +1350,22 @@ func enhanceBatchTestSuiteHandler(c *gin.Context) {
 		Issues:  []IssueCreationResult{},
 	}
 
-	for _, scenarioName := range req.ScenarioNames {
-		// Check if scenario has existing tests (inverse of create logic)
-		var existingSuites int
-		err := db.QueryRow(`
-			SELECT COUNT(*) FROM test_suites
-			WHERE scenario_name = $1 AND status = 'active'
-		`, scenarioName).Scan(&existingSuites)
+	var repoRootCache string
 
+	for _, scenarioName := range req.ScenarioNames {
+		hasTests, err := scenarioHasTests(c.Request.Context(), scenarioName, &repoRootCache)
 		if err != nil {
-			log.Printf("⚠️  Error checking existing suites for %s: %v", scenarioName, err)
+			log.Printf("⚠️  Failed to evaluate existing tests for %s: %v", scenarioName, err)
 			response.Results = append(response.Results, BatchGenerateResult{
 				ScenarioName: scenarioName,
 				Status:       "error",
-				Reason:       "Database error",
+				Reason:       "Failed to evaluate existing tests",
 			})
 			continue
 		}
 
-		// Skip if no active test suites (nothing to enhance)
-		if existingSuites == 0 {
+		// Skip if we truly have nothing to enhance
+		if !hasTests {
 			response.Skipped++
 			response.Results = append(response.Results, BatchGenerateResult{
 				ScenarioName: scenarioName,
@@ -1463,21 +1455,16 @@ func enhanceTestSuiteHandler(c *gin.Context) {
 		return
 	}
 
-	// Check if scenario has existing tests to enhance
-	var existingSuites int
-	err := db.QueryRow(`
-		SELECT COUNT(*) FROM test_suites
-		WHERE scenario_name = $1 AND status = 'active'
-	`, req.ScenarioName).Scan(&existingSuites)
-
+	var repoRootCache string
+	hasTests, err := scenarioHasTests(c.Request.Context(), req.ScenarioName, &repoRootCache)
 	if err != nil {
-		log.Printf("⚠️  Error checking existing suites for %s: %v", req.ScenarioName, err)
+		log.Printf("⚠️  Failed to evaluate existing tests for %s: %v", req.ScenarioName, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing test suites"})
 		return
 	}
 
-	// Reject if no active test suites (nothing to enhance)
-	if existingSuites == 0 {
+	// Reject if no test suites are available to enhance
+	if !hasTests {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "No existing tests to enhance",
 			"message": "Use /test-suite/generate to create new tests for this scenario",
@@ -4128,6 +4115,58 @@ func scenarioHasRecognizedTests(scenarioRoot string) bool {
 		log.Printf("⚠️  Failed to inspect tests for %s: %v", scenarioRoot, err)
 	}
 	return false
+}
+
+// scenarioHasTests mirrors the UI's definition of "has tests" by checking both
+// stored suite metadata and tests discovered directly from the repository.
+func scenarioHasTests(ctx context.Context, scenarioName string, repoRootCache *string) (bool, error) {
+	sanitized := strings.TrimSpace(scenarioName)
+	if sanitized == "" {
+		return false, nil
+	}
+
+	if db != nil {
+		var count int
+		err := db.QueryRowContext(ctx, `
+			SELECT COUNT(*)
+			FROM test_suites
+			WHERE scenario_name = $1
+		`, sanitized).Scan(&count)
+		if err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				return false, err
+			}
+		} else if count > 0 {
+			return true, nil
+		}
+	}
+
+	repoRoot := ""
+	if repoRootCache != nil {
+		repoRoot = *repoRootCache
+	}
+
+	if repoRoot == "" {
+		root, err := findRepositoryRoot()
+		if err != nil {
+			return false, err
+		}
+		repoRoot = root
+		if repoRootCache != nil {
+			*repoRootCache = repoRoot
+		}
+	}
+
+	if repoRoot == "" {
+		return false, nil
+	}
+
+	scenarioRoot := filepath.Join(repoRoot, "scenarios", sanitized)
+	if scenarioHasRecognizedTests(scenarioRoot) {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func isRecognizedTestFile(path string) bool {

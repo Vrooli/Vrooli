@@ -441,6 +441,7 @@ function createTerminalTab({ focus = false, id = null, label = null, colorId = T
     socketState: 'disconnected',
     session: null,
     socket: null,
+    reconnecting: false,
     transcript: [],
     events: [],
     suppressed: initialSuppressedState(),
@@ -1427,11 +1428,29 @@ async function handleSignOutAllSessions() {
 }
 
 function connectWebSocket(tab, sessionId) {
+  if (!tab || !sessionId) {
+    return
+  }
+
   const url = buildWebSocketUrl(`/ws/sessions/${sessionId}/stream`)
+  const previousSocket = tab.socket
   const socket = new WebSocket(url)
   tab.socket = socket
 
+  if (previousSocket && previousSocket !== socket) {
+    try {
+      previousSocket.close()
+    } catch (error) {
+      appendEvent(tab, 'ws-close-error', {
+        message: error instanceof Error ? error.message : String(error)
+      })
+    }
+  }
+
   socket.addEventListener('open', () => {
+    if (tab.socket !== socket) {
+      return
+    }
     setTabSocketState(tab, 'open')
     appendEvent(tab, 'ws-open', { sessionId })
     if (typeof tab.term.cols === 'number' && typeof tab.term.rows === 'number') {
@@ -1441,6 +1460,9 @@ function connectWebSocket(tab, sessionId) {
   })
 
   socket.addEventListener('message', async (event) => {
+    if (tab.socket !== socket) {
+      return
+    }
     const raw = await normalizeSocketData(event.data, tab)
     if (!raw || raw.trim().length === 0) {
       recordSuppressedEvent(tab, 'ws-empty-frame')
@@ -1459,12 +1481,18 @@ function connectWebSocket(tab, sessionId) {
   })
 
   socket.addEventListener('error', (error) => {
+    if (tab.socket !== socket) {
+      return
+    }
     setTabSocketState(tab, 'error')
     showError(tab, 'WebSocket error occurred')
     appendEvent(tab, 'ws-error', error)
   })
 
   socket.addEventListener('close', (event) => {
+    if (tab.socket !== socket) {
+      return
+    }
     setTabSocketState(tab, 'disconnected')
     appendEvent(tab, 'ws-close', { code: event.code, reason: event.reason })
     if (tab.phase === 'running' || tab.phase === 'closing') {
@@ -1963,7 +1991,16 @@ function handleKeyboardToolbarModeChanged(payload) {
 }
 
 async function reconnectSession(tab, sessionId) {
+  if (!tab || !sessionId) {
+    return
+  }
+  if (tab.reconnecting) {
+    return
+  }
+
+  tab.reconnecting = true
   try {
+    setTabSocketState(tab, 'connecting')
     const response = await proxyToApi(`/api/v1/sessions/${sessionId}`)
     if (!response.ok) {
       console.error('Failed to fetch session:', sessionId)
@@ -1978,6 +2015,8 @@ async function reconnectSession(tab, sessionId) {
     setTabPhase(tab, 'running')
   } catch (error) {
     console.error('Failed to reconnect session:', error)
+  } finally {
+    tab.reconnecting = false
   }
 }
 
@@ -2101,4 +2140,3 @@ async function initAICommandAsync() {
     console.error('Failed to initialize AI command generation:', error)
   }
 }
-

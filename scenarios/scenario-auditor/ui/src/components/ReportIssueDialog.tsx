@@ -507,10 +507,13 @@ export default function ReportIssueDialog({
                 {isSubmitting ? (
                   <>
                     <Clock className="h-4 w-4 animate-spin" />
-                    Submitting...
+                    {showBatchSizeSlider && currentBatch > 0
+                      ? `Creating issue ${currentBatch} of ${batchCount}...`
+                      : 'Submitting...'
+                    }
                   </>
                 ) : (
-                  'Create Issue'
+                  showBatchSizeSlider ? `Create ${batchCount} Issues` : 'Create Issue'
                 )}
               </button>
               <button
