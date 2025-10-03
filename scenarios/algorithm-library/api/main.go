@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -134,8 +135,9 @@ func main() {
 			float64(maxDelay),
 		))
 
-		// Add jitter to prevent thundering herd (random 0-25% additional delay)
-		jitter := time.Duration(float64(delay) * 0.25 * math.Min(1.0, float64(attempt)/3.0))
+		// Add random jitter to prevent thundering herd (random 0-25% additional delay)
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
 
 		log.Printf("⚠️  Attempt %d/%d failed: %v", attempt+1, maxRetries, err)
@@ -191,28 +193,28 @@ func main() {
 	router.HandleFunc("/api/algorithm/execute", algorithmExecuteHandler).Methods("POST")
 	router.HandleFunc("/api/algorithm/validate-batch", algorithmValidateBatchHandler).Methods("POST")
 	router.HandleFunc("/api/v1/algorithms/benchmark", benchmarkHandler).Methods("POST")
-	
+
 	// Algorithm comparison endpoints
 	router.HandleFunc("/api/v1/algorithms/compare", compareAlgorithmsHandler).Methods("POST")
 	router.HandleFunc("/api/v1/algorithms/{id}/compare", compareVisualizationHandler).Methods("GET")
-	
+
 	// Execution trace endpoint
 	router.HandleFunc("/api/v1/algorithms/trace", executionTraceHandler).Methods("POST")
-	
+
 	// Contribution endpoints
 	router.HandleFunc("/api/v1/contributions/algorithm", submitAlgorithmHandler).Methods("POST")
 	router.HandleFunc("/api/v1/contributions/implementation", submitImplementationHandler).Methods("POST")
 	router.HandleFunc("/api/v1/contributions", listContributionsHandler).Methods("GET")
 	router.HandleFunc("/api/v1/contributions/{id}/review", reviewContributionHandler).Methods("POST")
-	
+
 	// Performance history endpoints
 	router.HandleFunc("/api/v1/algorithms/{id}/performance-history", getPerformanceHistoryHandler).Methods("GET")
 	router.HandleFunc("/api/v1/algorithms/{id}/performance-trends", getPerformanceTrendsHandler).Methods("GET")
 	router.HandleFunc("/api/v1/performance/record", recordPerformanceHandler).Methods("POST")
-	
+
 	// AI-powered suggestion endpoint
 	router.HandleFunc("/api/v1/algorithms/suggest", algorithmSuggestHandler).Methods("POST")
-	
+
 	// Problem mapping endpoints (LeetCode/HackerRank)
 	router.HandleFunc("/api/v1/algorithms/{id}/problems", getAlgorithmProblemsHandler).Methods("GET")
 	router.HandleFunc("/api/v1/problems/search", searchProblemMappingsHandler).Methods("GET")
@@ -383,7 +385,7 @@ func executionTraceHandler(w http.ResponseWriter, r *http.Request) {
 		Code        string      `json:"code,omitempty"`
 		Input       interface{} `json:"input"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -397,7 +399,7 @@ func executionTraceHandler(w http.ResponseWriter, r *http.Request) {
 			WHERE algorithm_id = $1 AND language = $2 AND is_primary = true
 			LIMIT 1
 		`, req.AlgorithmID, req.Language).Scan(&impl.Code)
-		
+
 		if err != nil {
 			// Try without is_primary constraint
 			err = db.QueryRow(`
@@ -405,7 +407,7 @@ func executionTraceHandler(w http.ResponseWriter, r *http.Request) {
 				WHERE algorithm_id = $1 AND language = $2
 				LIMIT 1
 			`, req.AlgorithmID, req.Language).Scan(&impl.Code)
-			
+
 			if err != nil {
 				http.Error(w, fmt.Sprintf("No implementation found for algorithm %s in %s", req.AlgorithmID, req.Language), http.StatusNotFound)
 				return
@@ -416,7 +418,7 @@ func executionTraceHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create execution tracer
 	tracer := NewExecutionTracer()
-	
+
 	// Generate execution trace
 	trace, err := tracer.TraceExecution(req.AlgorithmID, req.Language, req.Code, req.Input)
 	if err != nil {
@@ -427,13 +429,13 @@ func executionTraceHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Generate visualization
 	visualization := tracer.GenerateVisualization(trace)
-	
+
 	// Return trace and visualization
 	response := map[string]interface{}{
 		"trace":         trace,
 		"visualization": visualization,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -577,7 +579,7 @@ func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 			WHERE LOWER(name) = LOWER($1) OR LOWER(slug) = LOWER($1)
 			LIMIT 1
 		`, algorithmID).Scan(&foundID)
-		
+
 		if err != nil {
 			log.Printf("Failed to find algorithm by name: %v", err)
 			http.Error(w, fmt.Sprintf("Algorithm not found: %s", algorithmID), http.StatusNotFound)
@@ -616,7 +618,7 @@ func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Execute using n8n workflow with fallback to local execution
 		execResult, execErr := ExecuteWithFallback(req.Language, req.Code, inputJSON, 5*time.Second)
-		
+
 		if execErr != nil && strings.Contains(execErr.Error(), "unsupported language") {
 			// For unsupported languages
 			testResults = append(testResults, TestResult{

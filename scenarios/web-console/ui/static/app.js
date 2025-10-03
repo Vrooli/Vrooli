@@ -442,6 +442,7 @@ function createTerminalTab({ focus = false, id = null, label = null, colorId = T
     session: null,
     socket: null,
     reconnecting: false,
+    inputSeq: 0,
     transcript: [],
     events: [],
     suppressed: initialSuppressedState(),
@@ -1062,6 +1063,7 @@ function queueInput(tab, value, meta = {}) {
   if (!Array.isArray(tab.pendingWrites)) {
     tab.pendingWrites = []
   }
+  ensureInputSequence(tab, meta)
   tab.pendingWrites.push({ value, meta })
 }
 
@@ -1296,6 +1298,7 @@ async function startSession(tab, options = {}) {
     tab.pendingWrites = Array.isArray(tab.pendingWrites) ? tab.pendingWrites : []
     tab.errorMessage = ''
     tab.lastSentSize = { cols: 0, rows: 0 }
+    tab.inputSeq = 0
     tab.term.reset()
     renderEventMeta(tab)
     appendEvent(tab, 'session-created', {
@@ -1596,6 +1599,21 @@ function notifyPanic(tab, payload) {
   tab.term.write('Review the event feed or transcripts for details.\r\n')
 }
 
+function ensureInputSequence(tab, meta = {}) {
+  if (!tab) {
+    return 0
+  }
+  if (meta && typeof meta.seq === 'number') {
+    return meta.seq
+  }
+  if (!Number.isInteger(tab.inputSeq)) {
+    tab.inputSeq = 0
+  }
+  tab.inputSeq += 1
+  meta.seq = tab.inputSeq
+  return meta.seq
+}
+
 function transmitInput(tab, value, meta = {}) {
   if (!tab || !tab.socket || tab.socket.readyState !== WebSocket.OPEN) {
     return false
@@ -1608,11 +1626,14 @@ function transmitInput(tab, value, meta = {}) {
   const normalized = shouldAppendNewline ? (value.endsWith('\n') ? value : `${value}\n`) : value
   if (!normalized) return true
 
+  const seq = ensureInputSequence(tab, meta)
   const payload = {
     type: 'input',
     payload: {
       data: normalized,
-      encoding: 'utf-8'
+      encoding: 'utf-8',
+      seq,
+      source: tab.id || undefined
     }
   }
 

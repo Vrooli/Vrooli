@@ -114,8 +114,6 @@ vrooli scenario start <scenario-name>        # ✅ ALTERNATIVE - CLI management
 
 ## 📚 Session Start Checklist
 1. [ ] Read `/docs/context.md` for project overview
-3. [ ] Check git status for uncommitted changes
-4. [ ] Review `/docs/scratch/` for previous session notes
 
 ## 🔧 Local Resources Setup
 **Default Behavior**: Setup now automatically installs resources marked as `"enabled": true` in `.vrooli/service.json`

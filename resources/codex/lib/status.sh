@@ -127,9 +127,46 @@ codex::status::collect_data() {
         fi
     fi
     
+    # Check rate limit status
+    local rate_limited="false"
+    local rate_limit_reset=""
+    local rate_limit_type="none"
+
+    local codex_home
+    codex_home=$(codex::ensure_home 2>/dev/null || echo "")
+    if [[ -n "$codex_home" ]] && [[ -f "${codex_home}/state.json" ]]; then
+        local state_content
+        state_content=$(cat "${codex_home}/state.json" 2>/dev/null || echo '{}')
+
+        rate_limited=$(echo "$state_content" | jq -r '.rate_limited // false' 2>/dev/null || echo "false")
+
+        if [[ "$rate_limited" == "true" ]]; then
+            rate_limit_reset=$(echo "$state_content" | jq -r '.last_rate_limit.reset_time // ""' 2>/dev/null || echo "")
+            rate_limit_type=$(echo "$state_content" | jq -r '.last_rate_limit.limit_type // "unknown"' 2>/dev/null || echo "unknown")
+
+            # Check if rate limit has expired
+            if [[ -n "$rate_limit_reset" ]]; then
+                local current_time
+                current_time=$(date -u +%s)
+                local reset_time
+                reset_time=$(date -u -d "$rate_limit_reset" +%s 2>/dev/null || echo "0")
+
+                if [[ $current_time -gt $reset_time ]]; then
+                    # Rate limit has expired
+                    rate_limited="false"
+                    rate_limit_reset=""
+                    rate_limit_type="none"
+
+                    # Clear rate limit from state
+                    echo "$state_content" | jq '. + {rate_limited: false}' > "${codex_home}/state.json" 2>/dev/null || true
+                fi
+            fi
+        fi
+    fi
+
     # Check new architecture components (skip in fast mode)
     local orchestrator_available="false"
-    local tools_available="false" 
+    local tools_available="false"
     local tools_count=0
     local workspace_available="false"
     local workspaces_count=0
@@ -213,8 +250,14 @@ codex::status::collect_data() {
     echo "${workspace_available}"
     echo "workspaces_count"
     echo "${workspaces_count}"
-    echo "models_available" 
+    echo "models_available"
     echo "${models_available}"
+    echo "rate_limited"
+    echo "${rate_limited}"
+    echo "rate_limit_reset"
+    echo "${rate_limit_reset}"
+    echo "rate_limit_type"
+    echo "${rate_limit_type}"
     echo "message"
     echo "${details}"
     echo "description"
@@ -258,6 +301,13 @@ codex::status::display_text() {
     echo "Workspace Available: ${data[workspace_available]}"
     echo "Active Workspaces: ${data[workspaces_count]}"
     echo "Models Available: ${data[models_available]}"
+    echo ""
+    echo "=== Rate Limit Status ==="
+    echo "Rate Limited: ${data[rate_limited]}"
+    if [[ "${data[rate_limited]}" == "true" ]]; then
+        echo "Limit Type: ${data[rate_limit_type]}"
+        echo "Resets At: ${data[rate_limit_reset]}"
+    fi
     echo ""
     echo "Message: ${data[message]}"
     echo "Description: ${data[description]}"

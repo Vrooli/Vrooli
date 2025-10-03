@@ -4,13 +4,16 @@
 let currentAgents = [];
 let filteredAgents = [];
 let agentRadar = null;
+let performanceHistory = null;
 
 // Filter and sort state
 let currentSearchQuery = '';
 let currentSortOption = 'name-asc';
+let groupByResource = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
     initializeRadar();
+    initializePerformanceTracking();
     initializeDashboardControls();
     await fetchAndRenderAgents();
     startRealtimeUpdates();
@@ -24,10 +27,30 @@ function initializeRadar() {
     }
 }
 
+function initializePerformanceTracking() {
+    if (typeof PerformanceHistory !== 'undefined') {
+        performanceHistory = new PerformanceHistory();
+        console.log('📊 Performance history tracking initialized');
+    }
+}
+
+function groupAgentsByResource(agents) {
+    const grouped = {};
+    agents.forEach(agent => {
+        const resourceType = agent.type || 'unknown';
+        if (!grouped[resourceType]) {
+            grouped[resourceType] = [];
+        }
+        grouped[resourceType].push(agent);
+    });
+    return grouped;
+}
+
 function initializeDashboardControls() {
     const searchInput = document.getElementById('agentSearch');
     const searchClear = document.getElementById('searchClear');
     const sortSelect = document.getElementById('agentSort');
+    const groupToggle = document.getElementById('groupToggle');
     
     if (searchInput) {
         // Real-time search
@@ -160,6 +183,11 @@ async function fetchAndRenderAgents() {
     try {
         currentAgents = await window.agentAPI.fetchAgents();
         
+        // Update performance history
+        if (performanceHistory && currentAgents.length > 0) {
+            performanceHistory.updateFromAgents(currentAgents);
+        }
+        
         // Apply current filters and sort
         applyFiltersAndSort();
         
@@ -196,24 +224,67 @@ function renderAgentGrid(agentsToRender = null) {
     
     grid.classList.remove('empty');
     
-    agents.forEach((agent, index) => {
-        const card = createAgentCard(agent);
-        const cardElement = document.createElement('div');
-        cardElement.innerHTML = card;
-        cardElement.firstElementChild.style.animationDelay = `${index * 0.1}s`;
-        grid.appendChild(cardElement.firstElementChild);
+    // Group by resource type if enabled
+    if (groupByResource) {
+        const grouped = groupAgentsByResource(agents);
+        let globalIndex = 0;
         
-        // Initialize uptime for this card
-        const uptimeElement = cardElement.querySelector('[data-uptime-value]');
-        if (uptimeElement) {
-            // Check multiple possible timestamp fields
-            const startTime = agent.start_time || agent.StartTime || agent.startTime;
-            if (startTime) {
-                const uptimeText = formatLiveUptime(startTime, agent.status === 'active');
-                uptimeElement.textContent = uptimeText;
+        Object.keys(grouped).sort().forEach(resourceType => {
+            // Create group header
+            const groupHeader = document.createElement('div');
+            groupHeader.className = 'agent-group-header';
+            groupHeader.innerHTML = `
+                <h3>${resourceType.toUpperCase()}</h3>
+                <span class="agent-count">${grouped[resourceType].length} agents</span>
+            `;
+            grid.appendChild(groupHeader);
+            
+            // Create group container
+            const groupContainer = document.createElement('div');
+            groupContainer.className = 'agent-group-container';
+            
+            // Add agents in this group
+            grouped[resourceType].forEach((agent, index) => {
+                const card = createAgentCard(agent);
+                const cardElement = document.createElement('div');
+                cardElement.innerHTML = card;
+                cardElement.firstElementChild.style.animationDelay = `${globalIndex * 0.1}s`;
+                groupContainer.appendChild(cardElement.firstElementChild);
+                globalIndex++;
+                
+                // Initialize uptime for this card
+                const uptimeElement = cardElement.querySelector('[data-uptime-value]');
+                if (uptimeElement) {
+                    const startTime = agent.start_time || agent.StartTime || agent.startTime;
+                    if (startTime) {
+                        const uptimeText = formatLiveUptime(startTime, agent.status === 'active');
+                        uptimeElement.textContent = uptimeText;
+                    }
+                }
+            });
+            
+            grid.appendChild(groupContainer);
+        });
+    } else {
+        agents.forEach((agent, index) => {
+            const card = createAgentCard(agent);
+            const cardElement = document.createElement('div');
+            cardElement.innerHTML = card;
+            cardElement.firstElementChild.style.animationDelay = `${index * 0.1}s`;
+            grid.appendChild(cardElement.firstElementChild);
+            
+            // Initialize uptime for this card
+            const uptimeElement = cardElement.querySelector('[data-uptime-value]');
+            if (uptimeElement) {
+                // Check multiple possible timestamp fields
+                const startTime = agent.start_time || agent.StartTime || agent.startTime;
+                if (startTime) {
+                    const uptimeText = formatLiveUptime(startTime, agent.status === 'active');
+                    uptimeElement.textContent = uptimeText;
+                }
             }
-        }
-    });
+        });
+    }
     
     // Reinitialize Lucide icons for new content
     if (typeof lucide !== 'undefined') {
@@ -349,15 +420,28 @@ function createAgentCard(agent) {
                 </div>
             </div>
             
+            ${performanceHistory ? `
+            <div class="agent-performance-graphs">
+                <div class="sparkline-container">
+                    <label>CPU History</label>
+                    ${performanceHistory.createSparkline(agent.id, 'cpu', 140, 30)}
+                </div>
+                <div class="sparkline-container">
+                    <label>Memory History</label>
+                    ${performanceHistory.createSparkline(agent.id, 'memory', 140, 30)}
+                </div>
+            </div>
+            ` : ''}
+            
             <div class="agent-controls">
                 <button class="control-btn" onclick="event.stopPropagation(); quickStop('${agent.id}')">
                     <i data-lucide="square"></i>
                     STOP
                 </button>
-                <a href="/logs.html?agent=${agent.id}" class="control-btn" onclick="event.stopPropagation()">
+                <button class="control-btn" onclick="event.stopPropagation(); openAgentLogs('${agent.id}')">
                     <i data-lucide="scroll-text"></i>
                     LOGS
-                </a>
+                </button>
             </div>
         </div>
     `;

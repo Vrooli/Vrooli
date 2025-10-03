@@ -13,12 +13,18 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
-# Handle symlinks for installed CLI
+# Determine the script directory
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    # If this script is a symlink, resolve it
     BROWSERLESS_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-    APP_ROOT="$(builtin cd "${BROWSERLESS_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+    SCRIPT_DIR="$(dirname "${BROWSERLESS_CLI_SCRIPT}")"
+else
+    # Get the directory of the script
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
+
+# Set APP_ROOT relative to the script
+APP_ROOT="${APP_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 BROWSERLESS_CLI_DIR="${APP_ROOT}/resources/browserless"
 
 # shellcheck disable=SC1091
@@ -105,16 +111,16 @@ cli::register_subcommand "content" "api" "Test all browserless APIs" "browserles
 cli::register_subcommand "content" "session" "Manage persistent browser sessions" "session::list"
 cli::register_subcommand "content" "inject" "Inject scripts or functions" "browserless::inject"
 
-# Pool management commands
-browserless::pool() { pool::show_stats; }  # Default to showing stats
-cli::register_command "pool" "Manage browser pool (auto-scaling)" "browserless::pool"
-cli::register_subcommand "pool" "start" "Start auto-scaler" "pool::start_autoscaler"
-cli::register_subcommand "pool" "stop" "Stop auto-scaler" "pool::stop_autoscaler"
-cli::register_subcommand "pool" "status" "Show pool statistics" "pool::show_stats"
-cli::register_subcommand "pool" "metrics" "Get pool metrics" "pool::get_metrics"
-cli::register_subcommand "pool" "prewarm" "Pre-warm browser instances" "pool::prewarm"
-cli::register_subcommand "pool" "smart-prewarm" "Intelligently pre-warm if idle" "pool::smart_prewarm"
-cli::register_subcommand "pool" "recover" "Check and recover unhealthy pool" "pool::health_check_and_recover"
+# Pool management commands - properly handle default behavior
+cli::register_command "pool" "Manage browser pool (auto-scaling)" "browserless::pool_dispatch"
+cli::register_subcommand "pool" "start" "Start auto-scaler" "browserless::pool_start"
+cli::register_subcommand "pool" "stop" "Stop auto-scaler" "browserless::pool_stop"
+cli::register_subcommand "pool" "stats" "Show pool statistics" "pool::show_stats"
+cli::register_subcommand "pool" "metrics" "Get pool metrics" "browserless::pool_metrics"
+cli::register_subcommand "pool" "prewarm" "Pre-warm browser instances" "browserless::pool_prewarm"
+cli::register_subcommand "pool" "smart-prewarm" "Intelligently pre-warm if idle" "browserless::pool_smart_prewarm"
+cli::register_subcommand "pool" "recover" "Check and recover unhealthy pool" "browserless::pool_recover"
+cli::register_subcommand "pool" "logs" "View auto-scaler logs" "browserless::pool_logs"
 
 # Cache management commands  
 browserless::cache() { cache::stats; }  # Default to showing stats
@@ -171,15 +177,149 @@ browserless::adapter_dispatch() {
     fi
 }
 
-# Pool management dispatcher
-browserless::pool() {
-    # If no subcommand, show pool status
-    if [[ $# -eq 0 ]]; then
+# Pool management dispatcher - handles both standalone and subcommand usage
+browserless::pool_dispatch() {
+    # When called without arguments or with 'stats' subcommand, show pool stats
+    # This ensures 'pool' and 'pool stats' both work correctly
+    if [[ $# -eq 0 ]] || [[ "${1:-}" == "stats" ]]; then
+        pool::show_stats
+        return $?
+    fi
+    
+    # For other subcommands, the CLI framework will handle dispatch
+    # This should not normally be reached as framework handles subcommands
+    log::debug "Pool dispatch called with: $*"
+    return 0
+}
+
+# Pool wrapper functions to ensure output is displayed
+browserless::pool_metrics() {
+    local metrics
+    metrics=$(pool::get_metrics) || {
+        echo "❌ Failed to get pool metrics"
+        return 1
+    }
+    echo "$metrics" | jq '.'
+}
+
+browserless::pool_start() {
+    # Capture and display any output from the function
+    local output
+    output=$(pool::start_autoscaler 2>&1)
+    local exit_code=$?
+    
+    if [[ -n "$output" ]]; then
+        echo "$output"
+    fi
+    
+    if [[ $exit_code -eq 0 ]]; then
+        echo "✅ Auto-scaler started successfully"
+        # Show current status
         pool::show_stats
     else
-        # Let CLI framework handle subcommand dispatch
-        return 0
+        echo "❌ Failed to start auto-scaler"
     fi
+    return $exit_code
+}
+
+browserless::pool_stop() {
+    # Capture and display any output from the function
+    local output
+    output=$(pool::stop_autoscaler 2>&1)
+    local exit_code=$?
+    
+    if [[ -n "$output" ]]; then
+        echo "$output"
+    fi
+    
+    if [[ $exit_code -eq 0 ]]; then
+        echo "✅ Auto-scaler stopped successfully"
+    else
+        echo "❌ Failed to stop auto-scaler"
+    fi
+    return $exit_code
+}
+
+browserless::pool_prewarm() {
+    local count="${1:-2}"
+    
+    # Capture and display any output
+    local output
+    output=$(pool::prewarm "$count" 2>&1)
+    local exit_code=$?
+    
+    if [[ -n "$output" ]]; then
+        echo "$output"
+    fi
+    
+    if [[ $exit_code -eq 0 ]]; then
+        echo "✅ Successfully pre-warmed $count browser instances"
+        # Show updated pool stats
+        pool::show_stats
+    else
+        echo "❌ Failed to pre-warm browser instances"
+    fi
+    return $exit_code
+}
+
+browserless::pool_smart_prewarm() {
+    # Capture and display any output
+    local output
+    output=$(pool::smart_prewarm 2>&1)
+    local exit_code=$?
+    
+    if [[ -n "$output" ]]; then
+        echo "$output"
+    fi
+    
+    if [[ $exit_code -eq 0 ]]; then
+        echo "✅ Smart pre-warm completed"
+        # Show updated pool stats
+        pool::show_stats
+    else
+        echo "❌ Smart pre-warm failed"
+    fi
+    return $exit_code
+}
+
+browserless::pool_recover() {
+    # Capture and display any output
+    local output
+    output=$(pool::health_check_and_recover 2>&1)
+    local exit_code=$?
+    
+    if [[ -n "$output" ]]; then
+        echo "$output"
+    fi
+    
+    if [[ $exit_code -eq 0 ]]; then
+        echo "✅ Pool recovery check completed"
+        # Show current pool health
+        pool::show_stats
+    else
+        echo "❌ Pool recovery check failed"
+    fi
+    return $exit_code
+}
+
+browserless::pool_logs() {
+    local log_file="${BROWSERLESS_DATA_DIR}/autoscaler.log"
+    local lines="${1:-50}"  # Default to last 50 lines
+    
+    if [[ ! -f "$log_file" ]]; then
+        echo "📋 No autoscaler logs found"
+        echo "💡 Start the autoscaler first: vrooli resource browserless pool start"
+        return 1
+    fi
+    
+    echo "📋 Autoscaler Logs (last $lines lines):"
+    echo "────────────────────────────"
+    tail -n "$lines" "$log_file"
+    
+    # Show log file location for reference
+    echo ""
+    echo "💡 Full log file: $log_file"
+    echo "💡 Watch logs live: tail -f $log_file"
 }
 
 # Benchmark dispatchers

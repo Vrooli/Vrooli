@@ -6,7 +6,24 @@
     <title>Dashboard - Agent Command Center</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" crossorigin="anonymous"></script>
+    <script type="module">
+        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+        if (typeof window !== 'undefined' && window.parent !== window && !window.__agentDashboardBridgeInitialized) {
+            let parentOrigin;
+            try {
+                if (document.referrer) {
+                    parentOrigin = new URL(document.referrer).origin;
+                }
+            } catch (error) {
+                console.warn('[AgentDashboard] Unable to parse parent origin for iframe bridge', error);
+            }
+
+            initIframeBridgeChild({ parentOrigin, appId: 'agent-dashboard' });
+            window.__agentDashboardBridgeInitialized = true;
+        }
+    </script>
 </head>
 <body>
     <!-- Background effects -->
@@ -90,20 +107,63 @@
                         </label>
                         <select id="agentSort" class="sort-select">
                             <option value="name-asc">Name (A-Z)</option>
-                            <option value="name-desc">Name (Z-A)</option>
-                            <option value="type-asc">Type (A-Z)</option>
-                            <option value="type-desc">Type (Z-A)</option>
-                            <option value="status-active">Status (Active First)</option>
-                            <option value="status-inactive">Status (Inactive First)</option>
-                            <option value="uptime-newest">Uptime (Newest First)</option>
-                            <option value="uptime-oldest">Uptime (Oldest First)</option>
-                            <option value="memory-high">Memory (High to Low)</option>
+                        <option value="name-desc">Name (Z-A)</option>
+                        <option value="type-asc">Type (A-Z)</option>
+                        <option value="type-desc">Type (Z-A)</option>
+                        <option value="status-running">Status (Running First)</option>
+                        <option value="status-completed">Status (Completed First)</option>
+                        <option value="uptime-newest">Uptime (Newest First)</option>
+                        <option value="uptime-oldest">Uptime (Oldest First)</option>
+                        <option value="memory-high">Memory (High to Low)</option>
                             <option value="memory-low">Memory (Low to High)</option>
                         </select>
                     </div>
                     
+                    <div class="capability-container">
+                        <label class="capability-label">
+                            <i data-lucide="filter"></i>
+                            Capability:
+                        </label>
+                        <select id="capabilityFilter" class="capability-select">
+                            <option value="">All Capabilities</option>
+                            <option value="code-generation">Code Generation</option>
+                            <option value="debugging">Debugging</option>
+                            <option value="refactoring">Refactoring</option>
+                            <option value="analysis">Analysis</option>
+                            <option value="testing">Testing</option>
+                            <option value="deployment">Deployment</option>
+                        </select>
+                    </div>
+                    
+                    <div class="group-toggle">
+                        <button id="groupToggle" class="toggle-btn">
+                            <i data-lucide="layers"></i>
+                            <span>Group by Resource</span>
+                        </button>
+                    </div>
+
+                    <div class="launch-control">
+                        <button id="launchAgentBtn" class="toggle-btn primary">
+                            <i data-lucide="rocket"></i>
+                            <span>Launch Codex Agent</span>
+                        </button>
+                    </div>
+                    
                     <div class="agent-counter">
                         <span id="visibleAgentCount">0</span> of <span id="totalAgentCount">0</span> agents
+                    </div>
+                    
+                    <div class="radar-theme-container">
+                        <label class="radar-theme-label">
+                            <i data-lucide="palette"></i>
+                            Radar:
+                        </label>
+                        <select id="radarTheme" class="radar-theme-select">
+                            <option value="cyberpunk">Cyberpunk</option>
+                            <option value="matrix">Matrix</option>
+                            <option value="military">Military</option>
+                            <option value="neon">Neon</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -115,12 +175,95 @@
         </main>
     </div>
 
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="keyboardModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content keyboard-help">
+            <div class="modal-header">
+                <h2>Keyboard Shortcuts</h2>
+                <button class="modal-close" onclick="toggleKeyboardHelp()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="shortcut-group">
+                    <h3>Navigation</h3>
+                    <div class="shortcut-item">
+                        <span class="shortcut-keys">Ctrl + R</span>
+                        <span class="shortcut-desc">Refresh agents</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span class="shortcut-keys">Ctrl + S</span>
+                        <span class="shortcut-desc">Trigger new scan</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span class="shortcut-keys">Ctrl + F</span>
+                        <span class="shortcut-desc">Focus search</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span class="shortcut-keys">?</span>
+                        <span class="shortcut-desc">Show this help</span>
+                    </div>
+                </div>
+                <div class="shortcut-group">
+                    <h3>View Controls</h3>
+                    <div class="shortcut-item">
+                        <span class="shortcut-keys">1</span>
+                        <span class="shortcut-desc">Dashboard view</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span class="shortcut-keys">2</span>
+                        <span class="shortcut-desc">Agents view</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span class="shortcut-keys">3</span>
+                        <span class="shortcut-desc">Logs view</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span class="shortcut-keys">4</span>
+                        <span class="shortcut-desc">Metrics view</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="radar.js"></script>
     <script src="shared/api.js"></script>
+    <script src="performance-history.js"></script>
+    <script src="multi-log-viewer.js"></script>
     <script src="dashboard.js"></script>
     <script>
         // Initialize Lucide icons
         lucide.createIcons();
+        
+        // Keyboard help toggle
+        function toggleKeyboardHelp() {
+            const modal = document.getElementById('keyboardModal');
+            modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
+        }
+        
+        // Listen for ? key to show help
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+                e.preventDefault();
+                toggleKeyboardHelp();
+            }
+            // Number keys for navigation
+            if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+                switch(e.key) {
+                    case '1':
+                        window.location.href = '/';
+                        break;
+                    case '2':
+                        window.location.href = '/agents.html';
+                        break;
+                    case '3':
+                        window.location.href = '/logs.html';
+                        break;
+                    case '4':
+                        window.location.href = '/metrics.html';
+                        break;
+                }
+            }
+        });
     </script>
 </body>
 </html>

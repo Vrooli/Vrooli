@@ -17,6 +17,35 @@ class AgentRadar {
         this.centerY = this.radarSize / 2;
         this.maxRadius = this.radarSize / 2 - 10;
         this.animationSpeed = 0.008; // Reduced speed for smoother, slower agent movement
+        this.currentTheme = 'cyberpunk';
+        
+        // Theme configurations
+        this.themes = {
+            cyberpunk: {
+                colors: ['#00ffff', '#ff00ff', '#ffff00'],
+                sweepColor: '#00ffff',
+                gridColor: 'rgba(0, 255, 255, 0.3)',
+                title: 'AGENT SCAN'
+            },
+            matrix: {
+                colors: ['#00ff00', '#00cc00', '#009900'],
+                sweepColor: '#00ff00',
+                gridColor: 'rgba(0, 255, 0, 0.3)',
+                title: 'SYSTEM TRACE'
+            },
+            military: {
+                colors: ['#ff6600', '#ff3300', '#cc0000'],
+                sweepColor: '#ff6600',
+                gridColor: 'rgba(255, 102, 0, 0.3)',
+                title: 'TACTICAL SCAN'
+            },
+            neon: {
+                colors: ['#ff00ff', '#00ffff', '#ffff00'],
+                sweepColor: '#ff00ff',
+                gridColor: 'rgba(255, 0, 255, 0.3)',
+                title: 'NEON TRACE'
+            }
+        };
         
         this.init();
     }
@@ -150,6 +179,43 @@ class AgentRadar {
             target_x: 50 + Math.cos(angle + Math.PI) * radius * 0.3,
             target_y: 50 + Math.sin(angle + Math.PI) * radius * 0.3
         };
+    }
+    
+    setTheme(themeName) {
+        // Change the radar theme
+        if (this.themes[themeName]) {
+            this.currentTheme = themeName;
+            
+            // Update sweep color
+            const theme = this.themes[themeName];
+            const sweepLine = this.container.querySelector('.radar-sweep');
+            if (sweepLine) {
+                sweepLine.style.background = `linear-gradient(90deg, transparent, ${theme.sweepColor} 50%, transparent)`;
+            }
+            
+            // Update agent colors based on new theme
+            this.agents.forEach(agent => {
+                const element = agent.element;
+                if (element) {
+                    const colorIndex = parseInt(agent.id.charCodeAt(0)) % theme.colors.length;
+                    const color = theme.colors[colorIndex];
+                    element.style.background = `radial-gradient(circle at center, ${color}, transparent)`;
+                    element.style.boxShadow = `0 0 15px ${color}`;
+                }
+            });
+            
+            // Update grid color
+            const grids = this.container.querySelectorAll('.radar-grid, .radar-grid-lines line');
+            grids.forEach(grid => {
+                if (grid.tagName === 'line') {
+                    grid.style.stroke = theme.gridColor;
+                } else {
+                    grid.style.border = `1px solid ${theme.gridColor}`;
+                }
+            });
+            
+            console.log(`Radar theme changed to: ${themeName}`);
+        }
     }
     
     setNewTarget(agent) {

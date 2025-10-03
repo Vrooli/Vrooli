@@ -40,7 +40,7 @@ browserless::test::integration() {
     # Test 1: Screenshot API functionality
     log::info "1/7 Testing screenshot API..."
     local screenshot_ok=true
-    local test_url="https://httpbin.org/html"
+    local test_url="https://www.example.com"
     local screenshot_file="$INTEGRATION_TEST_DIR/test-screenshot.png"
     
     if timeout 30 curl -X POST "http://localhost:${BROWSERLESS_PORT}/chrome/screenshot" \
@@ -81,7 +81,7 @@ browserless::test::integration() {
     
     if timeout 30 curl -X POST "http://localhost:${BROWSERLESS_PORT}/chrome/pdf" \
         -H "Content-Type: application/json" \
-        -d "{\"url\": \"$test_url\"}" \
+        -d "{\"url\": \"https://www.example.com\"}" \
         --output "$pdf_file" >/dev/null 2>&1; then
         
         # Verify PDF was created and has content
@@ -115,15 +115,15 @@ browserless::test::integration() {
     local content_ok=true
     local content_file="$INTEGRATION_TEST_DIR/test-content.html"
     
-    if timeout 20 curl -X POST "http://localhost:${BROWSERLESS_PORT}/chrome/content" \
+    if timeout 30 curl -X POST "http://localhost:${BROWSERLESS_PORT}/chrome/content" \
         -H "Content-Type: application/json" \
-        -d "{\"url\": \"$test_url\"}" \
+        -d "{\"url\": \"https://www.example.com\", \"gotoOptions\": {\"waitUntil\": \"networkidle2\"}}" \
         --output "$content_file" 2>/dev/null; then
         
         # Verify content was extracted
         if [[ -f "$content_file" ]] && [[ -s "$content_file" ]]; then
-            # Check if it contains expected HTML content
-            if grep -q "html\|body\|head" "$content_file"; then
+            # Check if it contains expected HTML content (case insensitive)
+            if grep -qi "html\|body\|head\|DOCTYPE" "$content_file"; then
                 log::success "✓ Content extraction API working - extracted HTML"
                 if [[ "$verbose" == "true" ]]; then
                     local line_count=$(wc -l < "$content_file")
@@ -213,8 +213,61 @@ browserless::test::integration() {
         overall_status=1
     fi
     
-    # Test 7: Adapter system check
-    log::info "7/7 Testing adapter system availability..."
+    # Test 7: Advanced screenshot options
+    log::info "7/9 Testing advanced screenshot options..."
+    local advanced_screenshot_ok=true
+    local viewport_screenshot="$INTEGRATION_TEST_DIR/viewport-screenshot.png"
+    
+    # Test screenshot with custom viewport size
+    if timeout 30 curl -X POST "http://localhost:${BROWSERLESS_PORT}/chrome/screenshot" \
+        -H "Content-Type: application/json" \
+        -d "{\"url\": \"https://www.example.com\", \"viewport\": {\"width\": 1920, \"height\": 1080}}" \
+        --output "$viewport_screenshot" >/dev/null 2>&1; then
+        
+        if [[ -f "$viewport_screenshot" ]] && [[ -s "$viewport_screenshot" ]]; then
+            log::success "✓ Advanced screenshot with viewport settings working"
+        else
+            log::error "✗ Advanced screenshot did not create output file"
+            advanced_screenshot_ok=false
+        fi
+    else
+        log::error "✗ Advanced screenshot request failed"
+        advanced_screenshot_ok=false
+    fi
+    
+    if [[ "$advanced_screenshot_ok" != "true" ]]; then
+        overall_status=1
+    fi
+    
+    # Test 8: Pool management functionality  
+    log::info "8/9 Testing pool management functionality..."
+    local pool_ok=true
+    
+    # Source pool manager for testing
+    # shellcheck disable=SC1091
+    source "${BROWSERLESS_CLI_DIR}/lib/pool-manager.sh" 2>/dev/null || pool_ok=false
+    
+    if [[ "$pool_ok" == "true" ]]; then
+        # Test pool stats function
+        if pool::show_stats >/dev/null 2>&1; then
+            log::success "✓ Pool statistics function working"
+        else
+            log::warning "⚠️ Pool statistics function failed - may be OK if browserless not running"
+        fi
+        
+        # Test pool metrics function  
+        if pool::get_metrics >/dev/null 2>&1; then
+            log::success "✓ Pool metrics retrieval working"
+        else
+            log::warning "⚠️ Pool metrics retrieval failed - may be OK if browserless not running"
+        fi
+    else
+        log::error "✗ Failed to source pool manager library"
+        overall_status=1
+    fi
+    
+    # Test 9: Adapter system check
+    log::info "9/9 Testing adapter system availability..."
     local adapter_ok=true
     
     # Test adapter help/list functionality

@@ -53,7 +53,7 @@ function setupControls() {
     document.getElementById('refreshBtn').addEventListener('click', loadLogs);
     document.getElementById('followBtn').addEventListener('click', toggleFollow);
     document.getElementById('clearBtn').addEventListener('click', clearLogs);
-    document.getElementById('downloadBtn').addEventListener('click', downloadLogs);
+    document.getElementById('exportBtn').addEventListener('click', downloadLogs);
     document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
     
     // Enter key in line count input

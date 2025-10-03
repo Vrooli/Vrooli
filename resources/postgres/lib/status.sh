@@ -397,9 +397,9 @@ postgres::status::custom_sections() {
         for instance in "${instances[@]}"; do
             local port=$(postgres::common::get_instance_config "$instance" "port" 2>/dev/null || echo "unknown")
             if postgres::common::is_running "$instance"; then
-                ((running_count++))
+                running_count=$((running_count + 1))
                 if postgres::common::health_check "$instance" >/dev/null 2>&1; then
-                    ((healthy_count++))
+                    healthy_count=$((healthy_count + 1))
                     log::info "   ✅ $instance: running (port $port)"
                 else
                     log::info "   ⚠️  $instance: running but unhealthy (port $port)"

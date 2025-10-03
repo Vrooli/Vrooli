@@ -100,24 +100,65 @@ http_client::request_with_retry() {
     local max_retries="${CODEX_RETRY_COUNT:-3}"
     local base_delay="${CODEX_RETRY_DELAY:-2}"
     local attempt=1
-    
+
     while [[ $attempt -le $max_retries ]]; do
         log::debug "HTTP request attempt $attempt/$max_retries"
-        
-        # Make the request
+
+        # Make the request and capture HTTP status code
+        local temp_file=$(mktemp)
         local response
+        local http_code
         local exit_code
-        response=$(curl "$@" 2>&1)
+
+        response=$(curl --write-out "\n%{http_code}" "$@" 2>&1 | tee "$temp_file")
         exit_code=$?
-        
+
+        # Extract HTTP code from last line
+        http_code=$(tail -n1 "$temp_file" 2>/dev/null || echo "0")
+        response=$(head -n-1 "$temp_file" 2>/dev/null || echo "$response")
+        rm -f "$temp_file"
+
         # If successful, return response
         if [[ $exit_code -eq 0 ]]; then
+            # Check for rate limit (HTTP 429)
+            if [[ "$http_code" == "429" ]]; then
+                log::debug "Rate limit detected (HTTP 429)"
+
+                # Detect and record rate limit
+                local rate_info
+                rate_info=$(codex::detect_rate_limit "$response" "$http_code")
+                codex::record_rate_limit "$rate_info"
+
+                # Extract retry time
+                local retry_after
+                retry_after=$(echo "$rate_info" | jq -r '.retry_after_seconds // 300')
+
+                # Don't retry automatically - let caller handle rate limits
+                echo "$response"
+                return 1
+            fi
+
             # Check for API-level errors
             if echo "$response" | jq -e '.error' &>/dev/null; then
                 local error_type=$(echo "$response" | jq -r '.error.type // "unknown"')
-                
+                local error_code=$(echo "$response" | jq -r '.error.code // "unknown"')
+
+                # Check for rate limit error
+                if [[ "$error_type" == "rate_limit_exceeded" ]] || [[ "$error_code" == "rate_limit_exceeded" ]]; then
+                    log::debug "Rate limit detected in API response"
+
+                    # Detect and record rate limit
+                    local rate_info
+                    rate_info=$(codex::detect_rate_limit "$response" "429")
+                    codex::record_rate_limit "$rate_info"
+
+                    # Don't retry on rate limits - return error to caller
+                    echo "$response"
+                    return 1
+                fi
+
                 # Retry on server errors, not client errors
-                if [[ "$error_type" =~ (server_error|timeout|rate_limit) ]]; then
+                if [[ "$error_type" =~ (server_error|timeout) ]]; then
                     log::debug "API error (retryable): $error_type"
                 else
                     # Client error, don't retry
@@ -133,17 +174,17 @@ http_client::request_with_retry() {
         else
             log::debug "HTTP request failed with exit code: $exit_code"
         fi
-        
+
         # Calculate delay for next attempt
         if [[ $attempt -lt $max_retries ]]; then
             local delay=$((base_delay ** attempt))
             log::debug "Retrying in ${delay} seconds..."
             sleep "$delay"
         fi
-        
+
         ((attempt++))
     done
-    
+
     # All retries failed
     log::error "HTTP request failed after $max_retries attempts"
     echo '{"error": {"message": "Request failed after retries", "type": "network_error"}}'

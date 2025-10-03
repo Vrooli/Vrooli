@@ -177,8 +177,59 @@ browserless::test::unit() {
         overall_status=1
     fi
 
-    # Test 7: Workflow metadata parsing
-    log::info "7/7 Testing workflow metadata parsing..."
+    # Test 7: Cache functionality
+    log::info "7/8 Testing cache functions..."
+    
+    # Source cache library
+    if source "${BROWSERLESS_CLI_DIR}/lib/cache.sh" 2>/dev/null; then
+        # Test cache functions are available
+        if declare -f cache::init >/dev/null 2>&1; then
+            log::success "✓ cache::init function is available"
+        else
+            log::error "✗ cache::init function not found"
+            overall_status=1
+        fi
+        
+        if declare -f cache::stats >/dev/null 2>&1; then
+            log::success "✓ cache::stats function is available"
+        else
+            log::error "✗ cache::stats function not found"
+            overall_status=1
+        fi
+        
+        if declare -f cache::cleanup_expired >/dev/null 2>&1; then
+            log::success "✓ cache::cleanup_expired function is available"
+        else
+            log::error "✗ cache::cleanup_expired function not found"
+            overall_status=1
+        fi
+    else
+        log::warning "⚠️ Cache library not available (optional feature)"
+    fi
+    
+    # Test 8: Pool recovery functions
+    log::info "8/9 Testing pool recovery functions..."
+    # shellcheck disable=SC1091
+    if source "${BROWSERLESS_CLI_DIR}/lib/pool-manager.sh" 2>/dev/null; then
+        if declare -f pool::health_check_and_recover >/dev/null 2>&1; then
+            log::success "✓ pool::health_check_and_recover function is available"
+        else
+            log::error "✗ pool::health_check_and_recover function not found"
+            overall_status=1
+        fi
+        
+        if declare -f pool::attempt_recovery >/dev/null 2>&1; then
+            log::success "✓ pool::attempt_recovery function is available"
+        else
+            log::error "✗ pool::attempt_recovery function not found"
+            overall_status=1
+        fi
+    else
+        log::warning "⚠️ Pool manager library not available"
+    fi
+    
+    # Test 9: Workflow metadata parsing
+    log::info "9/9 Testing workflow metadata parsing..."
     if bash "${BROWSERLESS_CLI_DIR}/test/test-workflow-metadata.sh"; then
         log::success "✓ Workflow metadata parsing emitted metadata.json"
     else

@@ -47,6 +47,8 @@ type statusPayload struct {
 type inputPayload struct {
 	Data     string `json:"data"`
 	Encoding string `json:"encoding"`
+	Seq      uint64 `json:"seq,omitempty"`
+	Source   string `json:"source,omitempty"`
 }
 
 type heartbeatPayload struct {

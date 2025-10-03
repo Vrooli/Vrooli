@@ -49,6 +49,7 @@ type RunningScenario struct {
 type processTableEntry struct {
 	PID     int
 	PPID    int
+	PGID    int
 	State   string
 	Command string
 }
@@ -69,7 +70,7 @@ type ProcessHealthSnapshot struct {
 	OverallStatus string
 }
 
-var orphanCommandPattern = regexp.MustCompile(`(vrooli|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel)`)
+var orphanCommandPattern = regexp.MustCompile(`(/vrooli/|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel|vrooli-.*-api)`)
 
 // Helper function to check if a scenario name corresponds to a valid scenario directory
 func isValidScenario(name string) bool {
@@ -101,7 +102,7 @@ func checkForkBomb() error {
 
 // Build process table using a single ps invocation for efficient lookups
 func buildProcessTable() (map[int]processTableEntry, error) {
-	cmd := exec.Command("ps", "-eo", "pid,ppid,state,cmd")
+	cmd := exec.Command("ps", "-eo", "pid,ppid,pgid,state,cmd")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect process table: %w", err)
@@ -122,7 +123,7 @@ func buildProcessTable() (map[int]processTableEntry, error) {
 		}
 
 		fields := strings.Fields(line)
-		if len(fields) < 4 {
+		if len(fields) < 5 {
 			continue
 		}
 
@@ -136,12 +137,18 @@ func buildProcessTable() (map[int]processTableEntry, error) {
 			ppid = 0
 		}
 
-		state := fields[2]
-		command := strings.Join(fields[3:], " ")
+		pgid, err := strconv.Atoi(fields[2])
+		if err != nil {
+			pgid = 0
+		}
+
+		state := fields[3]
+		command := strings.Join(fields[4:], " ")
 
 		processTable[pid] = processTableEntry{
 			PID:     pid,
 			PPID:    ppid,
+			PGID:    pgid,
 			State:   state,
 			Command: command,
 		}
@@ -221,9 +228,9 @@ func interpretOrphanStatus(count int) (string, string) {
 	switch {
 	case count == 0:
 		return "healthy", "✅"
-	case count <= 3:
-		return "normal", "✅"
 	case count <= 10:
+		return "normal", "✅"
+	case count <= 25:
 		return "warning", "⚠️"
 	default:
 		return "critical", "🔴"
@@ -231,6 +238,7 @@ func interpretOrphanStatus(count int) (string, string) {
 }
 
 func isTrackedOrAncestorTracked(pid int, tracked map[int]struct{}, processTable map[int]processTableEntry, memo map[int]bool, visiting map[int]bool) bool {
+	// First check if this PID itself is tracked
 	if _, ok := tracked[pid]; ok {
 		memo[pid] = true
 		return true
@@ -244,6 +252,14 @@ func isTrackedOrAncestorTracked(pid int, tracked map[int]struct{}, processTable 
 	if !ok {
 		memo[pid] = false
 		return false
+	}
+
+	// Check if this process's PGID is tracked (handles reparented processes)
+	if entry.PGID > 0 {
+		if _, ok := tracked[entry.PGID]; ok {
+			memo[pid] = true
+			return true
+		}
 	}
 
 	if entry.PPID == 0 || entry.PPID == 1 {
@@ -272,6 +288,7 @@ func countOrphanProcessesFast(processTable map[int]processTableEntry, tracked ma
 	orphanCount := 0
 	memo := make(map[int]bool)
 	visiting := make(map[int]bool)
+
 	for pid, entry := range processTable {
 		if !orphanCommandPattern.MatchString(entry.Command) {
 			continue
@@ -1754,12 +1771,6 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 			"orphan_processes": orphanCount,
 			"orphan_status":    orphanStatus,
 			"process_health":   processStatus,
-		},
-		"apis": map[string]bool{
-			"apps":      true,
-			"scenarios": true,
-			"resources": false, // Coming soon
-			"lifecycle": false, // Coming soon
 		},
 	})
 }

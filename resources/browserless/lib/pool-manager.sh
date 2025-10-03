@@ -111,19 +111,28 @@ pool::start_autoscaler() {
     # Ensure data directory exists
     mkdir -p "$BROWSERLESS_DATA_DIR"
     
-    # Start autoscaler in background
-    {
+    # Create a log file for autoscaler output
+    local log_file="${BROWSERLESS_DATA_DIR}/autoscaler.log"
+    
+    # Start autoscaler in background, properly detached
+    # Use nohup and redirect output to prevent CLI hanging
+    nohup bash -c '
         while true; do
-            pool::monitor_and_scale
-            sleep "$POOL_MONITOR_INTERVAL"
+            # Suppress output unless there are errors
+            pool::monitor_and_scale 2>&1 | grep -E "ERROR|WARNING" || true
+            sleep '"$POOL_MONITOR_INTERVAL"'
         done
-    } &
+    ' > "$log_file" 2>&1 &
     
     local pid=$!
     echo "$pid" > "$AUTOSCALER_PID_FILE"
     
+    # Ensure the background process is fully detached
+    disown $pid 2>/dev/null || true
+    
     log::info "Auto-scaler started (PID: $pid)"
     log::info "Configuration: min=$POOL_MIN_SIZE, max=$POOL_MAX_SIZE, scale_up=$POOL_SCALE_UP_THRESHOLD%, scale_down=$POOL_SCALE_DOWN_THRESHOLD%"
+    log::info "Monitoring log: $log_file"
 }
 
 #######################################

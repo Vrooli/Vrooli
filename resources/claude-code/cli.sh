@@ -701,7 +701,7 @@ claude_code_run() {
     local prompt_file
     prompt_file=$(mktemp)
     echo "$prompt" > "$prompt_file"
-    
+
     # Set environment variables for claude_code::run function (except prompt)
     export PROMPT_FILE="$prompt_file"  # Pass file path instead of content
     export MAX_TURNS="${MAX_TURNS:-30}"

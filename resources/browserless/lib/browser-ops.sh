@@ -41,6 +41,13 @@ browser::execute_js() {
     local session_id="${2:-default}"
     local browserless_port="${BROWSERLESS_PORT:-4110}"
     
+    # First check if browserless is running
+    if ! timeout 2 curl -sf "http://localhost:${browserless_port}/pressure" >/dev/null 2>&1; then
+        log::error "Browserless is not accessible at port ${browserless_port}"
+        echo "❌ Browserless service is not running. Try: vrooli resource browserless develop" >&2
+        return 1
+    fi
+    
     # Create the JavaScript wrapper using ES6 export default format for browserless v2
     local wrapped_code="export default async ({ page, context }) => {
         try {
@@ -69,18 +76,58 @@ browser::execute_js() {
     
     # Execute via browserless v2 API using Content-Type: application/javascript
     local response
-    response=$(curl -s -X POST \
+    local http_code
+    
+    # Capture both response body and HTTP status code
+    response=$(curl -s -w "\n%{http_code}" -X POST \
         -H "Content-Type: application/javascript" \
         -d "$wrapped_code" \
         "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
     
+    # Extract HTTP code (last line) and response body
+    http_code=$(echo "$response" | tail -n 1)
+    response=$(echo "$response" | sed '$d')
+    
+    # Check HTTP status
+    if [[ "$http_code" != "200" ]]; then
+        log::error "Browserless API returned HTTP $http_code"
+        
+        # Provide helpful error messages based on status code
+        case "$http_code" in
+            404)
+                echo "❌ Function endpoint not available. This browserless version may not support the /function API." >&2
+                echo "💡 Try using the screenshot or content extraction commands instead." >&2
+                ;;
+            500|502|503)
+                echo "❌ Browserless service error. The container may need to be restarted." >&2
+                echo "💡 Try: vrooli resource browserless restart" >&2
+                ;;
+            429)
+                echo "❌ Too many requests. Browser pool may be at capacity." >&2
+                echo "💡 Wait a moment or increase MAX_CONCURRENT_SESSIONS." >&2
+                ;;
+            *)
+                echo "❌ Unexpected error from browserless (HTTP $http_code)" >&2
+                ;;
+        esac
+        return 1
+    fi
+    
     # Check for response
     if [[ -n "$response" ]]; then
-        # Just return the response - let the caller handle success/error checking
+        # Check if the response indicates an error
+        if echo "$response" | jq -e '.success == false' >/dev/null 2>&1; then
+            local error_msg=$(echo "$response" | jq -r '.error // "Unknown error"')
+            log::error "JavaScript execution failed: $error_msg"
+            echo "❌ Browser operation failed: $error_msg" >&2
+        fi
+        
+        # Return the response for caller to handle
         echo "$response"
         return 0
     else
-        log::error "No response from browserless"
+        log::error "Empty response from browserless"
+        echo "❌ No response from browserless. The service may be overloaded." >&2
         return 1
     fi
 }

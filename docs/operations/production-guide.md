@@ -622,6 +622,16 @@ redis-cli ping
 - [ ] Monitor for issues
 - [ ] Document incident and lessons learned
 
+## 🔁 Autoheal Watchdog
+
+- Run `scripts/maintenance/install-autoheal.sh` to install the hourly watchdog that restarts critical resources and scenarios when health checks fail.
+- Override defaults with env vars such as `VROOLI_AUTOHEAL_RESOURCES`, `VROOLI_AUTOHEAL_SCENARIOS`, `VROOLI_AUTOHEAL_GRACE_SECONDS`, `VROOLI_AUTOHEAL_VERIFY_DELAY`, and `VROOLI_AUTOHEAL_CMD_TIMEOUT` when invoking the installer.
+- API health checks target `http://127.0.0.1:${VROOLI_API_PORT:-8092}/health` by default; use `VROOLI_AUTOHEAL_API_URL`, `VROOLI_AUTOHEAL_API_TIMEOUT`, or `VROOLI_AUTOHEAL_API_RECOVERY` to customize detection and recovery when the orchestrator stops responding.
+- Example: `VROOLI_AUTOHEAL_API_RECOVERY="cd /home/USER/Vrooli && scripts/maintenance/restart-vrooli-api.sh" scripts/maintenance/install-autoheal.sh` wires the watchdog to the bundled API restart helper.
+- If `/var/log/vrooli-autoheal.log` is unwritable, it automatically falls back to `~/.vrooli/logs/vrooli-autoheal.log`.
+- The installer copies the script to `/usr/local/bin/vrooli-autoheal.sh`, ensures `/var/log/vrooli-autoheal.log` exists, registers the cron entry, and drops a weekly logrotate policy (`/etc/logrotate.d/vrooli-autoheal`).
+- Remove the automation with `scripts/maintenance/install-autoheal.sh --remove`.
+
 ## 🔒 Security Hardening
 
 ### **Operating System Security**

@@ -145,3 +145,132 @@ codex::save_status() {
     local status="${1:-stopped}"
     echo "${status}" > "${CODEX_STATUS_FILE}"
 }
+
+#######################################
+# Detect rate limit from API response
+# Arguments:
+#   $1 - API response (JSON or text)
+#   $2 - HTTP status code (optional)
+# Returns:
+#   JSON with rate limit detection info
+#######################################
+codex::detect_rate_limit() {
+    local response="${1:-}"
+    local http_code="${2:-0}"
+
+    local detected="false"
+    local limit_type="unknown"
+    local retry_after="300"
+    local reset_time=""
+    local error_message=""
+
+    # Check for 429 status code
+    if [[ "$http_code" == "429" ]]; then
+        detected="true"
+        error_message="Rate limit exceeded (HTTP 429)"
+    fi
+
+    # Check for rate limit in JSON error response
+    if echo "$response" | jq -e '.error' &>/dev/null; then
+        local error_type
+        error_type=$(echo "$response" | jq -r '.error.type // ""' 2>/dev/null)
+        local error_code
+        error_code=$(echo "$response" | jq -r '.error.code // ""' 2>/dev/null)
+
+        # OpenAI rate limit error types
+        if [[ "$error_type" == "rate_limit_exceeded" ]] || [[ "$error_code" == "rate_limit_exceeded" ]]; then
+            detected="true"
+            error_message=$(echo "$response" | jq -r '.error.message // "Rate limit exceeded"' 2>/dev/null)
+
+            # Try to extract limit type from message
+            if [[ "$error_message" =~ RPM|requests.*minute ]]; then
+                limit_type="requests_per_minute"
+                retry_after="60"
+            elif [[ "$error_message" =~ TPM|tokens.*minute ]]; then
+                limit_type="tokens_per_minute"
+                retry_after="60"
+            elif [[ "$error_message" =~ RPD|requests.*day ]]; then
+                limit_type="requests_per_day"
+                retry_after="3600"
+            elif [[ "$error_message" =~ TPD|tokens.*day ]]; then
+                limit_type="tokens_per_day"
+                retry_after="3600"
+            fi
+        fi
+    fi
+
+    # Check for rate limit keywords in text response
+    if [[ "$response" =~ (rate.*limit|Rate.*limit|quota.*exceeded|too.*many.*requests) ]]; then
+        detected="true"
+        if [[ -z "$error_message" ]]; then
+            error_message="Rate limit detected in response"
+        fi
+
+        # Try to parse retry time from message
+        if [[ "$response" =~ ([0-9]+).*second ]]; then
+            retry_after="${BASH_REMATCH[1]}"
+        elif [[ "$response" =~ ([0-9]+).*minute ]]; then
+            retry_after=$((${BASH_REMATCH[1]} * 60))
+        elif [[ "$response" =~ ([0-9]+).*hour ]]; then
+            retry_after=$((${BASH_REMATCH[1]} * 3600))
+        fi
+    fi
+
+    # Calculate reset time
+    if [[ "$detected" == "true" ]]; then
+        reset_time=$(date -u -d "+${retry_after} seconds" "+%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u "+%Y-%m-%dT%H:%M:%SZ")
+    fi
+
+    # Return JSON
+    cat <<EOF
+{
+    "detected": $detected,
+    "limit_type": "$limit_type",
+    "retry_after_seconds": $retry_after,
+    "reset_time": "$reset_time",
+    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "error_message": $(echo "$error_message" | jq -R -s '.' 2>/dev/null || echo '""')
+}
+EOF
+}
+
+#######################################
+# Record rate limit event to status file
+# Arguments:
+#   $1 - Rate limit info JSON (from detect_rate_limit)
+#######################################
+codex::record_rate_limit() {
+    local rate_info="${1:-}"
+
+    if [[ -z "$rate_info" ]]; then
+        return 1
+    fi
+
+    # Check if rate limit was detected
+    local detected
+    detected=$(echo "$rate_info" | jq -r '.detected // false')
+
+    if [[ "$detected" != "true" ]]; then
+        return 0
+    fi
+
+    # Get or create state file
+    local codex_home
+    codex_home=$(codex::ensure_home)
+    local state_file="${codex_home}/state.json"
+
+    # Initialize state file if it doesn't exist
+    if [[ ! -f "$state_file" ]]; then
+        echo '{}' > "$state_file"
+    fi
+
+    # Update state with rate limit info
+    local updated_state
+    updated_state=$(jq --argjson rate_limit "$rate_info" \
+        '. + {last_rate_limit: $rate_limit, rate_limited: true}' \
+        "$state_file" 2>/dev/null || echo '{"last_rate_limit": null, "rate_limited": false}')
+
+    echo "$updated_state" > "$state_file"
+
+    log::warn "⚠️  Rate limit detected - reset at $(echo "$rate_info" | jq -r '.reset_time')"
+}

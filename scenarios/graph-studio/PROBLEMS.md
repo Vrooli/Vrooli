@@ -23,6 +23,30 @@ _No active issues. All P0 requirements complete with comprehensive security, ful
 
 ## Recent Improvements
 
+### CLI Binary Permission Fix (P0 - Completed)
+**Status**: Fixed
+**Date Completed**: 2025-10-02
+**Severity**: High (CLI tests failing)
+
+**Problem**: CLI binary lacked executable permissions, causing 3 CLI test failures.
+
+**Root Cause**:
+1. CLI binary at `scenarios/graph-studio/cli/graph-studio` had permissions `-rw-rw-r--` instead of `-rwxrwxr-x`
+2. Binary was not executable by any user
+3. Test script attempted to execute binary but received "Permission denied" error
+
+**Solution Implemented**:
+1. ✅ Set executable permission on CLI binary with `chmod +x`
+2. ✅ Symlink at `/home/matthalloran8/.vrooli/bin/graph-studio` now functional
+
+**Test Results**:
+- All 34 tests now passing (100% pass rate)
+- Unit: 4/4, Integration: 5/5, API: 14/14, CLI: 7/7, UI: 4/4
+- CLI tests fixed: CLI Help, CLI Status, CLI Create/Delete Workflow
+
+**Files Modified**:
+- `cli/graph-studio`: Permissions changed from 664 to 775
+
 ### Plugin Validation Fix (P0 - Completed)
 **Status**: Fixed
 **Date Completed**: 2025-10-02

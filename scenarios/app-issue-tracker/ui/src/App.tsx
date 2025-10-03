@@ -156,12 +156,12 @@ function escapeHtml(value: string): string {
 
 function renderInlineMarkdown(source: string): string {
   const codeSegments: string[] = [];
-  const codePlaceholderPrefix = '__CODESEG__';
+  const codePlaceholderPrefix = '\x00CODESEG\x00';
 
   let output = escapeHtml(source);
 
   output = output.replace(/`([^`]+)`/g, (_match, code: string) => {
-    const placeholder = `${codePlaceholderPrefix}${codeSegments.length}__`;
+    const placeholder = `${codePlaceholderPrefix}${codeSegments.length}\x00`;
     codeSegments.push(`<code>${escapeHtml(code)}</code>`);
     return placeholder;
   });
@@ -176,7 +176,7 @@ function renderInlineMarkdown(source: string): string {
     '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
   );
 
-  output = output.replace(/__CODESEG__(\d+)__/g, (_match, index: string) => {
+  output = output.replace(/\x00CODESEG\x00(\d+)\x00/g, (_match, index: string) => {
     const idx = Number.parseInt(index, 10);
     return codeSegments[idx] ?? '';
   });

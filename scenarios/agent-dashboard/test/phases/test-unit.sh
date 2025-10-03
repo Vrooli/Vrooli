@@ -2,12 +2,28 @@
 set -e
 
 echo "=== Unit Tests ==="
-# Run unit tests
+
+# Test Go API
 if [ -d "api" ] && [ -f "api/go.mod" ]; then
-  cd api && go test ./... -short
-elif [ -d "ui" ] && [ -f "ui/package.json" ]; then
-  cd ui && npm test || echo "No unit tests found"
-else
-  echo "No unit tests configured"
+  echo "Running Go API unit tests..."
+  cd api
+  go test -v -short -cover ./... || {
+    echo "❌ Go API tests failed"
+    exit 1
+  }
+  cd ..
 fi
+
+# Test UI (if tests are configured)
+if [ -d "ui" ] && [ -f "ui/package.json" ]; then
+  echo "Running UI unit tests..."
+  cd ui
+  if grep -q '"test"' package.json; then
+    npm test 2>/dev/null || echo "⚠️ No UI unit tests configured"
+  else
+    echo "⚠️ No UI test script configured in package.json"
+  fi
+  cd ..
+fi
+
 echo "✅ Unit tests completed"

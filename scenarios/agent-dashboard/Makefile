@@ -144,7 +144,7 @@ t: test
 l: logs
 c: clean
 b: build
--e 
+
 start: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario start $(SCENARIO_NAME)

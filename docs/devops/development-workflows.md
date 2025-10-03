@@ -38,7 +38,7 @@ vrooli develop
 
 ```bash
 # Verify your setup is working
-curl http://localhost:5555/health
+curl http://localhost:8092/health
 curl http://localhost:3000
 
 # Check logs
@@ -85,7 +85,7 @@ vrooli develop
 # This starts:
 # - PostgreSQL (port 5432)
 # - Redis (port 6379) 
-# - Server API (port 5555)
+# - Server API (port 8092)
 # - UI Development Server (port 3000)
 # - Background Jobs (internal)
 
@@ -181,7 +181,7 @@ vrooli develop
 # - Server restart (API changes)
 
 # Verify changes
-curl http://localhost:5555/api/status
+curl http://localhost:8092/api/status
 # Open http://localhost:3000 in browser
 
 # Run tests for your changes

@@ -71,6 +71,9 @@ type session struct {
 	outputBuffer   []outputPayload
 	maxBufferSize  int
 
+	inputSeqMu   sync.Mutex
+	lastInputSeq map[string]uint64
+
 	termSizeMu sync.RWMutex
 	termRows   int
 	termCols   int
@@ -95,6 +98,7 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 		readBuffer:    make([]byte, cfg.readBufferSizeBytes),
 		outputBuffer:  make([]outputPayload, 0, 100), // Keep last 100 chunks (~100KB typical)
 		maxBufferSize: 100,
+		lastInputSeq:  make(map[string]uint64),
 		termRows:      cfg.defaultTTYRows,
 		termCols:      cfg.defaultTTYCols,
 	}
@@ -303,12 +307,21 @@ func (s *session) handleOutput(chunk []byte) {
 	})
 }
 
-func (s *session) handleInput(data []byte) error {
+func (s *session) handleInput(client *wsClient, data []byte, seq uint64, source string) error {
 	if len(data) == 0 {
 		return nil
 	}
 	if s.ptyFile == nil {
 		return errors.New("pty closed")
+	}
+	if seq > 0 {
+		key := source
+		if key == "" && client != nil {
+			key = client.id
+		}
+		if key != "" && !s.shouldProcessInputSeq(key, seq) {
+			return nil
+		}
 	}
 	if _, err := s.ptyFile.Write(data); err != nil {
 		return err
@@ -466,6 +479,17 @@ func (s *session) removeClient(client *wsClient) {
 	s.clientsMu.Lock()
 	delete(s.clients, client)
 	s.clientsMu.Unlock()
+}
+
+func (s *session) shouldProcessInputSeq(key string, seq uint64) bool {
+	s.inputSeqMu.Lock()
+	defer s.inputSeqMu.Unlock()
+	last := s.lastInputSeq[key]
+	if seq <= last {
+		return false
+	}
+	s.lastInputSeq[key] = seq
+	return true
 }
 
 func (s *session) broadcast(msg websocketEnvelope) {

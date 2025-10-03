@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -41,6 +42,7 @@ type wsClient struct {
 	send    chan websocketEnvelope
 	closeMu sync.Mutex
 	closed  bool
+	id      string
 }
 
 func newWSClient(session *session, conn *websocket.Conn) *wsClient {
@@ -48,6 +50,7 @@ func newWSClient(session *session, conn *websocket.Conn) *wsClient {
 		session: session,
 		conn:    conn,
 		send:    make(chan websocketEnvelope, 64),
+		id:      uuid.NewString(),
 	}
 }
 
@@ -134,7 +137,7 @@ func (c *wsClient) readLoop() {
 			if err != nil {
 				continue
 			}
-			_ = c.session.handleInput(bytes)
+			_ = c.session.handleInput(c, bytes, payload.Seq, payload.Source)
 
 		case "resize":
 			var payload resizePayload

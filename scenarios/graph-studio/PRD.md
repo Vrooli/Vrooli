@@ -553,6 +553,14 @@ tests:
 
 ## Progress History
 
+**2025-10-02**: CLI Binary Permission Fix (P0 - Critical Bugfix)
+- ✅ Fixed CLI binary permission issue causing 3 CLI test failures
+- ✅ Root cause: CLI binary at scenarios/graph-studio/cli/graph-studio was not executable
+- ✅ Solution: Set executable permission on CLI binary with `chmod +x`
+- ✅ All 34 tests now passing (100% pass rate restored)
+- 📊 Test Results: Unit (4/4), Integration (5/5), API (14/14), CLI (7/7), UI (4/4)
+- 📊 Impact: Restored CLI functionality for help, status, and create/delete commands
+
 **2025-10-02**: Plugin Validation Fix (P0 - Critical Bugfix)
 - ✅ Fixed validator plugins map reference issue causing all tests to fail
 - ✅ Root cause: `getPluginsFromDB()` created new map, breaking validator reference
@@ -692,10 +700,10 @@ tests:
 - ✅ Database schema fully applied
 
 **Last Updated**: 2025-10-02
-**Status**: Production-Ready - 100% Test Pass Rate (34 Tests), All P0 + 3 P1 Requirements Complete, Critical Bugfix Applied
+**Status**: Production-Ready - 100% Test Pass Rate (34 Tests), All P0 + 3 P1 Requirements Complete, CLI Permission Fixed
 **Owner**: AI Agent (graph-studio-improver)
 **Review Cycle**: Weekly during initial development
-**Latest Fix**: Plugin validation restored - all functionality operational
+**Latest Fix**: CLI binary permission issue resolved - all functionality operational
 
 **Key Features**:
 - ✅ Complete graph CRUD operations with validation
