@@ -408,6 +408,9 @@ investigate_issue() {
 
     log "Created investigation prompt: $prompt_file"
 
+    # Preserve the exact prompt sent to the agent for later review in the issue UI
+    store_artifact "$prompt_file" "investigation-prompt.md"
+
     # Verify agent backend is available
     if [[ -z "$AGENT_CLI_COMMAND" ]]; then
         error "No agent backend initialized. Please ensure resource-codex or resource-claude-code is available."

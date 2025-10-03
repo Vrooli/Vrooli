@@ -3,114 +3,165 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
+	"os"
+	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
-const investigationPromptPrefix = `# Issue Investigation Request
+const (
+	promptTemplatePath = "prompts/unified-resolver.md"
+	fallbackValue      = "(not provided)"
+)
 
-You are a senior software engineer investigating a reported issue. Please analyze the codebase and provide a comprehensive investigation report.
+func (s *Server) loadPromptTemplate() string {
+	templatePath := filepath.Join(s.config.ScenarioRoot, promptTemplatePath)
+	data, err := os.ReadFile(templatePath)
+	if err == nil {
+		trimmed := strings.TrimSpace(string(data))
+		if trimmed != "" {
+			return string(data)
+		}
+	}
+	return "You are an elite software engineer. Provide investigation findings based on the supplied metadata."
+}
 
-## Task
-`
+func safeValue(str string) string {
+	trimmed := strings.TrimSpace(str)
+	if trimmed == "" {
+		return fallbackValue
+	}
+	return trimmed
+}
 
-const investigationPromptSuffix = `
+func joinList(items []string) string {
+	if len(items) == 0 {
+		return fallbackValue
+	}
+	trimmed := make([]string, 0, len(items))
+	for _, item := range items {
+		if s := strings.TrimSpace(item); s != "" {
+			trimmed = append(trimmed, s)
+		}
+	}
+	if len(trimmed) == 0 {
+		return fallbackValue
+	}
+	return strings.Join(trimmed, ", ")
+}
 
-## Investigation Steps
-1. **Analyze the codebase** at the specified path
-2. **Identify the root cause** of the issue
-3. **Examine related files** and dependencies
-4. **Check for similar patterns** in the codebase
-5. **Provide actionable recommendations**
-
-## Expected Output Format
-Please structure your response as follows:
-
-### Investigation Summary
-Brief overview of the issue and investigation approach.
-
-### Root Cause Analysis
-Detailed explanation of what is causing the issue.
-
-### Affected Components
-List of files, functions, or systems impacted.
-
-### Recommended Solutions
-Prioritized list of potential fixes with implementation details.
-
-### Testing Strategy
-How to verify the fix and prevent regression.
-
-### Related Issues
-Any similar issues or patterns to watch for.
-
-### Confidence Level
-Rate your confidence in the analysis (1-10) and explain any uncertainties.
-
-## Context
-- Issue ID: %s
-- Agent ID: %s
-- Project Path: %s
-- Timestamp: %s
-
-Please begin your investigation now.
-`
-
-// buildInvestigationPromptTemplate builds a prompt template from an issue
-func buildInvestigationPromptTemplate(issue *Issue) string {
+func (s *Server) readIssueMetadataRaw(issueDir string, issue *Issue) string {
+	if issueDir != "" {
+		path := filepath.Join(issueDir, metadataFilename)
+		if data, err := os.ReadFile(path); err == nil {
+			return string(data)
+		}
+	}
 	if issue == nil {
-		return "Perform a full investigation and resolution for the reported issue."
+		return fallbackValue
 	}
-
-	title := strings.TrimSpace(issue.Title)
-	if title == "" {
-		title = strings.TrimSpace(issue.ID)
+	if marshaled, err := yaml.Marshal(issue); err == nil {
+		return string(marshaled)
 	}
-	if title == "" {
-		title = "Unspecified issue"
-	}
-
-	prompt := fmt.Sprintf("Perform a full investigation and resolution for issue: %s", title)
-
-	if msg := strings.TrimSpace(issue.ErrorContext.ErrorMessage); msg != "" {
-		prompt += fmt.Sprintf(". Error: %s", msg)
-	}
-
-	return prompt
+	return fallbackValue
 }
 
-// buildInvestigationPromptMarkdown builds a complete markdown investigation prompt
-func buildInvestigationPromptMarkdown(template, issueID, agentID, projectPath, timestamp string) string {
-	issueRef := strings.TrimSpace(issueID)
-	if issueRef == "" {
-		issueRef = "preview-issue"
+func (s *Server) listArtifactPaths(issueDir string, issue *Issue) string {
+	var paths []string
+
+	if issueDir != "" {
+		artifactsDir := filepath.Join(issueDir, artifactsDirName)
+		if info, err := os.Stat(artifactsDir); err == nil && info.IsDir() {
+			filepath.WalkDir(artifactsDir, func(path string, d fs.DirEntry, walkErr error) error {
+				if walkErr != nil {
+					return nil
+				}
+				if d.IsDir() {
+					return nil
+				}
+				rel, relErr := filepath.Rel(issueDir, path)
+				if relErr != nil {
+					return nil
+				}
+				normalized := filepath.ToSlash(rel)
+				paths = append(paths, normalized)
+				return nil
+			})
+		}
 	}
 
-	agentRef := strings.TrimSpace(agentID)
-	if agentRef == "" {
-		agentRef = "unified-resolver"
+	if len(paths) == 0 && issue != nil {
+		for _, att := range issue.Attachments {
+			if p := strings.TrimSpace(att.Path); p != "" {
+				normalized := filepath.ToSlash(p)
+				paths = append(paths, normalized)
+			}
+		}
 	}
 
-	projectRef := strings.TrimSpace(projectPath)
-	if projectRef == "" {
-		projectRef = "(not specified)"
+	if len(paths) == 0 {
+		return fallbackValue
 	}
 
-	timeRef := strings.TrimSpace(timestamp)
-	if timeRef == "" {
-		timeRef = time.Now().UTC().Format(time.RFC3339)
+	sort.Strings(paths)
+	for i, p := range paths {
+		paths[i] = "- " + p
 	}
-
-	var builder strings.Builder
-	builder.WriteString(investigationPromptPrefix)
-	builder.WriteString(template)
-	builder.WriteString(fmt.Sprintf(investigationPromptSuffix, issueRef, agentRef, projectRef, timeRef))
-	return builder.String()
+	return strings.Join(paths, "\n")
 }
 
-// failInvestigation marks an investigation as failed with error details
+func (s *Server) buildInvestigationPrompt(issue *Issue, issueDir, agentID, projectPath, timestamp string) string {
+	template := s.loadPromptTemplate()
+
+	replacements := map[string]string{
+		"{{issue_id}}":          fallbackValue,
+		"{{issue_title}}":       fallbackValue,
+		"{{issue_description}}": fallbackValue,
+		"{{issue_type}}":        fallbackValue,
+		"{{issue_priority}}":    fallbackValue,
+		"{{app_name}}":          fallbackValue,
+		"{{error_message}}":     fallbackValue,
+		"{{stack_trace}}":       fallbackValue,
+		"{{affected_files}}":    fallbackValue,
+		"{{issue_metadata}}":    fallbackValue,
+		"{{issue_artifacts}}":   fallbackValue,
+		"{{agent_id}}":          fallbackValue,
+		"{{project_path}}":      fallbackValue,
+		"{{timestamp}}":         fallbackValue,
+	}
+
+	if issue != nil {
+		replacements["{{issue_id}}"] = safeValue(issue.ID)
+		replacements["{{issue_title}}"] = safeValue(issue.Title)
+		replacements["{{issue_description}}"] = safeValue(issue.Description)
+		replacements["{{issue_type}}"] = safeValue(issue.Type)
+		replacements["{{issue_priority}}"] = safeValue(issue.Priority)
+		replacements["{{app_name}}"] = safeValue(issue.AppID)
+		replacements["{{error_message}}"] = safeValue(issue.ErrorContext.ErrorMessage)
+		replacements["{{stack_trace}}"] = safeValue(issue.ErrorContext.StackTrace)
+		replacements["{{affected_files}}"] = safeValue(joinList(issue.ErrorContext.AffectedFiles))
+	}
+
+	replacements["{{issue_metadata}}"] = safeValue(s.readIssueMetadataRaw(issueDir, issue))
+	replacements["{{issue_artifacts}}"] = safeValue(s.listArtifactPaths(issueDir, issue))
+	replacements["{{agent_id}}"] = safeValue(agentID)
+	replacements["{{project_path}}"] = safeValue(projectPath)
+	replacements["{{timestamp}}"] = safeValue(timestamp)
+
+	result := template
+	for placeholder, value := range replacements {
+		result = strings.ReplaceAll(result, placeholder, value)
+	}
+
+	return result
+}
+
 func (s *Server) failInvestigation(issueID, errorMsg, output string) {
 	issueDir, _, findErr := s.findIssueDirectory(issueID)
 	if findErr != nil {
@@ -126,7 +177,6 @@ func (s *Server) failInvestigation(issueID, errorMsg, output string) {
 
 	nowUTC := time.Now().UTC()
 
-	// Store error in both investigation report and metadata
 	if output != "" {
 		issue.Investigation.Report = fmt.Sprintf("Investigation failed: %s\n\nOutput:\n%s", errorMsg, output)
 	} else {
@@ -156,8 +206,6 @@ func (s *Server) failInvestigation(issueID, errorMsg, output string) {
 	}))
 }
 
-// detectRateLimit checks if script output indicates a rate limit
-// min returns the minimum of two integers
 func min(a, b int) int {
 	if a < b {
 		return a
@@ -165,21 +213,17 @@ func min(a, b int) int {
 	return b
 }
 
-// stripANSI removes ANSI escape codes from a string
 func stripANSI(str string) string {
 	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*[mGKHf]`)
 	return ansiRegex.ReplaceAllString(str, "")
 }
 
-// extractJSON finds and extracts the first JSON object from a string that may contain log messages
 func extractJSON(str string) string {
-	// Find the first '{' and matching '}'
 	start := strings.Index(str, "{")
 	if start == -1 {
 		return ""
 	}
 
-	// Count braces to find the matching closing brace
 	depth := 0
 	inString := false
 	escape := false
@@ -222,14 +266,12 @@ func extractJSON(str string) string {
 func detectRateLimit(output string) (bool, string) {
 	outputLower := strings.ToLower(output)
 
-	// Check for rate limit keywords
 	if strings.Contains(outputLower, "rate limit") ||
 		strings.Contains(outputLower, "rate_limit") ||
 		strings.Contains(outputLower, "quota exceeded") ||
 		strings.Contains(outputLower, "too many requests") ||
 		strings.Contains(outputLower, "429") {
 
-		// Try to extract reset time from output and normalize to RFC3339
 		resetTime := ""
 
 		isoPattern := regexp.MustCompile(`20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})?`)
@@ -242,7 +284,6 @@ func detectRateLimit(output string) (bool, string) {
 		}
 
 		if resetTime == "" {
-			// Default to 5 minutes from now if no suitable timestamp found
 			resetTime = time.Now().Add(5 * time.Minute).Format(time.RFC3339)
 		}
 
@@ -252,7 +293,6 @@ func detectRateLimit(output string) (bool, string) {
 	return false, ""
 }
 
-// triggerInvestigation runs an investigation for a single issue
 func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool) error {
 	issueDir, currentFolder, err := s.findIssueDirectory(issueID)
 	if err != nil {
@@ -285,13 +325,11 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		}
 	}
 
-	// Register this process as running
 	s.registerRunningProcess(issueID, agentID, now)
 
 	go func(issueID, agent string) {
 		defer s.unregisterRunningProcess(issueID)
 
-		// Build investigation prompt
 		issueDir, _, findErr := s.findIssueDirectory(issueID)
 		if findErr != nil {
 			log.Printf("Failed to find issue %s: %v", issueID, findErr)
@@ -304,20 +342,16 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			return
 		}
 
-		promptTemplate := buildInvestigationPromptTemplate(issue)
-		fullPrompt := buildInvestigationPromptMarkdown(promptTemplate, issueID, agent, s.config.ScenarioRoot, now)
+		prompt := s.buildInvestigationPrompt(issue, issueDir, agent, s.config.ScenarioRoot, now)
 
-		// Get agent settings and create timeout
 		settings := GetAgentSettings()
 		timeoutDuration := time.Duration(settings.TimeoutSeconds) * time.Second
 		startTime := time.Now()
 
-		// Create context with timeout
 		ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
 		defer cancel()
 
-		// Execute Claude Code directly (ecosystem-manager pattern)
-		result, err := s.executeClaudeCode(ctx, fullPrompt, issueID, startTime, timeoutDuration)
+		result, err := s.executeClaudeCode(ctx, prompt, issueID, startTime, timeoutDuration)
 
 		if err != nil {
 			log.Printf("Failed to execute Claude Code for issue %s: %v", issueID, err)
@@ -325,13 +359,11 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			return
 		}
 
-		// Handle rate limits (move to waiting, not failed)
 		if strings.Contains(result.Error, "RATE_LIMIT") {
 			isRateLimit, resetTime := detectRateLimit(result.Output)
 			if isRateLimit {
 				log.Printf("Rate limit detected for issue %s, moving to waiting status until %s", issueID, resetTime)
 
-				// Load issue and update metadata with rate limit info
 				issueDir, _, findErr := s.findIssueDirectory(issueID)
 				if findErr == nil {
 					issue, loadErr := s.loadIssueFromDir(issueDir)
@@ -345,17 +377,14 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 					}
 				}
 
-				// Move to waiting status instead of failed
 				s.moveIssue(issueID, "waiting")
 				return
 			}
 		}
 
-		// Handle failures (timeout, max turns, errors)
 		if !result.Success {
 			log.Printf("Investigation failed for issue %s: %s", issueID, result.Error)
 
-			// Store error metadata
 			issueDir, _, findErr := s.findIssueDirectory(issueID)
 			if findErr == nil {
 				issue, loadErr := s.loadIssueFromDir(issueDir)
@@ -383,19 +412,15 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			return
 		}
 
-		// SUCCESS: Process the investigation report
 		log.Printf("Investigation succeeded for issue %s (execution time: %v)", issueID, result.ExecutionTime.Round(time.Second))
 
-		// Load issue to store results
-		var findErr2 error
-		issueDir, _, findErr2 = s.findIssueDirectory(issueID)
+		issueDir, _, findErr2 := s.findIssueDirectory(issueID)
 		if findErr2 != nil {
 			log.Printf("Failed to locate issue %s after investigation: %v", issueID, findErr2)
 			return
 		}
 
-		var loadErr2 error
-		issue, loadErr2 = s.loadIssueFromDir(issueDir)
+		issue, loadErr2 := s.loadIssueFromDir(issueDir)
 		if loadErr2 != nil {
 			log.Printf("Failed to reload issue %s: %v", issueID, loadErr2)
 			return
@@ -403,12 +428,10 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 
 		nowUTC := time.Now().UTC()
 
-		// Store the investigation report (clean ecosystem-manager pattern)
 		issue.Investigation.Report = result.Output
 		issue.Investigation.CompletedAt = nowUTC.Format(time.RFC3339)
 		issue.Metadata.UpdatedAt = nowUTC.Format(time.RFC3339)
 
-		// Calculate investigation duration
 		if issue.Investigation.StartedAt != "" {
 			if parsedStart, err := time.Parse(time.RFC3339, issue.Investigation.StartedAt); err == nil {
 				durationMinutes := int(time.Since(parsedStart).Minutes())
@@ -416,7 +439,6 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			}
 		}
 
-		// Clear any previous error metadata (CRITICAL: no false timeout warnings)
 		if issue.Metadata.Extra == nil {
 			issue.Metadata.Extra = make(map[string]string)
 		}
@@ -424,15 +446,12 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		delete(issue.Metadata.Extra, "max_turns_exceeded")
 		issue.Metadata.Extra["agent_last_status"] = "completed"
 
-		// Set resolved timestamp
 		issue.Metadata.ResolvedAt = nowUTC.Format(time.RFC3339)
 
-		// Save updated metadata
 		if saveErr := s.writeIssueMetadata(issueDir, issue); saveErr != nil {
 			log.Printf("Failed to save investigation results for issue %s: %v", issueID, saveErr)
 		}
 
-		// Move to completed status
 		if moveErr := s.moveIssue(issueID, "completed"); moveErr != nil {
 			log.Printf("Failed to move issue %s to completed: %v", issueID, moveErr)
 		}
@@ -442,7 +461,6 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		processedCount := s.incrementProcessedCount()
 		log.Printf("Processor: Successful investigations total=%d (max issues limit disabled)", processedCount)
 
-		// Publish success event
 		s.hub.Publish(NewEvent(EventAgentCompleted, AgentCompletedData{
 			IssueID:   issueID,
 			AgentID:   agent,

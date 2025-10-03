@@ -3,11 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"log"
+	"mime"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -40,7 +43,116 @@ func (s *Server) loadIssueFromDir(issueDir string) (*Issue, error) {
 		issue.ID = filepath.Base(issueDir)
 	}
 
+	enrichAttachmentsFromArtifacts(issueDir, &issue)
+
 	return &issue, nil
+}
+
+func enrichAttachmentsFromArtifacts(issueDir string, issue *Issue) {
+	artifactsPath := filepath.Join(issueDir, artifactsDirName)
+	info, err := os.Stat(artifactsPath)
+	if err != nil || !info.IsDir() {
+		return
+	}
+
+	if issue.Attachments == nil {
+		issue.Attachments = []Attachment{}
+	}
+
+	attachmentIndex := make(map[string]*Attachment)
+	for idx := range issue.Attachments {
+		normalized := normalizeAttachmentPath(issue.Attachments[idx].Path)
+		if normalized == "" {
+			continue
+		}
+		issue.Attachments[idx].Path = normalized
+		attachmentIndex[normalized] = &issue.Attachments[idx]
+
+		fsPath := filepath.Join(issueDir, filepath.FromSlash(normalized))
+		if stat, statErr := os.Stat(fsPath); statErr == nil {
+			if issue.Attachments[idx].Size == 0 {
+				issue.Attachments[idx].Size = stat.Size()
+			}
+			if strings.TrimSpace(issue.Attachments[idx].Type) == "" {
+				if detected := mime.TypeByExtension(strings.ToLower(filepath.Ext(fsPath))); detected != "" {
+					issue.Attachments[idx].Type = detected
+				}
+			}
+		}
+	}
+
+	filepath.WalkDir(artifactsPath, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil
+		}
+		if d.IsDir() {
+			return nil
+		}
+
+		rel, relErr := filepath.Rel(issueDir, path)
+		if relErr != nil {
+			return nil
+		}
+		normalized := normalizeAttachmentPath(filepath.ToSlash(rel))
+		if normalized == "" {
+			return nil
+		}
+
+		att, exists := attachmentIndex[normalized]
+		info, infoErr := d.Info()
+		if infoErr != nil {
+			return nil
+		}
+
+		if exists {
+			if att.Size == 0 {
+				att.Size = info.Size()
+			}
+			if strings.TrimSpace(att.Type) == "" {
+				if detected := mime.TypeByExtension(strings.ToLower(filepath.Ext(path))); detected != "" {
+					att.Type = detected
+				}
+			}
+			return nil
+		}
+
+		filename := info.Name()
+		ext := strings.ToLower(filepath.Ext(filename))
+		contentType := mime.TypeByExtension(ext)
+		if contentType == "" {
+			switch ext {
+			case ".md":
+				contentType = "text/markdown"
+			case ".txt":
+				contentType = "text/plain"
+			case ".json":
+				contentType = "application/json"
+			default:
+				contentType = "application/octet-stream"
+			}
+		}
+
+		category := "artifact"
+		lowerName := strings.ToLower(filename)
+		switch {
+		case strings.Contains(lowerName, "prompt"):
+			category = "investigation_prompt"
+		case strings.Contains(lowerName, "report"):
+			category = "investigation_report"
+		}
+
+		newAttachment := Attachment{
+			Name:     filename,
+			Type:     contentType,
+			Path:     normalized,
+			Size:     info.Size(),
+			Category: category,
+		}
+
+		issue.Attachments = append(issue.Attachments, newAttachment)
+		attachmentIndex[normalized] = &issue.Attachments[len(issue.Attachments)-1]
+		return nil
+	})
 }
 
 // writeIssueMetadata writes issue metadata to disk

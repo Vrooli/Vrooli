@@ -817,6 +817,8 @@ func (s *Server) previewInvestigationPromptHandler(w http.ResponseWriter, r *htt
 		source string
 	)
 
+	var issueDir string
+
 	if req.Issue != nil {
 		issueCopy := *req.Issue
 		issue = &issueCopy
@@ -855,17 +857,17 @@ func (s *Server) previewInvestigationPromptHandler(w http.ResponseWriter, r *htt
 		}
 	}
 
-	template := buildInvestigationPromptTemplate(issue)
 	generatedAt := time.Now().UTC().Format(time.RFC3339)
-	markdown := buildInvestigationPromptMarkdown(template, issue.ID, agentID, filepath.Dir(s.config.IssuesDir), generatedAt)
+	promptTemplate := s.loadPromptTemplate()
+	promptMarkdown := s.buildInvestigationPrompt(issue, issueDir, agentID, s.config.ScenarioRoot, generatedAt)
 
 	resp := PromptPreviewResponse{
 		IssueID:        issue.ID,
 		AgentID:        agentID,
 		IssueTitle:     strings.TrimSpace(issue.Title),
 		IssueStatus:    strings.TrimSpace(issue.Status),
-		PromptTemplate: template,
-		PromptMarkdown: markdown,
+		PromptTemplate: promptTemplate,
+		PromptMarkdown: promptMarkdown,
 		GeneratedAt:    generatedAt,
 		Source:         source,
 	}
