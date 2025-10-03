@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 	_ "github.com/lib/pq"
+	"github.com/rs/cors"
 )
 
 type Server struct {
@@ -69,13 +70,13 @@ type QueryGenerateRequest struct {
 }
 
 type QueryGenerateResponse struct {
-	Success         bool     `json:"success"`
-	SQL             string   `json:"sql"`
-	Explanation     string   `json:"explanation,omitempty"`
-	TablesUsed      []string `json:"tables_used"`
-	QueryType       string   `json:"query_type"`
-	Confidence      int      `json:"confidence"`
-	SimilarQueries  []Query  `json:"similar_queries,omitempty"`
+	Success        bool     `json:"success"`
+	SQL            string   `json:"sql"`
+	Explanation    string   `json:"explanation,omitempty"`
+	TablesUsed     []string `json:"tables_used"`
+	QueryType      string   `json:"query_type"`
+	Confidence     int      `json:"confidence"`
+	SimilarQueries []Query  `json:"similar_queries,omitempty"`
 }
 
 type Query struct {
@@ -93,12 +94,12 @@ type QueryExecuteRequest struct {
 }
 
 type QueryExecuteResponse struct {
-	Success       bool       `json:"success"`
-	Columns       []string   `json:"columns"`
+	Success       bool            `json:"success"`
+	Columns       []string        `json:"columns"`
 	Rows          [][]interface{} `json:"rows"`
-	RowCount      int        `json:"row_count"`
-	ExecutionTime float64    `json:"execution_time_ms"`
-	Error         string     `json:"error,omitempty"`
+	RowCount      int             `json:"row_count"`
+	ExecutionTime float64         `json:"execution_time_ms"`
+	Error         string          `json:"error,omitempty"`
 }
 
 type HealthResponse struct {
@@ -117,11 +118,11 @@ func NewServer() (*Server, error) {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			return nil, fmt.Errorf("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 			dbHost, dbPort, dbUser, dbPassword, dbName)
 	}
@@ -135,52 +136,52 @@ func NewServer() (*Server, error) {
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Implement exponential backoff for database connection
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📋 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	server := &Server{
@@ -208,14 +209,14 @@ func (s *Server) setupRoutes() {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	services := make(map[string]string)
-	
+
 	// Check database connection
 	if err := s.db.Ping(); err != nil {
 		services["database"] = "unhealthy"
 	} else {
 		services["database"] = "healthy"
 	}
-	
+
 	// Check n8n availability (mock for now)
 	services["n8n"] = "healthy"
 	services["qdrant"] = "healthy"
@@ -363,8 +364,8 @@ func (s *Server) handleSchemaDiff(w http.ResponseWriter, r *http.Request) {
 			"tables_removed": []string{"old_table1"},
 			"tables_modified": []map[string]interface{}{
 				{
-					"table":          "users",
-					"columns_added":  []string{"last_login"},
+					"table":           "users",
+					"columns_added":   []string{"last_login"},
 					"columns_removed": []string{"deprecated_field"},
 				},
 			},
@@ -421,7 +422,7 @@ func (s *Server) handleQueryExecute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	startTime := time.Now()
-	
+
 	// Execute query (with safety checks in production)
 	rows, err := s.db.Query(req.SQL)
 	if err != nil {
@@ -499,7 +500,7 @@ func (s *Server) handleQueryHistory(w http.ResponseWriter, r *http.Request) {
 		var execTime, resultCount sql.NullInt64
 		var createdAt time.Time
 
-		if err := rows.Scan(&id, &naturalLang, &sql, &execTime, 
+		if err := rows.Scan(&id, &naturalLang, &sql, &execTime,
 			&resultCount, &queryType, &feedback, &createdAt); err != nil {
 			continue
 		}
@@ -545,7 +546,7 @@ func (s *Server) handleQueryOptimize(w http.ResponseWriter, r *http.Request) {
 
 	// Mock optimization suggestions
 	response := map[string]interface{}{
-		"success": true,
+		"success":      true,
 		"original_sql": req.SQL,
 		"optimizations": []map[string]interface{}{
 			{
@@ -589,7 +590,7 @@ func (s *Server) handleLayoutSave(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
-	_, err := s.db.Exec(query, id, req.Name, req.DatabaseName, 
+	_, err := s.db.Exec(query, id, req.Name, req.DatabaseName,
 		req.LayoutType, req.LayoutData, req.IsShared)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -606,7 +607,7 @@ func (s *Server) handleLayoutSave(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLayoutList(w http.ResponseWriter, r *http.Request) {
 	databaseName := r.URL.Query().Get("database")
-	
+
 	query := `
 		SELECT id, name, layout_type, is_shared, created_at
 		FROM db_explorer.visualization_layouts
@@ -695,14 +696,14 @@ func (s *Server) getSchemaInfo(databaseName string) ([]SchemaTable, []Relationsh
 
 func (s *Server) saveSchemaSnapshot(schema SchemaResponse) error {
 	schemaJSON, _ := json.Marshal(schema)
-	
+
 	query := `
 		INSERT INTO db_explorer.schema_snapshots 
 		(database_name, schema_name, tables_count, columns_count, relationships_count, schema_data)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
-	
-	_, err := s.db.Exec(query, 
+
+	_, err := s.db.Exec(query,
 		schema.DatabaseName,
 		schema.SchemaName,
 		schema.Statistics.TotalTables,
@@ -710,7 +711,7 @@ func (s *Server) saveSchemaSnapshot(schema SchemaResponse) error {
 		schema.Statistics.TotalRelationships,
 		schemaJSON,
 	)
-	
+
 	return err
 }
 
@@ -720,7 +721,7 @@ func (s *Server) saveQueryHistory(naturalLanguage, sql, databaseName string) err
 		(natural_language, generated_sql, database_name, query_type)
 		VALUES ($1, $2, $3, 'SELECT')
 	`
-	
+
 	_, err := s.db.Exec(query, naturalLanguage, sql, databaseName)
 	return err
 }
@@ -750,7 +751,7 @@ func main() {
 	if port == "" {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
-	
+
 	server, err := NewServer()
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
@@ -766,7 +767,7 @@ func main() {
 	})
 
 	handler := c.Handler(server.router)
-	
+
 	log.Printf("Database Schema Explorer API starting on port %s", port)
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

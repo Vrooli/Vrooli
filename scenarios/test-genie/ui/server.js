@@ -29,23 +29,51 @@ const extraFrameAncestors = (process.env.FRAME_ANCESTORS || '')
   .split(/\s+/)
   .filter(Boolean);
 
+// Configure allowed origins for CORS
+const allowedOrigins = [
+  'http://localhost:*',
+  'http://127.0.0.1:*',
+  'https://test-genie.itsagitime.com'
+];
+
 app.use(helmet({
   frameguard: false,
   contentSecurityPolicy: {
     useDefaults: true,
     directives: {
-      defaultSrc: ["'self'"],
+      defaultSrc: ["'self'", "https://test-genie.itsagitime.com"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", apiBaseUrl, "ws:", "wss:"],
+      connectSrc: ["'self'", apiBaseUrl, "ws:", "wss:", "https://test-genie.itsagitime.com"],
       frameAncestors: [...localFrameAncestors, ...extraFrameAncestors]
     }
   }
 }));
 
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+
+    // Check if origin matches any allowed pattern
+    const isAllowed = allowedOrigins.some(pattern => {
+      if (pattern.includes('*')) {
+        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+        return regex.test(origin);
+      }
+      return pattern === origin;
+    });
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(compression());
 app.use(morgan('combined'));
 app.use(express.json());
@@ -189,10 +217,22 @@ if (!port) {
 const server = http.createServer(app);
 
 // Create WebSocket server
-const wss = new WebSocket.Server({ 
+const wss = new WebSocket.Server({
   server,
   path: '/ws',
-  clientTracking: true
+  clientTracking: true,
+  verifyClient: (info) => {
+    const origin = info.origin || info.req.headers.origin;
+    if (!origin) return true; // Allow connections without origin
+
+    return allowedOrigins.some(pattern => {
+      if (pattern.includes('*')) {
+        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+        return regex.test(origin);
+      }
+      return pattern === origin;
+    });
+  }
 });
 
 // WebSocket connection handling

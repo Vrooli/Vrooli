@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -33,32 +34,32 @@ type Schema struct {
 	UpdatedAt        time.Time              `json:"updated_at" db:"updated_at"`
 	CreatedBy        string                 `json:"created_by" db:"created_by"`
 	UsageCount       int                    `json:"usage_count,omitempty"`
-	AvgConfidence    float64               `json:"avg_confidence,omitempty"`
+	AvgConfidence    float64                `json:"avg_confidence,omitempty"`
 }
 
 type ProcessedData struct {
-	ID              uuid.UUID              `json:"id" db:"id"`
-	SchemaID        uuid.UUID              `json:"schema_id" db:"schema_id"`
-	SourceFileName  string                 `json:"source_file_name" db:"source_file_name"`
-	SourceFilePath  string                 `json:"source_file_path" db:"source_file_path"`
-	SourceFileType  string                 `json:"source_file_type" db:"source_file_type"`
-	SourceFileSize  int64                  `json:"source_file_size" db:"source_file_size"`
-	RawContent      string                 `json:"raw_content" db:"raw_content"`
-	StructuredData  map[string]interface{} `json:"structured_data" db:"structured_data"`
-	ConfidenceScore *float64               `json:"confidence_score" db:"confidence_score"`
-	ProcessingStatus string                `json:"processing_status" db:"processing_status"`
-	ErrorMessage    string                 `json:"error_message" db:"error_message"`
-	ProcessingTimeMs *int                  `json:"processing_time_ms" db:"processing_time_ms"`
-	CreatedAt       time.Time              `json:"created_at" db:"created_at"`
-	ProcessedAt     *time.Time             `json:"processed_at" db:"processed_at"`
-	Metadata        map[string]interface{} `json:"metadata" db:"metadata"`
+	ID               uuid.UUID              `json:"id" db:"id"`
+	SchemaID         uuid.UUID              `json:"schema_id" db:"schema_id"`
+	SourceFileName   string                 `json:"source_file_name" db:"source_file_name"`
+	SourceFilePath   string                 `json:"source_file_path" db:"source_file_path"`
+	SourceFileType   string                 `json:"source_file_type" db:"source_file_type"`
+	SourceFileSize   int64                  `json:"source_file_size" db:"source_file_size"`
+	RawContent       string                 `json:"raw_content" db:"raw_content"`
+	StructuredData   map[string]interface{} `json:"structured_data" db:"structured_data"`
+	ConfidenceScore  *float64               `json:"confidence_score" db:"confidence_score"`
+	ProcessingStatus string                 `json:"processing_status" db:"processing_status"`
+	ErrorMessage     string                 `json:"error_message" db:"error_message"`
+	ProcessingTimeMs *int                   `json:"processing_time_ms" db:"processing_time_ms"`
+	CreatedAt        time.Time              `json:"created_at" db:"created_at"`
+	ProcessedAt      *time.Time             `json:"processed_at" db:"processed_at"`
+	Metadata         map[string]interface{} `json:"metadata" db:"metadata"`
 }
 
 type ProcessingRequest struct {
-	SchemaID   uuid.UUID `json:"schema_id" binding:"required"`
-	InputType  string    `json:"input_type" binding:"required,oneof=file text url"`
-	InputData  string    `json:"input_data" binding:"required"`
-	BatchMode  bool      `json:"batch_mode"`
+	SchemaID  uuid.UUID `json:"schema_id" binding:"required"`
+	InputType string    `json:"input_type" binding:"required,oneof=file text url"`
+	InputData string    `json:"input_data" binding:"required"`
+	BatchMode bool      `json:"batch_mode"`
 }
 
 type ProcessingResponse struct {
@@ -87,14 +88,14 @@ var db *sql.DB
 
 // HealthResponse represents the schema-compliant health check response
 type HealthResponse struct {
-	Status       string                 `json:"status"`
-	Service      string                 `json:"service"`
-	Timestamp    string                 `json:"timestamp"`
-	Readiness    bool                   `json:"readiness"`
-	Version      string                 `json:"version"`
-	Dependencies map[string]interface{} `json:"dependencies"`
-	Metrics      map[string]interface{} `json:"metrics,omitempty"`
-	DataStats    map[string]interface{} `json:"data_stats,omitempty"`
+	Status       string                   `json:"status"`
+	Service      string                   `json:"service"`
+	Timestamp    string                   `json:"timestamp"`
+	Readiness    bool                     `json:"readiness"`
+	Version      string                   `json:"version"`
+	Dependencies map[string]interface{}   `json:"dependencies"`
+	Metrics      map[string]interface{}   `json:"metrics,omitempty"`
+	DataStats    map[string]interface{}   `json:"data_stats,omitempty"`
 	Errors       []map[string]interface{} `json:"errors,omitempty"`
 }
 
@@ -326,7 +327,7 @@ func checkOllamaHealth() map[string]interface{} {
 
 	if resp.StatusCode == http.StatusOK {
 		health["checks"].(map[string]interface{})["connectivity"] = "ok"
-		
+
 		// Parse response to check available models
 		var response struct {
 			Models []struct {
@@ -335,7 +336,7 @@ func checkOllamaHealth() map[string]interface{} {
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&response); err == nil {
 			health["checks"].(map[string]interface{})["available_models"] = len(response.Models)
-			
+
 			// Check for required models
 			requiredModels := []string{"llama3.2", "mistral", "nomic-embed-text"}
 			availableModels := make(map[string]bool)
@@ -348,14 +349,14 @@ func checkOllamaHealth() map[string]interface{} {
 					availableModels[baseName] = true
 				}
 			}
-			
+
 			missingModels := []string{}
 			for _, required := range requiredModels {
 				if !availableModels[required] {
 					missingModels = append(missingModels, required)
 				}
 			}
-			
+
 			if len(missingModels) > 0 {
 				health["status"] = "degraded"
 				health["error"] = map[string]interface{}{
@@ -557,14 +558,14 @@ func countHealthyDependencies(deps map[string]interface{}) int {
 
 func getDataStatistics(database *sql.DB) map[string]interface{} {
 	stats := map[string]interface{}{
-		"total_schemas":           0,
-		"active_schemas":          0,
-		"total_processed_items":   0,
-		"successful_processings":  0,
-		"failed_processings":      0,
-		"avg_confidence_score":    0.0,
-		"avg_processing_time_ms":  0,
-		"schema_templates":        0,
+		"total_schemas":          0,
+		"active_schemas":         0,
+		"total_processed_items":  0,
+		"successful_processings": 0,
+		"failed_processings":     0,
+		"avg_confidence_score":   0.0,
+		"avg_processing_time_ms": 0,
+		"schema_templates":       0,
 	}
 
 	if database == nil {
@@ -638,15 +639,15 @@ func main() {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Missing database configuration. Provide DATABASE_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
-	
+
 	var err error
 	db, err = sql.Open("postgres", dbURL)
 	if err != nil {
@@ -663,47 +664,47 @@ func main() {
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📆 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	// Initialize Gin router
@@ -731,24 +732,24 @@ func main() {
 
 	// API routes
 	api := r.Group("/api/v1")
-	
+
 	// Schema endpoints
 	api.GET("/schemas", getSchemas)
 	api.POST("/schemas", createSchema)
 	api.GET("/schemas/:id", getSchema)
 	api.PUT("/schemas/:id", updateSchema)
 	api.DELETE("/schemas/:id", deleteSchema)
-	
+
 	// Schema template endpoints
 	api.GET("/schema-templates", getSchemaTemplates)
 	api.GET("/schema-templates/:id", getSchemaTemplate)
 	api.POST("/schemas/from-template/:template_id", createSchemaFromTemplate)
-	
+
 	// Data processing endpoints
 	api.POST("/process", processData)
 	api.GET("/process/:id", getProcessingResult)
 	api.GET("/data/:schema_id", getProcessedData)
-	
+
 	// Processing jobs endpoints
 	api.GET("/jobs", getProcessingJobs)
 	api.GET("/jobs/:id", getProcessingJob)
@@ -771,7 +772,7 @@ func getSchemas(c *gin.Context) {
 		         s.version, s.is_active, s.created_at, s.updated_at, s.created_by
 		ORDER BY s.created_at DESC
 	`
-	
+
 	rows, err := db.Query(query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch schemas"})
@@ -783,7 +784,7 @@ func getSchemas(c *gin.Context) {
 	for rows.Next() {
 		var s Schema
 		var schemaDefBytes, exampleDataBytes []byte
-		
+
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Description, &schemaDefBytes, &exampleDataBytes,
 			&s.Version, &s.IsActive, &s.CreatedAt, &s.UpdatedAt, &s.CreatedBy,
@@ -800,7 +801,7 @@ func getSchemas(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"schemas": schemas,
-		"count": len(schemas),
+		"count":   len(schemas),
 	})
 }
 
@@ -826,7 +827,7 @@ func createSchema(c *gin.Context) {
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at
 	`
-	
+
 	var createdAt time.Time
 	err := db.QueryRow(query, id, req.Name, req.Description, schemaDefBytes, exampleDataBytes, "api").Scan(&id, &createdAt)
 	if err != nil {
@@ -839,9 +840,9 @@ func createSchema(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"id": id,
-		"name": req.Name,
-		"status": "created",
+		"id":         id,
+		"name":       req.Name,
+		"status":     "created",
 		"created_at": createdAt,
 	})
 }
@@ -865,10 +866,10 @@ func getSchema(c *gin.Context) {
 		GROUP BY s.id, s.name, s.description, s.schema_definition, s.example_data, 
 		         s.version, s.is_active, s.created_at, s.updated_at, s.created_by
 	`
-	
+
 	var s Schema
 	var schemaDefBytes, exampleDataBytes []byte
-	
+
 	err = db.QueryRow(query, id).Scan(
 		&s.ID, &s.Name, &s.Description, &schemaDefBytes, &exampleDataBytes,
 		&s.Version, &s.IsActive, &s.CreatedAt, &s.UpdatedAt, &s.CreatedBy,
@@ -942,9 +943,9 @@ func updateSchema(c *gin.Context) {
 
 	updates = append(updates, fmt.Sprintf("updated_at = CURRENT_TIMESTAMP, version = version + 1"))
 	args = append(args, id)
-	
+
 	query := fmt.Sprintf("UPDATE schemas SET %s WHERE id = $%d", strings.Join(updates, ", "), argIndex)
-	
+
 	result, err := db.Exec(query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update schema"})
@@ -958,7 +959,7 @@ func updateSchema(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id": id,
+		"id":     id,
 		"status": "updated",
 	})
 }
@@ -986,7 +987,7 @@ func deleteSchema(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id": id,
+		"id":     id,
 		"status": "deleted",
 	})
 }
@@ -1001,14 +1002,14 @@ func getSchemaTemplates(c *gin.Context) {
 		WHERE is_public = true
 	`
 	args := []interface{}{}
-	
+
 	if category != "" {
 		query += " AND category = $1"
 		args = append(args, category)
 	}
-	
+
 	query += " ORDER BY usage_count DESC, created_at DESC"
-	
+
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch templates"})
@@ -1021,7 +1022,7 @@ func getSchemaTemplates(c *gin.Context) {
 		var t SchemaTemplate
 		var schemaDefBytes, exampleDataBytes []byte
 		var tagsStr string
-		
+
 		err := rows.Scan(
 			&t.ID, &t.Name, &t.Category, &t.Description, &schemaDefBytes, &exampleDataBytes,
 			&t.UsageCount, &t.IsPublic, &t.CreatedAt, &t.UpdatedAt, &tagsStr,
@@ -1032,18 +1033,18 @@ func getSchemaTemplates(c *gin.Context) {
 
 		json.Unmarshal(schemaDefBytes, &t.SchemaDefinition)
 		json.Unmarshal(exampleDataBytes, &t.ExampleData)
-		
+
 		// Parse tags array from PostgreSQL format
 		if tagsStr != "" {
 			t.Tags = strings.Split(strings.Trim(tagsStr, "{}"), ",")
 		}
-		
+
 		templates = append(templates, t)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"templates": templates,
-		"count": len(templates),
+		"count":     len(templates),
 	})
 }
 
@@ -1061,11 +1062,11 @@ func getSchemaTemplate(c *gin.Context) {
 		FROM schema_templates 
 		WHERE id = $1 AND is_public = true
 	`
-	
+
 	var t SchemaTemplate
 	var schemaDefBytes, exampleDataBytes []byte
 	var tagsStr string
-	
+
 	err = db.QueryRow(query, id).Scan(
 		&t.ID, &t.Name, &t.Category, &t.Description, &schemaDefBytes, &exampleDataBytes,
 		&t.UsageCount, &t.IsPublic, &t.CreatedAt, &t.UpdatedAt, &tagsStr,
@@ -1080,7 +1081,7 @@ func getSchemaTemplate(c *gin.Context) {
 
 	json.Unmarshal(schemaDefBytes, &t.SchemaDefinition)
 	json.Unmarshal(exampleDataBytes, &t.ExampleData)
-	
+
 	if tagsStr != "" {
 		t.Tags = strings.Split(strings.Trim(tagsStr, "{}"), ",")
 	}
@@ -1128,7 +1129,7 @@ func createSchemaFromTemplate(c *gin.Context) {
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING created_at
 	`
-	
+
 	var createdAt time.Time
 	err = db.QueryRow(query, id, req.Name, req.Description, schemaDefBytes, exampleDataBytes, "api").Scan(&createdAt)
 	if err != nil {
@@ -1144,10 +1145,10 @@ func createSchemaFromTemplate(c *gin.Context) {
 	db.Exec("UPDATE schema_templates SET usage_count = usage_count + 1 WHERE id = $1", templateID)
 
 	c.JSON(http.StatusCreated, gin.H{
-		"id": id,
-		"name": req.Name,
-		"status": "created",
-		"created_at": createdAt,
+		"id":          id,
+		"name":        req.Name,
+		"status":      "created",
+		"created_at":  createdAt,
 		"template_id": templateID,
 	})
 }
@@ -1180,7 +1181,7 @@ func processData(c *gin.Context) {
 	// In production, this should be async with a job queue
 	structuredData, confidence, err := performDataProcessing(req.InputType, req.InputData, req.SchemaID)
 	processingTime := int(time.Since(startTime).Milliseconds())
-	
+
 	status := "completed"
 	var errorMsg string
 	if err != nil {
@@ -1191,7 +1192,7 @@ func processData(c *gin.Context) {
 	// Store processing result
 	structuredDataBytes, _ := json.Marshal(structuredData)
 	metadata := map[string]interface{}{
-		"input_type": req.InputType,
+		"input_type":         req.InputType,
 		"processing_time_ms": processingTime,
 	}
 	metadataBytes, _ := json.Marshal(metadata)
@@ -1202,9 +1203,9 @@ func processData(c *gin.Context) {
 		 processing_status, error_message, processing_time_ms, processed_at, metadata)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
-	
-	_, err = db.Exec(insertQuery, 
-		processingID, req.SchemaID, "api_input", req.InputData, structuredDataBytes, 
+
+	_, err = db.Exec(insertQuery,
+		processingID, req.SchemaID, "api_input", req.InputData, structuredDataBytes,
 		confidence, status, errorMsg, processingTime, time.Now(), metadataBytes)
 	if err != nil {
 		log.Printf("Failed to store processing result: %v", err)
@@ -1212,7 +1213,7 @@ func processData(c *gin.Context) {
 
 	response := ProcessingResponse{
 		ProcessingID: processingID,
-		Status: status,
+		Status:       status,
 	}
 
 	if status == "completed" {
@@ -1272,7 +1273,7 @@ func extractFileContent(filePath string) (string, error) {
 	if unstructuredURL == "" {
 		unstructuredURL = "http://localhost:11450"
 	}
-	
+
 	// For now, handle text files directly
 	// TODO: Implement full unstructured-io integration for PDFs, DOCX, images
 	if strings.HasSuffix(filePath, ".txt") {
@@ -1283,7 +1284,7 @@ func extractFileContent(filePath string) (string, error) {
 		}
 		return string(output), nil
 	}
-	
+
 	// For other file types, use unstructured-io API
 	// This is a placeholder for the full implementation
 	return fmt.Sprintf("Content extraction from %s pending unstructured-io integration", filePath), nil
@@ -1310,13 +1311,13 @@ Extracted JSON:`, schema, content)
 
 	// Call Ollama API
 	requestBody := map[string]interface{}{
-		"model": "llama3.2",
+		"model":  "llama3.2",
 		"prompt": prompt,
 		"stream": false,
 		"options": map[string]interface{}{
 			"temperature": 0.1,
-			"top_k": 10,
-			"top_p": 0.1,
+			"top_k":       10,
+			"top_p":       0.1,
 		},
 	}
 
@@ -1350,26 +1351,26 @@ Extracted JSON:`, schema, content)
 	// Try to parse the extracted JSON
 	var extractedData map[string]interface{}
 	responseText := strings.TrimSpace(ollamaResponse.Response)
-	
+
 	// Find JSON in the response
 	startIdx := strings.Index(responseText, "{")
 	endIdx := strings.LastIndex(responseText, "}")
 	if startIdx >= 0 && endIdx >= 0 && endIdx >= startIdx {
-		jsonStr := responseText[startIdx:endIdx+1]
+		jsonStr := responseText[startIdx : endIdx+1]
 		if err := json.Unmarshal([]byte(jsonStr), &extractedData); err != nil {
 			// Fallback to simpler extraction
 			extractedData = map[string]interface{}{
-				"raw_extraction": content,
+				"raw_extraction":    content,
 				"extraction_method": "ollama_fallback",
-				"error": err.Error(),
+				"error":             err.Error(),
 			}
 		}
 	} else {
 		// Fallback for non-JSON response
 		extractedData = map[string]interface{}{
-			"raw_extraction": content,
+			"raw_extraction":    content,
 			"extraction_method": "ollama_text",
-			"ollama_response": responseText,
+			"ollama_response":   responseText,
 		}
 	}
 
@@ -1398,10 +1399,10 @@ func getProcessingResult(c *gin.Context) {
 		FROM processed_data 
 		WHERE id = $1
 	`
-	
+
 	var pd ProcessedData
 	var structuredDataBytes, metadataBytes []byte
-	
+
 	err = db.QueryRow(query, id).Scan(
 		&pd.ID, &pd.SchemaID, &pd.SourceFileName, &pd.SourceFilePath, &pd.SourceFileType,
 		&pd.SourceFileSize, &pd.RawContent, &structuredDataBytes, &pd.ConfidenceScore,
@@ -1432,13 +1433,13 @@ func getProcessedData(c *gin.Context) {
 
 	limit := 100
 	offset := 0
-	
+
 	if l := c.Query("limit"); l != "" {
 		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
 			limit = parsed
 		}
 	}
-	
+
 	if o := c.Query("offset"); o != "" {
 		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
 			offset = parsed
@@ -1463,7 +1464,7 @@ func getProcessedData(c *gin.Context) {
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`
-	
+
 	rows, err := db.Query(query, schemaID, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch processed data"})
@@ -1480,9 +1481,9 @@ func getProcessedData(c *gin.Context) {
 		var confidence *float64
 		var createdAt time.Time
 		var processedAt *time.Time
-		
-		err := rows.Scan(&id, &fileName, &structuredDataBytes, &confidence, 
-		                 &status, &createdAt, &processedAt, &metadataBytes)
+
+		err := rows.Scan(&id, &fileName, &structuredDataBytes, &confidence,
+			&status, &createdAt, &processedAt, &metadataBytes)
 		if err != nil {
 			continue
 		}
@@ -1510,16 +1511,16 @@ func getProcessedData(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"schema": gin.H{
-			"id": schemaID,
-			"name": schemaName,
+			"id":          schemaID,
+			"name":        schemaName,
 			"description": schemaDesc,
 		},
 		"data": data,
 		"pagination": gin.H{
-			"limit": limit,
-			"offset": offset,
+			"limit":       limit,
+			"offset":      offset,
 			"total_count": totalCount,
-			"has_more": offset + len(data) < totalCount,
+			"has_more":    offset+len(data) < totalCount,
 		},
 	})
 }
@@ -1533,7 +1534,7 @@ func getProcessingJobs(c *gin.Context) {
 		ORDER BY priority DESC, created_at ASC
 		LIMIT 50
 	`
-	
+
 	rows, err := db.Query(query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch jobs"})
@@ -1549,9 +1550,9 @@ func getProcessingJobs(c *gin.Context) {
 		var priority, totalItems, processedItems, failedItems int
 		var createdAt time.Time
 		var startedAt, completedAt *time.Time
-		
+
 		err := rows.Scan(&id, &schemaID, &inputType, &status, &priority, &totalItems,
-		                 &processedItems, &failedItems, &createdAt, &startedAt, &completedAt)
+			&processedItems, &failedItems, &createdAt, &startedAt, &completedAt)
 		if err != nil {
 			continue
 		}
@@ -1572,7 +1573,7 @@ func getProcessingJobs(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"jobs": jobs,
+		"jobs":  jobs,
 		"count": len(jobs),
 	})
 }
@@ -1592,7 +1593,7 @@ func getProcessingJob(c *gin.Context) {
 		FROM processing_jobs 
 		WHERE id = $1
 	`
-	
+
 	var job map[string]interface{} = make(map[string]interface{})
 	var jobID, schemaID uuid.UUID
 	var inputType, inputData, status string
@@ -1601,7 +1602,7 @@ func getProcessingJob(c *gin.Context) {
 	var createdAt time.Time
 	var startedAt, completedAt *time.Time
 	var errorDetailsBytes, resultSummaryBytes []byte
-	
+
 	err = db.QueryRow(query, id).Scan(
 		&jobID, &schemaID, &inputType, &inputData, &batchMode, &totalItems,
 		&processedItems, &failedItems, &status, &priority, &createdAt,

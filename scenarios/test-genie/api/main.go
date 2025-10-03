@@ -1456,6 +1456,88 @@ func enhanceBatchTestSuiteHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+func enhanceTestSuiteHandler(c *gin.Context) {
+	var req GenerateTestSuiteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if scenario has existing tests to enhance
+	var existingSuites int
+	err := db.QueryRow(`
+		SELECT COUNT(*) FROM test_suites
+		WHERE scenario_name = $1 AND status = 'active'
+	`, req.ScenarioName).Scan(&existingSuites)
+
+	if err != nil {
+		log.Printf("⚠️  Error checking existing suites for %s: %v", req.ScenarioName, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing test suites"})
+		return
+	}
+
+	// Reject if no active test suites (nothing to enhance)
+	if existingSuites == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "No existing tests to enhance",
+			"message": "Use /test-suite/generate to create new tests for this scenario",
+		})
+		return
+	}
+
+	suiteID := uuid.New()
+	requestedAt := time.Now().UTC()
+
+	// Submit enhancement issue to app-issue-tracker
+	issueResult, issueErr := submitTestEnhancementIssue(c.Request.Context(), suiteID, req)
+	if issueErr != nil {
+		log.Printf("⚠️  Failed to create enhancement issue for %s: %v", req.ScenarioName, issueErr)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to create enhancement issue",
+			"message": issueErr.Error(),
+		})
+		return
+	}
+
+	// Successfully created enhancement issue
+	metrics := CoverageMetrics{
+		CodeCoverage:       req.CoverageTarget,
+		BranchCoverage:     math.Max(req.CoverageTarget*0.9, 0),
+		FunctionCoverage:   math.Max(req.CoverageTarget*0.95, 0),
+		IssueID:            issueResult.IssueID,
+		IssueURL:           issueResult.IssueURL,
+		RequestID:          suiteID.String(),
+		RequestStatus:      "submitted",
+		RequestedAt:        requestedAt.Format(time.RFC3339),
+		RequestedBy:        "test-genie",
+		RequestedTestTypes: append([]string(nil), req.TestTypes...),
+		Notes:              "Awaiting automated test enhancement via app-issue-tracker",
+	}
+
+	coverageJSON, _ := json.Marshal(metrics)
+	suiteType := fmt.Sprintf("enhancement-%s", suiteID.String()[:8])
+
+	if _, err := db.Exec(`
+		INSERT INTO test_suites (id, scenario_name, suite_type, coverage_metrics, generated_at, status)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, suiteID, req.ScenarioName, suiteType, coverageJSON, requestedAt, "maintenance_required"); err != nil {
+		log.Printf("⚠️  Failed to record test enhancement request for %s: %v", req.ScenarioName, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record enhancement request"})
+		return
+	}
+
+	response := GenerateTestSuiteResponse{
+		RequestID:         suiteID,
+		Status:            "submitted",
+		Message:           issueResult.Message,
+		IssueID:           issueResult.IssueID,
+		IssueURL:          issueResult.IssueURL,
+		EstimatedCoverage: req.CoverageTarget,
+	}
+
+	c.JSON(http.StatusAccepted, response)
+}
+
 // Test execution functions
 func executeTestCase(testCase TestCase, environment string) TestResult {
 	log.Printf("🧪 Executing test case: %s", testCase.Name)
@@ -2592,6 +2674,196 @@ func executeTestSuiteHandler(c *gin.Context) {
 	}()
 
 	c.JSON(http.StatusAccepted, response)
+}
+
+func executeTestSuiteSyncHandler(c *gin.Context) {
+	suiteIDStr := c.Param("suite_id")
+	suiteID, err := uuid.Parse(suiteIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid suite ID"})
+		return
+	}
+
+	var req ExecuteTestSuiteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Set defaults (same as async version)
+	if strings.TrimSpace(req.ExecutionType) == "" {
+		req.ExecutionType = "full"
+	}
+	if strings.TrimSpace(req.Environment) == "" {
+		req.Environment = "local"
+	}
+	if req.TimeoutSeconds <= 0 {
+		req.TimeoutSeconds = 600
+	}
+
+	// Create test execution record (same logic as async)
+	executionID := uuid.New()
+	insertStmt := `
+		INSERT INTO test_executions (id, suite_id, execution_type, start_time, status, environment)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
+	insertArgs := []interface{}{executionID, suiteID, req.ExecutionType, time.Now(), "running", req.Environment}
+
+	_, err = db.Exec(insertStmt, insertArgs...)
+	if err != nil {
+		log.Printf("❌ Failed to create test execution for suite %s: %v", suiteID, err)
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23503" {
+			if _, syncErr := syncSuiteForExecution(c.Request.Context(), suiteID); syncErr != nil {
+				if errors.Is(syncErr, errSuiteNotFound) {
+					c.JSON(http.StatusNotFound, gin.H{"error": "Test suite not found", "details": syncErr.Error()})
+					return
+				}
+				log.Printf("❌ Unable to sync discovered suite %s: %v", suiteID, syncErr)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to prepare test suite for execution", "details": syncErr.Error()})
+				return
+			}
+
+			log.Printf("🔄 Discovered suite %s synced to database. Retrying execution insert.", suiteID)
+			_, err = db.Exec(insertStmt, insertArgs...)
+		}
+	}
+
+	if err != nil {
+		log.Printf("❌ Failed to create test execution after synchronization for suite %s: %v", suiteID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create test execution", "details": err.Error()})
+		return
+	}
+
+	// Execute synchronously (blocking call - this is the key difference)
+	log.Printf("🚀 Starting synchronous test execution for suite %s", suiteID)
+	executeTestSuite(suiteID, executionID, req.ExecutionType, req.Environment, req.TimeoutSeconds)
+
+	// Fetch complete results from database
+	var execution TestExecution
+	var scenarioName string
+
+	err = db.QueryRow(`
+		SELECT te.id, te.suite_id, te.execution_type, te.start_time, te.end_time, te.status, te.environment, ts.scenario_name
+		FROM test_executions te
+		JOIN test_suites ts ON te.suite_id = ts.id
+		WHERE te.id = $1
+	`, executionID).Scan(&execution.ID, &suiteID, &execution.ExecutionType, &execution.StartTime, &execution.EndTime, &execution.Status, &execution.Environment, &scenarioName)
+
+	if err != nil {
+		log.Printf("❌ Failed to retrieve execution results for %s: %v", executionID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Test execution completed but failed to retrieve results", "details": err.Error()})
+		return
+	}
+
+	// Get execution summary
+	var totalTests, passedTests, failedTestCount, skippedTests int
+	err = db.QueryRow(`
+		SELECT COALESCE(total_tests, 0), COALESCE(passed_tests, 0), COALESCE(failed_tests, 0), COALESCE(skipped_tests, 0)
+		FROM test_executions WHERE id = $1
+	`, executionID).Scan(&totalTests, &passedTests, &failedTestCount, &skippedTests)
+
+	if err != nil {
+		log.Printf("⚠️ Failed to get execution summary: %v", err)
+		totalTests = 0
+		passedTests = 0
+		failedTestCount = 0
+		skippedTests = 0
+	}
+
+	// Calculate duration
+	var duration float64
+	if execution.EndTime != nil && !execution.StartTime.IsZero() {
+		duration = execution.EndTime.Sub(execution.StartTime).Seconds()
+	}
+
+	// Get failed test details
+	var failedTests []TestResult
+	rows, err := db.Query(`
+		SELECT tr.id, tr.test_case_id, tr.status, tr.duration, tr.error_message, tr.stack_trace, tr.assertions, tr.artifacts, tc.name, tc.description
+		FROM test_results tr
+		JOIN test_cases tc ON tr.test_case_id = tc.id
+		WHERE tr.execution_id = $1 AND tr.status = 'failed'
+		ORDER BY tr.started_at
+	`, executionID)
+
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var result TestResult
+			var assertionsJSON, artifactsJSON []byte
+
+			err := rows.Scan(&result.ID, &result.TestCaseID, &result.Status, &result.Duration,
+				&result.ErrorMessage, &result.StackTrace, &assertionsJSON, &artifactsJSON,
+				&result.TestCaseName, &result.TestCaseDescription)
+
+			if err == nil {
+				json.Unmarshal(assertionsJSON, &result.Assertions)
+				json.Unmarshal(artifactsJSON, &result.Artifacts)
+				failedTests = append(failedTests, result)
+			}
+		}
+	}
+
+	// Calculate coverage
+	coverage := 0.0
+	if totalTests > 0 {
+		coverage = (float64(passedTests) / float64(totalTests)) * 100
+	}
+
+	summary := TestExecutionSummary{
+		TotalTests: totalTests,
+		Passed:     passedTests,
+		Failed:     failedTestCount,
+		Skipped:    skippedTests,
+		Duration:   duration,
+		Coverage:   coverage,
+	}
+
+	// Generate performance metrics
+	performanceMetrics := PerformanceMetrics{
+		ExecutionTime: duration,
+		ResourceUsage: map[string]interface{}{
+			"tests_per_second": func() float64 {
+				if duration > 0 {
+					return float64(totalTests) / duration
+				}
+				return 0
+			}(),
+		},
+		ErrorCount: failedTestCount,
+	}
+
+	// Generate recommendations
+	recommendations := []string{}
+	if failedTestCount > 0 {
+		recommendations = append(recommendations,
+			fmt.Sprintf("Review and fix %d failed test(s)", failedTestCount))
+	}
+	if coverage < 80 {
+		recommendations = append(recommendations,
+			"Consider adding more test cases to improve coverage")
+	}
+	if duration > 300 {
+		recommendations = append(recommendations,
+			"Consider optimizing slow tests or running them in parallel")
+	}
+	if len(recommendations) == 0 {
+		recommendations = append(recommendations,
+			"All tests passed successfully! Consider adding more edge case tests.")
+	}
+
+	response := TestExecutionResultsResponse{
+		ExecutionID:        executionID,
+		SuiteName:          scenarioName,
+		Status:             execution.Status,
+		Summary:            summary,
+		FailedTests:        failedTests,
+		PerformanceMetrics: performanceMetrics,
+		Recommendations:    recommendations,
+	}
+
+	// Return 200 OK with complete results (vs 202 Accepted for async)
+	c.JSON(http.StatusOK, response)
 }
 
 func getTestExecutionResultsHandler(c *gin.Context) {
@@ -5426,10 +5698,12 @@ func main() {
 		// Test suite management
 		api.POST("/test-suite/generate", generateTestSuiteHandler)
 		api.POST("/test-suite/generate-batch", generateBatchTestSuiteHandler)
+		api.POST("/test-suite/enhance", enhanceTestSuiteHandler)
 		api.POST("/test-suite/enhance-batch", enhanceBatchTestSuiteHandler)
 		api.GET("/test-suite/:suite_id", getTestSuiteHandler)
 		api.GET("/test-suites", listTestSuitesHandler)
 		api.POST("/test-suite/:suite_id/execute", executeTestSuiteHandler)
+		api.POST("/test-suite/:suite_id/execute-sync", executeTestSuiteSyncHandler)
 		api.POST("/test-suite/:suite_id/maintain", maintainTestSuiteHandler)
 
 		// Test execution results

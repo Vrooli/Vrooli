@@ -55,7 +55,7 @@ type ResourcesConfig struct {
 	QuestDBURL     string
 	NodeRedURL     string
 	OllamaURL      string
-	ClaudeCodePath string
+	CodexCommand   string
 	GrafanaURL     string
 }
 
@@ -126,13 +126,13 @@ func Load() *Config {
 			MaxInvestigations:  getEnvAsInt("MAX_INVESTIGATIONS", 100),
 		},
 		Resources: ResourcesConfig{
-			PostgresURL:    getEnv("POSTGRES_URL", "postgres://localhost:5432/system_monitor"),
-			RedisURL:       getEnv("REDIS_URL", "redis://localhost:6379"),
-			QuestDBURL:     getEnv("QUESTDB_URL", "http://localhost:9000"),
-			NodeRedURL:     getEnv("NODE_RED_URL", "http://localhost:1880"),
-			OllamaURL:      getEnv("OLLAMA_URL", "http://localhost:11434"),
-			ClaudeCodePath: getEnv("CLAUDE_CODE_PATH", "resource-opencode agents run"),
-			GrafanaURL:     getEnv("GRAFANA_URL", "http://localhost:3004"),
+			PostgresURL:  getEnv("POSTGRES_URL", "postgres://localhost:5432/system_monitor"),
+			RedisURL:     getEnv("REDIS_URL", "redis://localhost:6379"),
+			QuestDBURL:   getEnv("QUESTDB_URL", "http://localhost:9000"),
+			NodeRedURL:   getEnv("NODE_RED_URL", "http://localhost:1880"),
+			OllamaURL:    getEnv("OLLAMA_URL", "http://localhost:11434"),
+			CodexCommand: getEnv("CODEX_COMMAND", "resource-codex content execute"),
+			GrafanaURL:   getEnv("GRAFANA_URL", "http://localhost:3004"),
 		},
 		Alerts: AlertConfig{
 			WebhookURL:      getEnv("ALERT_WEBHOOK_URL", ""),

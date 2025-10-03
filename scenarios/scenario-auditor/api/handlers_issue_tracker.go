@@ -16,13 +16,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	rulespkg "scenario-auditor/rules"
 )
 
 type reportIssueRequest struct {
-	ReportType          string   `json:"reportType"`
-	RuleID              string   `json:"ruleId"`
-	CustomInstructions  string   `json:"customInstructions"`
-	SelectedScenarios   []string `json:"selectedScenarios"`
+	ReportType         string   `json:"reportType"`
+	RuleID             string   `json:"ruleId"`
+	CustomInstructions string   `json:"customInstructions"`
+	SelectedScenarios  []string `json:"selectedScenarios"`
 }
 
 type createRuleRequest struct {
@@ -62,9 +64,9 @@ func reportIssueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	validReportTypes := map[string]bool{
-		"add_tests":       true,
-		"fix_tests":       true,
-		"fix_violations":  true,
+		"add_tests":      true,
+		"fix_tests":      true,
+		"fix_violations": true,
 	}
 
 	if !validReportTypes[req.ReportType] {
@@ -152,9 +154,9 @@ func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (ma
 	var artifacts []map[string]interface{}
 
 	metadata := map[string]string{
-		"reported_by":  "scenario-auditor",
-		"report_type":  req.ReportType,
-		"rule_id":      rule.ID,
+		"reported_by": "scenario-auditor",
+		"report_type": req.ReportType,
+		"rule_id":     rule.ID,
 	}
 
 	environment := map[string]string{
@@ -190,7 +192,7 @@ func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (ma
 		environment["scenarios"] = strings.Join(req.SelectedScenarios, ",")
 
 		// Create artifact with violation details
-		artifactContent := buildViolationArtifact(rule, req.SelectedScenarios)
+		artifactContent := buildViolationArtifact(rule, req.SelectedScenarios, ruleInfo)
 		artifacts = append(artifacts, map[string]interface{}{
 			"name":         fmt.Sprintf("%s-violations.md", sanitizeForFilename(rule.ID)),
 			"category":     "rule_violations",
@@ -494,6 +496,18 @@ func buildFixViolationsDescription(rule Rule, ruleInfo RuleInfo, customInstructi
 	b.WriteString("**Note**: Detailed violation information (file paths, line numbers, specific messages) is available ")
 	b.WriteString("in the attached artifact. Review the artifact for complete violation details per scenario.\n\n")
 
+	// NEW: Pre-Fix Investigation Checklist
+	b.WriteString("## Pre-Fix Investigation\n\n")
+	b.WriteString("Before modifying code, understand the current implementation:\n\n")
+	b.WriteString("- [ ] **Locate violations**: Check attached artifact for exact file paths and line numbers\n")
+	b.WriteString("- [ ] **Understand the rule**: Review \"What This Rule Detects\" section in artifact\n")
+	b.WriteString("- [ ] **Study examples**: Compare your code against passing/failing examples in artifact\n")
+	b.WriteString("- [ ] **Review context**: Read surrounding code to understand the pattern\n")
+	b.WriteString("- [ ] **Check dependencies**: Identify required imports or helpers needed\n\n")
+
+	// NEW: Rule-specific detailed fix patterns
+	buildRuleSpecificFixPatterns(&b, rule, ruleInfo)
+
 	// Fix validation requirements
 	b.WriteString("## Fix Validation Requirements\n\n")
 	b.WriteString("After applying fixes to each scenario:\n\n")
@@ -601,7 +615,114 @@ func buildFixViolationsDescription(rule Rule, ruleInfo RuleInfo, customInstructi
 	return b.String()
 }
 
-func buildViolationArtifact(rule Rule, scenarios []string) string {
+// buildRuleSpecificFixPatterns adds detailed, rule-specific fix patterns with before/after examples
+func buildRuleSpecificFixPatterns(b *strings.Builder, rule Rule, ruleInfo RuleInfo) {
+	// Try to generate rule-specific patterns based on rule ID and test cases
+	testCases, _ := extractRuleTestCases(ruleInfo)
+
+	// If we have test cases, use them to generate detailed patterns
+	if len(testCases) > 0 {
+		b.WriteString("## Detailed Fix Patterns\n\n")
+		b.WriteString(fmt.Sprintf("Based on rule `%s` test cases, here are the specific patterns to fix:\n\n", rule.ID))
+
+		// Extract patterns from test cases
+		passingExamples := []string{}
+		failingExamples := []string{}
+
+		for _, tc := range testCases {
+			if tc.ShouldFail {
+				if len(failingExamples) < 3 && tc.Input != "" {
+					failingExamples = append(failingExamples, tc.Input)
+				}
+			} else {
+				if len(passingExamples) < 2 && tc.Input != "" {
+					passingExamples = append(passingExamples, tc.Input)
+				}
+			}
+		}
+
+		// Show before/after patterns
+		for i, failing := range failingExamples {
+			if i < len(passingExamples) {
+				b.WriteString(fmt.Sprintf("### Pattern %d\n\n", i+1))
+				b.WriteString("**Before** (❌ Violation):\n")
+				lang := "go"
+				if len(testCases) > 0 {
+					lang = safeFallback(testCases[0].Language, "go")
+				}
+				b.WriteString(fmt.Sprintf("```%s\n%s\n```\n\n", lang, truncateCode(failing, 15)))
+				b.WriteString("**After** (✅ Correct):\n")
+				b.WriteString(fmt.Sprintf("```%s\n%s\n```\n\n", lang, truncateCode(passingExamples[i], 15)))
+			}
+		}
+
+		b.WriteString("**Key Changes**:\n")
+
+		// Add rule-specific guidance based on rule ID
+		switch {
+		case strings.Contains(rule.ID, "backoff") || strings.Contains(rule.ID, "jitter"):
+			b.WriteString("- Add `import \"math/rand\"` or `import \"time\"` for jitter generation\n")
+			b.WriteString("- Calculate exponential delay: `delay := baseDelay * math.Pow(2, float64(attempt))`\n")
+			b.WriteString("- Add random jitter: `jitter := time.Duration(rand.Float64() * float64(delay) * 0.25)`\n")
+			b.WriteString("- Apply both: `time.Sleep(delay + jitter)`\n\n")
+
+			b.WriteString("**Common Pitfalls**:\n")
+			b.WriteString("- ❌ Deterministic jitter: `jitter := delay * (attempt / maxRetries)` (same for all instances!)\n")
+			b.WriteString("- ✅ Random jitter: `jitter := time.Duration(rand.Float64() * float64(delay))`\n\n")
+
+		case strings.Contains(rule.ID, "health"):
+			b.WriteString("- Add health endpoint: `r.HandleFunc(\"/health\", healthHandler).Methods(\"GET\")`\n")
+			b.WriteString("- Return JSON: `w.Header().Set(\"Content-Type\", \"application/json\")`\n")
+			b.WriteString("- Include status: `{\"status\": \"healthy\", \"timestamp\": \"...\"}`\n\n")
+
+		case strings.Contains(rule.ID, "content-type") || strings.Contains(rule.ID, "header"):
+			b.WriteString("- Set Content-Type before writing response\n")
+			b.WriteString("- Use appropriate MIME type: `application/json`, `text/html`, etc.\n")
+			b.WriteString("- Example: `w.Header().Set(\"Content-Type\", \"application/json\")`\n\n")
+
+		case strings.Contains(rule.ID, "status") && strings.Contains(rule.ID, "code"):
+			b.WriteString("- Use semantic HTTP status codes:\n")
+			b.WriteString("  - 200 OK: Successful GET/PUT\n")
+			b.WriteString("  - 201 Created: Successful POST creating resource\n")
+			b.WriteString("  - 400 Bad Request: Invalid input\n")
+			b.WriteString("  - 404 Not Found: Resource doesn't exist\n")
+			b.WriteString("  - 500 Internal Server Error: Server failure\n\n")
+
+		case strings.Contains(rule.ID, "port"):
+			b.WriteString("- Use approved port ranges:\n")
+			b.WriteString("  - API services: 15000-19999\n")
+			b.WriteString("  - UI services: 35000-39999\n")
+			b.WriteString("- Update service.json with correct ports\n\n")
+
+		case strings.Contains(rule.ID, "makefile"):
+			b.WriteString("- Add required targets: `run`, `test`, `logs`, `stop`, `clean`\n")
+			b.WriteString("- Use `.PHONY:` declarations for non-file targets\n")
+			b.WriteString("- Follow existing Makefile patterns from other scenarios\n\n")
+
+		case strings.Contains(rule.ID, "test") && strings.Contains(rule.ID, "exit"):
+			b.WriteString("- Ensure test scripts exit with non-zero on failure\n")
+			b.WriteString("- Use `set -e` at top of bash scripts for early exit\n")
+			b.WriteString("- Return proper exit codes: `exit 0` (success), `exit 1` (failure)\n\n")
+
+		default:
+			// Generic guidance if no specific pattern found
+			b.WriteString("- Review the passing examples in the attached artifact\n")
+			b.WriteString("- Apply the same pattern to your violations\n")
+			b.WriteString("- Verify with the rule scanner after changes\n\n")
+		}
+	}
+}
+
+// truncateCode truncates code to max lines for readability
+func truncateCode(code string, maxLines int) string {
+	lines := strings.Split(code, "\n")
+	if len(lines) <= maxLines {
+		return code
+	}
+	return strings.Join(lines[:maxLines], "\n") + "\n// ... (truncated)"
+}
+
+func buildViolationArtifact(rule Rule, scenarios []string, ruleInfo RuleInfo) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("# Violations for Rule: %s\n\n", safeFallback(rule.Name, rule.ID)))
 	b.WriteString(fmt.Sprintf("**Rule ID**: %s\n", rule.ID))
@@ -612,18 +733,316 @@ func buildViolationArtifact(rule Rule, scenarios []string) string {
 		b.WriteString(fmt.Sprintf("**Description**: %s\n\n", rule.Description))
 	}
 
-	b.WriteString("## Affected Scenarios\n\n")
-	for i, scenario := range scenarios {
-		b.WriteString(fmt.Sprintf("%d. **%s**\n", i+1, scenario))
+	// NEW: Include detection logic summary
+	b.WriteString("## What This Rule Detects\n\n")
+	summary := extractRuleDetectionSummary(ruleInfo)
+	if summary != "" {
+		b.WriteString(summary)
+		b.WriteString("\n\n")
+	} else {
+		b.WriteString("See rule implementation for detection logic.\n\n")
 	}
 
-	b.WriteString("\n## Next Steps\n\n")
-	b.WriteString("1. Run the rule against each scenario individually to see specific violations\n")
-	b.WriteString("2. Review the violation details (file paths, line numbers, recommendations)\n")
-	b.WriteString("3. Apply fixes systematically\n")
-	b.WriteString("4. Re-run the rule to verify fixes\n")
+	// NEW: Include code examples from rule test cases
+	b.WriteString("## Passing vs Failing Examples\n\n")
+	testCases, _ := extractRuleTestCases(ruleInfo)
+	if len(testCases) > 0 {
+		// Show 1 passing example
+		foundPassingExample := false
+		for _, tc := range testCases {
+			if !tc.ShouldFail {
+				b.WriteString("### ✅ Correct Implementation\n")
+				b.WriteString(fmt.Sprintf("_%s_\n\n", tc.Description))
+				lang := safeFallback(tc.Language, "go")
+				b.WriteString(fmt.Sprintf("```%s\n%s\n```\n\n", lang, tc.Input))
+				foundPassingExample = true
+				break
+			}
+		}
+
+		// Show 1-2 failing examples
+		if foundPassingExample {
+			failCount := 0
+			for _, tc := range testCases {
+				if tc.ShouldFail && failCount < 2 {
+					b.WriteString(fmt.Sprintf("### ❌ Violation: %s\n", tc.Description))
+					lang := safeFallback(tc.Language, "go")
+					b.WriteString(fmt.Sprintf("```%s\n%s\n```\n\n", lang, tc.Input))
+					failCount++
+				}
+			}
+		}
+	} else {
+		b.WriteString("_See rule implementation file for code examples._\n\n")
+	}
+
+	b.WriteString("## Detailed Violations by Scenario\n\n")
+
+	// NEW: Actually scan each scenario and include violation details!
+	for i, scenario := range scenarios {
+		b.WriteString(fmt.Sprintf("### %d. %s\n\n", i+1, scenario))
+
+		// Run the rule against this scenario to get actual violations
+		violations := scanScenarioForRule(scenario, rule.ID, ruleInfo)
+
+		if len(violations) == 0 {
+			b.WriteString("_No violations found (may have been fixed since scan)_\n\n")
+			continue
+		}
+
+		for _, violation := range violations {
+			relPath := violation.FilePath
+			if scenarioRoot := getScenarioRoot(); scenarioRoot != "" {
+				if rel, err := filepath.Rel(scenarioRoot, violation.FilePath); err == nil {
+					relPath = rel
+				}
+			}
+
+			b.WriteString(fmt.Sprintf("#### File: `%s:%d`\n\n", relPath, violation.LineNumber))
+
+			if violation.Title != "" {
+				b.WriteString(fmt.Sprintf("**Issue**: %s\n\n", violation.Title))
+			}
+
+			if violation.Description != "" {
+				b.WriteString(fmt.Sprintf("**Description**: %s\n\n", violation.Description))
+			}
+
+			if violation.CodeSnippet != "" {
+				b.WriteString("**Code Context**:\n")
+				b.WriteString(fmt.Sprintf("```go\n%s\n```\n\n", violation.CodeSnippet))
+			}
+
+			if violation.Recommendation != "" {
+				b.WriteString(fmt.Sprintf("**Fix**: %s\n\n", violation.Recommendation))
+			}
+
+			b.WriteString("---\n\n")
+		}
+	}
+
+	b.WriteString("## Fix Workflow\n\n")
+	b.WriteString("For each violation above:\n\n")
+	b.WriteString("1. **Locate**: Navigate to the file and line number shown\n")
+	b.WriteString("2. **Understand**: Review the code context and violation description\n")
+	b.WriteString("3. **Apply Fix**: Use the recommended fix pattern or follow the passing examples\n")
+	b.WriteString("4. **Verify**: Run `scenario-auditor scan " + scenarios[0] + " --rule " + rule.ID + "` to confirm fix\n")
+	b.WriteString("5. **Test**: Run scenario tests: `cd scenarios/{scenario} && make test`\n")
+	b.WriteString("6. **Validate**: Verify service still starts and functions correctly\n\n")
+
+	b.WriteString("**Repeat for all scenarios listed above.**\n")
 
 	return b.String()
+}
+
+// scanScenarioForRule runs a specific rule against a scenario and returns violations
+func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rulespkg.Violation {
+	logger := NewLogger()
+
+	if !ruleInfo.Implementation.Valid {
+		logger.Warn(fmt.Sprintf("Rule %s implementation not valid, skipping scan", ruleID), nil)
+		return nil
+	}
+
+	scenarioRoot := getScenarioRoot()
+	scenarioPath := filepath.Join(scenarioRoot, "scenarios", scenarioName)
+
+	// Check if scenario exists
+	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
+		logger.Warn(fmt.Sprintf("Scenario path does not exist: %s", scenarioPath), nil)
+		return nil
+	}
+
+	var violations []rulespkg.Violation
+
+	// Walk the scenario directory
+	err := filepath.Walk(scenarioPath, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return nil // Skip errors, continue walking
+		}
+
+		if info.IsDir() {
+			// Skip common directories that don't contain source code
+			base := filepath.Base(path)
+			if base == "node_modules" || base == ".git" || base == "vendor" ||
+				base == "dist" || base == "build" || base == ".next" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// Check if file matches rule targets
+		ext := filepath.Ext(path)
+		shouldCheck := false
+		for _, target := range ruleInfo.Targets {
+			switch target {
+			case "api":
+				if ext == ".go" && strings.Contains(path, "/api/") {
+					shouldCheck = true
+				}
+			case "config":
+				if ext == ".json" || ext == ".yaml" || ext == ".yml" ||
+					strings.HasSuffix(path, "Makefile") {
+					shouldCheck = true
+				}
+			case "ui":
+				if ext == ".js" || ext == ".jsx" || ext == ".ts" || ext == ".tsx" {
+					shouldCheck = true
+				}
+			case "cli":
+				if ext == ".sh" || ext == ".go" && strings.Contains(path, "/cli/") {
+					shouldCheck = true
+				}
+			case "test":
+				if ext == ".go" && strings.Contains(path, "_test.go") {
+					shouldCheck = true
+				}
+			}
+		}
+
+		if !shouldCheck {
+			return nil
+		}
+
+		// Read file content
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil // Skip files we can't read
+		}
+
+		// Run rule check
+		ruleViolations, execErr := ruleInfo.Check(string(content), path, scenarioName)
+		if execErr != nil {
+			logger.Warn(fmt.Sprintf("Rule execution failed on %s: %v", path, execErr), nil)
+			return nil
+		}
+
+		// Convert to our Violation type
+		for _, rv := range ruleViolations {
+			violations = append(violations, convertRuleViolationToOurType(rv))
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		logger.Warn(fmt.Sprintf("Error walking scenario %s: %v", scenarioName, err), nil)
+	}
+
+	return violations
+}
+
+// convertRuleViolationToOurType converts from rules package Violation to our Violation type
+func convertRuleViolationToOurType(rv interface{}) rulespkg.Violation {
+	v := rulespkg.Violation{}
+
+	// The Check method returns []rulespkg.Violation, which has the same structure
+	// We can use type assertion since they have identical fields
+	type sourceViolation struct {
+		ID             string
+		RuleID         string
+		Type           string
+		Severity       string
+		Title          string
+		Message        string
+		Description    string
+		File           string
+		FilePath       string
+		Line           int
+		LineNumber     int
+		CodeSnippet    string
+		Recommendation string
+		Standard       string
+		Category       string
+	}
+
+	// Try direct struct conversion first
+	switch src := rv.(type) {
+	case sourceViolation:
+		v.ID = src.ID
+		v.RuleID = src.RuleID
+		v.Type = src.Type
+		v.Severity = src.Severity
+		v.Title = src.Title
+		v.Message = src.Message
+		v.Description = src.Description
+		v.File = src.File
+		v.FilePath = src.FilePath
+		v.Line = src.Line
+		v.LineNumber = src.LineNumber
+		v.CodeSnippet = src.CodeSnippet
+		v.Recommendation = src.Recommendation
+		v.Standard = src.Standard
+		v.Category = src.Category
+	}
+
+	// Ensure FilePath is set (some rules use FilePath, others use File)
+	if v.FilePath == "" && v.File != "" {
+		v.FilePath = v.File
+	}
+
+	// Ensure LineNumber is set (some rules use LineNumber, others use Line)
+	if v.LineNumber == 0 && v.Line != 0 {
+		v.LineNumber = v.Line
+	}
+
+	return v
+}
+
+// extractRuleDetectionSummary extracts a human-readable summary from rule comments
+func extractRuleDetectionSummary(ruleInfo RuleInfo) string {
+	// Read rule file
+	content, err := os.ReadFile(ruleInfo.FilePath)
+	if err != nil {
+		return ""
+	}
+
+	source := string(content)
+
+	// Extract from comment block at top of file
+	// Look for "Description:" or "Reason:" fields
+	lines := strings.Split(source, "\n")
+	var summary strings.Builder
+	inComment := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Start of comment block
+		if strings.HasPrefix(trimmed, "/*") {
+			inComment = true
+			continue
+		}
+
+		// End of comment block
+		if strings.HasPrefix(trimmed, "*/") {
+			break
+		}
+
+		if inComment {
+			// Extract Description
+			if strings.HasPrefix(trimmed, "Description:") {
+				desc := strings.TrimPrefix(trimmed, "Description:")
+				summary.WriteString(strings.TrimSpace(desc))
+				summary.WriteString("\n\n")
+			}
+
+			// Extract Reason
+			if strings.HasPrefix(trimmed, "Reason:") {
+				reason := strings.TrimPrefix(trimmed, "Reason:")
+				summary.WriteString("**Why This Matters**: ")
+				summary.WriteString(strings.TrimSpace(reason))
+				summary.WriteString("\n")
+			}
+		}
+	}
+
+	result := summary.String()
+	if result == "" && ruleInfo.Reason != "" {
+		return ruleInfo.Reason
+	}
+
+	return strings.TrimSpace(result)
 }
 
 func mapSeverityToPriority(severity string) string {

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -15,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
 
@@ -24,7 +25,7 @@ const (
 	serviceName    = "no-spoilers-book-talk-api"
 	apiVersion     = "1.0.0"
 	maxFileSize    = 50 * 1024 * 1024 // 50MB max file size
-	maxChatHistory = 50                // Maximum chat history to return
+	maxChatHistory = 50               // Maximum chat history to return
 )
 
 // Book represents a book in the system
@@ -57,37 +58,37 @@ type Chapter struct {
 
 // UserProgress represents a user's reading progress
 type UserProgress struct {
-	ID                    uuid.UUID `json:"id"`
-	BookID                uuid.UUID `json:"book_id"`
-	UserID                string    `json:"user_id"`
-	CurrentPosition       int       `json:"current_position"`
-	PositionType          string    `json:"position_type"`
-	PositionValue         float64   `json:"position_value"`
-	LastReadChunkID       *int      `json:"last_read_chunk_id,omitempty"`
-	ReadingSessionCount   int       `json:"reading_session_count"`
-	TotalReadingTimeMin   int       `json:"total_reading_time_minutes"`
-	Notes                 string    `json:"notes,omitempty"`
-	FavoriteQuotes        []string  `json:"favorite_quotes,omitempty"`
-	UpdatedAt             time.Time `json:"updated_at"`
-	CreatedAt             time.Time `json:"created_at"`
-	PercentageComplete    float64   `json:"percentage_complete"`
+	ID                  uuid.UUID `json:"id"`
+	BookID              uuid.UUID `json:"book_id"`
+	UserID              string    `json:"user_id"`
+	CurrentPosition     int       `json:"current_position"`
+	PositionType        string    `json:"position_type"`
+	PositionValue       float64   `json:"position_value"`
+	LastReadChunkID     *int      `json:"last_read_chunk_id,omitempty"`
+	ReadingSessionCount int       `json:"reading_session_count"`
+	TotalReadingTimeMin int       `json:"total_reading_time_minutes"`
+	Notes               string    `json:"notes,omitempty"`
+	FavoriteQuotes      []string  `json:"favorite_quotes,omitempty"`
+	UpdatedAt           time.Time `json:"updated_at"`
+	CreatedAt           time.Time `json:"created_at"`
+	PercentageComplete  float64   `json:"percentage_complete"`
 }
 
 // Conversation represents a chat interaction
 type Conversation struct {
-	ID                       uuid.UUID `json:"id"`
-	BookID                   uuid.UUID `json:"book_id"`
-	UserID                   string    `json:"user_id"`
-	UserMessage              string    `json:"user_message"`
-	AIResponse               string    `json:"ai_response"`
-	UserPosition             int       `json:"user_position"`
-	PositionType             string    `json:"position_type"`
-	ContextChunksUsed        []int     `json:"context_chunks_used,omitempty"`
-	SourcesReferenced        []string  `json:"sources_referenced,omitempty"`
+	ID                        uuid.UUID `json:"id"`
+	BookID                    uuid.UUID `json:"book_id"`
+	UserID                    string    `json:"user_id"`
+	UserMessage               string    `json:"user_message"`
+	AIResponse                string    `json:"ai_response"`
+	UserPosition              int       `json:"user_position"`
+	PositionType              string    `json:"position_type"`
+	ContextChunksUsed         []int     `json:"context_chunks_used,omitempty"`
+	SourcesReferenced         []string  `json:"sources_referenced,omitempty"`
 	PositionBoundaryRespected bool      `json:"position_boundary_respected"`
-	ResponseQualityScore     *float64  `json:"response_quality_score,omitempty"`
-	ProcessingTimeMs         int       `json:"processing_time_ms,omitempty"`
-	CreatedAt                time.Time `json:"created_at"`
+	ResponseQualityScore      *float64  `json:"response_quality_score,omitempty"`
+	ProcessingTimeMs          int       `json:"processing_time_ms,omitempty"`
+	CreatedAt                 time.Time `json:"created_at"`
 }
 
 // BookTalkService handles the main API operations
@@ -179,7 +180,7 @@ func (s *BookTalkService) UploadBook(w http.ResponseWriter, r *http.Request) {
 
 	filename := fmt.Sprintf("%s_%s", bookID.String(), header.Filename)
 	filePath := filepath.Join(uploadsDir, filename)
-	
+
 	dst, err := os.Create(filePath)
 	if err != nil {
 		s.httpError(w, "Failed to save uploaded file", http.StatusInternalServerError, err)
@@ -198,7 +199,7 @@ func (s *BookTalkService) UploadBook(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO books (id, title, author, file_path, file_type, file_size_bytes, processing_status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		bookID, title, author, filePath, fileType, fileSize, "pending")
-	
+
 	if err != nil {
 		s.httpError(w, "Failed to create book record", http.StatusInternalServerError, err)
 		return
@@ -212,22 +213,22 @@ func (s *BookTalkService) UploadBook(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"book_id":                  bookID,
-		"title":                    title,
-		"author":                   author,
-		"file_type":                fileType,
-		"file_size_bytes":          fileSize,
-		"processing_status":        "pending",
+		"book_id":                   bookID,
+		"title":                     title,
+		"author":                    author,
+		"file_type":                 fileType,
+		"file_size_bytes":           fileSize,
+		"processing_status":         "pending",
 		"estimated_processing_time": s.estimateProcessingTime(fileSize),
-		"message":                  "Book uploaded successfully, processing started",
-		"timestamp":                time.Now().UTC(),
+		"message":                   "Book uploaded successfully, processing started",
+		"timestamp":                 time.Now().UTC(),
 	})
 }
 
 // GetBooks lists all books for a user
 func (s *BookTalkService) GetBooks(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
-	
+
 	query := `
 		SELECT b.id, b.title, b.author, b.file_path, b.file_type, b.file_size_bytes,
 		       b.total_chunks, b.total_words, b.processing_status, b.processed_at,
@@ -259,11 +260,11 @@ func (s *BookTalkService) GetBooks(w http.ResponseWriter, r *http.Request) {
 		var posType sql.NullString
 		var percentComplete sql.NullFloat64
 
-		err := rows.Scan(&book.ID, &book.Title, &book.Author, &book.FilePath, 
+		err := rows.Scan(&book.ID, &book.Title, &book.Author, &book.FilePath,
 			&book.FileType, &fileSizeBytes, &book.TotalChunks, &book.TotalWords,
 			&book.ProcessingStatus, &processedAt, &book.CreatedAt, &book.UpdatedAt,
 			&currentPos, &posType, &posValue, &percentComplete)
-		
+
 		if err != nil {
 			continue
 		}
@@ -319,25 +320,25 @@ func (s *BookTalkService) GetBook(w http.ResponseWriter, r *http.Request) {
 	// Get book details with progress
 	var book Book
 	var progress *UserProgress
-	
+
 	bookQuery := `
 		SELECT id, title, author, file_path, file_type, file_size_bytes,
 		       total_chunks, total_words, total_characters, processing_status, 
 		       processing_error, processed_at, created_at, updated_at, metadata
 		FROM books WHERE id = $1`
-	
+
 	var fileSizeBytes sql.NullInt64
 	var totalChars sql.NullInt64
 	var processedAt sql.NullTime
 	var processingError sql.NullString
 	var metadataJSON sql.NullString
-	
+
 	err = s.db.QueryRow(bookQuery, bookID).Scan(
 		&book.ID, &book.Title, &book.Author, &book.FilePath, &book.FileType,
 		&fileSizeBytes, &book.TotalChunks, &book.TotalWords, &totalChars,
 		&book.ProcessingStatus, &processingError, &processedAt,
 		&book.CreatedAt, &book.UpdatedAt, &metadataJSON)
-	
+
 	if err == sql.ErrNoRows {
 		s.httpError(w, "Book not found", http.StatusNotFound, nil)
 		return
@@ -374,15 +375,15 @@ func (s *BookTalkService) GetBook(w http.ResponseWriter, r *http.Request) {
 			           ELSE 0 
 			       END as percentage_complete
 			FROM user_progress WHERE book_id = $1 AND user_id = $3`
-		
+
 		var prog UserProgress
 		var notes sql.NullString
-		
+
 		err = s.db.QueryRow(progressQuery, bookID, book.TotalChunks, userID).Scan(
 			&prog.ID, &prog.CurrentPosition, &prog.PositionType, &prog.PositionValue,
 			&prog.ReadingSessionCount, &prog.TotalReadingTimeMin, &notes,
 			&prog.UpdatedAt, &prog.CreatedAt, &prog.PercentageComplete)
-		
+
 		if err == nil {
 			prog.BookID = bookID
 			prog.UserID = userID
@@ -446,7 +447,7 @@ func (s *BookTalkService) ChatWithBook(w http.ResponseWriter, r *http.Request) {
 	var book Book
 	err = s.db.QueryRow("SELECT id, title, author, total_chunks, processing_status FROM books WHERE id = $1", bookID).
 		Scan(&book.ID, &book.Title, &book.Author, &book.TotalChunks, &book.ProcessingStatus)
-	
+
 	if err == sql.ErrNoRows {
 		s.httpError(w, "Book not found", http.StatusNotFound, nil)
 		return
@@ -489,7 +490,7 @@ func (s *BookTalkService) ChatWithBook(w http.ResponseWriter, r *http.Request) {
 		                          sources_referenced, position_boundary_respected, processing_time_ms)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 		conversationID, bookID, req.UserID, req.Message, aiResponse,
-		req.CurrentPosition, req.PositionType, 
+		req.CurrentPosition, req.PositionType,
 		toJSON(contextChunkIDs), toJSON(sources), true, processingTime)
 
 	if err != nil {
@@ -654,14 +655,14 @@ func (s *BookTalkService) GetConversations(w http.ResponseWriter, r *http.Reques
 		err := rows.Scan(&conv.ID, &conv.UserMessage, &conv.AIResponse,
 			&conv.UserPosition, &conv.PositionType, &contextChunksJSON,
 			&sourcesJSON, &conv.PositionBoundaryRespected, &processingTime, &conv.CreatedAt)
-		
+
 		if err != nil {
 			continue
 		}
 
 		conv.BookID = bookID
 		conv.UserID = userID
-		
+
 		if processingTime.Valid {
 			conv.ProcessingTimeMs = int(processingTime.Int64)
 		}
@@ -732,14 +733,14 @@ func toJSON(v interface{}) string {
 // processBookAsync handles async book processing
 func (s *BookTalkService) processBookAsync(bookID uuid.UUID, filePath, fileType string) {
 	s.logger.Printf("Starting async processing for book %s", bookID)
-	
+
 	// Update status to processing
 	s.db.Exec("UPDATE books SET processing_status = 'processing' WHERE id = $1", bookID)
-	
+
 	// TODO: Implement actual text extraction and chunking
 	// For now, simulate processing
 	time.Sleep(5 * time.Second)
-	
+
 	// Update as completed (in real implementation, this would process the file)
 	s.db.Exec(`
 		UPDATE books SET 
@@ -748,7 +749,7 @@ func (s *BookTalkService) processBookAsync(bookID uuid.UUID, filePath, fileType 
 		    total_chunks = 100,
 		    total_words = 50000
 		WHERE id = $1`, bookID)
-	
+
 	s.logger.Printf("Completed processing for book %s", bookID)
 }
 
@@ -763,12 +764,12 @@ type BookChunk struct {
 func (s *BookTalkService) getSafeContext(bookID uuid.UUID, currentPosition int, query string) ([]BookChunk, error) {
 	// TODO: Implement vector search with position filtering using Qdrant
 	// For now, return mock chunks within the position boundary
-	
+
 	var chunks []BookChunk
-	
+
 	// Simulate retrieving relevant chunks up to current position
 	maxChunks := min(5, currentPosition+1) // Get up to 5 relevant chunks within reading boundary
-	
+
 	for i := 0; i < maxChunks; i++ {
 		chunks = append(chunks, BookChunk{
 			ChunkNumber: i,
@@ -776,7 +777,7 @@ func (s *BookTalkService) getSafeContext(bookID uuid.UUID, currentPosition int, 
 			Chapter:     (i / 10) + 1,
 		})
 	}
-	
+
 	return chunks, nil
 }
 
@@ -784,14 +785,14 @@ func (s *BookTalkService) getSafeContext(bookID uuid.UUID, currentPosition int, 
 func (s *BookTalkService) generateChatResponse(message string, contextChunks []BookChunk, book Book, temperature float64) (string, []string, error) {
 	// TODO: Implement actual Ollama integration
 	// For now, return a mock response
-	
+
 	response := fmt.Sprintf("Based on what you've read so far in \"%s\" by %s, I can discuss the content up to your current position. This is a simulated response that would normally be generated by analyzing the provided context chunks while ensuring no spoilers from future content.", book.Title, book.Author)
-	
+
 	sources := []string{
 		"Chapter 1, opening passage",
 		"Character introduction section",
 	}
-	
+
 	return response, sources, nil
 }
 
@@ -803,8 +804,8 @@ func min(a, b int) int {
 }
 
 func main() {
-    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
    vrooli scenario start no-spoilers-book-talk
@@ -812,8 +813,8 @@ func main() {
 💡 The lifecycle system provides environment variables, port allocation,
    and dependency management automatically. Direct execution is not supported.
 `)
-        os.Exit(1)
-    }
+		os.Exit(1)
+	}
 	// Configuration
 	port := os.Getenv("API_PORT")
 	if port == "" {
@@ -866,24 +867,24 @@ func main() {
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		time.Sleep(actualDelay)
 	}
 
@@ -913,7 +914,7 @@ func main() {
 	// Start server
 	log.Printf("Starting No Spoilers Book Talk API on port %s", port)
 	log.Printf("  Database: %s", dbURL)
-	log.Printf("  n8n: %s", n8nURL) 
+	log.Printf("  n8n: %s", n8nURL)
 	log.Printf("  Qdrant: %s", qdrantURL)
 	log.Printf("  Data directory: %s", dataDir)
 

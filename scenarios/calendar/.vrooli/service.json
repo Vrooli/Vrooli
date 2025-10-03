@@ -161,7 +161,7 @@
         },
         {
           "name": "start-api",
-          "run": "cd api && VROOLI_LIFECYCLE_MANAGED=true POSTGRES_HOST=localhost POSTGRES_PORT=5433 POSTGRES_USER=vrooli POSTGRES_PASSWORD=vrooli POSTGRES_DB=calendar_system QDRANT_URL=http://localhost:6333 JWT_SECRET=development-secret-for-calendar-system AUTH_SERVICE_URL=http://localhost:15797 NOTIFICATION_SERVICE_URL=http://localhost:17789 NOTIFICATION_PROFILE_ID=calendar-system-prod ./calendar-api",
+          "run": "cd api && ENVIRONMENT=test VROOLI_LIFECYCLE_MANAGED=true POSTGRES_HOST=localhost POSTGRES_PORT=5433 POSTGRES_USER=vrooli POSTGRES_PASSWORD=vrooli POSTGRES_DB=calendar_system QDRANT_URL=http://localhost:6333 JWT_SECRET=development-secret-for-calendar-system AUTH_SERVICE_URL=http://localhost:15797 NOTIFICATION_SERVICE_URL=http://localhost:15310 NOTIFICATION_PROFILE_ID=calendar-system-prod ./calendar-api",
           "description": "Start Go API server with auth and notification integration",
           "background": true,
           "condition": {
@@ -202,12 +202,12 @@
         },
         {
           "name": "test-create-event",
-          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/events -H 'Content-Type: application/json' -H 'Authorization: Bearer test' -d '{\"title\":\"Test Event\",\"start_time\":\"2024-01-15T10:00:00Z\",\"end_time\":\"2024-01-15T11:00:00Z\"}'",
+          "run": "TS=$(date +%s%N) && YEAR=$((2030 + RANDOM % 20)) && MONTH=$((1 + RANDOM % 12)) && DAY=$((1 + RANDOM % 28)) && HOUR=$((RANDOM % 24)) && MIN=$((RANDOM % 60)) && curl -sf -X POST http://localhost:${API_PORT}/api/v1/events -H 'Content-Type: application/json' -H 'Authorization: Bearer test' -H 'X-User-ID: test-user' -d \"{\\\"title\\\":\\\"Test Event ${TS}\\\",\\\"start_time\\\":\\\"${YEAR}-$(printf %02d $MONTH)-$(printf %02d $DAY)T$(printf %02d $HOUR):$(printf %02d $MIN):00Z\\\",\\\"end_time\\\":\\\"${YEAR}-$(printf %02d $MONTH)-$(printf %02d $DAY)T$(printf %02d $HOUR):$((MIN + 30 > 59 ? 59 : MIN + 30)):00Z\\\",\\\"timezone\\\":\\\"UTC\\\",\\\"location\\\":\\\"Test Room\\\",\\\"event_type\\\":\\\"meeting\\\"}\"",
           "description": "Test event creation endpoint"
         },
         {
           "name": "test-list-events",
-          "run": "curl -sf http://localhost:${API_PORT}/api/v1/events -H 'Authorization: Bearer test'",
+          "run": "curl -sf http://localhost:${API_PORT}/api/v1/events -H 'Authorization: Bearer test' -H 'X-User-ID: test-user'",
           "description": "Test event listing endpoint"
         },
         {

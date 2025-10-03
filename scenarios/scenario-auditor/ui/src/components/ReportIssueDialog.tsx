@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { X, AlertTriangle, CheckCircle, Clock, ExternalLink, FileText, Bug, Wrench } from 'lucide-react'
+import { X, AlertTriangle, CheckCircle, Clock, ExternalLink, FileText, Bug, Wrench, XCircle } from 'lucide-react'
 import type { RuleScenarioTestResult } from '@/types/api'
 
 export type ReportType = 'add_tests' | 'fix_tests' | 'fix_violations'
@@ -18,6 +18,16 @@ export interface ReportPayload {
   ruleId: string
   customInstructions: string
   selectedScenarios: string[]
+}
+
+interface BatchResult {
+  batchIndex: number
+  success: boolean
+  issueId?: string
+  issueUrl?: string
+  message?: string
+  error?: string
+  scenarios: string[]
 }
 
 const REPORT_TYPE_OPTIONS: Array<{
@@ -47,6 +57,8 @@ const REPORT_TYPE_OPTIONS: Array<{
 ]
 
 const MAX_SCENARIOS_WARNING_THRESHOLD = 20
+const MAX_SCENARIOS_PER_ISSUE = 20
+const DEFAULT_BATCH_SIZE = 10
 
 export default function ReportIssueDialog({
   isOpen,
@@ -59,17 +71,21 @@ export default function ReportIssueDialog({
   const [reportType, setReportType] = useState<ReportType>('fix_violations')
   const [customInstructions, setCustomInstructions] = useState('')
   const [selectedScenarios, setSelectedScenarios] = useState<Set<string>>(new Set())
+  const [batchSize, setBatchSize] = useState<number>(DEFAULT_BATCH_SIZE)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [currentBatch, setCurrentBatch] = useState<number>(0)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<{ issueId: string; issueUrl?: string; message: string } | null>(null)
+  const [batchResults, setBatchResults] = useState<BatchResult[]>([])
 
   // Reset state when dialog opens/closes
   useEffect(() => {
     if (isOpen) {
       setReportType('fix_violations')
       setCustomInstructions('')
+      setBatchSize(DEFAULT_BATCH_SIZE)
       setError(null)
-      setResult(null)
+      setBatchResults([])
+      setCurrentBatch(0)
 
       // Pre-select all scenarios with violations for fix_violations
       if (scenarioTestResults.length > 0) {
@@ -97,7 +113,12 @@ export default function ReportIssueDialog({
 
   const showScenarioSelection = reportType === 'fix_violations' && hasViolations
 
-  const showWarning = selectedScenarios.size > MAX_SCENARIOS_WARNING_THRESHOLD
+  const showBatchSizeSlider = selectedScenarios.size > MAX_SCENARIOS_WARNING_THRESHOLD
+
+  const batchCount = useMemo(() => {
+    if (!showBatchSizeSlider) return 1
+    return Math.ceil(selectedScenarios.size / batchSize)
+  }, [selectedScenarios.size, batchSize, showBatchSizeSlider])
 
   const canSubmit = useMemo(() => {
     if (!ruleId) return false
@@ -114,21 +135,60 @@ export default function ReportIssueDialog({
 
     setError(null)
     setIsSubmitting(true)
+    setBatchResults([])
 
     try {
-      const payload: ReportPayload = {
-        reportType,
-        ruleId,
-        customInstructions: customInstructions.trim(),
-        selectedScenarios: Array.from(selectedScenarios),
+      const scenariosArray = Array.from(selectedScenarios)
+
+      // Split scenarios into batches
+      const batches: string[][] = []
+      if (showBatchSizeSlider) {
+        for (let i = 0; i < scenariosArray.length; i += batchSize) {
+          batches.push(scenariosArray.slice(i, i + batchSize))
+        }
+      } else {
+        batches.push(scenariosArray)
       }
 
-      const response = await onSubmitReport(payload)
-      setResult(response)
+      const results: BatchResult[] = []
+
+      // Create issues sequentially
+      for (let i = 0; i < batches.length; i++) {
+        setCurrentBatch(i + 1)
+
+        try {
+          const payload: ReportPayload = {
+            reportType,
+            ruleId,
+            customInstructions: customInstructions.trim(),
+            selectedScenarios: batches[i],
+          }
+
+          const response = await onSubmitReport(payload)
+          results.push({
+            batchIndex: i + 1,
+            success: true,
+            issueId: response.issueId,
+            issueUrl: response.issueUrl,
+            message: response.message,
+            scenarios: batches[i],
+          })
+        } catch (err) {
+          results.push({
+            batchIndex: i + 1,
+            success: false,
+            error: err instanceof Error ? err.message : 'Failed to create issue',
+            scenarios: batches[i],
+          })
+        }
+      }
+
+      setBatchResults(results)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit report')
     } finally {
       setIsSubmitting(false)
+      setCurrentBatch(0)
     }
   }
 
@@ -152,8 +212,12 @@ export default function ReportIssueDialog({
 
   if (!isOpen) return null
 
-  // Success state
-  if (result) {
+  // Success/Results state
+  if (batchResults.length > 0) {
+    const successCount = batchResults.filter(r => r.success).length
+    const failureCount = batchResults.filter(r => !r.success).length
+    const allSuccess = failureCount === 0
+
     return (
       <div className="fixed inset-0 z-[60] overflow-y-auto">
         <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
@@ -162,41 +226,85 @@ export default function ReportIssueDialog({
             onClick={onClose}
           />
 
-          <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+          <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
             <div>
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                <CheckCircle className="h-6 w-6 text-green-600" />
+              <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${allSuccess ? 'bg-green-100' : 'bg-amber-100'}`}>
+                {allSuccess ? (
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                ) : (
+                  <AlertTriangle className="h-6 w-6 text-amber-600" />
+                )}
               </div>
               <div className="mt-3 text-center sm:mt-5">
                 <h3 className="text-lg font-semibold leading-6 text-gray-900">
-                  Issue Created Successfully
+                  {allSuccess ? 'All Issues Created Successfully' : 'Issues Created with Some Failures'}
                 </h3>
                 <div className="mt-2">
-                  <p className="text-sm text-gray-500">{result.message}</p>
-                  {result.issueId && (
-                    <p className="mt-2 text-sm font-medium text-gray-700">
-                      Issue ID: <span className="font-mono text-blue-600">{result.issueId}</span>
-                    </p>
-                  )}
+                  <p className="text-sm text-gray-500">
+                    {allSuccess
+                      ? `Successfully created ${successCount} issue${successCount !== 1 ? 's' : ''}`
+                      : `Created ${successCount} of ${batchResults.length} issue${batchResults.length !== 1 ? 's' : ''} successfully`
+                    }
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-              {result.issueUrl && (
-                <a
-                  href={result.issueUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex w-full justify-center items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:col-start-2"
+            {/* List of results */}
+            <div className="mt-5 max-h-96 overflow-y-auto space-y-3">
+              {batchResults.map((result) => (
+                <div
+                  key={result.batchIndex}
+                  className={`rounded-lg border p-4 ${
+                    result.success
+                      ? 'border-green-200 bg-green-50'
+                      : 'border-red-200 bg-red-50'
+                  }`}
                 >
-                  View Issue
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              )}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      {result.success ? (
+                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${result.success ? 'text-green-900' : 'text-red-900'}`}>
+                          Batch {result.batchIndex} ({result.scenarios.length} scenario{result.scenarios.length !== 1 ? 's' : ''})
+                        </p>
+                        {result.success && result.message && (
+                          <p className="mt-1 text-xs text-green-700">{result.message}</p>
+                        )}
+                        {result.success && result.issueId && (
+                          <p className="mt-1 text-xs text-green-700">
+                            Issue ID: <span className="font-mono">{result.issueId}</span>
+                          </p>
+                        )}
+                        {!result.success && result.error && (
+                          <p className="mt-1 text-xs text-red-700">{result.error}</p>
+                        )}
+                      </div>
+                    </div>
+                    {result.success && result.issueUrl && (
+                      <a
+                        href={result.issueUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 flex-shrink-0"
+                      >
+                        View
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 sm:mt-6">
               <button
                 type="button"
-                className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:col-start-1 sm:mt-0"
+                className="inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                 onClick={onClose}
               >
                 Close
@@ -336,20 +444,43 @@ export default function ReportIssueDialog({
                 <p className="mt-2 text-xs text-gray-600 font-medium">
                   {selectedScenarios.size} of {scenariosWithViolations.length} scenario{scenariosWithViolations.length !== 1 ? 's' : ''} selected
                 </p>
-                {showWarning && (
-                  <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 p-3">
-                    <div className="flex">
-                      <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0" />
-                      <div className="ml-3">
-                        <h3 className="text-sm font-medium text-amber-800">Large selection</h3>
-                        <p className="mt-1 text-xs text-amber-700">
-                          You've selected more than {MAX_SCENARIOS_WARNING_THRESHOLD} scenarios.
-                          This may be difficult to handle in a single issue. Consider splitting into multiple reports.
-                        </p>
+              </div>
+            )}
+
+            {/* Batch Size Slider (only when >20 scenarios selected) */}
+            {showBatchSizeSlider && (
+              <div className="rounded-md bg-blue-50 border border-blue-200 p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-blue-900 mb-3">
+                      Large Selection - Batching Required
+                    </h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label htmlFor="batch-size" className="block text-xs font-medium text-blue-900 mb-2">
+                          Scenarios per Issue: <span className="font-bold">{batchSize}</span>
+                        </label>
+                        <input
+                          id="batch-size"
+                          type="range"
+                          min="1"
+                          max={MAX_SCENARIOS_PER_ISSUE}
+                          value={batchSize}
+                          onChange={(e) => setBatchSize(Number(e.target.value))}
+                          className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                        <div className="flex justify-between text-xs text-blue-700 mt-1">
+                          <span>1</span>
+                          <span>{MAX_SCENARIOS_PER_ISSUE}</span>
+                        </div>
+                      </div>
+                      <div className="text-xs text-blue-800 bg-blue-100 rounded px-2 py-1.5">
+                        <span className="font-medium">Will create {batchCount} issue{batchCount !== 1 ? 's' : ''}</span> to handle {selectedScenarios.size} scenario{selectedScenarios.size !== 1 ? 's' : ''}
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
 

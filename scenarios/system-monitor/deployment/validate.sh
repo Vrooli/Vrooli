@@ -28,11 +28,11 @@ else
     exit 1
 fi
 
-# Check OpenCode investigation endpoint
+# Check Codex investigation endpoint
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:8083/api/investigations/trigger -X OPTIONS | grep -q "200\|404"; then
-    echo "✓ OpenCode investigation endpoint"
+    echo "✓ Codex investigation endpoint"
 else
-    echo "✗ OpenCode investigation endpoint not available"
+    echo "✗ Codex investigation endpoint not available"
 fi
 
 # Check Grafana
@@ -68,4 +68,4 @@ fi
 
 echo ""
 echo "System Monitor validation successful!"
-echo "Anomaly detection and OpenCode investigations ready."
+echo "Anomaly detection and Codex investigations ready."

@@ -1,34 +1,32 @@
 #!/bin/bash
 
-# Test script to verify the OpenCode agent invocation
+# Test script to verify the Codex agent invocation
 set -euo pipefail
 
-echo "🧪 Testing OpenCode investigation agent invocation..."
+echo "🧪 Testing Codex investigation agent invocation..."
 
-# Check if resource-opencode is available
-if ! command -v resource-opencode &> /dev/null; then
-    echo "❌ resource-opencode command not found"
-    echo "   This is expected if the OpenCode resource is not installed"
-    echo "   The scenario now targets resource-opencode with OpenRouter support"
+# Check if resource-codex is available
+if ! command -v resource-codex &> /dev/null; then
+    echo "❌ resource-codex command not found"
+    echo "   This is expected if the Codex resource is not installed"
+    echo "   The scenario now targets resource-codex for investigation tooling"
     exit 0
 fi
 
-echo "✅ resource-opencode command found"
+echo "✅ resource-codex command found"
 
 # Test the recommended invocation pattern
 echo "🔍 Testing recommended invocation pattern..."
 
 # Create a simple test prompt
-TEST_PROMPT="Please respond with exactly: 'OpenCode test successful'"
+TEST_PROMPT="Please respond with exactly: 'Codex test successful'"
 
-# Execute a lightweight OpenCode agent run. This may fail when credentials are
-# not configured, which is acceptable for environments without OpenRouter keys.
-timeout 15 resource-opencode agents run \
-  --model openrouter/openai/gpt-5-codex \
-  --prompt "$TEST_PROMPT" \
-  --allowed-tools "read" \
+# Execute a lightweight Codex agent run. This may fail when credentials are not
+# configured, which is acceptable for environments without Codex CLI setup.
+timeout 15 resource-codex content execute "$TEST_PROMPT" \
+  --allowed-tools "read_file" \
   --max-turns 2 \
-  --task-timeout 45 \
+  --timeout 45 \
   --skip-permissions \
   && echo "✅ Command execution completed" \
   || echo "⚠️  Command failed (expected if credentials are not configured)"
@@ -36,7 +34,7 @@ timeout 15 resource-opencode agents run \
 echo ""
 echo "🎯 Summary of fixes applied:"
 echo "1. ❌ OLD: vrooli resource claude-code run"
-echo "   ✅ NEW: resource-opencode agents run --model openrouter/openai/gpt-5-codex"
+echo "   ✅ NEW: resource-codex content execute <prompt>"
 echo ""
 echo "2. ❌ OLD: Shell piping into resource binary" 
 echo "   ✅ NEW: Structured CLI arguments with prompt flag"
@@ -50,5 +48,4 @@ echo ""
 echo "5. ❌ OLD: Shell expansion for working directory"
 echo "   ✅ NEW: Go filepath handling"
 echo ""
-echo "🚀 The system-monitor now uses resource-opencode with the"
-echo "   OpenRouter openai/gpt-5-codex model for investigations!"
+echo "🚀 The system-monitor now uses resource-codex to run investigation agents!"

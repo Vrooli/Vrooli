@@ -31,8 +31,8 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "Auditing dashboard UI port",
-      "range": "35000-39999"
+      "port": 36224,
+      "description": "Auditing dashboard UI port"
     }
   },
   "resources": {
@@ -134,7 +134,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
+          "run": "cd ui && VROOLI_LIFECYCLE_MANAGED=true npm run dev",
           "background": true,
           "description": "Start Vite dev server"
         },

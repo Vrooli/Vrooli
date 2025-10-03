@@ -421,19 +421,62 @@ func buildIssueTrackerEnhancementDescription(scenario string, testTypes []string
 		builder.WriteString(fmt.Sprintf("Target coverage: %.2f%%\n", req.CoverageTarget))
 	}
 
-	builder.WriteString("\n## ⚠️ IMPORTANT: Existing Tests Present\n\n")
-	builder.WriteString("**This scenario already has test suites**. Your task is to:\n")
-	builder.WriteString("1. **Assess**: Review existing test files and coverage reports\n")
-	builder.WriteString("2. **Identify Gaps**: Find untested functions, missing error cases, low-coverage areas\n")
-	builder.WriteString("3. **Enhance**: Add missing tests while preserving existing working tests\n")
-	builder.WriteString("4. **Improve Quality**: Refactor tests to follow gold standard patterns if needed\n\n")
+	builder.WriteString("\n## 🎯 YOUR TASK: IMPLEMENT IMPROVEMENTS (NOT JUST INVESTIGATE)\n\n")
+	builder.WriteString("**This is an IMPLEMENTATION task, not an investigation task.**\n\n")
+	builder.WriteString("You must:\n")
+	builder.WriteString("1. **Assess**: Run existing tests, generate coverage reports, identify gaps\n")
+	builder.WriteString("2. **Implement**: Write new tests and improve existing ones following gold standards\n")
+	builder.WriteString("3. **Verify**: Run full test suite, confirm coverage increases, all tests pass\n")
+	builder.WriteString("4. **Report**: Document what you implemented and the coverage improvement\n\n")
+	builder.WriteString("**DO NOT** just create recommendations or analysis documents. Write the actual test code.\n\n")
 
-	builder.WriteString("**Assessment Checklist**:\n")
-	builder.WriteString("- [ ] Run existing test suite to understand current state\n")
-	builder.WriteString("- [ ] Generate coverage report to identify gaps\n")
-	builder.WriteString("- [ ] Review test structure for pattern compliance\n")
-	builder.WriteString("- [ ] Identify missing test types from focus areas\n")
-	builder.WriteString("- [ ] Check for test_helpers.go and test_patterns.go existence\n\n")
+	builder.WriteString("## 🚨 CRITICAL SAFETY BOUNDARIES\n\n")
+	builder.WriteString("**NEVER use git commands**:\n")
+	builder.WriteString("- ❌ NO `git commit`, `git add`, `git push`, `git rebase`, or ANY git operations\n")
+	builder.WriteString("- ❌ NO git rollbacks or history manipulation\n")
+	builder.WriteString("- ✅ Edit files directly, verify tests pass, then STOP\n")
+	builder.WriteString("- ✅ Report your changes; committing is the human's responsibility\n\n")
+
+	builder.WriteString("**Stay within scenario boundaries**:\n")
+	builder.WriteString(fmt.Sprintf("- ✅ ONLY modify files within `scenarios/%s/`\n", scenario))
+	builder.WriteString("- ❌ DO NOT touch shared libraries, other scenarios, or root-level code\n")
+	builder.WriteString("- ❌ DO NOT modify centralized testing infrastructure in `scripts/scenarios/testing/`\n")
+	builder.WriteString("- ⚠️  If you need changes outside this scenario, STOP and report the dependency\n\n")
+
+	builder.WriteString("**Cross-scenario awareness**:\n")
+	builder.WriteString("- This scenario may be consumed by other scenarios or the ecosystem\n")
+	builder.WriteString("- Do not break existing API contracts, endpoints, or behavior\n")
+	builder.WriteString("- Tests should verify behavior, not change it\n")
+	builder.WriteString("- If tests reveal bugs, note them but do not fix production code without explicit approval\n\n")
+
+	builder.WriteString("## 📋 Implementation Workflow\n\n")
+	builder.WriteString("**Step 1: Assessment** (understand current state)\n")
+	builder.WriteString("```bash\n")
+	builder.WriteString(fmt.Sprintf("cd scenarios/%s\n", scenario))
+	builder.WriteString("make test  # Run existing tests\n")
+	builder.WriteString("# Review test output and coverage reports\n")
+	builder.WriteString("# Identify gaps in coverage, missing error cases, untested functions\n")
+	builder.WriteString("```\n\n")
+
+	builder.WriteString("**Step 2: Implementation** (write the tests)\n")
+	builder.WriteString("- Add missing test cases to existing `*_test.go` files\n")
+	builder.WriteString("- Create new test files if covering new modules\n")
+	builder.WriteString("- Update `test_helpers.go` with reusable utilities\n")
+	builder.WriteString("- Follow visited-tracker patterns (TestScenarioBuilder, ErrorTestPattern)\n")
+	builder.WriteString("- Ensure proper cleanup with defer statements\n\n")
+
+	builder.WriteString("**Step 3: Verification** (prove it works)\n")
+	builder.WriteString("```bash\n")
+	builder.WriteString("make test  # All tests must pass\n")
+	builder.WriteString("# Confirm coverage increased\n")
+	builder.WriteString("# Document before/after coverage percentages\n")
+	builder.WriteString("```\n\n")
+
+	builder.WriteString("**Step 4: Completion** (report and stop)\n")
+	builder.WriteString("- Summarize what tests were added/improved\n")
+	builder.WriteString("- Report coverage improvement (e.g., \"45% → 78%\")\n")
+	builder.WriteString("- List any discovered bugs or issues\n")
+	builder.WriteString("- STOP - do not commit, push, or continue iterating\n\n")
 
 	return builder.String() + buildSharedTestingGuidance(scenario, testTypes, req)
 }
@@ -446,6 +489,32 @@ func buildIssueTrackerDescription(scenario string, testTypes []string, req Gener
 	if req.CoverageTarget > 0 {
 		builder.WriteString(fmt.Sprintf("Target coverage: %.2f%%\n", req.CoverageTarget))
 	}
+
+	builder.WriteString("\n## 🎯 YOUR TASK: IMPLEMENT COMPREHENSIVE TESTS\n\n")
+	builder.WriteString("**This is an IMPLEMENTATION task.** Generate complete, working test suites that:\n")
+	builder.WriteString("1. Follow gold standard patterns from visited-tracker\n")
+	builder.WriteString("2. Achieve the target coverage\n")
+	builder.WriteString("3. Pass all tests when run with `make test`\n")
+	builder.WriteString("4. Include helpers, patterns, and phase integration\n\n")
+	builder.WriteString("**DO NOT** just analyze or recommend - write the actual test files.\n\n")
+
+	builder.WriteString("## 🚨 CRITICAL SAFETY BOUNDARIES\n\n")
+	builder.WriteString("**NEVER use git commands**:\n")
+	builder.WriteString("- ❌ NO `git commit`, `git add`, `git push`, `git rebase`, or ANY git operations\n")
+	builder.WriteString("- ❌ NO git rollbacks or history manipulation\n")
+	builder.WriteString("- ✅ Create test files, verify they pass, then STOP\n")
+	builder.WriteString("- ✅ Report your work; committing is the human's responsibility\n\n")
+
+	builder.WriteString("**Stay within scenario boundaries**:\n")
+	builder.WriteString(fmt.Sprintf("- ✅ ONLY create/modify files within `scenarios/%s/`\n", scenario))
+	builder.WriteString("- ❌ DO NOT touch shared libraries, other scenarios, or root-level code\n")
+	builder.WriteString("- ❌ DO NOT modify centralized testing infrastructure in `scripts/scenarios/testing/`\n")
+	builder.WriteString("- ⚠️  If you need changes outside this scenario, STOP and report the dependency\n\n")
+
+	builder.WriteString("**Cross-scenario awareness**:\n")
+	builder.WriteString("- This scenario may be consumed by other scenarios or the ecosystem\n")
+	builder.WriteString("- Tests verify behavior without changing it\n")
+	builder.WriteString("- If tests reveal bugs, document them but do not fix production code without explicit approval\n\n")
 
 	return builder.String() + buildSharedTestingGuidance(scenario, testTypes, req)
 }

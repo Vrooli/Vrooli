@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	investigationAgentModel        = "openrouter/openai/gpt-5-codex"
-	investigationAgentAllowedTools = "read,write,edit,bash,ls,glob,grep"
+	investigationAgentModel        = "codex-mini-latest"
+	investigationAgentAllowedTools = "read_file,write_file,append_file,list_files,analyze_code,execute_command(*)"
 	investigationAgentMaxTurns     = 75
 	investigationAgentTimeoutSecs  = 600
 )
@@ -2009,7 +2009,7 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 		investigation.Details["operation_mode"] = "report-only"
 	}
 	investigation.Details["agent_model"] = investigationAgentModel
-	investigation.Details["agent_resource"] = "resource-opencode"
+	investigation.Details["agent_resource"] = "resource-codex"
 
 	// Store optional user note if provided
 	if reqBody.Note != "" {
@@ -2024,7 +2024,7 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Start investigation in background
 	go func() {
-		runOpenCodeInvestigation(investigationID, reqBody.AutoFix, reqBody.Note)
+		runCodexInvestigation(investigationID, reqBody.AutoFix, reqBody.Note)
 	}()
 
 	// Return immediate response with API info
@@ -2032,7 +2032,7 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 		"status":           "queued",
 		"investigation_id": investigationID,
 		"api_base_url":     "http://localhost:8080",
-		"message":          "Investigation queued for OpenCode processing",
+		"message":          "Investigation queued for Codex processing",
 		"auto_fix":         reqBody.AutoFix,
 		"note":             reqBody.Note,
 		"operation_mode":   investigation.Details["operation_mode"],
@@ -2318,7 +2318,7 @@ func updateTriggerThresholdHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 }
 
-func runOpenCodeInvestigation(investigationID string, autoFix bool, userNote string) {
+func runCodexInvestigation(investigationID string, autoFix bool, userNote string) {
 	updateInvestigationField(investigationID, "Status", "in_progress")
 	updateInvestigationField(investigationID, "Progress", 10)
 
@@ -2326,9 +2326,6 @@ func runOpenCodeInvestigation(investigationID string, autoFix bool, userNote str
 	memoryUsage := getMemoryUsage()
 	tcpConnections := getTCPConnections()
 	timestamp := time.Now().Format(time.RFC3339)
-
-	var findings string
-	var details map[string]interface{}
 
 	operationMode := "report-only"
 	if autoFix {
@@ -2382,62 +2379,47 @@ Please begin your systematic investigation now, utilizing the investigation scri
 	}
 
 	baseDetails := map[string]interface{}{
-		"agent_resource": "resource-opencode",
+		"agent_resource": "resource-codex",
 		"agent_model":    investigationAgentModel,
 		"auto_fix":       autoFix,
 		"operation_mode": operationMode,
 	}
 
 	workingDir := resolveInvestigationWorkingDir()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	execCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	args := []string{
-		"agents", "run",
-		"--model", investigationAgentModel,
-		"--prompt", prompt,
-		"--allowed-tools", investigationAgentAllowedTools,
-		"--max-turns", strconv.Itoa(investigationAgentMaxTurns),
-		"--task-timeout", strconv.Itoa(investigationAgentTimeoutSecs),
-		"--skip-permissions",
-	}
+	agentTag := fmt.Sprintf("system-monitor-%s", investigationID)
+	result := services.ExecuteCodexAgent(execCtx, services.CodexAgentOptions{
+		Prompt:          prompt,
+		AllowedTools:    investigationAgentAllowedTools,
+		MaxTurns:        investigationAgentMaxTurns,
+		TimeoutSeconds:  investigationAgentTimeoutSecs,
+		SkipPermissions: true,
+		WorkingDir:      workingDir,
+		DefaultModel:    investigationAgentModel,
+		AgentTag:        agentTag,
+	})
 
-	start := time.Now()
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
+	var findings string
+	var details map[string]interface{}
 
-	cmd := exec.CommandContext(ctx, "resource-opencode", args...)
-	cmd.Dir = workingDir
-	cmd.Env = os.Environ()
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	runErr := cmd.Run()
-	agentOutput := strings.TrimSpace(stdout.String())
-	agentWorked := runErr == nil && agentOutput != "" && !strings.Contains(strings.ToLower(agentOutput), "usage:")
-
-	if runErr != nil {
-		log.Printf("OpenCode agent execution failed: %v; stderr: %.400s", runErr, truncateForLog(stderr.String(), 400))
-	} else if !agentWorked && stderr.Len() > 0 {
-		log.Printf("OpenCode agent returned no actionable output; stderr: %.400s", truncateForLog(stderr.String(), 400))
-	}
-
-	if agentWorked {
-		findings = agentOutput
+	if result.Success {
+		findings = strings.TrimSpace(result.Output)
 		details = map[string]interface{}{
-			"source":           "resource-opencode",
+			"source":           "resource-codex",
 			"risk_level":       "low",
-			"duration_seconds": int(time.Since(start).Seconds()),
+			"duration_seconds": int(result.Duration.Seconds()),
 		}
 		for k, v := range baseDetails {
 			details[k] = v
 		}
-		if stderr.Len() > 0 {
-			details["agent_warnings"] = truncateForLog(stderr.String(), 400)
+		if strings.TrimSpace(result.Stderr) != "" {
+			details["agent_warnings"] = truncateForLog(result.Stderr, 400)
 		}
 		updateInvestigationField(investigationID, "Progress", 90)
 	} else {
-		log.Printf("OpenCode agent unavailable, using fallback investigation")
+		log.Printf("Codex agent unavailable, using fallback investigation")
 		updateInvestigationField(investigationID, "Progress", 25)
 
 		riskLevel := "low"
@@ -2481,7 +2463,7 @@ Please begin your systematic investigation now, utilizing the investigation scri
 		findings = fmt.Sprintf(`### Investigation Summary
 
 **Status**: %s
-**Agent**: Fallback heuristics (OpenCode agent unavailable)
+**Agent**: Fallback heuristics (Codex agent unavailable)
 **Investigation ID**: %s
 **Timestamp**: %s
 
@@ -2565,12 +2547,23 @@ System metrics are %s. %s`,
 		for k, v := range baseDetails {
 			details[k] = v
 		}
-
-		if runErr != nil {
-			details["agent_error"] = truncateForLog(runErr.Error(), 400)
+		if result.Error != nil {
+			details["agent_error"] = truncateForLog(result.Error.Error(), 400)
 		}
-		if stderr.Len() > 0 {
-			details["agent_stderr"] = truncateForLog(stderr.String(), 400)
+		if strings.TrimSpace(result.Stderr) != "" {
+			details["agent_stderr"] = truncateForLog(result.Stderr, 400)
+		}
+		if result.RateLimited {
+			details["agent_rate_limited"] = true
+			if result.RetryAfterSeconds > 0 {
+				details["retry_after_seconds"] = result.RetryAfterSeconds
+			}
+		}
+		if result.Timeout {
+			details["agent_timeout"] = true
+		}
+		if result.IdleTimeout {
+			details["agent_idle_terminated"] = true
 		}
 	}
 

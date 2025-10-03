@@ -1,12 +1,10 @@
 package services
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,8 +20,8 @@ import (
 )
 
 const (
-	investigationServiceAgentModel       = "openrouter/openai/gpt-5-codex"
-	investigationServiceAllowedTools     = "read,write,edit,bash,ls,glob,grep"
+	investigationServiceAgentModel       = "codex-mini-latest"
+	investigationServiceAllowedTools     = "read_file,write_file,append_file,list_files,analyze_code,execute_command(*)"
 	investigationServiceMaxTurns         = 75
 	investigationServiceAgentTimeoutSecs = 600
 )
@@ -216,7 +214,7 @@ func (s *InvestigationService) runInvestigation(investigationID string, autoFix 
 	tcpConnections := s.getTCPConnections()
 	timestamp := time.Now().Format(time.RFC3339)
 
-	// Try OpenCode agent first, then fallback to basic analysis
+	// Try Codex agent first, then fallback to basic analysis
 	findings, details := s.performInvestigation(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, autoFix, note)
 
 	// Update investigation with findings
@@ -235,70 +233,64 @@ func (s *InvestigationService) performInvestigation(investigationID string, cpuU
 	prompt := s.buildInvestigationPrompt(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, autoFix, note)
 
 	baseDetails := map[string]interface{}{
-		"agent_resource": "resource-opencode",
+		"agent_resource": "resource-codex",
 		"agent_model":    investigationServiceAgentModel,
 		"auto_fix":       autoFix,
 		"operation_mode": operationMode,
 	}
 
 	workingDir := resolveInvestigationWorkingDir()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	execCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	args := []string{
-		"agents", "run",
-		"--model", investigationServiceAgentModel,
-		"--prompt", prompt,
-		"--allowed-tools", investigationServiceAllowedTools,
-		"--max-turns", strconv.Itoa(investigationServiceMaxTurns),
-		"--task-timeout", strconv.Itoa(investigationServiceAgentTimeoutSecs),
-		"--skip-permissions",
-	}
+	agentTag := fmt.Sprintf("system-monitor-%s", investigationID)
+	result := ExecuteCodexAgent(execCtx, CodexAgentOptions{
+		Prompt:          prompt,
+		AllowedTools:    investigationServiceAllowedTools,
+		MaxTurns:        investigationServiceMaxTurns,
+		TimeoutSeconds:  investigationServiceAgentTimeoutSecs,
+		SkipPermissions: true,
+		WorkingDir:      workingDir,
+		DefaultModel:    investigationServiceAgentModel,
+		AgentTag:        agentTag,
+	})
 
-	startTime := time.Now()
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
-	cmd := exec.CommandContext(ctx, "resource-opencode", args...)
-	cmd.Dir = workingDir
-	cmd.Env = os.Environ()
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	runErr := cmd.Run()
-	agentOutput := strings.TrimSpace(stdout.String())
-	agentWorked := runErr == nil && agentOutput != "" && !strings.Contains(strings.ToLower(agentOutput), "usage:")
-
-	if runErr != nil {
-		log.Printf("OpenCode agent execution failed: %v; stderr: %.400s", runErr, truncateAgentLog(stderr.String(), 400))
-	} else if !agentWorked && stderr.Len() > 0 {
-		log.Printf("OpenCode agent returned no actionable output; stderr: %.400s", truncateAgentLog(stderr.String(), 400))
-	}
-
-	if agentWorked {
+	if result.Success {
 		details := map[string]interface{}{
-			"source":           "resource-opencode",
+			"source":           "resource-codex",
 			"risk_level":       "low",
-			"duration_seconds": int(time.Since(startTime).Seconds()),
+			"duration_seconds": int(result.Duration.Seconds()),
 		}
 		for k, v := range baseDetails {
 			details[k] = v
 		}
-		if stderr.Len() > 0 {
-			details["agent_warnings"] = truncateAgentLog(stderr.String(), 400)
+		if strings.TrimSpace(result.Stderr) != "" {
+			details["agent_warnings"] = truncateAgentLog(result.Stderr, 400)
 		}
-		return agentOutput, details
+		return strings.TrimSpace(result.Output), details
 	}
 
 	fallbackFindings, fallbackDetails := s.performBasicAnalysis(cpuUsage, memoryUsage, tcpConnections, timestamp, investigationID)
 	for k, v := range baseDetails {
 		fallbackDetails[k] = v
 	}
-	if runErr != nil {
-		fallbackDetails["agent_error"] = truncateAgentLog(runErr.Error(), 400)
+	if result.Error != nil {
+		fallbackDetails["agent_error"] = truncateAgentLog(result.Error.Error(), 400)
 	}
-	if stderr.Len() > 0 {
-		fallbackDetails["agent_stderr"] = truncateAgentLog(stderr.String(), 400)
+	if strings.TrimSpace(result.Stderr) != "" {
+		fallbackDetails["agent_stderr"] = truncateAgentLog(result.Stderr, 400)
+	}
+	if result.RateLimited {
+		fallbackDetails["agent_rate_limited"] = true
+		if result.RetryAfterSeconds > 0 {
+			fallbackDetails["retry_after_seconds"] = result.RetryAfterSeconds
+		}
+	}
+	if result.Timeout {
+		fallbackDetails["agent_timeout"] = true
+	}
+	if result.IdleTimeout {
+		fallbackDetails["agent_idle_terminated"] = true
 	}
 
 	return fallbackFindings, fallbackDetails
@@ -347,7 +339,7 @@ func (s *InvestigationService) performBasicAnalysis(cpuUsage, memoryUsage float6
 	findings := fmt.Sprintf(`### Investigation Summary
 
 **Status**: %s
-**Agent**: Fallback heuristics (OpenCode agent unavailable)
+**Agent**: Fallback heuristics (Codex agent unavailable)
 **Investigation ID**: %s
 **Timestamp**: %s
 
@@ -409,7 +401,7 @@ func (s *InvestigationService) performBasicAnalysis(cpuUsage, memoryUsage float6
 	return findings, details
 }
 
-// buildInvestigationPrompt builds the prompt for the OpenCode investigation agent
+// buildInvestigationPrompt builds the prompt for the Codex investigation agent
 func (s *InvestigationService) buildInvestigationPrompt(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, autoFix bool, note string) string {
 	operationMode := "report-only"
 	if autoFix {

@@ -49,7 +49,7 @@ Use when severity ≥3 or the issue remains unresolved at handoff.
 - [How to prevent similar issues]
 ```
 
-Refer back to `shared/operational/task-completion-protocol` for wrap-up steps once the log is captured.
+Refer back to 'Task Completion Protocol' for wrap-up steps once the log is captured.
 
 ## Key Principles
 - Document everything — future agents rely on your trail.

@@ -12,9 +12,9 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 2. **Files**: Always prefer editing existing files over creating new ones
 4. **Dependencies**: Never install packages without explicit permission
 5. **Documentation**: Read `docs/` files at session start for context
-6. **Managing Scenarios**: 
-   - **ALWAYS use**: Scenario Makefiles for comprehensive management: `make run`, `make test`, `make logs`, `make stop`
-   - **Alternative**: `vrooli scenario run <name>` for direct CLI management
+6. **Managing Scenarios**:
+   - **ALWAYS use**: Scenario Makefiles for comprehensive management: `make start`, `make test`, `make logs`, `make stop`
+   - **Alternative**: `vrooli scenario start <name>` for direct CLI management
    - **NEVER use**: Direct execution like `./api/scenario-api` or `cd scenario && ./lib/develop.sh`
    - The lifecycle system ensures proper process naming, port allocation, and logging
    - Direct execution bypasses critical infrastructure and causes detection issues
@@ -82,13 +82,13 @@ vrooli develop
 vrooli test help  # See available test commands
 
 # Manage scenarios (PREFERRED method)
-cd scenarios/<scenario-name> && make run     # ✅ BEST - comprehensive management
+cd scenarios/<scenario-name> && make start   # ✅ BEST - comprehensive management
 cd scenarios/<scenario-name> && make test    # ✅ Run scenario tests
 cd scenarios/<scenario-name> && make logs    # ✅ View scenario logs
 cd scenarios/<scenario-name> && make stop    # ✅ Stop scenario
 
 # Alternative: Direct CLI management
-vrooli scenario run <scenario-name>          # ✅ ALTERNATIVE - CLI management
+vrooli scenario start <scenario-name>        # ✅ ALTERNATIVE - CLI management
 
 # NEVER: Direct execution bypasses lifecycle
 # NEVER: ./scenarios/name/api/binary         # ❌ WRONG - bypasses lifecycle

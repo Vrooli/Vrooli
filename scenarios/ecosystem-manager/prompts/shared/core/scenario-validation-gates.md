@@ -25,7 +25,7 @@ Run comprehensive test suite.
 **See: 'scenario-testing-reference' section for test commands**
 
 ### 5. Security & Standards 🔒
-Run Scenario Auditor scans per `security-requirements` and resolve/record all critical & high findings.
+Run Scenario Auditor scans per `security-requirements` and resolve/record the worst violations.
 
 ## Execution Order
 1. **Functional** → Verify scenario runs

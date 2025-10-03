@@ -1599,9 +1599,26 @@ class TestGenieApp {
                     body: JSON.stringify(requestData)
                 });
             } else {
-                // Single mode: TODO - add single enhance endpoint if needed
-                this.showError('Single scenario enhancement not yet implemented');
-                return;
+                // Single mode: call enhance endpoint
+                const requestData = {
+                    scenario_name: scenarioNames[0],
+                    test_types: selectedPhases,
+                    coverage_target: normalizedCoverage,
+                    options: {
+                        include_performance_tests: includePerformance,
+                        include_security_tests: includeSecurity,
+                        custom_test_patterns: [],
+                        execution_timeout: 300
+                    }
+                };
+
+                response = await fetch(`${this.apiBaseUrl}/test-suite/enhance`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
             }
 
             if (!response.ok) {

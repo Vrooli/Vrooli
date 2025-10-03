@@ -7,58 +7,59 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 
-	_ "github.com/lib/pq"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
 )
 
 type Article struct {
-	ID             string    `json:"id"`
-	Title          string    `json:"title"`
-	URL            string    `json:"url"`
-	Source         string    `json:"source"`
-	PublishedAt    time.Time `json:"published_at"`
-	Summary        string    `json:"summary"`
-	BiasScore      float64   `json:"bias_score"`
-	BiasAnalysis   string    `json:"bias_analysis"`
-	PerspectiveCount int     `json:"perspective_count"`
-	FetchedAt      time.Time `json:"fetched_at"`
+	ID               string    `json:"id"`
+	Title            string    `json:"title"`
+	URL              string    `json:"url"`
+	Source           string    `json:"source"`
+	PublishedAt      time.Time `json:"published_at"`
+	Summary          string    `json:"summary"`
+	BiasScore        float64   `json:"bias_score"`
+	BiasAnalysis     string    `json:"bias_analysis"`
+	PerspectiveCount int       `json:"perspective_count"`
+	FetchedAt        time.Time `json:"fetched_at"`
 }
 
 type Feed struct {
-	ID          int       `json:"id"`
-	Name        string    `json:"name"`
-	URL         string    `json:"url"`
-	Category    string    `json:"category"`
-	BiasRating  string    `json:"bias_rating"`
-	Active      bool      `json:"active"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID         int       `json:"id"`
+	Name       string    `json:"name"`
+	URL        string    `json:"url"`
+	Category   string    `json:"category"`
+	BiasRating string    `json:"bias_rating"`
+	Active     bool      `json:"active"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 var (
-	db *sql.DB
+	db       *sql.DB
 	upgrader = websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			return true // Allow all origins for development
 		},
 	}
-	clients = make(map[*websocket.Conn]bool)
-	broadcast = make(chan interface{})
+	clients      = make(map[*websocket.Conn]bool)
+	broadcast    = make(chan interface{})
 	clientsMutex sync.RWMutex
 )
 
 func main() {
-    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
    vrooli scenario start news-aggregator-bias-analysis
@@ -66,8 +67,8 @@ func main() {
 💡 The lifecycle system provides environment variables, port allocation,
    and dependency management automatically. Direct execution is not supported.
 `)
-        os.Exit(1)
-    }
+		os.Exit(1)
+	}
 	// Get port from environment - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
@@ -83,11 +84,11 @@ func main() {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
@@ -98,57 +99,57 @@ func main() {
 		log.Fatalf("Failed to open database connection: %v", err)
 	}
 	defer db.Close()
-	
+
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Implement exponential backoff for database connection
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📆 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	// Initialize Redis client (optional)
@@ -171,11 +172,11 @@ func main() {
 	go func() {
 		ticker := time.NewTicker(30 * time.Minute)
 		defer ticker.Stop()
-		
+
 		// Initial processing
 		time.Sleep(10 * time.Second) // Wait for system to stabilize
 		processor.ProcessAllFeeds()
-		
+
 		for range ticker.C {
 			log.Println("Processing all feeds...")
 			processor.ProcessAllFeeds()
@@ -183,7 +184,7 @@ func main() {
 	}()
 
 	router := mux.NewRouter()
-	
+
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 	router.HandleFunc("/articles", getArticlesHandler).Methods("GET")
 	router.HandleFunc("/articles/{id}", getArticleHandler).Methods("GET")
@@ -212,10 +213,9 @@ func main() {
 	}
 }
 
-
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
-		"status": "healthy",
+		"status":  "healthy",
 		"service": "news-aggregator-bias-analysis",
 	})
 }
@@ -224,7 +224,7 @@ func getArticlesHandler(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
 	source := r.URL.Query().Get("source")
 	limit := r.URL.Query().Get("limit")
-	
+
 	if limit == "" {
 		limit = "50"
 	}
@@ -235,7 +235,7 @@ func getArticlesHandler(w http.ResponseWriter, r *http.Request) {
 		FROM articles
 		WHERE 1=1
 	`
-	
+
 	args := []interface{}{}
 	argCount := 0
 
@@ -244,13 +244,13 @@ func getArticlesHandler(w http.ResponseWriter, r *http.Request) {
 		query += fmt.Sprintf(" AND category = $%d", argCount)
 		args = append(args, category)
 	}
-	
+
 	if source != "" {
 		argCount++
 		query += fmt.Sprintf(" AND source = $%d", argCount)
 		args = append(args, source)
 	}
-	
+
 	argCount++
 	query += fmt.Sprintf(" ORDER BY published_at DESC LIMIT $%d", argCount)
 	args = append(args, limit)
@@ -288,7 +288,7 @@ func getArticleHandler(w http.ResponseWriter, r *http.Request) {
 		FROM articles WHERE id = $1
 	`, id).Scan(&a.ID, &a.Title, &a.URL, &a.Source, &a.PublishedAt,
 		&a.Summary, &a.BiasScore, &a.BiasAnalysis, &a.PerspectiveCount, &a.FetchedAt)
-	
+
 	if err != nil {
 		http.Error(w, "Article not found", http.StatusNotFound)
 		return
@@ -312,7 +312,7 @@ func getFeedsHandler(w http.ResponseWriter, r *http.Request) {
 	feeds := []Feed{}
 	for rows.Next() {
 		var f Feed
-		err := rows.Scan(&f.ID, &f.Name, &f.URL, &f.Category, 
+		err := rows.Scan(&f.ID, &f.Name, &f.URL, &f.Category,
 			&f.BiasRating, &f.Active, &f.CreatedAt, &f.UpdatedAt)
 		if err != nil {
 			continue
@@ -338,7 +338,7 @@ func addFeedHandler(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at, updated_at
 	`, feed.Name, feed.URL, feed.Category, feed.BiasRating, feed.Active).Scan(&feed.ID, &feed.CreatedAt, &feed.UpdatedAt)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -368,7 +368,7 @@ func updateFeedHandler(w http.ResponseWriter, r *http.Request) {
 		SET name = $2, url = $3, category = $4, bias_rating = $5, active = $6
 		WHERE id = $1
 	`, id, feed.Name, feed.URL, feed.Category, feed.BiasRating, feed.Active)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -397,25 +397,25 @@ func refreshFeedsHandler(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		// Broadcast refresh status to WebSocket clients
 		broadcastUpdate("refresh_started", map[string]string{
-			"status": "in_progress",
+			"status":  "in_progress",
 			"message": "Fetching latest news from all sources",
 		})
-		
+
 		if processor != nil {
 			err := processor.ProcessAllFeeds()
 			if err != nil {
 				log.Printf("Error processing feeds: %v", err)
 			}
 		}
-		
+
 		broadcastUpdate("refresh_complete", map[string]string{
-			"status": "complete",
+			"status":  "complete",
 			"message": "News feed refresh completed",
 		})
 	}()
 
 	json.NewEncoder(w).Encode(map[string]string{
-		"status": "refresh_triggered",
+		"status":  "refresh_triggered",
 		"message": "Feed refresh initiated",
 	})
 }
@@ -436,16 +436,16 @@ func analyzeBiasHandler(w http.ResponseWriter, r *http.Request) {
 	// Analyze bias using processor
 	if processor != nil {
 		processor.analyzeArticleBias(&article)
-		
+
 		// Update article in database
 		updateQuery := `UPDATE articles SET bias_score = $1, bias_analysis = $2 WHERE id = $3`
 		db.Exec(updateQuery, article.BiasScore, article.BiasAnalysis, article.ID)
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "analysis_completed",
-		"article_id": id,
-		"bias_score": article.BiasScore,
+		"status":        "analysis_completed",
+		"article_id":    id,
+		"bias_score":    article.BiasScore,
 		"bias_analysis": article.BiasAnalysis,
 	})
 }
@@ -461,7 +461,7 @@ func getPerspectivesHandler(w http.ResponseWriter, r *http.Request) {
 		ORDER BY ABS(bias_score) DESC
 		LIMIT 10
 	`, "%"+topic+"%")
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -477,10 +477,10 @@ func getPerspectivesHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		perspectives = append(perspectives, map[string]interface{}{
-			"id": id,
-			"title": title,
-			"source": source,
-			"bias_score": score,
+			"id":            id,
+			"title":         title,
+			"source":        source,
+			"bias_score":    score,
 			"bias_analysis": analysis,
 		})
 	}
@@ -491,10 +491,10 @@ func getPerspectivesHandler(w http.ResponseWriter, r *http.Request) {
 
 func aggregatePerspectivesHandler(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Topic string `json:"topic"`
+		Topic     string `json:"topic"`
 		TimeRange string `json:"time_range"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -535,7 +535,7 @@ func aggregatePerspectivesHandler(w http.ResponseWriter, r *http.Request) {
 		WHERE rn <= 3
 		ORDER BY bias_score
 	`, "%"+request.Topic+"%", timeRange)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -545,27 +545,27 @@ func aggregatePerspectivesHandler(w http.ResponseWriter, r *http.Request) {
 	leftArticles := []map[string]interface{}{}
 	centerArticles := []map[string]interface{}{}
 	rightArticles := []map[string]interface{}{}
-	
+
 	for rows.Next() {
 		var id, title, source, summary, analysis, biasGroup string
 		var score float64
 		var publishedAt time.Time
-		
+
 		err := rows.Scan(&id, &title, &source, &summary, &score, &analysis, &biasGroup, &publishedAt)
 		if err != nil {
 			continue
 		}
-		
+
 		article := map[string]interface{}{
-			"id": id,
-			"title": title,
-			"source": source,
-			"summary": summary,
-			"bias_score": score,
+			"id":            id,
+			"title":         title,
+			"source":        source,
+			"summary":       summary,
+			"bias_score":    score,
 			"bias_analysis": analysis,
-			"published_at": publishedAt,
+			"published_at":  publishedAt,
 		}
-		
+
 		switch biasGroup {
 		case "left":
 			leftArticles = append(leftArticles, article)
@@ -580,41 +580,41 @@ func aggregatePerspectivesHandler(w http.ResponseWriter, r *http.Request) {
 	n8nURL := os.Getenv("N8N_BASE_URL")
 	if n8nURL != "" {
 		payload, _ := json.Marshal(map[string]interface{}{
-			"topic": request.Topic,
-			"left_articles": leftArticles,
+			"topic":           request.Topic,
+			"left_articles":   leftArticles,
 			"center_articles": centerArticles,
-			"right_articles": rightArticles,
+			"right_articles":  rightArticles,
 		})
-		
+
 		client := &http.Client{Timeout: 30 * time.Second}
 		go func() {
-			client.Post(n8nURL+"/webhook/perspective-aggregator", "application/json", 
+			client.Post(n8nURL+"/webhook/perspective-aggregator", "application/json",
 				bytes.NewBuffer(payload))
 		}()
 	}
 
 	response := map[string]interface{}{
-		"topic": request.Topic,
+		"topic":      request.Topic,
 		"time_range": timeRange,
 		"perspectives": map[string]interface{}{
 			"left": map[string]interface{}{
-				"count": len(leftArticles),
+				"count":    len(leftArticles),
 				"articles": leftArticles,
 			},
 			"center": map[string]interface{}{
-				"count": len(centerArticles),
+				"count":    len(centerArticles),
 				"articles": centerArticles,
 			},
 			"right": map[string]interface{}{
-				"count": len(rightArticles),
+				"count":    len(rightArticles),
 				"articles": rightArticles,
 			},
 		},
 		"total_articles": len(leftArticles) + len(centerArticles) + len(rightArticles),
 		"bias_distribution": map[string]float64{
-			"left_percentage": float64(len(leftArticles)) / float64(len(leftArticles) + len(centerArticles) + len(rightArticles)) * 100,
-			"center_percentage": float64(len(centerArticles)) / float64(len(leftArticles) + len(centerArticles) + len(rightArticles)) * 100,
-			"right_percentage": float64(len(rightArticles)) / float64(len(leftArticles) + len(centerArticles) + len(rightArticles)) * 100,
+			"left_percentage":   float64(len(leftArticles)) / float64(len(leftArticles)+len(centerArticles)+len(rightArticles)) * 100,
+			"center_percentage": float64(len(centerArticles)) / float64(len(leftArticles)+len(centerArticles)+len(rightArticles)) * 100,
+			"right_percentage":  float64(len(rightArticles)) / float64(len(leftArticles)+len(centerArticles)+len(rightArticles)) * 100,
 		},
 		"aggregated_at": time.Now(),
 	}
@@ -637,7 +637,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	// Send initial connection message
 	conn.WriteJSON(map[string]string{
-		"type": "connected",
+		"type":    "connected",
 		"message": "Connected to news aggregator real-time updates",
 	})
 
@@ -683,11 +683,11 @@ func handleBroadcast() {
 
 func broadcastUpdate(updateType string, data interface{}) {
 	update := map[string]interface{}{
-		"type": updateType,
-		"data": data,
+		"type":      updateType,
+		"data":      data,
 		"timestamp": time.Now().Unix(),
 	}
-	
+
 	select {
 	case broadcast <- update:
 	default:
@@ -704,7 +704,7 @@ func sendTopicUpdate(conn *websocket.Conn, topic string) {
 		ORDER BY published_at DESC
 		LIMIT 5
 	`, "%"+topic+"%")
-	
+
 	if err != nil {
 		return
 	}
@@ -715,22 +715,22 @@ func sendTopicUpdate(conn *websocket.Conn, topic string) {
 		var id, title, source string
 		var score float64
 		var publishedAt time.Time
-		
+
 		if err := rows.Scan(&id, &title, &source, &score, &publishedAt); err == nil {
 			articles = append(articles, map[string]interface{}{
-				"id": id,
-				"title": title,
-				"source": source,
-				"bias_score": score,
+				"id":           id,
+				"title":        title,
+				"source":       source,
+				"bias_score":   score,
 				"published_at": publishedAt,
 			})
 		}
 	}
 
 	conn.WriteJSON(map[string]interface{}{
-		"type": "topic_update",
-		"topic": topic,
-		"articles": articles,
+		"type":      "topic_update",
+		"topic":     topic,
+		"articles":  articles,
 		"timestamp": time.Now().Unix(),
 	})
 }

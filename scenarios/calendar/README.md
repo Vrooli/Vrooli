@@ -35,6 +35,10 @@
 - **Conflict Detection**: Automatic identification and resolution of scheduling conflicts
 - **Timezone Intelligence**: Global team coordination with timezone awareness
 - **Template System**: Reusable meeting types and scheduling patterns
+- **Travel Time Intelligence**: Automatic calculation of travel time between events with departure time suggestions
+- **Resource Booking**: Prevent double-booking of meeting rooms, equipment, and other resources
+- **External Calendar Sync**: Bidirectional synchronization with Google Calendar and Outlook
+- **Advanced Analytics**: Comprehensive scheduling patterns analysis with productivity insights
 
 ## 🔧 Dependencies
 
@@ -76,6 +80,19 @@ calendar event list --days 7
 
 # Start natural language interface
 calendar schedule chat "find time for a 2-hour project review this week"
+
+# Connect external calendar
+calendar sync connect google
+calendar sync connect outlook
+
+# Check sync status
+calendar sync status
+
+# Manual sync
+calendar sync run
+
+# Disconnect external calendar
+calendar sync disconnect google
 ```
 
 ### API Integration
@@ -111,10 +128,76 @@ automation_config:
   payload: { context: "meeting_started" }
 ```
 
+### Travel Time API Usage
+```javascript
+// Calculate travel time between locations
+const travelTime = await fetch('/api/v1/travel/calculate', {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer token'
+  },
+  body: JSON.stringify({
+    origin: "Office Building A",
+    destination: "Conference Room B",
+    mode: "driving"  // Options: driving, transit, walking, bicycling
+  })
+});
+// Returns: { duration_seconds: 450, distance_meters: 5000, traffic_condition: "moderate" }
+
+// Get departure time suggestion for an event
+const departure = await fetch(`/api/v1/events/${eventId}/departure-time?origin=Home&mode=transit`, {
+  headers: { 'Authorization': 'Bearer token' }
+});
+// Returns: { departure_time: "2026-02-01T13:30:00Z", event_start: "2026-02-01T14:00:00Z" }
+```
+
+### Resource Booking API Usage
+```javascript
+// Create a bookable resource
+const resource = await fetch('/api/v1/resources', {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer token'
+  },
+  body: JSON.stringify({
+    name: "Conference Room A",
+    resource_type: "room",
+    capacity: 20,
+    location: "Building 1, Floor 2"
+  })
+});
+
+// Check resource availability
+const available = await fetch(`/api/v1/resources/${resourceId}/availability?start_time=2025-01-01T10:00:00Z&end_time=2025-01-01T11:00:00Z`, {
+  headers: { 'Authorization': 'Bearer token' }
+});
+// Returns: { available: true/false, conflicts: [...] }
+
+// Book resource for an event
+const booking = await fetch(`/api/v1/events/${eventId}/resources`, {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer token'
+  },
+  body: JSON.stringify({
+    resource_id: resourceId,
+    booking_status: "confirmed"
+  })
+});
+```
+
 ### Cross-scenario APIs
 - `POST /api/v1/events` - Create time-based workflows
 - `GET /api/v1/events?search=query` - Semantic event discovery
 - `POST /api/v1/schedule/optimize` - AI-powered time optimization
+- `POST /api/v1/travel/calculate` - Calculate travel time between locations
+- `GET /api/v1/events/{id}/departure-time` - Get departure time for an event
+- `POST /api/v1/resources` - Create bookable resources
+- `GET /api/v1/resources/{id}/availability` - Check resource availability
+- `POST /api/v1/events/{id}/resources` - Book resources for events
 
 ## 🎯 Success Metrics
 

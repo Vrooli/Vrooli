@@ -37,8 +37,9 @@ export default defineConfig({
     },
   },
   server: {
-    host: true,
-    port: parseInt(process.env.UI_PORT || '35001'),
+    host: '0.0.0.0',
+    port: Number(process.env.UI_PORT) || 36224,
+    allowedHosts: ['scenario-auditor.itsagitime.com'],
     proxy: {
       '/api': {
         target: `http://localhost:${process.env.API_PORT || '15001'}`,

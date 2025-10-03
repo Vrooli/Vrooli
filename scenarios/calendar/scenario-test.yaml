@@ -84,9 +84,9 @@ tests:
     headers:
       Authorization: "Bearer mock-token-for-testing"
     body:
-      title: "Test Meeting"
-      start_time: "2024-01-15T10:00:00Z"
-      end_time: "2024-01-15T11:00:00Z"
+      title: "Automated Test Meeting ${TIMESTAMP}"
+      start_time: "2025-12-20T14:00:00Z"
+      end_time: "2025-12-20T15:00:00Z"
       event_type: "meeting"
     expect:
       status: 201
@@ -220,8 +220,8 @@ tests:
           Authorization: "Bearer mock-token-for-testing"
         body:
           title: "Integration Test Event"
-          start_time: "2024-02-01T14:00:00Z"
-          end_time: "2024-02-01T15:00:00Z"
+          start_time: "2025-12-20T14:00:00Z"
+          end_time: "2025-12-20T15:00:00Z"
         expect:
           status: 201
           store_response_field: event_id

@@ -36,8 +36,8 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "Web UI dashboard port",
-      "range": "35000-39999"
+      "port": 36232,
+      "description": "Web UI dashboard port"
     }
   },
   "components": {
@@ -95,13 +95,13 @@
       ],
       "purpose": "anomaly investigation and analysis"
     },
-    "opencode": {
-      "type": "opencode",
+    "codex": {
+      "type": "codex",
       "enabled": true,
       "required": false,
-      "purpose": "deep system investigation using OpenRouter models",
+      "purpose": "deep system investigation using Codex tooling",
       "models": [
-        "openrouter/openai/gpt-5-codex"
+        "codex-mini-latest"
       ]
     },
     "grafana": {

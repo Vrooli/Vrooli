@@ -21,6 +21,7 @@
     "date-fns": "^3.2.0",
     "express": "^5.1.0",
     "lucide-react": "^0.312.0",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",

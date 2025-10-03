@@ -30,9 +30,9 @@ tests:
     flow: anomaly-detection-flow
     expected: deployed
 
-  - name: OpenCode Investigation Endpoint
+  - name: Codex Investigation Endpoint
     type: connectivity
-    service: opencode
+    service: codex
     endpoint: /api/investigations/trigger
     method: OPTIONS
     expected: 200
@@ -97,7 +97,7 @@ validation:
     - redis
     - node-red
     - n8n
-    - claude-code
+    - codex
     - grafana
   required_ports:
     - 3003

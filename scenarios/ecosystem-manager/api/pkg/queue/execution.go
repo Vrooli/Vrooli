@@ -538,7 +538,7 @@ func (qp *Processor) extractRetryAfter(output string) int {
 	}
 
 	if strings.Contains(lowerOutput, "1 hour") || strings.Contains(lowerOutput, "1-hour") {
-		return 3600 // 1 hour
+		return 1800 // 30 minutes (reduced from 1 hour to be less disruptive)
 	}
 
 	// Look for "retry_after" or "retry-after" patterns
@@ -567,7 +567,7 @@ func (qp *Processor) extractRetryAfter(output string) int {
 
 	// If we see "critical" rate limits, use a longer default
 	if strings.Contains(lowerOutput, "critical") {
-		return 3600 // 1 hour for critical rate limits
+		return 1800 // 30 minutes for critical rate limits
 	}
 
 	return defaultRetry
@@ -592,16 +592,19 @@ func (qp *Processor) handleNonZeroExit(waitErr error, combinedOutput string, tas
 	}
 
 	lowerOutput := strings.ToLower(combinedOutput)
-	isRateLimit := strings.Contains(lowerOutput, "usage limit") ||
-		strings.Contains(lowerOutput, "rate limit") ||
-		strings.Contains(lowerOutput, "ai usage limit reached") ||
+	// More specific rate limit detection to avoid false positives
+	// Avoid matching benign phrases like "rate limiting headers" or "rate limit middleware"
+	isRateLimit := strings.Contains(lowerOutput, "ai usage limit reached") ||
 		strings.Contains(lowerOutput, "rate/usage limit reached") ||
 		strings.Contains(lowerOutput, "claude ai usage limit reached") ||
 		strings.Contains(lowerOutput, "you've reached your claude usage limit") ||
-		strings.Contains(lowerOutput, "429") ||
+		strings.Contains(lowerOutput, "usage limit reached") ||
+		strings.Contains(lowerOutput, "rate limit reached") ||
+		strings.Contains(lowerOutput, "rate limit exceeded") ||
 		strings.Contains(lowerOutput, "too many requests") ||
 		strings.Contains(lowerOutput, "quota exceeded") ||
-		strings.Contains(lowerOutput, "rate limits are critical")
+		strings.Contains(lowerOutput, "rate limits are critical") ||
+		strings.Contains(lowerOutput, "error 429")
 
 	if exitCode == 429 {
 		isRateLimit = true
