@@ -26,7 +26,18 @@ const elements = {
   tabContextBackdrop: document.getElementById('tabContextBackdrop'),
   signOutAllSessions: document.getElementById('signOutAllSessions'),
   aiCommandInput: document.getElementById('aiCommandInput'),
-  aiGenerateBtn: document.getElementById('aiGenerateBtn')
+  aiGenerateBtn: document.getElementById('aiGenerateBtn'),
+  composeBtn: document.getElementById('composeInputBtn'),
+  composeDialog: document.getElementById('composeDialog'),
+  composeBackdrop: document.getElementById('composeBackdrop'),
+  composeForm: document.getElementById('composeForm'),
+  composeClose: document.getElementById('composeClose'),
+  composeCancel: document.getElementById('composeCancel'),
+  composeTextarea: document.getElementById('composeTextarea'),
+  composeAppendNewline: document.getElementById('composeAppendNewline'),
+  composeCharCount: document.getElementById('composeCharCount'),
+  composePreview: document.getElementById('composePreview'),
+  composeSend: document.getElementById('composeSend')
 }
 
 const shortcutButtons = Array.from(document.querySelectorAll('[data-shortcut-id]'))
@@ -176,6 +187,11 @@ const state = {
     tabId: null,
     selectedColor: TAB_COLOR_DEFAULT,
     anchor: { x: 0, y: 0 }
+  },
+  composer: {
+    open: false,
+    previousFocus: null,
+    appendNewline: true
   }
 }
 
@@ -283,6 +299,30 @@ if (elements.signOutAllSessions) {
 
 initializeTabCustomizationUI()
 
+if (elements.composeBtn) {
+  elements.composeBtn.addEventListener('click', () => openComposeDialog())
+}
+if (elements.composeCancel) {
+  elements.composeCancel.addEventListener('click', () => closeComposeDialog({ preserveValue: false }))
+}
+if (elements.composeClose) {
+  elements.composeClose.addEventListener('click', () => closeComposeDialog({ preserveValue: false }))
+}
+if (elements.composeBackdrop) {
+  elements.composeBackdrop.addEventListener('click', () => closeComposeDialog({ preserveValue: false }))
+}
+if (elements.composeForm) {
+  elements.composeForm.addEventListener('submit', handleComposeSubmit)
+}
+if (elements.composeTextarea) {
+  elements.composeTextarea.addEventListener('input', updateComposeFeedback)
+}
+if (elements.composeAppendNewline) {
+  elements.composeAppendNewline.addEventListener('change', updateComposeFeedback)
+}
+
+updateComposeFeedback()
+
 if (elements.drawerToggle) {
   elements.drawerToggle.addEventListener('click', () => toggleDrawer())
 }
@@ -297,6 +337,11 @@ if (elements.drawerBackdrop) {
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return
+  if (state.composer.open) {
+    event.preventDefault()
+    closeComposeDialog({ preserveValue: false })
+    return
+  }
   if (state.tabMenu.open) {
     event.preventDefault()
     closeTabCustomization()
@@ -443,6 +488,10 @@ function createTerminalTab({ focus = false, id = null, label = null, colorId = T
     socket: null,
     reconnecting: false,
     inputSeq: 0,
+    replayPending: false,
+    replayComplete: true,
+    lastReplayCount: 0,
+    lastReplayTruncated: false,
     transcript: [],
     events: [],
     suppressed: initialSuppressedState(),
@@ -1103,6 +1152,7 @@ function setTabSocketState(tab, socketState) {
 
 function updateUI() {
   const tab = getActiveTab()
+  updateComposeFeedback()
 
   if (!tab) {
     if (elements.sessionId) elements.sessionId.textContent = '—'
@@ -1299,6 +1349,10 @@ async function startSession(tab, options = {}) {
     tab.errorMessage = ''
     tab.lastSentSize = { cols: 0, rows: 0 }
     tab.inputSeq = 0
+    tab.replayPending = false
+    tab.replayComplete = true
+    tab.lastReplayCount = 0
+    tab.lastReplayTruncated = false
     tab.term.reset()
     renderEventMeta(tab)
     appendEvent(tab, 'session-created', {
@@ -1439,6 +1493,10 @@ function connectWebSocket(tab, sessionId) {
   const previousSocket = tab.socket
   const socket = new WebSocket(url)
   tab.socket = socket
+  tab.replayPending = true
+  tab.replayComplete = false
+  tab.lastReplayCount = 0
+  tab.lastReplayTruncated = false
 
   if (previousSocket && previousSocket !== socket) {
     try {
@@ -1513,6 +1571,9 @@ function handleStreamEnvelope(tab, envelope) {
     case 'output':
       handleOutputPayload(tab, envelope.payload)
       break
+    case 'output_replay':
+      handleReplayPayload(tab, envelope.payload)
+      break
     case 'status':
       handleStatusPayload(tab, envelope.payload)
       break
@@ -1524,7 +1585,7 @@ function handleStreamEnvelope(tab, envelope) {
   }
 }
 
-function handleOutputPayload(tab, payload) {
+function handleOutputPayload(tab, payload, options = {}) {
   if (!tab || !payload || typeof payload.data !== 'string') return
 
   let text = payload.data
@@ -1539,12 +1600,79 @@ function handleOutputPayload(tab, payload) {
   }
 
   tab.term.write(text)
-  recordTranscript(tab, {
-    timestamp: payload.timestamp ? Date.parse(payload.timestamp) : Date.now(),
-    direction: payload.direction || 'stdout',
-    encoding: payload.encoding,
-    data: payload.data
-  })
+  if (options.record !== false) {
+    const entry = {
+      timestamp: payload.timestamp ? Date.parse(payload.timestamp) : Date.now(),
+      direction: payload.direction || 'stdout',
+      encoding: payload.encoding,
+      data: payload.data
+    }
+    if (options.replay === true) {
+      entry.replay = true
+    }
+    recordTranscript(tab, entry)
+  }
+}
+
+function handleReplayPayload(tab, payload) {
+  if (!tab || !payload || typeof payload !== 'object') return
+
+  const chunks = Array.isArray(payload.chunks) ? payload.chunks : []
+  const wasPending = tab.replayPending === true
+
+  if (wasPending) {
+    tab.replayPending = false
+    tab.replayComplete = false
+    tab.lastReplayCount = 0
+    tab.lastReplayTruncated = false
+    try {
+      tab.term.reset()
+    } catch (_error) {
+      // ignore reset failures
+    }
+    tab.transcript = []
+    appendEvent(tab, 'output-replay-started', {
+      expected: typeof payload.count === 'number' ? payload.count : chunks.length
+    })
+    renderEventMeta(tab)
+  }
+
+  if (chunks.length > 0) {
+    chunks.forEach((chunk) => {
+      handleOutputPayload(tab, chunk, { replay: true })
+    })
+  }
+
+  if (typeof payload.count === 'number') {
+    tab.lastReplayCount = payload.count
+  } else if (chunks.length > 0) {
+    tab.lastReplayCount = chunks.length
+  }
+
+  if (payload.truncated !== undefined) {
+    tab.lastReplayTruncated = Boolean(payload.truncated)
+  }
+
+  if (payload.complete) {
+    tab.replayComplete = true
+    const eventPayload = {
+      count: tab.lastReplayCount,
+      truncated: tab.lastReplayTruncated
+    }
+    if (payload.generated) {
+      const generatedTs = Date.parse(payload.generated)
+      if (!Number.isNaN(generatedTs)) {
+        eventPayload.generatedAt = generatedTs
+      }
+    }
+    appendEvent(tab, 'output-replay-complete', eventPayload)
+  } else {
+    tab.replayPending = true
+  }
+
+  if (tab.id === state.activeTabId) {
+    updateUI()
+  }
 }
 
 function handleStatusPayload(tab, payload) {
@@ -1597,6 +1725,147 @@ function notifyPanic(tab, payload) {
   const reason = payload && typeof payload === 'object' && payload.reason ? payload.reason : 'unknown error'
   tab.term.write(`\r\n\u001b[31mCommand exited\u001b[0m: ${reason}\r\n`)
   tab.term.write('Review the event feed or transcripts for details.\r\n')
+}
+
+function openComposeDialog(prefill = '') {
+  if (!elements.composeDialog || !elements.composeTextarea) return
+  if (state.composer.open) {
+    elements.composeTextarea.focus()
+    return
+  }
+
+  if (!prefill && typeof window !== 'undefined' && window.getSelection) {
+    try {
+      const selected = window.getSelection().toString()
+      if (selected && selected.trim().length > 0) {
+        prefill = selected.trimEnd()
+      }
+    } catch (_error) {
+      // ignore selection access issues
+    }
+  }
+
+  state.composer.open = true
+  state.composer.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+
+  elements.composeDialog.classList.remove('hidden')
+  elements.composeBackdrop?.classList.remove('hidden')
+  elements.composeDialog.setAttribute('aria-hidden', 'false')
+
+  elements.composeTextarea.value = prefill || ''
+  if (elements.composeAppendNewline) {
+    elements.composeAppendNewline.checked = state.composer.appendNewline !== false
+  }
+  updateComposeFeedback()
+
+  requestAnimationFrame(() => {
+    elements.composeTextarea?.focus()
+    elements.composeTextarea?.select()
+  })
+}
+
+function closeComposeDialog(options = {}) {
+  if (!state.composer.open) {
+    return
+  }
+  state.composer.open = false
+
+  elements.composeDialog?.classList.add('hidden')
+  elements.composeBackdrop?.classList.add('hidden')
+  elements.composeDialog?.setAttribute('aria-hidden', 'true')
+
+  if (!options.preserveValue && elements.composeTextarea) {
+    elements.composeTextarea.value = ''
+  }
+
+  updateComposeFeedback()
+
+  if (state.composer.previousFocus && typeof state.composer.previousFocus.focus === 'function') {
+    try {
+      state.composer.previousFocus.focus()
+    } catch (_error) {
+      // ignore focus failures
+    }
+  }
+  state.composer.previousFocus = null
+}
+
+function updateComposeFeedback() {
+  if (!elements.composeTextarea || !elements.composeSend) return
+  const value = elements.composeTextarea.value || ''
+  const newline = elements.composeAppendNewline ? elements.composeAppendNewline.checked : true
+  state.composer.appendNewline = newline
+
+  const needsNewline = newline && !value.endsWith('\n')
+  const previewText = newline ? `${value}${needsNewline ? '\n' : ''}` : value
+
+  if (elements.composePreview) {
+    elements.composePreview.textContent = previewText
+  }
+
+  const tab = getActiveTab()
+
+  if (elements.composeCharCount) {
+    const totalChars = value.length + (needsNewline ? 1 : 0)
+    const baseLabel = needsNewline
+      ? `${totalChars} chars (includes appended newline)`
+      : `${totalChars} chars`
+    elements.composeCharCount.textContent = tab ? baseLabel : `No active terminal · ${baseLabel}`
+  }
+
+  const trimmed = value.trim()
+  elements.composeSend.disabled = !tab || trimmed.length === 0
+}
+
+function handleComposeSubmit(event) {
+  event.preventDefault()
+  if (!elements.composeTextarea) return
+  const tab = getActiveTab()
+  if (!tab) {
+    updateComposeFeedback()
+    return
+  }
+
+  const value = elements.composeTextarea.value
+  const trimmed = value.trim()
+  if (!trimmed) {
+    updateComposeFeedback()
+    return
+  }
+
+  const appendNewline = elements.composeAppendNewline ? elements.composeAppendNewline.checked : true
+  const meta = {
+    appendNewline,
+    eventType: 'composer-send',
+    source: 'composer'
+  }
+
+  let sent = false
+  if (tab.socket && tab.socket.readyState === WebSocket.OPEN) {
+    sent = transmitInput(tab, value, meta)
+  } else {
+    queueInput(tab, value, meta)
+    if (tab.phase === 'idle' || tab.phase === 'closed') {
+      startSession(tab, { reason: 'composer-input' }).catch((error) => {
+        appendEvent(tab, 'session-error', error)
+        showError(tab, error instanceof Error ? error.message : 'Unable to start terminal session')
+      })
+    }
+    sent = true
+  }
+
+  if (sent) {
+    appendEvent(tab, 'composer-send', {
+      length: value.length,
+      appendedNewline: appendNewline,
+      queued: !(tab.socket && tab.socket.readyState === WebSocket.OPEN)
+    })
+    elements.composeTextarea.value = ''
+    updateComposeFeedback()
+    closeComposeDialog({ preserveValue: false })
+  } else {
+    showError(tab, 'Failed to send message to terminal')
+  }
 }
 
 function ensureInputSequence(tab, meta = {}) {

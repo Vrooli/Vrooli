@@ -92,7 +92,8 @@ export interface ProcessorStateData {
   refresh_interval: number;
   max_issues: number;
   issues_processed: number;
-  issues_remaining?: number;
+  issues_remaining?: number | string;
+  max_issues_disabled: boolean;
 }
 
 export interface RateLimitData {

@@ -58,6 +58,12 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// Max tasks caused queue starvation, so the feature is currently disabled regardless of input
+	if newSettings.MaxTasks != 0 {
+		log.Printf("Ignoring requested max_tasks value (%d); feature is disabled", newSettings.MaxTasks)
+		newSettings.MaxTasks = 0
+	}
+
 	// Validate settings
 	if newSettings.Slots < 1 || newSettings.Slots > 5 {
 		http.Error(w, "Slots must be between 1 and 5", http.StatusBadRequest)
@@ -140,10 +146,12 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 		h.recycler.Wake()
 	}
 
+	var resumeSummary *queue.ResumeResetSummary
 	// Apply processor settings
 	if wasActive != newSettings.Active {
 		if newSettings.Active {
-			h.processor.Resume() // Remove from maintenance mode
+			summary := h.processor.ResumeWithReset() // Remove from maintenance mode with cleanup
+			resumeSummary = &summary
 			log.Println("Queue processor activated via settings")
 		} else {
 			h.processor.Pause() // Put in maintenance mode
@@ -154,12 +162,17 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 	// Broadcast settings change via WebSocket
 	h.wsManager.BroadcastUpdate("settings_updated", newSettings)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	response := map[string]interface{}{
 		"success":  true,
 		"settings": newSettings,
 		"message":  "Settings updated successfully",
-	})
+	}
+	if resumeSummary != nil {
+		response["resume_reset_summary"] = resumeSummary
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 
 	log.Printf("Settings updated: slots=%d, refresh=%ds, active=%v, max_turns=%d, timeout=%dm",
 		newSettings.Slots, newSettings.RefreshInterval, newSettings.Active, newSettings.MaxTurns, newSettings.TaskTimeout)

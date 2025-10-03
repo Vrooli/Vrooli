@@ -84,7 +84,7 @@ warn() {
     fi
 }
 
-DEFAULT_PROMPT_TEMPLATE="Perform a full investigation and provide code-level remediation guidance."
+DEFAULT_PROMPT_TEMPLATE="You are an elite software engineer responsible for full-cycle incident and improvements management on assigned scenarios or resources. You combine first-principles diagnostics with disciplined execution that preserves platform integrity and accelerates future agents."
 
 load_default_prompt_template() {
     if [[ -f "$DEFAULT_PROMPT_FILE" ]]; then
@@ -239,6 +239,8 @@ render_prompt_template() {
     local error_message="$7"
     local stack_trace="$8"
     local affected_files="$9"
+    local issue_metadata="${10}"
+    local issue_artifacts="${11}"
 
     local fallback="(not provided)"
 
@@ -250,6 +252,8 @@ render_prompt_template() {
     [[ -z "${error_message// }" ]] && error_message="$fallback"
     [[ -z "${stack_trace// }" ]] && stack_trace="$fallback"
     [[ -z "${affected_files// }" ]] && affected_files="$fallback"
+    [[ -z "${issue_metadata// }" ]] && issue_metadata="$fallback"
+    [[ -z "${issue_artifacts// }" ]] && issue_artifacts="$fallback"
 
     template="${template//{{issue_title}}/$issue_title}"
     template="${template//{{issue_description}}/$issue_description}"
@@ -259,6 +263,8 @@ render_prompt_template() {
     template="${template//{{error_message}}/$error_message}"
     template="${template//{{stack_trace}}/$stack_trace}"
     template="${template//{{affected_files}}/$affected_files}"
+    template="${template//{{issue_metadata}}/$issue_metadata}"
+    template="${template//{{issue_artifacts}}/$issue_artifacts}"
 
     echo "$template"
 }
@@ -354,6 +360,8 @@ investigate_issue() {
     local error_message=""
     local stack_trace=""
     local affected_files=""
+    local metadata_content=""
+    local artifact_paths=""
 
     if [[ -n "$ISSUE_METADATA_PATH" && -f "$ISSUE_METADATA_PATH" ]]; then
         title=$(grep "^title:" "$ISSUE_METADATA_PATH" | head -1 | sed 's/title: *"\?\(.*\)"\?/\1/' | sed 's/"$//')
@@ -361,6 +369,7 @@ investigate_issue() {
         issue_type=$(grep "^type:" "$ISSUE_METADATA_PATH" | head -1 | sed 's/type: *"\?\(.*\)"\?/\1/' | sed 's/"$//')
         priority=$(grep "^priority:" "$ISSUE_METADATA_PATH" | head -1 | sed 's/priority: *"\?\(.*\)"\?/\1/' | sed 's/"$//')
         app_id=$(grep "^app_id:" "$ISSUE_METADATA_PATH" | head -1 | sed 's/app_id: *"\?\(.*\)"\?/\1/' | sed 's/"$//')
+        metadata_content=$(cat "$ISSUE_METADATA_PATH")
 
         if grep -q "error_message:" "$ISSUE_METADATA_PATH"; then
             error_message=$(awk '/^error_context:/, /^[^[:space:]]/ {print}' "$ISSUE_METADATA_PATH" | grep "error_message:" | head -1 | sed 's/.*error_message: *"\?\(.*\)"\?/\1/' | sed 's/"$//')
@@ -375,8 +384,19 @@ investigate_issue() {
         fi
     fi
 
+    if [[ -n "$ISSUE_DIR" ]]; then
+        local artifacts_dir="${ISSUE_DIR}/artifacts"
+        if [[ -d "$artifacts_dir" ]]; then
+            while IFS= read -r artifact; do
+                local relative_path="${artifact#"$ISSUE_DIR/"}"
+                artifact_paths+="- $relative_path"$'\n'
+            done < <(find "$artifacts_dir" -type f | sort)
+            artifact_paths="${artifact_paths%$'\n'}"
+        fi
+    fi
+
     # Render the unified-resolver.md template with issue-specific data
-    prompt_template=$(render_prompt_template "$prompt_template" "$title" "$description" "$issue_type" "$priority" "$app_id" "$error_message" "$stack_trace" "$affected_files")
+    prompt_template=$(render_prompt_template "$prompt_template" "$title" "$description" "$issue_type" "$priority" "$app_id" "$error_message" "$stack_trace" "$affected_files" "$metadata_content" "$artifact_paths")
 
     # Create investigation workspace
     local workspace_dir="/tmp/codex-investigation-${issue_id}"

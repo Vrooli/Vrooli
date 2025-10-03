@@ -26,13 +26,13 @@
           "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
           "command": "run -",
           "max_turns": 80,
-          "timeout_seconds": 600
+          "timeout_seconds": 1800
         },
         "investigate": {
           "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
           "command": "run -",
           "max_turns": 80,
-          "timeout_seconds": 600
+          "timeout_seconds": 1800
         }
       }
     },

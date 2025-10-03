@@ -452,7 +452,7 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 				}, cleanup, nil
 			}
 
-			if response, handled := qp.handleNonZeroExit(waitErr, combinedOutput, task, agentTag, currentSettings.MaxTurns); handled {
+			if response, handled := qp.handleNonZeroExit(waitErr, combinedOutput, task, agentTag, currentSettings.MaxTurns, time.Since(startTime)); handled {
 				return response, cleanup, nil
 			}
 
@@ -465,8 +465,9 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		qp.appendTaskLog(task.ID, agentTag, "stderr", "INFO: Claude process completed after idle watchdog cancellation signal")
 	}
 
+	elapsed := time.Since(startTime)
 	lowerOutput := strings.ToLower(combinedOutput)
-	if strings.Contains(lowerOutput, "usage limit") ||
+	if elapsed <= time.Minute && (strings.Contains(lowerOutput, "usage limit") ||
 		strings.Contains(lowerOutput, "rate limit") ||
 		strings.Contains(lowerOutput, "ai usage limit reached") ||
 		strings.Contains(lowerOutput, "rate/usage limit reached") ||
@@ -475,7 +476,7 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		strings.Contains(lowerOutput, "429") ||
 		strings.Contains(lowerOutput, "too many requests") ||
 		strings.Contains(lowerOutput, "quota exceeded") ||
-		strings.Contains(lowerOutput, "rate limits are critical") {
+		strings.Contains(lowerOutput, "rate limits are critical")) {
 		retryAfter := qp.extractRetryAfter(combinedOutput)
 		qp.appendTaskLog(task.ID, agentTag, "stderr", fmt.Sprintf("🚫 Rate limit detected. Suggested backoff %d seconds", retryAfter))
 		return &tasks.ClaudeCodeResponse{
@@ -573,7 +574,7 @@ func (qp *Processor) extractRetryAfter(output string) int {
 	return defaultRetry
 }
 
-func (qp *Processor) handleNonZeroExit(waitErr error, combinedOutput string, task tasks.TaskItem, agentTag string, maxTurns int) (*tasks.ClaudeCodeResponse, bool) {
+func (qp *Processor) handleNonZeroExit(waitErr error, combinedOutput string, task tasks.TaskItem, agentTag string, maxTurns int, elapsed time.Duration) (*tasks.ClaudeCodeResponse, bool) {
 	// Determine exit code if available
 	exitCode, hasExit := exitCodeFromError(waitErr)
 	if !hasExit {
@@ -610,7 +611,7 @@ func (qp *Processor) handleNonZeroExit(waitErr error, combinedOutput string, tas
 		isRateLimit = true
 	}
 
-	if isRateLimit {
+	if isRateLimit && elapsed <= time.Minute {
 		retryAfter := qp.extractRetryAfter(combinedOutput)
 		qp.appendTaskLog(task.ID, agentTag, "stderr", fmt.Sprintf("🚫 Rate limit hit. Pausing for %d seconds", retryAfter))
 		return &tasks.ClaudeCodeResponse{

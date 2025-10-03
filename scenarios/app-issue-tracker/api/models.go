@@ -32,6 +32,7 @@ type ProcessorState struct {
 	RefreshInterval  int  `json:"refresh_interval"`
 	CurrentlyRunning int  `json:"currently_running"`
 	MaxIssues        int  `json:"max_issues"` // Maximum issues to process (0 = unlimited)
+	MaxIssuesDisabled bool `json:"max_issues_disabled"`
 }
 
 // RunningProcess tracks an actively running investigation/resolution

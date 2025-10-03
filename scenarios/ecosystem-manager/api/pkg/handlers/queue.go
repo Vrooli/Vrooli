@@ -36,6 +36,23 @@ func (h *QueueHandlers) GetQueueStatusHandler(w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(status)
 }
 
+// GetResumeDiagnosticsHandler reports blockers that will be cleared when resuming the processor.
+func (h *QueueHandlers) GetResumeDiagnosticsHandler(w http.ResponseWriter, r *http.Request) {
+	if h.processor == nil {
+		http.Error(w, "queue processor not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	diagnostics := h.processor.GetResumeDiagnostics()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":      true,
+		"diagnostics":  diagnostics,
+		"generated_at": time.Now().Format(time.RFC3339),
+	})
+}
+
 // TriggerQueueProcessingHandler forces immediate queue processing
 func (h *QueueHandlers) TriggerQueueProcessingHandler(w http.ResponseWriter, r *http.Request) {
 	if h.processor == nil {
@@ -98,8 +115,10 @@ func (h *QueueHandlers) SetMaintenanceStateHandler(w http.ResponseWriter, r *htt
 	}
 
 	// Set maintenance state on processor
+	var resumeSummary *queue.ResumeResetSummary
 	if request.State == "active" {
-		h.processor.Resume()
+		summary := h.processor.ResumeWithReset()
+		resumeSummary = &summary
 	} else {
 		h.processor.Pause()
 	}
@@ -107,13 +126,18 @@ func (h *QueueHandlers) SetMaintenanceStateHandler(w http.ResponseWriter, r *htt
 	// Get updated status
 	status := h.processor.GetQueueStatus()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	response := map[string]interface{}{
 		"success": true,
 		"message": "Maintenance state updated",
 		"state":   request.State,
 		"status":  status,
-	})
+	}
+	if resumeSummary != nil {
+		response["resume_reset_summary"] = resumeSummary
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 
 	log.Printf("Queue maintenance state set to: %s", request.State)
 }

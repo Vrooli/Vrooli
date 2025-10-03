@@ -2536,12 +2536,15 @@ class EcosystemManager {
             return;
         }
 
+        const maxTasksDisabled = Boolean(status.max_tasks_disabled);
         const maxTasks = status.max_tasks || 0;
         const tasksRemaining = status.tasks_remaining;
 
         // Update settings display
         if (tasksRemainingDisplay) {
-            if (maxTasks > 0) {
+            if (maxTasksDisabled) {
+                tasksRemainingDisplay.textContent = '(disabled - processor runs continuously)';
+            } else if (maxTasks > 0) {
                 tasksRemainingDisplay.textContent = `(${tasksRemaining} remaining)`;
             } else {
                 tasksRemainingDisplay.textContent = '';
@@ -2550,11 +2553,10 @@ class EcosystemManager {
 
         // Update notification badge
         if (processorRemainingBadge) {
-            if (maxTasks > 0 && typeof tasksRemaining === 'number') {
+            processorRemainingBadge.hidden = true;
+            if (!maxTasksDisabled && maxTasks > 0 && typeof tasksRemaining === 'number') {
                 processorRemainingBadge.textContent = tasksRemaining;
                 processorRemainingBadge.hidden = false;
-            } else {
-                processorRemainingBadge.hidden = true;
             }
         }
     }
@@ -3962,6 +3964,103 @@ class EcosystemManager {
         }
     }
 
+    async fetchResumeDiagnostics() {
+        try {
+            const response = await fetch(`${this.apiBase}/queue/resume-diagnostics`);
+            if (!response.ok) {
+                throw new Error(`Resume diagnostics request failed: ${response.status}`);
+            }
+            const data = await response.json();
+            return data?.diagnostics ?? null;
+        } catch (error) {
+            console.error('Failed to retrieve resume diagnostics:', error);
+            return null;
+        }
+    }
+
+    formatIdPreview(ids = [], limit = 5) {
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return '';
+        }
+        const unique = [...new Set(ids.filter(Boolean))];
+        if (unique.length <= limit) {
+            return unique.join(', ');
+        }
+        const shown = unique.slice(0, limit).join(', ');
+        const remaining = unique.length - limit;
+        return `${shown}, +${remaining} more`;
+    }
+
+    buildResumeConfirmationMessage(diagnostics) {
+        if (!diagnostics) {
+            return 'Enable automatic processing for the queue processor?';
+        }
+
+        const actions = [];
+
+        if (diagnostics.rate_limit_paused) {
+            const resumeAt = diagnostics.rate_limit_resume_at || 'unknown time';
+            actions.push(`Clear the active rate limit pause (was waiting until ${resumeAt}).`);
+        }
+
+        const internal = diagnostics.internal_executing_task_ids || [];
+        if (internal.length > 0) {
+            const preview = this.formatIdPreview(internal);
+            actions.push(`Terminate ${internal.length} tracked execution${internal.length === 1 ? '' : 's'}${preview ? ` (${preview})` : ''}.`);
+        }
+
+        const agentTasks = diagnostics.active_agent_task_ids || [];
+        if (agentTasks.length > 0) {
+            const preview = this.formatIdPreview(agentTasks);
+            actions.push(`Stop ${agentTasks.length} active Claude agent${agentTasks.length === 1 ? '' : 's'}${preview ? ` (${preview})` : ''}.`);
+        }
+
+        const orphans = diagnostics.orphan_in_progress_task_ids || [];
+        if (orphans.length > 0) {
+            const preview = this.formatIdPreview(orphans);
+            actions.push(`Move ${orphans.length} in-progress task${orphans.length === 1 ? '' : 's'} back to pending${preview ? ` (${preview})` : ''}.`);
+        }
+
+        if (actions.length === 0) {
+            return 'Enable automatic processing for the queue processor?';
+        }
+
+        const notes = Array.isArray(diagnostics.notes) && diagnostics.notes.length > 0
+            ? `\n\nDiagnostics notes:\n- ${diagnostics.notes.join('\n- ')}`
+            : '';
+
+        return `Resuming the processor will run recovery steps to ensure it picks up cleanly:\n\n- ${actions.join('\n- ')}${notes}\n\nContinue?`;
+    }
+
+    formatResumeResetSummary(summary) {
+        if (!summary || typeof summary !== 'object') {
+            return '';
+        }
+
+        const parts = [];
+        if (summary.rate_limit_cleared) {
+            parts.push('cleared rate limit pause');
+        }
+        if (Array.isArray(summary.agents_stopped) && summary.agents_stopped.length > 0) {
+            const count = summary.agents_stopped.length;
+            parts.push(`stopped ${count} Claude agent${count === 1 ? '' : 's'}`);
+        }
+        if (Array.isArray(summary.processes_terminated) && summary.processes_terminated.length > 0) {
+            const count = summary.processes_terminated.length;
+            parts.push(`terminated ${count} execution${count === 1 ? '' : 's'}`);
+        }
+        if (Array.isArray(summary.tasks_moved_to_pending) && summary.tasks_moved_to_pending.length > 0) {
+            const count = summary.tasks_moved_to_pending.length;
+            parts.push(`moved ${count} task${count === 1 ? '' : 's'} to pending`);
+        }
+
+        if (parts.length === 0) {
+            return '';
+        }
+
+        return parts.join('; ');
+    }
+
     async toggleProcessor() {
         try {
             // Get current settings first
@@ -3971,6 +4070,26 @@ class EcosystemManager {
             const newActiveState = !currentSettings.active;
             const updatedSettings = { ...currentSettings, active: newActiveState };
             
+            let diagnostics = null;
+            if (newActiveState) {
+                diagnostics = await this.fetchResumeDiagnostics();
+
+                if (!diagnostics) {
+                    const proceed = confirm('Unable to evaluate queue state automatically. Resume processor and attempt recovery anyway?');
+                    if (!proceed) {
+                        this.showToast('Processor activation cancelled', 'info');
+                        return;
+                    }
+                } else if (diagnostics.needs_confirmation) {
+                    const message = this.buildResumeConfirmationMessage(diagnostics);
+                    const proceed = confirm(message);
+                    if (!proceed) {
+                        this.showToast('Processor activation cancelled', 'info');
+                        return;
+                    }
+                }
+            }
+
             this.showLoading(true);
             
             // Save the updated settings
@@ -3987,7 +4106,14 @@ class EcosystemManager {
                     this.stopRefreshCountdown();
                 }
                 
-                this.showToast(`Processor ${newActiveState ? 'activated' : 'paused'}`, 'success');
+                let toastMessage = `Processor ${newActiveState ? 'activated' : 'paused'}`;
+                if (newActiveState && result.resume_reset_summary) {
+                    const summaryText = this.formatResumeResetSummary(result.resume_reset_summary);
+                    if (summaryText) {
+                        toastMessage += ` – ${summaryText}`;
+                    }
+                }
+                this.showToast(toastMessage, 'success');
             } else {
                 throw new Error(result.error || 'Failed to toggle processor');
             }

@@ -38,6 +38,14 @@ type outputPayload struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+type replayPayload struct {
+	Chunks    []outputPayload `json:"chunks"`
+	Count     int             `json:"count"`
+	Complete  bool            `json:"complete"`
+	Truncated bool            `json:"truncated,omitempty"`
+	Generated time.Time       `json:"generated"`
+}
+
 type statusPayload struct {
 	Status    string    `json:"status"`
 	Reason    string    `json:"reason,omitempty"`

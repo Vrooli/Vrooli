@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -78,6 +79,29 @@ type Processor struct {
 	tasksProcessedCount int
 }
 
+// ResumeDiagnostics summarizes potential blockers before resuming the queue processor.
+type ResumeDiagnostics struct {
+	NeedsConfirmation        bool     `json:"needs_confirmation"`
+	RateLimitPaused          bool     `json:"rate_limit_paused"`
+	RateLimitResumeAt        string   `json:"rate_limit_resume_at,omitempty"`
+	ActiveAgentTaskIDs       []string `json:"active_agent_task_ids"`
+	ActiveAgentTags          []string `json:"active_agent_tags"`
+	InternalExecutingTaskIDs []string `json:"internal_executing_task_ids"`
+	OrphanInProgressTaskIDs  []string `json:"orphan_in_progress_task_ids"`
+	Notes                    []string `json:"notes,omitempty"`
+}
+
+// ResumeResetSummary records the recovery work performed before resuming processing.
+type ResumeResetSummary struct {
+	RateLimitCleared    bool     `json:"rate_limit_cleared"`
+	AgentsStopped       []string `json:"agents_stopped"`
+	ProcessesTerminated []string `json:"processes_terminated"`
+	TasksMovedToPending []string `json:"tasks_moved_to_pending"`
+	ExecutionsCleared   int      `json:"executions_cleared"`
+	Notes               []string `json:"notes,omitempty"`
+	ActionsTaken        int      `json:"actions_taken"`
+}
+
 // NewProcessor creates a new queue processor
 func NewProcessor(interval time.Duration, storage *tasks.Storage, assembler *prompts.Assembler, broadcast chan<- interface{}) *Processor {
 	processor := &Processor{
@@ -104,6 +128,35 @@ func NewProcessor(interval time.Duration, storage *tasks.Storage, assembler *pro
 	go processor.initialInProgressReconcile()
 
 	return processor
+}
+
+func sortedKeys(m map[string]struct{}) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func dedupeAndSort(values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+	seen := make(map[string]struct{}, len(values))
+	unique := make([]string, 0, len(values))
+	for _, v := range values {
+		if v == "" {
+			continue
+		}
+		if _, exists := seen[v]; exists {
+			continue
+		}
+		seen[v] = struct{}{}
+		unique = append(unique, v)
+	}
+	sort.Strings(unique)
+	return unique
 }
 
 // Start begins the queue processing loop
@@ -150,18 +203,7 @@ func (qp *Processor) Pause() {
 
 // Resume resumes queue processing from maintenance mode
 func (qp *Processor) Resume() {
-	qp.mu.Lock()
-	defer qp.mu.Unlock()
-
-	// If processor isn't running at all, start it
-	if !qp.isRunning {
-		qp.isRunning = true
-		go qp.processLoop()
-		log.Println("Queue processor started from Resume()")
-	}
-
-	qp.isPaused = false
-	log.Println("Queue processor resumed from maintenance")
+	_ = qp.ResumeWithReset()
 }
 
 // processLoop is the main queue processing loop
@@ -230,7 +272,7 @@ func (qp *Processor) ProcessQueue() {
 
 	externalActive := qp.getExternalActiveTaskIDs()
 	internalRunning := qp.getInternalRunningTaskIDs()
-	qp.reconcileInProgressTasks(externalActive, internalRunning)
+	_ = qp.reconcileInProgressTasks(externalActive, internalRunning)
 
 	executingCount := len(internalRunning)
 	for taskID := range externalActive {
@@ -259,17 +301,7 @@ func (qp *Processor) ProcessQueue() {
 		return
 	}
 
-	// Check if we've reached the max_tasks limit
-	if currentSettings.MaxTasks > 0 {
-		qp.tasksProcessedMu.RLock()
-		processedCount := qp.tasksProcessedCount
-		qp.tasksProcessedMu.RUnlock()
-
-		if processedCount >= currentSettings.MaxTasks {
-			log.Printf("Queue processor: max tasks limit reached (%d/%d)", processedCount, currentSettings.MaxTasks)
-			return
-		}
-	}
+	// Max tasks feature is disabled due to starvation issues; ignore any configured MaxTasks value
 
 	// Sort tasks by priority (critical > high > medium > low)
 	priorityOrder := map[string]int{
@@ -343,6 +375,135 @@ func (qp *Processor) ProcessQueue() {
 
 	// Process the task asynchronously
 	go qp.executeTask(*selectedTask)
+}
+
+// GetResumeDiagnostics analyzes current processor state and reports blockers that
+// require attention before safely resuming automated processing.
+func (qp *Processor) GetResumeDiagnostics() ResumeDiagnostics {
+	diag := ResumeDiagnostics{}
+	if qp == nil {
+		return diag
+	}
+
+	rateLimitPaused, pauseUntil := qp.IsRateLimitPaused()
+	if rateLimitPaused {
+		diag.RateLimitPaused = true
+		diag.RateLimitResumeAt = pauseUntil.Format(time.RFC3339)
+	}
+
+	internalRunning := qp.getInternalRunningTaskIDs()
+	diag.InternalExecutingTaskIDs = sortedKeys(internalRunning)
+
+	externalActive := qp.getExternalActiveTaskIDsInternal()
+	diag.ActiveAgentTaskIDs = sortedKeys(externalActive)
+	if len(diag.ActiveAgentTaskIDs) > 0 {
+		tags := make([]string, 0, len(diag.ActiveAgentTaskIDs))
+		for _, id := range diag.ActiveAgentTaskIDs {
+			tags = append(tags, fmt.Sprintf("ecosystem-%s", id))
+		}
+		diag.ActiveAgentTags = tags
+	}
+
+	if qp.storage != nil {
+		inProgressTasks, err := qp.storage.GetQueueItems("in-progress")
+		if err != nil {
+			diag.Notes = append(diag.Notes, fmt.Sprintf("failed to inspect in-progress queue: %v", err))
+		} else {
+			for _, task := range inProgressTasks {
+				if _, running := internalRunning[task.ID]; running {
+					continue
+				}
+				if _, active := externalActive[task.ID]; active {
+					continue
+				}
+				diag.OrphanInProgressTaskIDs = append(diag.OrphanInProgressTaskIDs, task.ID)
+			}
+		}
+	} else {
+		diag.Notes = append(diag.Notes, "task storage unavailable for diagnostics")
+	}
+
+	diag.OrphanInProgressTaskIDs = dedupeAndSort(diag.OrphanInProgressTaskIDs)
+	diag.NeedsConfirmation = diag.RateLimitPaused || len(diag.ActiveAgentTaskIDs) > 0 || len(diag.InternalExecutingTaskIDs) > 0 || len(diag.OrphanInProgressTaskIDs) > 0
+
+	return diag
+}
+
+// ResetForResume performs recovery work (terminating processes, clearing rate
+// limits, and reconciling queue state) so that resuming processing starts from a
+// clean slate.
+func (qp *Processor) ResetForResume() ResumeResetSummary {
+	summary := ResumeResetSummary{}
+	if qp == nil {
+		return summary
+	}
+
+	rateLimitPaused, pauseUntil := qp.IsRateLimitPaused()
+	if rateLimitPaused {
+		qp.ResetRateLimitPause()
+		summary.RateLimitCleared = true
+		summary.ActionsTaken++
+		summary.Notes = append(summary.Notes, fmt.Sprintf("rate limit pause cleared (was until %s)", pauseUntil.Format(time.RFC3339)))
+	}
+
+	internalRunning := qp.getInternalRunningTaskIDs()
+	internalIDs := sortedKeys(internalRunning)
+	if len(internalIDs) > 0 {
+		if qp.processManager != nil {
+			qp.processManager.TerminateAll(5 * time.Second)
+		}
+		for _, id := range internalIDs {
+			qp.unregisterExecution(id)
+		}
+		summary.ProcessesTerminated = append(summary.ProcessesTerminated, internalIDs...)
+		summary.ExecutionsCleared += len(internalIDs)
+		summary.ActionsTaken++
+	}
+
+	externalActive := qp.getExternalActiveTaskIDsInternal()
+	if len(externalActive) > 0 {
+		agentTags := make([]string, 0, len(externalActive))
+		for _, taskID := range sortedKeys(externalActive) {
+			agentTag := fmt.Sprintf("ecosystem-%s", taskID)
+			agentTags = append(agentTags, agentTag)
+			qp.stopClaudeAgent(agentTag, 0)
+		}
+		qp.cleanupClaudeAgentRegistry()
+		summary.AgentsStopped = append(summary.AgentsStopped, agentTags...)
+		summary.ActionsTaken++
+	}
+
+	// After terminating agents/processes, reconcile any in-progress tasks back to pending
+	externalAfter := qp.getExternalActiveTaskIDsInternal()
+	moved := qp.reconcileInProgressTasks(externalAfter, make(map[string]struct{}))
+	if len(moved) > 0 {
+		summary.TasksMovedToPending = dedupeAndSort(moved)
+		summary.ActionsTaken++
+	}
+
+	summary.ProcessesTerminated = dedupeAndSort(summary.ProcessesTerminated)
+	summary.AgentsStopped = dedupeAndSort(summary.AgentsStopped)
+
+	return summary
+}
+
+// ResumeWithReset resumes queue processing after performing safety recovery steps.
+func (qp *Processor) ResumeWithReset() ResumeResetSummary {
+	summary := qp.ResetForResume()
+
+	qp.mu.Lock()
+	defer qp.mu.Unlock()
+
+	if !qp.isRunning {
+		qp.isRunning = true
+		go qp.processLoop()
+		log.Println("Queue processor started from Resume()")
+	}
+
+	qp.isPaused = false
+	log.Println("Queue processor resumed from maintenance")
+
+	return summary
 }
 
 // Process registry management
@@ -900,17 +1061,8 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 	tasksProcessed := qp.tasksProcessedCount
 	qp.tasksProcessedMu.RUnlock()
 
-	maxTasks := currentSettings.MaxTasks
-	var tasksRemaining interface{}
-	if maxTasks > 0 {
-		remaining := maxTasks - tasksProcessed
-		if remaining < 0 {
-			remaining = 0
-		}
-		tasksRemaining = remaining
-	} else {
-		tasksRemaining = "unlimited"
-	}
+	maxTasks := 0
+	tasksRemaining := "feature disabled"
 
 	return map[string]interface{}{
 		"processor_active":          processorActive,
@@ -937,6 +1089,7 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 		"tasks_processed":           tasksProcessed,
 		"max_tasks":                 maxTasks,
 		"tasks_remaining":           tasksRemaining,
+		"max_tasks_disabled":        true,
 	}
 }
 
@@ -1103,14 +1256,15 @@ func (qp *Processor) initialInProgressReconcile() {
 
 	external := qp.getExternalActiveTaskIDs()
 	internal := qp.getInternalRunningTaskIDs()
-	qp.reconcileInProgressTasks(external, internal)
+	_ = qp.reconcileInProgressTasks(external, internal)
 }
 
-func (qp *Processor) reconcileInProgressTasks(externalActive, internalRunning map[string]struct{}) {
+func (qp *Processor) reconcileInProgressTasks(externalActive, internalRunning map[string]struct{}) []string {
+	moved := make([]string, 0)
 	inProgressTasks, err := qp.storage.GetQueueItems("in-progress")
 	if err != nil {
 		log.Printf("Error checking in-progress tasks: %v", err)
-		return
+		return moved
 	}
 
 	for _, task := range inProgressTasks {
@@ -1149,7 +1303,10 @@ func (qp *Processor) reconcileInProgressTasks(externalActive, internalRunning ma
 
 		// Clear any cached logs for this run since it will be retried
 		qp.ResetTaskLogs(task.ID)
+		moved = append(moved, task.ID)
 	}
+
+	return moved
 }
 
 func (qp *Processor) ensureAgentInactive(agentTag string) error {

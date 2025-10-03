@@ -586,6 +586,7 @@ function App() {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [wsConnectionStatus, setWsConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   const [processorSettings, setProcessorSettings] = useState<ProcessorSettings>(SampleData.processor);
+  const lastSyncedProcessorSettingsRef = useRef<ProcessorSettings | null>(null);
   const [agentSettings, setAgentSettings] = useState(AppSettings.agent);
   const [displaySettings, setDisplaySettings] = useState(AppSettings.display);
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -882,21 +883,29 @@ function App() {
         const state = payload?.data?.processor ?? payload?.processor;
         const data = payload?.data;
         if (state && isMountedRef.current) {
-          setProcessorSettings((prev) => ({
-            active: typeof state.active === 'boolean' ? state.active : prev.active,
-            concurrentSlots:
-              typeof state.concurrent_slots === 'number'
-                ? state.concurrent_slots
-                : prev.concurrentSlots,
-            refreshInterval:
-              typeof state.refresh_interval === 'number'
-                ? state.refresh_interval
-                : prev.refreshInterval,
-            maxIssues:
-              typeof state.max_issues === 'number'
-                ? state.max_issues
-                : prev.maxIssues,
-          }));
+          setProcessorSettings((prev) => {
+            const next: ProcessorSettings = {
+              active: typeof state.active === 'boolean' ? state.active : prev.active,
+              concurrentSlots:
+                typeof state.concurrent_slots === 'number'
+                  ? state.concurrent_slots
+                  : prev.concurrentSlots,
+              refreshInterval:
+                typeof state.refresh_interval === 'number'
+                  ? state.refresh_interval
+                  : prev.refreshInterval,
+              maxIssues:
+                typeof state.max_issues === 'number'
+                  ? state.max_issues
+                  : prev.maxIssues,
+              maxIssuesDisabled:
+                typeof state.max_issues_disabled === 'boolean'
+                  ? state.max_issues_disabled
+                  : prev.maxIssuesDisabled,
+            };
+            lastSyncedProcessorSettingsRef.current = next;
+            return next;
+          });
 
           // Update issues processed/remaining counters
           if (typeof data?.issues_processed === 'number') {
@@ -1358,21 +1367,29 @@ function App() {
         const payload = await response.json();
         const state = payload?.data?.processor ?? payload?.processor;
         if (state && isMountedRef.current) {
-          setProcessorSettings((prev) => ({
-            active: typeof state.active === 'boolean' ? state.active : prev.active,
-            concurrentSlots:
-              typeof state.concurrent_slots === 'number'
-                ? state.concurrent_slots
-                : prev.concurrentSlots,
-            refreshInterval:
-              typeof state.refresh_interval === 'number'
-                ? state.refresh_interval
-                : prev.refreshInterval,
-            maxIssues:
-              typeof state.max_issues === 'number'
-                ? state.max_issues
-                : prev.maxIssues,
-          }));
+          setProcessorSettings((prev) => {
+            const next: ProcessorSettings = {
+              active: typeof state.active === 'boolean' ? state.active : prev.active,
+              concurrentSlots:
+                typeof state.concurrent_slots === 'number'
+                  ? state.concurrent_slots
+                  : prev.concurrentSlots,
+              refreshInterval:
+                typeof state.refresh_interval === 'number'
+                  ? state.refresh_interval
+                  : prev.refreshInterval,
+              maxIssues:
+                typeof state.max_issues === 'number'
+                  ? state.max_issues
+                  : prev.maxIssues,
+              maxIssuesDisabled:
+                typeof state.max_issues_disabled === 'boolean'
+                  ? state.max_issues_disabled
+                  : prev.maxIssuesDisabled,
+            };
+            lastSyncedProcessorSettingsRef.current = next;
+            return next;
+          });
           setProcessorError(null);
         }
       } catch (error) {
@@ -1402,8 +1419,25 @@ function App() {
       return;
     }
 
+    const lastSynced = lastSyncedProcessorSettingsRef.current;
+    if (!lastSynced) {
+      return;
+    }
+
+    const isUnchanged =
+      lastSynced.active === processorSettings.active &&
+      lastSynced.concurrentSlots === processorSettings.concurrentSlots &&
+      lastSynced.refreshInterval === processorSettings.refreshInterval &&
+      lastSynced.maxIssues === processorSettings.maxIssues &&
+      lastSynced.maxIssuesDisabled === processorSettings.maxIssuesDisabled;
+
+    if (isUnchanged) {
+      return;
+    }
+
     const saveProcessorSettings = async () => {
       try {
+        const snapshot: ProcessorSettings = { ...processorSettings };
         const response = await fetch(buildApiUrl('/automation/processor'), {
           method: 'PATCH',
           headers: {
@@ -1414,6 +1448,7 @@ function App() {
             concurrent_slots: processorSettings.concurrentSlots,
             refresh_interval: processorSettings.refreshInterval,
             max_issues: processorSettings.maxIssues,
+            max_issues_disabled: processorSettings.maxIssuesDisabled,
           }),
         });
 
@@ -1422,6 +1457,7 @@ function App() {
         }
 
         console.log('Processor settings saved');
+        lastSyncedProcessorSettingsRef.current = snapshot;
       } catch (error) {
         console.error('Failed to save processor settings', error);
         showSnackbar('Failed to save processor settings', 'error');
@@ -1429,7 +1465,14 @@ function App() {
     };
 
     void saveProcessorSettings();
-  }, [processorSettings.active, processorSettings.concurrentSlots, processorSettings.refreshInterval, processorSettings.maxIssues, showSnackbar]);
+  }, [
+    processorSettings.active,
+    processorSettings.concurrentSlots,
+    processorSettings.refreshInterval,
+    processorSettings.maxIssues,
+    processorSettings.maxIssuesDisabled,
+    showSnackbar,
+  ]);
 
   // Sync agent backend settings to API
   // Use ref to skip initial mount to avoid race condition with data fetch

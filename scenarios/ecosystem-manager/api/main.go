@@ -198,6 +198,7 @@ func setupRoutes() http.Handler {
 
 	// Queue management routes
 	api.HandleFunc("/queue/status", queueHandlers.GetQueueStatusHandler).Methods("GET")
+	api.HandleFunc("/queue/resume-diagnostics", queueHandlers.GetResumeDiagnosticsHandler).Methods("GET")
 	api.HandleFunc("/queue/trigger", queueHandlers.TriggerQueueProcessingHandler).Methods("POST")
 	api.HandleFunc("/queue/reset-rate-limit", queueHandlers.ResetRateLimitHandler).Methods("POST")
 	api.HandleFunc("/recycler/test", settingsHandlers.TestRecyclerHandler).Methods("POST")

@@ -184,6 +184,13 @@ func (s *Server) moveIssue(issueID, toFolder string) error {
 		return err
 	}
 
+	if _, statErr := os.Stat(targetDir); statErr == nil {
+		log.Printf("moveIssue: removing stale %s before moving issue %s", targetDir, issue.ID)
+		if err := os.RemoveAll(targetDir); err != nil {
+			return fmt.Errorf("failed to clear existing target %s: %w", targetDir, err)
+		}
+	}
+
 	if err := os.Rename(issueDir, targetDir); err != nil {
 		return err
 	}

@@ -63,13 +63,16 @@ var (
 func GetSettings() Settings {
 	settingsMutex.RLock()
 	defer settingsMutex.RUnlock()
-	return currentSettings
+	settingsCopy := currentSettings
+	settingsCopy.MaxTasks = 0 // Max tasks feature disabled globally
+	return settingsCopy
 }
 
 // UpdateSettings updates the current settings (thread-safe)
 func UpdateSettings(newSettings Settings) {
 	settingsMutex.Lock()
 	defer settingsMutex.Unlock()
+	newSettings.MaxTasks = 0 // Enforce disabled state regardless of client input
 	currentSettings = newSettings
 }
 

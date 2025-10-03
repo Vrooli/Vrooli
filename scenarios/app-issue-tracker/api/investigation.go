@@ -229,15 +229,20 @@ func detectRateLimit(output string) (bool, string) {
 		strings.Contains(outputLower, "too many requests") ||
 		strings.Contains(outputLower, "429") {
 
-		// Try to extract reset time from output
+		// Try to extract reset time from output and normalize to RFC3339
 		resetTime := ""
 
-		// Look for ISO timestamp patterns
-		isoPattern := regexp.MustCompile(`20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}`)
+		isoPattern := regexp.MustCompile(`20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})?`)
 		if match := isoPattern.FindString(output); match != "" {
-			resetTime = match
-		} else {
-			// Default to 5 minutes from now
+			if _, err := time.Parse(time.RFC3339, match); err == nil {
+				resetTime = match
+			} else if parsed, err := time.Parse("2006-01-02T15:04:05", match[:19]); err == nil {
+				resetTime = parsed.UTC().Format(time.RFC3339)
+			}
+		}
+
+		if resetTime == "" {
+			// Default to 5 minutes from now if no suitable timestamp found
 			resetTime = time.Now().Add(5 * time.Minute).Format(time.RFC3339)
 		}
 
@@ -433,6 +438,9 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		}
 
 		log.Printf("Investigation completed successfully for issue %s", issueID)
+
+		processedCount := s.incrementProcessedCount()
+		log.Printf("Processor: Successful investigations total=%d (max issues limit disabled)", processedCount)
 
 		// Publish success event
 		s.hub.Publish(NewEvent(EventAgentCompleted, AgentCompletedData{

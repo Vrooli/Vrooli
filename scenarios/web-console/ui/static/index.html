@@ -21,8 +21,13 @@
           />
           <button type="button" id="aiGenerateBtn" class="ai-generate-btn" title="Generate command">
             <i data-lucide="brain" class="ai-icon"></i>
+            <span class="sr-only">Generate command</span>
           </button>
         </div>
+        <button type="button" id="composeInputBtn" class="ai-compose-btn" title="Compose terminal input">
+          <i data-lucide="type" class="ai-icon"></i>
+          <span class="sr-only">Open text composer</span>
+        </button>
         <div class="header-actions">
           <button
             id="drawerToggle"
@@ -183,7 +188,54 @@
 
         <div class="tab-context-actions">
           <button type="button" id="tabContextReset" class="btn btn-ghost">Reset</button>
-          <button type="submit" id="tabContextSave" class="btn btn-primary">Save</button>
+      <button type="submit" id="tabContextSave" class="btn btn-primary">Save</button>
+    </div>
+  </form>
+</div>
+
+    <div id="composeBackdrop" class="compose-backdrop hidden" aria-hidden="true"></div>
+    <div
+      id="composeDialog"
+      class="compose-dialog hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="composeTitle"
+      aria-describedby="composeDescription"
+    >
+      <form id="composeForm" class="compose-body">
+        <div class="compose-header">
+          <div>
+            <h2 id="composeTitle">Send Text to Terminal</h2>
+            <p id="composeDescription">Compose a multi-line message, preview it, then deliver everything to the active terminal in a single send.</p>
+          </div>
+          <button type="button" id="composeClose" class="compose-close" aria-label="Close input dialog">×</button>
+        </div>
+
+        <label class="compose-field">
+          <span>Message</span>
+          <textarea
+            id="composeTextarea"
+            rows="8"
+            placeholder="Type the text you want to send to the terminal…"
+          ></textarea>
+        </label>
+
+        <div class="compose-meta">
+          <label class="compose-checkbox">
+            <input type="checkbox" id="composeAppendNewline" checked />
+            <span>Append newline after sending</span>
+          </label>
+          <span id="composeCharCount" class="compose-count">0 chars</span>
+        </div>
+
+        <div class="compose-preview">
+          <span class="compose-preview-label">Preview</span>
+          <pre id="composePreview" class="compose-preview-content"></pre>
+        </div>
+
+        <div class="compose-actions">
+          <button type="button" id="composeCancel" class="btn btn-ghost">Cancel</button>
+          <button type="submit" id="composeSend" class="btn btn-primary">Send to terminal</button>
         </div>
       </form>
     </div>

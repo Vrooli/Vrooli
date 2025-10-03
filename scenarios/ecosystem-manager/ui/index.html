@@ -490,10 +490,10 @@
                             </div>
 
                             <div class="form-group">
-                                <label for="settings-max-tasks">Maximum Tasks to Process</label>
+                                <label for="settings-max-tasks">Maximum Tasks to Process (disabled)</label>
                                 <input type="number" id="settings-max-tasks" name="max_tasks"
-                                       min="0" max="1000" value="0" step="1">
-                                <small class="form-help">Maximum number of tasks to process (0 = unlimited). <span id="tasks-remaining-display"></span></small>
+                                       min="0" max="1000" value="0" step="1" disabled>
+                                <small class="form-help">Temporarily disabled: the processor keeps running to avoid starvation issues. Any saved value is ignored. <span id="tasks-remaining-display"></span></small>
                             </div>
 
                             <div class="form-group">

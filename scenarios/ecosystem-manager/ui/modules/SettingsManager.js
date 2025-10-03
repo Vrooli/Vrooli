@@ -243,6 +243,9 @@ export class SettingsManager {
             }
         });
 
+        // Queue starvation fix: max_tasks is hard-disabled regardless of UI state
+        formData.max_tasks = 0;
+
         logger.debug('Form data collected:', formData);
 
         const recyclerDefaults = this.defaultSettings.recycler;

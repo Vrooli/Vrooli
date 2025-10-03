@@ -118,6 +118,9 @@ func NewServer() (*Server, error) {
 		router: gin.Default(),
 	}
 
+	// Configure trusted proxies for production security
+	s.router.SetTrustedProxies(nil)
+
 	s.setupRoutes()
 	return s, nil
 }

@@ -322,6 +322,7 @@ export function SettingsPage({
                     min={0}
                     max={1000}
                     value={processor.maxIssues}
+                    disabled={processor.maxIssuesDisabled}
                     onChange={(event) =>
                       handleProcessorChange(
                         "maxIssues",
@@ -330,11 +331,20 @@ export function SettingsPage({
                     }
                   />
                   <small style={{ display: "block", marginTop: "4px", color: "var(--text-secondary)" }}>
-                    Maximum number of issues to process (0 = unlimited).{" "}
-                    {processor.maxIssues > 0 && (
+                    {processor.maxIssuesDisabled ? (
                       <span style={{ fontWeight: 500 }}>
-                        {issuesProcessed} processed, {issuesRemaining} remaining
+                        Temporarily disabled by system override — automation will ignore this cap
                       </span>
+                    ) : (
+                      <>
+                        Maximum number of issues to process (0 = unlimited).
+                        {processor.maxIssues > 0 && (
+                          <span style={{ fontWeight: 500 }}>
+                            {' '}
+                            {issuesProcessed} processed, {issuesRemaining} remaining
+                          </span>
+                        )}
+                      </>
                     )}
                   </small>
                 </label>

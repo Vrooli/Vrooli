@@ -571,6 +571,11 @@ func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if targetStatus != currentFolder {
+		if s.isIssueRunning(issueID) && targetStatus != "active" {
+			http.Error(w, "Cannot change issue status while an agent is running", http.StatusConflict)
+			return
+		}
+
 		now := time.Now().UTC().Format(time.RFC3339)
 
 		// Handle backwards status transitions (completed/failed -> open)
@@ -1115,8 +1120,10 @@ func (s *Server) getAgentSettingsHandler(w http.ResponseWriter, r *http.Request)
 // updateAgentSettingsHandler updates agent backend settings
 func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Provider     string `json:"provider"`
-		AutoFallback bool   `json:"auto_fallback"`
+		Provider       string `json:"provider"`
+		AutoFallback   bool   `json:"auto_fallback"`
+		TimeoutSeconds *int   `json:"timeout_seconds"` // Optional timeout update
+		MaxTurns       *int   `json:"max_turns"`       // Optional max turns update
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1124,15 +1131,17 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Validate provider
-	validProviders := map[string]bool{
-		"codex":       true,
-		"claude-code": true,
-	}
+	// Validate provider if provided
+	if req.Provider != "" {
+		validProviders := map[string]bool{
+			"codex":       true,
+			"claude-code": true,
+		}
 
-	if !validProviders[req.Provider] {
-		http.Error(w, "Invalid provider. Must be 'codex' or 'claude-code'", http.StatusBadRequest)
-		return
+		if !validProviders[req.Provider] {
+			http.Error(w, "Invalid provider. Must be 'codex' or 'claude-code'", http.StatusBadRequest)
+			return
+		}
 	}
 
 	settingsPath := filepath.Join(s.config.ScenarioRoot, "initialization/configuration/agent-settings.json")
@@ -1152,15 +1161,45 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Update the agent_backend section
+	// Get current provider for updating its settings
+	currentProvider := "claude-code"
 	if agentBackend, ok := settings["agent_backend"].(map[string]interface{}); ok {
-		agentBackend["provider"] = req.Provider
-		agentBackend["auto_fallback"] = req.AutoFallback
-	} else {
-		settings["agent_backend"] = map[string]interface{}{
-			"provider":      req.Provider,
-			"auto_fallback": req.AutoFallback,
-			"fallback_order": []string{"codex", "claude-code"},
+		if provider, ok := agentBackend["provider"].(string); ok && provider != "" {
+			currentProvider = provider
+		}
+	}
+
+	// Update the agent_backend section
+	if req.Provider != "" {
+		if agentBackend, ok := settings["agent_backend"].(map[string]interface{}); ok {
+			agentBackend["provider"] = req.Provider
+			agentBackend["auto_fallback"] = req.AutoFallback
+		} else {
+			settings["agent_backend"] = map[string]interface{}{
+				"provider":       req.Provider,
+				"auto_fallback":  req.AutoFallback,
+				"fallback_order": []string{"codex", "claude-code"},
+			}
+		}
+	}
+
+	// Update timeout and max_turns for the current provider
+	if req.TimeoutSeconds != nil || req.MaxTurns != nil {
+		if providers, ok := settings["providers"].(map[string]interface{}); ok {
+			if providerConfig, ok := providers[currentProvider].(map[string]interface{}); ok {
+				if operations, ok := providerConfig["operations"].(map[string]interface{}); ok {
+					if investigate, ok := operations["investigate"].(map[string]interface{}); ok {
+						if req.TimeoutSeconds != nil && *req.TimeoutSeconds > 0 {
+							investigate["timeout_seconds"] = *req.TimeoutSeconds
+							log.Printf("Updated timeout for %s to %d seconds (%d minutes)", currentProvider, *req.TimeoutSeconds, *req.TimeoutSeconds/60)
+						}
+						if req.MaxTurns != nil && *req.MaxTurns > 0 {
+							investigate["max_turns"] = *req.MaxTurns
+							log.Printf("Updated max_turns for %s to %d", currentProvider, *req.MaxTurns)
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -1178,7 +1217,10 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	log.Printf("Agent settings updated and persisted: provider=%s, auto_fallback=%v", req.Provider, req.AutoFallback)
+	// CRITICAL: Reload settings into memory so changes take effect immediately
+	ReloadAgentSettings()
+
+	log.Printf("Agent settings updated and reloaded: provider=%s, auto_fallback=%v", req.Provider, req.AutoFallback)
 
 	response := ApiResponse{
 		Success: true,

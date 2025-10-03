@@ -22,27 +22,27 @@ type SecurityConfig struct {
 
 // InputValidator validates and sanitizes input
 type InputValidator struct {
-	titleRegex       *regexp.Regexp
-	descRegex        *regexp.Regexp
-	filePathRegex    *regexp.Regexp
-	maxTitleLength   int
-	maxDescLength    int
-	allowedTypes     map[string]bool
+	titleRegex        *regexp.Regexp
+	descRegex         *regexp.Regexp
+	filePathRegex     *regexp.Regexp
+	maxTitleLength    int
+	maxDescLength     int
+	allowedTypes      map[string]bool
 	allowedPriorities map[string]bool
-	allowedStatuses  map[string]bool
+	allowedStatuses   map[string]bool
 }
 
 // NewInputValidator creates a new input validator
 func NewInputValidator() *InputValidator {
 	return &InputValidator{
-		titleRegex:       regexp.MustCompile(`^[\w\s\-\.\!\?\,\(\)]+$`),
-		descRegex:        regexp.MustCompile(`^[\w\s\-\.\!\?\,\(\)\n\r]+$`),
-		filePathRegex:    regexp.MustCompile(`^[\w\-\/\.]+$`),
-		maxTitleLength:   200,
-		maxDescLength:    5000,
-		allowedTypes:     map[string]bool{"bug": true, "feature": true, "task": true, "improvement": true},
+		titleRegex:        regexp.MustCompile(`^[\w\s\-\.\!\?\,\(\)]+$`),
+		descRegex:         regexp.MustCompile(`^[\w\s\-\.\!\?\,\(\)\n\r]+$`),
+		filePathRegex:     regexp.MustCompile(`^[\w\-\/\.]+$`),
+		maxTitleLength:    200,
+		maxDescLength:     5000,
+		allowedTypes:      map[string]bool{"bug": true, "feature": true, "task": true, "improvement": true},
 		allowedPriorities: map[string]bool{"critical": true, "high": true, "medium": true, "low": true},
-		allowedStatuses:  map[string]bool{"open": true, "active": true, "completed": true, "failed": true},
+		allowedStatuses:   map[string]bool{"open": true, "active": true, "completed": true, "failed": true},
 	}
 }
 
