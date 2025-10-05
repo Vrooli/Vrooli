@@ -348,10 +348,13 @@ app.use((req, res) => {
   });
 });
 
-// Start server
-const server = app.listen(PORT, () => {
-  console.log(`Test Data Generator API running on port ${PORT}`);
-  console.log(`Health check available at: http://localhost:${PORT}/health`);
-});
+// Start server (only if not in test mode)
+let server;
+if (process.env.NODE_ENV !== 'test') {
+  server = app.listen(PORT, () => {
+    console.log(`Test Data Generator API running on port ${PORT}`);
+    console.log(`Health check available at: http://localhost:${PORT}/health`);
+  });
+}
 
 module.exports = { app, server };

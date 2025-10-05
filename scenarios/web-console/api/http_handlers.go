@@ -223,6 +223,10 @@ func handleCreateTab(w http.ResponseWriter, r *http.Request, ws *workspace) {
 		return
 	}
 	if err := ws.addTab(tab); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			writeJSONError(w, http.StatusConflict, err.Error())
+			return
+		}
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

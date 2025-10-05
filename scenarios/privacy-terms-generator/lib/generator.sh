@@ -104,17 +104,94 @@ save_generated_document() {
     local content="$3"
     local template_id="${4:-NULL}"
     local format="${5:-markdown}"
-    
+
     local escaped_content="$(escape_json "$content")"
-    
-    local query="INSERT INTO generated_documents 
-                 (business_id, template_id, document_type, content, format, status)
-                 VALUES ('${business_id}', 
-                         $([ "$template_id" = "NULL" ] && echo "NULL" || echo "'${template_id}'"),
-                         '${doc_type}', '${escaped_content}', '${format}', 'active')
-                 RETURNING id"
-    
-    db_query "$query" | tail -n 1
+
+    # Check if a document already exists for this business and type
+    local existing_doc_query="SELECT id, version, content FROM generated_documents
+                               WHERE business_id = '${business_id}'
+                               AND document_type = '${doc_type}'
+                               AND status = 'active'
+                               ORDER BY version DESC LIMIT 1"
+    local existing_result=$(db_query "$existing_doc_query")
+
+    local doc_id=""
+    local new_version=1
+
+    if [ -n "$existing_result" ]; then
+        # Extract existing document ID and version
+        local existing_id=$(echo "$existing_result" | awk '{print $1}')
+        local existing_version=$(echo "$existing_result" | awk '{print $2}')
+        local existing_content=$(echo "$existing_result" | cut -d'|' -f3-)
+
+        new_version=$((existing_version + 1))
+
+        # Archive the old document
+        db_query "UPDATE generated_documents
+                  SET status = 'archived'
+                  WHERE id = '${existing_id}'"
+
+        # Create new version
+        local insert_query="INSERT INTO generated_documents
+                     (business_id, template_id, document_type, content, format, status, version)
+                     VALUES ('${business_id}',
+                             $([ "$template_id" = "NULL" ] && echo "NULL" || echo "'${template_id}'"),
+                             '${doc_type}', '${escaped_content}', '${format}', 'active', ${new_version})
+                     RETURNING id"
+        doc_id=$(db_query "$insert_query" | tail -n 1)
+
+        # Record version history
+        record_document_history "$doc_id" "updated" "system" "Updated to version ${new_version}" "$existing_content" "$content"
+    else
+        # First version of this document
+        local insert_query="INSERT INTO generated_documents
+                     (business_id, template_id, document_type, content, format, status, version)
+                     VALUES ('${business_id}',
+                             $([ "$template_id" = "NULL" ] && echo "NULL" || echo "'${template_id}'"),
+                             '${doc_type}', '${escaped_content}', '${format}', 'active', ${new_version})
+                     RETURNING id"
+        doc_id=$(db_query "$insert_query" | tail -n 1)
+
+        # Record creation in history
+        record_document_history "$doc_id" "created" "system" "Initial document creation" "" "$content"
+    fi
+
+    echo "$doc_id"
+}
+
+# Function to record document history
+record_document_history() {
+    local doc_id="$1"
+    local change_type="$2"
+    local changed_by="$3"
+    local change_summary="$4"
+    local previous_content="$5"
+    local new_content="$6"
+
+    local escaped_summary="$(escape_json "$change_summary")"
+    local escaped_prev="$(escape_json "$previous_content")"
+    local escaped_new="$(escape_json "$new_content")"
+
+    local query="INSERT INTO document_history
+                 (document_id, change_type, changed_by, change_summary, previous_content, new_content)
+                 VALUES ('${doc_id}', '${change_type}', '${changed_by}',
+                         '${escaped_summary}', '${escaped_prev}', '${escaped_new}')"
+
+    db_query "$query" &>/dev/null
+}
+
+# Function to get document history
+get_document_history() {
+    local doc_id="$1"
+    local limit="${2:-10}"
+
+    local query="SELECT changed_at, change_type, changed_by, change_summary
+                 FROM document_history
+                 WHERE document_id = '${doc_id}'
+                 ORDER BY changed_at DESC
+                 LIMIT ${limit}"
+
+    db_query "$query"
 }
 
 # Function to update template freshness
@@ -225,6 +302,8 @@ export -f db_query
 export -f generate_document
 export -f check_template_freshness
 export -f update_templates_from_web
+export -f record_document_history
+export -f get_document_history
 
 # If script is run directly (not sourced)
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then

@@ -5,7 +5,9 @@
 
 set -e
 
-API_BASE="${API_BASE:-http://localhost:20300}"
+# Use API_PORT environment variable from lifecycle system, fallback to default port from service.json range
+API_PORT="${API_PORT:-15300}"
+API_BASE="${API_BASE:-http://localhost:${API_PORT}}"
 CLI_PATH="../cli/prompt-injection-arena"
 
 echo "🧪 Testing Prompt Injection Arena Agent Security"
@@ -173,7 +175,7 @@ echo "🎯 Test Summary"
 echo "=============="
 echo "✅ Core API endpoints functional"
 echo "✅ Injection library system working"
-echo "✅ Leaderboard system operational"  
+echo "✅ Leaderboard system operational"
 echo "✅ Statistics collection active"
 echo "✅ Agent testing framework ready"
 echo ""
@@ -181,6 +183,6 @@ echo "🚀 Prompt Injection Arena validation complete!"
 echo ""
 echo "Next steps:"
 echo "1. Start the scenario: vrooli scenario run prompt-injection-arena"
-echo "2. Access Web UI: http://localhost:3300"
-echo "3. Access API: http://localhost:20300"
+echo "2. Access Web UI: http://localhost:\${UI_PORT:-35300}"
+echo "3. Access API: $API_BASE"
 echo "4. Use CLI: prompt-injection-arena --help"

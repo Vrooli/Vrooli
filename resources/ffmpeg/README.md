@@ -180,12 +180,23 @@ export FFMPEG_ENABLE_GPU=true
 
 # Resource limits
 export FFMPEG_MAX_FILE_SIZE_MB=5000
-export FFMPEG_MAX_DURATION_SECONDS=3600
+export FFMPEG_TIMEOUT=3600  # Base timeout in seconds (auto-adjusts for large files)
 export FFMPEG_CPU_THREADS=0  # 0=auto
 
 # Codec preferences
 export FFMPEG_VIDEO_CODEC=h264
 export FFMPEG_AUDIO_CODEC=aac
+```
+
+### Automatic Timeout Handling
+FFmpeg automatically adjusts processing timeouts based on file size:
+- Files < 1GB: 1 hour timeout (default)
+- Files > 1GB: Additional 30 minutes per GB over 1GB
+- Maximum timeout: 4 hours
+
+For very large files or slow systems, manually increase the base timeout:
+```bash
+export FFMPEG_TIMEOUT=7200  # 2 hours base timeout
 ```
 
 ## Presets
@@ -270,10 +281,26 @@ GPU acceleration is automatically detected and used when available:
 - AMD VCE/VCN
 - VAAPI generic acceleration
 
+The resource now performs enhanced detection:
+- Verifies GPU drivers are working
+- Confirms encoder support in FFmpeg installation
+- Provides helpful hints if GPU detected but encoder unavailable
+- Falls back gracefully to software encoding if needed
+
 Test hardware acceleration:
 ```bash
 # Benchmark hardware vs software encoding
 vrooli resource ffmpeg content benchmark
+```
+
+If hardware acceleration isn't working despite having a GPU:
+```bash
+# Check if NVENC encoder is available in FFmpeg
+ffmpeg -encoders 2>/dev/null | grep nvenc
+
+# If missing, you may need to install FFmpeg with NVENC support
+# Or disable hardware acceleration:
+export FFMPEG_HW_ACCEL=none
 ```
 
 ### Batch Processing

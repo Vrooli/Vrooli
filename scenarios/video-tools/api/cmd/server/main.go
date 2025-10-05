@@ -79,7 +79,7 @@ type VideoConvertRequest struct {
 func NewServer() (*Server, error) {
 	config := &Config{
 		Port:        getEnv("API_PORT", "15760"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://vrooli@localhost:5433/video_tools?sslmode=disable"),
+		DatabaseURL: getEnv("DATABASE_URL", fmt.Sprintf("postgres://vrooli:%s@localhost:5433/video_tools?sslmode=disable", getEnv("POSTGRES_PASSWORD", ""))),
 		WorkDir:     getEnv("WORK_DIR", "/tmp/video-tools"),
 		APIToken:    getEnv("API_TOKEN", "video-tools-secret-token"),
 	}

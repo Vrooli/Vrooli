@@ -3,10 +3,16 @@ package database
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+)
+
+// Common errors
+var (
+	ErrNotFound = errors.New("not found")
 )
 
 // JSONMap represents a JSON object stored in the database
@@ -96,6 +102,8 @@ type Execution struct {
 	Result           JSONMap    `json:"result,omitempty" db:"result"`
 	Progress         int        `json:"progress" db:"progress"`
 	CurrentStep      string     `json:"current_step,omitempty" db:"current_step"`
+	CreatedAt        time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // ExecutionLog represents a log entry for a workflow execution

@@ -7,10 +7,12 @@ Local Info Scout is an intelligent location-based information discovery tool tha
 ✅ **Working Features:**
 - Health check endpoint (4ms response)
 - Search API with natural language processing
-- Smart filtering (rating, price, distance, open_now)
+- Smart filtering with category-aware thresholds and relevance scoring
 - Categories API (9 categories)
 - Place details API (`/api/places/:id`)
-- Discovery API (`/api/discover`) for hidden gems
+- Discovery API with time-based recommendations and trending places
+- Redis caching with 5-minute TTL and cache headers
+- PostgreSQL persistence with search logging and analytics
 - Full-featured CLI tool
 - CORS support for web integration
 - Comprehensive test suite
@@ -19,9 +21,8 @@ Local Info Scout is an intelligent location-based information discovery tool tha
 
 ⚠️ **Pending Features:**
 - Full real data sources integration
-- Database persistence (PostgreSQL)
-- Redis caching
 - Multi-source aggregation
+- Personalized recommendations
 
 ## Purpose
 This scenario enables local discovery by:

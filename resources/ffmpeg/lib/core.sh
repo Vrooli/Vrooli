@@ -51,6 +51,45 @@ ffmpeg::get_version() {
     fi
 }
 
+# Calculate appropriate timeout based on file size
+# Returns timeout in seconds
+ffmpeg::calculate_timeout() {
+    local file_path="$1"
+    local default_timeout="${FFMPEG_TIMEOUT:-3600}"
+
+    if [[ ! -f "$file_path" ]]; then
+        echo "$default_timeout"
+        return 0
+    fi
+
+    # Get file size in MB
+    local file_size_mb
+    if stat -c%s "$file_path" &>/dev/null; then
+        # Linux
+        file_size_mb=$(( $(stat -c%s "$file_path") / 1024 / 1024 ))
+    else
+        # macOS
+        file_size_mb=$(( $(stat -f%z "$file_path") / 1024 / 1024 ))
+    fi
+
+    # Calculate timeout based on file size
+    # Base: 1 hour for files < 1GB
+    # Add 30 minutes per additional GB
+    local timeout="$default_timeout"
+    if [[ $file_size_mb -gt 1024 ]]; then
+        local gb_over_1=$(( (file_size_mb - 1024) / 1024 ))
+        timeout=$(( default_timeout + (gb_over_1 * 1800) ))
+    fi
+
+    # Cap at 4 hours maximum
+    local max_timeout=14400
+    if [[ $timeout -gt $max_timeout ]]; then
+        timeout=$max_timeout
+    fi
+
+    echo "$timeout"
+}
+
 # Show resource runtime information (v2.0 contract requirement)
 ffmpeg::info() {
     local json_flag="${1:-}"

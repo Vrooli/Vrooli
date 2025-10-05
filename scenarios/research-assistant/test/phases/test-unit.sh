@@ -1,23 +1,24 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Unit Tests ==="
+# Integrate with centralized testing infrastructure
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Go unit tests
-if [ -d "api" ]; then
-  cd api && go test -v ./... -short || exit 1
-  cd ..
-fi
+testing::phase::init --target-time "60s"
 
-# UI unit tests if Jest or similar is present
-if [ -f "ui/package.json" ]; then
-  cd ui
-  if jq -e '.scripts."test"' package.json > /dev/null 2>&1; then
-    npm test || exit 1
-  else
-    echo "No UI unit tests defined"
-  fi
-  cd ..
-fi
+# Source centralized unit test runner
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-echo "✅ Unit tests passed"
+cd "$TESTING_PHASE_SCENARIO_DIR"
+
+# Run unit tests with coverage thresholds
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-python \
+    --skip-node \
+    --coverage-warn 80 \
+    --coverage-error 50
+
+testing::phase::end_with_summary "Unit tests completed"

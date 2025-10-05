@@ -16,6 +16,7 @@ Commands:
     substitute <ingredient>    Find vegan alternatives
     veganize <recipe>         Convert a recipe to vegan
     products                  List common non-vegan ingredients
+    nutrition                 Get nutritional guidance for vegan diet
     help                      Show this help message
 
 Examples:
@@ -112,19 +113,48 @@ veganize_recipe() {
 
 list_products() {
     local response=$(curl -s "$API_URL/api/products" 2>/dev/null)
-    
+
     # Check if curl was successful and we got a response
     if [ -z "$response" ]; then
         echo "Error: Unable to connect to Make It Vegan API at $API_URL"
         echo "Please ensure the service is running: vrooli scenario run make-it-vegan"
         return 1
     fi
-    
+
     if [[ "$1" == "--json" ]]; then
         echo "$response"
     else
         echo "Common Non-Vegan Ingredients:"
         echo "$response" | jq -r 'to_entries[] | "\n\(.key | ascii_upcase):\n\(.value | join(", "))"' 2>/dev/null || echo "$response"
+    fi
+}
+
+get_nutrition() {
+    local response=$(curl -s "$API_URL/api/nutrition" 2>/dev/null)
+
+    # Check if curl was successful and we got a response
+    if [ -z "$response" ]; then
+        echo "Error: Unable to connect to Make It Vegan API at $API_URL"
+        echo "Please ensure the service is running: vrooli scenario run make-it-vegan"
+        return 1
+    fi
+
+    if [[ "$1" == "--json" ]]; then
+        echo "$response"
+    else
+        echo "=== Vegan Nutritional Guidance ==="
+        echo ""
+        echo "KEY NUTRIENTS:"
+        echo "$response" | jq -r '.nutritionalInfo |
+            "Protein: \(.protein)\n" +
+            "B12: \(.b12)\n" +
+            "Iron: \(.iron)\n" +
+            "Calcium: \(.calcium)\n" +
+            "Omega-3: \(.omega3)\n\n" +
+            "CONSIDERATIONS:\n" +
+            (.considerations | map("• " + .) | join("\n")) + "\n\n" +
+            "GOOD SOURCES:\n" +
+            (.goodSources | map("• " + .) | join("\n"))' 2>/dev/null || echo "$response"
     fi
 }
 
@@ -140,6 +170,9 @@ case "$1" in
         ;;
     products)
         list_products "$2"
+        ;;
+    nutrition)
+        get_nutrition "$2"
         ;;
     help|--help|-h)
         show_help

@@ -266,16 +266,14 @@ obs::inject() {
     local recordings
     recordings=$(echo "$config" | jq -c '.recordings // {}')
     if [[ "$recordings" != "{}" ]]; then
-        log::info "Configuring recording settings"
-        # TODO: Implement recording configuration
+        log::info "Recording configuration available via 'resource-obs-studio content' commands"
     fi
-    
+
     # Process streaming configuration if present
     local streaming
     streaming=$(echo "$config" | jq -c '.streaming // {}')
     if [[ "$streaming" != "{}" ]]; then
-        log::info "Configuring streaming settings"
-        # TODO: Implement streaming configuration
+        log::info "Streaming configuration available via 'resource-obs-studio streaming' commands"
     fi
     
     log::success "OBS Studio injection completed successfully"

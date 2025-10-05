@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"os"
 	"strconv"
 	"time"
@@ -260,9 +261,9 @@ func initDB() (*sql.DB, error) {
 			float64(maxDelay),
 		))
 		
-		// Add progressive jitter to prevent thundering herd
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(rand.Float64() * jitterRange)
 		actualDelay := delay + jitter
 		
 		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
@@ -512,30 +513,61 @@ func (app *App) uploadFile(c *gin.Context) {
 			EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'files' AND column_name = 'original_name')
 	`).Scan(&hasUserID, &hasFilename, &hasOriginalName)
 
-	// Build query based on actual schema
-	nameColumn := "original_name"
-	if hasFilename && !hasOriginalName {
-		nameColumn = "filename"
-	}
-
+	// Build query based on actual schema - handle both columns if they exist
 	var query string
-	if hasUserID {
-		// Include user_id with default value
-		query = fmt.Sprintf(`
-			INSERT INTO files (%s, file_hash, size_bytes, mime_type,
-			                  storage_path, folder_path, status, processing_stage,
-			                  custom_metadata, user_id, uploaded_at, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'uploaded', $7, 'default', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-			RETURNING id
-		`, nameColumn)
+	var args []interface{}
+
+	if hasFilename && hasOriginalName {
+		// Both columns exist - populate both with the same value
+		if hasUserID {
+			query = `
+				INSERT INTO files (filename, original_name, file_hash, size_bytes, mime_type,
+				                  storage_path, folder_path, status, processing_stage,
+				                  custom_metadata, user_id, uploaded_at, created_at, updated_at)
+				VALUES ($1, $1, $2, $3, $4, $5, $6, 'pending', 'uploaded', $7, 'default', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				RETURNING id`
+		} else {
+			query = `
+				INSERT INTO files (filename, original_name, file_hash, size_bytes, mime_type,
+				                  storage_path, folder_path, status, processing_stage,
+				                  custom_metadata, uploaded_at, created_at, updated_at)
+				VALUES ($1, $1, $2, $3, $4, $5, $6, 'pending', 'uploaded', $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				RETURNING id`
+		}
+	} else if hasFilename {
+		// Only filename column exists
+		if hasUserID {
+			query = `
+				INSERT INTO files (filename, file_hash, size_bytes, mime_type,
+				                  storage_path, folder_path, status, processing_stage,
+				                  custom_metadata, user_id, uploaded_at, created_at, updated_at)
+				VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'uploaded', $7, 'default', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				RETURNING id`
+		} else {
+			query = `
+				INSERT INTO files (filename, file_hash, size_bytes, mime_type,
+				                  storage_path, folder_path, status, processing_stage,
+				                  custom_metadata, uploaded_at, created_at, updated_at)
+				VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'uploaded', $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				RETURNING id`
+		}
 	} else {
-		query = fmt.Sprintf(`
-			INSERT INTO files (%s, file_hash, size_bytes, mime_type,
-			                  storage_path, folder_path, status, processing_stage,
-			                  custom_metadata, uploaded_at, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'uploaded', $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-			RETURNING id
-		`, nameColumn)
+		// Only original_name column exists (or neither, default to original_name)
+		if hasUserID {
+			query = `
+				INSERT INTO files (original_name, file_hash, size_bytes, mime_type,
+				                  storage_path, folder_path, status, processing_stage,
+				                  custom_metadata, user_id, uploaded_at, created_at, updated_at)
+				VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'uploaded', $7, 'default', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				RETURNING id`
+		} else {
+			query = `
+				INSERT INTO files (original_name, file_hash, size_bytes, mime_type,
+				                  storage_path, folder_path, status, processing_stage,
+				                  custom_metadata, uploaded_at, created_at, updated_at)
+				VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'uploaded', $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				RETURNING id`
+		}
 	}
 
 	// Convert metadata to JSON
@@ -544,9 +576,11 @@ func (app *App) uploadFile(c *gin.Context) {
 		metadataJSON = []byte("{}")
 	}
 
+	args = []interface{}{req.Filename, req.FileHash, req.SizeBytes,
+		req.MimeType, req.StoragePath, req.FolderPath, metadataJSON}
+
 	var fileID string
-	err = app.DB.QueryRow(query, req.Filename, req.FileHash, req.SizeBytes,
-		req.MimeType, req.StoragePath, req.FolderPath, metadataJSON).Scan(&fileID)
+	err = app.DB.QueryRow(query, args...).Scan(&fileID)
 
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to create file record: " + err.Error()})
@@ -777,19 +811,193 @@ func (app *App) findDuplicates(c *gin.Context) {
 }
 
 func (app *App) getFolders(c *gin.Context) {
-	c.JSON(501, gin.H{"error": "Not implemented yet"})
+	// Get list of folders from database
+	query := `
+		SELECT id, path, parent_path, name, description, metadata, created_at, updated_at
+		FROM folders
+		ORDER BY path ASC
+	`
+
+	rows, err := app.DB.Query(query)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to query folders: " + err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	type Folder struct {
+		ID          string                 `json:"id"`
+		Path        string                 `json:"path"`
+		ParentPath  *string                `json:"parent_path"`
+		Name        string                 `json:"name"`
+		Description *string                `json:"description"`
+		Metadata    map[string]interface{} `json:"metadata"`
+		CreatedAt   time.Time              `json:"created_at"`
+		UpdatedAt   time.Time              `json:"updated_at"`
+	}
+
+	var folders []Folder
+	for rows.Next() {
+		var folder Folder
+		var metadataJSON []byte
+
+		err := rows.Scan(
+			&folder.ID, &folder.Path, &folder.ParentPath, &folder.Name,
+			&folder.Description, &metadataJSON, &folder.CreatedAt, &folder.UpdatedAt,
+		)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Failed to scan folder: " + err.Error()})
+			return
+		}
+
+		// Parse metadata JSON
+		if len(metadataJSON) > 0 {
+			json.Unmarshal(metadataJSON, &folder.Metadata)
+		}
+
+		folders = append(folders, folder)
+	}
+
+	c.JSON(200, gin.H{
+		"folders": folders,
+		"total":   len(folders),
+	})
 }
 
 func (app *App) createFolder(c *gin.Context) {
-	c.JSON(501, gin.H{"error": "Not implemented yet"})
+	var req struct {
+		Path        string                 `json:"path" binding:"required"`
+		ParentPath  string                 `json:"parent_path"`
+		Name        string                 `json:"name" binding:"required"`
+		Description string                 `json:"description"`
+		Metadata    map[string]interface{} `json:"metadata"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+
+	// Convert metadata to JSON
+	metadataJSON, err := json.Marshal(req.Metadata)
+	if err != nil {
+		metadataJSON = []byte("{}")
+	}
+
+	// Insert folder
+	query := `
+		INSERT INTO folders (path, parent_path, name, description, metadata, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		RETURNING id, created_at
+	`
+
+	var folderID string
+	var createdAt time.Time
+	err = app.DB.QueryRow(query, req.Path, req.ParentPath, req.Name, req.Description, metadataJSON).Scan(&folderID, &createdAt)
+
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to create folder: " + err.Error()})
+		return
+	}
+
+	c.JSON(201, gin.H{
+		"folder_id":  folderID,
+		"path":       req.Path,
+		"name":       req.Name,
+		"created_at": createdAt,
+		"message":    "Folder created successfully",
+	})
 }
 
 func (app *App) updateFolder(c *gin.Context) {
-	c.JSON(501, gin.H{"error": "Not implemented yet"})
+	folderPath := c.Param("path")
+
+	var req struct {
+		Name        string                 `json:"name"`
+		Description string                 `json:"description"`
+		Metadata    map[string]interface{} `json:"metadata"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+
+	// Convert metadata to JSON
+	metadataJSON, err := json.Marshal(req.Metadata)
+	if err != nil {
+		metadataJSON = []byte("{}")
+	}
+
+	// Update folder
+	query := `
+		UPDATE folders
+		SET name = COALESCE(NULLIF($1, ''), name),
+		    description = COALESCE(NULLIF($2, ''), description),
+		    metadata = COALESCE($3, metadata),
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE path = $4
+		RETURNING id, updated_at
+	`
+
+	var folderID string
+	var updatedAt time.Time
+	err = app.DB.QueryRow(query, req.Name, req.Description, metadataJSON, folderPath).Scan(&folderID, &updatedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(404, gin.H{"error": "Folder not found"})
+		} else {
+			c.JSON(500, gin.H{"error": "Failed to update folder: " + err.Error()})
+		}
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"folder_id":  folderID,
+		"path":       folderPath,
+		"updated_at": updatedAt,
+		"message":    "Folder updated successfully",
+	})
 }
 
 func (app *App) deleteFolder(c *gin.Context) {
-	c.JSON(501, gin.H{"error": "Not implemented yet"})
+	folderPath := c.Param("path")
+
+	// Check if folder has files
+	var fileCount int
+	err := app.DB.QueryRow(`SELECT COUNT(*) FROM files WHERE folder_path = $1`, folderPath).Scan(&fileCount)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to check folder contents: " + err.Error()})
+		return
+	}
+
+	if fileCount > 0 {
+		c.JSON(400, gin.H{
+			"error":      "Folder is not empty",
+			"file_count": fileCount,
+			"message":    "Cannot delete folder with files. Move or delete files first.",
+		})
+		return
+	}
+
+	// Delete folder
+	result, err := app.DB.Exec(`DELETE FROM folders WHERE path = $1`, folderPath)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to delete folder: " + err.Error()})
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		c.JSON(404, gin.H{"error": "Folder not found"})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"message": "Folder deleted successfully",
+		"path":    folderPath,
+	})
 }
 
 func (app *App) processFile(c *gin.Context) {

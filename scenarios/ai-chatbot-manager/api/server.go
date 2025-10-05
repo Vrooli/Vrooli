@@ -67,7 +67,7 @@ func (s *Server) setupRoutes() {
 	s.router.Use(CORSMiddleware)
 
 	// Apply authentication middleware globally
-	authMiddleware := NewAuthenticationMiddleware(s.logger)
+	authMiddleware := NewAuthenticationMiddleware(s.db, s.logger)
 	s.router.Use(authMiddleware.Middleware)
 
 	// Health check

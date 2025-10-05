@@ -231,6 +231,13 @@ None - all core features complete
   - Performance remains excellent (<2s for text processing)
   - Resource usage efficient (387MB/4GB memory)
   - All P0, P1, and P2 requirements confirmed working
+- **2025-10-03**: Documentation modernization (100% → 100%)
+  - Updated README.md to use v2.0 CLI commands throughout
+  - Replaced all legacy `./manage.sh` patterns with `vrooli resource` commands
+  - Modernized all usage examples and integration scripts
+  - Simplified batch processing examples
+  - Added test command references
+  - Resource remains fully functional with all tests passing
 
 ## Next Steps
 1. Create more comprehensive OCR test suite with various image formats

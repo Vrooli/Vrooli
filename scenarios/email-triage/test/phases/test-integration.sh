@@ -7,8 +7,16 @@ set -euo pipefail
 
 echo "🔗 Testing Email Triage integrations..."
 
-# Configuration
-API_PORT="${API_PORT:-19528}"
+# Configuration - Get API port from environment, service.json, or use default
+if [ -z "$API_PORT" ]; then
+    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    SERVICE_JSON="$(dirname "$(dirname "$SCRIPT_DIR")")/.vrooli/service.json"
+    if [ -f "$SERVICE_JSON" ] && command -v jq >/dev/null 2>&1; then
+        API_PORT=$(jq -r '.endpoints.api // "http://localhost:19528"' "$SERVICE_JSON" | sed 's/.*://')
+    else
+        API_PORT=19528
+    fi
+fi
 API_URL="http://localhost:${API_PORT}"
 
 # Colors for output

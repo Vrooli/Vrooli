@@ -318,7 +318,7 @@ func (s *TaskPlannerService) enhanceResearchWithContext(result *TaskResearchResu
 		// If we have similar completed tasks, we might have better estimates
 		avgEstimate := 0.0
 		count := 0
-		for _, task := range context.CompletedTasks {
+		for range context.CompletedTasks {
 			// This would need metadata about actual time taken
 			// For now, just use a heuristic
 			avgEstimate += 3.0 // Placeholder

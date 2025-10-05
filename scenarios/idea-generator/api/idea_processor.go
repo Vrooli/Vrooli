@@ -608,20 +608,24 @@ func (ip *IdeaProcessor) generateEmbedding(ctx context.Context, text string) ([]
 }
 
 func (ip *IdeaProcessor) storeIdea(ctx context.Context, ideaID, campaignID string, idea GeneratedIdea, userID string) error {
-	tagsJSON, _ := json.Marshal(idea.Tags)
-	
+	// PostgreSQL array format: {tag1,tag2,tag3}
+	tagsArray := "{}"
+	if len(idea.Tags) > 0 {
+		tagsArray = "{" + strings.Join(idea.Tags, ",") + "}"
+	}
+
 	query := `
 		INSERT INTO ideas (id, campaign_id, title, content, category, tags, status, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, 'generated', $7, $8)`
-	
+
 	content := idea.Description
 	if idea.ImplementationNotes != "" {
 		content += "\n\nImplementation Notes:\n" + idea.ImplementationNotes
 	}
-	
+
 	_, err := ip.db.ExecContext(ctx, query,
-		ideaID, campaignID, idea.Title, content, idea.Category, tagsJSON, time.Now(), time.Now())
-	
+		ideaID, campaignID, idea.Title, content, idea.Category, tagsArray, time.Now(), time.Now())
+
 	return err
 }
 
@@ -652,12 +656,25 @@ func (ip *IdeaProcessor) storeInVectorDB(ctx context.Context, ideaID, campaignID
 	}
 	
 	pointsJSON, _ := json.Marshal(points)
-	
-	http.Post(
+
+	resp, err := http.Post(
 		fmt.Sprintf("%s/collections/ideas/points", ip.qdrantURL),
 		"application/json",
 		bytes.NewBuffer(pointsJSON),
 	)
+	if err != nil {
+		fmt.Printf("Failed to store idea in Qdrant: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := ioutil.ReadAll(resp.Body)
+		fmt.Printf("Qdrant returned error status %d: %s\n", resp.StatusCode, string(body))
+		return
+	}
+
+	fmt.Printf("✅ Successfully stored idea %s in Qdrant vector database\n", ideaID)
 }
 
 func (ip *IdeaProcessor) updateVectorDB(ctx context.Context, ideaID, title, content, category string) {

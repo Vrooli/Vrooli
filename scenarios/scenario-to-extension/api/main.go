@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -94,8 +95,9 @@ type ExtensionTestSummary struct {
 
 // Global state
 var (
-	config *Config
-	builds map[string]*ExtensionBuild
+	config     *Config
+	builds     map[string]*ExtensionBuild
+	buildsMux  sync.RWMutex
 )
 
 func main() {
@@ -269,7 +271,9 @@ func generateExtensionHandler(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:    time.Now(),
 	}
 
+	buildsMux.Lock()
 	builds[buildID] = build
+	buildsMux.Unlock()
 
 	// Start extension generation in background
 	go generateExtension(build)
@@ -292,7 +296,10 @@ func getExtensionStatusHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	buildID := vars["build_id"]
 
+	buildsMux.RLock()
 	build, exists := builds[buildID]
+	buildsMux.RUnlock()
+
 	if !exists {
 		http.Error(w, "Build not found", http.StatusNotFound)
 		return
@@ -355,10 +362,12 @@ func listTemplatesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func listBuildsHandler(w http.ResponseWriter, r *http.Request) {
+	buildsMux.RLock()
 	buildList := make([]*ExtensionBuild, 0, len(builds))
 	for _, build := range builds {
 		buildList = append(buildList, build)
 	}
+	buildsMux.RUnlock()
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -385,6 +394,9 @@ func checkTemplatesHealth() bool {
 }
 
 func countBuildsByStatus(status string) int {
+	buildsMux.RLock()
+	defer buildsMux.RUnlock()
+
 	count := 0
 	for _, build := range builds {
 		if build.Status == status {

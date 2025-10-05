@@ -2,34 +2,22 @@
 
 set -euo pipefail
 
-printf "=== Unit Tests ===\\n"
+# Integrate with centralized testing infrastructure
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# API unit tests
+testing::phase::init --target-time "60s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-if [[ -d "api" ]]; then
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-  pushd api &gt;&amp; go test ./... -v -short || { printf "❌ API unit tests failed\\n"; exit 1; } &amp;&amp; popd
+# Run all unit tests with centralized runner
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --node-dir "ui" \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50
 
-  printf "✅ API unit tests passed\\n"
-
-else
-
-  printf "⚠️ No API for unit tests\\n"
-
-fi
-
-# UI unit tests (assuming Jest or similar)
-
-if [[ -d "ui" ]]; then
-
-  pushd ui &gt;&amp; npm test -- --passWithNoTests || { printf "❌ UI unit tests failed\\n"; exit 1; } &amp;&amp; popd
-
-  printf "✅ UI unit tests passed\\n"
-
-else
-
-  printf "⚠️ No UI for unit tests\\n"
-
-fi
-
-printf "✅ Unit tests completed\\n"
+testing::phase::end_with_summary "Unit tests completed"

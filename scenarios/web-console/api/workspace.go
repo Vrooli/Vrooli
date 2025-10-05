@@ -179,6 +179,13 @@ func (ws *workspace) updateState(activeTabID string, tabs []tabMeta) error {
 // addTab adds a new tab to the workspace
 func (ws *workspace) addTab(tab tabMeta) error {
 	ws.mu.Lock()
+	// Check for duplicate ID
+	for _, existingTab := range ws.Tabs {
+		if existingTab.ID == tab.ID {
+			ws.mu.Unlock()
+			return fmt.Errorf("tab with ID %s already exists", tab.ID)
+		}
+	}
 	tab.Order = len(ws.Tabs)
 	ws.Tabs = append(ws.Tabs, tab)
 	ws.Version++

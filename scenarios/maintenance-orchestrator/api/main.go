@@ -66,11 +66,16 @@ func main() {
 	orchestrator := NewOrchestrator()
 	initializeDefaultPresets(orchestrator)
 
-	// Start discovery goroutine
+	// Perform initial discovery before starting server
+	logger.Printf("🔍 Performing initial scenario discovery...")
+	discoverScenarios(orchestrator, logger)
+	logger.Printf("✅ Initial discovery complete: %d scenarios found", len(orchestrator.GetScenarios()))
+
+	// Start periodic discovery goroutine
 	go func() {
 		for {
-			discoverScenarios(orchestrator, logger)
 			time.Sleep(60 * time.Second)
+			discoverScenarios(orchestrator, logger)
 		}
 	}()
 

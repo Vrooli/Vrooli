@@ -482,10 +482,14 @@ func authMiddleware(next http.Handler) http.Handler {
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	// Check database connection
 	dbStatus := "healthy"
-	if err := s.db.Ping(); err != nil {
-		dbStatus = "unhealthy"
+	if s.db != nil {
+		if err := s.db.Ping(); err != nil {
+			dbStatus = "unhealthy"
+		}
+	} else {
+		dbStatus = "not_configured"
 	}
-	
+
 	health := map[string]interface{}{
 		"status":   "healthy",
 		"database": dbStatus,
@@ -493,7 +497,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"service":  "network-tools",
 		"timestamp": time.Now().UTC(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(health)
 }
@@ -587,15 +591,17 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, r *http.Request) {
 		httpResp.Headers[k] = resp.Header.Get(k)
 	}
 
-	// Store in database
-	_, err = s.db.Exec(`
-		INSERT INTO http_requests (url, method, status_code, response_time_ms, headers, response_headers, response_body)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		req.URL, req.Method, httpResp.StatusCode, responseTime,
-		mapToJSON(req.Headers), mapToJSON(httpResp.Headers), httpResp.Body)
-	
-	if err != nil {
-		log.Printf("Failed to store HTTP request: %v", err)
+	// Store in database (skip if no database connection, for testing)
+	if s.db != nil {
+		_, err = s.db.Exec(`
+			INSERT INTO http_requests (url, method, status_code, response_time_ms, headers, response_headers, response_body)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			req.URL, req.Method, httpResp.StatusCode, responseTime,
+			mapToJSON(req.Headers), mapToJSON(httpResp.Headers), httpResp.Body)
+
+		if err != nil {
+			log.Printf("Failed to store HTTP request: %v", err)
+		}
 	}
 
 	sendSuccess(w, httpResp)
@@ -695,15 +701,17 @@ func (s *Server) handleDNSQuery(w http.ResponseWriter, r *http.Request) {
 		DNSSECValid:    false,
 	}
 
-	// Store in database
-	answersJSON, _ := json.Marshal(answers)
-	_, err := s.db.Exec(`
-		INSERT INTO dns_queries (query, record_type, dns_server, response_time_ms, answers, authoritative, dnssec_valid)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		req.Query, req.RecordType, req.DNSServer, responseTime, string(answersJSON), false, false)
-	
-	if err != nil {
-		log.Printf("Failed to store DNS query: %v", err)
+	// Store in database (skip if no database connection, for testing)
+	if s.db != nil {
+		answersJSON, _ := json.Marshal(answers)
+		_, err := s.db.Exec(`
+			INSERT INTO dns_queries (query, record_type, dns_server, response_time_ms, answers, authoritative, dnssec_valid)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			req.Query, req.RecordType, req.DNSServer, responseTime, string(answersJSON), false, false)
+
+		if err != nil {
+			log.Printf("Failed to store DNS query: %v", err)
+		}
 	}
 
 	sendSuccess(w, dnsResp)
@@ -853,7 +861,11 @@ func (s *Server) handleAPITest(w http.ResponseWriter, r *http.Request) {
 	// Validate input
 	baseURL := req.BaseURL
 	if baseURL == "" && req.APIDefinitionID != "" {
-		// Look up API definition from database
+		// Look up API definition from database (only if database is configured)
+		if s.db == nil {
+			sendError(w, "Database not configured - cannot look up API definition", http.StatusBadRequest)
+			return
+		}
 		var url string
 		err := s.db.QueryRow("SELECT base_url FROM api_definitions WHERE id = $1", req.APIDefinitionID).Scan(&url)
 		if err != nil {
@@ -1125,25 +1137,27 @@ func (s *Server) handleSSLValidation(w http.ResponseWriter, r *http.Request) {
 	response["issues"] = issues
 	response["warnings"] = warnings
 	
-	// Store in database
-	validationResult, _ := json.Marshal(response)
-	_, err = s.db.Exec(`
-		INSERT INTO scan_results (target_id, scan_type, status, results, severity_score)
-		VALUES (
-			(SELECT id FROM network_targets WHERE address = $1 LIMIT 1),
-			'ssl_check',
-			$2,
-			$3,
+	// Store in database (skip if no database connection, for testing)
+	if s.db != nil {
+		validationResult, _ := json.Marshal(response)
+		_, err = s.db.Exec(`
+			INSERT INTO scan_results (target_id, scan_type, status, results, severity_score)
+			VALUES (
+				(SELECT id FROM network_targets WHERE address = $1 LIMIT 1),
+				'ssl_check',
+				$2,
+				$3,
 			$4
 		)`,
-		parsedURL.Host,
-		func() string { if response["valid"].(bool) { return "success" } else { return "failed" } }(),
-		string(validationResult),
-		func() float64 { if response["valid"].(bool) { return 0.0 } else { return 8.0 } }(),
-	)
-	
-	if err != nil {
-		log.Printf("Failed to store SSL validation result: %v", err)
+			parsedURL.Host,
+			func() string { if response["valid"].(bool) { return "success" } else { return "failed" } }(),
+			string(validationResult),
+			func() float64 { if response["valid"].(bool) { return 0.0 } else { return 8.0 } }(),
+		)
+
+		if err != nil {
+			log.Printf("Failed to store SSL validation result: %v", err)
+		}
 	}
 	
 	sendSuccess(w, response)
@@ -1166,13 +1180,18 @@ func tlsVersionString(version uint16) string {
 }
 
 func (s *Server) handleListTargets(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		sendError(w, "Database not configured", http.StatusInternalServerError)
+		return
+	}
+
 	rows, err := s.db.Query(`
 		SELECT id, name, target_type, address, port, protocol, is_active, created_at
 		FROM network_targets
 		WHERE is_active = true
 		ORDER BY created_at DESC
 		LIMIT 100`)
-	
+
 	if err != nil {
 		sendError(w, fmt.Sprintf("Failed to query targets: %v", err), http.StatusInternalServerError)
 		return
@@ -1215,6 +1234,11 @@ func (s *Server) handleListTargets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCreateTarget(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		sendError(w, "Database not configured", http.StatusInternalServerError)
+		return
+	}
+
 	var target struct {
 		Name       string   `json:"name"`
 		TargetType string   `json:"target_type"`
@@ -1223,19 +1247,19 @@ func (s *Server) handleCreateTarget(w http.ResponseWriter, r *http.Request) {
 		Protocol   string   `json:"protocol,omitempty"`
 		Tags       []string `json:"tags,omitempty"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&target); err != nil {
 		sendError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	id := uuid.New().String()
-	
+
 	_, err := s.db.Exec(`
 		INSERT INTO network_targets (id, name, target_type, address, port, protocol, tags)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		id, target.Name, target.TargetType, target.Address, target.Port, target.Protocol, pq.Array(target.Tags))
-	
+
 	if err != nil {
 		sendError(w, fmt.Sprintf("Failed to create target: %v", err), http.StatusInternalServerError)
 		return
@@ -1245,6 +1269,11 @@ func (s *Server) handleCreateTarget(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListAlerts(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		sendError(w, "Database not configured", http.StatusInternalServerError)
+		return
+	}
+
 	rows, err := s.db.Query(`
 		SELECT a.id, a.alert_type, a.severity, a.title, a.message, a.created_at, nt.name
 		FROM alerts a
@@ -1252,7 +1281,7 @@ func (s *Server) handleListAlerts(w http.ResponseWriter, r *http.Request) {
 		WHERE a.is_active = true
 		ORDER BY a.severity DESC, a.created_at DESC
 		LIMIT 50`)
-	
+
 	if err != nil {
 		sendError(w, fmt.Sprintf("Failed to query alerts: %v", err), http.StatusInternalServerError)
 		return

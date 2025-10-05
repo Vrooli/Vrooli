@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge';
 import App from './App';
 import './styles/global.css';
 

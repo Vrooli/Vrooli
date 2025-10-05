@@ -2,55 +2,59 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/gorilla/handlers"
-	_ "github.com/lib/pq"
 	"github.com/google/uuid"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 )
 
 type Report struct {
-	ID                      string     `json:"id" db:"id"`
-	Title                   string     `json:"title" db:"title"`
-	Topic                   string     `json:"topic" db:"topic"`
-	Depth                   string     `json:"depth" db:"depth"`
-	TargetLength            int        `json:"target_length" db:"target_length"`
-	Language                string     `json:"language" db:"language"`
-	MarkdownContent         *string    `json:"markdown_content" db:"markdown_content"`
-	Summary                 *string    `json:"summary" db:"summary"`
-	KeyFindings             *string    `json:"key_findings" db:"key_findings"`
-	SourcesCount            int        `json:"sources_count" db:"sources_count"`
-	WordCount               int        `json:"word_count" db:"word_count"`
-	ConfidenceScore         *float64   `json:"confidence_score" db:"confidence_score"`
-	PDFURL                  *string    `json:"pdf_url" db:"pdf_url"`
-	AssetsFolder            *string    `json:"assets_folder" db:"assets_folder"`
-	RequestedAt             time.Time  `json:"requested_at" db:"requested_at"`
-	StartedAt               *time.Time `json:"started_at" db:"started_at"`
-	CompletedAt             *time.Time `json:"completed_at" db:"completed_at"`
-	ProcessingTimeSeconds   *int       `json:"processing_time_seconds" db:"processing_time_seconds"`
-	Status                  string     `json:"status" db:"status"`
-	ErrorMessage            *string    `json:"error_message" db:"error_message"`
-	RequestedBy             *string    `json:"requested_by" db:"requested_by"`
-	Organization            *string    `json:"organization" db:"organization"`
-	ScheduleID              *string    `json:"schedule_id" db:"schedule_id"`
-	EmbeddingID             *string    `json:"embedding_id" db:"embedding_id"`
-	Tags                    []string   `json:"tags" db:"tags"`
-	Category                *string    `json:"category" db:"category"`
-	IsArchived              bool       `json:"is_archived" db:"is_archived"`
-	CreatedAt               time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt               time.Time  `json:"updated_at" db:"updated_at"`
+	ID                    string     `json:"id" db:"id"`
+	Title                 string     `json:"title" db:"title"`
+	Topic                 string     `json:"topic" db:"topic"`
+	Depth                 string     `json:"depth" db:"depth"`
+	TargetLength          int        `json:"target_length" db:"target_length"`
+	Language              string     `json:"language" db:"language"`
+	MarkdownContent       *string    `json:"markdown_content" db:"markdown_content"`
+	Summary               *string    `json:"summary" db:"summary"`
+	KeyFindings           *string    `json:"key_findings" db:"key_findings"`
+	SourcesCount          int        `json:"sources_count" db:"sources_count"`
+	WordCount             int        `json:"word_count" db:"word_count"`
+	ConfidenceScore       *float64   `json:"confidence_score" db:"confidence_score"`
+	PDFURL                *string    `json:"pdf_url" db:"pdf_url"`
+	AssetsFolder          *string    `json:"assets_folder" db:"assets_folder"`
+	RequestedAt           time.Time  `json:"requested_at" db:"requested_at"`
+	StartedAt             *time.Time `json:"started_at" db:"started_at"`
+	CompletedAt           *time.Time `json:"completed_at" db:"completed_at"`
+	ProcessingTimeSeconds *int       `json:"processing_time_seconds" db:"processing_time_seconds"`
+	Status                string     `json:"status" db:"status"`
+	ErrorMessage          *string    `json:"error_message" db:"error_message"`
+	RequestedBy           *string    `json:"requested_by" db:"requested_by"`
+	Organization          *string    `json:"organization" db:"organization"`
+	ScheduleID            *string    `json:"schedule_id" db:"schedule_id"`
+	EmbeddingID           *string    `json:"embedding_id" db:"embedding_id"`
+	Tags                  []string   `json:"tags" db:"tags"`
+	Category              *string    `json:"category" db:"category"`
+	IsArchived            bool       `json:"is_archived" db:"is_archived"`
+	CreatedAt             time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 type ReportRequest struct {
@@ -65,78 +69,79 @@ type ReportRequest struct {
 }
 
 type ChatConversation struct {
-	ID                string    `json:"id" db:"id"`
-	Title             *string   `json:"title" db:"title"`
-	UserID            *string   `json:"user_id" db:"user_id"`
-	Organization      *string   `json:"organization" db:"organization"`
-	IsActive          bool      `json:"is_active" db:"is_active"`
-	LastMessageAt     *time.Time`json:"last_message_at" db:"last_message_at"`
-	MessageCount      int       `json:"message_count" db:"message_count"`
-	RelatedReportIDs  []string  `json:"related_report_ids" db:"related_report_ids"`
-	CreatedAt         time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
+	ID               string     `json:"id" db:"id"`
+	Title            *string    `json:"title" db:"title"`
+	UserID           *string    `json:"user_id" db:"user_id"`
+	Organization     *string    `json:"organization" db:"organization"`
+	IsActive         bool       `json:"is_active" db:"is_active"`
+	LastMessageAt    *time.Time `json:"last_message_at" db:"last_message_at"`
+	MessageCount     int        `json:"message_count" db:"message_count"`
+	RelatedReportIDs []string   `json:"related_report_ids" db:"related_report_ids"`
+	CreatedAt        time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 type ChatMessage struct {
-	ID                   string     `json:"id" db:"id"`
-	ConversationID       string     `json:"conversation_id" db:"conversation_id"`
-	Role                 string     `json:"role" db:"role"`
-	Content              string     `json:"content" db:"content"`
-	ContextSources       *string    `json:"context_sources" db:"context_sources"`
-	ConfidenceScore      *float64   `json:"confidence_score" db:"confidence_score"`
-	TriggeredReportID    *string    `json:"triggered_report_id" db:"triggered_report_id"`
-	TriggeredAction      *string    `json:"triggered_action" db:"triggered_action"`
-	TokensUsed           *int       `json:"tokens_used" db:"tokens_used"`
-	ProcessingTimeMs     *int       `json:"processing_time_ms" db:"processing_time_ms"`
-	CreatedAt            time.Time  `json:"created_at" db:"created_at"`
+	ID                string    `json:"id" db:"id"`
+	ConversationID    string    `json:"conversation_id" db:"conversation_id"`
+	Role              string    `json:"role" db:"role"`
+	Content           string    `json:"content" db:"content"`
+	ContextSources    *string   `json:"context_sources" db:"context_sources"`
+	ConfidenceScore   *float64  `json:"confidence_score" db:"confidence_score"`
+	TriggeredReportID *string   `json:"triggered_report_id" db:"triggered_report_id"`
+	TriggeredAction   *string   `json:"triggered_action" db:"triggered_action"`
+	TokensUsed        *int      `json:"tokens_used" db:"tokens_used"`
+	ProcessingTimeMs  *int      `json:"processing_time_ms" db:"processing_time_ms"`
+	CreatedAt         time.Time `json:"created_at" db:"created_at"`
 }
 
 type SearchRequest struct {
-	Query      string            `json:"query"`
-	Engines    []string          `json:"engines"`
-	Category   string            `json:"category"`
-	TimeRange  string            `json:"time_range"`
-	Limit      int               `json:"limit"`
-	Filters    map[string]string `json:"filters"`
+	Query     string            `json:"query"`
+	Engines   []string          `json:"engines"`
+	Category  string            `json:"category"`
+	TimeRange string            `json:"time_range"`
+	Limit     int               `json:"limit"`
+	Filters   map[string]string `json:"filters"`
 	// Advanced filters for P1 requirement
-	Language   string            `json:"language"`       // Filter by content language
-	SafeSearch int               `json:"safe_search"`    // 0=off, 1=moderate, 2=strict
-	FileType   string            `json:"file_type"`      // pdf, doc, etc.
-	Site       string            `json:"site"`           // Specific site/domain
-	ExcludeSites []string        `json:"exclude_sites"`  // Sites to exclude
-	SortBy     string            `json:"sort_by"`        // relevance, date, popularity
-	Region     string            `json:"region"`         // Geographic region filter
-	MinDate    string            `json:"min_date"`       // ISO date string
-	MaxDate    string            `json:"max_date"`       // ISO date string
+	Language     string   `json:"language"`      // Filter by content language
+	SafeSearch   int      `json:"safe_search"`   // 0=off, 1=moderate, 2=strict
+	FileType     string   `json:"file_type"`     // pdf, doc, etc.
+	Site         string   `json:"site"`          // Specific site/domain
+	ExcludeSites []string `json:"exclude_sites"` // Sites to exclude
+	SortBy       string   `json:"sort_by"`       // relevance, date, popularity
+	Region       string   `json:"region"`        // Geographic region filter
+	MinDate      string   `json:"min_date"`      // ISO date string
+	MaxDate      string   `json:"max_date"`      // ISO date string
 }
 
 type AnalysisRequest struct {
-	Content           string            `json:"content"`
-	AnalysisType      string            `json:"analysis_type"`
-	OutputFormat      string            `json:"output_format"`
-	ConfidenceThreshold float64         `json:"confidence_threshold"`
-	MaxInsights       int               `json:"max_insights"`
-	FocusAreas        string            `json:"focus_areas"`
-	Context           string            `json:"context"`
+	Content             string  `json:"content"`
+	AnalysisType        string  `json:"analysis_type"`
+	OutputFormat        string  `json:"output_format"`
+	ConfidenceThreshold float64 `json:"confidence_threshold"`
+	MaxInsights         int     `json:"max_insights"`
+	FocusAreas          string  `json:"focus_areas"`
+	Context             string  `json:"context"`
 }
 
 type APIServer struct {
-	db             *sql.DB
-	n8nURL         string
-	windmillURL    string
-	searxngURL     string
-	qdrantURL      string
-	minioURL       string
-	ollamaURL      string
+	db          *sql.DB
+	n8nURL      string
+	windmillURL string
+	searxngURL  string
+	qdrantURL   string
+	minioURL    string
+	ollamaURL   string
+	httpClient  *http.Client // Shared HTTP client with timeout for health checks
 }
 
 // ResearchDepthConfig defines search parameters for each research depth level
 type ResearchDepthConfig struct {
-	MaxSources       int
-	SearchEngines    int
-	AnalysisRounds   int
-	MinConfidence    float64
-	TimeoutMinutes   int
+	MaxSources     int
+	SearchEngines  int
+	AnalysisRounds int
+	MinConfidence  float64
+	TimeoutMinutes int
 }
 
 // TemplateConfig defines parameters for report templates
@@ -187,46 +192,46 @@ func getDepthConfig(depth string) ResearchDepthConfig {
 func getReportTemplates() map[string]TemplateConfig {
 	return map[string]TemplateConfig{
 		"general": {
-			Name:          "General Research",
-			Description:   "Comprehensive research report covering all aspects of a topic",
-			DefaultDepth:  "standard",
-			DefaultLength: 5,
+			Name:             "General Research",
+			Description:      "Comprehensive research report covering all aspects of a topic",
+			DefaultDepth:     "standard",
+			DefaultLength:    5,
 			RequiredSections: []string{"Executive Summary", "Key Findings", "Analysis", "Conclusion"},
 			OptionalSections: []string{"Methodology", "References", "Appendix"},
 			PreferDomains:    []string{},
 		},
 		"academic": {
-			Name:          "Academic Research",
-			Description:   "Scholarly research with emphasis on peer-reviewed sources",
-			DefaultDepth:  "deep",
-			DefaultLength: 10,
+			Name:             "Academic Research",
+			Description:      "Scholarly research with emphasis on peer-reviewed sources",
+			DefaultDepth:     "deep",
+			DefaultLength:    10,
 			RequiredSections: []string{"Abstract", "Literature Review", "Methodology", "Results", "Discussion", "Conclusion", "References"},
 			OptionalSections: []string{"Acknowledgments", "Appendices"},
 			PreferDomains:    []string{"arxiv.org", "scholar.google.com", "pubmed.gov", "jstor.org"},
 		},
 		"market": {
-			Name:          "Market Analysis",
-			Description:   "Business and market intelligence focused research",
-			DefaultDepth:  "standard",
-			DefaultLength: 7,
+			Name:             "Market Analysis",
+			Description:      "Business and market intelligence focused research",
+			DefaultDepth:     "standard",
+			DefaultLength:    7,
 			RequiredSections: []string{"Executive Summary", "Market Overview", "Competitive Analysis", "Key Trends", "Recommendations"},
 			OptionalSections: []string{"SWOT Analysis", "Financial Data", "Sources"},
 			PreferDomains:    []string{"bloomberg.com", "reuters.com", "forbes.com", "wsj.com"},
 		},
 		"technical": {
-			Name:          "Technical Documentation",
-			Description:   "In-depth technical analysis and documentation",
-			DefaultDepth:  "deep",
-			DefaultLength: 8,
+			Name:             "Technical Documentation",
+			Description:      "In-depth technical analysis and documentation",
+			DefaultDepth:     "deep",
+			DefaultLength:    8,
 			RequiredSections: []string{"Overview", "Technical Specifications", "Implementation Details", "Best Practices", "Conclusion"},
 			OptionalSections: []string{"Code Examples", "Troubleshooting", "FAQ"},
 			PreferDomains:    []string{"github.com", "stackoverflow.com", "dev.to", "medium.com"},
 		},
 		"quick-brief": {
-			Name:          "Quick Brief",
-			Description:   "Fast, concise overview of a topic",
-			DefaultDepth:  "quick",
-			DefaultLength: 2,
+			Name:             "Quick Brief",
+			Description:      "Fast, concise overview of a topic",
+			DefaultDepth:     "quick",
+			DefaultLength:    2,
 			RequiredSections: []string{"Summary", "Key Points"},
 			OptionalSections: []string{"Further Reading"},
 			PreferDomains:    []string{},
@@ -255,61 +260,61 @@ type SourceQualityMetrics struct {
 
 // Contradiction represents a detected conflict between sources
 type Contradiction struct {
-	Claim1      string   `json:"claim1"`       // First claim
-	Claim2      string   `json:"claim2"`       // Contradictory claim
-	Source1     string   `json:"source1"`      // Source of first claim
-	Source2     string   `json:"source2"`      // Source of second claim
-	Confidence  float64  `json:"confidence"`   // Confidence in contradiction (0-1)
-	Context     string   `json:"context"`      // Additional context about the contradiction
-	ResultIDs   []int    `json:"result_ids"`   // Indices of results involved
+	Claim1     string  `json:"claim1"`     // First claim
+	Claim2     string  `json:"claim2"`     // Contradictory claim
+	Source1    string  `json:"source1"`    // Source of first claim
+	Source2    string  `json:"source2"`    // Source of second claim
+	Confidence float64 `json:"confidence"` // Confidence in contradiction (0-1)
+	Context    string  `json:"context"`    // Additional context about the contradiction
+	ResultIDs  []int   `json:"result_ids"` // Indices of results involved
 }
 
 // ContradictionRequest represents a request to detect contradictions
 type ContradictionRequest struct {
-	Results []map[string]interface{} `json:"results"`    // Search results to analyze
-	Topic   string                   `json:"topic"`      // Research topic for context
+	Results []map[string]interface{} `json:"results"` // Search results to analyze
+	Topic   string                   `json:"topic"`   // Research topic for context
 }
 
 // Domain authority tiers - higher tier = higher authority
 var domainAuthorityMap = map[string]float64{
 	// Academic & Research (Tier 1: 0.95-1.0)
-	"arxiv.org":           1.0,
-	"scholar.google.com":  1.0,
-	"pubmed.gov":          1.0,
-	"ncbi.nlm.nih.gov":    1.0,
-	"jstor.org":           0.98,
-	"sciencedirect.com":   0.97,
-	"nature.com":          0.98,
-	"science.org":         0.98,
-	"ieee.org":            0.97,
-	"acm.org":             0.97,
+	"arxiv.org":          1.0,
+	"scholar.google.com": 1.0,
+	"pubmed.gov":         1.0,
+	"ncbi.nlm.nih.gov":   1.0,
+	"jstor.org":          0.98,
+	"sciencedirect.com":  0.97,
+	"nature.com":         0.98,
+	"science.org":        0.98,
+	"ieee.org":           0.97,
+	"acm.org":            0.97,
 
 	// News & Media - Tier 1 (Tier 2: 0.85-0.95)
-	"reuters.com":         0.95,
-	"apnews.com":          0.95,
-	"bbc.com":             0.93,
-	"nytimes.com":         0.92,
-	"washingtonpost.com":  0.92,
-	"wsj.com":             0.93,
-	"bloomberg.com":       0.93,
-	"economist.com":       0.92,
-	"theguardian.com":     0.90,
-	"ft.com":              0.92,
+	"reuters.com":        0.95,
+	"apnews.com":         0.95,
+	"bbc.com":            0.93,
+	"nytimes.com":        0.92,
+	"washingtonpost.com": 0.92,
+	"wsj.com":            0.93,
+	"bloomberg.com":      0.93,
+	"economist.com":      0.92,
+	"theguardian.com":    0.90,
+	"ft.com":             0.92,
 
 	// Government & Official (Tier 1: 0.95-1.0)
-	"gov":                 0.98, // Any .gov domain
-	"edu":                 0.95, // Any .edu domain
-	"who.int":             0.97,
-	"un.org":              0.96,
-	"europa.eu":           0.95,
+	"gov":       0.98, // Any .gov domain
+	"edu":       0.95, // Any .edu domain
+	"who.int":   0.97,
+	"un.org":    0.96,
+	"europa.eu": 0.95,
 
 	// Technical & Documentation (Tier 2: 0.80-0.90)
-	"github.com":          0.88,
-	"stackoverflow.com":   0.87,
-	"dev.to":              0.75,
-	"medium.com":          0.70,
-	"docs.microsoft.com":  0.90,
-	"docs.aws.amazon.com": 0.90,
+	"github.com":            0.88,
+	"stackoverflow.com":     0.87,
+	"dev.to":                0.75,
+	"medium.com":            0.70,
+	"docs.microsoft.com":    0.90,
+	"docs.aws.amazon.com":   0.90,
 	"developer.mozilla.org": 0.90,
 
 	// Business & Finance (Tier 2: 0.80-0.90)
@@ -319,15 +324,15 @@ var domainAuthorityMap = map[string]float64{
 	"cnbc.com":            0.82,
 
 	// General Knowledge (Tier 3: 0.70-0.80)
-	"wikipedia.org":       0.80,
-	"britannica.com":      0.82,
+	"wikipedia.org":  0.80,
+	"britannica.com": 0.82,
 
 	// Social/Community (Tier 4: 0.60-0.70)
-	"reddit.com":          0.65,
-	"quora.com":           0.63,
-	"twitter.com":         0.60,
-	"x.com":               0.60,
-	"linkedin.com":        0.68,
+	"reddit.com":   0.65,
+	"quora.com":    0.63,
+	"twitter.com":  0.60,
+	"x.com":        0.60,
+	"linkedin.com": 0.68,
 }
 
 // calculateDomainAuthority returns authority score for a given URL
@@ -542,40 +547,44 @@ func (s *APIServer) triggerResearchWorkflow(reportID string, req ReportRequest) 
 	depthConfig := getDepthConfig(req.Depth)
 
 	payload := map[string]interface{}{
-		"report_id":      reportID,
-		"topic":          req.Topic,
-		"depth":          req.Depth,
-		"target_length":  req.TargetLength,
-		"language":       req.Language,
-		"requested_by":   req.RequestedBy,
-		"organization":   req.Organization,
-		"tags":           req.Tags,
-		"category":       req.Category,
+		"report_id":     reportID,
+		"topic":         req.Topic,
+		"depth":         req.Depth,
+		"target_length": req.TargetLength,
+		"language":      req.Language,
+		"requested_by":  req.RequestedBy,
+		"organization":  req.Organization,
+		"tags":          req.Tags,
+		"category":      req.Category,
 		// Include depth configuration for workflow
 		"depth_config": map[string]interface{}{
-			"max_sources":      depthConfig.MaxSources,
-			"search_engines":   depthConfig.SearchEngines,
-			"analysis_rounds":  depthConfig.AnalysisRounds,
-			"min_confidence":   depthConfig.MinConfidence,
-			"timeout_minutes":  depthConfig.TimeoutMinutes,
+			"max_sources":     depthConfig.MaxSources,
+			"search_engines":  depthConfig.SearchEngines,
+			"analysis_rounds": depthConfig.AnalysisRounds,
+			"min_confidence":  depthConfig.MinConfidence,
+			"timeout_minutes": depthConfig.TimeoutMinutes,
 		},
 	}
-	
+
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
-	
-	resp, err := http.Post(workflowURL, "application/json", bytes.NewBuffer(payloadBytes))
+
+	// Use client with timeout for workflow trigger
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+	resp, err := client.Post(workflowURL, "application/json", bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode >= 400 {
 		return http.ErrMissingFile // Simple error for now
 	}
-	
+
 	return nil
 }
 
@@ -607,11 +616,11 @@ func main() {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
@@ -687,47 +696,47 @@ func main() {
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📆 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	server := &APIServer{
@@ -738,6 +747,9 @@ func main() {
 		qdrantURL:   qdrantURL,
 		minioURL:    minioURL,
 		ollamaURL:   ollamaURL,
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second, // Timeout for health checks and short operations
+		},
 	}
 
 	router := mux.NewRouter()
@@ -754,7 +766,7 @@ func main() {
 
 	// API routes
 	api := router.PathPrefix("/api").Subrouter()
-	
+
 	// Report endpoints
 	api.HandleFunc("/reports", server.getReports).Methods("GET")
 	api.HandleFunc("/reports", server.createReport).Methods("POST")
@@ -762,14 +774,14 @@ func main() {
 	api.HandleFunc("/reports/{id}", server.updateReport).Methods("PUT")
 	api.HandleFunc("/reports/{id}", server.deleteReport).Methods("DELETE")
 	api.HandleFunc("/reports/{id}/pdf", server.getReportPDF).Methods("GET")
-	
+
 	// Chat endpoints
 	api.HandleFunc("/conversations", server.getConversations).Methods("GET")
 	api.HandleFunc("/conversations", server.createConversation).Methods("POST")
 	api.HandleFunc("/conversations/{id}", server.getConversation).Methods("GET")
 	api.HandleFunc("/conversations/{id}/messages", server.getMessages).Methods("GET")
 	api.HandleFunc("/conversations/{id}/messages", server.sendMessage).Methods("POST")
-	
+
 	// Search endpoints
 	api.HandleFunc("/search", server.performSearch).Methods("POST")
 	api.HandleFunc("/search/history", server.getSearchHistory).Methods("GET")
@@ -780,11 +792,11 @@ func main() {
 	api.HandleFunc("/analyze/insights", server.extractInsights).Methods("POST")
 	api.HandleFunc("/analyze/trends", server.analyzeTrends).Methods("POST")
 	api.HandleFunc("/analyze/competitive", server.analyzeCompetitive).Methods("POST")
-	
+
 	// Knowledge base endpoints
 	api.HandleFunc("/knowledge/search", server.searchKnowledge).Methods("GET")
 	api.HandleFunc("/knowledge/collections", server.getCollections).Methods("GET")
-	
+
 	// Dashboard data endpoints
 	api.HandleFunc("/dashboard/stats", server.getDashboardStats).Methods("GET")
 	api.HandleFunc("/dashboard/recent-activity", server.getRecentActivity).Methods("GET")
@@ -803,24 +815,62 @@ func main() {
 	log.Printf("🦙 Ollama: %s", ollamaURL)
 
 	handler := corsHandler(router)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
+
+	// Create HTTP server with graceful shutdown support
+	srv := &http.Server{
+		Addr:         ":" + port,
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 120 * time.Second, // Allow time for long-running requests
+		IdleTimeout:  120 * time.Second,
+	}
+
+	// Run server in goroutine
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal for graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("🛑 Shutting down server gracefully...")
+
+	// Create shutdown context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Attempt graceful shutdown
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("⚠️  Server forced to shutdown: %v", err)
+	}
+
+	// Close database connection
+	if err := db.Close(); err != nil {
+		log.Printf("⚠️  Error closing database: %v", err)
+	}
+
+	log.Println("✅ Server stopped")
 }
 
 // getEnv removed to prevent hardcoded defaults
 
 func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	status := map[string]interface{}{
-		"status": "healthy",
+		"status":    "healthy",
 		"timestamp": time.Now().Unix(),
 		"services": map[string]interface{}{
 			"database": s.checkDatabase(),
-			"n8n": s.checkN8N(),
+			"n8n":      s.checkN8N(),
 			"windmill": s.checkWindmill(),
-			"searxng": s.checkSearXNG(),
-			"qdrant": s.checkQdrant(),
-			"ollama": s.checkOllama(),
+			"searxng":  s.checkSearXNG(),
+			"qdrant":   s.checkQdrant(),
+			"ollama":   s.checkOllama(),
 		},
 	}
 
@@ -835,13 +885,13 @@ func (s *APIServer) checkDatabase() string {
 }
 
 func (s *APIServer) checkN8N() string {
-	resp, err := http.Get(s.n8nURL + "/healthz")
+	resp, err := s.httpClient.Get(s.n8nURL + "/healthz")
 	if err != nil {
 		return "unavailable"
 	}
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return "unavailable"
 	}
@@ -849,13 +899,13 @@ func (s *APIServer) checkN8N() string {
 }
 
 func (s *APIServer) checkWindmill() string {
-	resp, err := http.Get(s.windmillURL + "/api/version")
+	resp, err := s.httpClient.Get(s.windmillURL + "/api/version")
 	if err != nil {
 		return "unavailable"
 	}
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return "unavailable"
 	}
@@ -863,13 +913,13 @@ func (s *APIServer) checkWindmill() string {
 }
 
 func (s *APIServer) checkSearXNG() string {
-	resp, err := http.Get(s.searxngURL + "/search?q=test&format=json")
+	resp, err := s.httpClient.Get(s.searxngURL + "/search?q=test&format=json")
 	if err != nil {
 		return "unavailable"
 	}
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return "unavailable"
 	}
@@ -877,13 +927,13 @@ func (s *APIServer) checkSearXNG() string {
 }
 
 func (s *APIServer) checkQdrant() string {
-	resp, err := http.Get(s.qdrantURL + "/")
+	resp, err := s.httpClient.Get(s.qdrantURL + "/")
 	if err != nil {
 		return "unavailable"
 	}
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return "unavailable"
 	}
@@ -891,13 +941,13 @@ func (s *APIServer) checkQdrant() string {
 }
 
 func (s *APIServer) checkOllama() string {
-	resp, err := http.Get(s.ollamaURL + "/api/tags")
+	resp, err := s.httpClient.Get(s.ollamaURL + "/api/tags")
 	if err != nil {
 		return "unavailable"
 	}
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return "unavailable"
 	}
@@ -936,7 +986,7 @@ func (s *APIServer) getReports(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var report Report
 		var tagsJSON []byte
-		
+
 		err := rows.Scan(
 			&report.ID, &report.Title, &report.Topic, &report.Depth,
 			&report.TargetLength, &report.Language, &report.MarkdownContent,
@@ -1089,31 +1139,31 @@ func (s *APIServer) getReport(w http.ResponseWriter, r *http.Request) {
 
 func (s *APIServer) getDashboardStats(w http.ResponseWriter, r *http.Request) {
 	stats := map[string]interface{}{
-		"total_reports": 7,
+		"total_reports":        7,
 		"completed_this_month": 3,
 		"active_projects": map[string]int{
-			"high_priority": 2,
+			"high_priority":   2,
 			"medium_priority": 3,
-			"low_priority": 2,
+			"low_priority":    2,
 		},
 		"search_activity": map[string]interface{}{
-			"searches_today": 247,
-			"success_rate": 0.89,
-			"engines_active": 15,
-			"results_analyzed": 1834,
+			"searches_today":     247,
+			"success_rate":       0.89,
+			"engines_active":     15,
+			"results_analyzed":   1834,
 			"insights_generated": 342,
 		},
 		"ai_insights": map[string]interface{}{
-			"confidence": 0.92,
-			"high_priority_insights": 18,
-			"market_trends": 5,
+			"confidence":               0.92,
+			"high_priority_insights":   18,
+			"market_trends":            5,
 			"competitive_intelligence": 12,
-			"recommendations": 23,
+			"recommendations":          23,
 		},
 		"knowledge_base": map[string]interface{}{
-			"documents_indexed": "2.3M",
-			"collections": 847,
-			"vector_embeddings": "15K",
+			"documents_indexed":  "2.3M",
+			"collections":        847,
+			"vector_embeddings":  "15K",
 			"retrieval_accuracy": 0.987,
 		},
 	}
@@ -1125,31 +1175,31 @@ func (s *APIServer) getDashboardStats(w http.ResponseWriter, r *http.Request) {
 func (s *APIServer) getRecentActivity(w http.ResponseWriter, r *http.Request) {
 	activity := []map[string]interface{}{
 		{
-			"time": "11:45 AM",
-			"type": "research_completed",
-			"title": "Market research on \"AI adoption in healthcare 2024\" completed",
-			"details": "47 sources analyzed, 12 key insights extracted",
+			"time":       "11:45 AM",
+			"type":       "research_completed",
+			"title":      "Market research on \"AI adoption in healthcare 2024\" completed",
+			"details":    "47 sources analyzed, 12 key insights extracted",
 			"confidence": 0.96,
 		},
 		{
-			"time": "10:22 AM",
-			"type": "analysis_updated",
-			"title": "Competitive analysis for \"Financial services automation\" updated",
-			"details": "3 new competitors identified, strategic recommendations updated",
+			"time":       "10:22 AM",
+			"type":       "analysis_updated",
+			"title":      "Competitive analysis for \"Financial services automation\" updated",
+			"details":    "3 new competitors identified, strategic recommendations updated",
 			"confidence": 0.91,
 		},
 		{
-			"time": "09:15 AM",
-			"type": "trend_analysis",
-			"title": "AI trend analysis on \"Machine learning enterprise adoption\" finished",
-			"details": "8 major trends identified, investment recommendations generated",
+			"time":       "09:15 AM",
+			"type":       "trend_analysis",
+			"title":      "AI trend analysis on \"Machine learning enterprise adoption\" finished",
+			"details":    "8 major trends identified, investment recommendations generated",
 			"confidence": 0.94,
 		},
 		{
-			"time": "08:45 AM",
-			"type": "report_published",
-			"title": "Research report \"Q4 Technology Investment Landscape\" published",
-			"details": "45-page comprehensive analysis with executive summary",
+			"time":       "08:45 AM",
+			"type":       "report_published",
+			"title":      "Research report \"Q4 Technology Investment Landscape\" published",
+			"details":    "45-page comprehensive analysis with executive summary",
 			"confidence": 0.98,
 		},
 	}
@@ -1255,7 +1305,7 @@ func (s *APIServer) performSearch(w http.ResponseWriter, r *http.Request) {
 
 	// Build SearXNG search URL
 	searchURL := s.searxngURL + "/search"
-	
+
 	// Create HTTP client
 	client := &http.Client{
 		Timeout: 30 * time.Second,
@@ -1407,20 +1457,20 @@ func (s *APIServer) performSearch(w http.ResponseWriter, r *http.Request) {
 
 	// Format response with enhanced metadata
 	response := map[string]interface{}{
-		"query":         req.Query,
-		"results_count": len(results),
-		"results":       results,
-		"engines_used":  searxngResponse["engines"],
-		"query_time":    searxngResponse["query_time"],
-		"timestamp":     time.Now().Unix(),
+		"query":           req.Query,
+		"results_count":   len(results),
+		"results":         results,
+		"engines_used":    searxngResponse["engines"],
+		"query_time":      searxngResponse["query_time"],
+		"timestamp":       time.Now().Unix(),
 		"average_quality": avgQuality,
 		"filters_applied": map[string]interface{}{
-			"language":   req.Language,
+			"language":    req.Language,
 			"safe_search": req.SafeSearch,
-			"file_type":  req.FileType,
-			"site":       req.Site,
-			"region":     req.Region,
-			"sort_by":    req.SortBy,
+			"file_type":   req.FileType,
+			"site":        req.Site,
+			"region":      req.Region,
+			"sort_by":     req.SortBy,
 		},
 	}
 
@@ -1445,7 +1495,7 @@ func (s *APIServer) detectContradictions(w http.ResponseWriter, r *http.Request)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"contradictions": []Contradiction{},
-			"message": "Need at least 2 results to detect contradictions",
+			"message":        "Need at least 2 results to detect contradictions",
 		})
 		return
 	}
@@ -1530,11 +1580,11 @@ func (s *APIServer) detectContradictions(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"contradictions": contradictions,
-		"total_results":  len(req.Results),
+		"contradictions":  contradictions,
+		"total_results":   len(req.Results),
 		"claims_analyzed": len(claims),
-		"topic":          req.Topic,
-		"warning": "This endpoint is synchronous and may take 30-60+ seconds for multiple results. Consider implementing async job processing for production use.",
+		"topic":           req.Topic,
+		"warning":         "This endpoint is synchronous and may take 30-60+ seconds for multiple results. Consider implementing async job processing for production use.",
 	})
 }
 
@@ -1548,11 +1598,11 @@ Content: %s
 Return format: ["claim 1", "claim 2", "claim 3"]`, topic, title, content)
 
 	ollamaReq := map[string]interface{}{
-		"model":  "llama3.2:3b",  // Use smaller, faster model for claim extraction
+		"model":  "llama3.2:3b", // Use smaller, faster model for claim extraction
 		"prompt": prompt,
 		"stream": false,
 		"options": map[string]interface{}{
-			"temperature": 0.1,  // Low temperature for factual extraction
+			"temperature": 0.1, // Low temperature for factual extraction
 		},
 	}
 
@@ -1755,38 +1805,39 @@ func (s *APIServer) searchKnowledge(w http.ResponseWriter, r *http.Request) {
 func (s *APIServer) getCollections(w http.ResponseWriter, r *http.Request) {
 	collections := []map[string]interface{}{
 		{
-			"id": "ai_trends",
-			"name": "AI Market Trends",
-			"documents": 1247,
+			"id":           "ai_trends",
+			"name":         "AI Market Trends",
+			"documents":    1247,
 			"last_updated": "2 hours ago",
-			"relevance": 0.94,
+			"relevance":    0.94,
 		},
 		{
-			"id": "healthcare",
-			"name": "Healthcare Innovation",
-			"documents": 892,
+			"id":           "healthcare",
+			"name":         "Healthcare Innovation",
+			"documents":    892,
 			"last_updated": "5 hours ago",
-			"relevance": 0.89,
+			"relevance":    0.89,
 		},
 		{
-			"id": "fintech",
-			"name": "FinTech Disruption",
-			"documents": 634,
+			"id":           "fintech",
+			"name":         "FinTech Disruption",
+			"documents":    634,
 			"last_updated": "1 day ago",
-			"relevance": 0.91,
+			"relevance":    0.91,
 		},
 		{
-			"id": "competitive",
-			"name": "Competitive Intelligence",
-			"documents": 1089,
+			"id":           "competitive",
+			"name":         "Competitive Intelligence",
+			"documents":    1089,
 			"last_updated": "3 hours ago",
-			"relevance": 0.96,
+			"relevance":    0.96,
 		},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(collections)
 }
+
 // getTemplates returns available report templates
 func (s *APIServer) getTemplates(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

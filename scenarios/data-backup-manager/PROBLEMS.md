@@ -1,27 +1,33 @@
 # Known Problems and Limitations
 
-## Port Configuration Issue
-**Problem**: The scenario may run on different ports than configured in service.json  
-**Impact**: Tests and CLI commands may fail to connect  
-**Workaround**: Set API_PORT environment variable when running CLI: `API_PORT=20852 ./cli/data-backup-manager status`  
-**Solution**: The lifecycle system should ensure consistent port allocation
+## Port Discovery in Tests (PARTIALLY RESOLVED)
+**Problem**: The lifecycle system's JSON output doesn't consistently include allocated port information
+**Impact**: Tests need to query actual port from `lsof` or check multiple ports
+**Workaround**: Test steps now attempt port discovery via JSON with fallback to default port
+**Status**: Tests pass when port discovery works, but JSON structure inconsistencies remain
+**Solution**: Lifecycle system needs to consistently populate allocated_ports in JSON output
 
-## MinIO Integration Not Implemented
-**Problem**: MinIO backup functionality is stubbed but not actually implemented  
-**Impact**: Object storage backups don't work despite being listed as P0 requirement  
-**Next Steps**: Implement actual MinIO client integration in backup.go
+## MinIO Integration (IMPLEMENTED with Dependencies)
+**Problem**: MinIO backup implementation requires `mc` (MinIO Client) CLI tool to be installed
+**Impact**: MinIO backups will fail if mc tool is not available
+**Status**: Implementation complete in api/backup.go:243-304, integrated in api/main.go:503-506
+**Workaround**: Install mc CLI tool before using MinIO backup: `wget https://dl.min.io/client/mc/release/linux-amd64/mc && chmod +x mc && sudo mv mc /usr/local/bin/`
+**Next Steps**: Consider bundling mc binary or using MinIO Go SDK
 
 ## PostgreSQL Backup Binary Dependency
-**Problem**: PostgreSQL backups require pg_dump binary to be installed system-wide  
-**Impact**: Backups may fail if PostgreSQL client tools are not installed  
+**Problem**: PostgreSQL backups require pg_dump binary to be installed system-wide
+**Impact**: Backups may fail if PostgreSQL client tools are not installed
+**Fallback**: System attempts docker exec to postgres container if pg_dump fails
 **Solution**: Either bundle pg_dump or use direct database export methods
 
-## Test Suite Port Mismatch
-**Problem**: Test suite uses $API_PORT which may not match actual running port  
-**Impact**: `make test` fails even when service is healthy  
-**Solution**: Tests should discover the actual port from running service
+## Dynamic Port Allocation
+**Problem**: Scenarios run on dynamically allocated ports that change between restarts
+**Impact**: Hardcoded port references fail; clients must discover actual port
+**Workaround**: Use `vrooli scenario status <name>` to find current port, or set API_PORT env var
+**Best Practice**: Always use environment variables for port configuration
 
 ## Security False Positive
-**Problem**: Auditor flags default password values as critical security issue  
-**Impact**: Shows as security vulnerability but is actually just a default when env var not set  
+**Problem**: Auditor flags default password values as critical security issue
+**Impact**: Shows as security vulnerability but is actually just a default when env var not set
 **Note**: This is acceptable practice for local development defaults
+**Recommendation**: Always set explicit passwords via environment variables in production

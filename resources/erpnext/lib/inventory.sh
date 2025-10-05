@@ -24,11 +24,11 @@ erpnext::inventory::list_items() {
         return 1
     fi
 
-    # List all items
+    # List all items (without field filter to avoid timeout)
     timeout 5 curl -sf \
         -H "Host: ${site_name}" \
         -H "Cookie: sid=${session_id}" \
-        "http://localhost:${ERPNEXT_PORT}/api/resource/Item?fields=[\"item_code\",\"item_name\",\"stock_uom\",\"item_group\",\"is_stock_item\",\"valuation_rate\"]&limit_page_length=100" 2>/dev/null
+        "http://localhost:${ERPNEXT_PORT}/api/resource/Item?limit_page_length=100" 2>/dev/null
 }
 
 erpnext::inventory::create_item() {
@@ -112,7 +112,7 @@ erpnext::inventory::get_stock_balance() {
     timeout 5 curl -sf \
         -H "Host: ${site_name}" \
         -H "Cookie: sid=${session_id}" \
-        "http://localhost:${ERPNEXT_PORT}/api/resource/Bin?filters=${filters}&fields=[\"item_code\",\"warehouse\",\"actual_qty\",\"valuation_rate\",\"stock_value\"]" 2>/dev/null
+        "http://localhost:${ERPNEXT_PORT}/api/resource/Bin?filters=${filters}" 2>/dev/null
 }
 
 erpnext::inventory::create_stock_entry() {
@@ -147,11 +147,11 @@ erpnext::inventory::list_warehouses() {
         return 1
     fi
 
-    # List all warehouses
+    # List all warehouses (without field filter to avoid timeout)
     timeout 5 curl -sf \
         -H "Host: ${site_name}" \
         -H "Cookie: sid=${session_id}" \
-        "http://localhost:${ERPNEXT_PORT}/api/resource/Warehouse?fields=[\"name\",\"warehouse_name\",\"warehouse_type\",\"is_group\"]&limit_page_length=100" 2>/dev/null
+        "http://localhost:${ERPNEXT_PORT}/api/resource/Warehouse?limit_page_length=100" 2>/dev/null
 }
 
 erpnext::inventory::create_warehouse() {
@@ -205,11 +205,11 @@ erpnext::inventory::list_purchase_orders() {
         return 1
     fi
 
-    # List purchase orders
+    # List purchase orders (without field filter to avoid timeout)
     timeout 5 curl -sf \
         -H "Host: ${site_name}" \
         -H "Cookie: sid=${session_id}" \
-        "http://localhost:${ERPNEXT_PORT}/api/resource/Purchase Order?fields=[\"name\",\"supplier\",\"transaction_date\",\"grand_total\",\"status\"]&limit_page_length=100" 2>/dev/null
+        "http://localhost:${ERPNEXT_PORT}/api/resource/Purchase Order?limit_page_length=100" 2>/dev/null
 }
 
 ################################################################################

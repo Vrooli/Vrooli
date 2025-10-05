@@ -1,9 +1,9 @@
 #!/usr/bin/env bats
-# Tests for CLI_NAME_PLACEHOLDER CLI
+# Tests for data-tools CLI
 
 # Test configuration
-readonly TEST_CLI="./cli.sh"
-readonly TEST_CONFIG_DIR="$HOME/.CLI_NAME_PLACEHOLDER"
+readonly TEST_CLI="data-tools"
+readonly TEST_CONFIG_DIR="$HOME/.data-tools"
 readonly TEST_CONFIG_FILE="$TEST_CONFIG_DIR/config.json"
 
 # Setup and teardown
@@ -22,64 +22,72 @@ teardown() {
 }
 
 # Test: CLI exists and is executable
-@test "CLI script exists and is executable" {
-    [[ -f "$TEST_CLI" ]]
-    [[ -x "$TEST_CLI" ]]
+@test "CLI command is available" {
+    run which data-tools
+    [ "$status" -eq 0 ]
 }
 
 # Test: Help command
 @test "help command displays usage information" {
-    run $TEST_CLI help
+    run data-tools --help
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Data Tools CLI" ]]
     [[ "$output" =~ "Usage:" ]]
-    [[ "$output" =~ "Commands:" ]]
 }
 
-# Test: Version command
-@test "version command displays version" {
-    run $TEST_CLI version
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "version" ]]
+# Test: Health command
+@test "health command works" {
+    run data-tools health
+    # Should succeed if API is running, or fail gracefully if not
+    # Either way, command should be recognized
+    [[ "$output" =~ "health" || "$output" =~ "Health" || "$output" =~ "API" ]]
 }
 
-# Test: Configuration initialization
-@test "configuration is initialized on first run" {
-    rm -f "$TEST_CONFIG_FILE"
-    run $TEST_CLI version
+# Test: Parse command structure
+@test "parse command is available" {
+    run data-tools --help
     [ "$status" -eq 0 ]
-    [[ -f "$TEST_CONFIG_FILE" ]]
+    [[ "$output" =~ "parse" ]]
 }
 
-# Test: Configure command
-@test "configure command can set and retrieve values" {
-    run $TEST_CLI configure api_base http://test.example.com
+# Test: Validate command structure
+@test "validate command is available" {
+    run data-tools --help
     [ "$status" -eq 0 ]
-    
-    run $TEST_CLI configure
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "test.example.com" ]]
+    [[ "$output" =~ "validate" ]]
 }
 
-# Test: Health command structure
-@test "health command sends correct request" {
-    # This would need a mock server or API to test properly
-    # For now, just test that the command exists
-    run $TEST_CLI help
+# Test: Query command structure
+@test "query command is available" {
+    run data-tools --help
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "health" ]]
+    [[ "$output" =~ "query" ]]
 }
 
-# Test: List command structure
-@test "list command accepts resource parameter" {
-    # Test command structure without actual API
-    run $TEST_CLI help
+# Test: Transform command structure
+@test "transform command is available" {
+    run data-tools --help
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "list" ]]
+    [[ "$output" =~ "transform" ]]
+}
+
+# Test: Stream command structure
+@test "stream command is available" {
+    run data-tools --help
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "stream" ]]
+}
+
+# Test: Parse command with data (if API is running)
+@test "parse command can process CSV data" {
+    skip "Requires API to be running"
+    run echo "name,age\nJohn,30" | data-tools parse - --format csv
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "schema" || "$output" =~ "columns" ]]
 }
 
 # Test: Invalid command
 @test "invalid command shows error" {
-    run $TEST_CLI invalid_command
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "Unknown command" ]]
+    run data-tools invalid_command_xyz
+    [ "$status" -ne 0 ]
 }

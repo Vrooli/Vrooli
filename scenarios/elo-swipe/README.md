@@ -100,17 +100,22 @@ window.open(`http://localhost:36850?list=${list_id}`);
 
 ## 🚦 Status
 
+**Current State: 95% Complete** - All P0 + 4/5 P1 requirements verified
+
 - ✅ Core Elo algorithm
-- ✅ Swipe UI
+- ✅ Swipe UI (with iframe-bridge integration)
 - ✅ PostgreSQL persistence
 - ✅ CLI interface
 - ✅ Multi-list support
 - ✅ Export to JSON/CSV
 - ✅ Progress tracking
 - ✅ Confidence scores
-- ⏳ AI-enhanced pairing
-- ⏳ Team consensus features
-- ⏳ Preference learning
+- ✅ Smart pairing algorithm (with AI fallback)
+- ✅ Phased test suite (smoke/unit/integration)
+- ✅ Go unit tests for core logic
+- ⏳ Undo/skip during swiping (P1 - planned)
+- ⏳ Team consensus features (P2)
+- ⏳ Preference learning (P2)
 
 ## 🔗 Dependencies
 
@@ -118,6 +123,27 @@ window.open(`http://localhost:36850?list=${list_id}`);
 - Redis (optional): Performance caching
 - Ollama (optional): AI-enhanced comparisons
 
+## 🧪 Testing
+
+Run the comprehensive test suite:
+
+```bash
+# Via Makefile (recommended)
+make test
+
+# Or directly
+./test/run-tests.sh
+```
+
+Test phases:
+- **Smoke Tests**: API health, CLI status, database connectivity
+- **Unit Tests**: Smart pairing logic, AI response parsing
+- **Integration Tests**: Full workflows, CSV/JSON export
+
+All tests include auto-port detection for reliable execution.
+
 ---
 
 **Permanent Intelligence**: Every ranking makes Vrooli smarter about priorities.
+
+**Last Updated**: 2025-10-03

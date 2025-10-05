@@ -5,12 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Feature database operations
 func (app *App) fetchFeatures() ([]Feature, error) {
+	// If no database connection, return default features
+	if app.DB == nil {
+		return app.getDefaultFeatures(), nil
+	}
+
 	query := `
-		SELECT id, name, description, reach, impact, confidence, effort, 
+		SELECT id, name, description, reach, impact, confidence, effort,
 		       priority, score, status, dependencies, roi, created_at, updated_at
 		FROM features
 		ORDER BY score DESC
@@ -19,7 +26,7 @@ func (app *App) fetchFeatures() ([]Feature, error) {
 
 	rows, err := app.DB.Query(query)
 	if err != nil {
-		return nil, err
+		return app.getDefaultFeatures(), nil
 	}
 	defer rows.Close()
 
@@ -70,8 +77,13 @@ func (app *App) fetchFeaturesByIDs(ids []string) ([]Feature, error) {
 }
 
 func (app *App) fetchAvailableFeatures() ([]Feature, error) {
+	// If no database, return default features
+	if app.DB == nil {
+		return app.getDefaultFeatures(), nil
+	}
+
 	query := `
-		SELECT id, name, description, reach, impact, confidence, effort, 
+		SELECT id, name, description, reach, impact, confidence, effort,
 		       priority, score, status, dependencies, roi, created_at, updated_at
 		FROM features
 		WHERE status IN ('proposed', 'approved')
@@ -108,8 +120,17 @@ func (app *App) fetchAvailableFeatures() ([]Feature, error) {
 }
 
 func (app *App) fetchRecentFeatures(limit int) ([]Feature, error) {
+	// If no database, return default features
+	if app.DB == nil {
+		defaultFeatures := app.getDefaultFeatures()
+		if len(defaultFeatures) > limit {
+			return defaultFeatures[:limit], nil
+		}
+		return defaultFeatures, nil
+	}
+
 	query := `
-		SELECT id, name, description, reach, impact, confidence, effort, 
+		SELECT id, name, description, reach, impact, confidence, effort,
 		       priority, score, status, dependencies, roi, created_at, updated_at
 		FROM features
 		ORDER BY created_at DESC
@@ -118,7 +139,11 @@ func (app *App) fetchRecentFeatures(limit int) ([]Feature, error) {
 
 	rows, err := app.DB.Query(query, limit)
 	if err != nil {
-		return app.getDefaultFeatures()[:limit], nil
+		defaultFeatures := app.getDefaultFeatures()
+		if len(defaultFeatures) > limit {
+			return defaultFeatures[:limit], nil
+		}
+		return defaultFeatures, nil
 	}
 	defer rows.Close()
 
@@ -152,11 +177,16 @@ func (app *App) storeFeature(feature *Feature) error {
 		feature.ID = uuid.New().String()
 	}
 
+	// If no database, just return success (feature is in memory)
+	if app.DB == nil {
+		return nil
+	}
+
 	deps, _ := json.Marshal(feature.Dependencies)
-	
+
 	query := `
-		INSERT INTO features (id, name, description, reach, impact, confidence, 
-		                     effort, priority, score, status, dependencies, roi, 
+		INSERT INTO features (id, name, description, reach, impact, confidence,
+		                     effort, priority, score, status, dependencies, roi,
 		                     created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		ON CONFLICT (id) DO UPDATE SET
@@ -179,6 +209,11 @@ func (app *App) updateFeatureDB(feature *Feature) error {
 
 // Roadmap database operations
 func (app *App) fetchCurrentRoadmap() (*Roadmap, error) {
+	// If no database, return default roadmap
+	if app.DB == nil {
+		return app.getDefaultRoadmap(), nil
+	}
+
 	query := `
 		SELECT id, name, start_date, end_date, features, milestones, version, created_at
 		FROM roadmaps
@@ -188,17 +223,17 @@ func (app *App) fetchCurrentRoadmap() (*Roadmap, error) {
 
 	var roadmap Roadmap
 	var features, milestones []byte
-	
+
 	err := app.DB.QueryRow(query).Scan(&roadmap.ID, &roadmap.Name,
 		&roadmap.StartDate, &roadmap.EndDate, &features, &milestones,
 		&roadmap.Version, &roadmap.CreatedAt)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// Return default roadmap
 			return app.getDefaultRoadmap(), nil
 		}
-		return nil, err
+		return app.getDefaultRoadmap(), nil
 	}
 
 	json.Unmarshal(features, &roadmap.Features)
@@ -210,6 +245,11 @@ func (app *App) fetchCurrentRoadmap() (*Roadmap, error) {
 func (app *App) storeRoadmap(roadmap *Roadmap) error {
 	if roadmap.ID == "" {
 		roadmap.ID = uuid.New().String()
+	}
+
+	// If no database, just return success
+	if app.DB == nil {
+		return nil
 	}
 
 	features, _ := json.Marshal(roadmap.Features)
@@ -281,11 +321,13 @@ func (app *App) fetchDashboardMetrics() (DashboardMetrics, error) {
 		PendingDecisions: 3,
 	}
 
-	// Try to get real metrics from DB
-	var count int
-	app.DB.QueryRow("SELECT COUNT(*) FROM features WHERE status = 'in_progress'").Scan(&count)
-	if count > 0 {
-		metrics.ActiveFeatures = count
+	// Try to get real metrics from DB if available
+	if app.DB != nil {
+		var count int
+		err := app.DB.QueryRow("SELECT COUNT(*) FROM features WHERE status = 'in_progress'").Scan(&count)
+		if err == nil && count > 0 {
+			metrics.ActiveFeatures = count
+		}
 	}
 
 	return metrics, nil

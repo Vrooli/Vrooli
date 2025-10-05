@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"runtime"
@@ -74,15 +75,20 @@ func initDatabase(logger *log.Logger) (*sql.DB, error) {
 			return nil, fmt.Errorf("failed to connect to database after %d attempts: %v", maxRetries, err)
 		}
 		
-		// Exponential backoff with jitter
+		// Exponential backoff with random jitter
 		backoff := time.Duration(math.Pow(2, float64(attempt-1))) * backoffBase
 		if backoff > 30*time.Second {
 			backoff = 30 * time.Second
 		}
-		
-		logger.Printf("⚠️  Database connection failed (attempt %d/%d), retrying in %v: %v", 
-			attempt, maxRetries, backoff, err)
-		time.Sleep(backoff)
+
+		// Add random jitter to prevent thundering herd
+		jitterRange := float64(backoff) * 0.25
+		jitter := time.Duration(jitterRange * rand.Float64())
+		actualDelay := backoff + jitter
+
+		logger.Printf("⚠️  Database connection failed (attempt %d/%d), retrying in %v: %v",
+			attempt, maxRetries, actualDelay, err)
+		time.Sleep(actualDelay)
 	}
 	
 	return nil, err

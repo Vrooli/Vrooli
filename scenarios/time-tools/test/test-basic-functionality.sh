@@ -63,14 +63,27 @@ run_test() {
 
 get_api_url() {
     local api_port
-    api_port=$(vrooli scenario port "${SCENARIO_NAME}" TIME_TOOLS_PORT 2>/dev/null)
-    
+
+    # Try to get port from environment variable first
+    api_port="${TIME_TOOLS_PORT}"
+
+    # If not set, try to get from vrooli CLI
     if [[ -z "$api_port" ]]; then
-        log_error "Cannot determine Time Tools API port. Ensure scenario is running: vrooli scenario run ${SCENARIO_NAME}"
-        return 1
-    else
-        echo "http://localhost:${api_port}"
+        api_port=$(vrooli scenario port "${SCENARIO_NAME}" TIME_TOOLS_PORT 2>/dev/null || true)
     fi
+
+    # Fall back to default port
+    if [[ -z "$api_port" ]]; then
+        api_port=18765
+    fi
+
+    # Verify the API is actually responding
+    if ! curl -sf "http://localhost:${api_port}/api/v1/health" >/dev/null 2>&1; then
+        log_error "Time Tools API is not responding at port ${api_port}. Ensure scenario is running: vrooli scenario run ${SCENARIO_NAME}"
+        return 1
+    fi
+
+    echo "http://localhost:${api_port}"
 }
 
 ################################################################################

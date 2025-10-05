@@ -240,58 +240,75 @@ ffmpeg::inject::advanced_transcode() {
     # Get duration for progress calculation
     local duration_line=$(ffmpeg -i "$input_file" 2>&1 | grep "Duration:")
     local duration=$(echo "$duration_line" | sed -n 's/.*Duration: \([^,]*\).*/\1/p')
-    
+
+    # Calculate appropriate timeout based on file size
+    local timeout_seconds
+    if declare -f ffmpeg::calculate_timeout &>/dev/null; then
+        timeout_seconds=$(ffmpeg::calculate_timeout "$input_file")
+    else
+        timeout_seconds="${FFMPEG_TIMEOUT:-3600}"
+    fi
+
     log::info "Transcoding with progress monitoring:"
     log::info "  Input: $input_file"
-    log::info "  Output: $output_file" 
+    log::info "  Output: $output_file"
     log::info "  Codec: $codec"
     log::info "  Quality: $quality"
     log::info "  Preset: $preset"
     log::info "  Duration: $duration"
+    log::info "  Timeout: ${timeout_seconds}s"
     echo
-    
+
     # Create progress file
     local progress_file="${FFMPEG_TEMP_DIR}/progress_$(basename "$output_file").log"
-    
-    # Run ffmpeg with progress reporting
-    ffmpeg -i "$input_file" \
+
+    # Run ffmpeg with progress reporting and timeout
+    timeout "$timeout_seconds" ffmpeg -i "$input_file" \
         -c:v "$codec" -crf "$quality" -preset "$preset" \
         -c:a "${FFMPEG_DEFAULT_AUDIO_CODEC}" \
         -progress "$progress_file" \
         -y "$output_file" 2>/dev/null &
-    
+
     local ffmpeg_pid=$!
-    
+    local start_time=$(date +%s)
+
     # Monitor progress
     while kill -0 $ffmpeg_pid 2>/dev/null; do
         if [[ -f "$progress_file" ]]; then
             local current_time=$(tail -n 20 "$progress_file" | grep "out_time=" | tail -n 1 | cut -d= -f2)
             if [[ -n "$current_time" && "$current_time" != "N/A" ]]; then
-                printf "\rProgress: %s / %s" "$current_time" "$duration"
+                local elapsed=$(($(date +%s) - start_time))
+                printf "\rProgress: %s / %s (Elapsed: %ds, Timeout: %ds)" "$current_time" "$duration" "$elapsed" "$timeout_seconds"
             fi
         fi
         sleep 1
     done
-    
+
     wait $ffmpeg_pid
     local exit_code=$?
-    
+
     # Clean up progress file
     [[ -f "$progress_file" ]] && rm -f "$progress_file"
-    
+
     echo  # New line after progress
-    
+
     if [[ $exit_code -eq 0 ]]; then
         log::success "Transcoding completed: $output_file"
         local input_size=$(stat -c%s "$input_file" 2>/dev/null || stat -f%z "$input_file")
         local output_size=$(stat -c%s "$output_file" 2>/dev/null || stat -f%z "$output_file")
         local compression_ratio=$(echo "scale=1; $input_size * 100 / $output_size" | bc -l 2>/dev/null || echo "N/A")
-        
+
         log::info "  Input size: $(numfmt --to=iec "$input_size")"
         log::info "  Output size: $(numfmt --to=iec "$output_size")"
         log::info "  Compression ratio: ${compression_ratio}%"
+    elif [[ $exit_code -eq 124 ]] || [[ $exit_code -eq 143 ]]; then
+        # Exit code 124 = timeout expired (from timeout command)
+        # Exit code 143 = SIGTERM (killed by timeout)
+        log::error "Transcoding timed out after ${timeout_seconds}s"
+        log::info "Hint: For large files, increase timeout with: export FFMPEG_TIMEOUT=7200"
+        return 1
     else
-        log::error "Transcoding failed"
+        log::error "Transcoding failed with exit code: $exit_code"
         return 1
     fi
 }

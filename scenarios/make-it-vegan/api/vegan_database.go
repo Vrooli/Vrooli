@@ -22,6 +22,17 @@ type Alternative struct {
 	Notes        string  `json:"notes"`
 }
 
+// NutritionalInfo contains key nutrient information
+type NutritionalInfo struct {
+	Protein        string   `json:"protein"`
+	B12            string   `json:"b12"`
+	Iron           string   `json:"iron"`
+	Calcium        string   `json:"calcium"`
+	Omega3         string   `json:"omega3"`
+	Considerations []string `json:"considerations"`
+	GoodSources    []string `json:"goodSources"`
+}
+
 // InitVeganDatabase creates and populates the vegan database
 func InitVeganDatabase() *VeganDatabase {
 	db := &VeganDatabase{
@@ -33,45 +44,45 @@ func InitVeganDatabase() *VeganDatabase {
 	// Populate non-vegan ingredients
 	db.NonVeganIngredients = map[string]string{
 		// Dairy
-		"milk":        "Dairy product from cows",
-		"cheese":      "Dairy product containing milk",
-		"butter":      "Dairy fat from milk",
-		"yogurt":      "Cultured dairy product",
-		"cream":       "Dairy product high in fat",
-		"whey":        "Milk protein byproduct",
-		"casein":      "Milk protein",
-		"lactose":     "Milk sugar",
-		"ghee":        "Clarified butter",
-		"ice cream":   "Frozen dairy dessert",
-		
+		"milk":      "Dairy product from cows",
+		"cheese":    "Dairy product containing milk",
+		"butter":    "Dairy fat from milk",
+		"yogurt":    "Cultured dairy product",
+		"cream":     "Dairy product high in fat",
+		"whey":      "Milk protein byproduct",
+		"casein":    "Milk protein",
+		"lactose":   "Milk sugar",
+		"ghee":      "Clarified butter",
+		"ice cream": "Frozen dairy dessert",
+
 		// Eggs
-		"eggs":        "Animal product from chickens",
-		"egg whites":  "Protein from eggs",
-		"egg yolks":   "Fat and nutrients from eggs",
-		"albumin":     "Egg white protein",
-		"mayonnaise":  "Contains eggs",
-		"meringue":    "Made with egg whites",
-		
+		"eggs":       "Animal product from chickens",
+		"egg whites": "Protein from eggs",
+		"egg yolks":  "Fat and nutrients from eggs",
+		"albumin":    "Egg white protein",
+		"mayonnaise": "Contains eggs",
+		"meringue":   "Made with egg whites",
+
 		// Meat & Fish
-		"chicken":     "Poultry meat",
-		"beef":        "Cow meat",
-		"pork":        "Pig meat",
-		"fish":        "Sea animal",
-		"lamb":        "Sheep meat",
-		"turkey":      "Poultry meat",
-		"bacon":       "Cured pork",
-		"gelatin":     "Animal collagen",
-		"anchovy":     "Small fish",
-		"shellfish":   "Sea creatures",
-		
+		"chicken":   "Poultry meat",
+		"beef":      "Cow meat",
+		"pork":      "Pig meat",
+		"fish":      "Sea animal",
+		"lamb":      "Sheep meat",
+		"turkey":    "Poultry meat",
+		"bacon":     "Cured pork",
+		"gelatin":   "Animal collagen",
+		"anchovy":   "Small fish",
+		"shellfish": "Sea creatures",
+
 		// Other Animal Products
-		"honey":       "Bee product",
-		"beeswax":     "Produced by bees",
-		"shellac":     "Insect secretion",
-		"carmine":     "Red dye from insects",
-		"vitamin d3":  "Often from sheep's wool",
-		"omega-3":     "Often from fish oil",
-		"lanolin":     "From sheep's wool",
+		"honey":      "Bee product",
+		"beeswax":    "Produced by bees",
+		"shellac":    "Insect secretion",
+		"carmine":    "Red dye from insects",
+		"vitamin d3": "Often from sheep's wool",
+		"omega-3":    "Often from fish oil",
+		"lanolin":    "From sheep's wool",
 	}
 
 	// Populate vegan alternatives
@@ -108,13 +119,13 @@ func InitVeganDatabase() *VeganDatabase {
 
 	// Common quick substitutes
 	db.CommonSubstitutes = map[string]string{
-		"1 egg":          "1 flax egg (1 tbsp ground flax + 3 tbsp water)",
-		"1 cup milk":     "1 cup plant milk (soy, oat, almond)",
-		"1 tbsp butter":  "1 tbsp vegan butter or coconut oil",
-		"1 cup yogurt":   "1 cup coconut or soy yogurt",
-		"1 cup cream":    "1 cup full-fat coconut milk",
-		"gelatin":        "agar agar (use same amount)",
-		"honey":          "maple syrup or agave (use same amount)",
+		"1 egg":         "1 flax egg (1 tbsp ground flax + 3 tbsp water)",
+		"1 cup milk":    "1 cup plant milk (soy, oat, almond)",
+		"1 tbsp butter": "1 tbsp vegan butter or coconut oil",
+		"1 cup yogurt":  "1 cup coconut or soy yogurt",
+		"1 cup cream":   "1 cup full-fat coconut milk",
+		"gelatin":       "agar agar (use same amount)",
+		"honey":         "maple syrup or agave (use same amount)",
 	}
 
 	return db
@@ -128,23 +139,23 @@ func (db *VeganDatabase) CheckIngredients(ingredients string) (bool, []string, [
 
 	// Known vegan exceptions that contain non-vegan words
 	veganExceptions := map[string]bool{
-		"soy milk":      true,
-		"almond milk":   true,
-		"oat milk":      true,
-		"rice milk":     true,
-		"coconut milk":  true,
-		"almond butter": true,
-		"peanut butter": true,
-		"cashew butter": true,
+		"soy milk":         true,
+		"almond milk":      true,
+		"oat milk":         true,
+		"rice milk":        true,
+		"coconut milk":     true,
+		"almond butter":    true,
+		"peanut butter":    true,
+		"cashew butter":    true,
 		"sunflower butter": true,
-		"coconut butter": true,
-		"cocoa butter":  true,
-		"shea butter":   true,
+		"coconut butter":   true,
+		"cocoa butter":     true,
+		"shea butter":      true,
 	}
 
 	for _, ingredient := range ingredientList {
 		ingredient = strings.TrimSpace(ingredient)
-		
+
 		// Check if it's a known vegan exception
 		isException := false
 		for exception := range veganExceptions {
@@ -153,15 +164,15 @@ func (db *VeganDatabase) CheckIngredients(ingredients string) (bool, []string, [
 				break
 			}
 		}
-		
+
 		if !isException {
 			// Check against non-vegan ingredients
 			for nonVegan, reason := range db.NonVeganIngredients {
 				// Use word boundary matching for better accuracy
-				if ingredient == nonVegan || 
-				   strings.HasPrefix(ingredient, nonVegan + " ") ||
-				   strings.HasSuffix(ingredient, " " + nonVegan) ||
-				   strings.Contains(ingredient, " " + nonVegan + " ") {
+				if ingredient == nonVegan ||
+					strings.HasPrefix(ingredient, nonVegan+" ") ||
+					strings.HasSuffix(ingredient, " "+nonVegan) ||
+					strings.Contains(ingredient, " "+nonVegan+" ") {
 					nonVeganFound = append(nonVeganFound, ingredient)
 					reasons = append(reasons, reason)
 					break
@@ -177,7 +188,7 @@ func (db *VeganDatabase) CheckIngredients(ingredients string) (bool, []string, [
 // GetAlternatives returns vegan alternatives for an ingredient
 func (db *VeganDatabase) GetAlternatives(ingredient string) []Alternative {
 	ingredient = strings.ToLower(strings.TrimSpace(ingredient))
-	
+
 	// Check direct match
 	if alts, exists := db.VeganAlternatives[ingredient]; exists {
 		return alts
@@ -196,7 +207,7 @@ func (db *VeganDatabase) GetAlternatives(ingredient string) []Alternative {
 // GetQuickSubstitute returns a simple substitution
 func (db *VeganDatabase) GetQuickSubstitute(ingredient string) string {
 	ingredient = strings.ToLower(strings.TrimSpace(ingredient))
-	
+
 	if sub, exists := db.CommonSubstitutes[ingredient]; exists {
 		return sub
 	}
@@ -209,4 +220,31 @@ func (db *VeganDatabase) GetQuickSubstitute(ingredient string) string {
 	}
 
 	return "No direct substitute found - check alternatives list"
+}
+
+// GetNutritionalInsights provides guidance on key nutrients in vegan diet
+func (db *VeganDatabase) GetNutritionalInsights() NutritionalInfo {
+	return NutritionalInfo{
+		Protein: "Adults need 0.8g per kg of body weight daily. Easily met through diverse plant foods.",
+		B12:     "Essential vitamin found only in fortified foods or supplements. Take 2.4 mcg daily or 1000 mcg weekly.",
+		Iron:    "Plant iron (non-heme) is well-absorbed with vitamin C. Needs are 1.8x higher than meat-eaters (14mg/day for men, 32mg/day for menstruating women).",
+		Calcium: "Adults need 1000-1200mg daily. Available in fortified plant milks, tofu, leafy greens.",
+		Omega3:  "ALA (plant-based) converts to EPA/DHA. Need 1.1-1.6g ALA daily. Consider algae-based DHA supplement.",
+		Considerations: []string{
+			"Eat vitamin C with iron-rich foods to boost absorption",
+			"B12 supplementation is essential - no reliable plant sources",
+			"Combine different protein sources throughout the day",
+			"Get regular blood tests to monitor B12, iron, and vitamin D",
+			"Consider algae-based omega-3 supplements for brain health",
+			"Vitamin D from sun exposure or fortified foods/supplements",
+		},
+		GoodSources: []string{
+			"Protein: Legumes, tofu, tempeh, seitan, quinoa, nuts, seeds",
+			"Iron: Lentils, chickpeas, spinach, pumpkin seeds, fortified cereals",
+			"Calcium: Fortified plant milk, tofu (calcium-set), kale, bok choy, almonds",
+			"Omega-3: Flax seeds, chia seeds, walnuts, hemp seeds, algae oil",
+			"B12: Fortified nutritional yeast, plant milks, cereals, or supplements",
+			"Zinc: Legumes, nuts, seeds, whole grains, nutritional yeast",
+		},
+	}
 }

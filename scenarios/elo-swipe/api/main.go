@@ -328,14 +328,15 @@ func (app *App) CreateList(w http.ResponseWriter, r *http.Request) {
 func (app *App) GetList(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	listID := vars["id"]
-	
+
 	var list List
+	var ownerID sql.NullString
 	err := app.DB.QueryRow(`
 		SELECT id, name, description, owner_id, created_at, updated_at
 		FROM elo_swipe.lists WHERE id = $1
-	`, listID).Scan(&list.ID, &list.Name, &list.Description, 
-		&list.OwnerID, &list.CreatedAt, &list.UpdatedAt)
-	
+	`, listID).Scan(&list.ID, &list.Name, &list.Description,
+		&ownerID, &list.CreatedAt, &list.UpdatedAt)
+
 	if err == sql.ErrNoRows {
 		http.Error(w, "List not found", http.StatusNotFound)
 		return
@@ -344,7 +345,11 @@ func (app *App) GetList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
+	if ownerID.Valid {
+		list.OwnerID = ownerID.String
+	}
+
 	json.NewEncoder(w).Encode(list)
 }
 

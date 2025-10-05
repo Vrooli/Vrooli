@@ -43,6 +43,26 @@ lib-cov
 # Coverage directory used by tools like istanbul
 coverage
 *.lcov
+**/coverage*.html
+**/coverage*_report.*
+**/coverage-report.*
+**/TEST_COVERAGE_REPORT.*
+**/coverage-detailed.*
+**/coverage*.out
+**/test-output*.txt
+**/*test-output*.txt
+**/test.bin
+**/test-build
+scenarios/**/bin/
+api/*-api
+scenarios/**/api/*-api
+bin/
+.vrooli/*-agents.json
+.vrooli/*.lock
+.vrooli/browserless/
+.vrooli/running-resources.json
+.vrooli/schemas/resource-catalog.json
+.vrooli/schemas/resource-definitions.json
 
 # nyc test coverage
 .nyc_output

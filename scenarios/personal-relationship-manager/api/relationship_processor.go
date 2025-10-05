@@ -6,11 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"time"
-	"strings"
 	"math"
-	"bytes"
-	"net/http"
+	"strings"
+	"time"
 )
 
 type RelationshipProcessor struct {

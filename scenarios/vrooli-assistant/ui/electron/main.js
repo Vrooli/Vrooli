@@ -370,8 +370,10 @@ app.on('window-all-closed', (event) => {
 });
 
 app.on('will-quit', () => {
-  // Unregister all shortcuts
-  globalShortcut.unregisterAll();
+  // Unregister all shortcuts (only if app was ready)
+  if (app.isReady()) {
+    globalShortcut.unregisterAll();
+  }
 });
 
 // Prevent multiple instances

@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
+# Integration tests for Device Sync Hub
+# Comprehensive tests for API endpoints, WebSocket, and file operations
 
-# Integration Tests for Device Sync Hub
-# This runs the full integration test suite
-set -uo pipefail
+set -euo pipefail
 
-# Test environment
-export SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-# Run the full integration test suite
-echo "Running full integration test suite..."
-exec "$SCENARIO_DIR/test/integration.sh"
+# Run the existing comprehensive integration test
+exec "${SCENARIO_DIR}/test/integration.sh"

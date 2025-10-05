@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 )
@@ -33,12 +34,12 @@ type AnalysisRequest struct {
 }
 
 type AnalysisResult struct {
-	ScenarioPath        string    `json:"scenario_path"`
-	AnalysisTimestamp   time.Time `json:"analysis_timestamp"`
-	Mode                string    `json:"mode"`
-	Branding            Branding  `json:"branding"`
-	Pricing             Pricing   `json:"pricing"`
-	Structure           Structure `json:"structure"`
+	ScenarioPath      string    `json:"scenario_path"`
+	AnalysisTimestamp time.Time `json:"analysis_timestamp"`
+	Mode              string    `json:"mode"`
+	Branding          Branding  `json:"branding"`
+	Pricing           Pricing   `json:"pricing"`
+	Structure         Structure `json:"structure"`
 }
 
 type Branding struct {
@@ -62,9 +63,9 @@ type Pricing struct {
 }
 
 type PricingTier struct {
-	Name   string  `json:"name"`
-	Price  string  `json:"price"`
-	Period string  `json:"period"`
+	Name   string `json:"name"`
+	Price  string `json:"price"`
+	Period string `json:"period"`
 }
 
 type Structure struct {
@@ -78,19 +79,19 @@ type Structure struct {
 }
 
 type GenerateRequest struct {
-	AnalysisData     AnalysisResult `json:"analysis_data"`
-	CommissionRate   *float64       `json:"commission_rate,omitempty"`
-	CustomBranding   *Branding      `json:"custom_branding,omitempty"`
-	OutputDirectory  string         `json:"output_directory,omitempty"`
+	AnalysisData    AnalysisResult `json:"analysis_data"`
+	CommissionRate  *float64       `json:"commission_rate,omitempty"`
+	CustomBranding  *Branding      `json:"custom_branding,omitempty"`
+	OutputDirectory string         `json:"output_directory,omitempty"`
 }
 
 type GenerateResponse struct {
-	ProgramID            string   `json:"program_id"`
-	TrackingCode         string   `json:"tracking_code"`
-	LandingPageHTML      string   `json:"landing_page_html"`
-	EmailTemplates       []string `json:"email_templates"`
-	AnalyticsDashboardURL string  `json:"analytics_dashboard_url"`
-	GeneratedFiles       []string `json:"generated_files"`
+	ProgramID             string   `json:"program_id"`
+	TrackingCode          string   `json:"tracking_code"`
+	LandingPageHTML       string   `json:"landing_page_html"`
+	EmailTemplates        []string `json:"email_templates"`
+	AnalyticsDashboardURL string   `json:"analytics_dashboard_url"`
+	GeneratedFiles        []string `json:"generated_files"`
 }
 
 type ImplementRequest struct {
@@ -116,7 +117,7 @@ func initConfig() {
 	if port == "" {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
-	
+
 	// Database configuration - support both POSTGRES_URL and individual components
 	databaseURL := os.Getenv("POSTGRES_URL")
 	if databaseURL == "" {
@@ -126,15 +127,15 @@ func initConfig() {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
-	
+
 	config = Config{
 		DatabaseURL: databaseURL,
 		Port:        port,
@@ -151,57 +152,57 @@ func initDatabase() error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
-	
+
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Implement exponential backoff for database connection
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📊 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		return fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 	return nil
 }
@@ -324,7 +325,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Generation failed: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Log generation script output for debugging
 	log.Printf("Generation script output: %s", string(output))
 
@@ -385,9 +386,9 @@ func implementHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Placeholder for claude-code integration
 	response := ImplementResponse{
-		ImplementationStatus:  "pending",
-		FilesModified:         []string{},
-		ValidationResults:     "Implementation queued - resource-claude-code integration pending",
+		ImplementationStatus: "pending",
+		FilesModified:        []string{},
+		ValidationResults:    "Implementation queued - resource-claude-code integration pending",
 	}
 
 	if req.AutoMode {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -115,10 +116,9 @@ func initDB() error {
 			float64(baseDelay) * math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+
+		// Add random jitter to prevent thundering herd
+		jitter := time.Duration(rand.Float64() * float64(delay) * 0.25)
 		actualDelay := delay + jitter
 		
 		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
@@ -129,7 +129,7 @@ func initDB() error {
 			log.Printf("📈 Retry progress:")
 			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
 			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+			log.Printf("   - Current delay: %v", actualDelay)
 		}
 		
 		time.Sleep(actualDelay)

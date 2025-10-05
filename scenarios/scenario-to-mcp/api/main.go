@@ -431,11 +431,22 @@ func main() {
 	flag.BoolVar(&registryMode, "registry-mode", false, "Run in registry mode")
 	flag.Parse()
 
+	// Get scenarios path - default to Vrooli root if not set
+	defaultScenariosPath := filepath.Join("..", "..")
+	if homeDir := os.Getenv("HOME"); homeDir != "" {
+		defaultScenariosPath = filepath.Join(homeDir, "Vrooli", "scenarios")
+	}
+
 	config := &Config{
 		APIPort:      getEnvInt("API_PORT", 3290),
 		RegistryPort: getEnvInt("REGISTRY_PORT", 3292),
-		DatabaseURL:  getEnvString("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/vrooli?sslmode=disable"),
-		ScenariosPath: getEnvString("SCENARIOS_PATH", filepath.Join("..", "..", "..")),
+		DatabaseURL:  getEnvString("DATABASE_URL", ""),
+		ScenariosPath: getEnvString("SCENARIOS_PATH", defaultScenariosPath),
+	}
+
+	// Validate required configuration
+	if config.DatabaseURL == "" {
+		log.Fatal("DATABASE_URL environment variable is required")
 	}
 
 	server := NewServer(config)

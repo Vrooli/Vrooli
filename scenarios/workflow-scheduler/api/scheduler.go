@@ -44,10 +44,10 @@ type ScheduleExecution struct {
 // NewScheduler creates a new scheduler instance
 func NewScheduler(db *sql.DB) *Scheduler {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	return &Scheduler{
 		db:         db,
-		cron:       cron.New(cron.WithSeconds()),
+		cron:       cron.New(), // Standard 5-field cron (minute hour day month weekday)
 		jobs:       make(map[string]cron.EntryID),
 		ctx:        ctx,
 		cancel:     cancel,
@@ -140,11 +140,12 @@ func (s *Scheduler) loadSchedules() error {
 	for rows.Next() {
 		var schedule Schedule
 		var headers, payload []byte
-		
+		var targetWorkflowID sql.NullString
+
 		err := rows.Scan(
 			&schedule.ID, &schedule.Name, &schedule.CronExpression,
 			&schedule.Timezone, &schedule.TargetType, &schedule.TargetURL,
-			&schedule.TargetWorkflowID, &schedule.TargetMethod,
+			&targetWorkflowID, &schedule.TargetMethod,
 			&headers, &payload, &schedule.Enabled, &schedule.OverlapPolicy,
 			&schedule.MaxRetries, &schedule.RetryStrategy, &schedule.TimeoutSeconds,
 			&schedule.CatchUpMissed, &schedule.Priority,
@@ -153,7 +154,12 @@ func (s *Scheduler) loadSchedules() error {
 			log.Printf("Error loading schedule: %v", err)
 			continue
 		}
-		
+
+		// Handle nullable target_workflow_id
+		if targetWorkflowID.Valid {
+			schedule.TargetWorkflowID = targetWorkflowID.String
+		}
+
 		// Parse JSON fields
 		if headers != nil {
 			json.Unmarshal(headers, &schedule.TargetHeaders)
@@ -599,7 +605,8 @@ func (s *Scheduler) calculateRetryDelay(attemptCount int, strategy string) time.
 func (s *Scheduler) getScheduleByID(scheduleID string) (*Schedule, error) {
 	var schedule Schedule
 	var headers, payload []byte
-	
+	var targetWorkflowID sql.NullString
+
 	query := `
 		SELECT id, name, cron_expression, timezone, target_type, target_url,
 		       target_workflow_id, target_method, target_headers, target_payload,
@@ -607,27 +614,32 @@ func (s *Scheduler) getScheduleByID(scheduleID string) (*Schedule, error) {
 		       timeout_seconds, catch_up_missed, priority
 		FROM schedules WHERE id = $1
 	`
-	
+
 	err := s.db.QueryRow(query, scheduleID).Scan(
 		&schedule.ID, &schedule.Name, &schedule.CronExpression,
 		&schedule.Timezone, &schedule.TargetType, &schedule.TargetURL,
-		&schedule.TargetWorkflowID, &schedule.TargetMethod,
+		&targetWorkflowID, &schedule.TargetMethod,
 		&headers, &payload, &schedule.Enabled, &schedule.OverlapPolicy,
 		&schedule.MaxRetries, &schedule.RetryStrategy, &schedule.TimeoutSeconds,
 		&schedule.CatchUpMissed, &schedule.Priority,
 	)
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
+	// Handle nullable target_workflow_id
+	if targetWorkflowID.Valid {
+		schedule.TargetWorkflowID = targetWorkflowID.String
+	}
+
 	if headers != nil {
 		json.Unmarshal(headers, &schedule.TargetHeaders)
 	}
 	if payload != nil {
 		json.Unmarshal(payload, &schedule.TargetPayload)
 	}
-	
+
 	return &schedule, nil
 }
 

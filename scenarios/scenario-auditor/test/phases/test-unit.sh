@@ -1,44 +1,25 @@
 #!/bin/bash
 
+# Centralized test integration for scenario-auditor unit tests
+# This script integrates with Vrooli's centralized testing infrastructure
+
 set -e
 
-echo "=== Unit Tests ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Test Go API unit tests
-echo "Running Go API unit tests..."
-cd api
-if [ -f "go.mod" ]; then
-    go test -v ./... -short
-    echo "✅ Go API unit tests passed"
-else
-    echo "⚠️  No go.mod found, skipping Go tests"
-fi
-cd ..
+testing::phase::init --target-time "60s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-# Test CLI unit tests  
-echo "Running CLI unit tests..."
-cd cli
-if [ -f "go.mod" ]; then
-    go test -v ./... -short
-    echo "✅ CLI unit tests passed"
-else
-    echo "⚠️  No go.mod found, skipping CLI tests"
-fi
-cd ..
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-# Test UI unit tests
-echo "Running UI unit tests..."
-cd ui
-if [ -f "package.json" ] && [ -d "node_modules" ]; then
-    if npm list --depth=0 | grep -q "jest\|vitest\|@testing-library"; then
-        npm test -- --run --reporter=verbose
-        echo "✅ UI unit tests passed"
-    else
-        echo "⚠️  No testing framework found, skipping UI tests"
-    fi
-else
-    echo "⚠️  UI dependencies not installed, skipping UI tests"
-fi
-cd ..
+# Run all unit tests with centralized infrastructure
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50
 
-echo "=== Unit Tests Complete ==="
+testing::phase::end_with_summary "Unit tests completed"

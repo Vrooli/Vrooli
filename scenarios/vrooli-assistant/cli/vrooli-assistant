@@ -4,7 +4,19 @@
 # Real-time issue capture and agent spawning for rapid Vrooli iteration
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-API_URL="${API_URL:-http://localhost:${API_PORT:-3250}}"
+SCENARIO_NAME="vrooli-assistant"
+
+# Get dynamic port from service registry
+if [ -z "$API_PORT" ]; then
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    if [ -n "$api_port" ]; then
+        API_PORT="$api_port"
+    else
+        API_PORT="${API_PORT:-3250}"  # Fallback to default
+    fi
+fi
+
+API_URL="${API_URL:-http://localhost:${API_PORT}}"
 ELECTRON_APP="$SCRIPT_DIR/../ui/electron"
 
 # Colors for output
@@ -134,38 +146,62 @@ capture_issue() {
     local screenshot="/tmp/screenshot-$(date +%s).png"
     
     # Platform-specific screenshot
+    screenshot_captured=false
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        screencapture -x "$screenshot"
+        if screencapture -x "$screenshot" 2>/dev/null; then
+            screenshot_captured=true
+        fi
+    elif command -v scrot &> /dev/null; then
+        if scrot "$screenshot" 2>/dev/null; then
+            screenshot_captured=true
+        fi
     elif command -v gnome-screenshot &> /dev/null; then
-        gnome-screenshot -f "$screenshot"
+        if gnome-screenshot -f "$screenshot" 2>/dev/null; then
+            screenshot_captured=true
+        fi
     elif command -v import &> /dev/null; then
-        import "$screenshot"
-    elif command -v xwd &> /dev/null; then
-        # Use xwd to capture screenshot and convert to PNG
-        xwd -root -silent | convert xwd:- "$screenshot" 2>/dev/null || echo -e "${YELLOW}Warning: Could not capture screenshot${NC}"
-    else
-        echo -e "${YELLOW}Warning: Could not capture screenshot${NC}"
+        if import -window root "$screenshot" 2>/dev/null; then
+            screenshot_captured=true
+        fi
+    fi
+
+    if [ "$screenshot_captured" = false ]; then
+        echo -e "${YELLOW}Warning: Could not capture screenshot (install scrot, gnome-screenshot, or imagemagick)${NC}"
+        screenshot=""
     fi
     
     # Submit to API
-    response=$(curl -s -X POST "$API_URL/api/v1/assistant/capture" \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"description\": \"$description\",
-            \"screenshot_path\": \"$screenshot\",
-            \"scenario_name\": \"manual\",
-            \"url\": \"cli\",
-            \"context\": {}
-        }")
+    if [ -n "$screenshot" ]; then
+        response=$(curl -s -X POST "$API_URL/api/v1/assistant/capture" \
+            -H "Content-Type: application/json" \
+            -d "{
+                \"description\": \"$description\",
+                \"screenshot_path\": \"$screenshot\",
+                \"scenario_name\": \"manual\",
+                \"url\": \"cli\",
+                \"context\": {}
+            }")
+    else
+        response=$(curl -s -X POST "$API_URL/api/v1/assistant/capture" \
+            -H "Content-Type: application/json" \
+            -d "{
+                \"description\": \"$description\",
+                \"scenario_name\": \"manual\",
+                \"url\": \"cli\",
+                \"context\": {}
+            }")
+    fi
     
     issue_id=$(echo "$response" | grep -o '"issue_id":"[^"]*' | cut -d'"' -f4)
-    
+
     if [ -n "$issue_id" ]; then
         echo -e "${GREEN}✓ Issue captured successfully${NC}"
         echo "  Issue ID: $issue_id"
         [ -f "$screenshot" ] && echo "  Screenshot: $screenshot"
+        return 0
     else
         echo -e "${RED}Failed to capture issue${NC}"
+        return 1
     fi
 }
 

@@ -89,92 +89,7 @@ func TestAgentsHandler(t *testing.T) {
 	}
 }
 
-func TestCapabilitiesHandler(t *testing.T) {
-	req, err := http.NewRequest("GET", "/api/v1/capabilities", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(capabilitiesHandler)
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
-
-	var response struct {
-		Capabilities []CapabilityInfo `json:"capabilities"`
-		Total        int              `json:"total"`
-	}
-
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if response.Total < 0 {
-		t.Error("total should not be negative")
-	}
-}
-
-func TestSearchByCapabilityHandler(t *testing.T) {
-	req, err := http.NewRequest("GET", "/api/v1/agents/search?capability=text-generation", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(searchByCapabilityHandler)
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
-
-	// The response is wrapped in an APIResponse
-	var response struct {
-		Success bool                   `json:"success"`
-		Data    map[string]interface{} `json:"data"`
-	}
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !response.Success {
-		t.Error("expected success to be true")
-	}
-
-	// Check the data fields
-	if _, ok := response.Data["capability"]; !ok {
-		t.Error("expected response data to have capability field")
-	}
-	if _, ok := response.Data["agents"]; !ok {
-		t.Error("expected response data to have agents field")
-	}
-}
-
-func TestSearchByCapabilityHandlerMissingCapability(t *testing.T) {
-	req, err := http.NewRequest("GET", "/api/v1/agents/search", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(searchByCapabilityHandler)
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusBadRequest)
-	}
-}
+// Note: Comprehensive tests for capabilities and search handlers are in comprehensive_test.go
 
 func TestIsValidResourceName(t *testing.T) {
 	tests := []struct {
@@ -246,25 +161,4 @@ func TestIsValidLineCount(t *testing.T) {
 	}
 }
 
-func TestCORSMiddleware(t *testing.T) {
-	handler := corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	req, err := http.NewRequest("OPTIONS", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rr := httptest.NewRecorder()
-	handler(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
-
-	if header := rr.Header().Get("Access-Control-Allow-Origin"); header != "*" {
-		t.Errorf("expected CORS header to be *, got %s", header)
-	}
-}
+// Note: CORS middleware tests are in comprehensive_test.go

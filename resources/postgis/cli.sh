@@ -36,7 +36,10 @@ source "${POSTGIS_CLI_DIR}/config/defaults.sh"
 # Source resource libraries (only what exists)
 for lib in core common install status test inject performance health integration visualization geocoding spatial_analysis; do
     lib_file="${POSTGIS_CLI_DIR}/lib/${lib}.sh"
-    [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
+    if [[ -f "$lib_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$lib_file" 2>/dev/null || true
+    fi
 done
 
 # Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
@@ -45,6 +48,7 @@ cli::init "postgis" "Spatial database extension for PostgreSQL" "v2"
 # ==============================================================================
 # REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
 # ==============================================================================
+# shellcheck disable=SC2034  # CLI_COMMAND_HANDLERS is used by CLI framework
 CLI_COMMAND_HANDLERS["manage::install"]="postgis::install::execute"
 CLI_COMMAND_HANDLERS["manage::uninstall"]="postgis::install::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="postgis::docker::start"
@@ -54,6 +58,7 @@ CLI_COMMAND_HANDLERS["test::smoke"]="postgis::status::check"
 CLI_COMMAND_HANDLERS["test::integration"]="postgis::test::integration"
 
 # Content handlers for spatial data management
+# shellcheck disable=SC2034  # CLI_COMMAND_HANDLERS is used by CLI framework
 CLI_COMMAND_HANDLERS["content::add"]="postgis::content::add"
 CLI_COMMAND_HANDLERS["content::list"]="postgis::content::list"
 CLI_COMMAND_HANDLERS["content::get"]="postgis::content::get"

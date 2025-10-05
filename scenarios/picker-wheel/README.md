@@ -48,8 +48,144 @@ This scenario demonstrates:
 - Voice-activated spinning
 - Mobile app with shake-to-spin
 
+## API Documentation
+
+### Health Check
+```bash
+GET /health
+```
+Returns service health status.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "service": "picker-wheel-api",
+  "version": "1.0.0"
+}
+```
+
+### Spin Wheel
+```bash
+POST /api/spin
+Content-Type: application/json
+```
+
+**Request:**
+```json
+{
+  "wheel_id": "yes-or-no",
+  "session_id": "optional-session-id",
+  "options": [
+    {"label": "Option 1", "color": "#FF6B6B", "weight": 1.0},
+    {"label": "Option 2", "color": "#4ECDC4", "weight": 0.5}
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "result": "Option 1",
+  "wheel_id": "yes-or-no",
+  "session_id": "session_123",
+  "timestamp": "2025-10-03T08:00:00Z"
+}
+```
+
+### List Wheels
+```bash
+GET /api/wheels
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "dinner-decider",
+    "name": "Dinner Decider",
+    "description": "Can't decide what to eat?",
+    "options": [...],
+    "theme": "food",
+    "created_at": "2025-10-03T08:00:00Z",
+    "times_used": 42
+  }
+]
+```
+
+### Create Wheel
+```bash
+POST /api/wheels
+Content-Type: application/json
+```
+
+**Request:**
+```json
+{
+  "name": "My Custom Wheel",
+  "description": "Optional description",
+  "options": [
+    {"label": "Option 1", "color": "#FF6B6B", "weight": 1.0},
+    {"label": "Option 2", "color": "#4ECDC4", "weight": 1.0}
+  ],
+  "theme": "neon"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "wheel_1234567890",
+  "name": "My Custom Wheel",
+  ...
+}
+```
+
+### Get Wheel Details
+```bash
+GET /api/wheels/{id}
+```
+
+### Delete Wheel
+```bash
+DELETE /api/wheels/{id}
+```
+
+### Get Spin History
+```bash
+GET /api/history
+```
+
+**Response:**
+```json
+[
+  {
+    "result": "Pizza 🍕",
+    "wheel_id": "dinner-decider",
+    "session_id": "session_123",
+    "timestamp": "2025-10-03T08:00:00Z"
+  }
+]
+```
+
+## CLI Usage
+
+```bash
+# Spin a preset wheel
+./cli/picker-wheel --wheel yes-or-no
+
+# Spin with custom options
+./cli/picker-wheel --options "Yes,No,Maybe"
+
+# Spin with weights
+./cli/picker-wheel --options "Yes:2,No:1,Maybe:0.5"
+```
+
 ## Technical Notes
 - Lightweight Go API for fast response times
 - SVG-based wheel rendering for smooth animations
 - WebSocket support for real-time multiplayer (future)
 - Responsive design works on all devices
+- Weighted probability selection using normalized random distribution
+- PostgreSQL persistence with automatic in-memory fallback
+- History tracking with session support

@@ -119,7 +119,8 @@ test_spatial_queries() {
     FROM test_locations a, test_locations b
     WHERE a.name = 'Point A' AND b.name = 'Point B';"
     
-    local distance=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d "${TEST_DB}" -t -c "$distance_sql" 2>/dev/null | xargs)
+    local distance
+    distance=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d "${TEST_DB}" -t -c "$distance_sql" 2>/dev/null | xargs)
     
     if [[ -n "$distance" ]]; then
         test::pass "Spatial queries working (distance: ${distance}m)"
@@ -138,7 +139,8 @@ test_spatial_indexing() {
     if docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d "${TEST_DB}" -c "$index_sql" &>/dev/null; then
         # Verify index is used
         local explain_sql="EXPLAIN SELECT * FROM test_locations WHERE ST_DWithin(location, ST_GeomFromText('POINT(-74 40)', 4326), 1);"
-        local explain_result=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d "${TEST_DB}" -c "$explain_sql" 2>/dev/null)
+        local explain_result
+        explain_result=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d "${TEST_DB}" -c "$explain_sql" 2>/dev/null)
         
         if echo "$explain_result" | grep -q "idx_location"; then
             test::pass "Spatial index created and used"
@@ -167,7 +169,8 @@ EOF
     # Test content add
     if vrooli resource postgis content add /tmp/test_geom.sql "${TEST_DB}"; then
         # Verify table was created
-        local table_exists=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d "${TEST_DB}" -t -c \
+        local table_exists
+        table_exists=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d "${TEST_DB}" -t -c \
             "SELECT 1 FROM information_schema.tables WHERE table_name = 'test_content';" 2>/dev/null | xargs)
         
         if [[ "$table_exists" == "1" ]]; then
@@ -187,7 +190,8 @@ test_geospatial_functions() {
     
     # Test buffer operation
     local buffer_sql="SELECT ST_Area(ST_Buffer(ST_GeomFromText('POINT(0 0)', 4326)::geography, 1000));"
-    local area=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d "${TEST_DB}" -t -c "$buffer_sql" 2>/dev/null | xargs)
+    local area
+    area=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d "${TEST_DB}" -t -c "$buffer_sql" 2>/dev/null | xargs)
     
     if [[ -n "$area" ]] && (( $(echo "$area > 0" | bc -l) )); then
         test::pass "Buffer operation working (area: ${area}m²)"
@@ -202,7 +206,8 @@ test_geospatial_functions() {
         ST_GeomFromText('POINT(0.5 0.5)', 4326)
     );"
     
-    local intersects=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d "${TEST_DB}" -t -c "$intersect_sql" 2>/dev/null | xargs)
+    local intersects
+    intersects=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d "${TEST_DB}" -t -c "$intersect_sql" 2>/dev/null | xargs)
     
     if [[ "$intersects" == "t" ]]; then
         test::pass "Intersection detection working"
@@ -225,10 +230,12 @@ test_performance() {
         ), 4326)
     FROM generate_series(1, 1000);"
     
-    local start_time=$(date +%s%N)
+    local start_time
+    start_time=$(date +%s%N)
     if docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d "${TEST_DB}" -c "$bulk_insert" &>/dev/null; then
-        local end_time=$(date +%s%N)
-        local duration=$((($end_time - $start_time) / 1000000))
+        local end_time
+        end_time=$(date +%s%N)
+        local duration=$(((end_time - start_time) / 1000000))
         
         if [[ $duration -lt 5000 ]]; then
             test::pass "Bulk insert performance acceptable (${duration}ms for 1000 points)"

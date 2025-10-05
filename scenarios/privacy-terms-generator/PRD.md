@@ -31,9 +31,9 @@ Every generated business scenario can automatically obtain professional legal do
   
 - **Should Have (P1)**
   - [x] Web search integration to fetch current legal requirements *(2025-09-28: Implemented web_updater.sh with fetch and update capabilities)*
-  - [ ] Version history tracking for generated documents
+  - [x] Version history tracking for generated documents *(2025-10-03: Implemented document_history table tracking, CLI history command, API endpoint)*
   - [x] Multi-format export (HTML, Markdown, PDF via Browserless) *(2025-09-28: Added PDF export module, HTML conversion, format support in CLI)*
-  - [ ] Semantic search for relevant clauses via Qdrant
+  - [x] Semantic search for relevant clauses via Qdrant *(2025-10-03: Implemented semantic_search.sh with Qdrant integration and PostgreSQL fallback)*
   - [x] Cookie policy and EULA generation *(2025-09-28: Templates support all document types)*
   
 - **Nice to Have (P2)**
@@ -502,11 +502,12 @@ tests:
 
 ---
 
-**Last Updated**: 2025-09-24  
-**Status**: P0 Complete (100% of must-have requirements)  
-**Owner**: AI Agent  
-**Review Cycle**: Weekly template freshness check  
+**Last Updated**: 2025-10-03
+**Status**: P0 Complete (100% of must-have requirements), P1 Complete (100% of should-have requirements)
+**Owner**: AI Agent
+**Review Cycle**: Weekly template freshness check
 
 ## Progress History
 - **2025-09-24**: 0% → 100% P0 (Initialized database, seeded templates, implemented freshness tracking, integrated CLI with database)
 - **2025-09-28**: P1 60% complete (Added web search integration, PDF export, HTML conversion, enhanced UI with real API integration)
+- **2025-10-03**: P1 60% → 100% complete (Added version history tracking, semantic search via Qdrant with PostgreSQL fallback, CLI commands for history and search, API endpoints for history and search)

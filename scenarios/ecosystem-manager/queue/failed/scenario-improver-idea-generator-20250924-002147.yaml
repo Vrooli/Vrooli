@@ -1,0 +1,41 @@
+id: scenario-improver-idea-generator-20250924-002147
+title: Enhance scenario idea-generator
+type: scenario
+operation: improver
+target: idea-generator
+targets:
+    - idea-generator
+category: ""
+priority: medium
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: failed
+current_phase: failed
+started_at: "2025-10-03T03:03:30-04:00"
+completed_at: "2025-10-03T03:10:45-04:00"
+completion_count: 2
+last_completed_at: "2025-09-27T22:33:36-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-24T00:21:47-04:00"
+updated_at: "2025-10-03T03:10:45-04:00"
+tags: []
+notes: "Already pretty good, but could use some additional validation/tidying. Notes from last time:\n\nWhat was accomplished:\n- Ollama AI Integration: Fixed the broken Ollama integration by updating to use the `mistral:latest` model instead of the non-existent `llama2`. Ideas are now generated using actual AI.\n- UI-API Connection: Updated the UI JavaScript to properly fetch campaigns from the API and use real UUIDs instead of fake IDs.\n- Campaign Management: Campaigns now work with proper UUID generation and storage in PostgreSQL.\n- End-to-End Idea Generation: The complete flow from UI → API → Ollama → Database is now functional.\n\nCurrent status:\n- API server running and healthy (port 15211)\n- UI server running and connected to API (port 39665)\n- Ollama integration working with mistral model\n- Database properly storing campaigns and ideas\n- Health endpoint responding quickly (~10ms)\n- CLI commands working\n- Basic idea generation fully functional\n\nRemaining issues or limitations:\n- Vector search not integrated (Qdrant not connected)\n- Document processing pipeline missing\n- Multi-agent system not implemented (only single agent)\n- WebSocket real-time features missing\n- Chat refinement not working\n\nSuggested next actions: Integrate Qdrant for vector search, implement document processing pipeline, set up multi-agent system, and add WebSocket real-time features.\n\nValidation evidence:\n```bash\n# Ollama generates real ideas\ncurl http://localhost:15211/api/ideas/generate -d '{\"campaign_id\":\"195b4a36-3901-4470-9721-89f408accbec\"}' \n# Returns: \"Smart Break Reminders\" - an AI-generated productivity feature\n\n# UI is accessible and connected\ncurl http://localhost:39665/health\n# Returns: {\"status\":\"healthy\",\"service\":\"idea-generator-ui\",\"port\":\"39665\"}\n\n# Database working with real data\ndocker exec vrooli-postgres-main psql -U vrooli -d vrooli -c \"SELECT COUNT(*) FROM campaigns;\"\n# Returns: 3 campaigns stored\n```"
+results:
+    error: Claude reached the configured MAX_TURNS limit (80). Consider simplifying the task or increasing the limit in Settings.
+    execution_time: 7m15s
+    failed_at: "2025-10-03T03:10:45-04:00"
+    max_turns_exceeded: true
+    output: "[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 1800 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 26770 chars)\n\nError: Reached max turns (80)\n"
+    prompt_size: 26958 chars (26.33 KB)
+    started_at: "2025-10-03T03:03:30-04:00"
+    success: false
+    timeout_allowed: 30m0s
+    timeout_failure: false
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true

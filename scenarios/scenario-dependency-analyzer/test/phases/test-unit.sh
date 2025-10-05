@@ -1,26 +1,18 @@
 #!/bin/bash
-set -euo pipefail
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "🧪 Running unit tests"
+testing::phase::init --target-time "60s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-if [ -d "$BASE_DIR/api" ]; then
-  cd "$BASE_DIR/api"
-  if ! go test ./... -short -v; then
-    echo "❌ Unit tests failed"
-    exit 1
-  fi
-  cd "$BASE_DIR"
-fi
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50
 
-# CLI unit tests if any
-if [ -d "$BASE_DIR/cli" ]; then
-  cd "$BASE_DIR/cli"
-  if [ -f "go.mod" ]; then
-    go test ./... -short -v || exit 1
-  fi
-  cd "$BASE_DIR"
-fi
-
-echo "✅ Unit tests passed"
+testing::phase::end_with_summary "Unit tests completed"

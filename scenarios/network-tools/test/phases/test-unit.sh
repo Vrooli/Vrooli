@@ -3,6 +3,17 @@
 
 set -euo pipefail
 
+# Setup paths and source centralized testing library
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+
+# Initialize testing phase
+testing::phase::init --target-time "60s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
+
+cd "$TESTING_PHASE_SCENARIO_DIR"
+
 # Colors for output
 readonly GREEN='\033[0;32m'
 readonly RED='\033[0;31m'
@@ -243,8 +254,8 @@ test_dependencies() {
 # Main test execution
 main() {
     echo -e "${YELLOW}=== Network Tools Unit Tests ===${NC}"
-    
-    # Run tests
+
+    # Run custom tests
     test_go_build
     test_go_unit
     test_database_schema
@@ -255,18 +266,29 @@ main() {
     test_api_endpoints
     test_security_features
     test_dependencies
-    
+
+    # Run centralized unit tests
+    echo -e "\n${YELLOW}=== Running Centralized Unit Tests ===${NC}"
+    testing::unit::run_all_tests \
+        --go-dir "api/cmd/server" \
+        --skip-node \
+        --skip-python \
+        --coverage-warn 80 \
+        --coverage-error 50 || true
+
     # Print summary
     echo -e "\n${YELLOW}=== Test Summary ===${NC}"
     echo -e "Total tests: ${TESTS_TOTAL}"
     echo -e "${GREEN}Passed: ${TESTS_PASSED}${NC}"
     echo -e "${RED}Failed: ${TESTS_FAILED}${NC}"
-    
+
     if [ $TESTS_FAILED -eq 0 ]; then
         echo -e "\n${GREEN}All tests passed!${NC}"
+        testing::phase::end_with_summary "Unit tests completed successfully"
         exit 0
     else
         echo -e "\n${RED}Some tests failed${NC}"
+        testing::phase::end_with_summary "Unit tests completed with failures"
         exit 1
     fi
 }

@@ -35,7 +35,33 @@
 **Problem**: JQ errors appear during scenario startup.
 **Root Cause**: Service.json structure doesn't match expected format for resource dependencies.
 **Impact**: Cosmetic only - scenario still works correctly.
-**Status**: ⚠️ Minor issue
+**Solution**: Migrated resources from array format to new object format with enabled/required/description fields.
+**Status**: ✅ Resolved (2025-10-03)
+
+### 6. Health Endpoint Compliance
+**Problem**: UI and API health endpoints missing required schema fields.
+**Root Cause**: Health endpoints implemented before schema requirements were defined.
+**Impact**: Scenario status command shows warnings about invalid health responses.
+**Solution**:
+- Updated UI health endpoint to include `readiness` and `api_connectivity` fields with proper error handling
+- Verified API health endpoint includes all required fields (`status`, `service`, `timestamp`, `readiness`)
+**Status**: ✅ Resolved (2025-10-03)
+
+## Recent Improvements (2025-10-03)
+
+### 1. Preset Profiles System
+**Feature**: Implemented reusable image processing profiles
+**Details**:
+- 5 built-in presets: web-optimized, email-safe, aggressive, high-quality, social-media
+- New endpoints: GET /api/v1/presets, GET /api/v1/presets/:name, POST /api/v1/image/preset/:name
+- Each preset defines operations chain (resize → compress → metadata strip)
+**Benefit**: Users can apply common optimization patterns with a single API call
+
+### 2. Service.json Migration
+**Change**: Updated resources format from arrays to detailed object structure
+**Before**: `"resources": { "required": ["minio"], "optional": ["redis", "ollama"] }`
+**After**: Each resource has `type`, `enabled`, `required`, `description` fields
+**Benefit**: Better compatibility with v2.0 lifecycle system, eliminates JQ parsing errors
 
 ## Recommendations for Future Improvements
 
@@ -45,6 +71,8 @@
 4. **Add batch upload UI** with progress indicators
 5. **Implement WebSocket** for real-time processing updates
 6. **Add image history** tracking for undo/redo functionality
+7. **Enhance preset system** with custom preset creation/storage via API
+8. **Add AVIF format support** for next-gen image compression
 
 ## Performance Notes
 

@@ -208,7 +208,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	health := map[string]interface{}{
 		"status":    "healthy",
 		"service":   "agent-dashboard-api",
-		"version":   "1.1.0",
+		"version":   "1.0.0",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 		"readiness": true,
 	}
@@ -1171,6 +1171,50 @@ func isValidLineCount(value string) bool {
 		return false
 	}
 	return n > 0 && n <= 10000
+}
+
+// validResourceNames is the list of supported resource types
+var validResourceNames = map[string]bool{
+	"claude-code":   true,
+	"cline":         true,
+	"ollama":        true,
+	"autogen-studio": true,
+	"autogpt":       true,
+	"crewai":        true,
+	"gemini":        true,
+	"langchain":     true,
+	"litellm":       true,
+	"openrouter":    true,
+	"whisper":       true,
+	"comfyui":       true,
+	"pandas-ai":     true,
+	"parlant":       true,
+	"huginn":        true,
+	"opencode":      true,
+	"codex":         true,
+}
+
+func isValidResourceName(resource string) bool {
+	return validResourceNames[resource]
+}
+
+func isValidAgentID(agentID string) bool {
+	if agentID == "" {
+		return false
+	}
+	// Agent ID should match pattern: resource:agent-identifier
+	// where both parts contain only alphanumeric, colon, hyphen, or underscore
+	if !identifierPattern.MatchString(agentID) || !strings.Contains(agentID, ":") {
+		return false
+	}
+
+	// Ensure both parts before and after the colon are non-empty
+	parts := strings.SplitN(agentID, ":", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return false
+	}
+
+	return true
 }
 
 func resolveAgentIdentifier(identifier string) string {

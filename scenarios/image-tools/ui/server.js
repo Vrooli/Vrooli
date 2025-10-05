@@ -32,13 +32,61 @@ const server = http.createServer((req, res) => {
 
   // Handle health check
   if (req.url === '/health' || req.url === '/api/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      status: 'healthy',
-      service: 'image-tools-ui',
-      timestamp: new Date().toISOString(),
-      api_url: `http://localhost:${API_PORT}`
-    }));
+    const apiUrl = `http://localhost:${API_PORT}`;
+    const checkStart = Date.now();
+
+    // Check API connectivity
+    http.get(`${apiUrl}/api/v1/health`, (apiRes) => {
+      const latency = Date.now() - checkStart;
+      const healthResponse = {
+        status: 'healthy',
+        service: 'image-tools-ui',
+        timestamp: new Date().toISOString(),
+        readiness: true,
+        api_connectivity: {
+          connected: apiRes.statusCode === 200,
+          api_url: apiUrl,
+          last_check: new Date().toISOString(),
+          error: apiRes.statusCode !== 200 ? {
+            code: `HTTP_${apiRes.statusCode}`,
+            message: `API returned status ${apiRes.statusCode}`,
+            category: 'network',
+            retryable: true
+          } : null,
+          latency_ms: latency
+        }
+      };
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(healthResponse));
+    }).on('error', (err) => {
+      const latency = Date.now() - checkStart;
+      const healthResponse = {
+        status: 'degraded',
+        service: 'image-tools-ui',
+        timestamp: new Date().toISOString(),
+        readiness: true,
+        api_connectivity: {
+          connected: false,
+          api_url: apiUrl,
+          last_check: new Date().toISOString(),
+          error: {
+            code: err.code || 'CONNECTION_ERROR',
+            message: err.message || 'Failed to connect to API',
+            category: 'network',
+            retryable: true,
+            details: {
+              errno: err.errno,
+              syscall: err.syscall
+            }
+          },
+          latency_ms: null
+        }
+      };
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(healthResponse));
+    });
     return;
   }
 

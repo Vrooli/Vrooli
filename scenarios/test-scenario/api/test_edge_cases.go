@@ -100,6 +100,8 @@ func handleNestedErrors(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// Use data to avoid "declared and not used" error
+	_ = data
 }
 
 func getData() (interface{}, error) {

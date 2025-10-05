@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	
+
 	"financial-calculators-hub/lib"
 )
 
 type HealthResponse struct {
-	Status string `json:"status"`
+	Status  string `json:"status"`
 	Service string `json:"service"`
 }
 
@@ -39,15 +39,15 @@ func main() {
 	if port == "" {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
-	
+
 	// Initialize database connection (optional - won't fail if not available)
 	if err := initDatabase(); err != nil {
 		log.Printf("⚠️  Database not available (optional): %v", err)
 		log.Println("📝 Running without database - calculations won't be persisted")
 	}
-	
+
 	setupRoutes()
-	
+
 	log.Printf("Financial Calculators API starting on port %s", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
@@ -72,7 +72,7 @@ func setupRoutes() {
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(HealthResponse{
-		Status: "healthy",
+		Status:  "healthy",
 		Service: "financial-calculators-hub",
 	})
 }
@@ -82,29 +82,29 @@ func handleFIRE(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	var input lib.FIREInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid input: " + err.Error()})
 		return
 	}
-	
+
 	if input.AnnualIncome <= 0 || input.AnnualExpenses <= 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Income and expenses must be positive"})
 		return
 	}
-	
+
 	result := lib.CalculateFIRE(input)
-	
+
 	// Check if export format is requested
 	format := r.URL.Query().Get("export")
 	if format != "" {
 		exportFIRE(w, input, result, format)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
@@ -114,33 +114,33 @@ func handleCompoundInterest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	var input lib.CompoundInterestInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid input: " + err.Error()})
 		return
 	}
-	
+
 	if input.Principal <= 0 || input.Years <= 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Principal and years must be positive"})
 		return
 	}
-	
+
 	if input.CompoundFrequency == "" {
 		input.CompoundFrequency = "monthly"
 	}
-	
+
 	result := lib.CalculateCompoundInterest(input)
-	
+
 	// Check if export format is requested
 	format := r.URL.Query().Get("export")
 	if format != "" {
 		exportCompoundInterest(w, input, result, format)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
@@ -150,22 +150,22 @@ func handleMortgage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	var input lib.MortgageInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid input: " + err.Error()})
 		return
 	}
-	
+
 	if input.LoanAmount <= 0 || input.Years <= 0 || input.AnnualRate < 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid loan parameters"})
 		return
 	}
-	
+
 	result := lib.CalculateMortgage(input)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
@@ -175,22 +175,22 @@ func handleInflation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	var input lib.InflationInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid input: " + err.Error()})
 		return
 	}
-	
+
 	if input.Amount <= 0 || input.Years <= 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Amount and years must be positive"})
 		return
 	}
-	
+
 	result := lib.CalculateInflation(input)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
@@ -200,26 +200,26 @@ func handleEmergencyFund(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	var input lib.EmergencyFundInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid input: " + err.Error()})
 		return
 	}
-	
+
 	if input.MonthlyExpenses <= 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Monthly expenses must be positive"})
 		return
 	}
-	
+
 	if input.JobStability == "" {
 		input.JobStability = "moderate"
 	}
-	
+
 	result := lib.CalculateEmergencyFund(input)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
@@ -229,26 +229,26 @@ func handleBudgetAllocation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	var input lib.BudgetAllocationInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid input: " + err.Error()})
 		return
 	}
-	
+
 	if input.MonthlyIncome <= 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Monthly income must be positive"})
 		return
 	}
-	
+
 	if input.BudgetMethod == "" {
 		input.BudgetMethod = "50-30-20"
 	}
-	
+
 	result := lib.CalculateBudgetAllocation(input)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
@@ -258,20 +258,20 @@ func handleDebtPayoff(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	var input lib.DebtPayoffInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid input: " + err.Error()})
 		return
 	}
-	
+
 	if len(input.Debts) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "At least one debt is required"})
 		return
 	}
-	
+
 	if input.Method == "" {
 		input.Method = "avalanche"
 	} else if input.Method != "avalanche" && input.Method != "snowball" {
@@ -279,9 +279,9 @@ func handleDebtPayoff(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Method must be 'avalanche' or 'snowball'"})
 		return
 	}
-	
+
 	result := lib.CalculateDebtPayoff(input)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
@@ -291,7 +291,7 @@ func exportFIRE(w http.ResponseWriter, input lib.FIREInput, result lib.FIREResul
 	case "csv":
 		w.Header().Set("Content-Type", "text/csv")
 		w.Header().Set("Content-Disposition", "attachment; filename=fire-calculation.csv")
-		
+
 		csvWriter := csv.NewWriter(w)
 		csvWriter.Write([]string{"Metric", "Value"})
 		csvWriter.Write([]string{"Current Age", fmt.Sprintf("%.0f", input.CurrentAge)})
@@ -303,11 +303,11 @@ func exportFIRE(w http.ResponseWriter, input lib.FIREInput, result lib.FIREResul
 		csvWriter.Write([]string{"Annual Expenses", fmt.Sprintf("$%.2f", input.AnnualExpenses)})
 		csvWriter.Write([]string{"Savings Rate", fmt.Sprintf("%.1f%%", input.SavingsRate)})
 		csvWriter.Flush()
-		
+
 	case "text":
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Disposition", "attachment; filename=fire-calculation.txt")
-		
+
 		fmt.Fprintf(w, "FIRE CALCULATION REPORT\n")
 		fmt.Fprintf(w, "=======================\n\n")
 		fmt.Fprintf(w, "INPUTS:\n")
@@ -326,10 +326,10 @@ func exportFIRE(w http.ResponseWriter, input lib.FIREInput, result lib.FIREResul
 		for age, amount := range result.ProjectedByAge {
 			fmt.Fprintf(w, "Age %d: $%.2f\n", age, amount)
 		}
-		
+
 	case "pdf":
 		exportFIREPDF(w, input, result)
-		
+
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid export format. Use csv, text, or pdf"})
@@ -341,7 +341,7 @@ func exportCompoundInterest(w http.ResponseWriter, input lib.CompoundInterestInp
 	case "csv":
 		w.Header().Set("Content-Type", "text/csv")
 		w.Header().Set("Content-Disposition", "attachment; filename=compound-interest.csv")
-		
+
 		csvWriter := csv.NewWriter(w)
 		csvWriter.Write([]string{"Year", "Balance", "Contribution", "Interest"})
 		for _, year := range result.YearByYear {
@@ -357,11 +357,11 @@ func exportCompoundInterest(w http.ResponseWriter, input lib.CompoundInterestInp
 		csvWriter.Write([]string{"Total Contributions", fmt.Sprintf("%.2f", result.TotalContributions)})
 		csvWriter.Write([]string{"Total Interest", fmt.Sprintf("%.2f", result.TotalInterest)})
 		csvWriter.Flush()
-		
+
 	case "text":
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Disposition", "attachment; filename=compound-interest.txt")
-		
+
 		fmt.Fprintf(w, "COMPOUND INTEREST REPORT\n")
 		fmt.Fprintf(w, "========================\n\n")
 		fmt.Fprintf(w, "INPUTS:\n")
@@ -379,10 +379,10 @@ func exportCompoundInterest(w http.ResponseWriter, input lib.CompoundInterestInp
 			fmt.Fprintf(w, "Year %d: Balance=$%.2f, Contribution=$%.2f, Interest=$%.2f\n",
 				year.Year, year.Balance, year.Contribution, year.Interest)
 		}
-		
+
 	case "pdf":
 		exportCompoundInterestPDF(w, input, result)
-		
+
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid export format. Use csv, text, or pdf"})

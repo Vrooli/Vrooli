@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -66,7 +67,7 @@ func main() {
 	log.Printf("🚀 React Component Library API starting on port %s", port)
 	log.Printf("📚 API Documentation: http://localhost:%s/api/docs", port)
 	log.Printf("🔍 Health Check: http://localhost:%s/health", port)
-	
+
 	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
@@ -83,15 +84,15 @@ func initDatabase() (*sql.DB, error) {
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
 		dbSchema := os.Getenv("DB_SCHEMA")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		if dbSchema == "" {
 			dbSchema = "react_component_library" // This is application-specific, not a credential
 		}
-		
+
 		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable search_path=%s",
 			dbHost, dbPort, dbUser, dbPassword, dbName, dbSchema)
 	}
@@ -100,57 +101,57 @@ func initDatabase() (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	
+
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Implement exponential backoff for database connection
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📊 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 	return db, nil
 }
@@ -189,19 +190,19 @@ func setupRouter(componentHandler *handlers.ComponentHandler, healthHandler *han
 	router.GET("/api/docs", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"name":        "React Component Library API",
-			"version":     "1.0.0", 
+			"version":     "1.0.0",
 			"description": "AI-powered React component library with accessibility testing and performance benchmarking",
 			"endpoints": gin.H{
 				"components": gin.H{
-					"GET /api/v1/components":              "List all components with optional filters",
-					"POST /api/v1/components":             "Create a new component",
-					"GET /api/v1/components/{id}":         "Get component details",
-					"PUT /api/v1/components/{id}":         "Update component",
-					"DELETE /api/v1/components/{id}":      "Delete component",
-					"GET /api/v1/components/search":       "Search components using natural language",
-					"POST /api/v1/components/generate":    "Generate component using AI",
-					"POST /api/v1/components/{id}/test":   "Run accessibility/performance tests",
-					"POST /api/v1/components/{id}/export": "Export component in various formats",
+					"GET /api/v1/components":               "List all components with optional filters",
+					"POST /api/v1/components":              "Create a new component",
+					"GET /api/v1/components/{id}":          "Get component details",
+					"PUT /api/v1/components/{id}":          "Update component",
+					"DELETE /api/v1/components/{id}":       "Delete component",
+					"GET /api/v1/components/search":        "Search components using natural language",
+					"POST /api/v1/components/generate":     "Generate component using AI",
+					"POST /api/v1/components/{id}/test":    "Run accessibility/performance tests",
+					"POST /api/v1/components/{id}/export":  "Export component in various formats",
 					"POST /api/v1/components/{id}/improve": "Get AI improvement suggestions",
 				},
 			},

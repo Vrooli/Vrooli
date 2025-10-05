@@ -8,57 +8,58 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
 
 // Domain models
 type Campaign struct {
-	ID           string    `json:"id" db:"id"`
-	Name         string    `json:"name" db:"name"`
-	Description  *string   `json:"description" db:"description"`
-	Color        string    `json:"color" db:"color"`
-	Icon         string    `json:"icon" db:"icon"`
-	ParentID     *string   `json:"parent_id" db:"parent_id"`
-	SortOrder    int       `json:"sort_order" db:"sort_order"`
-	IsFavorite   bool      `json:"is_favorite" db:"is_favorite"`
-	PromptCount  int       `json:"prompt_count" db:"prompt_count"`
-	LastUsed     *time.Time `json:"last_used" db:"last_used"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	ID          string     `json:"id" db:"id"`
+	Name        string     `json:"name" db:"name"`
+	Description *string    `json:"description" db:"description"`
+	Color       string     `json:"color" db:"color"`
+	Icon        string     `json:"icon" db:"icon"`
+	ParentID    *string    `json:"parent_id" db:"parent_id"`
+	SortOrder   int        `json:"sort_order" db:"sort_order"`
+	IsFavorite  bool       `json:"is_favorite" db:"is_favorite"`
+	PromptCount int        `json:"prompt_count" db:"prompt_count"`
+	LastUsed    *time.Time `json:"last_used" db:"last_used"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 type Prompt struct {
-	ID                   string    `json:"id" db:"id"`
-	CampaignID           string    `json:"campaign_id" db:"campaign_id"`
-	Title                string    `json:"title" db:"title"`
-	Content              string    `json:"content" db:"content"`
-	Description          *string   `json:"description" db:"description"`
-	Variables            []string  `json:"variables" db:"variables"`
-	UsageCount           int       `json:"usage_count" db:"usage_count"`
-	LastUsed             *time.Time `json:"last_used" db:"last_used"`
-	IsFavorite           bool      `json:"is_favorite" db:"is_favorite"`
-	IsArchived           bool      `json:"is_archived" db:"is_archived"`
-	QuickAccessKey       *string   `json:"quick_access_key" db:"quick_access_key"`
-	Version              int       `json:"version" db:"version"`
-	ParentVersionID      *string   `json:"parent_version_id" db:"parent_version_id"`
-	WordCount            *int      `json:"word_count" db:"word_count"`
-	EstimatedTokens      *int      `json:"estimated_tokens" db:"estimated_tokens"`
-	EffectivenessRating  *int      `json:"effectiveness_rating" db:"effectiveness_rating"`
-	Notes                *string   `json:"notes" db:"notes"`
-	CreatedAt            time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at" db:"updated_at"`
+	ID                  string     `json:"id" db:"id"`
+	CampaignID          string     `json:"campaign_id" db:"campaign_id"`
+	Title               string     `json:"title" db:"title"`
+	Content             string     `json:"content" db:"content"`
+	Description         *string    `json:"description" db:"description"`
+	Variables           []string   `json:"variables" db:"variables"`
+	UsageCount          int        `json:"usage_count" db:"usage_count"`
+	LastUsed            *time.Time `json:"last_used" db:"last_used"`
+	IsFavorite          bool       `json:"is_favorite" db:"is_favorite"`
+	IsArchived          bool       `json:"is_archived" db:"is_archived"`
+	QuickAccessKey      *string    `json:"quick_access_key" db:"quick_access_key"`
+	Version             int        `json:"version" db:"version"`
+	ParentVersionID     *string    `json:"parent_version_id" db:"parent_version_id"`
+	WordCount           *int       `json:"word_count" db:"word_count"`
+	EstimatedTokens     *int       `json:"estimated_tokens" db:"estimated_tokens"`
+	EffectivenessRating *int       `json:"effectiveness_rating" db:"effectiveness_rating"`
+	Notes               *string    `json:"notes" db:"notes"`
+	CreatedAt           time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at" db:"updated_at"`
 	// Joined fields
-	CampaignName         *string   `json:"campaign_name,omitempty"`
-	Tags                 []string  `json:"tags,omitempty"`
+	CampaignName *string  `json:"campaign_name,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
 }
 
 type Tag struct {
@@ -80,16 +81,16 @@ type Template struct {
 }
 
 type TestResult struct {
-	ID            string    `json:"id" db:"id"`
-	PromptID      string    `json:"prompt_id" db:"prompt_id"`
-	Model         string    `json:"model" db:"model"`
-	InputVars     *string   `json:"input_variables" db:"input_variables"`
-	Response      *string   `json:"response" db:"response"`
-	ResponseTime  *float64  `json:"response_time" db:"response_time"`
-	TokenCount    *int      `json:"token_count" db:"token_count"`
-	Rating        *int      `json:"rating" db:"rating"`
-	Notes         *string   `json:"notes" db:"notes"`
-	TestedAt      time.Time `json:"tested_at" db:"tested_at"`
+	ID           string    `json:"id" db:"id"`
+	PromptID     string    `json:"prompt_id" db:"prompt_id"`
+	Model        string    `json:"model" db:"model"`
+	InputVars    *string   `json:"input_variables" db:"input_variables"`
+	Response     *string   `json:"response" db:"response"`
+	ResponseTime *float64  `json:"response_time" db:"response_time"`
+	TokenCount   *int      `json:"token_count" db:"token_count"`
+	Rating       *int      `json:"rating" db:"rating"`
+	Notes        *string   `json:"notes" db:"notes"`
+	TestedAt     time.Time `json:"tested_at" db:"tested_at"`
 }
 
 // Request/Response types
@@ -128,10 +129,10 @@ type CreateCampaignRequest struct {
 }
 
 type TestPromptRequest struct {
-	Model         string            `json:"model"`
-	Variables     map[string]string `json:"variables"`
-	MaxTokens     *int              `json:"max_tokens"`
-	Temperature   *float64          `json:"temperature"`
+	Model       string            `json:"model"`
+	Variables   map[string]string `json:"variables"`
+	MaxTokens   *int              `json:"max_tokens"`
+	Temperature *float64          `json:"temperature"`
 }
 
 // API Server
@@ -173,11 +174,11 @@ func main() {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
@@ -205,51 +206,57 @@ func main() {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
+	// Set search path to use prompt_mgr schema to avoid table name conflicts
+	_, err = db.Exec("SET search_path TO prompt_mgr, public")
+	if err != nil {
+		log.Fatal("Failed to set search_path:", err)
+	}
+
 	// Implement exponential backoff for database connection
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📝 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	server := &APIServer{
@@ -288,11 +295,11 @@ func main() {
 	v1.HandleFunc("/prompts/{id}", server.updatePrompt).Methods("PUT")
 	v1.HandleFunc("/prompts/{id}", server.deletePrompt).Methods("DELETE")
 	v1.HandleFunc("/prompts/{id}/use", server.recordPromptUsage).Methods("POST")
-	
+
 	// Search endpoints
 	v1.HandleFunc("/search/prompts", server.searchPrompts).Methods("GET")
 	v1.HandleFunc("/prompts/semantic", server.semanticSearch).Methods("POST")
-	
+
 	// Quick access
 	v1.HandleFunc("/prompts/quick/{key}", server.getPromptByQuickKey).Methods("GET")
 	v1.HandleFunc("/prompts/recent", server.getRecentPrompts).Methods("GET")
@@ -335,7 +342,6 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
-
 // Health check endpoint
 func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -370,7 +376,7 @@ func (s *APIServer) checkQdrant() string {
 	}
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return "unavailable"
 	}
@@ -387,7 +393,7 @@ func (s *APIServer) checkOllama() string {
 	}
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return "unavailable"
 	}
@@ -438,15 +444,15 @@ func (s *APIServer) createCampaign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	campaign := Campaign{
-		ID:         uuid.New().String(),
-		Name:       req.Name,
+		ID:          uuid.New().String(),
+		Name:        req.Name,
 		Description: req.Description,
-		Color:      "#6366f1", // Default color
-		Icon:       "folder",  // Default icon
-		SortOrder:  0,
-		IsFavorite: false,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		Color:       "#6366f1", // Default color
+		Icon:        "folder",  // Default icon
+		SortOrder:   0,
+		IsFavorite:  false,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
 	if req.Color != nil {
@@ -1107,21 +1113,21 @@ func (s *APIServer) semanticSearch(w http.ResponseWriter, r *http.Request) {
 		Limit  int      `json:"limit"`
 		Filter []string `json:"filter"` // Optional campaign IDs to filter
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.Query == "" {
 		http.Error(w, "Query is required", http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.Limit <= 0 || req.Limit > 100 {
 		req.Limit = 20
 	}
-	
+
 	// If Qdrant is available, use vector search
 	if s.qdrantURL != "" {
 		// Generate embedding for query using Ollama (if available)
@@ -1139,7 +1145,7 @@ func (s *APIServer) semanticSearch(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	
+
 	// Fallback to PostgreSQL full-text search
 	s.searchPrompts(w, r)
 }
@@ -1149,42 +1155,42 @@ func (s *APIServer) generateEmbedding(text string) ([]float32, error) {
 	if s.ollamaURL == "" {
 		return nil, fmt.Errorf("Ollama not configured")
 	}
-	
+
 	payload := map[string]interface{}{
 		"model":  "nomic-embed-text",
 		"prompt": text,
 	}
-	
+
 	jsonData, _ := json.Marshal(payload)
 	resp, err := http.Post(s.ollamaURL+"/api/embeddings", "application/json", strings.NewReader(string(jsonData)))
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("embedding generation failed: %d", resp.StatusCode)
 	}
-	
+
 	var result struct {
 		Embedding []float32 `json:"embedding"`
 	}
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}
-	
+
 	return result.Embedding, nil
 }
 
 // searchQdrant searches the vector database for similar prompts
 func (s *APIServer) searchQdrant(embedding []float32, limit int, campaignFilter []string) ([]Prompt, error) {
 	payload := map[string]interface{}{
-		"vector": embedding,
-		"limit":  limit,
+		"vector":       embedding,
+		"limit":        limit,
 		"with_payload": true,
 	}
-	
+
 	// Add campaign filter if provided
 	if len(campaignFilter) > 0 {
 		payload["filter"] = map[string]interface{}{
@@ -1198,19 +1204,19 @@ func (s *APIServer) searchQdrant(embedding []float32, limit int, campaignFilter 
 			},
 		}
 	}
-	
+
 	jsonData, _ := json.Marshal(payload)
 	resp, err := http.Post(s.qdrantURL+"/collections/prompts/points/search", "application/json", strings.NewReader(string(jsonData)))
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("qdrant search failed: %d - %s", resp.StatusCode, string(body))
 	}
-	
+
 	var searchResult struct {
 		Result []struct {
 			ID      string                 `json:"id"`
@@ -1218,11 +1224,11 @@ func (s *APIServer) searchQdrant(embedding []float32, limit int, campaignFilter 
 			Payload map[string]interface{} `json:"payload"`
 		} `json:"result"`
 	}
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&searchResult); err != nil {
 		return nil, err
 	}
-	
+
 	// Convert Qdrant results to prompts
 	promptIDs := make([]string, 0, len(searchResult.Result))
 	for _, result := range searchResult.Result {
@@ -1230,11 +1236,11 @@ func (s *APIServer) searchQdrant(embedding []float32, limit int, campaignFilter 
 			promptIDs = append(promptIDs, id)
 		}
 	}
-	
+
 	if len(promptIDs) == 0 {
 		return []Prompt{}, nil
 	}
-	
+
 	// Fetch full prompt details from PostgreSQL
 	query := `
 		SELECT p.id, p.campaign_id, p.title, p.content, p.description, 
@@ -1246,13 +1252,13 @@ func (s *APIServer) searchQdrant(embedding []float32, limit int, campaignFilter 
 		LEFT JOIN campaigns c ON p.campaign_id = c.id
 		WHERE p.id = ANY($1::uuid[])
 		ORDER BY array_position($1::uuid[], p.id::uuid)`
-	
+
 	rows, err := s.db.Query(query, "{"+strings.Join(promptIDs, ",")+"}")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var prompts []Prompt
 	for rows.Next() {
 		prompt, err := s.scanPrompt(rows)
@@ -1261,7 +1267,7 @@ func (s *APIServer) searchQdrant(embedding []float32, limit int, campaignFilter 
 		}
 		prompts = append(prompts, prompt)
 	}
-	
+
 	return prompts, nil
 }
 
@@ -1284,10 +1290,10 @@ func (s *APIServer) testPrompt(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Prompt testing is not available (Ollama not configured)", http.StatusServiceUnavailable)
 		return
 	}
-	
+
 	vars := mux.Vars(r)
 	promptID := vars["id"]
-	
+
 	// Fetch the prompt
 	query := `
 		SELECT p.id, p.campaign_id, p.title, p.content, p.description, 
@@ -1298,7 +1304,7 @@ func (s *APIServer) testPrompt(w http.ResponseWriter, r *http.Request) {
 		FROM prompts p
 		LEFT JOIN campaigns c ON p.campaign_id = c.id
 		WHERE p.id = $1`
-	
+
 	row := s.db.QueryRow(query, promptID)
 	prompt, err := s.scanPrompt(row)
 	if err == sql.ErrNoRows {
@@ -1308,14 +1314,14 @@ func (s *APIServer) testPrompt(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Parse test request
 	var req TestPromptRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	// Default model and parameters
 	if req.Model == "" {
 		req.Model = "llama3.2"
@@ -1328,27 +1334,27 @@ func (s *APIServer) testPrompt(w http.ResponseWriter, r *http.Request) {
 		temp := 0.7
 		req.Temperature = &temp
 	}
-	
+
 	// Replace variables in prompt content
 	finalContent := prompt.Content
 	for key, value := range req.Variables {
 		placeholder := fmt.Sprintf("{{%s}}", key)
 		finalContent = strings.ReplaceAll(finalContent, placeholder, value)
 	}
-	
+
 	// Call Ollama API
 	startTime := time.Now()
-	
+
 	payload := map[string]interface{}{
-		"model":       req.Model,
-		"prompt":      finalContent,
-		"stream":      false,
+		"model":  req.Model,
+		"prompt": finalContent,
+		"stream": false,
 		"options": map[string]interface{}{
 			"num_predict": *req.MaxTokens,
 			"temperature": *req.Temperature,
 		},
 	}
-	
+
 	jsonData, _ := json.Marshal(payload)
 	resp, err := http.Post(s.ollamaURL+"/api/generate", "application/json", bytes.NewReader(jsonData))
 	if err != nil {
@@ -1356,32 +1362,32 @@ func (s *APIServer) testPrompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		http.Error(w, fmt.Sprintf("Ollama error: %s", string(body)), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Parse Ollama response
 	var ollamaResp struct {
-		Model              string `json:"model"`
-		Response           string `json:"response"`
-		Done               bool   `json:"done"`
-		TotalDuration      int64  `json:"total_duration"`
-		LoadDuration       int64  `json:"load_duration"`
-		PromptEvalCount    int    `json:"prompt_eval_count"`
-		EvalCount          int    `json:"eval_count"`
-		EvalDuration       int64  `json:"eval_duration"`
+		Model           string `json:"model"`
+		Response        string `json:"response"`
+		Done            bool   `json:"done"`
+		TotalDuration   int64  `json:"total_duration"`
+		LoadDuration    int64  `json:"load_duration"`
+		PromptEvalCount int    `json:"prompt_eval_count"`
+		EvalCount       int    `json:"eval_count"`
+		EvalDuration    int64  `json:"eval_duration"`
 	}
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to parse Ollama response: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	responseTime := time.Since(startTime).Milliseconds()
-	
+
 	// Store test result in database
 	testResult := TestResult{
 		ID:           uuid.New().String(),
@@ -1392,28 +1398,28 @@ func (s *APIServer) testPrompt(w http.ResponseWriter, r *http.Request) {
 		TokenCount:   &ollamaResp.EvalCount,
 		TestedAt:     time.Now(),
 	}
-	
+
 	if len(req.Variables) > 0 {
 		varsJSON, _ := json.Marshal(req.Variables)
 		varsStr := string(varsJSON)
 		testResult.InputVars = &varsStr
 	}
-	
+
 	// Insert test result
 	insertQuery := `
 		INSERT INTO test_results (id, prompt_id, model, input_variables, response, 
 		                         response_time, token_count, tested_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	
+
 	_, err = s.db.Exec(insertQuery,
 		testResult.ID, testResult.PromptID, testResult.Model, testResult.InputVars,
 		testResult.Response, testResult.ResponseTime, testResult.TokenCount, testResult.TestedAt,
 	)
-	
+
 	if err != nil {
 		log.Printf("Failed to save test result: %v", err)
 	}
-	
+
 	// Return test result
 	response := map[string]interface{}{
 		"test_id":       testResult.ID,
@@ -1425,7 +1431,7 @@ func (s *APIServer) testPrompt(w http.ResponseWriter, r *http.Request) {
 		"variables":     req.Variables,
 		"tested_at":     testResult.TestedAt,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -1476,19 +1482,19 @@ func (s *APIServer) getTemplate(w http.ResponseWriter, r *http.Request) {
 
 // Export/Import functionality
 type ExportData struct {
-	Version    string      `json:"version"`
-	ExportedAt time.Time   `json:"exported_at"`
-	Campaigns  []Campaign  `json:"campaigns"`
-	Prompts    []Prompt    `json:"prompts"`
-	Tags       []Tag       `json:"tags"`
-	Templates  []Template  `json:"templates,omitempty"`
+	Version    string     `json:"version"`
+	ExportedAt time.Time  `json:"exported_at"`
+	Campaigns  []Campaign `json:"campaigns"`
+	Prompts    []Prompt   `json:"prompts"`
+	Tags       []Tag      `json:"tags"`
+	Templates  []Template `json:"templates,omitempty"`
 }
 
 func (s *APIServer) exportData(w http.ResponseWriter, r *http.Request) {
 	// Get filter parameters
 	campaignID := r.URL.Query().Get("campaign_id")
 	includeArchived := r.URL.Query().Get("include_archived") == "true"
-	
+
 	export := ExportData{
 		Version:    "1.0",
 		ExportedAt: time.Now(),
@@ -1497,30 +1503,30 @@ func (s *APIServer) exportData(w http.ResponseWriter, r *http.Request) {
 		Tags:       []Tag{},
 		Templates:  []Template{},
 	}
-	
+
 	// Export campaigns
 	// Note: icon column may not exist in older databases, so we handle it gracefully
 	campaignQuery := `SELECT id, name, description, color, parent_id, sort_order, 
 		is_favorite, prompt_count, last_used, created_at, updated_at FROM campaigns`
 	args := []interface{}{}
-	
+
 	if campaignID != "" {
 		campaignQuery += " WHERE id = $1"
 		args = append(args, campaignID)
 	}
-	
+
 	rows, err := s.db.Query(campaignQuery, args...)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var c Campaign
 		c.Icon = "folder" // Default icon value
 		err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.Color,
-			&c.ParentID, &c.SortOrder, &c.IsFavorite, &c.PromptCount, 
+			&c.ParentID, &c.SortOrder, &c.IsFavorite, &c.PromptCount,
 			&c.LastUsed, &c.CreatedAt, &c.UpdatedAt)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -1528,36 +1534,36 @@ func (s *APIServer) exportData(w http.ResponseWriter, r *http.Request) {
 		}
 		export.Campaigns = append(export.Campaigns, c)
 	}
-	
+
 	// Export prompts
 	promptQuery := `SELECT id, campaign_id, title, content, description, variables, 
 		usage_count, last_used, is_favorite, is_archived, quick_access_key, 
 		version, parent_version_id, word_count, estimated_tokens, 
 		effectiveness_rating, notes, created_at, updated_at 
 		FROM prompts WHERE 1=1`
-	
+
 	if campaignID != "" {
 		promptQuery += " AND campaign_id = $1"
 		args = []interface{}{campaignID}
 	} else {
 		args = []interface{}{}
 	}
-	
+
 	if !includeArchived {
 		promptQuery += " AND is_archived = false"
 	}
-	
+
 	rows, err = s.db.Query(promptQuery, args...)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var p Prompt
 		var varsJSON string
-		err := rows.Scan(&p.ID, &p.CampaignID, &p.Title, &p.Content, &p.Description, 
+		err := rows.Scan(&p.ID, &p.CampaignID, &p.Title, &p.Content, &p.Description,
 			&varsJSON, &p.UsageCount, &p.LastUsed, &p.IsFavorite, &p.IsArchived,
 			&p.QuickAccessKey, &p.Version, &p.ParentVersionID, &p.WordCount,
 			&p.EstimatedTokens, &p.EffectivenessRating, &p.Notes, &p.CreatedAt, &p.UpdatedAt)
@@ -1565,12 +1571,12 @@ func (s *APIServer) exportData(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		
+
 		// Parse variables JSON
 		if varsJSON != "" {
 			json.Unmarshal([]byte(varsJSON), &p.Variables)
 		}
-		
+
 		// Get tags for this prompt
 		tagRows, err := s.db.Query(`
 			SELECT t.name FROM tags t 
@@ -1586,10 +1592,10 @@ func (s *APIServer) exportData(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		
+
 		export.Prompts = append(export.Prompts, p)
 	}
-	
+
 	// Export all tags
 	tagRows, err := s.db.Query(`SELECT id, name, color, description FROM tags`)
 	if err == nil {
@@ -1601,12 +1607,12 @@ func (s *APIServer) exportData(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	
+
 	// Set response headers for file download
 	fileName := fmt.Sprintf("prompt-manager-export-%s.json", time.Now().Format("2006-01-02"))
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
-	
+
 	json.NewEncoder(w).Encode(export)
 }
 
@@ -1616,15 +1622,15 @@ func (s *APIServer) importData(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid import data format", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Track what was imported
 	result := map[string]interface{}{
 		"campaigns_imported": 0,
 		"prompts_imported":   0,
 		"tags_imported":      0,
-		"errors":            []string{},
+		"errors":             []string{},
 	}
-	
+
 	// Start a transaction
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -1632,14 +1638,14 @@ func (s *APIServer) importData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	
+
 	// Import campaigns (maintaining parent-child relationships)
 	campaignIDMap := make(map[string]string) // old ID -> new ID mapping
-	
+
 	for _, campaign := range importData.Campaigns {
 		newID := uuid.New().String()
 		campaignIDMap[campaign.ID] = newID
-		
+
 		// Handle parent_id mapping
 		var parentID *string
 		if campaign.ParentID != nil && *campaign.ParentID != "" {
@@ -1647,56 +1653,56 @@ func (s *APIServer) importData(w http.ResponseWriter, r *http.Request) {
 				parentID = &newParentID
 			}
 		}
-		
+
 		_, err := tx.Exec(`
 			INSERT INTO campaigns (id, name, description, color, parent_id, 
 				sort_order, is_favorite, created_at, updated_at) 
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			ON CONFLICT (id) DO NOTHING`,
 			newID, campaign.Name, campaign.Description, campaign.Color,
-			parentID, campaign.SortOrder, campaign.IsFavorite, 
+			parentID, campaign.SortOrder, campaign.IsFavorite,
 			time.Now(), time.Now())
-		
+
 		if err != nil {
-			result["errors"] = append(result["errors"].([]string), 
+			result["errors"] = append(result["errors"].([]string),
 				fmt.Sprintf("Failed to import campaign %s: %v", campaign.Name, err))
 			continue
 		}
 		result["campaigns_imported"] = result["campaigns_imported"].(int) + 1
 	}
-	
+
 	// Import tags
 	tagIDMap := make(map[string]string)
 	for _, tag := range importData.Tags {
 		newID := uuid.New().String()
 		tagIDMap[tag.ID] = newID
-		
+
 		_, err := tx.Exec(`
 			INSERT INTO tags (id, name, color, description) 
 			VALUES ($1, $2, $3, $4)
 			ON CONFLICT (name) DO NOTHING`,
 			newID, tag.Name, tag.Color, tag.Description)
-		
+
 		if err != nil {
-			result["errors"] = append(result["errors"].([]string), 
+			result["errors"] = append(result["errors"].([]string),
 				fmt.Sprintf("Failed to import tag %s: %v", tag.Name, err))
 			continue
 		}
 		result["tags_imported"] = result["tags_imported"].(int) + 1
 	}
-	
+
 	// Import prompts
 	for _, prompt := range importData.Prompts {
 		newID := uuid.New().String()
-		
+
 		// Map campaign ID
 		campaignID := prompt.CampaignID
 		if newCampaignID, exists := campaignIDMap[prompt.CampaignID]; exists {
 			campaignID = newCampaignID
 		}
-		
+
 		varsJSON, _ := json.Marshal(prompt.Variables)
-		
+
 		_, err := tx.Exec(`
 			INSERT INTO prompts (id, campaign_id, title, content, description, 
 				variables, usage_count, last_used, is_favorite, is_archived, 
@@ -1707,13 +1713,13 @@ func (s *APIServer) importData(w http.ResponseWriter, r *http.Request) {
 			string(varsJSON), 0, nil, prompt.IsFavorite, prompt.IsArchived,
 			nil, 1, prompt.WordCount, prompt.EstimatedTokens,
 			prompt.EffectivenessRating, prompt.Notes, time.Now(), time.Now())
-		
+
 		if err != nil {
-			result["errors"] = append(result["errors"].([]string), 
+			result["errors"] = append(result["errors"].([]string),
 				fmt.Sprintf("Failed to import prompt %s: %v", prompt.Title, err))
 			continue
 		}
-		
+
 		// Link tags to prompt
 		for _, tagName := range prompt.Tags {
 			var tagID string
@@ -1722,16 +1728,16 @@ func (s *APIServer) importData(w http.ResponseWriter, r *http.Request) {
 				tx.Exec("INSERT INTO prompt_tags (prompt_id, tag_id) VALUES ($1, $2)", newID, tagID)
 			}
 		}
-		
+
 		result["prompts_imported"] = result["prompts_imported"].(int) + 1
 	}
-	
+
 	// Commit transaction
 	if err := tx.Commit(); err != nil {
 		http.Error(w, "Failed to commit import: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }

@@ -7,11 +7,12 @@ import (
     "fmt"
     "log"
     "math"
+    "math/rand"
     "net/http"
     "os"
     "strings"
     "time"
-    
+
     "github.com/gorilla/mux"
     "github.com/lib/pq"
     _ "github.com/lib/pq"
@@ -106,9 +107,9 @@ func initDB() error {
             float64(maxDelay),
         ))
         
-        // Add jitter to prevent thundering herd (0-25% additional delay)
-        jitterFactor := math.Min(float64(attempt)/float64(maxRetries), 0.25)
-        jitter := time.Duration(float64(delay) * jitterFactor)
+        // Add random jitter to prevent thundering herd (0-25% additional delay)
+        jitterRange := float64(delay) * 0.25
+        jitter := time.Duration(jitterRange * rand.Float64())
         actualDelay := delay + jitter
         
         log.Printf("⚠️  Database connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
@@ -295,8 +296,8 @@ func createMindMapHandler(w http.ResponseWriter, r *http.Request) {
     
     // Trigger auto-organization in background
     go func() {
-        ctx := context.WithTimeout(context.Background(), 30*time.Second)
-        defer ctx.Done()
+        ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+        defer cancel()
         
         req := OrganizeRequest{
             MindMapID: id,
@@ -774,8 +775,9 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
     // Try semantic search if requested
     if searchMode == "semantic" {
         log.Printf("Attempting semantic search for query: %s", query)
-        
-        ctx := context.WithTimeout(context.Background(), 10*time.Second)
+
+        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
         searchReq := SemanticSearchRequest{
             Query:      query,
             Collection: "mind_maps",

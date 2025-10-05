@@ -15,11 +15,16 @@ import (
 	"github.com/google/uuid"
 )
 
+// OllamaGenerator interface for AI generation
+type OllamaGenerator interface {
+	Generate(prompt, model string) (string, error)
+}
+
 // ROIAnalysisEngine orchestrates all ROI analysis workflows
 type ROIAnalysisEngine struct {
 	db           *sql.DB
 	httpClient   *http.Client
-	ollamaClient *OllamaClient
+	ollamaClient OllamaGenerator
 	ctx          context.Context
 	cancel       context.CancelFunc
 }
@@ -468,36 +473,44 @@ Return as JSON: {"overall_rating": "", "investment_advice": "", "key_success_fac
 // Database operations
 
 func (engine *ROIAnalysisEngine) storeAnalysisRequest(analysisID string, req *ComprehensiveAnalysisRequest) error {
+	if engine.db == nil {
+		return nil // Skip database storage if not available
+	}
+
 	reqJSON, _ := json.Marshal(req)
-	
+
 	query := `
-		INSERT INTO roi_analyses (id, idea, budget, timeline, skills, market_focus, 
+		INSERT INTO roi_analyses (id, idea, budget, timeline, skills, market_focus,
 		                         location, risk_tolerance, industry, request_data, status, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'processing', NOW())
 	`
-	
+
 	skillsJSON, _ := json.Marshal(req.Skills)
-	_, err := engine.db.Exec(query, analysisID, req.Idea, req.Budget, req.Timeline, 
+	_, err := engine.db.Exec(query, analysisID, req.Idea, req.Budget, req.Timeline,
 		skillsJSON, req.MarketFocus, req.Location, req.RiskTolerance, req.Industry, reqJSON)
-	
+
 	return err
 }
 
 func (engine *ROIAnalysisEngine) storeAnalysisResult(response *ComprehensiveAnalysisResponse) {
+	if engine.db == nil {
+		return // Skip database storage if not available
+	}
+
 	resultJSON, _ := json.Marshal(response)
 	status := "completed"
 	if !response.Success {
 		status = "failed"
 	}
-	
+
 	query := `
-		UPDATE roi_analyses 
+		UPDATE roi_analyses
 		SET result_data = $2, status = $3, execution_time_ms = $4,
 		    success = $5, error_message = $6, completed_at = NOW()
 		WHERE id = $1
 	`
-	
-	engine.db.Exec(query, response.AnalysisID, resultJSON, status, 
+
+	engine.db.Exec(query, response.AnalysisID, resultJSON, status,
 		response.ExecutionTime, response.Success, response.Error)
 }
 

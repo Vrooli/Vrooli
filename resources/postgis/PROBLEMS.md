@@ -4,9 +4,18 @@
 
 None - All major issues resolved!
 
-## Recent Improvements (2025-09-30)
+## Recent Improvements (2025-10-03)
 
 ### Code Quality Enhancements
+- Fixed shellcheck SC2155 warnings across all test files by separating variable declarations from command substitution assignments
+  - `test/phases/test-smoke.sh`: Fixed 2 instances (version, result)
+  - `test/phases/test-unit.sh`: Fixed 2 instances (startup_order, dependencies)
+  - `test/phases/test-integration.sh`: Fixed 7 instances (distance, explain_result, table_exists, area, intersects, start_time, end_time)
+- Fixed shellcheck SC2015 warning in `cli.sh` by replacing `&&`/`||` pattern with proper if-then-else
+- Added shellcheck disable directive for SC2034 (CLI_COMMAND_HANDLERS used by framework)
+- All test phases verified passing after code quality improvements
+
+### Previous Improvements (2025-09-30)
 - Fixed shellcheck warnings in `lib/geocoding.sh` - separated variable declarations from assignments to avoid masking return values (SC2155)
 - Fixed shellcheck warning in `lib/common.sh` - separated container_path declaration from assignment
 

@@ -17,17 +17,19 @@
 **Solution**: Added detailed error responses with specific codes and troubleshooting hints
 **Status**: ✅ Fixed
 
-### 4. Hardware Acceleration Detection
+### 4. Hardware Acceleration Detection (FIXED)
 **Issue**: GPU detection sometimes fails on certain NVIDIA driver versions
-**Workaround**: Set `FFMPEG_HW_ACCEL=none` to disable hardware acceleration
-**Priority**: P2
-**Status**: 🔄 Pending
+**Solution**: Enhanced detection now verifies NVENC encoder is available in FFmpeg, provides clear warnings and hints when GPU detected but encoder unavailable
+**Status**: ✅ Fixed
 
-### 5. Large File Processing Timeouts
+### 5. Large File Processing Timeouts (FIXED)
 **Issue**: Processing files >1GB may timeout with default 3600s limit
-**Workaround**: Set `FFMPEG_TIMEOUT=7200` for 2-hour timeout
-**Priority**: P2
-**Status**: 🔄 Pending
+**Solution**: Implemented automatic timeout calculation based on file size:
+- Files < 1GB: 1 hour timeout (default)
+- Files > 1GB: Additional 30 minutes per GB
+- Maximum: 4 hours
+- Provides clear timeout error messages with hints for manual adjustment
+**Status**: ✅ Fixed
 
 ### 6. Memory Usage with Batch Processing (FIXED)
 **Issue**: Batch processing doesn't limit concurrent jobs, can exhaust memory
@@ -40,6 +42,14 @@
 **Status**: ✅ Fixed
 
 ## Resolved Issues
+
+### Hardware Acceleration and Timeout Improvements (2025-10-03)
+- Enhanced NVENC detection to verify encoder availability in FFmpeg
+- Added helpful warnings when GPU detected but encoder unavailable
+- Implemented automatic timeout calculation based on file size
+- Added progress monitoring with elapsed time and timeout display
+- Better error messages for timeout failures with adjustment hints
+- Improved test cleanup to prevent lingering processes
 
 ### Port Configuration (2025-09-17)
 - Changed web interface default port from 8080 to 8098 to avoid conflicts

@@ -24,11 +24,16 @@ Data-structurer eliminates the "data preparation bottleneck" that limits AI appl
 # Install and start the scenario
 vrooli scenario run data-structurer
 
-# Install CLI globally  
+# Install CLI globally
 cd cli && ./install.sh
+
+# Set environment variable for CLI (if multiple scenarios running)
+export DATA_STRUCTURER_API_PORT=15774
 ```
 
 ### Basic Usage
+
+> **Note**: If running multiple scenarios, set `export DATA_STRUCTURER_API_PORT=15774` to ensure CLI connects to the correct service.
 
 1. **Create a Schema**
 ```bash

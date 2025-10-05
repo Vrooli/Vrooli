@@ -21,8 +21,8 @@ else
   exit 1
 fi
 
-# Check required files
-required_files=(".vrooli/service.json" "api/go.mod" "ui/package.json" "cli/go.mod")
+# Check required files (customized for vrooli-assistant structure)
+required_files=(".vrooli/service.json" "api/go.mod" "ui/electron/package.json" "cli/vrooli-assistant")
 missing_files=()
 for file in "${required_files[@]}"; do
   if [ ! -f "$SCENARIO_DIR/$file" ]; then

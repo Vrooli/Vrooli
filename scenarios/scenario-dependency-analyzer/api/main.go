@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -119,13 +120,10 @@ type Config struct {
 func loadConfig() Config {
 	godotenv.Load()
 	
-	// Port configuration - use API_PORT standard or specific variable
+	// Port configuration - use standard API_PORT
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = os.Getenv("DEPENDENCY_ANALYZER_API_PORT")
-	}
-	if port == "" {
-		log.Fatal("❌ API_PORT or DEPENDENCY_ANALYZER_API_PORT environment variable is required")
+		log.Fatal("❌ API_PORT environment variable is required")
 	}
 	
 	// Database configuration - support both DATABASE_URL and individual components
@@ -195,9 +193,9 @@ func initDatabase(dbURL string) error {
 			float64(maxDelay),
 		))
 		
-		// Add progressive jitter to prevent thundering herd
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(rand.Float64() * jitterRange)
 		actualDelay := delay + jitter
 		
 		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)

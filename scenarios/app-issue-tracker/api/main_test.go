@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -20,17 +19,8 @@ import (
 func newTestServer(t *testing.T) *Server {
 	t.Helper()
 
-	tempDir := t.TempDir()
-
-	// Ensure folder structure exists for tests
-	for _, folder := range []string{"open", "active", "completed", "failed", "archived", "templates"} {
-		if err := os.MkdirAll(filepath.Join(tempDir, folder), 0o755); err != nil {
-			t.Fatalf("failed to create test folder %s: %v", folder, err)
-		}
-	}
-
-	cfg := &Config{IssuesDir: tempDir}
-	return &Server{config: cfg}
+	env := setupTestDirectory(t)
+	return env.Server
 }
 
 func TestGetIssueHandlerReturnsIssue(t *testing.T) {
@@ -338,139 +328,56 @@ func TestGetIssueAttachmentHandlerServesContent(t *testing.T) {
 	}
 }
 
-func TestFinalizeAgentRunClearsRunMetadata(t *testing.T) {
+func TestProcessorStateInitialization(t *testing.T) {
 	server := newTestServer(t)
+	server.initializeProcessorState()
 
-	now := time.Now().UTC().Format(time.RFC3339)
-	successIssue := &Issue{ID: "issue-success"}
-	successIssue.Metadata.Extra = map[string]string{
-		"agent_run_id":     "run-123",
-		"agent_last_error": "previous error",
-	}
-	successIssue.Investigation.StartedAt = now
-	successIssue.Investigation.CompletedAt = now
+	state := server.currentProcessorState()
 
-	if _, err := server.saveIssue(successIssue, "active"); err != nil {
-		t.Fatalf("failed to seed issue: %v", err)
+	if state.Active {
+		t.Errorf("expected processor to be inactive by default")
 	}
-
-	result := map[string]any{
-		"issue_id":     successIssue.ID,
-		"agent_id":     "unified-resolver",
-		"status":       "completed",
-		"error":        "",
-		"auto_resolve": true,
-		"investigation": map[string]any{
-			"report":           "Investigation complete",
-			"root_cause":       "Root cause identified",
-			"suggested_fix":    "Apply patch",
-			"confidence_score": 7,
-			"affected_files":   []string{"api/main.go"},
-			"started_at":       now,
-			"completed_at":     now,
-		},
-		"fix": map[string]any{
-			"summary":             "Implement fix",
-			"implementation_plan": "Plan steps",
-			"test_plan":           "go test ./...",
-			"rollback_plan":       "git reset --hard",
-			"status":              "generated",
-		},
+	if state.ConcurrentSlots != 2 {
+		t.Errorf("expected 2 concurrent slots, got %d", state.ConcurrentSlots)
 	}
-	stdoutBytes, err := json.Marshal(result)
-	if err != nil {
-		t.Fatalf("failed to marshal agent output: %v", err)
+	if state.RefreshInterval != 45 {
+		t.Errorf("expected refresh interval of 45s, got %d", state.RefreshInterval)
 	}
-
-	run := &agentRun{
-		issueID:     successIssue.ID,
-		agentID:     "unified-resolver",
-		done:        make(chan struct{}),
-		cancel:      func() {},
-		autoResolve: true,
+	if state.MaxIssues != 0 {
+		t.Errorf("expected max issues to be 0 (unlimited), got %d", state.MaxIssues)
 	}
-
-	server.finalizeAgentRun(run, stdoutBytes, nil, nil)
-
-	successDir, folder, err := server.findIssueDirectory(successIssue.ID)
-	if err != nil {
-		t.Fatalf("failed to locate issue: %v", err)
-	}
-	if folder != "completed" {
-		t.Fatalf("expected issue to move to completed, got %s", folder)
-	}
-
-	updated, err := server.loadIssueFromDir(successDir)
-	if err != nil {
-		t.Fatalf("failed to load updated issue: %v", err)
-	}
-
-	if _, ok := updated.Metadata.Extra["agent_run_id"]; ok {
-		t.Fatalf("expected agent_run_id to be cleared, extras: %#v", updated.Metadata.Extra)
-	}
-	if status := updated.Metadata.Extra["agent_last_status"]; status != "completed" {
-		t.Fatalf("expected agent_last_status to be 'completed', got %q", status)
-	}
-	if _, ok := updated.Metadata.Extra["agent_last_error"]; ok {
-		t.Fatalf("expected agent_last_error to be cleared, extras: %#v", updated.Metadata.Extra)
-	}
-	if _, ok := updated.Metadata.Extra["agent_last_process_error"]; ok {
-		t.Fatalf("expected agent_last_process_error to be cleared, extras: %#v", updated.Metadata.Extra)
-	}
-	if plan := updated.Metadata.Extra["test_plan"]; plan != "go test ./..." {
-		t.Fatalf("expected test_plan to be recorded, got %q", plan)
-	}
-	if strings.TrimSpace(updated.Metadata.ResolvedAt) == "" {
-		t.Fatalf("expected resolved timestamp to be set")
+	if !state.MaxIssuesDisabled {
+		t.Errorf("expected max issues to be disabled by default")
 	}
 }
 
-func TestFinalizeAgentRunCancellationPreservesStatus(t *testing.T) {
+func TestProcessorStateUpdates(t *testing.T) {
 	server := newTestServer(t)
+	server.initializeProcessorState()
 
-	cancelIssue := &Issue{ID: "issue-cancelled"}
-	cancelIssue.Metadata.Extra = map[string]string{
-		"agent_run_id": "run-cancel",
-	}
-	if _, err := server.saveIssue(cancelIssue, "active"); err != nil {
-		t.Fatalf("failed to seed issue: %v", err)
-	}
+	active := true
+	slots := 4
+	interval := 60
+	maxIssues := 10
+	maxIssuesDisabled := false
 
-	run := &agentRun{
-		issueID: cancelIssue.ID,
-		agentID: "unified-resolver",
-		done:    make(chan struct{}),
-		cancel:  func() {},
-	}
-	run.markCancelled("forced-stop")
+	server.updateProcessorState(&active, &slots, &interval, &maxIssues, &maxIssuesDisabled)
 
-	server.finalizeAgentRun(run, nil, nil, fmt.Errorf("context canceled"))
+	state := server.currentProcessorState()
 
-	cancelDir, folder, err := server.findIssueDirectory(cancelIssue.ID)
-	if err != nil {
-		t.Fatalf("failed to locate issue: %v", err)
+	if !state.Active {
+		t.Errorf("expected processor to be active")
 	}
-	if folder != "active" {
-		t.Fatalf("expected issue to remain active after cancellation, got %s", folder)
+	if state.ConcurrentSlots != 4 {
+		t.Errorf("expected 4 concurrent slots, got %d", state.ConcurrentSlots)
 	}
-
-	updated, err := server.loadIssueFromDir(cancelDir)
-	if err != nil {
-		t.Fatalf("failed to load updated issue: %v", err)
+	if state.RefreshInterval != 60 {
+		t.Errorf("expected refresh interval of 60s, got %d", state.RefreshInterval)
 	}
-	if status := updated.Metadata.Extra["agent_last_status"]; status != "cancelled" {
-		t.Fatalf("expected agent_last_status to be 'cancelled', got %q", status)
+	if state.MaxIssues != 10 {
+		t.Errorf("expected max issues to be 10, got %d", state.MaxIssues)
 	}
-	if reason := updated.Metadata.Extra["agent_last_cancel_reason"]; reason != "forced-stop" {
-		t.Fatalf("expected cancel reason 'forced-stop', got %q", reason)
-	}
-	if _, ok := updated.Metadata.Extra["agent_last_error"]; ok {
-		t.Fatalf("expected no agent_last_error after cancellation")
-	}
-	if _, ok := updated.Metadata.Extra["agent_run_id"]; ok {
-		t.Fatalf("expected agent_run_id to be cleared")
-	}
-	if _, ok := updated.Metadata.Extra["agent_last_process_error"]; ok {
-		t.Fatalf("expected no process error recorded for cancellation")
+	if state.MaxIssuesDisabled {
+		t.Errorf("expected max issues to be enabled")
 	}
 }

@@ -8,6 +8,7 @@ import (
     "io"
     "log"
     "math"
+    "math/rand"
     "net/http"
     "os"
     "strings"
@@ -87,7 +88,9 @@ type UserProgress struct {
 }
 
 func initDB() {
-    godotenv.Load()
+    // Try to load .env from parent directory first (scenario root), then current directory
+    godotenv.Load("../.env")
+    godotenv.Load(".env")
     
     // All database configuration must come from environment variables - NO DEFAULTS
     dbHost := os.Getenv("POSTGRES_HOST")
@@ -150,9 +153,9 @@ func initDB() {
             float64(maxDelay),
         ))
         
-        // Add progressive jitter to prevent thundering herd
+        // Add random jitter to prevent thundering herd
         jitterRange := float64(delay) * 0.25
-        jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+        jitter := time.Duration(rand.Float64() * jitterRange)
         actualDelay := delay + jitter
         
         log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)

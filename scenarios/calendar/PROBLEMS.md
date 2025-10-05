@@ -23,10 +23,17 @@
 **Solution**: Added development bypass for "Bearer test" and "Bearer test-token" in authMiddleware
 **Files Modified**: `/api/main.go` lines 395-404
 
-### 3. Port Environment Variables Not Expanding (ACTIVE)
+### 3. Port Environment Variables Not Expanding (KNOWN LIMITATION)
 **Problem**: The service.json lifecycle commands show `${API_PORT}` and `${UI_PORT}` in output instead of actual port numbers
 **Impact**: Minor - services still run but URLs shown to users are incorrect
 **Workaround**: Check actual ports from logs or process inspection
+**Status**: Known limitation of lifecycle system variable expansion
+
+### 6. Auth Service Port Mismatch (RESOLVED - 2025-10-03)
+**Problem**: Calendar was configured to connect to auth service on port 15797, but it was running on port 15785
+**Solution**: Updated service.json AUTH_SERVICE_URL from port 15797 to 15785
+**Files Modified**: `.vrooli/service.json` line 164
+**Status**: RESOLVED - Auth service now shows "healthy" status
 
 ## Remaining Issues to Address
 

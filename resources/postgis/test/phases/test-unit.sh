@@ -113,8 +113,10 @@ test_runtime_config() {
     
     if [[ -f "$runtime_file" ]]; then
         # Check required fields
-        local startup_order=$(jq -r '.startup_order' "$runtime_file" 2>/dev/null)
-        local dependencies=$(jq -r '.dependencies[]' "$runtime_file" 2>/dev/null)
+        local startup_order
+        startup_order=$(jq -r '.startup_order' "$runtime_file" 2>/dev/null)
+        local dependencies
+        dependencies=$(jq -r '.dependencies[]' "$runtime_file" 2>/dev/null)
         
         if [[ -n "$startup_order" ]] && [[ "$dependencies" == *"postgres"* ]]; then
             test::pass "Runtime config valid (order: $startup_order)"

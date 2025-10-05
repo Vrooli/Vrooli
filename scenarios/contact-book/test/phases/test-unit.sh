@@ -1,40 +1,21 @@
 #!/bin/bash
 
-set -e
+# Integration with centralized testing infrastructure
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "=== Unit Tests ==="
+testing::phase::init --target-time "60s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-# Test Go build
-echo "Testing Go API build..."
-if [ -d "api" ] && [ -f "api/go.mod" ]; then
-    cd api
-    # Build all Go files together since main.go references other files
-    if go build -o /dev/null *.go 2>/dev/null; then
-        echo "✅ Go API builds successfully"
-    else
-        echo "❌ Go API build failed"
-        exit 1
-    fi
-    cd ..
-else
-    echo "⚠️  No Go API found, skipping"
-fi
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-# Test CLI build
-echo "Testing CLI build..."
-if [ -f "cli/contact-book" ]; then
-    echo "✅ CLI binary exists"
-elif [ -d "cli" ] && [ -f "cli/go.mod" ]; then
-    cd cli
-    if go build -o /dev/null main.go 2>/dev/null; then
-        echo "✅ CLI builds successfully"
-    else
-        echo "❌ CLI build failed"
-        exit 1
-    fi
-    cd ..
-else
-    echo "⚠️  No CLI found, skipping"
-fi
+# Run Go unit tests with coverage
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50
 
-echo "✅ All unit tests passed"
+testing::phase::end_with_summary "Unit tests completed"

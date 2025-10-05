@@ -666,6 +666,15 @@ tests:
 
 ## 📈 Improvement History
 
+### 2025-10-03: Algorithm Implementations Expansion and Documentation Updates
+- **Added**: 5 new algorithm implementations across Python and JavaScript
+- **Implementations Added**: insertion_sort (Python, JavaScript), selection_sort (Python, JavaScript), heapsort (Python)
+- **Database Growth**: Implementations increased from 16 to 21 (31% increase)
+- **Test Coverage**: Test cases increased from 48 to 63 (15 new test cases for 3 algorithms)
+- **Fixed**: Documentation port inconsistencies in README (updated to reflect actual ports 16796 API, 3252 UI)
+- **Verified**: All 5/5 tests passing, API response times <200ms maintained
+- **Result**: Enhanced library coverage with fundamental sorting algorithms now fully implemented
+
 ### 2025-09-27: P2 Requirements Implementation - Visualization and Performance Tracking
 - **Added**: Algorithm visualization animations component (AlgorithmVisualizer.jsx)
 - **Implemented**: Interactive step-by-step visualizer for sorting algorithms (Bubble Sort, Quick Sort, Merge Sort)

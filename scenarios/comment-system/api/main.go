@@ -15,7 +15,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
@@ -645,7 +644,7 @@ func (app *App) createComment(c *gin.Context) {
 
 func (app *App) updateComment(c *gin.Context) {
 	commentIDStr := c.Param("id")
-	commentID, err := uuid.Parse(commentIDStr)
+	_, err := uuid.Parse(commentIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid comment ID"})
 		return
@@ -658,7 +657,7 @@ func (app *App) updateComment(c *gin.Context) {
 	}
 
 	// Validate user authentication and ownership
-	userInfo, err := app.sessionAuth.ValidateToken(req.AuthorToken)
+	_, err = app.sessionAuth.ValidateToken(req.AuthorToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
@@ -675,14 +674,13 @@ func (app *App) updateComment(c *gin.Context) {
 
 func (app *App) deleteComment(c *gin.Context) {
 	commentIDStr := c.Param("id")
-	commentID, err := uuid.Parse(commentIDStr)
+	_, err := uuid.Parse(commentIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid comment ID"})
 		return
 	}
 
 	// TODO: Implement comment deletion (soft delete)
-	_ = commentID
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -722,14 +720,13 @@ func (app *App) getStats(c *gin.Context) {
 
 func (app *App) moderateComment(c *gin.Context) {
 	commentIDStr := c.Param("id")
-	commentID, err := uuid.Parse(commentIDStr)
+	_, err := uuid.Parse(commentIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid comment ID"})
 		return
 	}
 
 	// TODO: Implement comment moderation
-	_ = commentID
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

@@ -212,7 +212,7 @@ func (bm *BackupManager) BackupFiles(jobID string, targetPath string) error {
 
 	timestamp := time.Now().Format("20060102_150405")
 	backupFile := filepath.Join(bm.backupPath, "files", fmt.Sprintf("%s_%s.tar.gz", jobID, timestamp))
-	
+
 	// Create files backup directory
 	filesDir := filepath.Join(bm.backupPath, "files")
 	if err := os.MkdirAll(filesDir, 0755); err != nil {
@@ -236,7 +236,70 @@ func (bm *BackupManager) BackupFiles(jobID string, targetPath string) error {
 
 	log.Printf("File backup completed: %s", backupFile)
 	bm.updateJobStatus(jobID, "completed")
-	
+
+	return nil
+}
+
+// BackupMinIO performs MinIO object storage backup
+func (bm *BackupManager) BackupMinIO(jobID string) error {
+	bm.updateJobStatus(jobID, "running")
+
+	timestamp := time.Now().Format("20060102_150405")
+	backupDir := filepath.Join(bm.backupPath, "minio", fmt.Sprintf("%s_%s", jobID, timestamp))
+
+	// Create minio backup directory
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		bm.updateJobStatus(jobID, "failed")
+		return fmt.Errorf("failed to create minio backup directory: %w", err)
+	}
+
+	// Get MinIO configuration from environment
+	minioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	if minioEndpoint == "" {
+		minioEndpoint = "http://localhost:9000"
+	}
+	minioAccessKey := os.Getenv("MINIO_ACCESS_KEY")
+	if minioAccessKey == "" {
+		minioAccessKey = "minioadmin"
+	}
+	minioSecretKey := os.Getenv("MINIO_SECRET_KEY")
+	if minioSecretKey == "" {
+		minioSecretKey = "minioadmin"
+	}
+
+	// Configure mc (MinIO Client) alias
+	aliasCmd := exec.Command("mc", "alias", "set", "vrooli-backup",
+		minioEndpoint, minioAccessKey, minioSecretKey)
+	if output, err := aliasCmd.CombinedOutput(); err != nil {
+		log.Printf("mc alias setup failed: %s", string(output))
+		bm.updateJobStatus(jobID, "failed")
+		return fmt.Errorf("failed to configure MinIO client: %w", err)
+	}
+
+	// Mirror all buckets to backup directory
+	mirrorCmd := exec.Command("mc", "mirror", "vrooli-backup/", backupDir)
+	output, err := mirrorCmd.CombinedOutput()
+	if err != nil {
+		log.Printf("mc mirror failed: %s", string(output))
+		bm.updateJobStatus(jobID, "failed")
+		return fmt.Errorf("MinIO backup failed: %w", err)
+	}
+
+	// Create tar archive of the mirrored data
+	backupFile := backupDir + ".tar.gz"
+	tarCmd := exec.Command("tar", "-czf", backupFile, "-C", filepath.Dir(backupDir), filepath.Base(backupDir))
+	if output, err := tarCmd.CombinedOutput(); err != nil {
+		log.Printf("tar compression failed: %s", string(output))
+		// Continue - we have the uncompressed backup
+	} else {
+		// Remove uncompressed directory
+		os.RemoveAll(backupDir)
+		log.Printf("MinIO backup compressed: %s", backupFile)
+	}
+
+	log.Printf("MinIO backup completed: %s", backupFile)
+	bm.updateJobStatus(jobID, "completed")
+
 	return nil
 }
 
@@ -305,6 +368,10 @@ func (bm *BackupManager) RestorePostgres(backupID string) error {
 
 // updateJobStatus updates the status of a backup job in the database
 func (bm *BackupManager) updateJobStatus(jobID string, status string) {
+	if bm.db == nil {
+		return
+	}
+
 	var completedAt *time.Time
 	if status == "completed" || status == "failed" {
 		now := time.Now()
@@ -312,7 +379,7 @@ func (bm *BackupManager) updateJobStatus(jobID string, status string) {
 	}
 
 	query := `
-		UPDATE backup_jobs 
+		UPDATE backup_jobs
 		SET status = $1, completed_at = $2, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $3
 	`
@@ -347,17 +414,23 @@ func (bm *BackupManager) VerifyBackup(backupID string) (bool, error) {
 	}
 
 	// Record verification in database
-	query := `
-		INSERT INTO backup_verifications (backup_job_id, verification_type, status, verified_by)
-		VALUES ($1, 'checksum', 'passed', 'system')
-	`
-	_, _ = bm.db.Exec(query, backupID)
+	if bm.db != nil {
+		query := `
+			INSERT INTO backup_verifications (backup_job_id, verification_type, status, verified_by)
+			VALUES ($1, 'checksum', 'passed', 'system')
+		`
+		_, _ = bm.db.Exec(query, backupID)
+	}
 
 	return true, nil
 }
 
 // ScheduleBackup schedules a recurring backup
 func (bm *BackupManager) ScheduleBackup(name string, cronExpr string, backupType string, targets []string, retentionDays int) error {
+	if bm.db == nil {
+		return fmt.Errorf("database connection required for scheduling backups")
+	}
+
 	query := `
 		INSERT INTO backup_schedules (name, cron_expression, backup_type, targets, retention_days, enabled, created_by)
 		VALUES ($1, $2, $3, $4, $5, true, 'user')
@@ -368,7 +441,7 @@ func (bm *BackupManager) ScheduleBackup(name string, cronExpr string, backupType
 			retention_days = $5,
 			updated_at = CURRENT_TIMESTAMP
 	`
-	
+
 	_, err := bm.db.Exec(query, name, cronExpr, backupType, targets, retentionDays)
 	if err != nil {
 		return fmt.Errorf("failed to schedule backup: %w", err)
@@ -454,14 +527,18 @@ func (bm *BackupManager) ensureSchema() {
 
 // RunScheduledBackups executes all due scheduled backups
 func (bm *BackupManager) RunScheduledBackups() {
+	if bm.db == nil {
+		return
+	}
+
 	// This would be called by a cron-like scheduler
 	query := `
-		SELECT id, name, backup_type, targets 
-		FROM backup_schedules 
-		WHERE enabled = true 
+		SELECT id, name, backup_type, targets
+		FROM backup_schedules
+		WHERE enabled = true
 		AND (next_run IS NULL OR next_run <= CURRENT_TIMESTAMP)
 	`
-	
+
 	rows, err := bm.db.Query(query)
 	if err != nil {
 		log.Printf("Failed to query scheduled backups: %v", err)

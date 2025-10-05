@@ -1,58 +1,28 @@
 #!/bin/bash
 # Data Structurer Unit Tests
-# Tests individual API functions and data processing logic
+# Integrates with centralized Vrooli testing infrastructure
 
-set -e
+set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# Initialize phase with centralized testing library
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "=== Data Structurer Unit Tests ==="
-echo "Scenario Root: $SCENARIO_ROOT"
+testing::phase::init --target-time "60s"
 
-# Test 1: Go API Unit Tests
-echo ""
-echo "Running Go API unit tests..."
-if [ -d "$SCENARIO_ROOT/api" ]; then
-    cd "$SCENARIO_ROOT/api"
+# Source centralized unit testing runner
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-    # Run tests with coverage
-    go test -v ./... -short -coverprofile=coverage.out 2>&1 | tee test-output.txt
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-    # Display coverage summary
-    if [ -f coverage.out ]; then
-        echo ""
-        echo "Coverage Summary:"
-        go tool cover -func=coverage.out | tail -1
-    fi
+# Run all unit tests with centralized runner
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50
 
-    # Check test results
-    if grep -q "FAIL" test-output.txt; then
-        echo "❌ Go unit tests failed"
-        exit 1
-    fi
-
-    echo "✅ Go API unit tests passed"
-else
-    echo "⚠️  API directory not found, skipping Go tests"
-fi
-
-# Test 2: CLI BATS Tests
-echo ""
-echo "Running CLI BATS tests..."
-if [ -f "$SCENARIO_ROOT/cli/data-structurer.bats" ]; then
-    cd "$SCENARIO_ROOT/cli"
-
-    # Check if bats is available
-    if command -v bats &> /dev/null; then
-        bats data-structurer.bats
-        echo "✅ CLI BATS tests passed"
-    else
-        echo "⚠️  BATS not installed, skipping CLI tests"
-    fi
-else
-    echo "⚠️  CLI BATS tests not found, skipping"
-fi
-
-echo ""
-echo "✅ Unit tests completed successfully"
+# End phase with summary
+testing::phase::end_with_summary "Unit tests completed"

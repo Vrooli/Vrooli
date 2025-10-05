@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/rand"
 	"time"
 
 	"github.com/google/uuid"
@@ -70,9 +71,9 @@ func NewDatabase(cfg *Config, logger *Logger) (*Database, error) {
 			float64(maxDelay),
 		))
 
-		// Add progressive jitter to prevent thundering herd
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
 
 		logger.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)

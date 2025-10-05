@@ -125,7 +125,7 @@ func TestGetLanguageID(t *testing.T) {
 
 func TestFormatExpectedOutput(t *testing.T) {
 	processor := NewAlgorithmProcessor("")
-	
+
 	tests := []struct {
 		name     string
 		input    interface{}
@@ -134,7 +134,7 @@ func TestFormatExpectedOutput(t *testing.T) {
 		{
 			name:     "String",
 			input:    "test",
-			expected: "test",
+			expected: `"test"`, // JSON marshals strings with quotes
 		},
 		{
 			name:     "Integer",
@@ -152,7 +152,7 @@ func TestFormatExpectedOutput(t *testing.T) {
 			expected: `{"a":1}`,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processor.formatExpectedOutput(tt.input)
@@ -200,22 +200,28 @@ func TestParseExecutionTime(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "Milliseconds only",
-			input:   "123.45",
-			want:    123.45,
-			wantErr: false,
-		},
-		{
-			name:    "With ms suffix",
-			input:   "100ms",
+			name:    "With ms suffix and space",
+			input:   "100 ms",
 			want:    100,
 			wantErr: false,
 		},
 		{
-			name:    "With seconds",
-			input:   "2.5s",
-			want:    2500,
+			name:    "With decimal and ms",
+			input:   "123.45 ms",
+			want:    123.45,
 			wantErr: false,
+		},
+		{
+			name:    "Invalid format - no space",
+			input:   "100ms",
+			want:    0,
+			wantErr: true,
+		},
+		{
+			name:    "Invalid format - no ms",
+			input:   "123.45",
+			want:    0,
+			wantErr: true,
 		},
 		{
 			name:    "Invalid format",
@@ -224,7 +230,7 @@ func TestParseExecutionTime(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := parseExecutionTime(tt.input)

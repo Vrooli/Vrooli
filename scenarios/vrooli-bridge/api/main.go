@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -164,9 +165,8 @@ func (app *App) initDB() error {
 			float64(maxDelay),
 		))
 		
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		// Add random jitter to prevent thundering herd
+		jitter := time.Duration(rand.Float64() * float64(delay) * 0.25)
 		actualDelay := delay + jitter
 		
 		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
@@ -177,7 +177,7 @@ func (app *App) initDB() error {
 			log.Printf("📈 Retry progress:")
 			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
 			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+			log.Printf("   - Current delay: %v", actualDelay)
 		}
 		
 		time.Sleep(actualDelay)
@@ -412,20 +412,26 @@ func (app *App) detectProjectType(filePath, fileName string) string {
 }
 
 func (app *App) projectExists(path string) (bool, error) {
+	if app.db == nil {
+		return false, nil
+	}
 	var count int
 	err := app.db.QueryRow("SELECT COUNT(*) FROM projects WHERE path = $1", path).Scan(&count)
 	return count > 0, err
 }
 
 func (app *App) insertProject(project Project) error {
+	if app.db == nil {
+		return nil
+	}
 	metadataJSON, _ := json.Marshal(project.Metadata)
-	
+
 	_, err := app.db.Exec(`
 		INSERT INTO projects (id, path, name, type, integration_status, created_at, last_updated, metadata)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`, project.ID, project.Path, project.Name, project.Type, project.IntegrationStatus,
 		project.CreatedAt, project.LastUpdated, metadataJSON)
-	
+
 	return err
 }
 

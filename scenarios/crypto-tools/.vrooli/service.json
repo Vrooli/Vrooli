@@ -225,7 +225,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o crypto-tools-api ./cmd/server/main.go",
+          "run": "cd api && go mod download && go build -o crypto-tools-api ./cmd/server",
           "description": "Build Go API server",
           "condition": {
             "file_exists": "api/go.mod"
@@ -288,7 +288,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build ./cmd/server/main.go && rm test-build",
+          "run": "cd api && go build -o test-build ./cmd/server && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/go.mod"

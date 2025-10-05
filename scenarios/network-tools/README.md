@@ -248,6 +248,13 @@ bash test/phases/test-integration.sh
 ```
 
 ### Test Coverage
+- ✅ **Unit Tests**: 12 test suites with 50+ test cases covering:
+  - Rate limiting logic and concurrent access
+  - Request validation for all endpoints
+  - Input validation and error handling
+  - JSON serialization and response structures
+- ✅ **Integration Tests**: 7 end-to-end API tests
+- ✅ **CLI Tests**: 14 BATS test cases
 - ✅ Health endpoint
 - ✅ HTTP request operations
 - ✅ DNS lookups (A, CNAME, MX, TXT)

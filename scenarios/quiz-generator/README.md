@@ -8,7 +8,8 @@ The Quiz Generator is a foundational educational scenario for Vrooli that provid
 
 ## ✨ Key Features
 
-### ✅ Implemented
+### ✅ Implemented (100% P0 Complete)
+- **AI-Powered Generation**: ✨ Automatically create quizzes from any text content using Ollama
 - **Manual Quiz Creation**: Full UI for creating custom quizzes with multiple question types
 - **Multiple Question Types**: MCQ, True/False, Short Answer, Fill-in-the-Blank
 - **Real-time Assessment**: Interactive quiz-taking with practice mode and immediate feedback
@@ -18,11 +19,11 @@ The Quiz Generator is a foundational educational scenario for Vrooli that provid
 - **PostgreSQL Storage**: Reliable persistence for quizzes, questions, and results
 - **Health Monitoring**: Standard health endpoints at /api/health
 
-### 🚧 In Progress
-- **AI-Powered Generation**: Create quizzes from documents (currently uses fallback questions)
-- **Smart Question Bank**: Semantic search using Qdrant (basic search implemented)
+### 🚧 P1 Features (In Progress)
+- **Smart Question Bank**: Semantic search using Qdrant
 - **Analytics Dashboard**: UI scaffolded, metrics collection pending
 - **QTI Export**: JSON export working, QTI format planned
+- **Difficulty Levels**: Easy/Medium/Hard question classification
 
 ## 🏗️ Architecture
 

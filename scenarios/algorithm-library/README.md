@@ -42,8 +42,8 @@ algorithm-library/
 vrooli scenario run algorithm-library
 
 # Access points:
-# - UI: http://localhost:3251
-# - API: http://localhost:16831 (port may vary based on allocation)
+# - UI: http://localhost:3252
+# - API: http://localhost:16796 (port may vary based on allocation)
 # - CLI: algorithm-library --help
 ```
 
@@ -68,24 +68,24 @@ algorithm-library stats
 
 ```bash
 # Search algorithms
-curl http://localhost:16825/api/v1/algorithms/search?category=sorting
+curl http://localhost:16796/api/v1/algorithms/search?category=sorting
 
 # Get implementations
-curl http://localhost:16825/api/v1/algorithms/quicksort/implementations
+curl http://localhost:16796/api/v1/algorithms/quicksort/implementations
 
 # Validate code
-curl -X POST http://localhost:16825/api/v1/algorithms/validate \
+curl -X POST http://localhost:16796/api/v1/algorithms/validate \
   -H "Content-Type: application/json" \
   -d '{"algorithm_id": "quicksort", "language": "python", "code": "..."}'
 
 # Get performance history
-curl http://localhost:16825/api/v1/algorithms/{id}/performance-history?language=python
+curl http://localhost:16796/api/v1/algorithms/{id}/performance-history?language=python
 
 # Get performance trends
-curl http://localhost:16825/api/v1/algorithms/{id}/performance-trends
+curl http://localhost:16796/api/v1/algorithms/{id}/performance-trends
 
 # Record performance metrics
-curl -X POST http://localhost:16825/api/v1/performance/record \
+curl -X POST http://localhost:16796/api/v1/performance/record \
   -H "Content-Type: application/json" \
   -d '{"algorithm_id": "...", "language": "python", "execution_results": [...]}'
 ```
@@ -190,9 +190,9 @@ All submissions must pass the full test suite before being accepted into the lib
 
 ---
 
-**Status**: ✅ Fully Operational (with local executor fallback)  
-**Version**: 1.0.0  
-**API Port**: 16825  
-**UI Port**: 3251  
+**Status**: ✅ Fully Operational (with local executor fallback)
+**Version**: 1.0.0
+**API Port**: 16796
+**UI Port**: 3252  
 **Resource Requirements**: Medium (2GB RAM)  
 **Last Updated**: 2025-09-27

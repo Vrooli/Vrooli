@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -152,9 +154,8 @@ func (a *App) Initialize() {
 			float64(maxDelay),
 		))
 		
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		// Add random jitter to prevent thundering herd
+		jitter := time.Duration(rand.Float64() * float64(delay) * 0.25)
 		actualDelay := delay + jitter
 		
 		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
@@ -165,7 +166,7 @@ func (a *App) Initialize() {
 			log.Printf("📈 Retry progress:")
 			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
 			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+			log.Printf("   - Current delay: %v", actualDelay)
 		}
 		
 		time.Sleep(actualDelay)
@@ -1049,11 +1050,33 @@ func (a *App) serveDocs(w http.ResponseWriter, r *http.Request) {
 
 // Helper functions
 
-func (a *App) logAuditEvent(scheduleID, action, user, ip string) {
+func (a *App) logAuditEvent(scheduleID, action, user, ipWithPort string) {
+	// Extract IP address without port (handles both IPv4 and IPv6)
+	ip := ipWithPort
+	if host, _, err := net.SplitHostPort(ipWithPort); err == nil {
+		ip = host
+	}
+
+	// Handle NULL schedule_id for system events
+	var scheduleIDParam interface{}
+	if scheduleID == "" {
+		scheduleIDParam = nil
+	} else {
+		scheduleIDParam = scheduleID
+	}
+
+	// Convert empty IP to NULL for database compatibility
+	var ipParam interface{}
+	if ip == "" {
+		ipParam = nil
+	} else {
+		ipParam = ip
+	}
+
 	_, err := a.DB.Exec(`
 		INSERT INTO audit_log (schedule_id, action, performed_by, ip_address)
 		VALUES ($1, $2, $3, $4)
-	`, scheduleID, action, user, ip)
+	`, scheduleIDParam, action, user, ipParam)
 	if err != nil {
 		log.Printf("Failed to log audit event: %v", err)
 	}

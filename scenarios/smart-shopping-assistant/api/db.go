@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/lib/pq"
 	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -29,10 +29,10 @@ func NewDatabase() (*Database, error) {
 	if postgresPort == "" {
 		postgresPort = "5432"
 	}
-	
+
 	connStr := fmt.Sprintf("host=%s port=%s user=postgres password=postgres dbname=postgres sslmode=disable",
 		postgresHost, postgresPort)
-	
+
 	pgDB, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Printf("Warning: PostgreSQL connection failed: %v", err)
@@ -189,7 +189,7 @@ func (db *Database) FindAlternatives(ctx context.Context, productID string, pric
 			Reason:          "Last year's model with 90% of features",
 		},
 	}
-	
+
 	return alternatives
 }
 
@@ -207,7 +207,7 @@ func (db *Database) GetPriceHistory(ctx context.Context, productID string) Price
 func (db *Database) GenerateAffiliateLinks(products []Product) []AffiliateLink {
 	links := []AffiliateLink{}
 	retailers := []string{"Amazon", "BestBuy", "Walmart", "Target"}
-	
+
 	for _, product := range products {
 		for _, retailer := range retailers {
 			links = append(links, AffiliateLink{
@@ -218,7 +218,7 @@ func (db *Database) GenerateAffiliateLinks(products []Product) []AffiliateLink {
 			})
 		}
 	}
-	
+
 	return links
 }
 
@@ -232,7 +232,7 @@ func (db *Database) callDeepResearch(ctx context.Context, query string, budgetMa
 		log.Printf("Deep research scenario not available, using basic search")
 		return nil
 	}
-	
+
 	// In a real implementation, this would make an HTTP call to deep-research
 	// For now, return enhanced mock data that simulates deep research
 	products := []Product{
@@ -278,7 +278,7 @@ func (db *Database) callDeepResearch(ctx context.Context, query string, budgetMa
 			},
 		},
 	}
-	
+
 	log.Printf("Deep research completed for query: %s (simulated)", query)
 	return products
 }

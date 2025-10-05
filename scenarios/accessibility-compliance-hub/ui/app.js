@@ -1,8 +1,10 @@
 // Accessibility Compliance Hub - Dashboard Application
 
 // API Configuration
-const API_BASE = window.location.hostname === 'localhost' 
-    ? 'http://localhost:3400/api/v1' 
+// Port is dynamically assigned from the 20000-20999 range via API_PORT env var
+const API_PORT = window.ACCESSIBILITY_API_PORT || '20000';
+const API_BASE = window.location.hostname === 'localhost'
+    ? `http://localhost:${API_PORT}/api/v1`
     : '/api/v1';
 
 // Application State

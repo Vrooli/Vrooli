@@ -1,11 +1,31 @@
 #!/bin/bash
 set -e
 
-echo "Running unit tests for Typing Test"
+# Get APP_ROOT - walk up to find the Vrooli root
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 
-# Example unit tests (mocked for structure)
-echo "Testing typing speed calculation..."
-# Add actual unit test commands here, e.g., go test ./unit or jest unit tests
-echo "Unit tests passed"
+# Source centralized testing infrastructure
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-exit 0
+# Initialize test phase
+testing::phase::init --target-time "60s"
+
+# Source centralized unit test runner
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
+
+# Navigate to scenario directory
+cd "$TESTING_PHASE_SCENARIO_DIR"
+
+echo "Running unit tests for typing-test scenario"
+
+# Run all unit tests with centralized runner
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50
+
+# End test phase with summary
+testing::phase::end_with_summary "Unit tests completed"

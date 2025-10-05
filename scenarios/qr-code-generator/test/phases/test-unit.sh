@@ -1,10 +1,21 @@
 #!/bin/bash
+# QR Code Generator - Unit Test Phase
+# Integrates with centralized Vrooli testing infrastructure
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "=== Test Unit Phase ==="
+testing::phase::init --target-time "60s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-# Placeholder for unit tests
-# Example: Run go test ./... if it's a Go project
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-echo "✓ Unit tests passed (placeholder)"
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50
+
+testing::phase::end_with_summary "Unit tests completed"

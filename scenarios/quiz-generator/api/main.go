@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -41,15 +42,15 @@ type Quiz struct {
 }
 
 type Question struct {
-	ID           string      `json:"id"`
-	Type         string      `json:"type"`
-	QuestionText string      `json:"question"`
-	Options      []string    `json:"options,omitempty"`
+	ID            string      `json:"id"`
+	Type          string      `json:"type"`
+	QuestionText  string      `json:"question"`
+	Options       []string    `json:"options,omitempty"`
 	CorrectAnswer interface{} `json:"correct_answer,omitempty"`
-	Explanation  string      `json:"explanation,omitempty"`
-	Difficulty   string      `json:"difficulty"`
-	Points       int         `json:"points"`
-	OrderIndex   int         `json:"order_index"`
+	Explanation   string      `json:"explanation,omitempty"`
+	Difficulty    string      `json:"difficulty"`
+	Points        int         `json:"points"`
+	OrderIndex    int         `json:"order_index"`
 }
 
 type QuizGenerateRequest struct {
@@ -71,11 +72,11 @@ type QuestionResponse struct {
 }
 
 type QuizResult struct {
-	Score        int                       `json:"score"`
-	Percentage   float64                   `json:"percentage"`
-	Passed       bool                      `json:"passed"`
-	CorrectAnswers map[string]interface{}  `json:"correct_answers"`
-	Explanations map[string]string         `json:"explanations"`
+	Score          int                    `json:"score"`
+	Percentage     float64                `json:"percentage"`
+	Passed         bool                   `json:"passed"`
+	CorrectAnswers map[string]interface{} `json:"correct_answers"`
+	Explanations   map[string]string      `json:"explanations"`
 }
 
 type SearchRequest struct {
@@ -117,7 +118,7 @@ func initDB() error {
 		if dbName == "" {
 			dbName = "vrooli"
 		}
-		
+
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
@@ -141,34 +142,34 @@ func initDB() error {
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	logger.Info("🔄 Attempting database connection with exponential backoff...")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping(context.Background())
 		if pingErr == nil {
-			logger.Infof("✅ Database connected successfully on attempt %d", attempt + 1)
+			logger.Infof("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
-		
-		logger.Warnf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		logger.Warnf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		logger.Infof("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		return fmt.Errorf("database connection failed after %d attempts: %w", maxRetries, pingErr)
 	}
@@ -245,7 +246,7 @@ func generateQuiz(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	
+
 	// Use quiz processor to generate quiz (replaces n8n workflow)
 	quiz, err := quizProcessor.GenerateQuizFromContent(ctx, req)
 	if err != nil {
@@ -265,16 +266,16 @@ func generateQuiz(c *gin.Context) {
 
 func getQuiz(c *gin.Context) {
 	quizID := c.Param("id")
-	
+
 	var quiz Quiz
 	ctx := context.Background()
-	
+
 	err := db.QueryRow(ctx,
 		`SELECT id, title, description, time_limit, passing_score, created_at, updated_at
 		 FROM quiz_generator.quizzes WHERE id = $1`,
 		quizID,
 	).Scan(&quiz.ID, &quiz.Title, &quiz.Description, &quiz.TimeLimit, &quiz.PassingScore, &quiz.CreatedAt, &quiz.UpdatedAt)
-	
+
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Quiz not found"})
 		return
@@ -327,7 +328,7 @@ func listQuizzes(c *gin.Context) {
 
 func submitQuiz(c *gin.Context) {
 	quizID := c.Param("id")
-	
+
 	var req QuizSubmitRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -335,7 +336,7 @@ func submitQuiz(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	
+
 	// Use quiz processor to grade the quiz
 	result, err := quizProcessor.GradeQuiz(ctx, quizID, req)
 	if err != nil {
@@ -415,7 +416,7 @@ func updateQuiz(c *gin.Context) {
 	quiz.UpdatedAt = time.Now()
 
 	ctx := context.Background()
-	
+
 	// Update quiz metadata
 	_, err := db.Exec(ctx,
 		`UPDATE quiz_generator.quizzes 
@@ -430,16 +431,16 @@ func updateQuiz(c *gin.Context) {
 
 	// Update questions (delete and re-insert for simplicity)
 	db.Exec(ctx, "DELETE FROM quiz_generator.questions WHERE quiz_id = $1", quizID)
-	
+
 	for i, q := range quiz.Questions {
 		if q.ID == "" {
 			q.ID = uuid.New().String()
 		}
 		q.OrderIndex = i + 1
-		
+
 		optionsJSON, _ := json.Marshal(q.Options)
 		answerJSON, _ := json.Marshal(q.CorrectAnswer)
-		
+
 		db.Exec(ctx,
 			`INSERT INTO quiz_generator.questions (id, quiz_id, type, question_text, options, 
 			 correct_answer, explanation, difficulty, points, order_index)
@@ -455,7 +456,7 @@ func updateQuiz(c *gin.Context) {
 func deleteQuiz(c *gin.Context) {
 	quizID := c.Param("id")
 	ctx := context.Background()
-	
+
 	// Delete quiz and cascade to questions
 	_, err := db.Exec(ctx, "DELETE FROM quiz_generator.quizzes WHERE id = $1", quizID)
 	if err != nil {
@@ -469,7 +470,7 @@ func deleteQuiz(c *gin.Context) {
 func getQuizForTaking(c *gin.Context) {
 	quizID := c.Param("id")
 	ctx := context.Background()
-	
+
 	quiz, err := quizProcessor.getQuiz(ctx, quizID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Quiz not found"})
@@ -488,7 +489,7 @@ func getQuizForTaking(c *gin.Context) {
 func submitSingleAnswer(c *gin.Context) {
 	quizID := c.Param("id")
 	questionID := c.Param("questionId")
-	
+
 	var body struct {
 		Answer interface{} `json:"answer"`
 	}
@@ -508,20 +509,20 @@ func submitSingleAnswer(c *gin.Context) {
 	for _, q := range quiz.Questions {
 		if q.ID == questionID {
 			isCorrect := quizProcessor.checkAnswer(q, body.Answer)
-			
+
 			response := gin.H{
 				"correct": isCorrect,
-				"points": 0,
+				"points":  0,
 			}
-			
+
 			if isCorrect {
 				response["points"] = q.Points
 			}
-			
+
 			// Include explanation for immediate feedback
 			response["explanation"] = q.Explanation
 			response["correct_answer"] = q.CorrectAnswer
-			
+
 			c.JSON(http.StatusOK, response)
 			return
 		}
@@ -566,7 +567,7 @@ func generateQTIFormat(quiz *Quiz) string {
 <questestinterop xmlns="http://www.imsglobal.org/xsd/ims_qtiasiv2p1">
   <assessment ident="` + quiz.ID + `" title="` + quiz.Title + `">
 `)
-	
+
 	for _, q := range quiz.Questions {
 		xml.WriteString(`    <item ident="` + q.ID + `" title="Question">
       <presentation>
@@ -574,7 +575,7 @@ func generateQTIFormat(quiz *Quiz) string {
           <mattext>` + q.QuestionText + `</mattext>
         </material>
 `)
-		
+
 		if q.Type == "mcq" && len(q.Options) > 0 {
 			xml.WriteString(`        <response_lid ident="response1">
 `)
@@ -591,15 +592,15 @@ func generateQTIFormat(quiz *Quiz) string {
 			xml.WriteString(`        </response_lid>
 `)
 		}
-		
+
 		xml.WriteString(`      </presentation>
     </item>
 `)
 	}
-	
+
 	xml.WriteString(`  </assessment>
 </questestinterop>`)
-	
+
 	return xml.String()
 }
 
@@ -613,7 +614,7 @@ func generateMoodleFormat(quiz *Quiz) string {
     </category>
   </question>
 `)
-	
+
 	for _, q := range quiz.Questions {
 		qType := "shortanswer"
 		if q.Type == "mcq" {
@@ -621,7 +622,7 @@ func generateMoodleFormat(quiz *Quiz) string {
 		} else if q.Type == "true_false" {
 			qType = "truefalse"
 		}
-		
+
 		xml.WriteString(`  <question type="` + qType + `">
     <name>
       <text>Question ` + q.ID + `</text>
@@ -630,7 +631,7 @@ func generateMoodleFormat(quiz *Quiz) string {
       <text><![CDATA[` + q.QuestionText + `]]></text>
     </questiontext>
 `)
-		
+
 		if q.Type == "mcq" && len(q.Options) > 0 {
 			for i, opt := range q.Options {
 				fraction := "0"
@@ -646,24 +647,24 @@ func generateMoodleFormat(quiz *Quiz) string {
 `)
 			}
 		}
-		
+
 		xml.WriteString(`  </question>
 `)
 	}
-	
+
 	xml.WriteString(`</quiz>`)
-	
+
 	return xml.String()
 }
 
 func getStats(c *gin.Context) {
 	ctx := context.Background()
-	
+
 	var totalQuizzes, totalQuestions, activeSessions int
-	
+
 	db.QueryRow(ctx, "SELECT COUNT(*) FROM quiz_generator.quizzes").Scan(&totalQuizzes)
 	db.QueryRow(ctx, "SELECT COUNT(*) FROM quiz_generator.questions").Scan(&totalQuestions)
-	
+
 	// Mock active sessions
 	activeSessions = 5
 
@@ -680,15 +681,15 @@ func generateMockQuestions(count int) []Question {
 	questions := make([]Question, count)
 	for i := 0; i < count; i++ {
 		questions[i] = Question{
-			ID:           fmt.Sprintf("q%d", i+1),
-			Type:         "mcq",
-			QuestionText: fmt.Sprintf("Sample question %d?", i+1),
-			Options:      []string{"A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"},
+			ID:            fmt.Sprintf("q%d", i+1),
+			Type:          "mcq",
+			QuestionText:  fmt.Sprintf("Sample question %d?", i+1),
+			Options:       []string{"A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"},
 			CorrectAnswer: "A",
-			Explanation:  "This is the explanation for the correct answer.",
-			Difficulty:   "medium",
-			Points:       2,
-			OrderIndex:   i + 1,
+			Explanation:   "This is the explanation for the correct answer.",
+			Difficulty:    "medium",
+			Points:        2,
+			OrderIndex:    i + 1,
 		}
 	}
 	return questions
@@ -744,7 +745,7 @@ func main() {
 	if redisClient != nil {
 		defer redisClient.Close()
 	}
-	
+
 	// Initialize quiz processor
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {

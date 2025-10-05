@@ -76,7 +76,7 @@ Requirements:
 - Make it fun and engaging
 - Use bright, contrasting colors for retro feel
 
-Return ONLY the complete JavaScript code wrapped in ```javascript``` tags. No explanations or additional text.`, req.Prompt)
+Return ONLY the complete JavaScript code wrapped in triple-backtick javascript tags. No explanations or additional text.`, req.Prompt)
 
 	// Generate game code with Ollama
 	generatedCode, err := s.generateCodeWithOllama(ctx, prompt, "codellama")

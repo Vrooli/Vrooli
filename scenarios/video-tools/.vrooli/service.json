@@ -56,11 +56,11 @@
       "description": "Go-based API server with REST endpoints"
     },
     "ui": {
-      "enabled": true,
+      "enabled": false,
       "framework": "react",
       "path": "ui",
       "main": "index.html",
-      "description": "React-based web interface"
+      "description": "React-based web interface (not implemented)"
     },
     "cli": {
       "enabled": true,
@@ -156,14 +156,6 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
-        },
-        {
-          "name": "ui_endpoint",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/",
-          "critical": false,
-          "timeout": 5000,
-          "interval": 60000
         }
       ],
       "timeout": 10000,
@@ -235,7 +227,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install --silent",
+          "run": "[ -f ui/package.json ] && cd ui && npm install --silent || echo 'UI not present, skipping'",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -243,7 +235,7 @@
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
+          "run": "[ -f ui/package.json ] && cd ui && npm run build || echo 'UI not present, skipping'",
           "description": "Build React UI for production",
           "condition": {
             "file_exists": "ui/package.json",
@@ -271,9 +263,12 @@
          },
          {
            "name": "start-ui",
-           "run": "cd ui && npm run dev",
+           "run": "[ -f ui/package.json ] && cd ui && npm run dev || (echo 'UI not present, skipping' && sleep 0.1)",
            "description": "Start UI development server",
-           "background": true
+           "background": true,
+           "condition": {
+             "file_exists": "ui/package.json"
+           }
          },
          {
            "name": "show-urls",
@@ -538,9 +533,9 @@
     ]
   },
   "ui": {
-    "enabled": true,
+    "enabled": false,
     "path": "/",
-    "description": "React-based web interface",
+    "description": "React-based web interface (not implemented)",
     "features": [
       "responsive-design",
       "real-time-updates",

@@ -49,13 +49,16 @@ get_api_url() {
     echo "http://localhost:${api_port}"
 }
 
-# Get API URL dynamically unless overridden
-if [[ -z "${API_BASE_URL}" ]]; then
-    API_BASE_URL=$(get_api_url)
-fi
+# API URL will be discovered on-demand for commands that need it
+# Commands like version and help don't need API connectivity
 
-# Check if API is available
+# Check if API is available and discover URL if needed
 check_api() {
+    # Discover API URL on-demand
+    if [[ -z "${API_BASE_URL}" ]]; then
+        API_BASE_URL=$(get_api_url)
+    fi
+
     if ! curl -s "${API_BASE_URL}/health" >/dev/null 2>&1; then
         log_error "API server is not available at ${API_BASE_URL}"
         log_info "Make sure the API server is running: 'vrooli scenario run ${SCENARIO_NAME}'"
@@ -573,7 +576,7 @@ cmd_help() {
 
 cmd_version() {
     local json_output=false
-    
+
     # Parse flags
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -587,12 +590,23 @@ cmd_version() {
                 ;;
         esac
     done
-    
+
+    # Try to discover API URL for informational purposes (non-fatal)
+    local api_url="${API_BASE_URL}"
+    if [[ -z "$api_url" ]]; then
+        api_url=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null) || true
+        if [[ -n "$api_url" ]]; then
+            api_url="http://localhost:${api_url}"
+        else
+            api_url="(not running)"
+        fi
+    fi
+
     if [[ $json_output == true ]]; then
-        echo "{\"cli_version\": \"$CLI_VERSION\", \"api_base_url\": \"$API_BASE_URL\"}"
+        echo "{\"cli_version\": \"$CLI_VERSION\", \"api_base_url\": \"$api_url\"}"
     else
         echo "AI Chatbot Manager CLI v$CLI_VERSION"
-        echo "API: $API_BASE_URL"
+        echo "API: $api_url"
     fi
 }
 

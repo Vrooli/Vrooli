@@ -19,16 +19,16 @@
 - [x] **Lifecycle Compliance**: Works with vrooli scenario start/stop commands (✅ 2025-09-24: Fully compliant)
 
 ### P1 Requirements (Should Have - Enhanced Features)
-- [x] **Smart Filtering**: Filter by rating, price, distance, accessibility (✅ 2025-09-27: Enhanced with category-aware thresholds, 24-hour detection, relevance scoring)
+- [x] **Smart Filtering**: Filter by rating, price, distance, accessibility (✅ 2025-10-03: Enhanced with category-aware thresholds, 24-hour detection, relevance scoring)
 - [ ] **Multi-Source**: Aggregate data from maps, reviews, directories
-- [x] **Caching**: Redis caching for frequently accessed data (✅ 2025-09-27: Redis caching with 5min TTL, cache hit/miss headers)
-- [x] **Discovery Mode**: Suggest "hidden gems" and "new openings" (✅ 2025-09-27: Enhanced with time-based recommendations, trending places, chain detection)
+- [x] **Caching**: Redis caching for frequently accessed data (✅ 2025-10-03: Redis caching with 5min TTL on port 6380, cache hit/miss headers working)
+- [x] **Discovery Mode**: Suggest "hidden gems" and "new openings" (✅ 2025-10-03: Enhanced with time-based recommendations, trending places, chain detection)
 
 ### P2 Requirements (Nice to Have - Advanced Features)
 - [ ] **Personalization**: Learn user preferences over time
 - [ ] **Route Planning**: Optimize multi-stop journeys
 - [ ] **Social Features**: Share discoveries with friends
-- [x] **Database Persistence**: PostgreSQL for place data and search logs (✅ 2025-09-27: Tables created, search logging, popular searches tracking)
+- [x] **Database Persistence**: PostgreSQL for place data and search logs (✅ 2025-10-03: Tables created on port 5433, search logging, popular searches tracking, automatic schema initialization)
 
 ## Technical Specifications
 
@@ -77,9 +77,9 @@
 
 ## Implementation Progress
 
-### Current Status (2025-09-27)
+### Current Status (2025-10-03)
 - ✅ Full API structure implemented with all P0 endpoints
-- ✅ Health check endpoint working (4ms response time)  
+- ✅ Health check endpoint working (4ms response time)
 - ✅ Search with natural language processing (Ollama integration)
 - ✅ Enhanced smart filtering with relevance scoring and category-aware thresholds
 - ✅ Categories endpoint available (9 categories)
@@ -87,9 +87,11 @@
 - ✅ Discovery endpoint with time-based recommendations and trending places
 - ✅ CORS enabled for web integration
 - ✅ CLI tool fully implemented with search, categories, help
-- ✅ Redis caching layer with 5-minute TTL and cache headers
-- ✅ PostgreSQL persistence with place storage and search logging
+- ✅ Redis caching layer with 5-minute TTL and cache headers (port 6380)
+- ✅ PostgreSQL persistence with place storage and search logging (port 5433)
 - ✅ Popular searches tracking and analytics
+- ✅ Automatic PostgreSQL schema initialization in setup phase
+- ✅ Environment variables properly configured for resource ports
 - ✅ Integration tests comprehensive and passing
 - ✅ Lifecycle compliance verified (start/stop/test)
 - ✅ Real-time data integration structure (SearXNG ready)
@@ -100,9 +102,10 @@
 ### Next Steps
 1. ✅ ~~Integrate Ollama for natural language understanding~~ (Completed)
 2. ✅ ~~Connect to real data sources~~ (Structure ready)
-3. Implement Redis caching layer
-4. Add PostgreSQL for persistent storage  
+3. ✅ ~~Implement Redis caching layer~~ (Completed - port 6380)
+4. ✅ ~~Add PostgreSQL for persistent storage~~ (Completed - port 5433)
 5. Implement multi-source aggregation
+6. Add personalized recommendations based on search history
 
 ## Revenue Justification
 - **Direct Sales**: $500/month per API customer × 10 customers = $5K/month
@@ -111,6 +114,7 @@
 - **Total Annual**: $25K+ recurring revenue potential
 
 ## Change History
+- 2025-10-03: Fixed resource connectivity - Configured environment variables for Redis (port 6380) and PostgreSQL (port 5433), verified both resources connect successfully. Added automatic PostgreSQL schema initialization to setup phase. Updated documentation to reflect working caching and persistence layers.
 - 2025-09-27: Major enhancements - Added Redis caching with TTL, PostgreSQL persistence with search logging, enhanced smart filtering with relevance scoring, improved discovery with time-based recommendations. P1 now at 75% complete, P2 at 25% complete.
 - 2025-09-24 (20:00): Major improvement - Achieved 100% P0 completion, added natural language parsing with Ollama, smart filtering, discovery endpoint, real-time data integration structure. P1 at 50% complete.
 - 2025-09-24 (15:00): Improved scenario - Added place details endpoint, built functional CLI, created integration tests, achieved 5/7 P0 requirements (71%)

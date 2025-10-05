@@ -89,9 +89,10 @@ test_database_connection() {
 
 test_postgis_installed() {
     test::start "PostGIS extension"
-    
-    local version=$(timeout 5 docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -t -c "SELECT PostGIS_Version();" 2>/dev/null | xargs)
-    
+
+    local version
+    version=$(timeout 5 docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -t -c "SELECT PostGIS_Version();" 2>/dev/null | xargs)
+
     if [[ -n "$version" ]]; then
         test::pass "PostGIS installed: $version"
     else
@@ -102,14 +103,15 @@ test_postgis_installed() {
 
 test_spatial_functions() {
     test::start "Spatial functions"
-    
+
     # Test basic spatial function
-    local result=$(timeout 5 docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -t -c \
+    local result
+    result=$(timeout 5 docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -t -c \
         "SELECT ST_Distance(
             ST_GeomFromText('POINT(0 0)', 4326),
             ST_GeomFromText('POINT(1 1)', 4326)
         );" 2>/dev/null | xargs)
-    
+
     if [[ -n "$result" ]]; then
         test::pass "Spatial functions working (distance: $result)"
     else

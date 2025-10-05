@@ -54,12 +54,14 @@ print(f"Input: {data}")`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := executor.ExecutePython(tt.code, tt.stdin)
-			
+			require.NoError(t, err) // Executor doesn't return errors, it wraps them in result
+			require.NotNil(t, result)
+
 			if tt.wantErr {
-				assert.Error(t, err)
+				assert.False(t, result.Success, "Expected execution to fail")
+				assert.NotEmpty(t, result.Error, "Expected error message")
 			} else {
-				require.NoError(t, err)
-				assert.NotNil(t, result)
+				assert.True(t, result.Success, "Expected execution to succeed")
 				assert.Contains(t, strings.TrimSpace(result.Output), strings.TrimSpace(tt.wantOutput))
 				assert.Greater(t, result.ExecutionTime, 0.0)
 			}
@@ -96,12 +98,14 @@ func TestExecuteJavaScript(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := executor.ExecuteJavaScript(tt.code, tt.stdin)
-			
+			require.NoError(t, err) // Executor doesn't return errors, it wraps them in result
+			require.NotNil(t, result)
+
 			if tt.wantErr {
-				assert.Error(t, err)
+				assert.False(t, result.Success, "Expected execution to fail")
+				assert.NotEmpty(t, result.Error, "Expected error message")
 			} else {
-				require.NoError(t, err)
-				assert.NotNil(t, result)
+				assert.True(t, result.Success, "Expected execution to succeed")
 				assert.Contains(t, strings.TrimSpace(result.Output), strings.TrimSpace(tt.wantOutput))
 			}
 		})
@@ -146,12 +150,14 @@ func main() {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := executor.ExecuteGo(tt.code, tt.stdin)
-			
+			require.NoError(t, err) // Executor doesn't return errors, it wraps them in result
+			require.NotNil(t, result)
+
 			if tt.wantErr {
-				assert.Error(t, err)
+				assert.False(t, result.Success, "Expected execution to fail")
+				assert.NotEmpty(t, result.Error, "Expected error message")
 			} else {
-				require.NoError(t, err)
-				assert.NotNil(t, result)
+				// For compiled languages, check if output is present
 				assert.Contains(t, strings.TrimSpace(result.Output), strings.TrimSpace(tt.wantOutput))
 			}
 		})
@@ -197,12 +203,13 @@ public class Main {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := executor.ExecuteJava(tt.code, tt.stdin)
-			
+			require.NoError(t, err) // Executor doesn't return errors, it wraps them in result
+			require.NotNil(t, result)
+
 			if tt.wantErr {
-				assert.Error(t, err)
+				assert.False(t, result.Success, "Expected execution to fail")
+				assert.NotEmpty(t, result.Error, "Expected error message")
 			} else {
-				require.NoError(t, err)
-				assert.NotNil(t, result)
 				assert.Contains(t, strings.TrimSpace(result.Output), strings.TrimSpace(tt.wantOutput))
 			}
 		})
@@ -248,12 +255,13 @@ int main() {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := executor.ExecuteCPP(tt.code, tt.stdin)
-			
+			require.NoError(t, err) // Executor doesn't return errors, it wraps them in result
+			require.NotNil(t, result)
+
 			if tt.wantErr {
-				assert.Error(t, err)
+				assert.False(t, result.Success, "Expected execution to fail")
+				assert.NotEmpty(t, result.Error, "Expected error message")
 			} else {
-				require.NoError(t, err)
-				assert.NotNil(t, result)
 				assert.Contains(t, strings.TrimSpace(result.Output), strings.TrimSpace(tt.wantOutput))
 			}
 		})
@@ -262,18 +270,23 @@ int main() {
 
 func TestExecutorTimeout(t *testing.T) {
 	executor := NewLocalExecutor(1 * time.Second)
-	
+
 	// Code that will timeout
 	code := `
 import time
 time.sleep(5)
 print("Should not appear")
 `
-	
+
 	result, err := executor.ExecutePython(code, "")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "timeout")
-	assert.Nil(t, result)
+	// The executor returns a result even on timeout, not an error
+	if err != nil {
+		assert.Contains(t, err.Error(), "timeout")
+	} else {
+		require.NotNil(t, result)
+		assert.False(t, result.Success)
+		assert.Contains(t, result.Error, "timeout")
+	}
 }
 
 func TestIndentCode(t *testing.T) {

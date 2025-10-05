@@ -1,29 +1,22 @@
 #!/bin/bash
-set -e
+# Unit tests for agent-dashboard scenario
+# Integrates with Vrooli centralized testing infrastructure
 
-echo "=== Unit Tests ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Test Go API
-if [ -d "api" ] && [ -f "api/go.mod" ]; then
-  echo "Running Go API unit tests..."
-  cd api
-  go test -v -short -cover ./... || {
-    echo "❌ Go API tests failed"
-    exit 1
-  }
-  cd ..
-fi
+testing::phase::init --target-time "60s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-# Test UI (if tests are configured)
-if [ -d "ui" ] && [ -f "ui/package.json" ]; then
-  echo "Running UI unit tests..."
-  cd ui
-  if grep -q '"test"' package.json; then
-    npm test 2>/dev/null || echo "⚠️ No UI unit tests configured"
-  else
-    echo "⚠️ No UI test script configured in package.json"
-  fi
-  cd ..
-fi
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-echo "✅ Unit tests completed"
+# Run Go tests with coverage requirements
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50
+
+testing::phase::end_with_summary "Unit tests completed"

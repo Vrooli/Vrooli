@@ -320,7 +320,62 @@ windmill:     ⚠️  Not deployed (optional)
 
 ---
 
-## Current Session (2025-10-02 - Sixth Pass - CLI Testing & Polish)
+## Current Session (2025-10-03 - Seventh Pass - Reliability Improvements)
+**Focus**: Improve API reliability and resource management
+
+**Improvements Made**:
+1. ✅ **Added HTTP Timeout Protection to All Health Checks**
+   - Created shared `httpClient` with 10-second timeout for health checks
+   - Updated all 5 health check functions (n8n, windmill, searxng, qdrant, ollama)
+   - Previously health checks used `http.Get()` with no timeout (potential for hanging)
+   - Now all health checks fail fast if resource is slow/unavailable
+
+2. ✅ **Added Graceful Shutdown Handler**
+   - Server now properly handles SIGINT and SIGTERM signals
+   - 30-second graceful shutdown period for in-flight requests
+   - Database connections properly closed on shutdown
+   - HTTP server configured with appropriate timeouts:
+     - ReadTimeout: 15s (prevents slow client attacks)
+     - WriteTimeout: 120s (allows time for long-running requests like contradiction detection)
+     - IdleTimeout: 120s (connection cleanup)
+
+3. ✅ **Fixed Workflow Trigger HTTP Client**
+   - Added 30-second timeout to n8n workflow trigger HTTP client
+   - Previously used `http.Post()` with no timeout
+
+**Testing Results**:
+- ✅ Unit tests: 100% pass rate (10 test functions, 40+ assertions)
+- ✅ BATS CLI tests: 100% pass rate (12 tests)
+- ✅ API health check: All 5 critical services healthy
+- ✅ Graceful shutdown: Server stops cleanly with proper cleanup
+- ✅ Go compilation: Clean build with no errors
+
+**Technical Details**:
+```go
+// Shared HTTP client for health checks
+httpClient: &http.Client{
+    Timeout: 10 * time.Second,
+}
+
+// HTTP server configuration
+srv := &http.Server{
+    Addr:         ":" + port,
+    Handler:      handler,
+    ReadTimeout:  15 * time.Second,
+    WriteTimeout: 120 * time.Second,
+    IdleTimeout:  120 * time.Second,
+}
+```
+
+**Production Impact**:
+- Improved resilience: API won't hang waiting for slow resources
+- Better resource management: Clean shutdowns prevent connection leaks
+- Enhanced security: Read timeout prevents slowloris attacks
+- Clearer failure modes: Fast failures are easier to debug than hangs
+
+---
+
+## Previous Session (2025-10-02 - Sixth Pass - CLI Testing & Polish)
 **Focus**: Add CLI BATS tests and improve test infrastructure
 
 **Improvements Made**:

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -180,10 +181,9 @@ func initDB() {
 			float64(baseDelay) * math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+
+		// Add random jitter to prevent thundering herd
+		jitter := time.Duration(rand.Float64() * float64(delay) * 0.25)
 		actualDelay := delay + jitter
 		
 		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
@@ -194,7 +194,7 @@ func initDB() {
 			log.Printf("📈 Retry progress:")
 			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
 			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+			log.Printf("   - Current delay: %v", actualDelay)
 		}
 		
 		time.Sleep(actualDelay)
@@ -573,10 +573,10 @@ func generateTranscriptHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if download exists and has audio
-	var audioPath, whisperModel string
+	var whisperModel string
 	var hasAudio bool
 	err = db.QueryRow(`
-		SELECT COALESCE(audio_path, '') != '', whisper_model 
+		SELECT COALESCE(audio_path, '') != '', whisper_model
 		FROM downloads WHERE id = $1`, downloadID).Scan(&hasAudio, &whisperModel)
 	
 	if err == sql.ErrNoRows {

@@ -197,6 +197,16 @@
           "description": "Stop UI process"
         }
       ]
+    },
+    "test": {
+      "description": "Run email-triage test suite",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "cd test && bash test.sh",
+          "description": "Execute phased test suite"
+        }
+      ]
     }
   }
 }

@@ -87,7 +87,16 @@ Failed to log usage: sql: converting argument $2 type: unsupported type map[stri
 ### Resolution
 Fixed by marshaling the metadata map to JSON before inserting into PostgreSQL. The usage_stats table expects JSONB data type for the metadata field.
 
-## Recent Improvements (2025-09-27)
+## Recent Improvements (2025-10-03)
+- ✅ Added 5 new algorithm implementations (insertion_sort: Python/JS, selection_sort: Python/JS, heapsort: Python)
+- ✅ Increased implementation count from 16 to 21 (31% growth)
+- ✅ Added 15 comprehensive test cases for new implementations
+- ✅ Total test cases increased from 48 to 63
+- ✅ Fixed documentation port inconsistencies (API: 16796, UI: 3252)
+- ✅ All tests passing (5/5) with performance targets met (<200ms)
+- ✅ Fundamental sorting algorithms (insertion, selection, heap) now have reference implementations
+
+## Previous Improvements (2025-09-27)
 - ✅ Enhanced integration test to properly validate local executor for all 5 languages
 - ✅ Confirmed all language support working (Python, JavaScript, Go, Java, C++)
 - ✅ Verified API performance meets all targets
@@ -98,4 +107,4 @@ Fixed by marshaling the metadata map to JSON before inserting into PostgreSQL. T
 - ✅ Confirmed database populated with 35 algorithms and test cases
 
 ---
-*Last updated: 2025-09-27*
+*Last updated: 2025-10-03*

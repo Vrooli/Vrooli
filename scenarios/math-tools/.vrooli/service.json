@@ -40,11 +40,6 @@
        "env_var": "API_PORT",
        "range": "15000-19999",
        "description": "Main API port"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "range": "35000-39999",
-       "description": "Web UI dashboard port"
      }
   },
   "components": {
@@ -56,7 +51,7 @@
       "description": "Go-based API server with REST endpoints"
     },
     "ui": {
-      "enabled": true,
+      "enabled": false,
       "framework": "react",
       "path": "ui",
       "main": "index.html",
@@ -107,15 +102,9 @@
     },
     "windmill": {
       "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "purpose": "Workflow automation and business logic orchestration",
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/windmill-app.json",
-          "type": "app"
-        }
-      ]
+      "enabled": false,
+      "required": false,
+      "purpose": "Workflow automation and business logic orchestration"
     },
     "node-red": {
       "type": "node-red",
@@ -156,14 +145,6 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
-        },
-        {
-          "name": "ui_endpoint",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/",
-          "critical": false,
-          "timeout": 5000,
-          "interval": 60000
         }
       ],
       "timeout": 10000,
@@ -234,25 +215,8 @@
           }
         },
         {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install --silent",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build React UI for production",
-          "condition": {
-            "file_exists": "ui/package.json",
-            "json_path_exists": "ui/package.json:scripts.build"
-          }
-        },
-        {
           "name": "show-urls",
-          "run": "echo '🚀 Application initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: math-tools --help'",
+          "run": "echo \"🚀 Application initialized\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  CLI: math-tools --help\"",
           "description": "Display service access URLs"
         }
       ]
@@ -270,17 +234,8 @@
            }
          },
          {
-           "name": "start-ui",
-           "run": "cd ui && npm run dev -- --port $UI_PORT --host 0.0.0.0",
-           "description": "Start React UI development server",
-           "background": true,
-           "condition": {
-             "file_exists": "ui/package.json"
-           }
-         },
-         {
            "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: math-tools --help'",
+           "run": "echo \"🚀 Services running\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  CLI: math-tools --help\"",
            "description": "Display all running service URLs"
          }
       ]
@@ -310,24 +265,6 @@
           "description": "Test API health endpoint"
         },
         {
-          "name": "test-ui-build",
-          "run": "cd ui && npm run build",
-          "description": "Test UI build process",
-          "condition": {
-            "file_exists": "ui/package.json",
-            "json_path_exists": "ui/package.json:scripts.build"
-          }
-        },
-        {
-          "name": "test-ui-unit",
-          "run": "cd ui && npm test -- --watchAll=false",
-          "description": "Run UI unit tests",
-          "condition": {
-            "file_exists": "ui/package.json",
-            "json_path_exists": "ui/package.json:scripts.test"
-          }
-        },
-        {
           "name": "test-cli-commands",
           "run": "cd cli && bats cli-tests.bats",
           "description": "Run CLI test suite",
@@ -352,11 +289,6 @@
           "name": "stop-api-server",
           "run": "pkill -f 'math-tools-api' || true; sleep 1; pkill -9 -f 'math-tools-api' 2>/dev/null || true",
           "description": "Stop Go API server processes"
-        },
-        {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'scenarios/math-tools.*vite' || true; pkill -f 'scenarios/math-tools.*serve' || true; sleep 1; pkill -9 -f 'scenarios/math-tools.*vite' 2>/dev/null || true; pkill -9 -f 'scenarios/math-tools.*serve' 2>/dev/null || true",
-          "description": "Stop UI server processes"
         },
         {
           "name": "confirm-stop",

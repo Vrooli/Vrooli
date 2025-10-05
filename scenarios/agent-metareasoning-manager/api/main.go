@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -974,7 +975,7 @@ func main() {
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
 	windmillPort := getResourcePort("windmill")
-	postgresPort := getResourcePort("postgres")
+	_ = getResourcePort("postgres") // postgresPort - unused but kept for reference
 	qdrantPort := getResourcePort("qdrant")
 	
 	// Optional service URLs (can be configured if needed)
@@ -1047,12 +1048,12 @@ func main() {
 			float64(maxDelay),
 		))
 		
-		// Add progressive jitter to prevent thundering herd
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
-		
-		logger.Warn(fmt.Sprintf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr))
+
+		logger.Warn(fmt.Sprintf("⚠️  Connection attempt %d/%d failed", attempt + 1, maxRetries), pingErr)
 		logger.Info(fmt.Sprintf("⏳ Waiting %v before next attempt", actualDelay))
 		
 		// Provide detailed status every few attempts
@@ -1140,12 +1141,12 @@ func main() {
 	log.Printf("  Windmill URL: %s", windmillURL)
 	log.Printf("  Qdrant URL: %s", qdrantURL)
 	log.Printf("  Database: %s", dbURL)
-	
-	logger := NewLogger()
-	logger.Info(fmt.Sprintf("Server starting on port %s", port))
+
+	serverLogger := NewLogger()
+	serverLogger.Info(fmt.Sprintf("Server starting on port %s", port))
 	
 	if err := http.ListenAndServe(":"+port, r); err != nil {
-		logger.Error("Server failed", err)
+		serverLogger.Error("Server failed", err)
 		os.Exit(1)
 	}
 }

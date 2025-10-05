@@ -19,6 +19,28 @@ if [[ -z "${ERPNEXT_PORT:-}" ]]; then
 fi
 
 ################################################################################
+# Utility Functions
+################################################################################
+
+# URL encode a string (for query parameters)
+erpnext::api::urlencode() {
+    local string="${1}"
+    local strlen=${#string}
+    local encoded=""
+    local pos c o
+
+    for (( pos=0 ; pos<strlen ; pos++ )); do
+        c=${string:$pos:1}
+        case "$c" in
+            [-_.~a-zA-Z0-9] ) o="${c}" ;;
+            * ) printf -v o '%%%02x' "'$c"
+        esac
+        encoded+="${o}"
+    done
+    echo "${encoded}"
+}
+
+################################################################################
 # Authentication Functions
 ################################################################################
 
@@ -193,6 +215,7 @@ erpnext::api::get_modules() {
 # Export Functions
 ################################################################################
 
+export -f erpnext::api::urlencode
 export -f erpnext::api::login
 export -f erpnext::api::logout
 export -f erpnext::api::get

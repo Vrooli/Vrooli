@@ -46,8 +46,9 @@ type Feed struct {
 }
 
 var (
-	db       *sql.DB
-	upgrader = websocket.Upgrader{
+	db        *sql.DB
+	processor *FeedProcessor
+	upgrader  = websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			return true // Allow all origins for development
 		},

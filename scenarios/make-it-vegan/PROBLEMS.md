@@ -37,11 +37,25 @@
 
 **Status**: Working without n8n, optional enhancement
 
+## Recent Improvements (2025-10-03)
+
+### Completed
+1. ✅ **Added Redis caching** for frequently checked ingredients
+   - Graceful degradation when Redis unavailable
+   - 1-hour cache TTL with cache hit indicator
+2. ✅ **Added nutritional insights** with protein/B12/iron/calcium/omega-3 guidance
+   - New `/api/nutrition` endpoint
+   - CLI command `make-it-vegan nutrition`
+3. ✅ **Code formatting** with gofmt applied
+4. ✅ **Comprehensive test suite** with phased testing architecture
+   - Unit tests, API tests, UI tests in test/phases/
+   - All endpoints validated
+
 ## Recommendations for Future Improvements
 
-1. **Add Redis caching** for frequently checked ingredients (P1)
-2. **Implement PostgreSQL persistence** for user preferences and custom ingredients (P1)
-3. **Add nutritional insights** with protein/B12/iron calculations (P1)
-4. **Create brand database** for specific product lookups (P1)
-5. **Run gofumpt** to address Go formatting violations
-6. **Add comprehensive test suite** with bats tests for all endpoints
+1. **Implement PostgreSQL persistence** for user preferences and custom ingredients (P1)
+2. **Create brand database** for specific product lookups (P1)
+3. **Add meal planning feature** with weekly vegan suggestions (P1)
+4. **Shopping list generation** with store locations (P1)
+5. **Restaurant integration** for vegan menu options (P2)
+6. **Start Redis resource** to enable caching in production

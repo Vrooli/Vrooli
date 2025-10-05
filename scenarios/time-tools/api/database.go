@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"os"
 	"time"
 
@@ -44,11 +45,13 @@ func initDB(logger *log.Logger) error {
 				return nil
 			}
 		}
-		
+
 		delay := time.Duration(math.Pow(2, float64(i))) * baseDelay
-		logger.Printf("Database connection failed (attempt %d/%d), retrying in %v: %v", 
-			i+1, maxRetries, delay, err)
-		time.Sleep(delay)
+		jitter := time.Duration(rand.Float64() * float64(delay) * 0.25)
+		actualDelay := delay + jitter
+		logger.Printf("Database connection failed (attempt %d/%d), retrying in %v: %v",
+			i+1, maxRetries, actualDelay, err)
+		time.Sleep(actualDelay)
 	}
 	
 	// Database connection failed, but we can still run without it

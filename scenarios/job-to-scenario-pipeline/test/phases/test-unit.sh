@@ -1,15 +1,20 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Unit Tests ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Run Go unit tests
-cd api && if go test -v ./... 2>/dev/null | grep -q "PASS"; then echo "✓ Go unit tests passed"; else echo "✗ Go unit tests failed"; exit 1; fi || echo "No Go tests or skipped"
+testing::phase::init --target-time "60s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-# UI tests if applicable
-if [[ -d ui ]]; then
-    cd ui && if npm test >/dev/null 2>&1; then echo "✓ UI tests passed"; else echo "No UI tests or skipped"; fi || true
-fi
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-echo "Unit tests completed"
-exit 0
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50
+
+testing::phase::end_with_summary "Unit tests completed"

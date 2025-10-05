@@ -1,23 +1,31 @@
 #!/bin/bash
 # Test: Unit tests
-# Tests individual plugin functionality
+# Tests individual components and functions
 
-set -e
+set -euo pipefail
 
-echo "  ✓ Running plugin unit tests..."
+# Initialize testing phase
+APP_ROOT="${APP_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-cd api
+testing::phase::init --target-time "90s"
 
-# Test plugin loading
-go test -v ./plugins/... 2>&1 | grep -q "no test files" && {
-    echo "  ⚠️  No unit tests found for plugins"
-} || {
-    go test -v ./plugins/... || {
-        echo "  ❌ Plugin tests failed"
-        exit 1
-    }
-}
+# Source centralized unit test runner
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-cd ..
+# Navigate to scenario directory
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-echo "  ✓ Unit tests complete"
+echo "  ✓ Running unit tests for image-tools..."
+
+# Run all unit tests using centralized runner
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50 \
+    --verbose
+
+testing::phase::end_with_summary "Unit tests completed"

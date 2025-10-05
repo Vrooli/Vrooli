@@ -11,7 +11,21 @@ CLI="$RESOURCE_DIR/cli.sh"
 # Test configuration
 TEST_DIR="/tmp/ffmpeg-integration-test-$$"
 mkdir -p "$TEST_DIR"
-trap "rm -rf $TEST_DIR" EXIT
+
+# Comprehensive cleanup function
+cleanup_test_resources() {
+    # Remove test directory
+    [[ -d "$TEST_DIR" ]] && rm -rf "$TEST_DIR"
+
+    # Kill any lingering test-related ffmpeg processes
+    for pid in $(pgrep -f "ffmpeg" 2>/dev/null); do
+        if ps -p "$pid" -o cmd= 2>/dev/null | grep -qE "(test|/tmp/ffmpeg-integration-test)"; then
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    done
+}
+
+trap cleanup_test_resources EXIT
 
 # Test media creation
 create_test_video() {
@@ -199,18 +213,47 @@ test_error_handling() {
 
 test_resource_cleanup() {
     echo "Testing: Resource cleanup..."
-    
+
     # Check for zombie processes
-    local ffmpeg_procs=$(pgrep -f "ffmpeg.*test" | wc -l)
-    
+    local ffmpeg_procs=$(pgrep -f "ffmpeg" | wc -l)
+
     if [[ $ffmpeg_procs -eq 0 ]]; then
         echo "✅ No zombie ffmpeg processes"
         return 0
     else
-        echo "⚠️  Found $ffmpeg_procs ffmpeg test processes"
-        # Kill them for cleanup
-        pkill -f "ffmpeg.*test" 2>/dev/null || true
-        return 0
+        # Check if any are test-related (from test directories or using test files)
+        local test_procs=0
+        for pid in $(pgrep -f "ffmpeg"); do
+            if ps -p "$pid" -o cmd= 2>/dev/null | grep -qE "(test|/tmp/ffmpeg-integration-test)"; then
+                ((test_procs++))
+            fi
+        done
+
+        if [[ $test_procs -eq 0 ]]; then
+            echo "✅ No test-related ffmpeg processes (found $ffmpeg_procs system processes)"
+            return 0
+        else
+            echo "⚠️  Found $test_procs test-related ffmpeg processes"
+            # Kill them for cleanup
+            for pid in $(pgrep -f "ffmpeg"); do
+                if ps -p "$pid" -o cmd= 2>/dev/null | grep -qE "(test|/tmp/ffmpeg-integration-test)"; then
+                    kill -9 "$pid" 2>/dev/null || true
+                fi
+            done
+            # Wait a moment for cleanup
+            sleep 1
+            # Verify cleanup
+            local remaining=$(pgrep -f "ffmpeg" | while read pid; do
+                ps -p "$pid" -o cmd= 2>/dev/null | grep -qE "(test|/tmp/ffmpeg-integration-test)" && echo "$pid"
+            done | wc -l)
+            if [[ $remaining -eq 0 ]]; then
+                echo "✅ Test processes cleaned up successfully"
+                return 0
+            else
+                echo "⚠️  Warning: $remaining test processes could not be cleaned"
+                return 0  # Don't fail the test, just warn
+            fi
+        fi
     fi
 }
 

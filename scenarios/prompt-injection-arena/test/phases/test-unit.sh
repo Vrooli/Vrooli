@@ -1,1 +1,18 @@
-#!/bin/bash\nset -euo pipefail\n\necho "=== Unit Tests for Prompt Injection Arena ==="\n\n# Go API unit tests\nif [ -d "../../api" ]; then\n  (cd ../../api &amp;&amp; go test ./... -v -short) || exit 1\nfi\n\n# UI unit tests (if Jest or similar configured)\nif [ -d "../../ui" ] &amp;&amp; [ -f "../../ui/package.json" ]; then\n  (cd ../../ui &amp;&amp; npm test -- --passWithNoTests) || exit 1\nfi\n\n# CLI bats tests\nif [ -d "../../cli" ] &amp;&amp; ls ../../cli/*.bats 1&gt; /dev/null 2&gt;&amp;1; then\n  (cd ../../cli &amp;&amp; bats *.bats) || exit 1\nfi\n\necho "✅ Unit tests passed"
+#!/bin/bash
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+
+testing::phase::init --target-time "60s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
+
+cd "$TESTING_PHASE_SCENARIO_DIR"
+
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50
+
+testing::phase::end_with_summary "Unit tests completed"

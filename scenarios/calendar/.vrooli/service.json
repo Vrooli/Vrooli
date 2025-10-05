@@ -161,7 +161,7 @@
         },
         {
           "name": "start-api",
-          "run": "cd api && ENVIRONMENT=test VROOLI_LIFECYCLE_MANAGED=true POSTGRES_HOST=localhost POSTGRES_PORT=5433 POSTGRES_USER=vrooli POSTGRES_PASSWORD=vrooli POSTGRES_DB=calendar_system QDRANT_URL=http://localhost:6333 JWT_SECRET=development-secret-for-calendar-system AUTH_SERVICE_URL=http://localhost:15797 NOTIFICATION_SERVICE_URL=http://localhost:15310 NOTIFICATION_PROFILE_ID=calendar-system-prod ./calendar-api",
+          "run": "cd api && ENVIRONMENT=test VROOLI_LIFECYCLE_MANAGED=true POSTGRES_HOST=localhost POSTGRES_PORT=5433 POSTGRES_USER=vrooli POSTGRES_PASSWORD=vrooli POSTGRES_DB=calendar_system QDRANT_URL=http://localhost:6333 JWT_SECRET=development-secret-for-calendar-system AUTH_SERVICE_URL=http://localhost:15785 NOTIFICATION_SERVICE_URL=http://localhost:15310 NOTIFICATION_PROFILE_ID=calendar-system-prod ./calendar-api",
           "description": "Start Go API server with auth and notification integration",
           "background": true,
           "condition": {

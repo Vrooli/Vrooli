@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -170,25 +172,41 @@ func NewServer() (*Server, error) {
 			db.SetMaxIdleConns(5)
 			db.SetConnMaxLifetime(5 * time.Minute)
 
-			// Try to ping with retry
-			retries := 3
-			for i := 0; i < retries; i++ {
-				if err := db.Ping(); err != nil {
-					log.Printf("Warning: Database ping failed (attempt %d/%d): %v", i+1, retries, err)
-					if i == retries-1 {
-						db = nil
-						log.Printf("Database connection disabled after %d retries", retries)
-					} else {
-						time.Sleep(2 * time.Second)
-					}
-				} else {
-					log.Printf("Successfully connected to database at %s", dbURL)
+			// Try to ping with exponential backoff and jitter
+			maxRetries := 5
+			baseDelay := 200 * time.Millisecond
+			maxDelay := 5 * time.Second
+
+			var pingErr error
+			for attempt := 0; attempt < maxRetries; attempt++ {
+				pingErr = db.Ping()
+				if pingErr == nil {
+					log.Printf("Successfully connected to database at %s (attempt %d)", dbURL, attempt+1)
 					// Initialize database schema if needed
 					if err := initializeDatabase(db); err != nil {
 						log.Printf("Warning: Could not initialize database schema: %v", err)
 					}
 					break
 				}
+
+				if attempt == maxRetries-1 {
+					db = nil
+					log.Printf("Database connection disabled after %d retries: %v", maxRetries, pingErr)
+					break
+				}
+
+				// Calculate exponential backoff with random jitter
+				delay := time.Duration(math.Min(
+					float64(baseDelay)*math.Pow(2, float64(attempt)),
+					float64(maxDelay),
+				))
+				jitterRange := float64(delay) * 0.25
+				jitter := time.Duration(jitterRange * rand.Float64())
+				actualDelay := delay + jitter
+
+				log.Printf("Warning: Database ping failed (attempt %d/%d), retrying in %v: %v",
+					attempt+1, maxRetries, actualDelay, pingErr)
+				time.Sleep(actualDelay)
 			}
 		}
 	}

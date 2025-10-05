@@ -13,59 +13,59 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/gorilla/handlers"
-	_ "github.com/lib/pq"
 	"github.com/google/uuid"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 )
 
 type Experiment struct {
-	ID                 string            `json:"id" db:"id"`
-	Name               string            `json:"name" db:"name"`
-	Description        string            `json:"description" db:"description"`
-	Prompt             string            `json:"prompt" db:"prompt"`
-	TargetScenario     string            `json:"target_scenario" db:"target_scenario"`
-	NewResource        string            `json:"new_resource" db:"new_resource"`
-	ExistingResources  []string          `json:"existing_resources" db:"existing_resources"`
-	FilesGenerated     map[string]string `json:"files_generated" db:"files_generated"`
-	ModificationsMade  map[string]string `json:"modifications_made" db:"modifications_made"`
-	Status             string            `json:"status" db:"status"`
-	ExperimentID       *string           `json:"experiment_id" db:"experiment_id"`
-	ClaudePrompt       *string           `json:"claude_prompt" db:"claude_prompt"`
-	ClaudeResponse     *string           `json:"claude_response" db:"claude_response"`
-	GenerationError    *string           `json:"generation_error" db:"generation_error"`
-	CreatedAt          time.Time         `json:"created_at" db:"created_at"`
-	UpdatedAt          time.Time         `json:"updated_at" db:"updated_at"`
-	CompletedAt        *time.Time        `json:"completed_at" db:"completed_at"`
+	ID                string            `json:"id" db:"id"`
+	Name              string            `json:"name" db:"name"`
+	Description       string            `json:"description" db:"description"`
+	Prompt            string            `json:"prompt" db:"prompt"`
+	TargetScenario    string            `json:"target_scenario" db:"target_scenario"`
+	NewResource       string            `json:"new_resource" db:"new_resource"`
+	ExistingResources []string          `json:"existing_resources" db:"existing_resources"`
+	FilesGenerated    map[string]string `json:"files_generated" db:"files_generated"`
+	ModificationsMade map[string]string `json:"modifications_made" db:"modifications_made"`
+	Status            string            `json:"status" db:"status"`
+	ExperimentID      *string           `json:"experiment_id" db:"experiment_id"`
+	ClaudePrompt      *string           `json:"claude_prompt" db:"claude_prompt"`
+	ClaudeResponse    *string           `json:"claude_response" db:"claude_response"`
+	GenerationError   *string           `json:"generation_error" db:"generation_error"`
+	CreatedAt         time.Time         `json:"created_at" db:"created_at"`
+	UpdatedAt         time.Time         `json:"updated_at" db:"updated_at"`
+	CompletedAt       *time.Time        `json:"completed_at" db:"completed_at"`
 }
 
 type ExperimentTemplate struct {
-	ID                     string    `json:"id" db:"id"`
-	Name                   string    `json:"name" db:"name"`
-	Description            string    `json:"description" db:"description"`
-	PromptTemplate         string    `json:"prompt_template" db:"prompt_template"`
-	TargetScenarioPattern  *string   `json:"target_scenario_pattern" db:"target_scenario_pattern"`
-	ResourceCategory       *string   `json:"resource_category" db:"resource_category"`
-	UsageCount             int       `json:"usage_count" db:"usage_count"`
-	SuccessRate            *float64  `json:"success_rate" db:"success_rate"`
-	CreatedAt              time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt              time.Time `json:"updated_at" db:"updated_at"`
-	IsActive               bool      `json:"is_active" db:"is_active"`
+	ID                    string    `json:"id" db:"id"`
+	Name                  string    `json:"name" db:"name"`
+	Description           string    `json:"description" db:"description"`
+	PromptTemplate        string    `json:"prompt_template" db:"prompt_template"`
+	TargetScenarioPattern *string   `json:"target_scenario_pattern" db:"target_scenario_pattern"`
+	ResourceCategory      *string   `json:"resource_category" db:"resource_category"`
+	UsageCount            int       `json:"usage_count" db:"usage_count"`
+	SuccessRate           *float64  `json:"success_rate" db:"success_rate"`
+	CreatedAt             time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at" db:"updated_at"`
+	IsActive              bool      `json:"is_active" db:"is_active"`
 }
 
 type AvailableScenario struct {
-	ID                        string    `json:"id" db:"id"`
-	Name                      string    `json:"name" db:"name"`
-	DisplayName               *string   `json:"display_name" db:"display_name"`
-	Description               *string   `json:"description" db:"description"`
-	Path                      string    `json:"path" db:"path"`
-	CurrentResources          []string  `json:"current_resources" db:"current_resources"`
-	ResourceCategories        []string  `json:"resource_categories" db:"resource_categories"`
-	ExperimentationFriendly   bool      `json:"experimentation_friendly" db:"experimentation_friendly"`
-	ComplexityLevel           string    `json:"complexity_level" db:"complexity_level"`
-	LastExperimentDate        *time.Time `json:"last_experiment_date" db:"last_experiment_date"`
-	CreatedAt                 time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt                 time.Time `json:"updated_at" db:"updated_at"`
+	ID                      string     `json:"id" db:"id"`
+	Name                    string     `json:"name" db:"name"`
+	DisplayName             *string    `json:"display_name" db:"display_name"`
+	Description             *string    `json:"description" db:"description"`
+	Path                    string     `json:"path" db:"path"`
+	CurrentResources        []string   `json:"current_resources" db:"current_resources"`
+	ResourceCategories      []string   `json:"resource_categories" db:"resource_categories"`
+	ExperimentationFriendly bool       `json:"experimentation_friendly" db:"experimentation_friendly"`
+	ComplexityLevel         string     `json:"complexity_level" db:"complexity_level"`
+	LastExperimentDate      *time.Time `json:"last_experiment_date" db:"last_experiment_date"`
+	CreatedAt               time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt               time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 type ExperimentRequest struct {
@@ -77,16 +77,16 @@ type ExperimentRequest struct {
 }
 
 type ExperimentLog struct {
-	ID               string     `json:"id" db:"id"`
-	ExperimentID     string     `json:"experiment_id" db:"experiment_id"`
-	Step             string     `json:"step" db:"step"`
-	Prompt           string     `json:"prompt" db:"prompt"`
-	Response         *string    `json:"response" db:"response"`
-	Success          bool       `json:"success" db:"success"`
-	ErrorMessage     *string    `json:"error_message" db:"error_message"`
-	StartedAt        time.Time  `json:"started_at" db:"started_at"`
-	CompletedAt      *time.Time `json:"completed_at" db:"completed_at"`
-	DurationSeconds  *int       `json:"duration_seconds" db:"duration_seconds"`
+	ID              string     `json:"id" db:"id"`
+	ExperimentID    string     `json:"experiment_id" db:"experiment_id"`
+	Step            string     `json:"step" db:"step"`
+	Prompt          string     `json:"prompt" db:"prompt"`
+	Response        *string    `json:"response" db:"response"`
+	Success         bool       `json:"success" db:"success"`
+	ErrorMessage    *string    `json:"error_message" db:"error_message"`
+	StartedAt       time.Time  `json:"started_at" db:"started_at"`
+	CompletedAt     *time.Time `json:"completed_at" db:"completed_at"`
+	DurationSeconds *int       `json:"duration_seconds" db:"duration_seconds"`
 }
 
 type APIServer struct {
@@ -108,71 +108,71 @@ func (s *APIServer) InitDB() error {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			return fmt.Errorf("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
-	
+
 	var err error
 	s.db, err = sql.Open("postgres", postgresURL)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %v", err)
 	}
-	
+
 	// Set connection pool settings
 	s.db.SetMaxOpenConns(25)
 	s.db.SetMaxIdleConns(5)
 	s.db.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Implement exponential backoff for database connection
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📆 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = s.db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add progressive jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		return fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 	return nil
 }
@@ -188,10 +188,10 @@ func (s *APIServer) InitRoutes() {
 	api.HandleFunc("/experiments/{id}", s.UpdateExperiment).Methods("PUT")
 	api.HandleFunc("/experiments/{id}", s.DeleteExperiment).Methods("DELETE")
 	api.HandleFunc("/experiments/{id}/logs", s.GetExperimentLogs).Methods("GET")
-	
+
 	api.HandleFunc("/templates", s.ListTemplates).Methods("GET")
 	api.HandleFunc("/scenarios", s.ListScenarios).Methods("GET")
-	
+
 	// Health check
 	s.router.HandleFunc("/health", s.HealthCheck).Methods("GET")
 }
@@ -199,21 +199,21 @@ func (s *APIServer) InitRoutes() {
 func (s *APIServer) ListExperiments(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	limit := r.URL.Query().Get("limit")
-	
+
 	query := `SELECT id, name, description, prompt, target_scenario, new_resource, 
 	          existing_resources, files_generated, modifications_made, status, 
 	          experiment_id, claude_prompt, claude_response, generation_error,
 	          created_at, updated_at, completed_at 
 	          FROM experiments`
-	
+
 	args := []interface{}{}
 	if status != "" {
 		query += " WHERE status = $1"
 		args = append(args, status)
 	}
-	
+
 	query += " ORDER BY created_at DESC"
-	
+
 	if limit != "" {
 		query += " LIMIT $" + strconv.Itoa(len(args)+1)
 		args = append(args, limit)
@@ -230,7 +230,7 @@ func (s *APIServer) ListExperiments(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var exp Experiment
 		var existingResourcesJSON, filesGeneratedJSON, modificationsMadeJSON []byte
-		
+
 		err := rows.Scan(
 			&exp.ID, &exp.Name, &exp.Description, &exp.Prompt,
 			&exp.TargetScenario, &exp.NewResource, &existingResourcesJSON,
@@ -272,9 +272,9 @@ func (s *APIServer) CreateExperiment(w http.ResponseWriter, r *http.Request) {
 	experimentID := uuid.New().String()
 	query := `INSERT INTO experiments (id, name, description, prompt, target_scenario, new_resource, status)
 	          VALUES ($1, $2, $3, $4, $5, $6, 'requested') RETURNING id, created_at`
-	
+
 	var exp Experiment
-	err := s.db.QueryRow(query, experimentID, req.Name, req.Description, req.Prompt, 
+	err := s.db.QueryRow(query, experimentID, req.Name, req.Description, req.Prompt,
 		req.TargetScenario, req.NewResource).Scan(&exp.ID, &exp.CreatedAt)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create experiment: %v", err), http.StatusInternalServerError)
@@ -305,7 +305,7 @@ func (s *APIServer) processExperiment(experimentID string) {
 	err := s.db.QueryRow(query, experimentID).Scan(
 		&exp.Name, &exp.Description, &exp.Prompt, &exp.TargetScenario, &exp.NewResource)
 	if err != nil {
-		s.db.Exec("UPDATE experiments SET status = 'failed', generation_error = $2 WHERE id = $1", 
+		s.db.Exec("UPDATE experiments SET status = 'failed', generation_error = $2 WHERE id = $1",
 			experimentID, "Failed to load experiment details")
 		return
 	}
@@ -313,7 +313,7 @@ func (s *APIServer) processExperiment(experimentID string) {
 	// Load experiment prompt template
 	promptTemplate, err := s.loadPromptTemplate("experiment-prompt.md", exp)
 	if err != nil {
-		s.db.Exec("UPDATE experiments SET status = 'failed', generation_error = $2 WHERE id = $1", 
+		s.db.Exec("UPDATE experiments SET status = 'failed', generation_error = $2 WHERE id = $1",
 			experimentID, fmt.Sprintf("Failed to load prompt template: %v", err))
 		return
 	}
@@ -321,7 +321,7 @@ func (s *APIServer) processExperiment(experimentID string) {
 	// Call Claude Code
 	response, err := s.callClaudeCode(promptTemplate)
 	if err != nil {
-		s.db.Exec("UPDATE experiments SET status = 'failed', generation_error = $2 WHERE id = $1", 
+		s.db.Exec("UPDATE experiments SET status = 'failed', generation_error = $2 WHERE id = $1",
 			experimentID, fmt.Sprintf("Claude Code call failed: %v", err))
 		return
 	}
@@ -333,9 +333,9 @@ func (s *APIServer) processExperiment(experimentID string) {
 		claude_prompt = $2, 
 		claude_response = $3, 
 		completed_at = $4 
-		WHERE id = $1`, 
+		WHERE id = $1`,
 		experimentID, promptTemplate, response, completedAt)
-	
+
 	if err != nil {
 		log.Printf("Failed to update experiment %s: %v", experimentID, err)
 	}
@@ -391,7 +391,7 @@ func (s *APIServer) GetExperiment(w http.ResponseWriter, r *http.Request) {
 
 	var exp Experiment
 	var existingResourcesJSON, filesGeneratedJSON, modificationsMadeJSON []byte
-	
+
 	err := s.db.QueryRow(query, id).Scan(
 		&exp.ID, &exp.Name, &exp.Description, &exp.Prompt,
 		&exp.TargetScenario, &exp.NewResource, &existingResourcesJSON,
@@ -449,7 +449,7 @@ func (s *APIServer) UpdateExperiment(w http.ResponseWriter, r *http.Request) {
 	args = append(args, time.Now())
 	argCount++
 
-	query := fmt.Sprintf("UPDATE experiments SET %s WHERE id = $%d", 
+	query := fmt.Sprintf("UPDATE experiments SET %s WHERE id = $%d",
 		strings.Join(setParts, ", "), argCount)
 	args = append(args, id)
 
@@ -559,7 +559,7 @@ func (s *APIServer) ListScenarios(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var scenario AvailableScenario
 		var currentResourcesJSON, resourceCategoriesJSON []byte
-		
+
 		err := rows.Scan(
 			&scenario.ID, &scenario.Name, &scenario.DisplayName, &scenario.Description,
 			&scenario.Path, &currentResourcesJSON, &resourceCategoriesJSON,
@@ -595,7 +595,7 @@ func (s *APIServer) HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"status": "healthy",
+		"status":  "healthy",
 		"service": "resource-experimenter-api",
 	})
 }
@@ -606,7 +606,7 @@ func (s *APIServer) Start() error {
 	if port == "" {
 		return fmt.Errorf("❌ API_PORT environment variable is required")
 	}
-	
+
 	// Enable CORS
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins([]string{"*"}),

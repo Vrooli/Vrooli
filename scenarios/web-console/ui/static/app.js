@@ -36,7 +36,6 @@ const elements = {
   composeTextarea: document.getElementById('composeTextarea'),
   composeAppendNewline: document.getElementById('composeAppendNewline'),
   composeCharCount: document.getElementById('composeCharCount'),
-  composePreview: document.getElementById('composePreview'),
   composeSend: document.getElementById('composeSend')
 }
 
@@ -365,6 +364,56 @@ window.addEventListener('resize', () => {
   })
 })
 
+// Handle visibility changes (tab switching)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    // Tab became visible - refresh active terminal and check connections
+    const activeTab = getActiveTab()
+    if (activeTab && activeTab.term) {
+      // Force terminal refresh to fix blank screen issue
+      // The terminal canvas can lose its rendered content when backgrounded
+      const forceRender = () => {
+        try {
+          // Focus terminal first - this is crucial for the render pipeline
+          activeTab.term.focus()
+
+          // Fit to container size
+          activeTab.fitAddon?.fit()
+
+          // Scroll to bottom (ensures viewport is correct)
+          activeTab.term.scrollToBottom()
+
+          // Force render pipeline by writing empty string
+          // This triggers internal rendering that might be paused
+          activeTab.term.write('')
+
+          // Refresh entire terminal display
+          activeTab.term.refresh(0, activeTab.term.rows - 1)
+        } catch (error) {
+          console.warn('Failed to refresh terminal on visibility change:', error)
+        }
+      }
+
+      // Multiple refresh attempts for maximum reliability
+      // Different timing handles various browser restoration states
+      requestAnimationFrame(forceRender)
+      setTimeout(forceRender, 100)
+      setTimeout(forceRender, 250)
+    }
+
+    // Check all tabs for disconnected sessions that need reconnection
+    state.tabs.forEach((tab) => {
+      if (tab.session && tab.phase === 'running' && !tab.socket) {
+        // Session exists but socket is disconnected - try to reconnect
+        appendEvent(tab, 'visibility-reconnect', { sessionId: tab.session.id })
+        reconnectSession(tab, tab.session.id).catch((error) => {
+          console.warn('Failed to reconnect on visibility change:', error)
+        })
+      }
+    })
+  }
+})
+
 updateUI()
 updateDrawerIndicator()
 applyDrawerState()
@@ -469,7 +518,8 @@ function createTerminalTab({ focus = false, id = null, label = null, colorId = T
   term.loadAddon(fitAddon)
   term.open(container)
 
-  // Write initial prompt to ensure terminal renders content immediately
+  // Write initial space to ensure terminal canvas is initialized
+  // This prevents blank screen on initial render
   term.write('\r')
 
   fitAddon.fit()
@@ -487,6 +537,9 @@ function createTerminalTab({ focus = false, id = null, label = null, colorId = T
     session: null,
     socket: null,
     reconnecting: false,
+    hasEverConnected: false, // Track if terminal has received content
+    hasReceivedLiveOutput: false, // Track if we've received first live output (not replay)
+    heartbeatInterval: null,
     inputSeq: 0,
     replayPending: false,
     replayComplete: true,
@@ -547,6 +600,11 @@ function destroyTerminalTab(tab) {
   if (!tab) return
   if (state.tabMenu.open && state.tabMenu.tabId === tab.id) {
     closeTabCustomization()
+  }
+  // Clear heartbeat interval
+  if (tab.heartbeatInterval) {
+    clearInterval(tab.heartbeatInterval)
+    tab.heartbeatInterval = null
   }
   try {
     tab.term?.dispose()
@@ -637,6 +695,18 @@ function focusTerminal(tab) {
   requestAnimationFrame(() => {
     tab.term.focus()
     tab.fitAddon?.fit()
+
+    // Force render pipeline before refresh
+    // This is critical when the terminal canvas may have lost content
+    tab.term.write('')
+
+    // Refresh the terminal canvas to ensure content is visible
+    // This fixes blank screen issues when switching between tabs
+    try {
+      tab.term?.refresh(0, tab.term.rows - 1)
+    } catch (error) {
+      console.warn('Failed to refresh terminal on focus:', error)
+    }
   })
 }
 
@@ -1095,14 +1165,36 @@ function handleTerminalData(tab, data) {
     return
   }
 
+  // Queue input for when connection is ready
   queueInput(tab, data, { appendNewline: false })
-  if (tab.phase === 'idle' || tab.phase === 'closed') {
+
+  // If we have an existing session, try to reconnect to it first
+  // This prevents creating a new session (which resets the terminal)
+  if (tab.session && tab.session.id && !tab.socket) {
+    // Session exists but socket is disconnected - reconnect to preserve state
+    showError(tab, 'Reconnecting to session…')
+    reconnectSession(tab, tab.session.id).catch((error) => {
+      appendEvent(tab, 'reconnect-on-input-failed', error)
+      // Reconnection failed - only now start a new session
+      if (tab.phase === 'idle' || tab.phase === 'closed') {
+        showError(tab, 'Starting new session…')
+        startSession(tab, { reason: 'auto-start:input-after-reconnect-fail' }).catch((startError) => {
+          appendEvent(tab, 'session-error', startError)
+          showError(tab, startError instanceof Error ? startError.message : 'Unable to start terminal session')
+        })
+      }
+    })
+  } else if (tab.phase === 'idle' || tab.phase === 'closed') {
+    // No existing session - safe to start a new one
+    showError(tab, 'Starting new session…')
     startSession(tab, { reason: 'auto-start:input' }).catch((error) => {
       appendEvent(tab, 'session-error', error)
       showError(tab, error instanceof Error ? error.message : 'Unable to start terminal session')
     })
+  } else {
+    // Socket is connecting or session is starting - input is queued
+    showError(tab, 'Connecting…')
   }
-  showError(tab, 'Terminal session is starting…')
 }
 
 function queueInput(tab, value, meta = {}) {
@@ -1353,6 +1445,7 @@ async function startSession(tab, options = {}) {
     tab.replayComplete = true
     tab.lastReplayCount = 0
     tab.lastReplayTruncated = false
+    tab.hasReceivedLiveOutput = false // Reset for new session
     tab.term.reset()
     renderEventMeta(tab)
     appendEvent(tab, 'session-created', {
@@ -1518,6 +1611,20 @@ function connectWebSocket(tab, sessionId) {
       sendResize(tab, tab.term.cols, tab.term.rows)
     }
     flushPendingWrites(tab)
+
+    // Start heartbeat to keep connection alive
+    if (tab.heartbeatInterval) {
+      clearInterval(tab.heartbeatInterval)
+    }
+    tab.heartbeatInterval = setInterval(() => {
+      if (tab.socket === socket && socket.readyState === WebSocket.OPEN) {
+        try {
+          socket.send(JSON.stringify({ type: 'heartbeat', payload: {} }))
+        } catch (error) {
+          console.warn('Heartbeat send failed:', error)
+        }
+      }
+    }, 30000) // Send heartbeat every 30 seconds
   })
 
   socket.addEventListener('message', async (event) => {
@@ -1554,13 +1661,47 @@ function connectWebSocket(tab, sessionId) {
     if (tab.socket !== socket) {
       return
     }
-    setTabSocketState(tab, 'disconnected')
-    appendEvent(tab, 'ws-close', { code: event.code, reason: event.reason })
-    if (tab.phase === 'running' || tab.phase === 'closing') {
-      setTabPhase(tab, 'closed')
+
+    // Clear heartbeat interval
+    if (tab.heartbeatInterval) {
+      clearInterval(tab.heartbeatInterval)
+      tab.heartbeatInterval = null
     }
+
+    setTabSocketState(tab, 'disconnected')
+    appendEvent(tab, 'ws-close', { code: event.code, reason: event.reason, sessionId })
+
+    // Clear socket reference
     tab.socket = null
-    state.bridge?.emit('session-ended', { id: sessionId, reason: 'ws-close', tabId: tab.id })
+
+    // Don't mark as closed on clean WebSocket close - session may still be alive on server
+    // Only mark closed if we're explicitly closing the session
+    const isExplicitClose = tab.phase === 'closing'
+
+    if (isExplicitClose) {
+      // We explicitly requested to close - mark as closed
+      setTabPhase(tab, 'closed')
+      state.bridge?.emit('session-ended', { id: sessionId, reason: 'explicit-close', tabId: tab.id })
+    } else if (tab.session && tab.phase === 'running') {
+      // Session still exists - keep phase as 'running' and attempt reconnection
+      // This preserves session state so user input will reconnect instead of starting new session
+      appendEvent(tab, 'ws-reconnecting', { sessionId, attempt: 1, code: event.code })
+      setTimeout(() => {
+        // Double-check session and socket state before reconnecting
+        if (tab.session && tab.session.id === sessionId && !tab.socket) {
+          reconnectSession(tab, sessionId).catch((error) => {
+            appendEvent(tab, 'ws-reconnect-failed', error)
+            setTabPhase(tab, 'closed')
+            showError(tab, 'Session disconnected. Type to start a new session.')
+          })
+        }
+      }, 1000)
+    } else {
+      // No session to reconnect to
+      if (tab.phase !== 'closed' && tab.phase !== 'idle') {
+        setTabPhase(tab, 'closed')
+      }
+    }
   })
 }
 
@@ -1600,6 +1741,46 @@ function handleOutputPayload(tab, payload, options = {}) {
   }
 
   tab.term.write(text)
+
+  // Force terminal refresh on first real output (not replay) to ensure prompt is visible
+  // This fixes blank terminal issue when shell prompt arrives after WebSocket connects
+  if (options.replay !== true && !tab.hasReceivedLiveOutput) {
+    tab.hasReceivedLiveOutput = true
+
+    // Use multiple refresh strategies for maximum reliability
+    // The terminal canvas can fail to render in various browser/tab states
+    const forceRender = () => {
+      try {
+        // Strategy 1: Focus the terminal (critical for render pipeline)
+        if (tab.id === state.activeTabId && document.hasFocus()) {
+          tab.term.focus()
+        }
+
+        // Strategy 2: Fit to container (ensures proper dimensions)
+        tab.fitAddon?.fit()
+
+        // Strategy 3: Scroll to bottom (ensures viewport is correct)
+        tab.term.scrollToBottom()
+
+        // Strategy 4: Write empty string (triggers internal render)
+        tab.term.write('')
+
+        // Strategy 5: Explicit refresh of all rows
+        tab.term.refresh(0, tab.term.rows - 1)
+      } catch (error) {
+        console.warn('Failed to refresh terminal on first output:', error)
+      }
+    }
+
+    // Execute immediately
+    forceRender()
+
+    // Also execute after next frame AND after small delay
+    // This handles cases where browser hasn't fully painted yet
+    requestAnimationFrame(forceRender)
+    setTimeout(forceRender, 50)
+  }
+
   if (options.record !== false) {
     const entry = {
       timestamp: payload.timestamp ? Date.parse(payload.timestamp) : Date.now(),
@@ -1625,12 +1806,19 @@ function handleReplayPayload(tab, payload) {
     tab.replayComplete = false
     tab.lastReplayCount = 0
     tab.lastReplayTruncated = false
-    try {
-      tab.term.reset()
-    } catch (_error) {
-      // ignore reset failures
+
+    // Only reset terminal on first connection, not on reconnects
+    // This prevents blank screen when returning to tab after disconnect
+    // On reconnect, preserve existing terminal state and write replay additively
+    if (!tab.hasEverConnected && chunks.length > 0) {
+      try {
+        tab.term.reset()
+      } catch (_error) {
+        // ignore reset failures
+      }
+      tab.transcript = []
     }
-    tab.transcript = []
+
     appendEvent(tab, 'output-replay-started', {
       expected: typeof payload.count === 'number' ? payload.count : chunks.length
     })
@@ -1655,6 +1843,7 @@ function handleReplayPayload(tab, payload) {
 
   if (payload.complete) {
     tab.replayComplete = true
+    tab.hasEverConnected = true  // Mark that we've received session content
     const eventPayload = {
       count: tab.lastReplayCount,
       truncated: tab.lastReplayTruncated
@@ -1666,6 +1855,26 @@ function handleReplayPayload(tab, payload) {
       }
     }
     appendEvent(tab, 'output-replay-complete', eventPayload)
+
+    // Force terminal refresh after replay completes
+    // This ensures content is visible, especially important for reconnections
+    if (tab.id === state.activeTabId) {
+      const forceRender = () => {
+        try {
+          tab.term.focus()
+          tab.fitAddon?.fit()
+          tab.term.scrollToBottom()
+          tab.term.write('')
+          tab.term.refresh(0, tab.term.rows - 1)
+        } catch (error) {
+          console.warn('Failed to refresh terminal after replay:', error)
+        }
+      }
+
+      // Multiple refresh attempts for reliability
+      requestAnimationFrame(forceRender)
+      setTimeout(forceRender, 50)
+    }
   } else {
     tab.replayPending = true
   }
@@ -1797,11 +2006,6 @@ function updateComposeFeedback() {
   state.composer.appendNewline = newline
 
   const needsNewline = newline && !value.endsWith('\n')
-  const previewText = newline ? `${value}${needsNewline ? '\n' : ''}` : value
-
-  if (elements.composePreview) {
-    elements.composePreview.textContent = previewText
-  }
 
   const tab = getActiveTab()
 

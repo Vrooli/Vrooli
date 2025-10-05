@@ -1,5 +1,25 @@
 # Smart Shopping Assistant - Known Issues and Solutions
 
+## Issues Fixed (2025-10-03)
+
+### 1. Health Endpoint Schema Compliance
+**Problem**: API health endpoint was missing required fields (readiness, dependencies) per Vrooli health schema standards.
+
+**Solution**: Updated HealthResponse struct and handleHealth function to include:
+- `readiness` field (boolean indicating service is ready)
+- `dependencies` object with database and Redis connectivity status
+- Latency measurements for each dependency
+- Structured error objects when connections fail
+
+**Files Modified**: `api/main.go` (lines 26-33, 293-369)
+
+### 2. Health Check Monitoring
+**Problem**: Health endpoints were not properly monitoring actual service dependencies.
+
+**Solution**: Implemented real-time checks for PostgreSQL and Redis connections with latency tracking. Service reports "degraded" status when critical dependencies are unavailable.
+
+**Files Modified**: `api/main.go` (health handler)
+
 ## Issues Fixed (2025-09-28)
 
 ### 1. NaN% in Savings Recommendations

@@ -366,20 +366,250 @@ func TestCalculateTaxOptimization(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := CalculateTaxOptimization(tt.input)
-			
+
 			if math.Abs(result.TaxableIncome-tt.expected.TaxableIncome) > tt.delta {
 				t.Errorf("TaxableIncome = %v, want %v (±%v)",
 					result.TaxableIncome, tt.expected.TaxableIncome, tt.delta)
 			}
-			
+
 			if math.Abs(result.TaxOwed-tt.expected.TaxOwed) > tt.delta {
 				t.Errorf("TaxOwed = %v, want %v (±%v)",
 					result.TaxOwed, tt.expected.TaxOwed, tt.delta)
 			}
-			
+
 			if result.MarginalRate != tt.expected.MarginalRate {
 				t.Errorf("MarginalRate = %v, want %v",
 					result.MarginalRate, tt.expected.MarginalRate)
+			}
+		})
+	}
+}
+
+func TestCalculateEmergencyFund(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    EmergencyFundInput
+		expected EmergencyFundResult
+	}{
+		{
+			name: "Stable job with no dependents",
+			input: EmergencyFundInput{
+				MonthlyExpenses:        3000,
+				JobStability:           "stable",
+				NumberOfDependents:     0,
+				HasDisabilityInsurance: false,
+			},
+			expected: EmergencyFundResult{
+				MinimumMonths:     3,
+				RecommendedMonths: 6,
+				MinimumAmount:     9000,
+				RecommendedAmount: 18000,
+			},
+		},
+		{
+			name: "Unstable job with dependents and insurance",
+			input: EmergencyFundInput{
+				MonthlyExpenses:        4000,
+				JobStability:           "unstable",
+				NumberOfDependents:     2,
+				HasDisabilityInsurance: true,
+			},
+			expected: EmergencyFundResult{
+				MinimumMonths:     6, // 6 base + 2 dependents = 8, then * 0.8 = 6
+				RecommendedMonths: 12,
+				MinimumAmount:     24000,
+				RecommendedAmount: 48000,
+			},
+		},
+		{
+			name: "Moderate job stability",
+			input: EmergencyFundInput{
+				MonthlyExpenses:        2500,
+				JobStability:           "moderate",
+				NumberOfDependents:     1,
+				HasDisabilityInsurance: false,
+			},
+			expected: EmergencyFundResult{
+				MinimumMonths:     5, // 4 base + 1 dependent
+				RecommendedMonths: 11, // 9 base + 2 (1 dependent * 2)
+				MinimumAmount:     12500,
+				RecommendedAmount: 27500,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CalculateEmergencyFund(tt.input)
+
+			if result.MinimumMonths != tt.expected.MinimumMonths {
+				t.Errorf("MinimumMonths = %v, want %v",
+					result.MinimumMonths, tt.expected.MinimumMonths)
+			}
+
+			if result.RecommendedMonths != tt.expected.RecommendedMonths {
+				t.Errorf("RecommendedMonths = %v, want %v",
+					result.RecommendedMonths, tt.expected.RecommendedMonths)
+			}
+
+			if math.Abs(result.MinimumAmount-tt.expected.MinimumAmount) > 1 {
+				t.Errorf("MinimumAmount = %v, want %v",
+					result.MinimumAmount, tt.expected.MinimumAmount)
+			}
+
+			if math.Abs(result.RecommendedAmount-tt.expected.RecommendedAmount) > 1 {
+				t.Errorf("RecommendedAmount = %v, want %v",
+					result.RecommendedAmount, tt.expected.RecommendedAmount)
+			}
+		})
+	}
+}
+
+func TestCalculateDebtPayoff(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        DebtPayoffInput
+		expectedCond func(DebtPayoffResult) bool
+		description  string
+	}{
+		{
+			name: "Avalanche method prioritizes high interest",
+			input: DebtPayoffInput{
+				Debts: []Debt{
+					{Name: "Credit Card", Balance: 5000, InterestRate: 18, MinimumPayment: 150},
+					{Name: "Student Loan", Balance: 10000, InterestRate: 6, MinimumPayment: 100},
+				},
+				ExtraPayment: 200,
+				Method:       "avalanche",
+			},
+			expectedCond: func(r DebtPayoffResult) bool {
+				return r.TotalMonths > 0 && r.TotalMonths < 100 && r.TotalInterestPaid > 0
+			},
+			description: "Should complete in reasonable time with interest cost",
+		},
+		{
+			name: "Snowball method prioritizes low balance",
+			input: DebtPayoffInput{
+				Debts: []Debt{
+					{Name: "Small Card", Balance: 1000, InterestRate: 15, MinimumPayment: 50},
+					{Name: "Big Loan", Balance: 20000, InterestRate: 7, MinimumPayment: 300},
+				},
+				ExtraPayment: 500,
+				Method:       "snowball",
+			},
+			expectedCond: func(r DebtPayoffResult) bool {
+				return r.TotalMonths > 0 && r.TotalMonths < 100 && r.TotalPaid > 21000
+			},
+			description: "Should complete and pay more than principal due to interest",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CalculateDebtPayoff(tt.input)
+
+			if !tt.expectedCond(result) {
+				t.Errorf("%s - got TotalMonths=%v, TotalInterestPaid=%v, TotalPaid=%v",
+					tt.description, result.TotalMonths, result.TotalInterestPaid, result.TotalPaid)
+			}
+
+			if len(result.PayoffSchedule) == 0 {
+				t.Error("PayoffSchedule should not be empty")
+			}
+		})
+	}
+}
+
+func TestCalculateBudgetAllocation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    BudgetAllocationInput
+		expected BudgetAllocationResult
+	}{
+		{
+			name: "50-30-20 rule",
+			input: BudgetAllocationInput{
+				MonthlyIncome: 5000,
+				BudgetMethod:  "50-30-20",
+			},
+			expected: BudgetAllocationResult{
+				Needs:          2500,
+				NeedsPercent:   50,
+				Wants:          1500,
+				WantsPercent:   30,
+				Savings:        1000,
+				SavingsPercent: 20,
+				Method:         "50-30-20",
+			},
+		},
+		{
+			name: "70-20-10 rule",
+			input: BudgetAllocationInput{
+				MonthlyIncome: 6000,
+				BudgetMethod:  "70-20-10",
+			},
+			expected: BudgetAllocationResult{
+				Needs:          4200,
+				NeedsPercent:   70,
+				Wants:          1200,
+				WantsPercent:   20,
+				Savings:        600,
+				SavingsPercent: 10,
+				Method:         "70-20-10",
+			},
+		},
+		{
+			name: "60-20-20 rule",
+			input: BudgetAllocationInput{
+				MonthlyIncome: 8000,
+				BudgetMethod:  "60-20-20",
+			},
+			expected: BudgetAllocationResult{
+				Needs:          4800,
+				NeedsPercent:   60,
+				Wants:          1600,
+				WantsPercent:   20,
+				Savings:        1600,
+				SavingsPercent: 20,
+				Method:         "60-20-20",
+			},
+		},
+		{
+			name: "Default method (should use 50-30-20)",
+			input: BudgetAllocationInput{
+				MonthlyIncome: 4000,
+				BudgetMethod:  "",
+			},
+			expected: BudgetAllocationResult{
+				Needs:          2000,
+				NeedsPercent:   50,
+				Wants:          1200,
+				WantsPercent:   30,
+				Savings:        800,
+				SavingsPercent: 20,
+				Method:         "50-30-20",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CalculateBudgetAllocation(tt.input)
+
+			if math.Abs(result.Needs-tt.expected.Needs) > 0.01 {
+				t.Errorf("Needs = %v, want %v", result.Needs, tt.expected.Needs)
+			}
+
+			if math.Abs(result.Wants-tt.expected.Wants) > 0.01 {
+				t.Errorf("Wants = %v, want %v", result.Wants, tt.expected.Wants)
+			}
+
+			if math.Abs(result.Savings-tt.expected.Savings) > 0.01 {
+				t.Errorf("Savings = %v, want %v", result.Savings, tt.expected.Savings)
+			}
+
+			if result.Method != tt.expected.Method {
+				t.Errorf("Method = %v, want %v", result.Method, tt.expected.Method)
 			}
 		})
 	}

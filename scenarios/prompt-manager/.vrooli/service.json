@@ -42,7 +42,7 @@
       "purpose": "Primary data storage for campaigns, prompts, tags, and metadata",
       "initialization": [
         {
-          "file": "initialization/storage/postgres/schema.sql",
+          "file": "initialization/storage/postgres/schema_with_prefix.sql",
           "type": "schema"
         },
         {

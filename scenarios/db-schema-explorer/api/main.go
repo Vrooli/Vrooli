@@ -495,12 +495,13 @@ func (s *Server) handleQueryHistory(w http.ResponseWriter, r *http.Request) {
 
 	var history []map[string]interface{}
 	for rows.Next() {
-		var id, naturalLang, sql, queryType string
+		var id, naturalLang, sqlStr, queryType string
 		var feedback sql.NullString
-		var execTime, resultCount sql.NullInt64
+		var execTime sql.NullInt64
+		var resultCount sql.NullInt64
 		var createdAt time.Time
 
-		if err := rows.Scan(&id, &naturalLang, &sql, &execTime,
+		if err := rows.Scan(&id, &naturalLang, &sqlStr, &execTime,
 			&resultCount, &queryType, &feedback, &createdAt); err != nil {
 			continue
 		}
@@ -508,7 +509,7 @@ func (s *Server) handleQueryHistory(w http.ResponseWriter, r *http.Request) {
 		item := map[string]interface{}{
 			"id":               id,
 			"natural_language": naturalLang,
-			"sql":              sql,
+			"sql":              sqlStr,
 			"query_type":       queryType,
 			"created_at":       createdAt,
 		}

@@ -12,13 +12,12 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/gorilla/handlers"
 	"github.com/google/uuid"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 )
 
 // DesktopConfig represents the configuration for generating a desktop application
@@ -34,11 +33,11 @@ type DesktopConfig struct {
 	AppURL         string `json:"app_url"`
 
 	// Server configuration
-	ServerType    string `json:"server_type" validate:"required,oneof=node static external executable"`
-	ServerPort    int    `json:"server_port"`
-	ServerPath    string `json:"server_path" validate:"required"`
-	APIEndpoint   string `json:"api_endpoint" validate:"required,url"`
-	ScenarioPath  string `json:"scenario_dist_path"`
+	ServerType   string `json:"server_type" validate:"required,oneof=node static external executable"`
+	ServerPort   int    `json:"server_port"`
+	ServerPath   string `json:"server_path" validate:"required"`
+	APIEndpoint  string `json:"api_endpoint" validate:"required,url"`
+	ScenarioPath string `json:"scenario_dist_path"`
 
 	// Template configuration
 	Framework    string `json:"framework" validate:"required,oneof=electron tauri neutralino"`
@@ -79,20 +78,20 @@ type BuildStatus struct {
 
 // TemplateInfo represents information about available templates
 type TemplateInfo struct {
-	Name         string   `json:"name"`
-	Description  string   `json:"description"`
-	Type         string   `json:"type"`
-	Framework    string   `json:"framework"`
-	UseCases     []string `json:"use_cases"`
-	Features     []string `json:"features"`
-	Complexity   string   `json:"complexity"`
-	Examples     []string `json:"examples"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Type        string   `json:"type"`
+	Framework   string   `json:"framework"`
+	UseCases    []string `json:"use_cases"`
+	Features    []string `json:"features"`
+	Complexity  string   `json:"complexity"`
+	Examples    []string `json:"examples"`
 }
 
 // Server represents the API server
 type Server struct {
-	router       *mux.Router
-	port         int
+	router        *mux.Router
+	port          int
 	buildStatuses map[string]*BuildStatus
 	templateDir   string
 }
@@ -105,7 +104,7 @@ func NewServer(port int) *Server {
 		buildStatuses: make(map[string]*BuildStatus),
 		templateDir:   "./templates",
 	}
-	
+
 	server.setupRoutes()
 	return server
 }
@@ -114,24 +113,24 @@ func NewServer(port int) *Server {
 func (s *Server) setupRoutes() {
 	// Health check
 	s.router.HandleFunc("/api/v1/health", s.healthHandler).Methods("GET")
-	
+
 	// System status
 	s.router.HandleFunc("/api/v1/status", s.statusHandler).Methods("GET")
-	
+
 	// Template management
 	s.router.HandleFunc("/api/v1/templates", s.listTemplatesHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/templates/{type}", s.getTemplateHandler).Methods("GET")
-	
+
 	// Desktop application operations
 	s.router.HandleFunc("/api/v1/desktop/generate", s.generateDesktopHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/status/{build_id}", s.getBuildStatusHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/desktop/build", s.buildDesktopHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/test", s.testDesktopHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/package", s.packageDesktopHandler).Methods("POST")
-	
+
 	// Webhook endpoints
 	s.router.HandleFunc("/api/v1/desktop/webhook/build-complete", s.buildCompleteWebhookHandler).Methods("POST")
-	
+
 	// Setup CORS
 	s.router.Use(corsMiddleware)
 	s.router.Use(loggingMiddleware)
@@ -140,7 +139,7 @@ func (s *Server) setupRoutes() {
 // Start starts the server
 func (s *Server) Start() error {
 	log.Printf("Starting scenario-to-desktop API server on port %d", s.port)
-	
+
 	// Setup graceful shutdown
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.port),
@@ -149,33 +148,33 @@ func (s *Server) Start() error {
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
-	
+
 	// Start server in goroutine
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
-	
+
 	log.Printf("Desktop API server started at http://localhost:%d", s.port)
 	log.Printf("Health check: http://localhost:%d/api/v1/health", s.port)
 	log.Printf("API documentation: http://localhost:%d/api/v1/status", s.port)
-	
+
 	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	
+
 	log.Println("Shutting down server...")
-	
+
 	// Graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	if err := server.Shutdown(ctx); err != nil {
 		return fmt.Errorf("server shutdown failed: %w", err)
 	}
-	
+
 	log.Println("Server stopped")
 	return nil
 }
@@ -189,7 +188,7 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 		"timestamp": time.Now().UTC(),
 		"uptime":    "unknown", // Could be tracked if needed
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -200,7 +199,7 @@ func (s *Server) statusHandler(w http.ResponseWriter, r *http.Request) {
 	building := 0
 	completed := 0
 	failed := 0
-	
+
 	for _, status := range s.buildStatuses {
 		switch status.Status {
 		case "building":
@@ -211,7 +210,7 @@ func (s *Server) statusHandler(w http.ResponseWriter, r *http.Request) {
 			failed++
 		}
 	}
-	
+
 	response := map[string]interface{}{
 		"service": map[string]interface{}{
 			"name":        "scenario-to-desktop",
@@ -241,7 +240,7 @@ func (s *Server) statusHandler(w http.ResponseWriter, r *http.Request) {
 			{"method": "GET", "path": "/api/v1/desktop/status/{build_id}", "description": "Get build status"},
 		},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -290,7 +289,7 @@ func (s *Server) listTemplatesHandler(w http.ResponseWriter, r *http.Request) {
 			Examples:    []string{"information-display", "booking-system", "retail-kiosk"},
 		},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"templates": templates,
@@ -302,22 +301,22 @@ func (s *Server) listTemplatesHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getTemplateHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	templateType := vars["type"]
-	
+
 	// Read template configuration file
 	templatePath := filepath.Join(s.templateDir, "advanced", templateType+".json")
-	
+
 	data, err := os.ReadFile(templatePath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Template not found: %s", templateType), http.StatusNotFound)
 		return
 	}
-	
+
 	var templateConfig map[string]interface{}
 	if err := json.Unmarshal(data, &templateConfig); err != nil {
 		http.Error(w, "Failed to parse template configuration", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(templateConfig)
 }
@@ -325,27 +324,27 @@ func (s *Server) getTemplateHandler(w http.ResponseWriter, r *http.Request) {
 // Generate desktop application handler
 func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) {
 	var config DesktopConfig
-	
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	if err := json.Unmarshal(body, &config); err != nil {
 		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validate configuration
 	if err := s.validateDesktopConfig(&config); err != nil {
 		http.Error(w, fmt.Sprintf("Configuration validation failed: %s", err), http.StatusBadRequest)
 		return
 	}
-	
+
 	// Generate build ID
 	buildID := uuid.New().String()
-	
+
 	// Create build status
 	buildStatus := &BuildStatus{
 		BuildID:      buildID,
@@ -361,23 +360,23 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 		Artifacts:    make(map[string]string),
 		Metadata:     make(map[string]interface{}),
 	}
-	
+
 	// Store build status
 	s.buildStatuses[buildID] = buildStatus
-	
+
 	// Start build process asynchronously
 	go s.performDesktopGeneration(buildID, &config)
-	
+
 	// Return immediate response
 	response := map[string]interface{}{
-		"build_id":           buildID,
-		"status":             "building",
-		"desktop_path":       config.OutputPath,
+		"build_id":             buildID,
+		"status":               "building",
+		"desktop_path":         config.OutputPath,
 		"install_instructions": "Run 'npm install && npm run dev' in the output directory",
-		"test_command":       "npm run dev",
-		"status_url":         fmt.Sprintf("/api/v1/desktop/status/%s", buildID),
+		"test_command":         "npm run dev",
+		"status_url":           fmt.Sprintf("/api/v1/desktop/status/%s", buildID),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
@@ -387,13 +386,13 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 func (s *Server) getBuildStatusHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	buildID := vars["build_id"]
-	
+
 	status, exists := s.buildStatuses[buildID]
 	if !exists {
 		http.Error(w, "Build not found", http.StatusNotFound)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(status)
 }
@@ -406,14 +405,14 @@ func (s *Server) buildDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		Sign        bool     `json:"sign"`
 		Publish     bool     `json:"publish"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
-	
+
 	buildID := uuid.New().String()
-	
+
 	// Create build status
 	buildStatus := &BuildStatus{
 		BuildID:    buildID,
@@ -424,18 +423,18 @@ func (s *Server) buildDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		BuildLog:   []string{},
 		ErrorLog:   []string{},
 	}
-	
+
 	s.buildStatuses[buildID] = buildStatus
-	
+
 	// Start build process
 	go s.performDesktopBuild(buildID, &request)
-	
+
 	response := map[string]interface{}{
 		"build_id":   buildID,
 		"status":     "building",
 		"status_url": fmt.Sprintf("/api/v1/desktop/status/%s", buildID),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
@@ -448,21 +447,21 @@ func (s *Server) testDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		Platforms []string `json:"platforms"`
 		Headless  bool     `json:"headless"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Perform basic validation tests
 	testResults := s.runDesktopTests(&request)
-	
+
 	response := map[string]interface{}{
 		"test_results": testResults,
 		"status":       "completed",
 		"timestamp":    time.Now(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -474,19 +473,19 @@ func (s *Server) packageDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		Store      string `json:"store"`
 		Enterprise bool   `json:"enterprise"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Placeholder for packaging logic
 	response := map[string]interface{}{
 		"status":    "completed",
 		"packages":  []string{},
 		"timestamp": time.Now(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -498,13 +497,13 @@ func (s *Server) buildCompleteWebhookHandler(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "Missing X-Build-ID header", http.StatusBadRequest)
 		return
 	}
-	
+
 	var result map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
 		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Update build status if it exists
 	if status, exists := s.buildStatuses[buildID]; exists {
 		if resultStatus, ok := result["status"].(string); ok {
@@ -515,9 +514,9 @@ func (s *Server) buildCompleteWebhookHandler(w http.ResponseWriter, r *http.Requ
 			status.CompletedAt = &now
 		}
 	}
-	
+
 	log.Printf("Build webhook received for %s: %v", buildID, result)
-	
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "received"})
 }
@@ -537,19 +536,19 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 	if config.OutputPath == "" {
 		return fmt.Errorf("output_path is required")
 	}
-	
+
 	// Validate framework
 	validFrameworks := []string{"electron", "tauri", "neutralino"}
 	if !contains(validFrameworks, config.Framework) {
 		return fmt.Errorf("invalid framework: %s", config.Framework)
 	}
-	
+
 	// Validate template type
 	validTemplates := []string{"basic", "advanced", "multi_window", "kiosk"}
 	if !contains(validTemplates, config.TemplateType) {
 		return fmt.Errorf("invalid template_type: %s", config.TemplateType)
 	}
-	
+
 	// Set defaults
 	if config.License == "" {
 		config.License = "MIT"
@@ -560,14 +559,14 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 	if config.ServerPort == 0 && (config.ServerType == "node" || config.ServerType == "executable") {
 		config.ServerPort = 3000
 	}
-	
+
 	return nil
 }
 
 // Perform desktop generation (async)
 func (s *Server) performDesktopGeneration(buildID string, config *DesktopConfig) {
 	status := s.buildStatuses[buildID]
-	
+
 	defer func() {
 		if r := recover(); r != nil {
 			status.Status = "failed"
@@ -576,7 +575,7 @@ func (s *Server) performDesktopGeneration(buildID string, config *DesktopConfig)
 			status.CompletedAt = &now
 		}
 	}()
-	
+
 	// Create configuration JSON file
 	configJSON, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
@@ -584,7 +583,7 @@ func (s *Server) performDesktopGeneration(buildID string, config *DesktopConfig)
 		status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Failed to marshal config: %v", err))
 		return
 	}
-	
+
 	// Write config to temporary file
 	configPath := filepath.Join(os.TempDir(), fmt.Sprintf("desktop-config-%s.json", buildID))
 	if err := os.WriteFile(configPath, configJSON, 0644); err != nil {
@@ -593,16 +592,16 @@ func (s *Server) performDesktopGeneration(buildID string, config *DesktopConfig)
 		return
 	}
 	defer os.Remove(configPath)
-	
+
 	// Execute template generator
-	cmd := exec.Command("node", 
-		"./templates/build-tools/dist/template-generator.js", 
+	cmd := exec.Command("node",
+		"./templates/build-tools/dist/template-generator.js",
 		configPath)
-	
+
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 	status.BuildLog = append(status.BuildLog, outputStr)
-	
+
 	if err != nil {
 		status.Status = "failed"
 		status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Generation failed: %v", err))
@@ -612,7 +611,7 @@ func (s *Server) performDesktopGeneration(buildID string, config *DesktopConfig)
 		status.Artifacts["config_path"] = configPath
 		status.Artifacts["output_path"] = config.OutputPath
 	}
-	
+
 	now := time.Now()
 	status.CompletedAt = &now
 }
@@ -625,18 +624,18 @@ func (s *Server) performDesktopBuild(buildID string, request *struct {
 	Publish     bool     `json:"publish"`
 }) {
 	status := s.buildStatuses[buildID]
-	
+
 	// Build steps: install dependencies, build, package
 	steps := []string{"npm install", "npm run build", "npm run dist"}
-	
+
 	for _, step := range steps {
 		cmd := exec.Command("bash", "-c", step)
 		cmd.Dir = request.DesktopPath
-		
+
 		output, err := cmd.CombinedOutput()
 		outputStr := string(output)
 		status.BuildLog = append(status.BuildLog, fmt.Sprintf("%s: %s", step, outputStr))
-		
+
 		if err != nil {
 			status.Status = "failed"
 			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("%s failed: %v", step, err))
@@ -645,7 +644,7 @@ func (s *Server) performDesktopBuild(buildID string, request *struct {
 			return
 		}
 	}
-	
+
 	status.Status = "ready"
 	now := time.Now()
 	status.CompletedAt = &now
@@ -662,7 +661,7 @@ func (s *Server) runDesktopTests(request *struct {
 		"build_files_exist":  s.testBuildFiles(request.AppPath),
 		"dependencies_ok":    s.testDependencies(request.AppPath),
 	}
-	
+
 	return results
 }
 
@@ -706,12 +705,12 @@ func corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Build-ID")
-		
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -742,7 +741,7 @@ func main() {
 			port = p
 		}
 	}
-	
+
 	// Create and start server
 	server := NewServer(port)
 	if err := server.Start(); err != nil {

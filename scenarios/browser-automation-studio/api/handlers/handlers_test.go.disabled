@@ -1,0 +1,622 @@
+package handlers
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/database"
+)
+
+// Mock repository for testing
+type mockRepository struct {
+	projects   map[uuid.UUID]*database.Project
+	workflows  map[uuid.UUID]*database.Workflow
+	executions map[uuid.UUID]*database.Execution
+	errors     map[string]error
+}
+
+func newMockRepository() *mockRepository {
+	return &mockRepository{
+		projects:   make(map[uuid.UUID]*database.Project),
+		workflows:  make(map[uuid.UUID]*database.Workflow),
+		executions: make(map[uuid.UUID]*database.Execution),
+		errors:     make(map[string]error),
+	}
+}
+
+func (m *mockRepository) CreateProject(ctx context.Context, project *database.Project) error {
+	if err, ok := m.errors["CreateProject"]; ok {
+		return err
+	}
+	if project.ID == uuid.Nil {
+		project.ID = uuid.New()
+	}
+	m.projects[project.ID] = project
+	return nil
+}
+
+func (m *mockRepository) GetProject(ctx context.Context, id uuid.UUID) (*database.Project, error) {
+	if err, ok := m.errors["GetProject"]; ok {
+		return nil, err
+	}
+	project, ok := m.projects[id]
+	if !ok {
+		return nil, database.ErrNotFound
+	}
+	return project, nil
+}
+
+func (m *mockRepository) GetProjectByName(ctx context.Context, name string) (*database.Project, error) {
+	if err, ok := m.errors["GetProjectByName"]; ok {
+		return nil, err
+	}
+	for _, p := range m.projects {
+		if p.Name == name {
+			return p, nil
+		}
+	}
+	return nil, database.ErrNotFound
+}
+
+func (m *mockRepository) GetProjectByFolderPath(ctx context.Context, folderPath string) (*database.Project, error) {
+	if err, ok := m.errors["GetProjectByFolderPath"]; ok {
+		return nil, err
+	}
+	for _, p := range m.projects {
+		if p.FolderPath == folderPath {
+			return p, nil
+		}
+	}
+	return nil, database.ErrNotFound
+}
+
+func (m *mockRepository) UpdateProject(ctx context.Context, project *database.Project) error {
+	if err, ok := m.errors["UpdateProject"]; ok {
+		return err
+	}
+	if _, ok := m.projects[project.ID]; !ok {
+		return database.ErrNotFound
+	}
+	m.projects[project.ID] = project
+	return nil
+}
+
+func (m *mockRepository) DeleteProject(ctx context.Context, id uuid.UUID) error {
+	if err, ok := m.errors["DeleteProject"]; ok {
+		return err
+	}
+	if _, ok := m.projects[id]; !ok {
+		return database.ErrNotFound
+	}
+	delete(m.projects, id)
+	return nil
+}
+
+func (m *mockRepository) ListProjects(ctx context.Context, limit, offset int) ([]*database.Project, error) {
+	if err, ok := m.errors["ListProjects"]; ok {
+		return nil, err
+	}
+	result := make([]*database.Project, 0, len(m.projects))
+	for _, p := range m.projects {
+		result = append(result, p)
+	}
+	return result, nil
+}
+
+func (m *mockRepository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]interface{}, error) {
+	if err, ok := m.errors["GetProjectStats"]; ok {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"workflow_count":  3,
+		"execution_count": 10,
+		"success_rate":    0.85,
+	}, nil
+}
+
+func (m *mockRepository) CreateWorkflow(ctx context.Context, workflow *database.Workflow) error {
+	if err, ok := m.errors["CreateWorkflow"]; ok {
+		return err
+	}
+	if workflow.ID == uuid.Nil {
+		workflow.ID = uuid.New()
+	}
+	m.workflows[workflow.ID] = workflow
+	return nil
+}
+
+func (m *mockRepository) GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error) {
+	if err, ok := m.errors["GetWorkflow"]; ok {
+		return nil, err
+	}
+	workflow, ok := m.workflows[id]
+	if !ok {
+		return nil, database.ErrNotFound
+	}
+	return workflow, nil
+}
+
+func (m *mockRepository) GetWorkflowByName(ctx context.Context, name, folderPath string) (*database.Workflow, error) {
+	if err, ok := m.errors["GetWorkflowByName"]; ok {
+		return nil, err
+	}
+	for _, w := range m.workflows {
+		if w.Name == name && w.FolderPath == folderPath {
+			return w, nil
+		}
+	}
+	return nil, database.ErrNotFound
+}
+
+func (m *mockRepository) UpdateWorkflow(ctx context.Context, workflow *database.Workflow) error {
+	if err, ok := m.errors["UpdateWorkflow"]; ok {
+		return err
+	}
+	if _, ok := m.workflows[workflow.ID]; !ok {
+		return database.ErrNotFound
+	}
+	m.workflows[workflow.ID] = workflow
+	return nil
+}
+
+func (m *mockRepository) DeleteWorkflow(ctx context.Context, id uuid.UUID) error {
+	if err, ok := m.errors["DeleteWorkflow"]; ok {
+		return err
+	}
+	if _, ok := m.workflows[id]; !ok {
+		return database.ErrNotFound
+	}
+	delete(m.workflows, id)
+	return nil
+}
+
+func (m *mockRepository) ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error) {
+	if err, ok := m.errors["ListWorkflows"]; ok {
+		return nil, err
+	}
+	result := make([]*database.Workflow, 0)
+	for _, w := range m.workflows {
+		if folderPath == "" || w.FolderPath == folderPath {
+			result = append(result, w)
+		}
+	}
+	return result, nil
+}
+
+func (m *mockRepository) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
+	if err, ok := m.errors["ListWorkflowsByProject"]; ok {
+		return nil, err
+	}
+	result := make([]*database.Workflow, 0)
+	for _, w := range m.workflows {
+		if w.ProjectID != nil && *w.ProjectID == projectID {
+			result = append(result, w)
+		}
+	}
+	return result, nil
+}
+
+func (m *mockRepository) CreateExecution(ctx context.Context, execution *database.Execution) error {
+	if err, ok := m.errors["CreateExecution"]; ok {
+		return err
+	}
+	if execution.ID == uuid.Nil {
+		execution.ID = uuid.New()
+	}
+	m.executions[execution.ID] = execution
+	return nil
+}
+
+func (m *mockRepository) GetExecution(ctx context.Context, id uuid.UUID) (*database.Execution, error) {
+	if err, ok := m.errors["GetExecution"]; ok {
+		return nil, err
+	}
+	execution, ok := m.executions[id]
+	if !ok {
+		return nil, database.ErrNotFound
+	}
+	return execution, nil
+}
+
+func (m *mockRepository) UpdateExecution(ctx context.Context, execution *database.Execution) error {
+	if err, ok := m.errors["UpdateExecution"]; ok {
+		return err
+	}
+	if _, ok := m.executions[execution.ID]; !ok {
+		return database.ErrNotFound
+	}
+	m.executions[execution.ID] = execution
+	return nil
+}
+
+func (m *mockRepository) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error) {
+	if err, ok := m.errors["ListExecutions"]; ok {
+		return nil, err
+	}
+	result := make([]*database.Execution, 0)
+	for _, e := range m.executions {
+		if workflowID == nil || e.WorkflowID == *workflowID {
+			result = append(result, e)
+		}
+	}
+	return result, nil
+}
+
+func (m *mockRepository) CreateScreenshot(ctx context.Context, screenshot *database.Screenshot) error {
+	return nil
+}
+
+func (m *mockRepository) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error) {
+	return []*database.Screenshot{}, nil
+}
+
+func (m *mockRepository) CreateExecutionLog(ctx context.Context, log *database.ExecutionLog) error {
+	return nil
+}
+
+func (m *mockRepository) GetExecutionLogs(ctx context.Context, executionID uuid.UUID) ([]*database.ExecutionLog, error) {
+	return []*database.ExecutionLog{}, nil
+}
+
+func (m *mockRepository) CreateExtractedData(ctx context.Context, data *database.ExtractedData) error {
+	return nil
+}
+
+func (m *mockRepository) GetExecutionExtractedData(ctx context.Context, executionID uuid.UUID) ([]*database.ExtractedData, error) {
+	return []*database.ExtractedData{}, nil
+}
+
+func (m *mockRepository) CreateFolder(ctx context.Context, folder *database.WorkflowFolder) error {
+	return nil
+}
+
+func (m *mockRepository) GetFolder(ctx context.Context, path string) (*database.WorkflowFolder, error) {
+	return nil, database.ErrNotFound
+}
+
+func (m *mockRepository) ListFolders(ctx context.Context) ([]*database.WorkflowFolder, error) {
+	return []*database.WorkflowFolder{}, nil
+}
+
+// Test helpers
+
+func setupTestHandler() (*Handler, *mockRepository) {
+	log := logrus.New()
+	log.SetOutput(ioutil.Discard)
+
+	repo := newMockRepository()
+	handler := &Handler{
+		repo: repo,
+		log:  log,
+	}
+
+	return handler, repo
+}
+
+func makeRequest(method, path string, body interface{}) (*http.Request, error) {
+	var bodyReader *bytes.Buffer
+	if body != nil {
+		jsonBody, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		bodyReader = bytes.NewBuffer(jsonBody)
+	} else {
+		bodyReader = bytes.NewBuffer([]byte{})
+	}
+
+	req, err := http.NewRequest(method, path, bodyReader)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	return req, nil
+}
+
+// Tests
+
+func TestHealth(t *testing.T) {
+	handler, _ := setupTestHandler()
+
+	t.Run("Success", func(t *testing.T) {
+		req, err := makeRequest("GET", "/health", nil)
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		rr := httptest.NewRecorder()
+		handler.Health(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var response HealthResponse
+		if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		if response.Status != "healthy" && response.Status != "degraded" {
+			t.Errorf("Expected status healthy or degraded, got %s", response.Status)
+		}
+
+		if response.Service != "browser-automation-studio" {
+			t.Errorf("Expected service browser-automation-studio, got %s", response.Service)
+		}
+	})
+}
+
+func TestCreateProject(t *testing.T) {
+	handler, _ := setupTestHandler()
+
+	t.Run("Success", func(t *testing.T) {
+		reqBody := CreateProjectRequest{
+			Name:        "Test Project",
+			Description: "A test project",
+			FolderPath:  "/projects/test",
+		}
+
+		req, err := makeRequest("POST", "/api/v1/projects", reqBody)
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		rr := httptest.NewRecorder()
+		handler.CreateProject(rr, req)
+
+		if status := rr.Code; status != http.StatusCreated {
+			t.Errorf("Handler returned wrong status code: got %v want %v. Body: %s",
+				status, http.StatusCreated, rr.Body.String())
+		}
+
+		var response database.Project
+		if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		if response.Name != reqBody.Name {
+			t.Errorf("Expected name %s, got %s", reqBody.Name, response.Name)
+		}
+	})
+
+	t.Run("MissingName", func(t *testing.T) {
+		reqBody := CreateProjectRequest{
+			Description: "A test project",
+			FolderPath:  "/projects/test",
+		}
+
+		req, err := makeRequest("POST", "/api/v1/projects", reqBody)
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		rr := httptest.NewRecorder()
+		handler.CreateProject(rr, req)
+
+		if status := rr.Code; status != http.StatusBadRequest {
+			t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("MissingFolderPath", func(t *testing.T) {
+		reqBody := CreateProjectRequest{
+			Name:        "Test Project",
+			Description: "A test project",
+		}
+
+		req, err := makeRequest("POST", "/api/v1/projects", reqBody)
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		rr := httptest.NewRecorder()
+		handler.CreateProject(rr, req)
+
+		if status := rr.Code; status != http.StatusBadRequest {
+			t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		req, err := http.NewRequest("POST", "/api/v1/projects", bytes.NewBuffer([]byte("invalid-json")))
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		handler.CreateProject(rr, req)
+
+		if status := rr.Code; status != http.StatusBadRequest {
+			t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		}
+	})
+}
+
+func TestGetProject(t *testing.T) {
+	handler, repo := setupTestHandler()
+
+	// Create a test project
+	projectID := uuid.New()
+	project := &database.Project{
+		ID:          projectID,
+		Name:        "Test Project",
+		Description: "A test project",
+		FolderPath:  "/projects/test",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	repo.projects[projectID] = project
+
+	t.Run("Success", func(t *testing.T) {
+		req, err := makeRequest("GET", "/api/v1/projects/"+projectID.String(), nil)
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		// Add chi URL params
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", projectID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		rr := httptest.NewRecorder()
+		handler.GetProject(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("Handler returned wrong status code: got %v want %v. Body: %s",
+				status, http.StatusOK, rr.Body.String())
+		}
+
+		var response database.Project
+		if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		if response.ID != projectID {
+			t.Errorf("Expected project ID %s, got %s", projectID, response.ID)
+		}
+	})
+
+	t.Run("InvalidUUID", func(t *testing.T) {
+		req, err := makeRequest("GET", "/api/v1/projects/invalid-uuid", nil)
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", "invalid-uuid")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		rr := httptest.NewRecorder()
+		handler.GetProject(rr, req)
+
+		if status := rr.Code; status != http.StatusBadRequest {
+			t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		nonExistentID := uuid.New()
+		req, err := makeRequest("GET", "/api/v1/projects/"+nonExistentID.String(), nil)
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", nonExistentID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		rr := httptest.NewRecorder()
+		handler.GetProject(rr, req)
+
+		if status := rr.Code; status != http.StatusNotFound {
+			t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusNotFound)
+		}
+	})
+}
+
+func TestListProjects(t *testing.T) {
+	handler, repo := setupTestHandler()
+
+	// Create test projects
+	for i := 0; i < 3; i++ {
+		projectID := uuid.New()
+		project := &database.Project{
+			ID:         projectID,
+			Name:       "Test Project " + string(rune(i)),
+			FolderPath: "/projects/test" + string(rune(i)),
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		}
+		repo.projects[projectID] = project
+	}
+
+	t.Run("Success", func(t *testing.T) {
+		req, err := makeRequest("GET", "/api/v1/projects", nil)
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		rr := httptest.NewRecorder()
+		handler.ListProjects(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var response []*database.Project
+		if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		if len(response) != 3 {
+			t.Errorf("Expected 3 projects, got %d", len(response))
+		}
+	})
+}
+
+func TestDeleteProject(t *testing.T) {
+	handler, repo := setupTestHandler()
+
+	projectID := uuid.New()
+	project := &database.Project{
+		ID:         projectID,
+		Name:       "Test Project",
+		FolderPath: "/projects/test",
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	repo.projects[projectID] = project
+
+	t.Run("Success", func(t *testing.T) {
+		req, err := makeRequest("DELETE", "/api/v1/projects/"+projectID.String(), nil)
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", projectID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		rr := httptest.NewRecorder()
+		handler.DeleteProject(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		// Verify project was deleted
+		if _, ok := repo.projects[projectID]; ok {
+			t.Error("Project was not deleted")
+		}
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		nonExistentID := uuid.New()
+		req, err := makeRequest("DELETE", "/api/v1/projects/"+nonExistentID.String(), nil)
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", nonExistentID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		rr := httptest.NewRecorder()
+		handler.DeleteProject(rr, req)
+
+		if status := rr.Code; status != http.StatusNotFound {
+			t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusNotFound)
+		}
+	})
+}

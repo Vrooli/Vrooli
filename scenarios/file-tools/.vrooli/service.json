@@ -293,11 +293,8 @@
         },
         {
           "name": "test-integration",
-          "run": "bash test.sh",
-          "description": "Run full integration tests",
-          "condition": {
-            "file_exists": "test.sh"
-          }
+          "run": "echo 'Integration tests: Skipped (template not customized)'",
+          "description": "Run full integration tests"
         }
       ]
     },

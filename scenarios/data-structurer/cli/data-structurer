@@ -6,7 +6,13 @@
 set -euo pipefail
 
 # Configuration
-API_BASE_URL="${DATA_STRUCTURER_API_URL:-http://localhost:${API_PORT:-15770}}"
+# Try to get port from multiple sources in order of preference:
+# 1. DATA_STRUCTURER_API_PORT (scenario-specific)
+# 2. DATA_STRUCTURER_API_URL (full URL override)
+# 3. API_PORT (generic, may be wrong if multiple scenarios running)
+# 4. Default 15774 (data-structurer's typical port)
+SCENARIO_PORT="${DATA_STRUCTURER_API_PORT:-${API_PORT:-15774}}"
+API_BASE_URL="${DATA_STRUCTURER_API_URL:-http://localhost:${SCENARIO_PORT}}"
 CONFIG_DIR="$HOME/.vrooli/data-structurer"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
 

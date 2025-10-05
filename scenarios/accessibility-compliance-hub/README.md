@@ -21,8 +21,8 @@ The Accessibility Compliance Hub ensures every Vrooli scenario meets WCAG 2.1 AA
 # Run the scenario
 vrooli scenario run accessibility-compliance-hub
 
-# Access the dashboard
-open http://localhost:3401
+# Access the dashboard (port auto-assigned from 40000-40999 range)
+open http://localhost:${UI_PORT:-40000}
 
 # Run audit via CLI
 accessibility-compliance-hub audit <scenario-name> --auto-fix

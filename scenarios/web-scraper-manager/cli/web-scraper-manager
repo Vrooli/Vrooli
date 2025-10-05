@@ -337,15 +337,20 @@ main() {
         log_error "jq is required but not installed"
         exit 1
     fi
-    
+
     if ! command -v curl &> /dev/null; then
         log_error "curl is required but not installed"
         exit 1
     fi
-    
-    # Parse command
-    local cmd="${1:-help}"
-    
+
+    # Parse command - require at least one argument
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 1
+    fi
+
+    local cmd="$1"
+
     case "$cmd" in
         "status")
             check_api

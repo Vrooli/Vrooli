@@ -47,6 +47,7 @@ function createToolbarDOM() {
         <button type="button" class="toolbar-btn quick-key" data-key="ArrowRight" title="Right Arrow">→</button>
         <button type="button" class="toolbar-btn quick-key" data-key="-" title="Dash">-</button>
         <button type="button" class="toolbar-btn quick-key" data-key="\\x03" data-display="^C" title="Ctrl+C">^C</button>
+        <button type="button" class="toolbar-btn paste-key" title="Paste from clipboard">📋</button>
       </div>
     </div>
   `
@@ -162,6 +163,46 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
       e.stopPropagation()
     })
   })
+
+  // Handle paste button
+  const pasteBtn = toolbar.querySelector('.paste-key')
+  if (pasteBtn) {
+    const handlePaste = async (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+
+      try {
+        // Read from clipboard
+        const text = await navigator.clipboard.readText()
+        if (text) {
+          // Send to terminal
+          sendKeyToTerminalFn(text)
+          showSnackbar('Pasted from clipboard', 'success', 1500)
+        }
+      } catch (error) {
+        console.error('Clipboard paste failed:', error)
+        showSnackbar('Clipboard access denied', 'error', 2000)
+      }
+
+      // Refocus terminal to keep keyboard open
+      const activeTab = getActiveTabFn()
+      if (activeTab && activeTab.term) {
+        const textarea = activeTab.container.querySelector('.xterm-helper-textarea')
+        if (textarea) {
+          textarea.focus()
+        } else {
+          activeTab.term.focus()
+        }
+      }
+    }
+
+    pasteBtn.addEventListener('touchstart', handlePaste, { passive: false })
+    pasteBtn.addEventListener('mousedown', handlePaste)
+    pasteBtn.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+    })
+  }
 
   // Listen for regular keypresses to apply modifiers
   document.addEventListener('keydown', (e) => {

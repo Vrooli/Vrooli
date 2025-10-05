@@ -10,9 +10,12 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIO_DIR="$(dirname "$SCRIPT_DIR")"
 TEST_DATA_DIR="$SCRIPT_DIR/data"
-API_URL="${API_URL:-http://localhost:17808}"
+# Use environment variables set by lifecycle system, with fallback to old defaults
+API_PORT="${API_PORT:-17808}"
+UI_PORT="${UI_PORT:-37197}"
+API_URL="${API_URL:-http://localhost:${API_PORT}}"
 AUTH_URL="${AUTH_URL:-http://localhost:15785}"
-UI_URL="${UI_URL:-http://localhost:37197}"
+UI_URL="${UI_URL:-http://localhost:${UI_PORT}}"
 
 # Test user credentials
 TEST_EMAIL="${TEST_EMAIL:-test@example.com}"
@@ -515,7 +518,8 @@ EOF
     fi
     
     # Run WebSocket test
-    if WS_URL="ws://localhost:17808/api/v1/sync/websocket" AUTH_TOKEN="$AUTH_TOKEN" \
+    local ws_url="ws://localhost:${API_PORT}/api/v1/sync/websocket"
+    if WS_URL="$ws_url" AUTH_TOKEN="$AUTH_TOKEN" \
        node "$ws_test_script" >/dev/null 2>&1; then
         log_success "WebSocket connection test passed"
     else

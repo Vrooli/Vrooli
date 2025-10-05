@@ -13,11 +13,13 @@ Palette Gen is a sophisticated color palette generation tool that combines AI in
 ## Capabilities & Features
 - Theme-based palette generation (e.g., "ocean sunset", "tech startup", "vintage bookstore")
 - Multiple style presets (vibrant, pastel, dark, minimal, earthy, neon)
-- Real-time color harmony analysis (complementary, analogous, triadic, etc.)
-- WCAG accessibility compliance checking for all color combinations
-- Colorblind simulation for inclusive design
-- Export to CSS, SCSS, JSON, and SVG formats
-- Palette history tracking for iteration
+- **Color harmony analysis** (complementary, analogous, triadic, monochromatic) ✨
+- **WCAG accessibility compliance** checking with detailed contrast ratios
+- **Colorblind simulation** (protanopia, deuteranopia, tritanopia) for inclusive design ✨
+- **Redis caching** for performance optimization with cache headers ✨
+- **Palette history tracking** with retrieval of recent generations ✨
+- Export to CSS, SCSS, JSON formats
+- **AI-powered suggestions** via Ollama with graceful fallback
 - Quick suggestion templates for common use cases
 
 ## Dependencies on Other Scenarios
@@ -44,7 +46,10 @@ The UI embraces a clean, professional aesthetic that lets the colors take center
 - **Algorithms**: Built-in color generation using HSL color space and theme-based hue mapping
 - **Styles**: Vibrant, Pastel, Dark, Minimal, Earthy - each with unique generation parameters
 - **Export**: Multiple format support (CSS variables, JSON array, SCSS variables)
-- **Future**: n8n workflows, Redis caching, and Ollama AI integration planned
+- **Caching**: Redis-based caching with 24-hour TTL for generated palettes
+- **History**: Redis sorted sets for tracking palette generation history (7-day retention)
+- **AI Integration**: Ollama integration for contextual palette suggestions with fallback
+- **Accessibility**: Full WCAG compliance checking and colorblind simulation
 
 ## Use Cases
 1. **Web Designers**: Generate cohesive color schemes for websites
@@ -53,7 +58,14 @@ The UI embraces a clean, professional aesthetic that lets the colors take center
 4. **Artists**: Explore color relationships and harmony
 5. **Developers**: Quickly generate theme colors for applications
 
-## Future Enhancements
+## Recent Enhancements (2025-10-03)
+- ✅ Redis caching for improved performance
+- ✅ Color harmony analysis with relationship detection
+- ✅ Colorblind simulation for accessibility
+- ✅ Palette history tracking and retrieval
+- ✅ Enhanced CLI with new commands
+
+## Future Enhancements (P2)
 - Integration with image analysis for palette extraction
 - Seasonal and trending palette suggestions
 - Color psychology insights

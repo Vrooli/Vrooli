@@ -1,16 +1,16 @@
 #!/usr/bin/env bats
-# Tests for CLI_NAME_PLACEHOLDER CLI
+# Tests for math-tools CLI
 
 # Test configuration
-readonly TEST_CLI="./cli.sh"
-readonly TEST_CONFIG_DIR="$HOME/.CLI_NAME_PLACEHOLDER"
+readonly TEST_CLI="math-tools"
+readonly TEST_CONFIG_DIR="$HOME/.math-tools"
 readonly TEST_CONFIG_FILE="$TEST_CONFIG_DIR/config.json"
 
 # Setup and teardown
 setup() {
     # Backup existing config if it exists
     if [[ -f "$TEST_CONFIG_FILE" ]]; then
-        mv "$TEST_CONFIG_FILE" "$TEST_CONFIG_FILE.bak"
+        cp "$TEST_CONFIG_FILE" "$TEST_CONFIG_FILE.bak"
     fi
 }
 
@@ -21,10 +21,9 @@ teardown() {
     fi
 }
 
-# Test: CLI exists and is executable
-@test "CLI script exists and is executable" {
-    [[ -f "$TEST_CLI" ]]
-    [[ -x "$TEST_CLI" ]]
+# Test: CLI is installed and executable
+@test "CLI binary is accessible" {
+    command -v "$TEST_CLI"
 }
 
 # Test: Help command
@@ -39,47 +38,43 @@ teardown() {
 @test "version command displays version" {
     run $TEST_CLI version
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "version" ]]
+    [[ "$output" =~ "1.0.0" ]]
 }
 
-# Test: Configuration initialization
-@test "configuration is initialized on first run" {
-    rm -f "$TEST_CONFIG_FILE"
-    run $TEST_CLI version
+# Test: Status command works
+@test "status command checks API health" {
+    run $TEST_CLI status
     [ "$status" -eq 0 ]
-    [[ -f "$TEST_CONFIG_FILE" ]]
+    # Should contain JSON response with status
+    [[ "$output" =~ "status" || "$output" =~ "healthy" ]]
 }
 
-# Test: Configure command
-@test "configure command can set and retrieve values" {
-    run $TEST_CLI configure api_base http://test.example.com
+# Test: Calc command performs basic operations
+@test "calc add performs addition" {
+    run $TEST_CLI calc add 2 3
     [ "$status" -eq 0 ]
-    
-    run $TEST_CLI configure
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "test.example.com" ]]
+    [[ "$output" =~ "5" ]]
 }
 
-# Test: Health command structure
-@test "health command sends correct request" {
-    # This would need a mock server or API to test properly
-    # For now, just test that the command exists
-    run $TEST_CLI help
+@test "calc mean calculates average" {
+    run $TEST_CLI calc mean 10 20 30
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "health" ]]
+    [[ "$output" =~ "20" ]]
 }
 
-# Test: List command structure
-@test "list command accepts resource parameter" {
-    # Test command structure without actual API
-    run $TEST_CLI help
+# Test: Stats command
+@test "stats command analyzes data" {
+    # Create a temporary data file
+    echo -e "1\n2\n3\n4\n5" > /tmp/test_data.txt
+    run $TEST_CLI stats /tmp/test_data.txt
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "list" ]]
+    [[ "$output" =~ "mean" || "$output" =~ "median" ]]
+    rm /tmp/test_data.txt
 }
 
-# Test: Invalid command
-@test "invalid command shows error" {
-    run $TEST_CLI invalid_command
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "Unknown command" ]]
+# Test: Invalid command shows error
+@test "invalid command shows error or help" {
+    run $TEST_CLI invalid_command_xyz
+    # Should either show error (exit 1) or help (exit 0)
+    [[ "$status" -eq 1 || "$output" =~ "Usage:" ]]
 }

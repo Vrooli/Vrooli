@@ -210,3 +210,172 @@ std::vector<int> quicksort(std::vector<int> arr) {
 }', '1.0', true, NOW())
 
 ON CONFLICT DO NOTHING;
+
+-- Additional implementations for insertion_sort and selection_sort
+-- Insertion Sort - Python implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated)
+VALUES (
+    (SELECT id FROM algorithms WHERE name = 'insertion_sort'),
+    'python',
+    'def insertion_sort(arr):
+    """
+    Insertion sort - builds sorted array one item at a time
+    Time: O(n²) worst/average, O(n) best
+    Space: O(1)
+    """
+    arr = arr.copy()
+    n = len(arr)
+
+    for i in range(1, n):
+        key = arr[i]
+        j = i - 1
+
+        # Move elements greater than key one position ahead
+        while j >= 0 and arr[j] > key:
+            arr[j + 1] = arr[j]
+            j -= 1
+
+        arr[j + 1] = key
+
+    return arr',
+    true,
+    true
+) ON CONFLICT DO NOTHING;
+
+-- Insertion Sort - JavaScript implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated)
+VALUES (
+    (SELECT id FROM algorithms WHERE name = 'insertion_sort'),
+    'javascript',
+    'function insertionSort(arr) {
+    /*
+     * Insertion sort - builds sorted array one item at a time
+     * Time: O(n²) worst/average, O(n) best
+     * Space: O(1)
+     */
+    const result = [...arr];
+    const n = result.length;
+
+    for (let i = 1; i < n; i++) {
+        const key = result[i];
+        let j = i - 1;
+
+        // Move elements greater than key one position ahead
+        while (j >= 0 && result[j] > key) {
+            result[j + 1] = result[j];
+            j--;
+        }
+
+        result[j + 1] = key;
+    }
+
+    return result;
+}',
+    true,
+    true
+) ON CONFLICT DO NOTHING;
+
+-- Selection Sort - Python implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated)
+VALUES (
+    (SELECT id FROM algorithms WHERE name = 'selection_sort'),
+    'python',
+    'def selection_sort(arr):
+    """
+    Selection sort - repeatedly finds minimum and swaps to front
+    Time: O(n²) in all cases
+    Space: O(1)
+    """
+    arr = arr.copy()
+    n = len(arr)
+
+    for i in range(n):
+        # Find minimum element in remaining unsorted array
+        min_idx = i
+        for j in range(i + 1, n):
+            if arr[j] < arr[min_idx]:
+                min_idx = j
+
+        # Swap the found minimum with the first element
+        arr[i], arr[min_idx] = arr[min_idx], arr[i]
+
+    return arr',
+    true,
+    true
+) ON CONFLICT DO NOTHING;
+
+-- Selection Sort - JavaScript implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated)
+VALUES (
+    (SELECT id FROM algorithms WHERE name = 'selection_sort'),
+    'javascript',
+    'function selectionSort(arr) {
+    /*
+     * Selection sort - repeatedly finds minimum and swaps to front
+     * Time: O(n²) in all cases
+     * Space: O(1)
+     */
+    const result = [...arr];
+    const n = result.length;
+
+    for (let i = 0; i < n; i++) {
+        // Find minimum element in remaining unsorted array
+        let minIdx = i;
+        for (let j = i + 1; j < n; j++) {
+            if (result[j] < result[minIdx]) {
+                minIdx = j;
+            }
+        }
+
+        // Swap the found minimum with the first element
+        [result[i], result[minIdx]] = [result[minIdx], result[i]];
+    }
+
+    return result;
+}',
+    true,
+    true
+) ON CONFLICT DO NOTHING;
+
+-- HeapSort - Python implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated)
+VALUES (
+    (SELECT id FROM algorithms WHERE name = 'heapsort'),
+    'python',
+    'def heapsort(arr):
+    """
+    Heap sort - uses heap data structure to sort
+    Time: O(n log n) in all cases
+    Space: O(1)
+    """
+    arr = arr.copy()
+    n = len(arr)
+
+    def heapify(arr, n, i):
+        largest = i
+        left = 2 * i + 1
+        right = 2 * i + 2
+
+        if left < n and arr[left] > arr[largest]:
+            largest = left
+
+        if right < n and arr[right] > arr[largest]:
+            largest = right
+
+        if largest != i:
+            arr[i], arr[largest] = arr[largest], arr[i]
+            heapify(arr, n, largest)
+
+    # Build max heap
+    for i in range(n // 2 - 1, -1, -1):
+        heapify(arr, n, i)
+
+    # Extract elements one by one
+    for i in range(n - 1, 0, -1):
+        arr[0], arr[i] = arr[i], arr[0]
+        heapify(arr, i, 0)
+
+    return arr',
+    true,
+    true
+) ON CONFLICT DO NOTHING;

@@ -295,17 +295,17 @@ func (jp *JobProcessor) processNextJob(ctx context.Context, workerID int) error 
 	log.Printf("👷 Worker %d processing job %s for platform %s", workerID, job.ID, job.Platform)
 
 	// Process the job
-	result := jp.executeJob(ctx, &job)
+	jobResult := jp.executeJob(ctx, &job)
 
 	// Handle result
-	if err := jp.handleJobResult(ctx, &job, result); err != nil {
+	if err := jp.handleJobResult(ctx, &job, jobResult); err != nil {
 		log.Printf("⚠️  Error handling job result: %v", err)
 	}
 
-	if result.Success {
-		log.Printf("✅ Worker %d successfully posted to %s (ID: %s)", workerID, job.Platform, result.PlatformPostID)
+	if jobResult.Success {
+		log.Printf("✅ Worker %d successfully posted to %s (ID: %s)", workerID, job.Platform, jobResult.PlatformPostID)
 	} else {
-		log.Printf("❌ Worker %d failed to post to %s: %s", workerID, job.Platform, result.Error)
+		log.Printf("❌ Worker %d failed to post to %s: %s", workerID, job.Platform, jobResult.Error)
 	}
 
 	return nil

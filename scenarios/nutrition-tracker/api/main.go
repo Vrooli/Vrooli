@@ -73,6 +73,14 @@ type DailySummary struct {
 
 var db *sql.DB
 
+// getEnv retrieves environment variable with fallback default value
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
 func main() {
     if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
         fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
@@ -227,6 +235,7 @@ func main() {
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"status":  "healthy",
 		"service": "nutrition-tracker-api",

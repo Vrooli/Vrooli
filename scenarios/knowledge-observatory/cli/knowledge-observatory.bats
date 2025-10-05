@@ -3,7 +3,13 @@
 # Knowledge Observatory CLI Tests
 
 setup() {
-    export KNOWLEDGE_OBSERVATORY_API_URL="http://localhost:20260"
+    # Discover the actual API port from the running scenario
+    # The lifecycle system sets API_PORT in the environment
+    if [ -z "$API_PORT" ]; then
+        # Try to discover from the running process if not in environment
+        API_PORT=$(ps aux | grep knowledge-observatory-api | grep -v grep | head -n1 | xargs -I{} sh -c 'cat /proc/$(echo {} | awk "{print \$2}")/environ 2>/dev/null | tr "\0" "\n" | grep "^API_PORT=" | cut -d= -f2' || echo "20270")
+    fi
+    export KNOWLEDGE_OBSERVATORY_API_URL="http://localhost:${API_PORT}"
     CLI="./knowledge-observatory"
 }
 

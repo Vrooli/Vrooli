@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -360,7 +359,10 @@ func (app *App) generateRoadmap(features []Feature, startDate time.Time, duratio
 	}
 
 	// Distribute features across milestones
-	monthlyCapacity := capacity / durationMonths
+	monthlyCapacity := 0
+	if durationMonths > 0 {
+		monthlyCapacity = capacity / durationMonths
+	}
 	currentMonth := 0
 	currentCapacity := 0
 

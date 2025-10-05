@@ -71,6 +71,8 @@ type session struct {
 	outputBuffer        []outputPayload
 	outputBufferDropped bool
 	maxBufferSize       int
+	maxBufferBytes      int
+	currentBufferBytes  int
 
 	inputSeqMu   sync.Mutex
 	lastInputSeq map[string]uint64
@@ -97,9 +99,11 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 		clients:             make(map[*wsClient]struct{}),
 		idleReset:           make(chan struct{}, 1),
 		readBuffer:          make([]byte, cfg.readBufferSizeBytes),
-		outputBuffer:        make([]outputPayload, 0, 100), // Keep last 100 chunks (~100KB typical)
+		outputBuffer:        make([]outputPayload, 0, 500), // Keep last 500 chunks for better reconnect experience
 		outputBufferDropped: false,
-		maxBufferSize:       100,
+		maxBufferSize:       500,
+		maxBufferBytes:      1024 * 1024, // 1MB max buffer
+		currentBufferBytes:  0,
 		lastInputSeq:        make(map[string]uint64),
 		termRows:            cfg.defaultTTYRows,
 		termCols:            cfg.defaultTTYCols,
@@ -296,11 +300,27 @@ func (s *session) handleOutput(chunk []byte) {
 
 	// Add to rolling buffer for replay on reconnect
 	s.outputBufferMu.Lock()
+	chunkSize := len(chunk)
 	s.outputBuffer = append(s.outputBuffer, payload)
-	if len(s.outputBuffer) > s.maxBufferSize {
-		// Keep only the most recent chunks
-		s.outputBuffer = s.outputBuffer[len(s.outputBuffer)-s.maxBufferSize:]
+	s.currentBufferBytes += chunkSize
+
+	// Trim buffer if it exceeds size or byte limits
+	for len(s.outputBuffer) > s.maxBufferSize || s.currentBufferBytes > s.maxBufferBytes {
+		if len(s.outputBuffer) == 0 {
+			break
+		}
+		// Remove oldest chunk
+		removed := s.outputBuffer[0]
+		s.outputBuffer = s.outputBuffer[1:]
 		s.outputBufferDropped = true
+
+		// Decode to get actual size
+		if removed.Data != "" {
+			decoded, err := base64.StdEncoding.DecodeString(removed.Data)
+			if err == nil {
+				s.currentBufferBytes -= len(decoded)
+			}
+		}
 	}
 	s.outputBufferMu.Unlock()
 

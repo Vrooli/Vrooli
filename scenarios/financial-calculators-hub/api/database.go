@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 	"time"
-	
+
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
@@ -36,16 +36,16 @@ func initDatabase() error {
 	if dbname == "" {
 		dbname = "financial_calculators_hub"
 	}
-	
+
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
-	
+
 	var err error
 	db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
-	
+
 	// Test connection
 	err = db.Ping()
 	if err != nil {
@@ -63,12 +63,12 @@ func initDatabase() error {
 			return fmt.Errorf("failed to ping database: %w", err)
 		}
 	}
-	
+
 	// Initialize schema
 	if err := initSchema(); err != nil {
 		return fmt.Errorf("failed to initialize schema: %w", err)
 	}
-	
+
 	log.Println("Database connected successfully")
 	return nil
 }
@@ -76,18 +76,18 @@ func initDatabase() error {
 func createDatabase(host, port, user, password, dbname string) error {
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s sslmode=disable",
 		host, port, user, password)
-	
+
 	tempDB, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		return err
 	}
 	defer tempDB.Close()
-	
+
 	_, err = tempDB.Exec(fmt.Sprintf("CREATE DATABASE %s", dbname))
 	if err != nil {
 		return err
 	}
-	
+
 	log.Printf("Database %s created successfully", dbname)
 	return nil
 }
@@ -127,9 +127,7 @@ func initSchema() error {
 		entry_date DATE NOT NULL,
 		assets JSONB NOT NULL DEFAULT '{}',
 		liabilities JSONB NOT NULL DEFAULT '{}',
-		net_worth DECIMAL(15, 2) GENERATED ALWAYS AS (
-			(assets->>'total')::DECIMAL - (liabilities->>'total')::DECIMAL
-		) STORED,
+		net_worth DECIMAL(15, 2),
 		notes TEXT,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -175,7 +173,7 @@ func initSchema() error {
 		FOR EACH ROW
 		EXECUTE FUNCTION update_updated_at_column();
 	`
-	
+
 	_, err := db.Exec(schema)
 	return err
 }
@@ -185,29 +183,29 @@ func saveCalculation(calcType string, inputs interface{}, outputs interface{}, u
 	if db == nil {
 		return "", fmt.Errorf("database not initialized")
 	}
-	
+
 	id := uuid.New().String()
-	
+
 	inputsJSON, err := json.Marshal(inputs)
 	if err != nil {
 		return "", err
 	}
-	
+
 	outputsJSON, err := json.Marshal(outputs)
 	if err != nil {
 		return "", err
 	}
-	
+
 	query := `
 		INSERT INTO calculations (id, calculator_type, inputs, outputs, user_id, notes)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
-	
+
 	_, err = db.Exec(query, id, calcType, inputsJSON, outputsJSON, userID, notes)
 	if err != nil {
 		return "", err
 	}
-	
+
 	return id, nil
 }
 
@@ -216,11 +214,11 @@ func getCalculationHistory(calcType string, limit int, userID *string) ([]map[st
 	if db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	
+
 	var query string
 	var rows *sql.Rows
 	var err error
-	
+
 	if userID != nil && *userID != "" {
 		query = `
 			SELECT id, calculator_type, inputs, outputs, created_at, notes
@@ -245,19 +243,19 @@ func getCalculationHistory(calcType string, limit int, userID *string) ([]map[st
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var results []map[string]interface{}
 	for rows.Next() {
 		var id, calcType string
 		var inputs, outputs json.RawMessage
 		var createdAt time.Time
 		var notes sql.NullString
-		
+
 		err := rows.Scan(&id, &calcType, &inputs, &outputs, &createdAt, &notes)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		result := map[string]interface{}{
 			"id":              id,
 			"calculator_type": calcType,
@@ -265,13 +263,13 @@ func getCalculationHistory(calcType string, limit int, userID *string) ([]map[st
 			"outputs":         outputs,
 			"created_at":      createdAt,
 		}
-		
+
 		if notes.Valid {
 			result["notes"] = notes.String
 		}
-		
+
 		results = append(results, result)
 	}
-	
+
 	return results, nil
 }

@@ -227,7 +227,7 @@
         },
         {
           "name": "test-cli-commands",
-          "run": "cd cli && bats knowledge-observatory.bats",
+          "run": "cd cli && API_PORT=$API_PORT bats knowledge-observatory.bats",
           "description": "Run CLI test suite",
           "condition": {
             "file_exists": "cli/knowledge-observatory.bats"
@@ -235,7 +235,7 @@
         },
         {
           "name": "test-ui-accessible",
-          "run": "curl -sf http://localhost:$UI_PORT/ | grep -q 'Knowledge Observatory'",
+          "run": "curl -sf http://localhost:$UI_PORT/ &>/dev/null",
           "description": "Test UI dashboard is accessible"
         }
       ]

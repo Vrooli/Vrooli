@@ -43,6 +43,37 @@ type TemplateFreshnessResponse struct {
 	UpdateAvailable bool          `json:"update_available"`
 }
 
+type DocumentHistoryResponse struct {
+	History []HistoryEntry `json:"history"`
+}
+
+type HistoryEntry struct {
+	ChangedAt     time.Time `json:"changed_at"`
+	ChangeType    string    `json:"change_type"`
+	ChangedBy     string    `json:"changed_by"`
+	ChangeSummary string    `json:"change_summary"`
+}
+
+type SearchRequest struct {
+	Query        string `json:"query"`
+	Limit        int    `json:"limit,omitempty"`
+	ClauseType   string `json:"clause_type,omitempty"`
+	Jurisdiction string `json:"jurisdiction,omitempty"`
+}
+
+type SearchResponse struct {
+	Results []SearchResult `json:"results"`
+	Count   int            `json:"count"`
+}
+
+type SearchResult struct {
+	ClauseID     string `json:"clause_id"`
+	ClauseType   string `json:"clause_type"`
+	Jurisdiction string `json:"jurisdiction"`
+	Content      string `json:"content"`
+	Score        float64 `json:"score,omitempty"`
+}
+
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	components := make(map[string]string)
 	
@@ -151,9 +182,72 @@ func templateFreshnessHandler(w http.ResponseWriter, r *http.Request) {
 		StaleTemplates:  []interface{}{},
 		UpdateAvailable: false,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func documentHistoryHandler(w http.ResponseWriter, r *http.Request) {
+	// Extract document ID from URL path
+	docID := r.URL.Query().Get("id")
+	if docID == "" {
+		http.Error(w, "Document ID required", http.StatusBadRequest)
+		return
+	}
+
+	// Call CLI to get history
+	cmd := exec.Command("/home/matthalloran8/Vrooli/scenarios/privacy-terms-generator/cli/privacy-terms-generator",
+		"history", docID, "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Failed to get document history: %v", err)
+		http.Error(w, "Failed to retrieve document history", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(output)
+}
+
+func searchClausesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req SearchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Query == "" {
+		http.Error(w, "Search query required", http.StatusBadRequest)
+		return
+	}
+
+	// Build CLI command
+	args := []string{"search", req.Query, "--json"}
+	if req.Limit > 0 {
+		args = append(args, "--limit", fmt.Sprintf("%d", req.Limit))
+	}
+	if req.ClauseType != "" {
+		args = append(args, "--type", req.ClauseType)
+	}
+	if req.Jurisdiction != "" {
+		args = append(args, "--jurisdiction", req.Jurisdiction)
+	}
+
+	cmd := exec.Command("/home/matthalloran8/Vrooli/scenarios/privacy-terms-generator/cli/privacy-terms-generator", args...)
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Search failed: %v", err)
+		http.Error(w, "Search failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(output)
 }
 
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -181,6 +275,8 @@ func main() {
 	http.HandleFunc("/api/health", corsMiddleware(healthHandler))
 	http.HandleFunc("/api/v1/legal/generate", corsMiddleware(generateHandler))
 	http.HandleFunc("/api/v1/legal/templates/freshness", corsMiddleware(templateFreshnessHandler))
+	http.HandleFunc("/api/v1/legal/documents/history", corsMiddleware(documentHistoryHandler))
+	http.HandleFunc("/api/v1/legal/clauses/search", corsMiddleware(searchClausesHandler))
 	
 	log.Printf("Privacy & Terms Generator API starting on port %s", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {

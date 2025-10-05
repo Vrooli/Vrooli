@@ -100,6 +100,32 @@ The Scenario Auditor adds the permanent capability to **comprehensively enforce 
 - **Persistence**: PostgreSQL storage for all configuration and results
 - **UI Management**: React-based dashboard with real-time updates
 
+### Health & Monitoring
+- **UI Health Check**: Enhanced to verify API connectivity before reporting healthy status
+  - Returns 503 "degraded" if API is unreachable
+  - Includes detailed API connection status in response
+  - Tests actual HTTP connectivity with 3-second timeout
+- **API Health Check**: Comprehensive dependency validation including database, filesystem, and optional services
+- **Lifecycle Integration**: Both API and UI properly managed through service.json develop lifecycle
+- **Connection Validation**: UI health endpoint validates `/api/v1/health` is accessible
+
+#### Health Endpoint Schema
+```json
+{
+  "status": "healthy" | "degraded",
+  "service": "scenario-auditor-ui",
+  "timestamp": "ISO-8601",
+  "uptime": 123.45,
+  "checks": {
+    "api": {
+      "status": "healthy" | "error: <status>" | "unreachable: <reason>",
+      "reachable": true | false,
+      "url": "http://localhost:PORT/api/v1"
+    }
+  }
+}
+```
+
 ## 🔄 Operational Flow
 
 ### Standards Auditing Process
@@ -170,3 +196,34 @@ The Scenario Auditor adds the permanent capability to **comprehensively enforce 
 - [ ] Integrates seamlessly with existing API security scanning
 
 **This scenario becomes Vrooli's permanent quality gatekeeper - ensuring every scenario maintains the highest standards and contributes to the ecosystem's continuous improvement.**
+
+## 📝 Implementation History
+
+### 2025-10-05: UI-API Connection Enhancement
+**Issue**: UI health endpoint didn't verify API connectivity, making it difficult to diagnose connection issues.
+
+**Changes**:
+- ✅ Enhanced UI health endpoint to test API connectivity before reporting status
+- ✅ Added comprehensive checks object to health response
+- ✅ Implemented degraded status (503) when API is unreachable
+- ✅ Added 3-second timeout for API health checks
+- ✅ Documented proper lifecycle startup procedure in PROBLEMS.md
+
+**Impact**:
+- Connection issues now immediately visible in health status
+- Easier debugging of UI-API integration problems
+- Better monitoring and alerting capabilities
+- Clearer operational status for lifecycle system
+
+**Validation**:
+```bash
+# Test health endpoint
+curl http://localhost:36224/health | jq '.checks.api'
+
+# Should return:
+# {
+#   "status": "healthy",
+#   "reachable": true,
+#   "url": "http://localhost:18507/api/v1"
+# }
+```

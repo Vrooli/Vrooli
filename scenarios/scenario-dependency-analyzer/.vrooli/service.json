@@ -81,7 +81,7 @@
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${DEPENDENCY_ANALYZER_API_PORT}/health",
+          "target": "http://localhost:${API_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
@@ -89,7 +89,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${DEPENDENCY_ANALYZER_UI_PORT}/health",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 3000,
           "interval": 60000
@@ -97,7 +97,7 @@
         {
           "name": "dependency_analysis_test",
           "type": "http",
-          "target": "http://localhost:${DEPENDENCY_ANALYZER_API_PORT}/api/v1/health/analysis",
+          "target": "http://localhost:${API_PORT}/api/v1/health/analysis",
           "critical": true,
           "timeout": 15000,
           "interval": 300000,
@@ -156,7 +156,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Scenario Dependency Analyzer initialized\\n  Graph Visualization: http://localhost:${DEPENDENCY_ANALYZER_UI_PORT}\\n  Analysis API: http://localhost:${DEPENDENCY_ANALYZER_API_PORT}\\n  CLI: scenario-dependency-analyzer --help\\n\\n📊 Quick Commands:\\n  scenario-dependency-analyzer analyze all\\n  scenario-dependency-analyzer graph combined --format html\\n  scenario-dependency-analyzer optimize all'",
+          "run": "echo '🔍 Scenario Dependency Analyzer initialized\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  CLI: scenario-dependency-analyzer --help\\n\\n📊 Quick Commands:\\n  scenario-dependency-analyzer analyze all\\n  scenario-dependency-analyzer graph combined --format html\\n  scenario-dependency-analyzer optimize all'",
           "description": "Display service access URLs and usage examples"
         }
       ]
@@ -175,7 +175,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && python3 -m http.server ${DEPENDENCY_ANALYZER_UI_PORT}",
+          "run": "cd ui && python3 -m http.server ${UI_PORT}",
           "description": "Start dependency graph visualization UI server",
           "background": true,
           "condition": {
@@ -184,7 +184,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Scenario Dependency Analyzer Services Running:\\n  Graph Visualization: http://localhost:${DEPENDENCY_ANALYZER_UI_PORT}\\n  Analysis API: http://localhost:${DEPENDENCY_ANALYZER_API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n\\n📋 CLI Usage: scenario-dependency-analyzer --help'",
+          "run": "echo '🔍 Scenario Dependency Analyzer Services Running:\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n\\n📋 CLI Usage: scenario-dependency-analyzer --help'",
           "description": "Display all running service URLs and CLI info"
         }
       ]
@@ -202,22 +202,22 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:${DEPENDENCY_ANALYZER_API_PORT}/health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-scenario-analysis",
-          "run": "curl -sf http://localhost:${DEPENDENCY_ANALYZER_API_PORT}/api/v1/scenarios/chart-generator/dependencies",
+          "run": "curl -sf http://localhost:${API_PORT}/api/v1/scenarios/chart-generator/dependencies",
           "description": "Test scenario dependency analysis endpoint"
         },
         {
           "name": "test-graph-generation",
-          "run": "curl -sf http://localhost:${DEPENDENCY_ANALYZER_API_PORT}/api/v1/graph/combined",
+          "run": "curl -sf http://localhost:${API_PORT}/api/v1/graph/combined",
           "description": "Test dependency graph generation endpoint"
         },
         {
           "name": "test-proposed-scenario-analysis",
-          "run": "curl -sf -X POST http://localhost:${DEPENDENCY_ANALYZER_API_PORT}/api/v1/analyze/proposed -H 'Content-Type: application/json' -d '{\"name\":\"test-scenario\",\"description\":\"A test scenario for validating prediction\",\"requirements\":[\"postgres\",\"ollama\"]}'",
+          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/analyze/proposed -H 'Content-Type: application/json' -d '{\"name\":\"test-scenario\",\"description\":\"A test scenario for validating prediction\",\"requirements\":[\"postgres\",\"ollama\"]}'",
           "description": "Test proposed scenario analysis endpoint"
         },
         {

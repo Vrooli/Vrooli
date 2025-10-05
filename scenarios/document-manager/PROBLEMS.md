@@ -1,6 +1,20 @@
 # Document Manager - Known Issues and Solutions
 
-## Resolved Issues (2025-09-28)
+## Resolved Issues
+
+### 2025-10-03: Unit Testing and Phased Testing Infrastructure
+
+**Problem**: No unit tests existed for Go code; scenario relied only on integration tests.
+**Solution**:
+- Created `api/main_test.go` with 11 comprehensive unit tests
+- Tests cover: health endpoints, data structures, JSON marshaling, error handling, configuration loading
+- Achieved 17% code coverage baseline (room for expansion)
+- Created phased testing infrastructure (`test/phases/`, `test/run-tests.sh`) for future expansion
+- Updated `.vrooli/service.json` to run unit tests as part of test lifecycle
+
+**Result**: 32 total tests now passing (11 unit + 15 integration + 6 CLI)
+
+### 2025-09-28: Integration and Security Testing
 
 ### ✅ Integration Tests Missing
 **Problem**: No comprehensive integration tests existed for the scenario.
@@ -40,6 +54,13 @@
 - ✅ Lifecycle Compliance: All phases working
 - ✅ Web Interface: Running and healthy on allocated port
 
+### Testing Infrastructure (New as of 2025-10-03)
+- ✅ Go Unit Tests: 11 tests with 17% coverage (passing)
+- ✅ Integration Tests: 15 tests (all passing)
+- ✅ CLI Tests: 6 BATS tests (all passing)
+- ✅ Phased Testing: Infrastructure in place for future expansion
+- ✅ Total Test Count: 32 tests (100% passing)
+
 ### P1 Requirements (Infrastructure Ready)
 - ⚠️ **Vector Search**: Qdrant is running and connected but not actively used for vector operations
 - ⚠️ **AI Integration**: Ollama is running and connected but not actively used for analysis
@@ -65,11 +86,12 @@
 
 ## Testing Evidence
 
-All tests passing as of 2025-09-28:
+All tests passing as of 2025-10-03:
 - API Health: 2ms response time ✅
 - Database Status: Connected ✅
 - Vector DB Status: Connected ✅
 - AI Integration: Connected ✅
+- Unit Tests: 11/11 passing (17% coverage) ✅
 - Integration Tests: 15/15 passing ✅
 - CLI Tests: 6/6 passing ✅
 - Security Checks: No critical issues ✅

@@ -244,8 +244,16 @@
       ]
     },
     "test": {
-      "description": "Test document manager API, integrations, and workflows",
+      "description": "Test document manager with unit tests, integration tests, and CLI validation",
       "steps": [
+        {
+          "name": "test-go-unit",
+          "run": "cd api && go test -v -timeout=60s -coverprofile=coverage.out ./...",
+          "description": "Run Go unit tests with coverage",
+          "condition": {
+            "file_exists": "api/main_test.go"
+          }
+        },
         {
           "name": "test-go-build",
           "run": "cd api && go build -o test-build . && rm test-build",

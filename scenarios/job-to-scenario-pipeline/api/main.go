@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -520,7 +518,7 @@ func loadJob(jobID string) (*Job, error) {
 
 func moveJob(jobID, fromState, toState string) error {
 	oldPath := filepath.Join(dataDir, fromState, jobID+".yaml")
-	newPath := filepath.Join(dataDir, toState, jobID+".yaml")
+	_ = filepath.Join(dataDir, toState, jobID+".yaml")
 	
 	// Load job to update state
 	job, err := loadJob(jobID)

@@ -1,16 +1,26 @@
 # Date Night Planner - Known Issues and Solutions
 
-## Issues Discovered (2025-09-28)
+## Security Fixes Completed (2025-10-03)
+
+### Fixed Security Vulnerabilities ✅
+1. **SQL Injection Vulnerability** (FIXED 2025-10-03)
+   - **Location**: api/main.go:251
+   - **Issue**: String concatenation in SQL query allowed SQL injection attacks
+   - **Fix**: Refactored to use parameterized placeholders with proper argument counting
+   - **Validation**: All tests passing, endpoint functionality verified
+
+2. **Hardcoded Password** (FIXED 2025-10-03)
+   - **Location**: api/main.go:105
+   - **Issue**: Database password hardcoded in source code
+   - **Fix**: Removed hardcoded default, now requires POSTGRES_PASSWORD environment variable
+   - **Validation**: API starts correctly with environment variable, logs warning if missing
+
+## Outstanding Issues
 
 ### Performance Issues
 1. **Test Hanging**: Performance and business logic tests hang without completing
    - **Cause**: Tests may be waiting for resources that aren't running
    - **Solution**: Ensure all required resources are started before tests
-
-### Security Issues (from audit)
-1. **2 Security Vulnerabilities Found**
-   - Need to run detailed security scan to identify specific issues
-   - Likely related to input validation or SQL injection protection
 
 ### Standards Violations (from audit)
 1. **319 Standards Violations**

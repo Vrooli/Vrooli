@@ -1,5 +1,29 @@
 # Problems Encountered - Privacy Terms Generator
 
+## Date: 2025-10-03
+
+### 1. Database Integration Silent Failures
+**Problem**: The `db_query` function in `generator.sh` has issues with output parsing, causing database operations to fail silently.
+
+**Impact**: Version history tracking and document storage aren't being recorded in the database despite the schema being in place.
+
+**Workaround**: The scenario falls back to `simple-generator.sh` which generates documents without database persistence. This maintains functionality but loses version history benefits.
+
+**Solution Needed**:
+- Debug the `db_query` function's output parsing logic
+- Add explicit error handling and logging for database operations
+- Test database operations independently before integrating with generation flow
+
+### 2. Qdrant Integration Not Fully Tested
+**Problem**: Semantic search implementation created but not verified against running Qdrant instance.
+
+**Status**: Code implements proper fallback to PostgreSQL full-text search when Qdrant is unavailable.
+
+**Testing Needed**:
+- Enable Qdrant resource in `.vrooli/service.json`
+- Run `privacy-terms-generator search "data collection" --limit 5`
+- Verify semantic search returns relevant clauses
+
 ## Date: 2025-09-28
 
 ### 1. Ollama Command Interface Issue

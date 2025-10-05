@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -79,8 +80,8 @@ func calculateBackoff(attempt int) time.Duration {
 	// Base wait time with exponential increase
 	base := time.Duration(math.Min(float64(attempt*attempt), 30)) * time.Second
 
-	// Add jitter (up to 25% of base time)
-	jitter := time.Duration(float64(base) * 0.25 * math.Min(1.0, float64(attempt)/4))
+	// Add random jitter (up to 25% of base time)
+	jitter := time.Duration(float64(base) * 0.25 * rand.Float64())
 
 	return base + jitter
 }

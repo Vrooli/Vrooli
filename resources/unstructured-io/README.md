@@ -6,13 +6,13 @@ Transform any document into AI-ready structured data. Unstructured.io provides e
 
 ```bash
 # Install Unstructured.io
-./resources/unstructured-io/manage.sh --action install
+vrooli resource unstructured-io manage install
 
 # Process a document
-./resources/unstructured-io/manage.sh --action process --file document.pdf
+vrooli resource unstructured-io content process document.pdf
 
 # Check service status
-./resources/unstructured-io/manage.sh --action status
+vrooli resource unstructured-io status
 ```
 
 ## 📋 Overview
@@ -36,10 +36,10 @@ Unstructured.io is a comprehensive document processing platform that converts co
 ### Install Command
 ```bash
 # Basic installation
-./resources/unstructured-io/manage.sh --action install
+vrooli resource unstructured-io manage install
 
 # Force reinstall
-./resources/unstructured-io/manage.sh --action install --force yes
+vrooli resource unstructured-io manage install --force
 ```
 
 ### Docker Compose Deployment
@@ -76,19 +76,16 @@ The installation will:
 
 ```bash
 # Process a PDF with default settings
-./manage.sh --action process --file report.pdf
+vrooli resource unstructured-io content process report.pdf
 
 # Process with specific strategy
-./manage.sh --action process --file report.pdf --strategy hi_res
+vrooli resource unstructured-io content process report.pdf --strategy hi_res
 
 # Get markdown output
-./manage.sh --action process --file report.pdf --output markdown
+vrooli resource unstructured-io content process report.pdf --output markdown
 
 # Process with specific OCR languages
-./manage.sh --action process --file document.pdf --languages eng,fra,deu
-
-# Process quietly for automation
-./manage.sh --action process --file report.pdf --quiet yes --output json
+vrooli resource unstructured-io content process document.pdf --languages eng,fra,deu
 ```
 
 ### Caching
@@ -96,14 +93,8 @@ The installation will:
 Unstructured.io automatically caches processed documents to improve performance:
 
 ```bash
-# Check cache statistics
-./manage.sh --action cache-stats
-
 # Clear all cache
-./manage.sh --action clear-cache
-
-# Clear cache for specific file
-./manage.sh --action clear-cache --file report.pdf
+vrooli resource unstructured-io content clear-cache
 ```
 
 Cache features:
@@ -117,49 +108,46 @@ Cache features:
 
 1. **fast** - Quick processing with basic extraction
    ```bash
-   ./manage.sh --action process --file doc.pdf --strategy fast
+   vrooli resource unstructured-io content process doc.pdf --strategy fast
    ```
 
 2. **hi_res** - High resolution processing with advanced features (default)
    ```bash
-   ./manage.sh --action process --file doc.pdf --strategy hi_res
+   vrooli resource unstructured-io content process doc.pdf --strategy hi_res
    ```
 
 3. **auto** - Automatically select best strategy
    ```bash
-   ./manage.sh --action process --file doc.pdf --strategy auto
+   vrooli resource unstructured-io content process doc.pdf --strategy auto
    ```
 
 ### Output Formats
 
 1. **JSON** - Structured elements with metadata (default)
    ```bash
-   ./manage.sh --action process --file doc.pdf --output json
+   vrooli resource unstructured-io content process doc.pdf --output json
    ```
 
 2. **Markdown** - Formatted for LLM consumption
    ```bash
-   ./manage.sh --action process --file doc.pdf --output markdown
+   vrooli resource unstructured-io content process doc.pdf --output markdown
    ```
 
 3. **Text** - Plain text extraction
    ```bash
-   ./manage.sh --action process --file doc.pdf --output text
+   vrooli resource unstructured-io content process doc.pdf --output text
    ```
 
 4. **Elements** - Detailed element breakdown
    ```bash
-   ./manage.sh --action process --file doc.pdf --output elements
+   vrooli resource unstructured-io content process doc.pdf --output elements
    ```
 
 ### Batch Processing
 
 ```bash
-# Process multiple files
-./manage.sh --action process --file "file1.pdf,file2.docx,file3.pptx" --batch yes
-
-# Process with options
-./manage.sh --action process --file "*.pdf" --batch yes --strategy fast --output markdown
+# Process directory of files
+vrooli resource unstructured-io content process-directory ./documents --strategy fast --output markdown
 ```
 
 ## 📁 Supported Formats
@@ -198,32 +186,32 @@ Cache features:
 
 ```bash
 # Start service
-./manage.sh --action start
+vrooli resource unstructured-io manage start
 
 # Stop service
-./manage.sh --action stop
+vrooli resource unstructured-io manage stop
 
 # Restart service
-./manage.sh --action restart
+vrooli resource unstructured-io manage restart
 
 # Uninstall service
-./manage.sh --action uninstall
+vrooli resource unstructured-io manage uninstall
 ```
 
 ### Monitoring
 
 ```bash
 # Check status
-./manage.sh --action status
+vrooli resource unstructured-io status
 
 # View service info
-./manage.sh --action info
+vrooli resource unstructured-io info
 
 # View logs
-./manage.sh --action logs
+vrooli resource unstructured-io logs
 
 # Follow logs in real-time
-./manage.sh --action logs --follow yes
+vrooli resource unstructured-io logs --follow
 ```
 
 ## 🔗 Integration Examples
@@ -249,7 +237,7 @@ See `examples/integration-examples.sh` for more detailed examples and workflows.
 
 ```bash
 # 1. Process document to markdown
-CONTENT=$(./manage.sh --action process --file report.pdf --output markdown)
+CONTENT=$(vrooli resource unstructured-io content process report.pdf --output markdown)
 
 # 2. Send to Ollama for analysis
 echo "$CONTENT" | ollama run llama3.1:8b "Summarize this document"
@@ -267,7 +255,7 @@ Create an n8n workflow that:
 
 ```bash
 # Process and store in MinIO
-./manage.sh --action process --file document.pdf --output json > processed.json
+vrooli resource unstructured-io content process document.pdf --output json > processed.json
 mc cp processed.json minio/documents/
 ```
 
@@ -352,14 +340,14 @@ Edit `~/.vrooli/service.json`:
 ### 1. Invoice Processing
 Extract structured data from PDF invoices:
 ```bash
-./manage.sh --action process --file invoice.pdf --output json | \
+vrooli resource unstructured-io content process invoice.pdf --output json | \
   jq '.[] | select(.type == "Table")'
 ```
 
 ### 2. Contract Analysis
 Convert legal documents to markdown for LLM analysis:
 ```bash
-./manage.sh --action process --file contract.pdf --output markdown > contract.md
+vrooli resource unstructured-io content process contract.pdf --output markdown > contract.md
 ollama run llama3.1:8b "Identify key terms and obligations in this contract" < contract.md
 ```
 
@@ -368,14 +356,14 @@ Process email attachments automatically:
 ```bash
 # Extract and process all PDFs from email
 for file in *.pdf; do
-  ./manage.sh --action process --file "$file" --output json > "${file%.pdf}.json"
+  vrooli resource unstructured-io content process "$file" --output json > "${file%.pdf}.json"
 done
 ```
 
 ### 4. Knowledge Base Creation
 Convert company documents to vector-ready chunks:
 ```bash
-./manage.sh --action process --file handbook.pdf --output json | \
+vrooli resource unstructured-io content process handbook.pdf --output json | \
   jq -r '.[] | {text: .text, metadata: .metadata}'
 ```
 
@@ -385,27 +373,22 @@ For comprehensive troubleshooting, see the **[Troubleshooting Guide](TROUBLESHOO
 
 ### Quick Fixes
 
-1. **Validate installation**
+1. **Check service health**
    ```bash
-   ./manage.sh --action validate-installation
+   vrooli resource unstructured-io status
+   vrooli resource unstructured-io logs --tail 50
    ```
 
-2. **Check service health**
-   ```bash
-   ./manage.sh --action status
-   ./manage.sh --action logs --tail 50
-   ```
-
-3. **Common errors**
-   - `[ERROR:CONNECTION]` - Service not running, use `./manage.sh --action start`
+2. **Common errors**
+   - `[ERROR:CONNECTION]` - Service not running, use `vrooli resource unstructured-io manage start`
    - `[ERROR:TIMEOUT]` - Use `--strategy fast` or process smaller files
    - `[ERROR:FILE_TOO_LARGE]` - Split file or increase limits
-   - `[ERROR:UNSUPPORTED_TYPE]` - Check supported formats with `./manage.sh --action info`
+   - `[ERROR:UNSUPPORTED_TYPE]` - Check supported formats with `vrooli resource unstructured-io info`
 
-4. **Reset and reinstall**
+3. **Reset and reinstall**
    ```bash
-   ./manage.sh --action uninstall
-   ./manage.sh --action install --force yes
+   vrooli resource unstructured-io manage uninstall
+   vrooli resource unstructured-io manage install --force
    ```
 
 ## 📊 Performance Tips
@@ -433,9 +416,11 @@ For comprehensive troubleshooting, see the **[Troubleshooting Guide](TROUBLESHOO
 
 ## 🆘 Getting Help
 
-- **Logs**: `./manage.sh --action logs`
-- **Status**: `./manage.sh --action status`
-- **Info**: `./manage.sh --action info`
+- **Logs**: `vrooli resource unstructured-io logs`
+- **Status**: `vrooli resource unstructured-io status`
+- **Info**: `vrooli resource unstructured-io info`
+- **Help**: `vrooli resource unstructured-io help`
+- **Run Tests**: `vrooli resource unstructured-io test all`
 - **Unstructured.io Docs**: https://docs.unstructured.io/
 
 ---

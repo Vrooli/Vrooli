@@ -299,7 +299,7 @@ neo4j_backup() {
     # Try APOC first if available (use relative path for APOC)
     local apoc_result
     apoc_result=$(docker exec "$NEO4J_CONTAINER_NAME" cypher-shell --format plain \
-        'CALL apoc.export.json.all("'${backup_file}'.json", {useTypes:true}) YIELD file, nodes, relationships RETURN file' 2>&1 || echo "")
+        'CALL apoc.export.json.all("'"${backup_file}"'.json", {useTypes:true}) YIELD file, nodes, relationships RETURN file' 2>&1 || echo "")
     
     if [[ "$apoc_result" =~ "file" ]] && [[ ! "$apoc_result" =~ "ProcedureNotFound" ]]; then
         echo "Backup completed successfully using APOC: ${backup_file}.json"

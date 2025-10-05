@@ -103,10 +103,12 @@ func NewServer() *Server {
 
 func (s *Server) SetupRoutes() {
 	api := s.app.Group("/api/v1")
-	
+
 	api.Get("/health", s.handleHealth)
 	api.Get("/plugins", s.handleListPlugins)
-	
+	api.Get("/presets", s.handleListPresets)
+	api.Get("/presets/:name", s.handleGetPreset)
+
 	image := api.Group("/image")
 	image.Post("/compress", s.handleCompress)
 	image.Post("/resize", s.handleResize)
@@ -115,6 +117,7 @@ func (s *Server) SetupRoutes() {
 	image.Post("/batch", s.handleBatch)
 	image.Post("/info", s.handleInfo)
 	image.Get("/proxy", s.handleImageProxy)
+	image.Post("/preset/:name", s.handleApplyPreset)
 }
 
 func (s *Server) handleHealth(c *fiber.Ctx) error {

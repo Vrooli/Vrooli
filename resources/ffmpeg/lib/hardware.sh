@@ -21,11 +21,17 @@ ffmpeg::hardware::detect() {
     # Check for NVIDIA GPU
     if command -v nvidia-smi &>/dev/null; then
         if nvidia-smi &>/dev/null; then
-            available_hw+=("nvenc")
-            if [[ -z "$recommended_hw" ]]; then
-                recommended_hw="nvenc"
+            # Verify NVENC is actually available in FFmpeg
+            if command -v ffmpeg &>/dev/null && ffmpeg -encoders 2>/dev/null | grep -q "h264_nvenc"; then
+                available_hw+=("nvenc")
+                if [[ -z "$recommended_hw" ]]; then
+                    recommended_hw="nvenc"
+                fi
+                log::info "  ✅ NVIDIA GPU detected - NVENC available"
+            else
+                log::warn "  ⚠️  NVIDIA GPU detected but NVENC encoder not available in FFmpeg"
+                log::info "     Hint: Install ffmpeg with NVENC support or use FFMPEG_HW_ACCEL=none"
             fi
-            log::info "  ✅ NVIDIA GPU detected - NVENC available"
         fi
     fi
     

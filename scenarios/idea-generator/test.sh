@@ -61,17 +61,16 @@ run_test() {
 # Test Functions
 test_postgres_connection() {
     local port="${RESOURCE_PORTS_POSTGRES:-5432}"
-    PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" psql \
-        -h localhost \
-        -p "$port" \
-        -U "${POSTGRES_USER:-postgres}" \
-        -d "${POSTGRES_DB:-idea_generator}" \
+    # Use docker exec since psql may not be in PATH
+    docker exec vrooli-postgres-main psql \
+        -U "${POSTGRES_USER:-vrooli}" \
+        -d "${POSTGRES_DB:-vrooli}" \
         -c "SELECT 1" >/dev/null 2>&1
 }
 
 test_redis_connection() {
-    local port="${RESOURCE_PORTS_REDIS:-6379}"
-    redis-cli -p "$port" ping >/dev/null 2>&1
+    # Use docker exec since redis-cli may not be in PATH
+    docker exec vrooli-redis-resource redis-cli ping >/dev/null 2>&1
 }
 
 test_minio_connection() {
@@ -110,15 +109,13 @@ test_api_connection() {
 }
 
 test_database_schema() {
-    local port="${RESOURCE_PORTS[postgres]:-5432}"
-    local tables=$(PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" psql \
-        -h localhost \
-        -p "$port" \
-        -U "${POSTGRES_USER:-postgres}" \
-        -d "${POSTGRES_DB:-idea_generator}" \
-        -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'" 2>/dev/null | xargs)
-    
-    [[ $tables -ge 5 ]] # We expect at least 5 tables
+    # Use docker exec and check for idea-generator tables
+    local tables=$(docker exec vrooli-postgres-main psql \
+        -U "${POSTGRES_USER:-vrooli}" \
+        -d "${POSTGRES_DB:-vrooli}" \
+        -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND (table_name LIKE 'campaign%' OR table_name LIKE 'idea%' OR table_name LIKE 'document%' OR table_name LIKE 'chat%' OR table_name LIKE 'agent_interaction%')" 2>/dev/null | xargs)
+
+    [[ $tables -ge 5 ]] # We expect at least 5 idea-generator tables
 }
 
 test_qdrant_collections() {

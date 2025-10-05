@@ -1,16 +1,18 @@
 #!/bin/bash
-set -euo pipefail
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "=== Unit Tests ==="
+testing::phase::init --target-time "60s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-if [ -d api ]; then
-  cd api && go test -v ./... -short || { echo "Unit tests failed ❌"; exit 1; }
-  echo "✅ Unit tests completed"
-else
-  echo "No API directory, skipping unit tests"
-fi
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-if [ -d ui ] && [ -f ui/package.json ]; then
-  cd ui && npm test || { echo "UI tests failed ❌"; exit 1; } || echo "No UI tests configured, skipping"
-  echo "✅ UI unit tests completed"
-fi
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50
+
+testing::phase::end_with_summary "Unit tests completed"

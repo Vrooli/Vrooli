@@ -140,7 +140,7 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:${TIME_TOOLS_PORT}/api/v1/health",
+          "run": "PORT=${TIME_TOOLS_PORT:-18765} && curl -sf http://localhost:${PORT}/api/v1/health",
           "description": "Test API health endpoint"
         },
         {

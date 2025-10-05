@@ -2994,3 +2994,257 @@ func TestCoverageHandlerErrorPaths(t *testing.T) {
         t.Errorf("Expected status 404 for non-existent campaign, got %d", w.Code)
     }
 }
+
+// TestGetCampaignHandlerWithDeletedFiles tests getCampaignHandler with deleted files
+func TestGetCampaignHandlerWithDeletedFiles(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+
+    tempDir, err := ioutil.TempDir("", "visited-tracker-deleted-test")
+    if err != nil {
+        t.Fatalf("Failed to create temp dir: %v", err)
+    }
+    defer os.RemoveAll(tempDir)
+
+    originalWD, _ := os.Getwd()
+    defer os.Chdir(originalWD)
+
+    if err := os.Chdir(tempDir); err != nil {
+        t.Fatalf("Failed to change to temp dir: %v", err)
+    }
+
+    if err := initFileStorage(); err != nil {
+        t.Fatalf("Failed to init file storage: %v", err)
+    }
+
+    now := time.Now()
+    visited := now.Add(-1 * time.Hour)
+    campaign := &Campaign{
+        ID:          uuid.New(),
+        Name:        "test-deleted-files",
+        Patterns:    []string{"*.go"},
+        CreatedAt:   now,
+        UpdatedAt:   now,
+        Status:      "active",
+        Metadata:    make(map[string]interface{}),
+        TrackedFiles: []TrackedFile{
+            {
+                ID:           uuid.New(),
+                FilePath:     "active.go",
+                VisitCount:   5,
+                LastModified: now,
+                LastVisited:  &visited,
+                Deleted:      false,
+            },
+            {
+                ID:           uuid.New(),
+                FilePath:     "deleted.go",
+                VisitCount:   3,
+                LastModified: now,
+                LastVisited:  &visited,
+                Deleted:      true,
+            },
+            {
+                ID:           uuid.New(),
+                FilePath:     "never-visited.go",
+                VisitCount:   0,
+                LastModified: now,
+                LastVisited:  nil,
+                Deleted:      false,
+            },
+        },
+    }
+
+    if err := saveCampaign(campaign); err != nil {
+        t.Fatalf("Failed to save campaign: %v", err)
+    }
+
+    req := httptest.NewRequest("GET", "/api/v1/campaigns/"+campaign.ID.String(), nil)
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w := httptest.NewRecorder()
+
+    getCampaignHandler(w, req)
+
+    if w.Code != http.StatusOK {
+        t.Errorf("Expected status 200, got %d", w.Code)
+    }
+
+    var response Campaign
+    if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+        t.Fatalf("Failed to parse response: %v", err)
+    }
+
+    if response.VisitedFiles != 1 {
+        t.Errorf("Expected 1 visited file (excluding deleted), got %d", response.VisitedFiles)
+    }
+
+    if response.TotalFiles != 3 {
+        t.Errorf("Expected 3 total files, got %d", response.TotalFiles)
+    }
+}
+
+// TestCreateCampaignHandlerMetadataInitialization tests metadata nil handling
+func TestCreateCampaignHandlerMetadataInitialization(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+
+    tempDir, err := ioutil.TempDir("", "visited-tracker-metadata-test")
+    if err != nil {
+        t.Fatalf("Failed to create temp dir: %v", err)
+    }
+    defer os.RemoveAll(tempDir)
+
+    originalWD, _ := os.Getwd()
+    defer os.Chdir(originalWD)
+
+    if err := os.Chdir(tempDir); err != nil {
+        t.Fatalf("Failed to change to temp dir: %v", err)
+    }
+
+    if err := initFileStorage(); err != nil {
+        t.Fatalf("Failed to init file storage: %v", err)
+    }
+
+    reqBody := CreateCampaignRequest{
+        Name:        "test-no-metadata",
+        FromAgent:   "test-agent",
+        Patterns:    []string{"*.go"},
+        Metadata:    nil,
+    }
+
+    bodyBytes, _ := json.Marshal(reqBody)
+    req := httptest.NewRequest("POST", "/api/v1/campaigns", bytes.NewReader(bodyBytes))
+    req.Header.Set("Content-Type", "application/json")
+    w := httptest.NewRecorder()
+
+    createCampaignHandler(w, req)
+
+    if w.Code != http.StatusCreated {
+        t.Errorf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+    }
+
+    var response Campaign
+    if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+        t.Fatalf("Failed to parse response: %v", err)
+    }
+
+    if response.Metadata == nil {
+        t.Error("Expected metadata to be initialized, got nil")
+    }
+}
+
+// TestCreateCampaignHandlerAutoSyncTracking tests auto-sync metadata tracking
+func TestCreateCampaignHandlerAutoSyncTracking(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+
+    tempDir, err := ioutil.TempDir("", "visited-tracker-autosync-test")
+    if err != nil {
+        t.Fatalf("Failed to create temp dir: %v", err)
+    }
+    defer os.RemoveAll(tempDir)
+
+    originalWD, _ := os.Getwd()
+    defer os.Chdir(originalWD)
+
+    if err := os.Chdir(tempDir); err != nil {
+        t.Fatalf("Failed to change to temp dir: %v", err)
+    }
+
+    if err := initFileStorage(); err != nil {
+        t.Fatalf("Failed to init file storage: %v", err)
+    }
+
+    reqBody := CreateCampaignRequest{
+        Name:        "test-autosync",
+        FromAgent:   "test-agent",
+        Patterns:    []string{"*.nonexistent"},
+        Metadata:    map[string]interface{}{"test": "value"},
+    }
+
+    bodyBytes, _ := json.Marshal(reqBody)
+    req := httptest.NewRequest("POST", "/api/v1/campaigns", bytes.NewReader(bodyBytes))
+    req.Header.Set("Content-Type", "application/json")
+    w := httptest.NewRecorder()
+
+    createCampaignHandler(w, req)
+
+    if w.Code != http.StatusCreated {
+        t.Errorf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+    }
+
+    var response Campaign
+    if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+        t.Fatalf("Failed to parse response: %v", err)
+    }
+
+    if _, exists := response.Metadata["auto_sync_attempted"]; !exists {
+        t.Error("Expected auto_sync_attempted metadata field")
+    }
+}
+
+// TestDeleteCampaignHandlerIdempotent tests idempotent delete behavior
+func TestDeleteCampaignHandlerIdempotent(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+
+    tempDir, err := ioutil.TempDir("", "visited-tracker-delete-test")
+    if err != nil {
+        t.Fatalf("Failed to create temp dir: %v", err)
+    }
+    defer os.RemoveAll(tempDir)
+
+    originalWD, _ := os.Getwd()
+    defer os.Chdir(originalWD)
+
+    if err := os.Chdir(tempDir); err != nil {
+        t.Fatalf("Failed to change to temp dir: %v", err)
+    }
+
+    if err := initFileStorage(); err != nil {
+        t.Fatalf("Failed to init file storage: %v", err)
+    }
+
+    campaign := &Campaign{
+        ID:       uuid.New(),
+        Name:     "test-delete-idempotent",
+        Patterns: []string{"*.go"},
+        CreatedAt: time.Now(),
+        UpdatedAt: time.Now(),
+        Status:   "active",
+        Metadata: make(map[string]interface{}),
+    }
+
+    if err := saveCampaign(campaign); err != nil {
+        t.Fatalf("Failed to save campaign: %v", err)
+    }
+
+    req := httptest.NewRequest("DELETE", "/api/v1/campaigns/"+campaign.ID.String(), nil)
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w := httptest.NewRecorder()
+
+    deleteCampaignHandler(w, req)
+
+    if w.Code != http.StatusOK {
+        t.Errorf("Expected status 200, got %d", w.Code)
+    }
+
+    req = httptest.NewRequest("DELETE", "/api/v1/campaigns/"+campaign.ID.String(), nil)
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w = httptest.NewRecorder()
+
+    deleteCampaignHandler(w, req)
+
+    if w.Code != http.StatusOK {
+        t.Errorf("Expected status 200 for idempotent delete, got %d", w.Code)
+    }
+
+    var response map[string]interface{}
+    if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+        t.Fatalf("Failed to parse response: %v", err)
+    }
+
+    if deleted, ok := response["deleted"].(bool); !ok || !deleted {
+        t.Error("Expected deleted=true in response")
+    }
+}

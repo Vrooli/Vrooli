@@ -1,34 +1,22 @@
 #!/bin/bash
-set -e
+# Unit tests for browser-automation-studio scenario using centralized testing infrastructure
 
-echo "=== Test Unit ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Run Go unit tests
-if [[ -f api/go.mod ]]; then
-  cd api
-  if go test ./... -v -short 2&gt;&amp;1 | tee /dev/stderr | grep -q "FAIL"; then
-    echo "❌ Go unit tests failed"
-    exit 1
-  else
-    echo "✅ Go unit tests passed"
-  fi
-  cd ..
-else
-  echo "⚠️ No Go unit tests to run"
-fi
+testing::phase::init --target-time "90s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-# Run UI unit tests if test script exists
-if [[ -f ui/package.json ]] &amp;&amp; grep -q '"test"' ui/package.json; then
-  cd ui
-  if npm test; then
-    echo "✅ UI unit tests passed"
-  else
-    echo "❌ UI unit tests failed"
-    exit 1
-  fi
-  cd ..
-else
-  echo "⚠️ No UI unit tests configured, skipping"
-fi
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-echo "✅ Unit tests passed"
+# Run all unit tests with coverage thresholds
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50 \
+    --verbose
+
+testing::phase::end_with_summary "Unit tests completed"

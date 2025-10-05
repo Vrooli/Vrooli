@@ -11,10 +11,12 @@ SCENARIO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Source generator functions
 source "${SCENARIO_ROOT}/lib/generator.sh"
-# Source web updater functions  
+# Source web updater functions
 source "${SCENARIO_ROOT}/lib/web_updater.sh"
 # Source PDF exporter functions
 source "${SCENARIO_ROOT}/lib/pdf_exporter.sh"
+# Source semantic search functions
+source "${SCENARIO_ROOT}/lib/semantic_search.sh"
 
 # Colors for output
 RED='\033[0;31m'
@@ -38,6 +40,8 @@ Commands:
   generate <type>     Generate a legal document
   list-templates      Show available templates
   update-templates    Fetch latest templates from web
+  search <query>      Search for relevant legal clauses
+  history <doc-id>    Show version history for a document
   status             Show generator status and health
   version            Show version information
   help               Show this help message
@@ -76,15 +80,33 @@ List Templates Command:
 
 Update Templates Command:
   privacy-terms-generator update-templates [options]
-  
+
   Options:
     --jurisdiction <code>      Update specific jurisdiction only
     --force                    Force update even if templates are recent
+
+Search Command:
+  privacy-terms-generator search <query> [options]
+
+  Options:
+    --limit <n>                Number of results to return (default: 5)
+    --type <type>              Filter by clause type
+    --jurisdiction <code>      Filter by jurisdiction
+    --json                     Output in JSON format
+
+History Command:
+  privacy-terms-generator history <document-id> [options]
+
+  Options:
+    --limit <n>                Number of history entries to show (default: 10)
+    --json                     Output in JSON format
 
 Examples:
   privacy-terms-generator generate privacy --business-name "Acme Corp" --jurisdiction US
   privacy-terms-generator list-templates --stale
   privacy-terms-generator update-templates --force
+  privacy-terms-generator search "data collection clauses" --type privacy --limit 3
+  privacy-terms-generator history abc-123-def --limit 5
   privacy-terms-generator status --json
 
 EOF
@@ -357,6 +379,114 @@ cmd_update_templates() {
     print_success "Templates updated successfully"
 }
 
+# Search for legal clauses
+cmd_search() {
+    local query="$1"
+    shift
+
+    local limit=5
+    local clause_type=""
+    local jurisdiction=""
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --type)
+                clause_type="$2"
+                shift 2
+                ;;
+            --jurisdiction)
+                jurisdiction="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$query" ]; then
+        print_error "Search query is required"
+        exit 1
+    fi
+
+    print_info "Searching for: $query"
+
+    # Use smart search (tries Qdrant, falls back to PostgreSQL)
+    local results=$(smart_search_clauses "$query" "$limit" "$clause_type" "$jurisdiction" 2>&1)
+
+    if [ -z "$results" ] || echo "$results" | grep -q "No results"; then
+        print_error "No matching clauses found"
+        exit 1
+    fi
+
+    if [ "$json_output" = true ]; then
+        echo "$results"
+    else
+        echo ""
+        echo "$results"
+    fi
+}
+
+# Show document history
+cmd_history() {
+    local doc_id="$1"
+    shift
+
+    local limit=10
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$doc_id" ]; then
+        print_error "Document ID is required"
+        exit 1
+    fi
+
+    local history=$(get_document_history "$doc_id" "$limit")
+
+    if [ -z "$history" ]; then
+        print_error "No history found for document ID: $doc_id"
+        exit 1
+    fi
+
+    if [ "$json_output" = true ]; then
+        # Format as JSON (simplified)
+        echo "["
+        echo "$history" | awk '{
+            printf "  {\"changed_at\":\"%s\",\"change_type\":\"%s\",\"changed_by\":\"%s\",\"summary\":\"%s\"},\n",
+                $1, $2, $3, substr($0, index($0,$4))
+        }' | sed '$ s/,$//'
+        echo "]"
+    else
+        print_info "Document History (ID: $doc_id)"
+        echo ""
+        echo "$history"
+    fi
+}
+
 # Main command dispatcher
 main() {
     case "${1:-}" in
@@ -375,6 +505,14 @@ main() {
         update-templates)
             shift
             cmd_update_templates "$@"
+            ;;
+        search)
+            shift
+            cmd_search "$@"
+            ;;
+        history)
+            shift
+            cmd_history "$@"
             ;;
         status)
             shift

@@ -284,7 +284,53 @@ func initDB() {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
+
+	// Check database connectivity
+	dbConnected := false
+	var dbLatency *float64
+	var dbError interface{}
+
+	if db != nil {
+		start := time.Now()
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		if err := db.PingContext(ctx); err == nil {
+			dbConnected = true
+			latency := float64(time.Since(start).Milliseconds())
+			dbLatency = &latency
+			dbError = nil
+		} else {
+			dbError = map[string]interface{}{
+				"code":      "DB_PING_FAILED",
+				"message":   err.Error(),
+				"category":  "resource",
+				"retryable": true,
+			}
+		}
+	}
+
+	status := "healthy"
+	if !dbConnected {
+		status = "degraded"
+	}
+
+	response := map[string]interface{}{
+		"status":    status,
+		"service":   "typing-test-api",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"readiness": dbConnected, // Ready when DB is connected
+		"version":   "1.0.0",
+		"dependencies": map[string]interface{}{
+			"database": map[string]interface{}{
+				"connected":  dbConnected,
+				"latency_ms": dbLatency,
+				"error":      dbError,
+			},
+		},
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
 
 func getLeaderboard(w http.ResponseWriter, r *http.Request) {
@@ -331,6 +377,7 @@ func getLeaderboard(w http.ResponseWriter, r *http.Request) {
 func submitScore(w http.ResponseWriter, r *http.Request) {
 	var score Score
 	if err := json.NewDecoder(r.Body).Decode(&score); err != nil {
+		log.Printf("Error decoding request body: %v", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -339,9 +386,12 @@ func submitScore(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	err := typingProcessor.AddScore(ctx, score)
 	if err != nil {
-		http.Error(w, "Failed to save score", http.StatusInternalServerError)
+		log.Printf("Error saving score: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to save score: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("New score submitted: %s - %d points", score.Name, score.Score)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{

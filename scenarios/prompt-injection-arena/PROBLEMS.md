@@ -1,18 +1,30 @@
 # Prompt Injection Arena - Known Issues and Problems
 
 ## Status Summary
-**Date**: 2025-01-28
-**Overall Status**: Core P0 features implemented, ALL P1 features now implemented ✅
-**Health**: Scenario can be built successfully with all improvements
-**Last Update**: Implemented vector search, tournament system, research export, and fixed test persistence
+**Date**: 2025-10-03
+**Overall Status**: Core P0 features implemented, ALL P1 features implemented ✅
+**Health**: Scenario running successfully with all security improvements applied
+**Last Update**: Fixed trusted proxy security warning, corrected test port configuration, improved code formatting
 
-## Critical Issues (P0)
+## Recently Fixed Issues ✅
 
-### 1. Vrooli CLI Connectivity Issue
-- **Problem**: Cannot connect to Vrooli API at http://localhost:8092
-- **Impact**: Scenario lifecycle management through Vrooli CLI is non-functional
-- **Error**: `[ERROR] Vrooli API is not accessible at http://localhost:8092`
-- **Workaround**: Direct execution may be needed for testing
+### 1. Test Port Configuration (Fixed 2025-10-03)
+- **Problem**: Test scripts used hardcoded port 20300 instead of lifecycle-managed API_PORT
+- **Impact**: Tests failed with "API health check failed" when API ran on different port
+- **Fix**: Updated test-agent-security.sh to use $API_PORT environment variable
+- **Status**: ✅ FIXED - All tests now passing
+
+### 2. Trusted Proxy Security Warning (Fixed 2025-10-03)
+- **Problem**: Gin router trusted all proxies by default (security issue)
+- **Impact**: Security vulnerability in production deployments
+- **Fix**: Configured trusted proxies to only trust localhost (127.0.0.1, ::1)
+- **Status**: ✅ FIXED - No more security warnings
+
+### 3. Code Formatting (Fixed 2025-10-03)
+- **Problem**: Go code not formatted consistently
+- **Impact**: Harder to maintain, inconsistent style
+- **Fix**: Applied gofumpt formatting to all Go files
+- **Status**: ✅ FIXED - All code now properly formatted
 
 ## ✅ P1 Features - ALL IMPLEMENTED
 
@@ -97,25 +109,23 @@
 ## Configuration Issues
 
 ### 1. Port Configuration
-- **API Port**: Hardcoded to 20300 in CLI, may conflict with service.json range (15000-19999)
-- **UI Port**: Not clearly defined in configuration
-
-### 2. Environment Variables
-- **Issue**: Inconsistent use of environment variables vs hardcoded values
-- **Example**: API_BASE_URL in CLI vs actual API_PORT
+- **API Port**: ✅ FIXED - Tests now use $API_PORT environment variable from lifecycle system
+- **UI Port**: Uses lifecycle-managed UI_PORT from service.json range (35000-39999)
+- **Note**: service.json defines port ranges properly: API (15000-19999), UI (35000-39999)
 
 ## Next Steps Priority
 
-1. **Fix Vrooli CLI connectivity** - Required for proper lifecycle management
-2. **Implement P1 features** - Vector search is highest value
-3. **Add test result persistence** - Critical for leaderboards to work properly
-4. **Document API and CLI** - Enable integration with other scenarios
-5. **Fix port configuration** - Ensure consistency with service.json
+1. **Add missing documentation** - Create docs/api.md, docs/cli.md, docs/security.md as referenced in PRD
+2. **Migrate to phased testing** - Move from legacy scenario-test.yaml to new phased testing architecture
+3. **Add UI automation tests** - Implement browser-based UI tests for React interface
+4. **Implement P2 features** - Real-time collaboration, advanced analytics, plugin system
+5. **Performance optimization** - Add caching layer for frequently accessed data
 
 ## Recommendations
 
-1. Focus on implementing vector similarity search first as it provides the most value
-2. Fix test result persistence before implementing tournament system
-3. Ensure proper n8n workflow integration for safety sandbox
+1. ✅ Vector similarity search implemented and working
+2. ✅ Test result persistence fixed and operational
+3. Continue improving n8n workflow integration for safety sandbox
 4. Add comprehensive logging for debugging production issues
-5. Implement proper error handling and recovery mechanisms
+5. Maintain security best practices (trusted proxies configured correctly)
+6. Keep code formatting consistent using gofumpt for all Go files

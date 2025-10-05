@@ -91,22 +91,20 @@ func (mp *MindMapProcessor) CreateMindMap(ctx context.Context, req CreateMindMap
 
 	// Insert into database
 	query := `
-		INSERT INTO mind_maps (id, title, description, user_id, data, tags, is_public, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
-		RETURNING *`
+		INSERT INTO mind_maps (id, title, description, owner_id, metadata, is_public, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+		RETURNING id, title, description, owner_id, created_at, updated_at`
 
-	tagsJSON, _ := json.Marshal(req.Tags)
 	dataJSON, _ := json.Marshal(mindMapData)
 	now := time.Now()
 
 	var mindMap MindMap
 	var createdAt, updatedAt time.Time
-	var tagsStr, dataStr string
 
 	err := mp.db.QueryRow(query, mapID, req.Title, req.Description, req.UserID,
-		dataJSON, tagsJSON, req.IsPublic, now).Scan(
+		dataJSON, req.IsPublic, now).Scan(
 		&mindMap.ID, &mindMap.Title, &mindMap.Description, &mindMap.OwnerID,
-		&dataStr, &tagsStr, &req.IsPublic, &createdAt, &updatedAt,
+		&createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create mind map: %w", err)
@@ -186,10 +184,18 @@ func (mp *MindMapProcessor) AutoOrganize(ctx context.Context, req OrganizeReques
 		return fmt.Errorf("failed to get mind map: %w", err)
 	}
 
-	// Parse existing data
+	// Parse existing data - initialize with empty structure if no data exists
 	var mapData map[string]interface{}
-	if err := json.Unmarshal([]byte(mindMap.Metadata["data"].(string)), &mapData); err != nil {
-		return fmt.Errorf("failed to parse mind map data: %w", err)
+	if dataStr, ok := mindMap.Metadata["data"].(string); ok && dataStr != "" {
+		if err := json.Unmarshal([]byte(dataStr), &mapData); err != nil {
+			return fmt.Errorf("failed to parse mind map data: %w", err)
+		}
+	} else {
+		// Initialize with basic structure
+		mapData = map[string]interface{}{
+			"nodes": []interface{}{},
+			"edges": []interface{}{},
+		}
 	}
 
 	// Organize based on method
@@ -252,9 +258,9 @@ Create a JSON structure with nodes and connections suitable for a mind map. Retu
 	// Create mind map in database
 	mapID := uuid.New().String()
 	query := `
-		INSERT INTO mind_maps (id, title, description, user_id, data, tags, is_public, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
-		RETURNING *`
+		INSERT INTO mind_maps (id, title, description, owner_id, metadata, is_public, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+		RETURNING id, title, description, owner_id, created_at, updated_at`
 
 	dataJSON, _ := json.Marshal(mindMapStructure)
 	now := time.Now()
@@ -262,12 +268,11 @@ Create a JSON structure with nodes and connections suitable for a mind map. Retu
 
 	var mindMap MindMap
 	var createdAt, updatedAt time.Time
-	var tagsStr, dataStr string
 
 	err = mp.db.QueryRow(query, mapID, mindMapStructure["title"], description, req.UserID,
-		dataJSON, "[]", false, now).Scan(
+		dataJSON, false, now).Scan(
 		&mindMap.ID, &mindMap.Title, &mindMap.Description, &mindMap.OwnerID,
-		&dataStr, &tagsStr, &req.IsPublic, &createdAt, &updatedAt,
+		&createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create mind map from document: %w", err)
@@ -370,16 +375,16 @@ func (mp *MindMapProcessor) storeInQdrant(ctx context.Context, collection, point
 }
 
 func (mp *MindMapProcessor) getMindMapByID(mapID string) (*MindMap, error) {
-	query := `SELECT id, title, description, user_id, data, tags, is_public, created_at, updated_at FROM mind_maps WHERE id = $1`
-	
+	query := `SELECT id, title, description, owner_id, metadata, is_public, created_at, updated_at FROM mind_maps WHERE id = $1`
+
 	var mindMap MindMap
 	var createdAt, updatedAt time.Time
-	var dataStr, tagsStr string
+	var metadataJSON []byte
 	var isPublic bool
 
 	err := mp.db.QueryRow(query, mapID).Scan(
 		&mindMap.ID, &mindMap.Title, &mindMap.Description, &mindMap.OwnerID,
-		&dataStr, &tagsStr, &isPublic, &createdAt, &updatedAt,
+		&metadataJSON, &isPublic, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -387,13 +392,17 @@ func (mp *MindMapProcessor) getMindMapByID(mapID string) (*MindMap, error) {
 
 	mindMap.CreatedAt = createdAt.Format(time.RFC3339)
 	mindMap.UpdatedAt = updatedAt.Format(time.RFC3339)
-	
-	// Parse metadata
-	mindMap.Metadata = map[string]interface{}{
-		"data":      dataStr,
-		"tags":      tagsStr,
-		"is_public": isPublic,
+
+	// Parse metadata JSON
+	if len(metadataJSON) > 0 {
+		if err := json.Unmarshal(metadataJSON, &mindMap.Metadata); err != nil {
+			mindMap.Metadata = make(map[string]interface{})
+		}
+	} else {
+		mindMap.Metadata = make(map[string]interface{})
 	}
+
+	mindMap.Metadata["is_public"] = isPublic
 
 	return &mindMap, nil
 }
@@ -430,7 +439,6 @@ func (mp *MindMapProcessor) organizeBasic(ctx context.Context, mapID string, map
 
 func (mp *MindMapProcessor) organizeEnhanced(ctx context.Context, mapID string, mapData map[string]interface{}) error {
 	// Enhanced organization with AI-powered grouping
-	prompt := "Analyze this mind map structure and suggest optimal node groupings and positioning for better visual organization."
 	// Implementation would use AI to suggest better organization
 	return mp.updateNodePositions(mapID, mapData, "enhanced")
 }

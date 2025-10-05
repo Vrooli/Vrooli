@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 	"fmt"
+	"math"
+	"math/rand"
 	"os"
 	"time"
 
@@ -73,20 +75,25 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 			}
 		}
 
-		// Calculate delay with exponential backoff
+		// Calculate delay with exponential backoff and random jitter
 		delay := baseDelay * time.Duration(1<<attempt)
 		if delay > maxDelay {
 			delay = maxDelay
 		}
 
+		// Add random jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * rand.Float64())
+		actualDelay := delay + jitter
+
 		log.WithFields(logrus.Fields{
 			"attempt": attempt + 1,
 			"maxRetries": maxRetries,
-			"delay": delay,
+			"delay": actualDelay,
 			"error": err.Error(),
 		}).Warn("Failed to connect to database, retrying...")
 
-		time.Sleep(delay)
+		time.Sleep(actualDelay)
 	}
 
 	if err != nil {

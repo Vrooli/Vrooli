@@ -1,12 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -376,9 +376,9 @@ func main() {
 			float64(maxDelay),
 		))
 		
-		// Add progressive jitter to prevent thundering herd
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(rand.Float64() * jitterRange)
 		actualDelay := delay + jitter
 		
 		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
@@ -419,7 +419,7 @@ func main() {
 	// Start server
 	log.Printf("Starting Task Planner API on port %s", port)
 	log.Printf("  Qdrant URL: %s", qdrantURL)
-	log.Printf("  Database: %s", dbURL)
+	log.Printf("  Database: Connected")
 	
 	logger := NewLogger()
 	logger.Info(fmt.Sprintf("Server starting on port %s", port))

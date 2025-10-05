@@ -24,30 +24,32 @@ type Server struct {
 }
 
 type HealthResponse struct {
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Service   string    `json:"service"`
-	Version   string    `json:"version"`
+	Status       string                 `json:"status"`
+	Timestamp    time.Time              `json:"timestamp"`
+	Service      string                 `json:"service"`
+	Version      string                 `json:"version"`
+	Readiness    bool                   `json:"readiness"`
+	Dependencies map[string]interface{} `json:"dependencies,omitempty"`
 }
 
 type ShoppingResearchRequest struct {
-	ProfileID         string  `json:"profile_id"`
-	Query             string  `json:"query"`
-	BudgetMax         float64 `json:"budget_max,omitempty"`
-	IncludeAlternatives bool   `json:"include_alternatives"`
-	GiftRecipientID   string  `json:"gift_recipient_id,omitempty"`
+	ProfileID           string  `json:"profile_id"`
+	Query               string  `json:"query"`
+	BudgetMax           float64 `json:"budget_max,omitempty"`
+	IncludeAlternatives bool    `json:"include_alternatives"`
+	GiftRecipientID     string  `json:"gift_recipient_id,omitempty"`
 }
 
 type Product struct {
-	ID              string                 `json:"id"`
-	Name            string                 `json:"name"`
-	Category        string                 `json:"category"`
-	Description     string                 `json:"description"`
-	CurrentPrice    float64                `json:"current_price"`
-	OriginalPrice   float64                `json:"original_price,omitempty"`
-	AffiliateLink   string                 `json:"affiliate_link,omitempty"`
-	Features        map[string]interface{} `json:"features,omitempty"`
-	ReviewsSummary  *ReviewsSummary        `json:"reviews_summary,omitempty"`
+	ID             string                 `json:"id"`
+	Name           string                 `json:"name"`
+	Category       string                 `json:"category"`
+	Description    string                 `json:"description"`
+	CurrentPrice   float64                `json:"current_price"`
+	OriginalPrice  float64                `json:"original_price,omitempty"`
+	AffiliateLink  string                 `json:"affiliate_link,omitempty"`
+	Features       map[string]interface{} `json:"features,omitempty"`
+	ReviewsSummary *ReviewsSummary        `json:"reviews_summary,omitempty"`
 }
 
 type ReviewsSummary struct {
@@ -65,11 +67,11 @@ type Alternative struct {
 }
 
 type PriceInsights struct {
-	CurrentTrend    string  `json:"current_trend"`
-	BestTimeToWait  bool    `json:"best_time_to_wait"`
-	PredictedDrop   float64 `json:"predicted_drop,omitempty"`
-	HistoricalLow   float64 `json:"historical_low"`
-	HistoricalHigh  float64 `json:"historical_high"`
+	CurrentTrend   string  `json:"current_trend"`
+	BestTimeToWait bool    `json:"best_time_to_wait"`
+	PredictedDrop  float64 `json:"predicted_drop,omitempty"`
+	HistoricalLow  float64 `json:"historical_low"`
+	HistoricalHigh float64 `json:"historical_high"`
 }
 
 type ShoppingResearchResponse struct {
@@ -81,10 +83,10 @@ type ShoppingResearchResponse struct {
 }
 
 type AffiliateLink struct {
-	ProductID    string  `json:"product_id"`
-	Retailer     string  `json:"retailer"`
-	URL          string  `json:"url"`
-	Commission   float64 `json:"commission"`
+	ProductID  string  `json:"product_id"`
+	Retailer   string  `json:"retailer"`
+	URL        string  `json:"url"`
+	Commission float64 `json:"commission"`
 }
 
 type PriceAlert struct {
@@ -99,9 +101,9 @@ type PriceAlert struct {
 }
 
 type TrackingResponse struct {
-	ActiveAlerts    []PriceAlert   `json:"active_alerts"`
-	TrackedProducts []Product      `json:"tracked_products"`
-	RecentChanges   []PriceChange  `json:"recent_changes"`
+	ActiveAlerts    []PriceAlert  `json:"active_alerts"`
+	TrackedProducts []Product     `json:"tracked_products"`
+	RecentChanges   []PriceChange `json:"recent_changes"`
 }
 
 type PriceChange struct {
@@ -182,17 +184,17 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
-		
+
 		// Extract token (remove "Bearer " prefix)
 		token := strings.Replace(authHeader, "Bearer ", "", 1)
-		
+
 		// Get scenario-authenticator port from environment
 		authPort := os.Getenv("SCENARIO_AUTHENTICATOR_API_PORT")
 		if authPort == "" {
 			// Try default port range for scenarios
 			authPort = "15797"
 		}
-		
+
 		// Validate token with scenario-authenticator
 		authURL := fmt.Sprintf("http://localhost:%s/api/v1/auth/validate", authPort)
 		req, err := http.NewRequest("GET", authURL, nil)
@@ -204,7 +206,7 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-		
+
 		client := &http.Client{Timeout: 5 * time.Second}
 		resp, err := client.Do(req)
 		if err != nil {
@@ -215,14 +217,14 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusOK {
 			// Invalid token, allow as anonymous
 			ctx := context.WithValue(r.Context(), "user_id", "anonymous")
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
-		
+
 		// Parse auth response
 		var authUser AuthUser
 		if err := json.NewDecoder(resp.Body).Decode(&authUser); err != nil {
@@ -231,13 +233,13 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
-		
+
 		if !authUser.Valid {
 			ctx := context.WithValue(r.Context(), "user_id", "anonymous")
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
-		
+
 		// Add user info to context
 		ctx := context.WithValue(r.Context(), "user_id", authUser.ID)
 		ctx = context.WithValue(ctx, "user", authUser)
@@ -270,18 +272,18 @@ func NewServer() *Server {
 func (s *Server) setupRoutes() {
 	// Health check
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
-	
+
 	// Shopping research endpoints - protected with auth middleware
 	s.router.HandleFunc("/api/v1/shopping/research", s.authMiddleware(s.handleShoppingResearch)).Methods("POST")
 	s.router.HandleFunc("/api/v1/shopping/tracking/{profile_id}", s.authMiddleware(s.handleGetTracking)).Methods("GET")
 	s.router.HandleFunc("/api/v1/shopping/tracking", s.authMiddleware(s.handleCreateTracking)).Methods("POST")
 	s.router.HandleFunc("/api/v1/shopping/pattern-analysis", s.authMiddleware(s.handlePatternAnalysis)).Methods("POST")
-	
+
 	// Profile management - protected with auth middleware
 	s.router.HandleFunc("/api/v1/profiles", s.authMiddleware(s.handleGetProfiles)).Methods("GET")
 	s.router.HandleFunc("/api/v1/profiles", s.handleCreateProfile).Methods("POST")
 	s.router.HandleFunc("/api/v1/profiles/{id}", s.handleGetProfile).Methods("GET")
-	
+
 	// Price alerts
 	s.router.HandleFunc("/api/v1/alerts", s.handleGetAlerts).Methods("GET")
 	s.router.HandleFunc("/api/v1/alerts", s.handleCreateAlert).Methods("POST")
@@ -289,13 +291,79 @@ func (s *Server) setupRoutes() {
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Service:   "smart-shopping-assistant",
-		Version:   "1.0.0",
+	// Check database connectivity
+	dbConnected := false
+	var dbLatency *float64
+	var dbError map[string]interface{}
+
+	if s.db.postgres != nil {
+		start := time.Now()
+		err := s.db.postgres.Ping()
+		latency := float64(time.Since(start).Milliseconds())
+		if err == nil {
+			dbConnected = true
+			dbLatency = &latency
+		} else {
+			dbError = map[string]interface{}{
+				"code":      "CONNECTION_REFUSED",
+				"message":   err.Error(),
+				"category":  "resource",
+				"retryable": true,
+			}
+		}
 	}
-	
+
+	// Check Redis connectivity
+	redisConnected := false
+	var redisLatency *float64
+	var redisError map[string]interface{}
+
+	if s.db.redis != nil {
+		start := time.Now()
+		_, err := s.db.redis.Ping(context.Background()).Result()
+		latency := float64(time.Since(start).Milliseconds())
+		if err == nil {
+			redisConnected = true
+			redisLatency = &latency
+		} else {
+			redisError = map[string]interface{}{
+				"code":      "CONNECTION_REFUSED",
+				"message":   err.Error(),
+				"category":  "resource",
+				"retryable": true,
+			}
+		}
+	}
+
+	// Determine overall status
+	status := "healthy"
+	readiness := true
+	if !dbConnected && !redisConnected {
+		status = "degraded"
+	}
+
+	dependencies := map[string]interface{}{
+		"database": map[string]interface{}{
+			"connected":  dbConnected,
+			"latency_ms": dbLatency,
+			"error":      dbError,
+		},
+		"redis": map[string]interface{}{
+			"connected":  redisConnected,
+			"latency_ms": redisLatency,
+			"error":      redisError,
+		},
+	}
+
+	response := HealthResponse{
+		Status:       status,
+		Timestamp:    time.Now(),
+		Service:      "smart-shopping-assistant",
+		Version:      "1.0.0",
+		Readiness:    readiness,
+		Dependencies: dependencies,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -306,21 +374,21 @@ func (s *Server) handleShoppingResearch(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.Query == "" {
 		http.Error(w, "Query is required", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Get user ID from context (set by auth middleware)
 	ctx := r.Context()
 	userID := ctx.Value("user_id").(string)
-	
+
 	// Use user ID as profile ID if not specified
 	if req.ProfileID == "" {
 		req.ProfileID = userID
 	}
-	
+
 	// Log the authenticated request
 	log.Printf("Shopping research for user %s (profile: %s): %s", userID, req.ProfileID, req.Query)
 	products, err := s.db.SearchProducts(ctx, req.Query, req.BudgetMax)
@@ -381,7 +449,7 @@ func (s *Server) handleShoppingResearch(w http.ResponseWriter, r *http.Request) 
 		Recommendations: recommendations,
 		AffiliateLinks:  affiliateLinks,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -389,7 +457,7 @@ func (s *Server) handleShoppingResearch(w http.ResponseWriter, r *http.Request) 
 func (s *Server) handleGetTracking(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	profileID := vars["profile_id"]
-	
+
 	// TODO: Implement actual tracking retrieval
 	response := TrackingResponse{
 		ActiveAlerts: []PriceAlert{
@@ -407,7 +475,7 @@ func (s *Server) handleGetTracking(w http.ResponseWriter, r *http.Request) {
 		TrackedProducts: []Product{},
 		RecentChanges:   []PriceChange{},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -424,7 +492,7 @@ func (s *Server) handlePatternAnalysis(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	// TODO: Implement actual pattern analysis
 	response := PatternAnalysisResponse{
 		Patterns: []PurchasePattern{
@@ -446,13 +514,13 @@ func (s *Server) handlePatternAnalysis(w http.ResponseWriter, r *http.Request) {
 		},
 		SavingsOpportunities: []SavingsOption{
 			{
-				Description:      "Buy coffee in bulk",
-				Potential:        25.00,
-				Action:           "Purchase 3-month supply",
+				Description: "Buy coffee in bulk",
+				Potential:   25.00,
+				Action:      "Purchase 3-month supply",
 			},
 		},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -472,7 +540,7 @@ func (s *Server) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	
+
 	// TODO: Implement single profile retrieval
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"id": id, "name": "Demo Profile"})
@@ -493,7 +561,7 @@ func (s *Server) handleCreateAlert(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDeleteAlert(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	
+
 	// TODO: Implement alert deletion
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "deleted", "id": id})
@@ -506,7 +574,7 @@ func (s *Server) Start() {
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	}).Handler(s.router)
-	
+
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", s.port),
 		Handler:      handler,
@@ -514,7 +582,7 @@ func (s *Server) Start() {
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
-	
+
 	// Start server in goroutine
 	go func() {
 		log.Printf("Smart Shopping Assistant API starting on port %s", s.port)
@@ -522,22 +590,22 @@ func (s *Server) Start() {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
-	
+
 	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	
+
 	log.Println("Shutting down server...")
-	
+
 	// Graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Printf("Server forced to shutdown: %v", err)
 	}
-	
+
 	log.Println("Server shutdown complete")
 }
 

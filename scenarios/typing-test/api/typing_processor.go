@@ -9,8 +9,6 @@ import (
 	"math/rand"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type TypingProcessor struct {
@@ -254,56 +252,56 @@ func (tp *TypingProcessor) ManageLeaderboard(ctx context.Context, period string,
 	default:
 		timeFilter = "" // all time
 	}
-	
+
+	// Schema uses player_id (FK to players table), not user_id
 	query := fmt.Sprintf(`
-		SELECT 
+		SELECT
 			ROW_NUMBER() OVER (ORDER BY score DESC) as rank,
-			name, score, wpm, accuracy, created_at, user_id
+			name, score, wpm, accuracy, created_at, player_id
 		FROM scores
 		%s
 		ORDER BY score DESC
 		LIMIT 100`, timeFilter)
-	
+
 	rows, err := tp.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch leaderboard: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var entries []LeaderboardEntry
 	for rows.Next() {
 		var entry LeaderboardEntry
-		var dbUserID sql.NullString
-		
-		err := rows.Scan(&entry.Rank, &entry.Name, &entry.Score, 
-			&entry.WPM, &entry.Accuracy, &entry.Date, &dbUserID)
+		var dbPlayerID sql.NullInt64
+
+		err := rows.Scan(&entry.Rank, &entry.Name, &entry.Score,
+			&entry.WPM, &entry.Accuracy, &entry.Date, &dbPlayerID)
 		if err != nil {
 			continue
 		}
-		
-		// Mark current user's entry
-		if dbUserID.Valid && dbUserID.String == userID {
-			entry.IsCurrentUser = true
-		}
-		
+
+		// Note: We can't easily mark current user without a user->player mapping
+		// This functionality would need a proper user authentication system
+		entry.IsCurrentUser = false
+
 		entries = append(entries, entry)
 	}
-	
+
 	return entries, nil
 }
 
 // AddScore adds a new score to the leaderboard
 func (tp *TypingProcessor) AddScore(ctx context.Context, score Score) error {
+	// Schema uses triggers to set player_id automatically based on name
+	// No need to manually manage user_id/player_id
 	query := `
-		INSERT INTO scores (name, score, wpm, accuracy, max_combo, difficulty, mode, created_at, user_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	
-	userID := uuid.New().String() // Generate if not provided
-	
+		INSERT INTO scores (name, score, wpm, accuracy, max_combo, difficulty, mode, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+
 	_, err := tp.db.ExecContext(ctx, query,
 		score.Name, score.Score, score.WPM, score.Accuracy,
-		score.MaxCombo, score.Difficulty, score.Mode, time.Now(), userID)
-	
+		score.MaxCombo, score.Difficulty, score.Mode, time.Now())
+
 	return err
 }
 

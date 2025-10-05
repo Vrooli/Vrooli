@@ -11,13 +11,24 @@ The console keeps shell access, agent CLIs, and status tooling available whereve
 - REST + WebSocket endpoints under `/api/v1` managing PTY-backed sessions.
 - Supervisor spawns `WEB_CONSOLE_DEFAULT_COMMAND` (defaults to `/bin/bash`) with optional per-session overrides.
 - Transcript writer streams newline-delimited JSON records to scenario-owned storage.
+- **Session buffer**: Keeps last 500 chunks (up to 1MB) for replay on reconnection.
 - Metrics endpoint surfaces session counters (`web_console_*`) alongside panic-stop and timeout data.
 
 ### Browser UI (Vanilla JS + Xterm)
+- **Offline-first design**: All vendor libraries (xterm.js, lucide icons, html2canvas) served from `ui/static/lib/` - no CDN dependencies.
 - Static assets served as plain files; no build tooling required.
 - Quick command panel issues pre-defined commands into the active terminal and queues them while a session boots.
+- **Automatic reconnection**: Detects WebSocket disconnects and reconnects to running sessions automatically.
+- **Heartbeat keepalive**: Sends heartbeat every 30 seconds to maintain connection when tab is inactive.
+- **Visibility detection**: Reconnects to sessions when browser tab becomes visible after being backgrounded.
 - `proxyToApi` helper maintains lifecycle-compliant networking.
 - `postMessage` bridge mirrors session status and responds to parent requests for transcripts, screenshots, and logs.
+
+**Vendor Libraries** (1.1MB total, all local):
+- xterm@5.3.0 - Terminal emulator
+- xterm-addon-fit@0.7.0 - Terminal size fitting
+- lucide icons - UI icons
+- html2canvas@1.4.1 - Screenshot capture
 
 ### Embedding Model
 1. Parent scenario authenticates the operator, then loads the console via iframe.

@@ -500,6 +500,10 @@ func handleBackupCreate(w http.ResponseWriter, r *http.Request) {
 						if err := backupManager.BackupFiles(job.ID, ""); err != nil {
 							log.Printf("File backup failed: %v", err)
 						}
+					case "minio":
+						if err := backupManager.BackupMinIO(job.ID); err != nil {
+							log.Printf("MinIO backup failed: %v", err)
+						}
 					default:
 						log.Printf("Unknown backup target: %s", target)
 					}

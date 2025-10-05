@@ -453,7 +453,8 @@ discovery:
     category: compliance
     capabilities: [audit, remediation, monitoring, reporting]
     interfaces:
-      - api: http://localhost:3400/api/v1
+      - api: http://localhost:${API_PORT}/api/v1  # Port auto-assigned from 20000-20999 range
+      - ui: http://localhost:${UI_PORT}  # Port auto-assigned from 40000-40999 range
       - cli: accessibility-compliance-hub
       - events: accessibility.*
       

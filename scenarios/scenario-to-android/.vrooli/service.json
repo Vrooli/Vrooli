@@ -462,6 +462,36 @@
           "description": "Stop UI process"
         }
       ]
+    },
+    "test": {
+      "description": "Run test suite for scenario-to-android",
+      "steps": [
+        {
+          "name": "test-structure",
+          "run": "cd test/phases && ./test-structure.sh",
+          "description": "Validate scenario structure and organization"
+        },
+        {
+          "name": "test-dependencies",
+          "run": "cd test/phases && ./test-dependencies.sh",
+          "description": "Check dependencies and system requirements"
+        },
+        {
+          "name": "test-unit",
+          "run": "cd test/phases && ./test-unit.sh",
+          "description": "Run unit tests (CLI, templates, configuration)"
+        },
+        {
+          "name": "test-integration",
+          "run": "cd test/phases && ./test-integration.sh",
+          "description": "Run integration tests (end-to-end workflows)"
+        },
+        {
+          "name": "test-performance",
+          "run": "cd test/phases && ./test-performance.sh",
+          "description": "Run performance tests (CLI speed, template processing)"
+        }
+      ]
     }
   }
 }

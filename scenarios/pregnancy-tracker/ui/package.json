@@ -18,5 +18,8 @@
   "license": "MIT",
   "engines": {
     "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "bats": "^1.10.0"
   }
 }

@@ -240,14 +240,22 @@ func corsMiddleware(handler http.HandlerFunc) http.HandlerFunc {
 func (app *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 	// Check database connection
 	dbHealthy := true
-	if err := app.DB.Ping(); err != nil {
+	if app.DB != nil {
+		if err := app.DB.Ping(); err != nil {
+			dbHealthy = false
+		}
+	} else {
 		dbHealthy = false
 	}
 
 	// Check Redis connection
 	redisHealthy := true
-	ctx := context.Background()
-	if _, err := app.RedisClient.Ping(ctx).Result(); err != nil {
+	if app.RedisClient != nil {
+		ctx := context.Background()
+		if _, err := app.RedisClient.Ping(ctx).Result(); err != nil {
+			redisHealthy = false
+		}
+	} else {
 		redisHealthy = false
 	}
 

@@ -1,0 +1,884 @@
+package main
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+// TestHealthHandler tests the health check endpoint
+func TestHealthHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("Success", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/v1/health", nil)
+		w := httptest.NewRecorder()
+
+		env.Server.healthHandler(w, req)
+
+		response := assertJSONResponse(t, w, http.StatusOK)
+		assertFieldExists(t, response, "status")
+		assertFieldValue(t, response, "service", "scenario-to-desktop")
+		assertFieldExists(t, response, "version")
+		assertFieldExists(t, response, "timestamp")
+	})
+
+	t.Run("CORSHeaders", func(t *testing.T) {
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "GET",
+			Path:   "/api/v1/health",
+		})
+
+		env.Server.healthHandler(req, httptest.NewRequest("GET", "/api/v1/health", nil))
+
+		// CORS headers should be set by middleware
+		// This test validates the handler works correctly
+		if req.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", req.Code)
+		}
+	})
+}
+
+// TestStatusHandler tests the status endpoint
+func TestStatusHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("Success", func(t *testing.T) {
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "GET",
+			Path:   "/api/v1/status",
+		})
+
+		env.Server.statusHandler(req, httptest.NewRequest("GET", "/api/v1/status", nil))
+
+		response := assertJSONResponse(t, req, http.StatusOK)
+
+		// Validate service information
+		service := assertFieldExists(t, response, "service")
+		serviceMap, ok := service.(map[string]interface{})
+		if !ok {
+			t.Fatal("Expected service to be a map")
+		}
+		if serviceMap["name"] != "scenario-to-desktop" {
+			t.Errorf("Expected service name to be scenario-to-desktop, got %v", serviceMap["name"])
+		}
+
+		// Validate statistics
+		assertFieldExists(t, response, "statistics")
+		assertFieldExists(t, response, "capabilities")
+		assertFieldExists(t, response, "supported_frameworks")
+		assertFieldExists(t, response, "supported_templates")
+		assertFieldExists(t, response, "endpoints")
+	})
+
+	t.Run("WithBuildStatuses", func(t *testing.T) {
+		// Add some build statuses
+		env.Server.buildStatuses["build-1"] = createTestBuildStatus("build-1", "building")
+		env.Server.buildStatuses["build-2"] = createTestBuildStatus("build-2", "ready")
+		env.Server.buildStatuses["build-3"] = createTestBuildStatus("build-3", "failed")
+
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "GET",
+			Path:   "/api/v1/status",
+		})
+
+		env.Server.statusHandler(req, httptest.NewRequest("GET", "/api/v1/status", nil))
+
+		response := assertJSONResponse(t, req, http.StatusOK)
+
+		stats := response["statistics"].(map[string]interface{})
+		if stats["total_builds"].(float64) != 3 {
+			t.Errorf("Expected 3 total builds, got %v", stats["total_builds"])
+		}
+		if stats["active_builds"].(float64) != 1 {
+			t.Errorf("Expected 1 active build, got %v", stats["active_builds"])
+		}
+		if stats["completed_builds"].(float64) != 1 {
+			t.Errorf("Expected 1 completed build, got %v", stats["completed_builds"])
+		}
+		if stats["failed_builds"].(float64) != 1 {
+			t.Errorf("Expected 1 failed build, got %v", stats["failed_builds"])
+		}
+	})
+}
+
+// TestListTemplatesHandler tests the template listing endpoint
+func TestListTemplatesHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("Success", func(t *testing.T) {
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "GET",
+			Path:   "/api/v1/templates",
+		})
+
+		env.Server.listTemplatesHandler(req, httptest.NewRequest("GET", "/api/v1/templates", nil))
+
+		response := assertJSONResponse(t, req, http.StatusOK)
+
+		templates := assertFieldExists(t, response, "templates")
+		templateSlice, ok := templates.([]interface{})
+		if !ok {
+			t.Fatal("Expected templates to be an array")
+		}
+
+		if len(templateSlice) == 0 {
+			t.Error("Expected at least one template")
+		}
+
+		count := assertFieldExists(t, response, "count")
+		if count.(float64) != float64(len(templateSlice)) {
+			t.Errorf("Expected count to match template count")
+		}
+	})
+
+	t.Run("TemplateStructure", func(t *testing.T) {
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "GET",
+			Path:   "/api/v1/templates",
+		})
+
+		env.Server.listTemplatesHandler(req, httptest.NewRequest("GET", "/api/v1/templates", nil))
+
+		response := assertJSONResponse(t, req, http.StatusOK)
+		templates := response["templates"].([]interface{})
+
+		if len(templates) > 0 {
+			firstTemplate := templates[0].(map[string]interface{})
+			requiredFields := []string{"name", "description", "type", "framework", "use_cases", "features", "complexity", "examples"}
+			for _, field := range requiredFields {
+				if _, exists := firstTemplate[field]; !exists {
+					t.Errorf("Expected template to have field '%s'", field)
+				}
+			}
+		}
+	})
+}
+
+// TestGetTemplateHandler tests the get template endpoint
+func TestGetTemplateHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("Success_Basic", func(t *testing.T) {
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method:  "GET",
+			Path:    "/api/v1/templates/basic",
+			URLVars: map[string]string{"type": "basic"},
+		})
+
+		httpReq := httptest.NewRequest("GET", "/api/v1/templates/basic", nil)
+		env.Server.getTemplateHandler(req, httpReq)
+
+		response := assertJSONResponse(t, req, http.StatusOK)
+
+		if name, exists := response["name"]; exists {
+			if name != "basic-app" {
+				t.Errorf("Expected template name to be 'basic-app', got %v", name)
+			}
+		}
+	})
+
+	t.Run("Success_Advanced", func(t *testing.T) {
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method:  "GET",
+			Path:    "/api/v1/templates/advanced",
+			URLVars: map[string]string{"type": "advanced"},
+		})
+
+		httpReq := httptest.NewRequest("GET", "/api/v1/templates/advanced", nil)
+		env.Server.getTemplateHandler(req, httpReq)
+
+		response := assertJSONResponse(t, req, http.StatusOK)
+
+		if name, exists := response["name"]; exists {
+			if name != "advanced-app" {
+				t.Errorf("Expected template name to be 'advanced-app', got %v", name)
+			}
+		}
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method:  "GET",
+			Path:    "/api/v1/templates/nonexistent",
+			URLVars: map[string]string{"type": "nonexistent"},
+		})
+
+		httpReq := httptest.NewRequest("GET", "/api/v1/templates/nonexistent", nil)
+		env.Server.getTemplateHandler(req, httpReq)
+
+		assertErrorResponse(t, req, http.StatusNotFound, "not found")
+	})
+}
+
+// TestGenerateDesktopHandler tests the desktop generation endpoint
+func TestGenerateDesktopHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("Success", func(t *testing.T) {
+		body := createValidGenerateRequest()
+
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "POST",
+			Path:   "/api/v1/desktop/generate",
+			Body:   body,
+		})
+
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/generate", req.Body)
+		env.Server.generateDesktopHandler(req, httpReq)
+
+		response := assertJSONResponse(t, req, http.StatusCreated)
+
+		buildID := assertFieldExists(t, response, "build_id")
+		if buildID == nil || buildID.(string) == "" {
+			t.Error("Expected build_id to be present")
+		}
+
+		assertFieldValue(t, response, "status", "building")
+		assertFieldExists(t, response, "desktop_path")
+		assertFieldExists(t, response, "install_instructions")
+		assertFieldExists(t, response, "test_command")
+		assertFieldExists(t, response, "status_url")
+
+		// Verify build status was created
+		buildIDStr := buildID.(string)
+		_, err := uuid.Parse(buildIDStr)
+		if err != nil {
+			t.Errorf("Expected build_id to be a valid UUID, got %s", buildIDStr)
+		}
+
+		// Check that build status exists in server
+		status := assertBuildStatusExists(t, env.Server, buildIDStr)
+		assertBuildStatusValue(t, status, "status", "building")
+		assertBuildStatusValue(t, status, "framework", "electron")
+		assertBuildStatusValue(t, status, "template_type", "basic")
+	})
+
+	t.Run("MissingAppName", func(t *testing.T) {
+		body := createValidGenerateRequest()
+		delete(body, "app_name")
+
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "POST",
+			Path:   "/api/v1/desktop/generate",
+			Body:   body,
+		})
+
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/generate", req.Body)
+		env.Server.generateDesktopHandler(req, httpReq)
+
+		assertErrorResponse(t, req, http.StatusBadRequest, "app_name")
+	})
+
+	t.Run("MissingFramework", func(t *testing.T) {
+		body := createValidGenerateRequest()
+		delete(body, "framework")
+
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "POST",
+			Path:   "/api/v1/desktop/generate",
+			Body:   body,
+		})
+
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/generate", req.Body)
+		env.Server.generateDesktopHandler(req, httpReq)
+
+		assertErrorResponse(t, req, http.StatusBadRequest, "framework")
+	})
+
+	t.Run("InvalidFramework", func(t *testing.T) {
+		body := createValidGenerateRequest()
+		body["framework"] = "invalid-framework"
+
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "POST",
+			Path:   "/api/v1/desktop/generate",
+			Body:   body,
+		})
+
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/generate", req.Body)
+		env.Server.generateDesktopHandler(req, httpReq)
+
+		assertErrorResponse(t, req, http.StatusBadRequest, "invalid framework")
+	})
+
+	t.Run("InvalidTemplateType", func(t *testing.T) {
+		body := createValidGenerateRequest()
+		body["template_type"] = "invalid-template"
+
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "POST",
+			Path:   "/api/v1/desktop/generate",
+			Body:   body,
+		})
+
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/generate", req.Body)
+		env.Server.generateDesktopHandler(req, httpReq)
+
+		assertErrorResponse(t, req, http.StatusBadRequest, "invalid template_type")
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		req := httptest.NewRecorder()
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/generate", nil)
+
+		env.Server.generateDesktopHandler(req, httpReq)
+
+		if req.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", req.Code)
+		}
+	})
+}
+
+// TestGetBuildStatusHandler tests the build status endpoint
+func TestGetBuildStatusHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("Success", func(t *testing.T) {
+		buildID := uuid.New().String()
+		env.Server.buildStatuses[buildID] = createTestBuildStatus(buildID, "ready")
+
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method:  "GET",
+			Path:    "/api/v1/desktop/status/" + buildID,
+			URLVars: map[string]string{"build_id": buildID},
+		})
+
+		httpReq := httptest.NewRequest("GET", "/api/v1/desktop/status/"+buildID, nil)
+		env.Server.getBuildStatusHandler(req, httpReq)
+
+		response := assertJSONResponse(t, req, http.StatusOK)
+
+		assertFieldValue(t, response, "build_id", buildID)
+		assertFieldValue(t, response, "status", "ready")
+		assertFieldExists(t, response, "framework")
+		assertFieldExists(t, response, "template_type")
+		assertFieldExists(t, response, "platforms")
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		buildID := uuid.New().String()
+
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method:  "GET",
+			Path:    "/api/v1/desktop/status/" + buildID,
+			URLVars: map[string]string{"build_id": buildID},
+		})
+
+		httpReq := httptest.NewRequest("GET", "/api/v1/desktop/status/"+buildID, nil)
+		env.Server.getBuildStatusHandler(req, httpReq)
+
+		assertErrorResponse(t, req, http.StatusNotFound, "not found")
+	})
+}
+
+// TestBuildDesktopHandler tests the build endpoint
+func TestBuildDesktopHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("Success", func(t *testing.T) {
+		body := map[string]interface{}{
+			"desktop_path": "/tmp/test-desktop",
+			"platforms":    []string{"win", "mac"},
+			"sign":         false,
+			"publish":      false,
+		}
+
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "POST",
+			Path:   "/api/v1/desktop/build",
+			Body:   body,
+		})
+
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/build", req.Body)
+		env.Server.buildDesktopHandler(req, httpReq)
+
+		response := assertJSONResponse(t, req, http.StatusCreated)
+
+		buildID := assertFieldExists(t, response, "build_id")
+		if buildID == nil || buildID.(string) == "" {
+			t.Error("Expected build_id to be present")
+		}
+
+		assertFieldValue(t, response, "status", "building")
+		assertFieldExists(t, response, "status_url")
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		req := httptest.NewRecorder()
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/build", nil)
+
+		env.Server.buildDesktopHandler(req, httpReq)
+
+		if req.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", req.Code)
+		}
+	})
+}
+
+// TestTestDesktopHandler tests the test endpoint
+func TestTestDesktopHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("Success", func(t *testing.T) {
+		body := map[string]interface{}{
+			"app_path":  "/tmp/test-app",
+			"platforms": []string{"linux"},
+			"headless":  true,
+		}
+
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "POST",
+			Path:   "/api/v1/desktop/test",
+			Body:   body,
+		})
+
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/test", req.Body)
+		env.Server.testDesktopHandler(req, httpReq)
+
+		response := assertJSONResponse(t, req, http.StatusOK)
+
+		assertFieldExists(t, response, "test_results")
+		assertFieldValue(t, response, "status", "completed")
+		assertFieldExists(t, response, "timestamp")
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		req := httptest.NewRecorder()
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/test", nil)
+
+		env.Server.testDesktopHandler(req, httpReq)
+
+		if req.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", req.Code)
+		}
+	})
+}
+
+// TestPackageDesktopHandler tests the package endpoint
+func TestPackageDesktopHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("Success", func(t *testing.T) {
+		body := map[string]interface{}{
+			"app_path":   "/tmp/test-app",
+			"store":      "microsoft",
+			"enterprise": false,
+		}
+
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "POST",
+			Path:   "/api/v1/desktop/package",
+			Body:   body,
+		})
+
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/package", req.Body)
+		env.Server.packageDesktopHandler(req, httpReq)
+
+		response := assertJSONResponse(t, req, http.StatusOK)
+
+		assertFieldValue(t, response, "status", "completed")
+		assertFieldExists(t, response, "packages")
+		assertFieldExists(t, response, "timestamp")
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		req := httptest.NewRecorder()
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/package", nil)
+
+		env.Server.packageDesktopHandler(req, httpReq)
+
+		if req.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", req.Code)
+		}
+	})
+}
+
+// TestBuildCompleteWebhookHandler tests the webhook endpoint
+func TestBuildCompleteWebhookHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("Success", func(t *testing.T) {
+		buildID := uuid.New().String()
+		env.Server.buildStatuses[buildID] = createTestBuildStatus(buildID, "building")
+
+		body := map[string]interface{}{
+			"status": "completed",
+		}
+
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method:  "POST",
+			Path:    "/api/v1/desktop/webhook/build-complete",
+			Body:    body,
+			Headers: map[string]string{"X-Build-ID": buildID},
+		})
+
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/webhook/build-complete", req.Body)
+		httpReq.Header.Set("X-Build-ID", buildID)
+		env.Server.buildCompleteWebhookHandler(req, httpReq)
+
+		response := assertJSONResponse(t, req, http.StatusOK)
+		assertFieldValue(t, response, "status", "received")
+
+		// Verify build status was updated
+		status := env.Server.buildStatuses[buildID]
+		if status.Status != "completed" {
+			t.Errorf("Expected build status to be updated to 'completed', got %s", status.Status)
+		}
+		if status.CompletedAt == nil {
+			t.Error("Expected CompletedAt to be set")
+		}
+	})
+
+	t.Run("MissingBuildID", func(t *testing.T) {
+		body := map[string]interface{}{
+			"status": "completed",
+		}
+
+		req, _ := makeHTTPRequest(HTTPTestRequest{
+			Method: "POST",
+			Path:   "/api/v1/desktop/webhook/build-complete",
+			Body:   body,
+		})
+
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/webhook/build-complete", req.Body)
+		env.Server.buildCompleteWebhookHandler(req, httpReq)
+
+		assertErrorResponse(t, req, http.StatusBadRequest, "X-Build-ID")
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		req := httptest.NewRecorder()
+		httpReq := httptest.NewRequest("POST", "/api/v1/desktop/webhook/build-complete", nil)
+		httpReq.Header.Set("X-Build-ID", uuid.New().String())
+
+		env.Server.buildCompleteWebhookHandler(req, httpReq)
+
+		if req.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", req.Code)
+		}
+	})
+}
+
+// TestValidateDesktopConfig tests configuration validation
+func TestValidateDesktopConfig(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("ValidConfig", func(t *testing.T) {
+		testConfig := setupTestDesktopConfig(t, "TestApp")
+		defer testConfig.Cleanup()
+
+		err := env.Server.validateDesktopConfig(testConfig.Config)
+		if err != nil {
+			t.Errorf("Expected validation to pass, got error: %v", err)
+		}
+	})
+
+	t.Run("MissingAppName", func(t *testing.T) {
+		testConfig := setupTestDesktopConfig(t, "TestApp")
+		defer testConfig.Cleanup()
+
+		testConfig.Config.AppName = ""
+		err := env.Server.validateDesktopConfig(testConfig.Config)
+		if err == nil {
+			t.Error("Expected validation to fail for missing app_name")
+		}
+	})
+
+	t.Run("MissingFramework", func(t *testing.T) {
+		testConfig := setupTestDesktopConfig(t, "TestApp")
+		defer testConfig.Cleanup()
+
+		testConfig.Config.Framework = ""
+		err := env.Server.validateDesktopConfig(testConfig.Config)
+		if err == nil {
+			t.Error("Expected validation to fail for missing framework")
+		}
+	})
+
+	t.Run("InvalidFramework", func(t *testing.T) {
+		testConfig := setupTestDesktopConfig(t, "TestApp")
+		defer testConfig.Cleanup()
+
+		testConfig.Config.Framework = "invalid"
+		err := env.Server.validateDesktopConfig(testConfig.Config)
+		if err == nil {
+			t.Error("Expected validation to fail for invalid framework")
+		}
+	})
+
+	t.Run("InvalidTemplateType", func(t *testing.T) {
+		testConfig := setupTestDesktopConfig(t, "TestApp")
+		defer testConfig.Cleanup()
+
+		testConfig.Config.TemplateType = "invalid"
+		err := env.Server.validateDesktopConfig(testConfig.Config)
+		if err == nil {
+			t.Error("Expected validation to fail for invalid template_type")
+		}
+	})
+
+	t.Run("DefaultValues", func(t *testing.T) {
+		testConfig := setupTestDesktopConfig(t, "TestApp")
+		defer testConfig.Cleanup()
+
+		testConfig.Config.License = ""
+		testConfig.Config.Platforms = nil
+
+		err := env.Server.validateDesktopConfig(testConfig.Config)
+		if err != nil {
+			t.Errorf("Expected validation to pass with defaults, got error: %v", err)
+		}
+
+		if testConfig.Config.License != "MIT" {
+			t.Errorf("Expected default license to be MIT, got %s", testConfig.Config.License)
+		}
+
+		if len(testConfig.Config.Platforms) != 3 {
+			t.Errorf("Expected default platforms to have 3 entries, got %d", len(testConfig.Config.Platforms))
+		}
+	})
+}
+
+// TestUtilityFunctions tests utility helper functions
+func TestUtilityFunctions(t *testing.T) {
+	t.Run("Contains_True", func(t *testing.T) {
+		slice := []string{"electron", "tauri", "neutralino"}
+		if !contains(slice, "electron") {
+			t.Error("Expected contains to return true for 'electron'")
+		}
+	})
+
+	t.Run("Contains_False", func(t *testing.T) {
+		slice := []string{"electron", "tauri", "neutralino"}
+		if contains(slice, "invalid") {
+			t.Error("Expected contains to return false for 'invalid'")
+		}
+	})
+
+	t.Run("Contains_EmptySlice", func(t *testing.T) {
+		slice := []string{}
+		if contains(slice, "electron") {
+			t.Error("Expected contains to return false for empty slice")
+		}
+	})
+}
+
+// TestCORSMiddleware tests CORS middleware functionality
+func TestCORSMiddleware(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrappedHandler := corsMiddleware(handler)
+
+	t.Run("OptionsRequest", func(t *testing.T) {
+		req := httptest.NewRequest("OPTIONS", "/test", nil)
+		w := httptest.NewRecorder()
+
+		wrappedHandler.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for OPTIONS, got %d", w.Code)
+		}
+
+		if w.Header().Get("Access-Control-Allow-Origin") != "*" {
+			t.Error("Expected CORS origin header to be set")
+		}
+	})
+
+	t.Run("NormalRequest", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/test", nil)
+		w := httptest.NewRecorder()
+
+		wrappedHandler.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+
+		if w.Header().Get("Access-Control-Allow-Origin") != "*" {
+			t.Error("Expected CORS origin header to be set")
+		}
+	})
+}
+
+// TestServerCreation tests server initialization
+func TestServerCreation(t *testing.T) {
+	t.Run("NewServer", func(t *testing.T) {
+		server := NewServer(8080)
+
+		if server.port != 8080 {
+			t.Errorf("Expected port 8080, got %d", server.port)
+		}
+
+		if server.router == nil {
+			t.Error("Expected router to be initialized")
+		}
+
+		if server.buildStatuses == nil {
+			t.Error("Expected buildStatuses map to be initialized")
+		}
+
+		if server.templateDir == "" {
+			t.Error("Expected templateDir to be set")
+		}
+	})
+}
+
+// TestBuildStatus tests build status structures
+func TestBuildStatus(t *testing.T) {
+	t.Run("CreateBuildStatus", func(t *testing.T) {
+		buildID := uuid.New().String()
+		status := createTestBuildStatus(buildID, "building")
+
+		if status.BuildID != buildID {
+			t.Errorf("Expected build ID %s, got %s", buildID, status.BuildID)
+		}
+
+		if status.Status != "building" {
+			t.Errorf("Expected status 'building', got %s", status.Status)
+		}
+
+		if status.BuildLog == nil {
+			t.Error("Expected BuildLog to be initialized")
+		}
+
+		if status.ErrorLog == nil {
+			t.Error("Expected ErrorLog to be initialized")
+		}
+
+		if status.Artifacts == nil {
+			t.Error("Expected Artifacts to be initialized")
+		}
+	})
+
+	t.Run("BuildStatusTransitions", func(t *testing.T) {
+		buildID := uuid.New().String()
+		status := createTestBuildStatus(buildID, "building")
+
+		// Transition to ready
+		status.Status = "ready"
+		now := time.Now()
+		status.CompletedAt = &now
+
+		if status.Status != "ready" {
+			t.Errorf("Expected status 'ready', got %s", status.Status)
+		}
+
+		if status.CompletedAt == nil {
+			t.Error("Expected CompletedAt to be set")
+		}
+	})
+}
+
+// Benchmark tests
+
+// BenchmarkHealthHandler benchmarks the health check endpoint
+func BenchmarkHealthHandler(b *testing.B) {
+	server := NewServer(0)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest("GET", "/api/v1/health", nil)
+		w := httptest.NewRecorder()
+		server.healthHandler(w, req)
+	}
+}
+
+// BenchmarkStatusHandler benchmarks the status endpoint
+func BenchmarkStatusHandler(b *testing.B) {
+	server := NewServer(0)
+
+	// Add some build statuses
+	for i := 0; i < 10; i++ {
+		buildID := uuid.New().String()
+		server.buildStatuses[buildID] = createTestBuildStatus(buildID, "ready")
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest("GET", "/api/v1/status", nil)
+		w := httptest.NewRecorder()
+		server.statusHandler(w, req)
+	}
+}
+
+// BenchmarkListTemplatesHandler benchmarks the template listing endpoint
+func BenchmarkListTemplatesHandler(b *testing.B) {
+	server := NewServer(0)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest("GET", "/api/v1/templates", nil)
+		w := httptest.NewRecorder()
+		server.listTemplatesHandler(w, req)
+	}
+}
+
+// BenchmarkJSONMarshaling benchmarks JSON encoding
+func BenchmarkJSONMarshaling(b *testing.B) {
+	config := &DesktopConfig{
+		AppName:        "TestApp",
+		AppDisplayName: "Test Application",
+		AppDescription: "Test description",
+		Version:        "1.0.0",
+		Author:         "Test Author",
+		Framework:      "electron",
+		TemplateType:   "basic",
+		OutputPath:     "/tmp/test",
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = json.Marshal(config)
+	}
+}

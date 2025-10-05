@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -561,7 +562,6 @@ func main() {
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
 	windmillPort := getResourcePort("windmill")
-	postgresPort := getResourcePort("postgres")
 	whisperPort := getResourcePort("whisper")
 	ollamaPort := getResourcePort("ollama")
 	minioPort := getResourcePort("minio")
@@ -652,9 +652,9 @@ func main() {
 			float64(maxDelay),
 		))
 
-		// Add progressive jitter to prevent thundering herd
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
 
 		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)

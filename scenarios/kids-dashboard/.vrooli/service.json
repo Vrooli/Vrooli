@@ -195,6 +195,21 @@
           "description": "Stop UI process"
         }
       ]
+    },
+    "test": {
+      "description": "Run kids-dashboard test suite",
+      "steps": [
+        {
+          "name": "run-unit-tests",
+          "run": "cd api && go test -v -cover -coverprofile=coverage.out ./...",
+          "description": "Run Go unit tests with coverage"
+        },
+        {
+          "name": "show-coverage",
+          "run": "cd api && go tool cover -func=coverage.out | tail -1",
+          "description": "Display coverage summary"
+        }
+      ]
     }
   }
 }

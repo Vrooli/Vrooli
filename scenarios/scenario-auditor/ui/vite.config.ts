@@ -10,15 +10,44 @@ function healthCheckPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.stack.unshift({
         route: '',
-        handle: (req: any, res: any, next: any) => {
+        handle: async (req: any, res: any, next: any) => {
           if (req.url === '/health') {
-            res.statusCode = 200
+            // Test API connectivity
+            const apiPort = process.env.API_PORT || '15001'
+            let apiStatus = 'unknown'
+            let apiReachable = false
+
+            try {
+              const apiUrl = `http://localhost:${apiPort}/api/v1/health`
+              const response = await fetch(apiUrl, {
+                signal: AbortSignal.timeout(3000)
+              })
+
+              if (response.ok) {
+                apiStatus = 'healthy'
+                apiReachable = true
+              } else {
+                apiStatus = `error: ${response.status}`
+              }
+            } catch (error) {
+              apiStatus = `unreachable: ${error instanceof Error ? error.message : 'unknown error'}`
+            }
+
+            const overallStatus = apiReachable ? 'healthy' : 'degraded'
+            res.statusCode = apiReachable ? 200 : 503
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify({
-              status: 'healthy',
+              status: overallStatus,
               service: 'scenario-auditor-ui',
               timestamp: new Date().toISOString(),
-              uptime: process.uptime()
+              uptime: process.uptime(),
+              checks: {
+                api: {
+                  status: apiStatus,
+                  reachable: apiReachable,
+                  url: `http://localhost:${apiPort}/api/v1`
+                }
+              }
             }))
             return
           }

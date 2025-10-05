@@ -64,10 +64,7 @@ CREATE TABLE IF NOT EXISTS feature_requests (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     shipped_at TIMESTAMP,
-    archived_at TIMESTAMP,
-    INDEX idx_scenario_status (scenario_id, status),
-    INDEX idx_vote_count (vote_count DESC),
-    INDEX idx_created_at (created_at DESC)
+    archived_at TIMESTAMP
 );
 
 -- Votes table
@@ -79,8 +76,7 @@ CREATE TABLE IF NOT EXISTS votes (
     value INTEGER NOT NULL CHECK (value IN (-1, 1)),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(feature_request_id, user_id),
-    UNIQUE(feature_request_id, session_id),
-    INDEX idx_feature_request (feature_request_id)
+    UNIQUE(feature_request_id, session_id)
 );
 
 -- Comments table
@@ -93,9 +89,7 @@ CREATE TABLE IF NOT EXISTS comments (
     is_edited BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP,
-    INDEX idx_feature_request (feature_request_id),
-    INDEX idx_parent (parent_id)
+    deleted_at TIMESTAMP
 );
 
 -- Status change history
@@ -106,8 +100,7 @@ CREATE TABLE IF NOT EXISTS status_changes (
     from_status feature_status,
     to_status feature_status NOT NULL,
     reason TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_feature_request (feature_request_id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Scenario permissions (who can vote/propose)
@@ -121,8 +114,7 @@ CREATE TABLE IF NOT EXISTS scenario_permissions (
     can_moderate BOOLEAN DEFAULT FALSE,
     can_edit_settings BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(scenario_id, user_id),
-    INDEX idx_scenario_user (scenario_id, user_id)
+    UNIQUE(scenario_id, user_id)
 );
 
 -- Analytics events
@@ -133,9 +125,7 @@ CREATE TABLE IF NOT EXISTS analytics_events (
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     event_type VARCHAR(50) NOT NULL, -- view, vote, comment, status_change
     metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_scenario_event (scenario_id, event_type),
-    INDEX idx_created_at (created_at DESC)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Functions for updating timestamps
@@ -209,11 +199,21 @@ AFTER INSERT OR DELETE ON comments
     FOR EACH ROW EXECUTE FUNCTION update_comment_count();
 
 -- Indexes for performance
-CREATE INDEX idx_feature_requests_scenario_created ON feature_requests(scenario_id, created_at DESC);
-CREATE INDEX idx_feature_requests_scenario_votes ON feature_requests(scenario_id, vote_count DESC);
-CREATE INDEX idx_votes_user ON votes(user_id);
-CREATE INDEX idx_comments_user ON comments(user_id);
-CREATE INDEX idx_analytics_date_range ON analytics_events(scenario_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_scenario_status ON feature_requests(scenario_id, status);
+CREATE INDEX IF NOT EXISTS idx_vote_count ON feature_requests(vote_count DESC);
+CREATE INDEX IF NOT EXISTS idx_fr_created_at ON feature_requests(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feature_requests_scenario_created ON feature_requests(scenario_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feature_requests_scenario_votes ON feature_requests(scenario_id, vote_count DESC);
+CREATE INDEX IF NOT EXISTS idx_votes_feature_request ON votes(feature_request_id);
+CREATE INDEX IF NOT EXISTS idx_votes_user ON votes(user_id);
+CREATE INDEX IF NOT EXISTS idx_comments_feature_request ON comments(feature_request_id);
+CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments(parent_id);
+CREATE INDEX IF NOT EXISTS idx_comments_user ON comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_status_changes_feature_request ON status_changes(feature_request_id);
+CREATE INDEX IF NOT EXISTS idx_scenario_permissions_scenario_user ON scenario_permissions(scenario_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_scenario_event ON analytics_events(scenario_id, event_type);
+CREATE INDEX IF NOT EXISTS idx_analytics_created_at ON analytics_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_date_range ON analytics_events(scenario_id, created_at);
 
 -- Views for common queries
 CREATE OR REPLACE VIEW feature_requests_with_user_votes AS

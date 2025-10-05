@@ -103,9 +103,9 @@ func initDB() {
 			float64(maxDelay),
 		))
 
-		// Add progressive jitter to prevent thundering herd
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
 
 		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
@@ -328,7 +328,7 @@ func deleteWheelHandler(w http.ResponseWriter, r *http.Request) {
 
 func getHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	// Try to get from database if available
 	if db != nil {
 		rows, err := db.Query(`
@@ -337,11 +337,11 @@ func getHistoryHandler(w http.ResponseWriter, r *http.Request) {
 			ORDER BY sh.timestamp DESC
 			LIMIT 100
 		`)
-		
+
 		if err == nil {
 			defer rows.Close()
 			var dbHistory []SpinResult
-			
+
 			for rows.Next() {
 				var result SpinResult
 				var id string
@@ -350,14 +350,14 @@ func getHistoryHandler(w http.ResponseWriter, r *http.Request) {
 					dbHistory = append(dbHistory, result)
 				}
 			}
-			
+
 			if len(dbHistory) > 0 {
 				json.NewEncoder(w).Encode(dbHistory)
 				return
 			}
 		}
 	}
-	
+
 	// Fallback to in-memory history
 	json.NewEncoder(w).Encode(history)
 }
@@ -462,24 +462,24 @@ func spinHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	history = append(history, result)
-	
+
 	// Store in database if available
 	if db != nil {
 		_, err := db.Exec(`
 			INSERT INTO spin_history (wheel_id, result, session_id, timestamp) 
 			VALUES ($1, $2, $3, $4)
 		`, spinRequest.WheelID, selectedOption, spinRequest.SessionID, result.Timestamp)
-		
+
 		if err != nil {
 			log.Printf("Error storing spin history: %v", err)
 		}
-		
+
 		// Also update times_used for the wheel
 		_, err = db.Exec(`
 			UPDATE wheels SET times_used = times_used + 1 
 			WHERE id = $1
 		`, spinRequest.WheelID)
-		
+
 		if err != nil {
 			log.Printf("Error updating wheel usage count: %v", err)
 		}

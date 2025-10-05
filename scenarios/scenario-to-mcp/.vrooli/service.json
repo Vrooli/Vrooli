@@ -155,7 +155,7 @@
       "steps": [
          {
            "name": "start-api",
-           "run": "cd api && ./scenario-to-mcp-api",
+           "run": "export DATABASE_URL=$(./lib/get-db-url.sh) && cd api && ./scenario-to-mcp-api",
            "description": "Start Go API server in background",
            "background": true,
            "condition": {
@@ -164,7 +164,7 @@
          },
         {
           "name": "start-registry",
-          "run": "cd api && ./scenario-to-mcp-api --registry-mode",
+          "run": "export DATABASE_URL=$(./lib/get-db-url.sh) && cd api && ./scenario-to-mcp-api --registry-mode",
           "description": "Start MCP registry service",
           "background": true,
           "condition": {
@@ -200,13 +200,13 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-registry-health",
-          "run": "curl -sf http://localhost:$REGISTRY_PORT/health",
-          "description": "Test registry health endpoint"
+          "run": "curl -sf http://localhost:$REGISTRY_PORT/api/v1/mcp/registry",
+          "description": "Test registry endpoint"
         },
         {
           "name": "test-mcp-detection",

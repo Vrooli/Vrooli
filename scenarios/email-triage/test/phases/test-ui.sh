@@ -7,8 +7,16 @@ set -euo pipefail
 
 echo "🖥️  Testing Email Triage UI..."
 
-# Configuration
-UI_PORT="${UI_PORT:-3201}"
+# Configuration - Get UI port from environment, service.json, or use default
+if [ -z "$UI_PORT" ]; then
+    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    SERVICE_JSON="$(dirname "$(dirname "$SCRIPT_DIR")")/.vrooli/service.json"
+    if [ -f "$SERVICE_JSON" ] && command -v jq >/dev/null 2>&1; then
+        UI_PORT=$(jq -r '.endpoints.ui // "http://localhost:3201"' "$SERVICE_JSON" | sed 's/.*://')
+    else
+        UI_PORT=3201
+    fi
+fi
 UI_URL="http://localhost:${UI_PORT}"
 
 # Colors for output

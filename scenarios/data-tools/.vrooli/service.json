@@ -56,11 +56,11 @@
       "description": "Go-based API server with REST endpoints"
     },
     "ui": {
-      "enabled": true,
+      "enabled": false,
       "framework": "react",
       "path": "ui",
       "main": "index.html",
-      "description": "React-based web interface"
+      "description": "React-based web interface (not implemented)"
     },
     "cli": {
       "enabled": true,
@@ -288,7 +288,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build ./cmd/server/main.go && rm test-build",
+          "run": "cd api && go build -o test-build ./cmd/server/ && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/go.mod"

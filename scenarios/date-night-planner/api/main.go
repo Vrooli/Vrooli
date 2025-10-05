@@ -102,7 +102,8 @@ func initDB() error {
 	}
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
 	if dbPassword == "" {
-		dbPassword = "lUq9qvemypKpuEeXCV6Vnxak1"
+		log.Println("Warning: POSTGRES_PASSWORD not set in environment, database connection may fail")
+		dbPassword = "" // Don't use a hardcoded default password
 	}
 	dbName := os.Getenv("POSTGRES_DB")
 	if dbName == "" {
@@ -236,37 +237,41 @@ func suggestDatesHandler(w http.ResponseWriter, r *http.Request) {
 	// Get activity suggestions from database
 	suggestions := []DateSuggestion{}
 	if db != nil {
-		query := `
-			SELECT title, description, 
+		// Build query with parameterized placeholders to prevent SQL injection
+		queryParts := []string{`
+			SELECT title, description,
 				   (typical_cost_min + typical_cost_max) / 2 as avg_cost,
 				   typical_duration::text,
 				   popularity_score
 			FROM date_night_planner.activity_suggestions
 			WHERE 1=1
-		`
+		`}
 		args := []interface{}{}
-		argNum := 1
 
 		if req.DateType != "" {
-			query += fmt.Sprintf(" AND category = $%d", argNum)
+			queryParts = append(queryParts, fmt.Sprintf(" AND category = $%d", len(args)+1))
 			args = append(args, req.DateType)
-			argNum++
 		}
 
 		if req.BudgetMax > 0 {
-			query += fmt.Sprintf(" AND typical_cost_max <= $%d", argNum)
+			queryParts = append(queryParts, fmt.Sprintf(" AND typical_cost_max <= $%d", len(args)+1))
 			args = append(args, req.BudgetMax)
-			argNum++
 		}
 
 		if req.WeatherPreference != "" {
-			query += fmt.Sprintf(" AND weather_requirement = $%d", argNum)
+			queryParts = append(queryParts, fmt.Sprintf(" AND weather_requirement = $%d", len(args)+1))
 			args = append(args, req.WeatherPreference)
 		}
 
-		query += " ORDER BY popularity_score DESC LIMIT 5"
+		queryParts = append(queryParts, " ORDER BY popularity_score DESC LIMIT 5")
 
-		rows, err := db.Query(query, args...)
+		// Concatenate query parts only after all placeholders are properly set
+		var queryBuilder string
+		for _, part := range queryParts {
+			queryBuilder += part
+		}
+
+		rows, err := db.Query(queryBuilder, args...)
 		if err == nil {
 			defer rows.Close()
 			for rows.Next() {

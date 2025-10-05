@@ -425,10 +425,10 @@ func (cs *CalendarScheduler) GetCurrentContext(ctx context.Context) (*CurrentCon
 		ORDER BY activated_at DESC
 		LIMIT 1
 	`
-	
+
 	var contextName, triggeredBy string
 	var activatedAt time.Time
-	
+
 	err := cs.db.QueryRow(query).Scan(&contextName, &activatedAt, &triggeredBy)
 	if err == sql.ErrNoRows {
 		// No active context, return default
@@ -441,6 +441,16 @@ func (cs *CalendarScheduler) GetCurrentContext(ctx context.Context) (*CurrentCon
 		}, nil
 	}
 	if err != nil {
+		// If table doesn't exist, return default context
+		if strings.Contains(err.Error(), "does not exist") {
+			return &CurrentContext{
+				ContextName:   "default_mode",
+				ActiveSince:   time.Now().Format(time.RFC3339),
+				TriggeredBy:   "system",
+				Configuration: cs.getContextConfig("default_mode"),
+				ActiveDevices: map[string]interface{}{},
+			}, nil
+		}
 		return nil, err
 	}
 

@@ -100,10 +100,7 @@ func (qp *QuizProcessor) GenerateQuizFromContent(ctx context.Context, req QuizGe
 }
 
 func (qp *QuizProcessor) generateQuestionsWithOllama(ctx context.Context, req QuizGenerateRequest) ([]GeneratedQuestion, error) {
-	// For now, use fallback questions to test the system
-	// TODO: Enable Ollama integration when ready
-	return qp.generateFallbackQuestions(req), nil
-	
+	// Generate questions using Ollama AI
 	prompt := fmt.Sprintf(`You are an expert quiz generator. Generate exactly %d questions from the following content.
 
 Content: %s
@@ -171,26 +168,53 @@ Return the response as a valid JSON array with this structure:
 
 	httpReq.Header.Set("Content-Type", "application/json")
 
+	logger.Infof("Calling Ollama at %s to generate %d questions", qp.ollamaURL, req.QuestionCount)
+
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call ollama: %w", err)
+		logger.Errorf("Failed to call Ollama: %v. Using fallback questions.", err)
+		return qp.generateFallbackQuestions(req), nil
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ollama returned status %d", resp.StatusCode)
+		logger.Errorf("Ollama returned status %d. Using fallback questions.", resp.StatusCode)
+		return qp.generateFallbackQuestions(req), nil
 	}
 
 	var ollamaResp OllamaResponse
 	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
-		return nil, fmt.Errorf("failed to decode ollama response: %w", err)
+		logger.Errorf("Failed to decode ollama response: %v", err)
+		return qp.generateFallbackQuestions(req), nil
 	}
 
+	// Log first 200 chars of response for debugging
+	previewLen := 200
+	if len(ollamaResp.Response) < previewLen {
+		previewLen = len(ollamaResp.Response)
+	}
+	logger.Infof("Ollama response preview: %s", ollamaResp.Response[:previewLen])
+
+	// Try to parse the response - Ollama might return {"questions": [...]} or just [...]
 	var questions []GeneratedQuestion
+
+	// First try parsing as direct array
 	if err := json.Unmarshal([]byte(ollamaResp.Response), &questions); err != nil {
-		// If parsing fails, try to generate fallback questions
-		questions = qp.generateFallbackQuestions(req)
+		// If that fails, try parsing as {"questions": [...]} wrapper
+		var wrapper struct {
+			Questions []GeneratedQuestion `json:"questions"`
+		}
+		if err2 := json.Unmarshal([]byte(ollamaResp.Response), &wrapper); err2 != nil {
+			logger.Warnf("Failed to parse questions from Ollama response: %v (also tried wrapper format). Using fallback questions.", err)
+			logger.Debugf("Raw Ollama response: %s", ollamaResp.Response)
+			questions = qp.generateFallbackQuestions(req)
+		} else {
+			questions = wrapper.Questions
+			logger.Infof("Successfully generated %d questions using Ollama (wrapper format)", len(questions))
+		}
+	} else {
+		logger.Infof("Successfully generated %d questions using Ollama (direct array)", len(questions))
 	}
 
 	return questions, nil

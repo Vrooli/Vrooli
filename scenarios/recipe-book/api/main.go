@@ -199,16 +199,20 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		"timestamp": time.Now().Unix(),
 		"service": "recipe-book",
 	}
-	
+
 	// Check database connection
-	if err := db.Ping(); err != nil {
-		status["status"] = "unhealthy"
-		status["database"] = "disconnected"
-		w.WriteHeader(http.StatusServiceUnavailable)
+	if db != nil {
+		if err := db.Ping(); err != nil {
+			status["status"] = "unhealthy"
+			status["database"] = "disconnected"
+			w.WriteHeader(http.StatusServiceUnavailable)
+		} else {
+			status["database"] = "connected"
+		}
 	} else {
-		status["database"] = "connected"
+		status["database"] = "not_configured"
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(status)
 }
@@ -216,22 +220,27 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func listRecipesHandler(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 	visibility := r.URL.Query().Get("visibility")
-	tags := r.URL.Query()["tags"]
+	_ = r.URL.Query()["tags"] // tags: future filter implementation
 	cuisine := r.URL.Query().Get("cuisine")
-	dietary := r.URL.Query()["dietary"]
+	_ = r.URL.Query()["dietary"] // dietary: future filter implementation
 	limit := r.URL.Query().Get("limit")
 	offset := r.URL.Query().Get("offset")
-	
+
 	if limit == "" {
 		limit = "20"
 	}
 	if offset == "" {
 		offset = "0"
 	}
-	
+
+	if db == nil {
+		http.Error(w, "Database not available", http.StatusInternalServerError)
+		return
+	}
+
 	// Build query based on filters
-	query := `SELECT id, title, description, cuisine, prep_time, cook_time, servings, 
-	          visibility, created_by, created_at, updated_at 
+	query := `SELECT id, title, description, cuisine, prep_time, cook_time, servings,
+	          visibility, created_by, created_at, updated_at
 	          FROM recipes WHERE 1=1`
 	
 	var args []interface{}
@@ -293,19 +302,24 @@ func createRecipeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	recipe.ID = uuid.New().String()
 	recipe.CreatedAt = time.Now()
 	recipe.UpdatedAt = time.Now()
-	
+
 	if recipe.Visibility == "" {
 		recipe.Visibility = "private"
 	}
-	
+
 	if recipe.Source == "" {
 		recipe.Source = "original"
 	}
-	
+
+	if db == nil {
+		http.Error(w, "Database not available", http.StatusInternalServerError)
+		return
+	}
+
 	// Insert into database
 	ingredientsJSON, _ := json.Marshal(recipe.Ingredients)
 	instructionsJSON, _ := json.Marshal(recipe.Instructions)
@@ -345,10 +359,15 @@ func getRecipeHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	recipeID := vars["id"]
 	userID := r.URL.Query().Get("user_id")
-	
+
+	if db == nil {
+		http.Error(w, "Database not available", http.StatusInternalServerError)
+		return
+	}
+
 	var recipe Recipe
 	var ingredientsJSON, instructionsJSON, tagsJSON, dietaryJSON, nutritionJSON, sharedWithJSON []byte
-	
+
 	err := db.QueryRow(`
 		SELECT id, title, description, ingredients, instructions, 
 		       prep_time, cook_time, servings, tags, cuisine, 
@@ -400,16 +419,21 @@ func getRecipeHandler(w http.ResponseWriter, r *http.Request) {
 func updateRecipeHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	recipeID := vars["id"]
-	
+
 	var recipe Recipe
 	if err := json.NewDecoder(r.Body).Decode(&recipe); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	recipe.ID = recipeID
 	recipe.UpdatedAt = time.Now()
-	
+
+	if db == nil {
+		http.Error(w, "Database not available", http.StatusInternalServerError)
+		return
+	}
+
 	// Update in database
 	ingredientsJSON, _ := json.Marshal(recipe.Ingredients)
 	instructionsJSON, _ := json.Marshal(recipe.Instructions)
@@ -446,7 +470,12 @@ func deleteRecipeHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	recipeID := vars["id"]
 	userID := r.URL.Query().Get("user_id")
-	
+
+	if db == nil {
+		http.Error(w, "Database not available", http.StatusInternalServerError)
+		return
+	}
+
 	// Check ownership
 	var createdBy string
 	err := db.QueryRow("SELECT created_by FROM recipes WHERE id = $1", recipeID).Scan(&createdBy)
@@ -544,17 +573,22 @@ func modifyRecipeHandler(w http.ResponseWriter, r *http.Request) {
 func markCookedHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	recipeID := vars["id"]
-	
+
 	var rating RecipeRating
 	if err := json.NewDecoder(r.Body).Decode(&rating); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	rating.ID = uuid.New().String()
 	rating.RecipeID = recipeID
 	rating.CookedDate = time.Now()
-	
+
+	if db == nil {
+		http.Error(w, "Database not available", http.StatusInternalServerError)
+		return
+	}
+
 	// Insert rating
 	_, err := db.Exec(`
 		INSERT INTO recipe_ratings (id, recipe_id, user_id, rating, notes, cooked_date, anonymous)
@@ -578,18 +612,23 @@ func rateRecipeHandler(w http.ResponseWriter, r *http.Request) {
 func shareRecipeHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	recipeID := vars["id"]
-	
+
 	var shareReq struct {
 		UserIDs []string `json:"user_ids"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&shareReq); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
+	if db == nil {
+		http.Error(w, "Database not available", http.StatusInternalServerError)
+		return
+	}
+
 	sharedWithJSON, _ := json.Marshal(shareReq.UserIDs)
-	
+
 	_, err := db.Exec("UPDATE recipes SET shared_with = $2 WHERE id = $1", 
 		recipeID, sharedWithJSON)
 	

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -192,7 +193,11 @@ func NewServer() (*Server, error) {
 		db.SetConnMaxLifetime(5 * time.Minute)
 		
 		// Implement exponential backoff for database connection
+		// In test mode, skip retries to avoid long waits
 		maxRetries := 10
+		if os.Getenv("TESTING_MODE") == "true" {
+			maxRetries = 1
+		}
 		baseDelay := 1 * time.Second
 		maxDelay := 30 * time.Second
 		
@@ -212,15 +217,18 @@ func NewServer() (*Server, error) {
 				float64(maxDelay),
 			))
 			
-			// Add progressive jitter to prevent thundering herd
+			// Add random jitter to prevent thundering herd
 			jitterRange := float64(delay) * 0.25
-			jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+			jitter := time.Duration(jitterRange * rand.Float64())
 			actualDelay := delay + jitter
 			
 			log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-			log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-			
-			time.Sleep(actualDelay)
+
+			// Skip delay in testing mode
+			if os.Getenv("TESTING_MODE") != "true" {
+				log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+				time.Sleep(actualDelay)
+			}
 		}
 		
 		if pingErr != nil {
@@ -834,21 +842,25 @@ func (s *Server) timelineHandler(w http.ResponseWriter, r *http.Request) {
 	// Query database for timeline events
 	entries := []TimelineEntry{}
 	collections := make(map[string]int)
-	
-	// Query search history from database for timeline data
-	query := `
-		SELECT 
-			created_at,
-			collection,
-			COUNT(*) as count
-		FROM knowledge_observatory.search_history
-		WHERE created_at >= $1 AND created_at <= $2
-		GROUP BY DATE_TRUNC('hour', created_at), created_at, collection
-		ORDER BY created_at DESC
-	`
-	
-	rows, err := s.db.Query(query, startTime, endTime)
-	if err == nil {
+
+	// Query search history from database for timeline data (if database is available)
+	var rows *sql.Rows
+	var err error
+
+	if s.db != nil {
+		query := `
+			SELECT
+				created_at,
+				collection,
+				COUNT(*) as count
+			FROM knowledge_observatory.search_history
+			WHERE created_at >= $1 AND created_at <= $2
+			GROUP BY DATE_TRUNC('hour', created_at), created_at, collection
+			ORDER BY created_at DESC
+		`
+		rows, err = s.db.Query(query, startTime, endTime)
+	}
+	if err == nil && rows != nil {
 		defer rows.Close()
 		
 		for rows.Next() {

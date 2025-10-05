@@ -7,14 +7,15 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/gorilla/handlers"
-	_ "github.com/lib/pq"
 	"github.com/google/uuid"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 )
 
 type Game struct {
@@ -38,31 +39,31 @@ type Game struct {
 }
 
 type User struct {
-	ID                      string     `json:"id" db:"id"`
-	Username                string     `json:"username" db:"username"`
-	Email                   string     `json:"email" db:"email"`
-	SubscriptionTier        string     `json:"subscription_tier" db:"subscription_tier"`
-	GamesCreatedThisMonth   int        `json:"games_created_this_month" db:"games_created_this_month"`
-	CreatedAt               time.Time  `json:"created_at" db:"created_at"`
-	LastLogin               *time.Time `json:"last_login" db:"last_login"`
+	ID                    string     `json:"id" db:"id"`
+	Username              string     `json:"username" db:"username"`
+	Email                 string     `json:"email" db:"email"`
+	SubscriptionTier      string     `json:"subscription_tier" db:"subscription_tier"`
+	GamesCreatedThisMonth int        `json:"games_created_this_month" db:"games_created_this_month"`
+	CreatedAt             time.Time  `json:"created_at" db:"created_at"`
+	LastLogin             *time.Time `json:"last_login" db:"last_login"`
 }
 
 type GameGenerationRequest struct {
-	Prompt     string   `json:"prompt"`
-	Engine     string   `json:"engine"`
-	Tags       []string `json:"tags"`
-	AuthorID   *string  `json:"author_id"`
-	RemixFromID *string `json:"remix_from_id"`
+	Prompt      string   `json:"prompt"`
+	Engine      string   `json:"engine"`
+	Tags        []string `json:"tags"`
+	AuthorID    *string  `json:"author_id"`
+	RemixFromID *string  `json:"remix_from_id"`
 }
 
 type HighScore struct {
-	ID               string    `json:"id" db:"id"`
-	GameID           string    `json:"game_id" db:"game_id"`
-	UserID           *string   `json:"user_id" db:"user_id"`
-	Score            int       `json:"score" db:"score"`
-	PlayTimeSeconds  *int      `json:"play_time_seconds" db:"play_time_seconds"`
-	AchievedAt       time.Time `json:"achieved_at" db:"achieved_at"`
-	Metadata         *string   `json:"metadata" db:"metadata"`
+	ID              string    `json:"id" db:"id"`
+	GameID          string    `json:"game_id" db:"game_id"`
+	UserID          *string   `json:"user_id" db:"user_id"`
+	Score           int       `json:"score" db:"score"`
+	PlayTimeSeconds *int      `json:"play_time_seconds" db:"play_time_seconds"`
+	AchievedAt      time.Time `json:"achieved_at" db:"achieved_at"`
+	Metadata        *string   `json:"metadata" db:"metadata"`
 }
 
 type APIServer struct {
@@ -98,11 +99,11 @@ func main() {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
@@ -119,57 +120,57 @@ func main() {
 		log.Fatal("Failed to open database connection:", err)
 	}
 	defer db.Close()
-	
+
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Implement exponential backoff for database connection
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📆 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	server := &APIServer{
@@ -191,7 +192,7 @@ func main() {
 
 	// API routes
 	api := router.PathPrefix("/api").Subrouter()
-	
+
 	// Games endpoints
 	api.HandleFunc("/games", server.getGames).Methods("GET")
 	api.HandleFunc("/games", server.createGame).Methods("POST")
@@ -200,20 +201,20 @@ func main() {
 	api.HandleFunc("/games/{id}", server.deleteGame).Methods("DELETE")
 	api.HandleFunc("/games/{id}/play", server.recordPlay).Methods("POST")
 	api.HandleFunc("/games/{id}/remix", server.createRemix).Methods("POST")
-	
+
 	// Game generation
 	api.HandleFunc("/generate", server.generateGame).Methods("POST")
 	api.HandleFunc("/generate/status/{id}", server.getGenerationStatus).Methods("GET")
-	
+
 	// High scores
 	api.HandleFunc("/games/{id}/scores", server.getHighScores).Methods("GET")
 	api.HandleFunc("/games/{id}/scores", server.submitScore).Methods("POST")
-	
+
 	// Search and discovery
 	api.HandleFunc("/search/games", server.searchGames).Methods("GET")
 	api.HandleFunc("/featured", server.getFeaturedGames).Methods("GET")
 	api.HandleFunc("/trending", server.getTrendingGames).Methods("GET")
-	
+
 	// Template and prompt management
 	api.HandleFunc("/templates", server.getPromptTemplates).Methods("GET")
 	api.HandleFunc("/templates/{id}", server.getPromptTemplate).Methods("GET")
@@ -234,9 +235,9 @@ func main() {
 
 func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	status := map[string]interface{}{
-		"status": "healthy",
+		"status":    "healthy",
 		"timestamp": time.Now().Unix(),
 		"services": map[string]interface{}{
 			"database": s.checkDatabase(),
@@ -254,7 +255,6 @@ func (s *APIServer) checkDatabase() string {
 	return "healthy"
 }
 
-
 func (s *APIServer) checkOllama() string {
 	resp, err := http.Get(s.ollamaURL + "/api/tags")
 	if err != nil {
@@ -262,7 +262,7 @@ func (s *APIServer) checkOllama() string {
 	}
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return "unavailable"
 	}
@@ -290,7 +290,7 @@ func (s *APIServer) getGames(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var game Game
 		var tagsJSON []byte
-		
+
 		err := rows.Scan(
 			&game.ID, &game.Title, &game.Prompt, &game.Description,
 			&game.Code, &game.Engine, &game.AuthorID, &game.ParentGameID,
@@ -411,10 +411,10 @@ func (s *APIServer) generateGame(w http.ResponseWriter, r *http.Request) {
 	generationID := s.startGameGeneration(req)
 
 	response := map[string]interface{}{
-		"generation_id":   generationID,
-		"status":          "started",
-		"prompt":          req.Prompt,
-		"estimated_time":  "45-60 seconds",
+		"generation_id":  generationID,
+		"status":         "started",
+		"prompt":         req.Prompt,
+		"estimated_time": "45-60 seconds",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -459,7 +459,7 @@ func (s *APIServer) getFeaturedGames(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var game Game
 		var tagsJSON []byte
-		
+
 		err := rows.Scan(
 			&game.ID, &game.Title, &game.Prompt, &game.Description,
 			&game.Code, &game.Engine, &game.AuthorID, &game.ParentGameID,
@@ -517,7 +517,7 @@ func (s *APIServer) searchGames(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var game Game
 		var tagsJSON []byte
-		
+
 		err := rows.Scan(
 			&game.ID, &game.Title, &game.Prompt, &game.Description,
 			&game.Code, &game.Engine, &game.AuthorID, &game.ParentGameID,

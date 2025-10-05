@@ -15,6 +15,9 @@ Commands:
     suggest <use_case>  Get palette suggestions for a use case
     export <format>     Export palette in different formats (css, json, scss)
     check <fg> <bg>    Check WCAG contrast between foreground and background colors
+    harmony <colors>   Analyze color harmony relationships
+    colorblind <colors> <type>  Simulate colorblindness
+    history            View recently generated palettes
     help               Show this help message
 
 Options:
@@ -26,6 +29,9 @@ Examples:
     palette-gen generate "ocean sunset" --style vibrant --colors 5
     palette-gen suggest "e-commerce"
     palette-gen export css --palette "#FF6B6B,#4ECDC4,#45B7D1"
+    palette-gen harmony "#FF6B6B,#4ECDC4,#45B7D1"
+    palette-gen colorblind "#FF6B6B,#4ECDC4" protanopia
+    palette-gen history
 
 EOF
 }
@@ -101,15 +107,52 @@ export_palette() {
 check_accessibility() {
     local fg="$1"
     local bg="$2"
-    
+
     if [[ -z "$fg" || -z "$bg" ]]; then
         echo "Error: Please provide both foreground and background colors"
         exit 1
     fi
-    
+
     curl -s -X POST "$API_URL/accessibility" \
         -H "Content-Type: application/json" \
         -d "{\"foreground\": \"$fg\", \"background\": \"$bg\"}" | jq '.'
+}
+
+check_harmony() {
+    local colors="$1"
+
+    if [[ -z "$colors" ]]; then
+        echo "Error: Please provide colors separated by commas"
+        exit 1
+    fi
+
+    IFS=',' read -ra color_array <<< "$colors"
+    local json_array=$(printf '"%s",' "${color_array[@]}" | sed 's/,$//')
+
+    curl -s -X POST "$API_URL/harmony" \
+        -H "Content-Type: application/json" \
+        -d "{\"colors\": [$json_array]}" | jq '.'
+}
+
+simulate_colorblind() {
+    local colors="$1"
+    local cb_type="${2:-protanopia}"
+
+    if [[ -z "$colors" ]]; then
+        echo "Error: Please provide colors separated by commas"
+        exit 1
+    fi
+
+    IFS=',' read -ra color_array <<< "$colors"
+    local json_array=$(printf '"%s",' "${color_array[@]}" | sed 's/,$//')
+
+    curl -s -X POST "$API_URL/colorblind" \
+        -H "Content-Type: application/json" \
+        -d "{\"colors\": [$json_array], \"type\": \"$cb_type\"}" | jq '.'
+}
+
+view_history() {
+    curl -s -X GET "$API_URL/history" | jq '.'
 }
 
 case "$1" in
@@ -142,6 +185,17 @@ case "$1" in
     check)
         shift
         check_accessibility "$@"
+        ;;
+    harmony)
+        shift
+        check_harmony "$@"
+        ;;
+    colorblind)
+        shift
+        simulate_colorblind "$@"
+        ;;
+    history)
+        view_history
         ;;
     help|--help|-h)
         show_help

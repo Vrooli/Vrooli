@@ -206,7 +206,7 @@ obs::start() {
     # Start mock WebSocket server
     if [[ -f "${OBS_LIB_DIR}/mock_websocket_server.py" ]]; then
         # Check if already running
-        if ! lsof -i:${OBS_WEBSOCKET_PORT} >/dev/null 2>&1; then
+        if ! lsof -i:"${OBS_WEBSOCKET_PORT}" >/dev/null 2>&1; then
             log::info "Starting mock WebSocket server on port ${OBS_WEBSOCKET_PORT}..."
             nohup python3 "${OBS_LIB_DIR}/mock_websocket_server.py" \
                 > "${OBS_DATA_DIR}/mock_server.log" 2>&1 &
@@ -218,7 +218,7 @@ obs::start() {
             local max_attempts=10
             local attempt=0
             while [[ ${attempt} -lt ${max_attempts} ]]; do
-                if timeout 2 nc -zv localhost ${OBS_WEBSOCKET_PORT} >/dev/null 2>&1; then
+                if timeout 2 nc -zv localhost "${OBS_WEBSOCKET_PORT}" >/dev/null 2>&1; then
                     log::success "Mock WebSocket server ready on port ${OBS_WEBSOCKET_PORT}"
                     break
                 fi
@@ -254,13 +254,14 @@ obs::stop() {
     
     # Stop mock WebSocket server
     if [[ -f "${OBS_DATA_DIR}/mock_server.pid" ]]; then
-        local mock_pid=$(cat "${OBS_DATA_DIR}/mock_server.pid")
-        if kill -0 ${mock_pid} 2>/dev/null; then
+        local mock_pid
+        mock_pid=$(cat "${OBS_DATA_DIR}/mock_server.pid")
+        if kill -0 "${mock_pid}" 2>/dev/null; then
             log::info "Stopping mock WebSocket server (PID: ${mock_pid})..."
-            kill ${mock_pid} 2>/dev/null || true
+            kill "${mock_pid}" 2>/dev/null || true
             sleep 1
             # Force kill if still running
-            kill -9 ${mock_pid} 2>/dev/null || true
+            kill -9 "${mock_pid}" 2>/dev/null || true
         fi
         rm -f "${OBS_DATA_DIR}/mock_server.pid"
     fi

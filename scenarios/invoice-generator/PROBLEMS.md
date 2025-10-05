@@ -1,49 +1,98 @@
 # Known Issues - Invoice Generator
 
-## Date: 2025-09-27
-### Agent: scenario-improver
+## Date: 2025-10-03
+### Agent: scenario-improver (agi branch)
 
-## Issues Discovered
+## Critical Issues (P0)
 
-### 1. Database Schema Mismatch (FIXED)
-**Issue**: The API was creating its own schema in `helpers.go` that didn't match the official schema in `initialization/postgres/schema.sql`
-**Impact**: Runtime errors for missing columns `last_reminder_sent` and `recurring_invoice_id`
-**Resolution**: Added missing columns to official schema:
-- Added `last_reminder_sent DATE` to invoices table
-- Added `recurring_invoice_id UUID` to invoices table
+### 1. Schema Conflict Between helpers.go and schema.sql (ROOT CAUSE)
+**Issue**: `api/helpers.go` creates tables with `VARCHAR(36)` for IDs, but `initialization/postgres/schema.sql` expects `UUID` type. Whichever runs first wins, creating type mismatches.
 
-### 2. API Endpoint Timeouts
-**Issue**: Some API endpoints are timing out when called:
-- `/api/invoices/create` - times out after 10+ seconds
-- `/api/invoices/extract` - times out (likely trying to call Ollama for AI extraction)
-**Impact**: Core functionality not working properly
-**Status**: UNRESOLVED - needs investigation into API handler implementations
+**Current State**:
+- `companies` table has `id VARCHAR(36)` (from helpers.go)
+- `invoices` table has `id UUID` (from schema.sql)
+- `get_next_invoice_number` function expects UUID parameter but gets VARCHAR
+- This type mismatch causes the function to fail silently or hang
 
-### 3. CLI JSON Parsing Errors
-**Issue**: CLI commands returning "jq: parse error" when creating invoices
-**Impact**: CLI not properly formatting responses
-**Status**: UNRESOLVED - CLI script needs debugging
+**Impact**: CRITICAL - Core invoice creation completely broken, API timeouts
 
-### 4. Duplicate Schema Management
-**Issue**: Schema is being created in two places:
-- Official: `initialization/postgres/schema.sql`
-- API: `api/helpers.go` has CREATE TABLE statements
-**Impact**: Confusion and potential schema drift
-**Recommendation**: Remove schema creation from API code, rely solely on initialization schema
+**Resolution Implemented**:
+- Modified `get_next_invoice_number` function to accept VARCHAR instead of UUID
+- Added fallback in API to bypass function and use timestamp-based invoice numbers
+- API create endpoint still experiencing issues (likely in transaction or INSERT)
+
+**Proper Fix Required**:
+1. Remove ALL schema creation from `api/helpers.go` lines 109-280
+2. Ensure `initialization/postgres/schema.sql` is run FIRST and ONLY
+3. Remove `initializeDatabase()` call from `api/main.go`
+4. Let lifecycle populate script handle schema initialization
+5. Rebuild API and test
+
+### 2. API Endpoint Timeouts (RELATED TO #1)
+**Issue**: `/api/invoices/create` endpoint times out after 10+ seconds
+**Root Cause**: Type mismatches and schema conflicts cause database operations to hang
+**Status**: PARTIALLY FIXED - bypassed `get_next_invoice_number` function, but INSERT still hangs
+**Next Step**: Need to trace exact SQL causing hang (likely foreign key constraint violation due to type mismatch)
+
+### 3. Missing Test Infrastructure
+**Issue**: Scenario has minimal test infrastructure (1/5 components per status output)
+**Impact**: Cannot validate fixes or prevent regressions
+**Required**:
+- Add phased testing in `test/` directory
+- Create unit tests for API endpoints
+- Add CLI integration tests
+- Create UI automation tests
 
 ## Working Features
 
-✅ Health endpoint working: `http://localhost:PORT/health`
-✅ UI server running and accessible
+✅ Health endpoint working: `http://localhost:19572/health` (< 10ms)
+✅ UI server running and accessible: `http://localhost:35471`
 ✅ CLI installed and help working
-✅ Client creation via CLI working
 ✅ Database connection working
-✅ Schema fixes applied successfully
+✅ Postgres schema partially loaded (UUID types for some tables)
+✅ get_next_invoice_number function fixed to accept VARCHAR
 
-## Recommendations for Next Agent
+## Failed Attempts This Session
 
-1. **Debug API Handlers**: Investigate why create and extract endpoints are timing out
-2. **Fix CLI Response Parsing**: Update CLI script to properly handle API responses
-3. **Remove Duplicate Schema**: Clean up `helpers.go` to remove CREATE TABLE statements
-4. **Test Ollama Integration**: Verify AI extraction is properly configured with Ollama
-5. **Add Integration Tests**: Create proper test suite to validate all P0 requirements
+1. ❌ Modifying function signature to accept UUID - table already has VARCHAR
+2. ❌ Modifying function to accept VARCHAR - function works but API still hangs
+3. ❌ Bypassing function entirely - INSERT still hangs (likely FK constraint)
+
+## Root Cause Analysis
+
+The fundamental problem is **duplicate schema management**:
+- `helpers.go` tries to ensure tables exist using `CREATE TABLE IF NOT EXISTS`
+- `schema.sql` has the "official" schema with proper types and constraints
+- They disagree on data types (VARCHAR vs UUID)
+- Race condition: whoever runs first creates incompatible schema
+- Functions, foreign keys, and constraints fail due to type mismatches
+
+## Action Plan for Next Agent
+
+1. **FIRST**: Remove duplicate schema creation from `api/helpers.go`
+2. **SECOND**: Drop and recreate database tables using ONLY `schema.sql`
+3. **THIRD**: Test invoice creation endpoint
+4. **FOURTH**: Add comprehensive test suite
+5. **FIFTH**: Fix CLI JSON parsing issues
+6. **SIXTH**: Test Ollama integration for AI extraction
+
+## Technical Debt
+
+- Duplicate schema management (helpers.go vs schema.sql)
+- No automated tests
+- No validation of schema consistency
+- Mixed VARCHAR/UUID types across related tables
+- Missing error handling in API endpoints
+
+## Evidence
+
+```bash
+# Companies table (from helpers.go)
+\d companies  # Shows id VARCHAR(36)
+
+# Invoices table (from schema.sql)
+\d invoices   # Shows id UUID
+
+# Function signature mismatch
+SELECT get_next_invoice_number('...'::uuid);  # FAILS with type error
+```

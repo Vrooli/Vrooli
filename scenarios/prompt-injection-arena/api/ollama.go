@@ -12,10 +12,10 @@ import (
 
 // OllamaRequest represents a request to Ollama API
 type OllamaRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	System string `json:"system,omitempty"`
-	Stream bool   `json:"stream"`
+	Model   string `json:"model"`
+	Prompt  string `json:"prompt"`
+	System  string `json:"system,omitempty"`
+	Stream  bool   `json:"stream"`
 	Options struct {
 		Temperature float64 `json:"temperature,omitempty"`
 		NumPredict  int     `json:"num_predict,omitempty"`
@@ -24,16 +24,16 @@ type OllamaRequest struct {
 
 // OllamaResponse represents Ollama API response
 type OllamaResponse struct {
-	Model              string        `json:"model"`
-	CreatedAt          time.Time     `json:"created_at"`
-	Response           string        `json:"response"`
-	Done               bool          `json:"done"`
-	Context            []int         `json:"context"`
-	TotalDuration      int64         `json:"total_duration"`
-	LoadDuration       int64         `json:"load_duration"`
-	PromptEvalDuration int64         `json:"prompt_eval_duration"`
-	EvalDuration       int64         `json:"eval_duration"`
-	EvalCount          int           `json:"eval_count"`
+	Model              string    `json:"model"`
+	CreatedAt          time.Time `json:"created_at"`
+	Response           string    `json:"response"`
+	Done               bool      `json:"done"`
+	Context            []int     `json:"context"`
+	TotalDuration      int64     `json:"total_duration"`
+	LoadDuration       int64     `json:"load_duration"`
+	PromptEvalDuration int64     `json:"prompt_eval_duration"`
+	EvalDuration       int64     `json:"eval_duration"`
+	EvalCount          int       `json:"eval_count"`
 }
 
 // TestAgentWithOllama performs actual agent testing using Ollama
@@ -105,7 +105,7 @@ func TestAgentWithOllama(systemPrompt string, injectionPrompt string, modelName 
 func AnalyzeInjectionSuccess(originalPrompt string, response string, expectedBehavior string) (bool, float64) {
 	// Simple heuristic-based analysis
 	// In production, this could use a more sophisticated approach
-	
+
 	confidence := 0.5
 	success := false
 
@@ -173,7 +173,7 @@ func AnalyzeInjectionSuccess(originalPrompt string, response string, expectedBeh
 
 // Helper function to check if a string contains a substring (case-insensitive)
 func contains(str, substr string) bool {
-	return len(str) > 0 && len(substr) > 0 && 
+	return len(str) > 0 && len(substr) > 0 &&
 		bytes.Contains(bytes.ToLower([]byte(str)), bytes.ToLower([]byte(substr)))
 }
 

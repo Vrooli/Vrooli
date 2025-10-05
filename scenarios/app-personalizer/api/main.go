@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -685,12 +686,12 @@ func main() {
 			float64(maxDelay),
 		))
 
-		// Add progressive jitter to prevent thundering herd
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
 
-		logger.Warn(fmt.Sprintf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr))
+		logger.Warn(fmt.Sprintf("⚠️  Connection attempt %d/%d failed", attempt+1, maxRetries), pingErr)
 		logger.Info(fmt.Sprintf("⏳ Waiting %v before next attempt", actualDelay))
 
 		// Provide detailed status every few attempts
@@ -734,7 +735,6 @@ func main() {
 	log.Printf("  MinIO URL: %s", minioURL)
 	log.Printf("  Database: %s", dbURL)
 
-	logger := NewLogger()
 	logger.Info(fmt.Sprintf("Server starting on port %s", port))
 
 	if err := http.ListenAndServe(":"+port, r); err != nil {

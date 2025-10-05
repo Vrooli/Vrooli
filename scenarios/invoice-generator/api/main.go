@@ -205,14 +205,11 @@ func createInvoiceHandler(w http.ResponseWriter, r *http.Request) {
 
     // Use default company if not provided
     companyID := "00000000-0000-0000-0000-000000000001"
-    
-    // Generate invoice number
-    invoiceNumber := ""
-    err := db.QueryRow("SELECT get_next_invoice_number($1)", companyID).Scan(&invoiceNumber)
-    if err != nil {
-        // Fallback to timestamp-based number if function fails
-        invoiceNumber = fmt.Sprintf("INV-%d", time.Now().Unix())
-    }
+
+    // Generate invoice number using timestamp (bypass problematic function for now)
+    // TODO: Fix get_next_invoice_number function type mismatch issue
+    invoiceNumber := fmt.Sprintf("INV-%d", time.Now().Unix())
+    log.Printf("Generated invoice number: %s", invoiceNumber)
     
     // Create invoice object
     invoice := Invoice{

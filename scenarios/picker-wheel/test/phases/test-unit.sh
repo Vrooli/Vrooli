@@ -1,26 +1,18 @@
 #!/bin/bash
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "=== Unit Tests for Picker Wheel ==="
+testing::phase::init --target-time "60s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-# Test Go API
-if [ -d api ]; then
-  echo "Testing Go API..."
-  cd api
-  go test -v ./... -short -cover || { echo "❌ Go unit tests failed"; exit 1; }
-  cd ..
-  echo "✅ Go unit tests completed"
-else
-  echo "⚠️ No API directory found, skipping Go unit tests"
-fi
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-# Test CLI commands
-echo "Testing CLI commands..."
-if [ -x cli/picker-wheel ]; then
-  cli/picker-wheel help &> /dev/null || { echo "❌ CLI help command failed"; exit 1; }
-  echo "✅ CLI tests completed"
-else
-  echo "⚠️ CLI not executable, skipping CLI tests"
-fi
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50
 
-echo "✅ All unit tests passed"
+testing::phase::end_with_summary "Unit tests completed"

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 )
@@ -159,7 +160,7 @@ func searchQdrant(vector []float64, userID string, limit int) ([]QdrantSearchRes
 func semanticSearchHandler(w http.ResponseWriter, r *http.Request) {
 	var req VectorSearchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -173,7 +174,15 @@ func semanticSearchHandler(w http.ResponseWriter, r *http.Request) {
 	// Get embedding for the query
 	vector, err := getEmbedding(req.Query)
 	if err != nil {
-		// Fall back to regular text search if embedding fails
+		log.Printf("Warning: Could not generate embedding: %v - falling back to text search", err)
+		// Reconstruct request body for text search fallback
+		fallbackBody := map[string]interface{}{
+			"query":   req.Query,
+			"user_id": req.UserID,
+			"limit":   req.Limit,
+		}
+		jsonData, _ := json.Marshal(fallbackBody)
+		r.Body = io.NopCloser(bytes.NewBuffer(jsonData))
 		searchHandler(w, r)
 		return
 	}
@@ -181,7 +190,15 @@ func semanticSearchHandler(w http.ResponseWriter, r *http.Request) {
 	// Search Qdrant
 	qdrantResults, err := searchQdrant(vector, req.UserID, req.Limit)
 	if err != nil {
-		// Fall back to regular text search if Qdrant search fails
+		log.Printf("Warning: Qdrant search failed: %v - falling back to text search", err)
+		// Reconstruct request body for text search fallback
+		fallbackBody := map[string]interface{}{
+			"query":   req.Query,
+			"user_id": req.UserID,
+			"limit":   req.Limit,
+		}
+		jsonData, _ := json.Marshal(fallbackBody)
+		r.Body = io.NopCloser(bytes.NewBuffer(jsonData))
 		searchHandler(w, r)
 		return
 	}

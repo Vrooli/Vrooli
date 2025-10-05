@@ -9,6 +9,8 @@ Generate legally compliant privacy policies, terms of service, and other legal d
 - **Template Freshness Tracking**: Know when templates were last updated
 - **AI-Powered Customization**: Uses Ollama to adapt templates to your specific needs
 - **Multiple Output Formats**: Markdown, HTML, PDF
+- **Version History Tracking**: Track changes to generated documents over time
+- **Semantic Search**: Find relevant legal clauses using Qdrant or PostgreSQL full-text search
 - **Programmatic Access**: Full CLI and API for automation
 
 ## Quick Start
@@ -41,6 +43,15 @@ privacy-terms-generator update-templates --force
 privacy-terms-generator generate cookie \
   --business-name "Web App" \
   --jurisdiction US
+
+# Search for relevant legal clauses
+privacy-terms-generator search "data collection" \
+  --type privacy \
+  --limit 5
+
+# View document version history
+privacy-terms-generator history <document-id> \
+  --limit 10
 ```
 
 ### Using the Web UI

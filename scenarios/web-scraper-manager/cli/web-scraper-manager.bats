@@ -30,24 +30,36 @@ setup() {
 }
 
 @test "CLI requires jq dependency" {
-    # Temporarily hide jq from PATH
-    PATH="/bin:/usr/bin" run "$CLI_SCRIPT" status
+    # Temporarily hide jq from PATH but keep bash and core utilities
+    # Create a temporary directory with only essential binaries
+    TEMP_BIN=$(mktemp -d)
+    ln -s /usr/bin/bash "$TEMP_BIN/bash"
+    ln -s /usr/bin/curl "$TEMP_BIN/curl"
+    ln -s /usr/bin/env "$TEMP_BIN/env"
+
+    PATH="$TEMP_BIN" run "$CLI_SCRIPT" status
+    rm -rf "$TEMP_BIN"
+
     [ "$status" -eq 1 ]
     [[ "$output" =~ "jq is required but not installed" ]]
 }
 
 @test "CLI requires curl dependency" {
-    # This test assumes jq is available but curl is not
-    # In practice, both should be available in CI environments
-    if ! command -v jq &> /dev/null; then
-        skip "jq not available for testing"
-    fi
-    
-    # Test that CLI properly checks for curl
-    run bash -c 'PATH="/usr/bin:$(dirname $(which jq))" '"$CLI_SCRIPT"' status'
-    if [ "$status" -eq 1 ]; then
-        [[ "$output" =~ "curl is required but not installed" ]]
-    fi
+    # Temporarily hide curl from PATH but keep bash and jq
+    # Create a temporary directory with only essential binaries
+    TEMP_BIN=$(mktemp -d)
+    ln -s /usr/bin/bash "$TEMP_BIN/bash"
+    ln -s /usr/bin/env "$TEMP_BIN/env"
+
+    # Find jq and link it (could be in /bin or /usr/bin)
+    JQ_PATH=$(command -v jq)
+    ln -s "$JQ_PATH" "$TEMP_BIN/jq"
+
+    PATH="$TEMP_BIN" run "$CLI_SCRIPT" status
+    rm -rf "$TEMP_BIN"
+
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "curl is required but not installed" ]]
 }
 
 @test "CLI handles unknown commands" {

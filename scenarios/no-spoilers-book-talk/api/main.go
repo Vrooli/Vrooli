@@ -8,7 +8,6 @@ import (
 	"log"
 	"math"
 	"math/rand"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -114,9 +113,11 @@ func NewBookTalkService(db *sql.DB, n8nURL, qdrantURL, dataDir string) *BookTalk
 // Health endpoint
 func (s *BookTalkService) Health(w http.ResponseWriter, r *http.Request) {
 	// Test database connection
-	if err := s.db.Ping(); err != nil {
-		s.httpError(w, "Database connection failed", http.StatusServiceUnavailable, err)
-		return
+	if s.db != nil {
+		if err := s.db.Ping(); err != nil {
+			s.httpError(w, "Database connection failed", http.StatusServiceUnavailable, err)
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -195,14 +196,16 @@ func (s *BookTalkService) UploadBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create book record in database
-	_, err = s.db.Exec(`
-		INSERT INTO books (id, title, author, file_path, file_type, file_size_bytes, processing_status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		bookID, title, author, filePath, fileType, fileSize, "pending")
+	if s.db != nil {
+		_, err = s.db.Exec(`
+			INSERT INTO books (id, title, author, file_path, file_type, file_size_bytes, processing_status)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			bookID, title, author, filePath, fileType, fileSize, "pending")
 
-	if err != nil {
-		s.httpError(w, "Failed to create book record", http.StatusInternalServerError, err)
-		return
+		if err != nil {
+			s.httpError(w, "Failed to create book record", http.StatusInternalServerError, err)
+			return
+		}
 	}
 
 	s.logger.Printf("Book uploaded: %s (%s) by %s", title, bookID, author)
@@ -227,6 +230,11 @@ func (s *BookTalkService) UploadBook(w http.ResponseWriter, r *http.Request) {
 
 // GetBooks lists all books for a user
 func (s *BookTalkService) GetBooks(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		s.httpError(w, "Database not available", http.StatusInternalServerError, nil)
+		return
+	}
+
 	userID := r.URL.Query().Get("user_id")
 
 	query := `
@@ -253,7 +261,6 @@ func (s *BookTalkService) GetBooks(w http.ResponseWriter, r *http.Request) {
 	var books []map[string]interface{}
 	for rows.Next() {
 		var book Book
-		var progress UserProgress
 		var fileSizeBytes sql.NullInt64
 		var processedAt sql.NullTime
 		var currentPos, posValue sql.NullInt64
@@ -314,6 +321,11 @@ func (s *BookTalkService) GetBook(w http.ResponseWriter, r *http.Request) {
 	bookID, err := uuid.Parse(bookIDStr)
 	if err != nil {
 		s.httpError(w, "Invalid book ID", http.StatusBadRequest, err)
+		return
+	}
+
+	if s.db == nil {
+		s.httpError(w, "Database not available", http.StatusInternalServerError, nil)
 		return
 	}
 
@@ -441,6 +453,11 @@ func (s *BookTalkService) ChatWithBook(w http.ResponseWriter, r *http.Request) {
 		req.Temperature = 0.7
 	}
 
+	if s.db == nil {
+		s.httpError(w, "Database not available", http.StatusInternalServerError, nil)
+		return
+	}
+
 	startTime := time.Now()
 
 	// Verify book exists and is processed
@@ -544,6 +561,11 @@ func (s *BookTalkService) UpdateProgress(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if s.db == nil {
+		s.httpError(w, "Database not available", http.StatusInternalServerError, nil)
+		return
+	}
+
 	if req.PositionType == "" {
 		req.PositionType = "chunk"
 	}
@@ -620,6 +642,11 @@ func (s *BookTalkService) GetConversations(w http.ResponseWriter, r *http.Reques
 	bookID, err := uuid.Parse(bookIDStr)
 	if err != nil {
 		s.httpError(w, "Invalid book ID", http.StatusBadRequest, err)
+		return
+	}
+
+	if s.db == nil {
+		s.httpError(w, "Database not available", http.StatusInternalServerError, nil)
 		return
 	}
 
@@ -733,6 +760,11 @@ func toJSON(v interface{}) string {
 // processBookAsync handles async book processing
 func (s *BookTalkService) processBookAsync(bookID uuid.UUID, filePath, fileType string) {
 	s.logger.Printf("Starting async processing for book %s", bookID)
+
+	if s.db == nil {
+		s.logger.Printf("Warning: Database not available for async processing")
+		return
+	}
 
 	// Update status to processing
 	s.db.Exec("UPDATE books SET processing_status = 'processing' WHERE id = $1", bookID)

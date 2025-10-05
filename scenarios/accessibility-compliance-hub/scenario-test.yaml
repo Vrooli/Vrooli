@@ -231,7 +231,7 @@ tests:
   # Accessibility meta-test (the dashboard itself must be accessible)
   - name: "Dashboard passes its own accessibility audit"
     type: accessibility
-    url: "http://localhost:3401"
+    url: "http://localhost:${UI_PORT}"
     wcag_level: "AAA"
     expect:
       violations: 0
@@ -244,10 +244,10 @@ performance:
     endpoint: /api/v1/accessibility/audit
     method: POST
     percentile_95: 30000  # 30 seconds
-    
+
   - name: "Dashboard loads quickly"
     type: page_load
-    url: "http://localhost:3401"
+    url: "http://localhost:${UI_PORT}"
     max_time: 1000  # 1 second
     
   - name: "Pattern retrieval is fast"

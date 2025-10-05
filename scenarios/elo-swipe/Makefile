@@ -51,9 +51,9 @@ dev: ## Start in development mode
 	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME) --dev
 
-test: ## Run tests for this scenario
+test: ## Run phased tests for this scenario
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario test $(SCENARIO_NAME)
+	@./test/run-tests.sh
 
 logs: ## Show recent logs for this scenario
 	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"

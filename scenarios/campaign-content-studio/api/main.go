@@ -456,7 +456,7 @@ func main() {
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
 	windmillPort := getResourcePort("windmill")
-	postgresPort := getResourcePort("postgres")
+	_ = getResourcePort("postgres") // postgresPort unused, will use POSTGRES_URL instead
 	qdrantPort := getResourcePort("qdrant")
 	minioPort := getResourcePort("minio")
 	
@@ -541,7 +541,7 @@ func main() {
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
 		
-		logger.Warn(fmt.Sprintf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr))
+		logger.Warn(fmt.Sprintf("⚠️  Connection attempt %d/%d failed", attempt + 1, maxRetries), pingErr)
 		logger.Info(fmt.Sprintf("⏳ Waiting %v before next attempt", actualDelay))
 		
 		// Provide detailed status every few attempts
@@ -583,8 +583,8 @@ func main() {
 	log.Printf("  Postgres URL: %s", postgresURL)
 	log.Printf("  Qdrant URL: %s", qdrantURL)
 	log.Printf("  MinIO URL: %s", minioURL)
-	
-	logger := NewLogger()
+
+	// Use existing logger instance from earlier in main()
 	logger.Info(fmt.Sprintf("Server starting on port %s", port))
 	
 	if err := http.ListenAndServe(":"+port, r); err != nil {

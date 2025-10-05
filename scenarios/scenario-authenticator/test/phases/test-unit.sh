@@ -1,28 +1,24 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Running test-unit.sh ==="
+# Integrate with centralized testing infrastructure
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Run Go unit tests for scenario-authenticator
-echo "Running Go unit tests..."
-cd api
+testing::phase::init --target-time "60s"
 
-# Run tests with coverage
-if go test ./... -v -cover -coverprofile=coverage.out; then
-  echo "✓ Go unit tests passed"
+# Source centralized test runners
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-  # Show coverage summary
-  if [ -f coverage.out ]; then
-    echo ""
-    echo "Coverage summary:"
-    go tool cover -func=coverage.out | grep total || true
-  fi
-else
-  echo "✗ Go unit tests failed"
-  exit 1
-fi
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-cd ..
+# Run all unit tests with centralized infrastructure
+testing::unit::run_all_tests \
+    --go-dir "api" \
+    --skip-node \
+    --skip-python \
+    --coverage-warn 80 \
+    --coverage-error 50
 
-echo ""
-echo "✅ test-unit.sh completed successfully"
+testing::phase::end_with_summary "Unit tests completed"

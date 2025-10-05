@@ -1,0 +1,39 @@
+id: scenario-improver-invoice-generator-20250924-004259
+title: Enhance scenario invoice-generator
+type: scenario
+operation: improver
+target: invoice-generator
+targets:
+    - invoice-generator
+category: ""
+priority: medium
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: completed
+current_phase: completed
+started_at: "2025-10-03T03:20:30-04:00"
+completed_at: "2025-10-03T03:28:18-04:00"
+completion_count: 1
+last_completed_at: "2025-10-03T03:28:18-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-24T00:42:59-04:00"
+updated_at: "2025-10-03T03:28:18-04:00"
+tags: []
+notes: "Notes from last time:\n\n- **What was accomplished:** \n  - Completed execution of the Claude Code with automation-friendly settings due to a non-TTY environment.\n  - Ran with permission checks disabled.\n\n- **Current status:** \n  - Task reached maximum allowed turns (80) and terminated due to this limit.\n\n- **Remaining issues or limitations:** \n  - Permission checks were intentionally skipped, which may lead to security risks if used in production.\n  - The task did not complete its objective as it was stopped by the max turns limit.\n\n- **Suggested next actions:** None\n  - **Validation evidence:** \n    - Presence of a \"Reached max turns\" error message indicates that the task's termination was due to the imposed limit."
+results:
+    completed_at: "2025-10-03T03:28:18-04:00"
+    execution_time: 7m48s
+    message: Task completed successfully
+    output: "[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 1800 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 25578 chars)\n\n\n\n## Summary\n\n**What was accomplished:**\n\n1. **Baseline Assessment Complete**: Identified that the invoice-generator scenario has fundamental schema conflicts between `api/helpers.go` (creates VARCHAR IDs) and `initialization/postgres/schema.sql` (uses UUID types).\n\n2. **Root Cause Identified**: The core issue is duplicate schema management creating type mismatches:\n   - `companies` table has `VARCHAR(36)` IDs (from helpers.go)\n   - `invoices` table has `UUID` IDs (from schema.sql)  \n   - `get_next_invoice_number` function fails due to type mismatch\n   - API `/api/invoices/create` endpoint times out completely\n\n3. **Partial Fix Applied**:\n   - Modified `get_next_invoice_number` PostgreSQL function to accept VARCHAR parameter\n   - Added fallback invoice number generation in API code\n   - API still hangs (likely FK constraint violations)\n\n4. **Documentation Updated**:\n   - PROBLEMS.md now contains detailed root cause analysis\n   - PRD.md updated to reflect actual completion status (~5% vs claimed 100%)\n   - Clear action plan provided for next agent\n\n**Current status:**\n\n- ❌ **BROKEN**: Core invoice creation API endpoint (P0 requirement)\n- ⚠️ **UNTESTED**: All P1/P2 features and most P0 features\n- ✅ **WORKING**: Health endpoint (<10ms), UI serving, database connectivity, basic client management\n\n**Remaining issues:**\n\n- Schema type conflicts blocking all invoice operations\n- No test infrastructure (1/5 components)\n- CLI JSON parsing errors\n- Ollama AI integration not validated\n\n**Suggested next actions:**\n\n1. Remove duplicate schema creation from `api/helpers.go` (lines 109-280)\n2. Drop and recreate tables using ONLY `schema.sql`\n3. Test invoice creation endpoint\n4. Add comprehensive phased test suite\n5. Validate all claimed features against reality\n\n**Validation evidence:**\n- Health check: `curl http://localhost:19572/health` returns <10ms\n- Schema mismatch: `\\d companies` shows VARCHAR, `\\d invoices` shows UUID  \n- API timeout: Create endpoint hangs >10s\n- Database function fixed: `SELECT get_next_invoice_number('00000000-0000-0000-0000-000000000001')` returns `INV-01001`\n"
+    prompt_size: 25760 chars (25.16 KB)
+    started_at: "2025-10-03T03:20:30-04:00"
+    success: true
+    timeout_allowed: 30m0s
+consecutive_completion_claims: 0
+consecutive_failures: 1
+processor_auto_requeue: true

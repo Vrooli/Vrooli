@@ -21,8 +21,24 @@
     }
   },
   "resources": {
-    "required": ["minio"],
-    "optional": ["redis", "ollama"]
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": true,
+      "description": "Object storage for original and processed images"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "description": "Cache processed images for faster retrieval"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": false,
+      "required": false,
+      "description": "AI-powered image analysis and smart cropping"
+    }
   },
   "dependencies": [],
   "initialization": {

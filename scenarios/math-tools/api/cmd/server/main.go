@@ -88,7 +88,7 @@ type DescriptiveStats struct {
 // NewServer creates a new server instance
 func NewServer() (*Server, error) {
 	config := &Config{
-		Port:        getEnv("PORT", "8095"),
+		Port:        getEnv("API_PORT", getEnv("PORT", "8095")),
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/math_tools?sslmode=disable"),
 		APIToken:    getEnv("API_TOKEN", "math-tools-api-token"),
 	}

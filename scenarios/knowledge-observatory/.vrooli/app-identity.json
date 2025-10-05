@@ -1,0 +1,33 @@
+{
+  "app_id": "knowledge-observatory",
+  "type": "main",
+  "source_scenario": null,
+  "git_origin": "",
+  "created": "2025-10-03T03:31:40-04:00",
+  "last_indexed": null,
+  "index_commit": null,
+  "embedding_config": {
+    "model": "mxbai-embed-large",
+    "dimensions": 1024,
+    "collections": {
+      "workflows": "knowledge-observatory-workflows",
+      "scenarios": "knowledge-observatory-scenarios",
+      "docs": "knowledge-observatory-docs",
+      "code": "knowledge-observatory-code",
+      "resources": "knowledge-observatory-resources",
+      "filetrees": "knowledge-observatory-filetrees"
+    }
+  },
+  "stats": {
+    "total_embeddings": 0,
+    "last_refresh_duration_seconds": null,
+    "collections_count": 0,
+    "index_size_mb": 0
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "schema_version": "1.0.0",
+    "auto_index": true,
+    "index_on_commit": true
+  }
+}

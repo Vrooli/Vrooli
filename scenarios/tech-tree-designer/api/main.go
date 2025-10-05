@@ -311,7 +311,7 @@ func getSectors(c *gin.Context) {
 // Get specific sector with detailed stages
 func getSector(c *gin.Context) {
 	sectorID := c.Param("id")
-	
+
 	var sector Sector
 	err := db.QueryRow(`
 		SELECT id, tree_id, name, category, description, progress_percentage,
@@ -320,7 +320,7 @@ func getSector(c *gin.Context) {
 	`, sectorID).Scan(&sector.ID, &sector.TreeID, &sector.Name, &sector.Category,
 		&sector.Description, &sector.ProgressPercentage, &sector.PositionX,
 		&sector.PositionY, &sector.Color, &sector.CreatedAt, &sector.UpdatedAt)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Sector not found"})
@@ -329,14 +329,45 @@ func getSector(c *gin.Context) {
 		}
 		return
 	}
-	
+
 	// Load stages with scenario mappings
 	stages, err := getStagesForSector(sectorID)
 	if err == nil {
 		sector.Stages = stages
 	}
-	
+
 	c.JSON(http.StatusOK, sector)
+}
+
+// Get specific stage with detailed info
+func getStage(c *gin.Context) {
+	stageID := c.Param("id")
+
+	var stage ProgressionStage
+	err := db.QueryRow(`
+		SELECT id, sector_id, stage_type, stage_order, name, description,
+			   progress_percentage, examples, position_x, position_y, created_at, updated_at
+		FROM progression_stages WHERE id = $1
+	`, stageID).Scan(&stage.ID, &stage.SectorID, &stage.StageType, &stage.StageOrder,
+		&stage.Name, &stage.Description, &stage.ProgressPercentage, &stage.Examples,
+		&stage.PositionX, &stage.PositionY, &stage.CreatedAt, &stage.UpdatedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Stage not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch stage"})
+		}
+		return
+	}
+
+	// Load scenario mappings and dependencies
+	mappings, err := getScenarioMappingsForStage(stageID)
+	if err == nil {
+		stage.ScenarioMappings = mappings
+	}
+
+	c.JSON(http.StatusOK, stage)
 }
 
 // Helper function to get stages for a sector

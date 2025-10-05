@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Terminal Console</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <link rel="stylesheet" href="./lib/xterm.min.css" />
     <link rel="stylesheet" href="./styles.css" />
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="./lib/lucide.min.js"></script>
   </head>
   <body>
     <main class="page">
@@ -228,11 +228,6 @@
           <span id="composeCharCount" class="compose-count">0 chars</span>
         </div>
 
-        <div class="compose-preview">
-          <span class="compose-preview-label">Preview</span>
-          <pre id="composePreview" class="compose-preview-content"></pre>
-        </div>
-
         <div class="compose-actions">
           <button type="button" id="composeCancel" class="btn btn-ghost">Cancel</button>
           <button type="submit" id="composeSend" class="btn btn-primary">Send to terminal</button>
@@ -240,9 +235,9 @@
       </form>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="./lib/xterm.min.js"></script>
+    <script src="./lib/xterm-addon-fit.min.js"></script>
+    <script src="./lib/html2canvas.min.js"></script>
     <script>
       // Initialize lucide icons after DOM is loaded
       document.addEventListener('DOMContentLoaded', () => {

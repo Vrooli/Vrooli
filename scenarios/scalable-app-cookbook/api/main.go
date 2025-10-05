@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -155,9 +156,9 @@ func main() {
 			float64(maxDelay),
 		))
 		
-		// Add progressive jitter to prevent thundering herd
+		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(rand.Float64() * jitterRange)
 		actualDelay := delay + jitter
 		
 		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
@@ -781,38 +782,40 @@ func getStatsHandler(w http.ResponseWriter, r *http.Request) {
 	db.QueryRow("SELECT COUNT(DISTINCT chapter) FROM patterns").Scan(&stats.TotalChapters)
 
 	// Get maturity level distribution
-	maturityRows, _ := db.Query(`
+	maturityRows, err := db.Query(`
 		SELECT maturity_level, COUNT(*) as count
 		FROM scalable_app_cookbook.patterns
 		GROUP BY maturity_level
 		ORDER BY maturity_level
 	`)
-	defer maturityRows.Close()
-
 	maturityLevels := map[string]int{}
-	for maturityRows.Next() {
-		var level string
-		var count int
-		if err := maturityRows.Scan(&level, &count); err == nil {
-			maturityLevels[level] = count
+	if err == nil && maturityRows != nil {
+		defer maturityRows.Close()
+		for maturityRows.Next() {
+			var level string
+			var count int
+			if err := maturityRows.Scan(&level, &count); err == nil {
+				maturityLevels[level] = count
+			}
 		}
 	}
 
 	// Get language distribution
-	langRows, _ := db.Query(`
+	langRows, err := db.Query(`
 		SELECT language, COUNT(*) as count
 		FROM scalable_app_cookbook.implementations
 		GROUP BY language
 		ORDER BY count DESC
 	`)
-	defer langRows.Close()
-
 	languages := map[string]int{}
-	for langRows.Next() {
-		var lang string
-		var count int
-		if err := langRows.Scan(&lang, &count); err == nil {
-			languages[lang] = count
+	if err == nil && langRows != nil {
+		defer langRows.Close()
+		for langRows.Next() {
+			var lang string
+			var count int
+			if err := langRows.Scan(&lang, &count); err == nil {
+				languages[lang] = count
+			}
 		}
 	}
 
@@ -831,38 +834,44 @@ func getFacets() map[string]interface{} {
 
 	// Get chapters
 	chapters := []string{}
-	rows, _ := db.Query("SELECT DISTINCT chapter FROM patterns ORDER BY chapter")
-	for rows.Next() {
-		var chapter string
-		if err := rows.Scan(&chapter); err == nil {
-			chapters = append(chapters, chapter)
+	rows, err := db.Query("SELECT DISTINCT chapter FROM patterns ORDER BY chapter")
+	if err == nil && rows != nil {
+		defer rows.Close()
+		for rows.Next() {
+			var chapter string
+			if err := rows.Scan(&chapter); err == nil {
+				chapters = append(chapters, chapter)
+			}
 		}
 	}
-	rows.Close()
 	facets["chapters"] = chapters
 
 	// Get maturity levels
 	levels := []string{}
-	rows, _ = db.Query("SELECT DISTINCT maturity_level FROM patterns ORDER BY maturity_level")
-	for rows.Next() {
-		var level string
-		if err := rows.Scan(&level); err == nil {
-			levels = append(levels, level)
+	rows, err = db.Query("SELECT DISTINCT maturity_level FROM patterns ORDER BY maturity_level")
+	if err == nil && rows != nil {
+		defer rows.Close()
+		for rows.Next() {
+			var level string
+			if err := rows.Scan(&level); err == nil {
+				levels = append(levels, level)
+			}
 		}
 	}
-	rows.Close()
 	facets["maturity_levels"] = levels
 
 	// Get all unique tags
 	tags := []string{}
-	rows, _ = db.Query("SELECT DISTINCT unnest(tags) as tag FROM patterns ORDER BY tag")
-	for rows.Next() {
-		var tag string
-		if err := rows.Scan(&tag); err == nil {
-			tags = append(tags, tag)
+	rows, err = db.Query("SELECT DISTINCT unnest(tags) as tag FROM patterns ORDER BY tag")
+	if err == nil && rows != nil {
+		defer rows.Close()
+		for rows.Next() {
+			var tag string
+			if err := rows.Scan(&tag); err == nil {
+				tags = append(tags, tag)
+			}
 		}
 	}
-	rows.Close()
 	facets["tags"] = tags
 
 	return facets

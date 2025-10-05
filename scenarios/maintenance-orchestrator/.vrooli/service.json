@@ -159,35 +159,12 @@
       ]
     },
     "test": {
-      "description": "Test maintenance orchestrator API and CLI",
+      "description": "Comprehensive phased testing using modern testing architecture",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-scenarios-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/scenarios",
-          "description": "Test scenarios discovery endpoint"
-        },
-        {
-          "name": "test-presets-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/presets",
-          "description": "Test presets endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "maintenance-orchestrator --help &>/dev/null && maintenance-orchestrator status --json &>/dev/null || echo 'CLI tests need running API'",
-          "description": "Test CLI functionality"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute comprehensive phased testing"
         }
       ]
     },
