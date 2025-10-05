@@ -167,12 +167,12 @@
             "api": {
               "type": "string",
               "default": "/health",
-              "description": "API health endpoint path"
+              "description": "API health endpoint path (must be /health for lifecycle orchestration)"
             },
             "ui": {
               "type": "string",
-              "default": "/",
-              "description": "UI health endpoint path"
+              "default": "/health",
+              "description": "UI health endpoint path (standardized to /health for cross-scenario interoperability)"
             },
             "metrics": {
               "type": "string",

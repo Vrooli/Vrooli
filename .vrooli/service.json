@@ -632,9 +632,9 @@
           "description": "Start the Vrooli unified API server with built-in scenario management"
         },
         {
-          "name": "start-all-scenarios",
-          "run": "sleep 5 && echo '🎬 Starting all scenarios...' && curl -s -X POST http://localhost:${VROOLI_API_PORT:-8092}/scenarios/start-all | jq -r '.data.message // .error // \"Failed to start scenarios\"' || echo '⚠️  Could not start scenarios - API may not be ready yet. Use: vrooli scenario start-all'",
-          "description": "Start all available scenarios after API is ready",
+          "name": "start-orchestrator",
+          "run": "sleep 5 && echo '🎬 Starting orchestrator...' && vrooli scenario start vrooli-orchestrator",
+          "description": "Start orchestrator after API is ready",
           "background": false
         }
       ]
