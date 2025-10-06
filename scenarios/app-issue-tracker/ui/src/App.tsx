@@ -131,6 +131,46 @@ interface SnackbarState {
   tone: SnackbarTone;
 }
 
+interface AgentSettingsSnapshot {
+  provider: string;
+  autoFallback: boolean;
+  maximumTurns: number;
+  taskTimeoutMinutes: number;
+  allowedToolsKey: string;
+  skipPermissionChecks: boolean;
+}
+
+function buildAgentSettingsSnapshot(
+  settings: AgentSettings,
+  allowedToolsKey: string,
+): AgentSettingsSnapshot {
+  return {
+    provider: settings.backend?.provider ?? 'codex',
+    autoFallback: settings.backend?.autoFallback ?? true,
+    maximumTurns: settings.maximumTurns,
+    taskTimeoutMinutes: settings.taskTimeout,
+    allowedToolsKey,
+    skipPermissionChecks: settings.skipPermissionChecks,
+  };
+}
+
+function agentSettingsSnapshotsEqual(
+  previous: AgentSettingsSnapshot | null,
+  next: AgentSettingsSnapshot,
+): boolean {
+  if (!previous) {
+    return false;
+  }
+  return (
+    previous.provider === next.provider &&
+    previous.autoFallback === next.autoFallback &&
+    previous.maximumTurns === next.maximumTurns &&
+    previous.taskTimeoutMinutes === next.taskTimeoutMinutes &&
+    previous.allowedToolsKey === next.allowedToolsKey &&
+    previous.skipPermissionChecks === next.skipPermissionChecks
+  );
+}
+
 function buildApiUrl(path: string): string {
   return `${API_BASE_URL}${path}`;
 }
@@ -588,6 +628,15 @@ function App() {
   const [processorSettings, setProcessorSettings] = useState<ProcessorSettings>(SampleData.processor);
   const lastSyncedProcessorSettingsRef = useRef<ProcessorSettings | null>(null);
   const [agentSettings, setAgentSettings] = useState(AppSettings.agent);
+  const lastSyncedAgentSettingsRef = useRef<AgentSettingsSnapshot | null>(null);
+  const agentAllowedToolsSignature = useMemo(
+    () =>
+      agentSettings.allowedTools
+        .map((tool) => tool.trim())
+        .filter((tool) => tool.length > 0)
+        .join(','),
+    [agentSettings.allowedTools],
+  );
   const [displaySettings, setDisplaySettings] = useState(AppSettings.display);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilterValue>('all');
@@ -955,18 +1004,87 @@ function App() {
     const fetchAgentBackendSettings = async () => {
       try {
         const response = await fetch(buildApiUrl('/agent/settings'));
-        if (response.ok) {
-          const data = await response.json();
-          if (data?.agent_backend && isMountedRef.current) {
-            setAgentSettings((prev) => ({
-              ...prev,
-              backend: {
-                provider: data.agent_backend.provider ?? 'codex',
-                autoFallback: data.agent_backend.auto_fallback ?? true,
-              },
-            }));
-          }
+        if (!response.ok) {
+          return;
         }
+
+        const payload = await response.json();
+        const settingsData = (payload?.data ?? payload) as Record<string, unknown> | undefined;
+        if (!settingsData || !isMountedRef.current) {
+          return;
+        }
+
+        setAgentSettings((prev) => {
+          const backendData = (settingsData.agent_backend ?? {}) as Record<string, unknown>;
+          const providersData = (settingsData.providers ?? {}) as Record<string, any>;
+
+          const rawProvider = typeof backendData.provider === 'string' ? backendData.provider.trim() : '';
+          const provider: 'codex' | 'claude-code' =
+            rawProvider === 'codex' || rawProvider === 'claude-code'
+              ? rawProvider
+              : prev.backend?.provider ?? 'codex';
+
+          const autoFallback =
+            typeof backendData.auto_fallback === 'boolean'
+              ? (backendData.auto_fallback as boolean)
+              : prev.backend?.autoFallback ?? true;
+
+          const skipPermissions =
+            typeof backendData.skip_permissions === 'boolean'
+              ? (backendData.skip_permissions as boolean)
+              : prev.skipPermissionChecks;
+
+          const providerConfig = (providersData?.[provider] ?? {}) as Record<string, any>;
+          const operationsConfig = (providerConfig?.operations ?? {}) as Record<string, any>;
+          const investigateConfig = (operationsConfig?.investigate ?? {}) as Record<string, any>;
+          const fixConfig = (operationsConfig?.fix ?? {}) as Record<string, any>;
+
+          const resolveNumber = (value: unknown): number | undefined =>
+            typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+
+          const resolveString = (value: unknown): string | undefined =>
+            typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+
+          const selectedMaxTurns =
+            resolveNumber(investigateConfig.max_turns) ??
+            resolveNumber(fixConfig.max_turns) ??
+            prev.maximumTurns;
+
+          const timeoutSeconds =
+            resolveNumber(investigateConfig.timeout_seconds) ??
+            resolveNumber(fixConfig.timeout_seconds) ??
+            prev.taskTimeout * 60;
+
+          const allowedToolsRaw =
+            resolveString(investigateConfig.allowed_tools) ??
+            resolveString(fixConfig.allowed_tools);
+
+          const parsedAllowedTools =
+            allowedToolsRaw
+              ?.split(',')
+              .map((tool: string) => tool.trim())
+              .filter((tool: string) => tool.length > 0) ?? prev.allowedTools;
+
+          const next: AgentSettings = {
+            ...prev,
+            backend: {
+              provider,
+              autoFallback,
+            },
+            maximumTurns: selectedMaxTurns,
+            taskTimeout: Math.max(5, Math.round(timeoutSeconds / 60)),
+            allowedTools: parsedAllowedTools.length > 0 ? parsedAllowedTools : prev.allowedTools,
+            skipPermissionChecks: skipPermissions,
+          };
+
+          const allowedToolsKey = next.allowedTools
+            .map((tool) => tool.trim())
+            .filter((tool) => tool.length > 0)
+            .join(',');
+          lastSyncedAgentSettingsRef.current = buildAgentSettingsSnapshot(next, allowedToolsKey);
+
+          return next;
+        });
       } catch (error) {
         console.warn('Failed to load agent backend settings', error);
       }
@@ -1483,10 +1601,30 @@ function App() {
       return;
     }
 
-    // Skip on initial mount - let the fetch load the real state first
+    const snapshot = buildAgentSettingsSnapshot(agentSettings, agentAllowedToolsSignature);
+
     if (!agentSettingsInitializedRef.current) {
       agentSettingsInitializedRef.current = true;
+      if (!lastSyncedAgentSettingsRef.current) {
+        lastSyncedAgentSettingsRef.current = snapshot;
+      }
       return;
+    }
+
+    if (agentSettingsSnapshotsEqual(lastSyncedAgentSettingsRef.current, snapshot)) {
+      return;
+    }
+
+    const payload: Record<string, unknown> = {
+      provider: snapshot.provider,
+      auto_fallback: snapshot.autoFallback,
+      max_turns: snapshot.maximumTurns,
+      timeout_seconds: snapshot.taskTimeoutMinutes * 60,
+      skip_permissions: snapshot.skipPermissionChecks,
+    };
+
+    if (snapshot.allowedToolsKey.length > 0 || agentSettings.allowedTools.length === 0) {
+      payload.allowed_tools = snapshot.allowedToolsKey;
     }
 
     const saveAgentBackendSettings = async () => {
@@ -1496,17 +1634,15 @@ function App() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            provider: backend.provider,
-            auto_fallback: backend.autoFallback,
-          }),
+          body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
           throw new Error(`Agent settings update failed with status ${response.status}`);
         }
 
-        console.log('Agent backend settings saved:', backend);
+        console.log('Agent settings saved:', payload);
+        lastSyncedAgentSettingsRef.current = snapshot;
       } catch (error) {
         console.error('Failed to save agent backend settings', error);
         showSnackbar('Failed to save agent backend settings', 'error');
@@ -1514,7 +1650,15 @@ function App() {
     };
 
     void saveAgentBackendSettings();
-  }, [agentSettings.backend, showSnackbar]);
+  }, [
+    agentSettings.backend?.provider,
+    agentSettings.backend?.autoFallback,
+    agentSettings.maximumTurns,
+    agentSettings.taskTimeout,
+    agentAllowedToolsSignature,
+    agentSettings.skipPermissionChecks,
+    showSnackbar,
+  ]);
 
 
   // Single page - always render issues board

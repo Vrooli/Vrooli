@@ -1122,10 +1122,12 @@ func (s *Server) getAgentSettingsHandler(w http.ResponseWriter, r *http.Request)
 // updateAgentSettingsHandler updates agent backend settings
 func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Provider       string `json:"provider"`
-		AutoFallback   bool   `json:"auto_fallback"`
-		TimeoutSeconds *int   `json:"timeout_seconds"` // Optional timeout update
-		MaxTurns       *int   `json:"max_turns"`       // Optional max turns update
+		Provider        string  `json:"provider"`
+		AutoFallback    bool    `json:"auto_fallback"`
+		TimeoutSeconds  *int    `json:"timeout_seconds"`  // Optional timeout update
+		MaxTurns        *int    `json:"max_turns"`        // Optional max turns update
+		AllowedTools    *string `json:"allowed_tools"`    // Optional allowed tools update
+		SkipPermissions *bool   `json:"skip_permissions"` // Optional skip permissions update
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1163,41 +1165,57 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Get current provider for updating its settings
+	agentBackendMap, _ := settings["agent_backend"].(map[string]interface{})
+	if agentBackendMap == nil {
+		agentBackendMap = map[string]interface{}{}
+		settings["agent_backend"] = agentBackendMap
+	}
+
+	// Ensure fallback order exists for new configurations
+	if _, ok := agentBackendMap["fallback_order"]; !ok {
+		agentBackendMap["fallback_order"] = []string{"codex", "claude-code"}
+	}
+
+	// Determine current provider and apply updates
 	currentProvider := "claude-code"
-	if agentBackend, ok := settings["agent_backend"].(map[string]interface{}); ok {
-		if provider, ok := agentBackend["provider"].(string); ok && provider != "" {
-			currentProvider = provider
-		}
+	if provider, ok := agentBackendMap["provider"].(string); ok && provider != "" {
+		currentProvider = provider
 	}
 
-	// Update the agent_backend section
 	if req.Provider != "" {
-		if agentBackend, ok := settings["agent_backend"].(map[string]interface{}); ok {
-			agentBackend["provider"] = req.Provider
-			agentBackend["auto_fallback"] = req.AutoFallback
-		} else {
-			settings["agent_backend"] = map[string]interface{}{
-				"provider":       req.Provider,
-				"auto_fallback":  req.AutoFallback,
-				"fallback_order": []string{"codex", "claude-code"},
-			}
-		}
+		agentBackendMap["provider"] = req.Provider
+		currentProvider = req.Provider
 	}
 
-	// Update timeout and max_turns for the current provider
-	if req.TimeoutSeconds != nil || req.MaxTurns != nil {
+	agentBackendMap["auto_fallback"] = req.AutoFallback
+	if req.SkipPermissions != nil {
+		agentBackendMap["skip_permissions"] = *req.SkipPermissions
+	}
+
+	targetProvider := currentProvider
+
+	// Update provider operation settings if provided
+	if req.TimeoutSeconds != nil || req.MaxTurns != nil || req.AllowedTools != nil {
 		if providers, ok := settings["providers"].(map[string]interface{}); ok {
-			if providerConfig, ok := providers[currentProvider].(map[string]interface{}); ok {
+			if providerConfig, ok := providers[targetProvider].(map[string]interface{}); ok {
 				if operations, ok := providerConfig["operations"].(map[string]interface{}); ok {
-					if investigate, ok := operations["investigate"].(map[string]interface{}); ok {
+					for _, opKey := range []string{"investigate", "fix"} {
+						opMap, ok := operations[opKey].(map[string]interface{})
+						if !ok {
+							continue
+						}
+
 						if req.TimeoutSeconds != nil && *req.TimeoutSeconds > 0 {
-							investigate["timeout_seconds"] = *req.TimeoutSeconds
-							log.Printf("Updated timeout for %s to %d seconds (%d minutes)", currentProvider, *req.TimeoutSeconds, *req.TimeoutSeconds/60)
+							opMap["timeout_seconds"] = *req.TimeoutSeconds
+							log.Printf("Updated timeout for %s/%s to %d seconds (%d minutes)", targetProvider, opKey, *req.TimeoutSeconds, *req.TimeoutSeconds/60)
 						}
 						if req.MaxTurns != nil && *req.MaxTurns > 0 {
-							investigate["max_turns"] = *req.MaxTurns
-							log.Printf("Updated max_turns for %s to %d", currentProvider, *req.MaxTurns)
+							opMap["max_turns"] = *req.MaxTurns
+							log.Printf("Updated max_turns for %s/%s to %d", targetProvider, opKey, *req.MaxTurns)
+						}
+						if req.AllowedTools != nil {
+							opMap["allowed_tools"] = strings.TrimSpace(*req.AllowedTools)
+							log.Printf("Updated allowed_tools for %s/%s to %s", targetProvider, opKey, strings.TrimSpace(*req.AllowedTools))
 						}
 					}
 				}
@@ -1222,7 +1240,7 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 	// CRITICAL: Reload settings into memory so changes take effect immediately
 	ReloadAgentSettings()
 
-	log.Printf("Agent settings updated and reloaded: provider=%s, auto_fallback=%v", req.Provider, req.AutoFallback)
+	log.Printf("Agent settings updated and reloaded: provider=%s, auto_fallback=%v", targetProvider, req.AutoFallback)
 
 	response := ApiResponse{
 		Success: true,

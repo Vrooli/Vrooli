@@ -36,14 +36,36 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	// Create agent tag for tracking
 	agentTag := fmt.Sprintf("app-issue-tracker-%s", issueID)
 
+	commandParts := settings.Command
+	if len(commandParts) == 0 {
+		commandParts = []string{"run", "--tag", "{{TAG}}", "-"}
+	}
+
+	args := make([]string, 0, len(commandParts))
+	for _, part := range commandParts {
+		if part == "{{TAG}}" {
+			args = append(args, agentTag)
+			continue
+		}
+		args = append(args, part)
+	}
+
+	log.Printf("Agent CLI command: %s %s", settings.CLICommand, strings.Join(args, " "))
+
 	// Build command with context timeout
-	cmd := exec.CommandContext(ctx, settings.CLICommand, "run", "--tag", agentTag, "-")
+	cmd := exec.CommandContext(ctx, settings.CLICommand, args...)
 	cmd.Dir = s.config.ScenarioRoot
 
 	// Set environment variables (ecosystem-manager pattern)
 	skipPermissionsValue := "no"
 	if settings.SkipPermissions {
 		skipPermissionsValue = "yes"
+	}
+	codexSkipValue := "false"
+	codexSkipConfirm := "false"
+	if settings.SkipPermissions {
+		codexSkipValue = "true"
+		codexSkipConfirm = "true"
 	}
 
 	timeoutSeconds := int(timeoutDuration.Seconds())
@@ -53,6 +75,12 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		"TIMEOUT="+strconv.Itoa(timeoutSeconds),
 		"SKIP_PERMISSIONS="+skipPermissionsValue,
 		"AGENT_TAG="+agentTag,
+		"CODEX_MAX_TURNS="+strconv.Itoa(settings.MaxTurns),
+		"CODEX_ALLOWED_TOOLS="+settings.AllowedTools,
+		"CODEX_TIMEOUT="+strconv.Itoa(timeoutSeconds),
+		"CODEX_SKIP_PERMISSIONS="+codexSkipValue,
+		"CODEX_SKIP_CONFIRMATIONS="+codexSkipConfirm,
+		"CODEX_AGENT_TAG="+agentTag,
 	)
 
 	log.Printf("Claude execution settings: MAX_TURNS=%d, ALLOWED_TOOLS=%s, SKIP_PERMISSIONS=%v, TIMEOUT=%ds",

@@ -6,7 +6,8 @@
       "codex",
       "claude-code"
     ],
-    "provider": "claude-code"
+    "provider": "codex",
+    "skip_permissions": true
   },
   "description": "Agent backend configuration for AI-powered investigation and fix generation",
   "providers": {
@@ -24,13 +25,13 @@
       "operations": {
         "fix": {
           "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
-          "command": "run -",
+          "command": "run --tag {{TAG}} -",
           "max_turns": 80,
           "timeout_seconds": 1800
         },
         "investigate": {
           "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
-          "command": "run -",
+          "command": "run --tag {{TAG}} -",
           "max_turns": 80,
           "timeout_seconds": 1800
         }
@@ -48,12 +49,16 @@
       "enabled": true,
       "operations": {
         "fix": {
-          "command": "content execute --context text --operation analyze",
-          "timeout_seconds": 600
+          "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
+          "command": "run --tag {{TAG}} -",
+          "max_turns": 80,
+          "timeout_seconds": 4800
         },
         "investigate": {
-          "command": "content execute --context text --operation analyze",
-          "timeout_seconds": 300
+          "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
+          "command": "run --tag {{TAG}} -",
+          "max_turns": 80,
+          "timeout_seconds": 4800
         }
       }
     }

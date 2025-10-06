@@ -216,7 +216,11 @@ codex::cli::execute() {
     : > "$marker_file"
     trap "rm -f '$prompt_file' '$marker_file'" RETURN
 
-    local model="${CODEX_DEFAULT_MODEL:-codex-mini-latest}"
+    local resolved_model
+    resolved_model=$(codex::cli::resolve_model "${CODEX_DEFAULT_MODEL:-}")
+    export CODEX_DEFAULT_MODEL="$resolved_model"
+
+    local model="$resolved_model"
     local sandbox="${CODEX_CLI_SANDBOX:-workspace-write}"
     local approval_policy="${mode:-auto}"
     local codex_args=("codex" "exec" "-m" "$model" "-C" "$workspace" "--skip-git-repo-check")
@@ -296,6 +300,165 @@ codex::cli::execute() {
     fi
 
     return $exit_code
+}
+
+#######################################
+# Bridge legacy environment variable names used by scenarios
+#######################################
+codex::cli::apply_legacy_env() {
+    if [[ -n "${MAX_TURNS:-}" ]]; then
+        export CODEX_MAX_TURNS="$MAX_TURNS"
+    fi
+
+    if [[ -n "${ALLOWED_TOOLS:-}" ]]; then
+        export CODEX_ALLOWED_TOOLS="$ALLOWED_TOOLS"
+    fi
+
+    if [[ -n "${TIMEOUT:-}" ]]; then
+        export CODEX_TIMEOUT="$TIMEOUT"
+    fi
+
+    if [[ -n "${SKIP_PERMISSIONS:-}" ]]; then
+        local normalized
+        normalized=$(echo "$SKIP_PERMISSIONS" | tr '[:upper:]' '[:lower:]')
+        case "$normalized" in
+            yes|true|1|on)
+                export CODEX_SKIP_PERMISSIONS="true"
+                ;;
+            *)
+                export CODEX_SKIP_PERMISSIONS="false"
+                ;;
+        esac
+    fi
+
+    if [[ -n "${SKIP_PERMISSIONS:-}" ]]; then
+        local normalized
+        normalized=$(echo "$SKIP_PERMISSIONS" | tr '[:upper:]' '[:lower:]')
+        case "$normalized" in
+            yes|true|1|on)
+                export CODEX_SKIP_CONFIRMATIONS="true"
+                ;;
+            *)
+                export CODEX_SKIP_CONFIRMATIONS="false"
+                ;;
+        esac
+    fi
+
+    if [[ -n "${AGENT_TAG:-}" ]]; then
+        export CODEX_AGENT_TAG="$AGENT_TAG"
+    fi
+}
+
+#######################################
+# Resolve effective model for Codex CLI
+#######################################
+codex::cli::resolve_model() {
+    local preferred="${1:-}"
+
+    if [[ -n "$preferred" ]]; then
+        case "$preferred" in
+            gpt-5-nano|codex-mini-latest)
+                preferred=""
+                ;;
+            *)
+                echo "$preferred"
+                return 0
+                ;;
+        esac
+    fi
+
+    local codex_home
+    codex_home=$(codex::ensure_home | tail -n1)
+    local config_file="${codex_home}/config.toml"
+
+    if [[ -f "$config_file" ]]; then
+        local config_model
+        config_model=$(grep '^model\s*=\s*"' "$config_file" 2>/dev/null | head -n1 | cut -d'"' -f2)
+        if [[ -n "$config_model" ]]; then
+            echo "$config_model"
+            return 0
+        fi
+    fi
+
+    echo "gpt-5-codex"
+}
+
+#######################################
+# Run prompt through Codex CLI (compatibility with run --tag {{TAG}} -)
+#######################################
+codex::cli::run() {
+    local tag=""
+    local prompt=""
+    local read_stdin="false"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tag)
+                if [[ $# -lt 2 ]]; then
+                    log::error "--tag requires a value"
+                    codex::cli::run::usage
+                    return 1
+                fi
+                tag="$2"
+                shift 2
+                continue
+                ;;
+            -)
+                read_stdin="true"
+                shift
+                continue
+                ;;
+            --help|-h)
+                codex::cli::run::usage
+                return 0
+                ;;
+            *)
+                if [[ -z "$prompt" ]]; then
+                    prompt="$1"
+                else
+                    prompt+=" $1"
+                fi
+                shift
+                continue
+                ;;
+        esac
+    done
+
+    if [[ "$read_stdin" == "true" || -z "$prompt" ]]; then
+        if [[ -p /dev/stdin || ! -t 0 ]]; then
+            local stdin_payload
+            stdin_payload=$(cat)
+            if [[ -n "$stdin_payload" ]]; then
+                prompt="$stdin_payload"
+            fi
+        elif [[ "$read_stdin" == "true" ]]; then
+            log::error "No stdin provided for '-' placeholder"
+            return 1
+        fi
+    fi
+
+    if [[ -z "$prompt" ]]; then
+        log::error "Prompt required"
+        codex::cli::run::usage
+        return 1
+    fi
+
+    codex::cli::apply_legacy_env
+
+    if [[ -n "$tag" ]]; then
+        export CODEX_AGENT_TAG="$tag"
+    fi
+
+    codex::cli::execute "$prompt"
+}
+
+codex::cli::run::usage() {
+    cat <<'EOF'
+Usage: resource-codex run [--tag <identifier>] <prompt>
+   or: echo "prompt" | resource-codex run [--tag <identifier>] -
+
+Runs the Codex agent using the same interface expected by app-issue-tracker.
+EOF
 }
 
 #######################################
@@ -504,4 +667,7 @@ codex::smart_execute() {
 # Export functions for use in other scripts
 export -f codex::cli::is_installed
 export -f codex::cli::execute
+export -f codex::cli::run
+export -f codex::cli::apply_legacy_env
+export -f codex::cli::resolve_model
 export -f codex::smart_execute

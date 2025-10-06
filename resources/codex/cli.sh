@@ -81,6 +81,7 @@ cli::register_subcommand "manage" "update-cli" "Update Codex CLI to latest versi
 cli::register_subcommand "manage" "configure-cli" "Configure Codex CLI with API key" "codex::cli::configure"
 
 # Agent commands (using Codex CLI when available)
+cli::register_command "run" "Run Codex agent with optional stdin prompt" "codex::cli::run"
 cli::register_command "agent" "Run Codex agent on a task" "codex::cli::execute"
 cli::register_command "fix" "Fix code issues using agent" "codex::cli::fix"
 cli::register_command "generate-tests" "Generate tests for code" "codex::cli::test"
