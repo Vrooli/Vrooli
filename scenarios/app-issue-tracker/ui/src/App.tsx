@@ -79,11 +79,19 @@ interface ApiIssue {
     resolved_at?: string;
     tags?: string[];
     labels?: Record<string, string>;
+    extra?: Record<string, string>;
   };
   reporter?: {
     name?: string;
     email?: string;
     timestamp?: string;
+  };
+  investigation?: {
+    agent_id?: string;
+    report?: string;
+    confidence_score?: number;
+    started_at?: string;
+    completed_at?: string;
   };
   attachments?: ApiAttachment[];
 }
@@ -100,6 +108,35 @@ interface ApiStatsPayload {
   openIssues?: number;
   inProgress?: number;
   completedToday?: number;
+}
+
+interface AgentConversationEntryPayload {
+  kind: string;
+  id?: string;
+  type?: string;
+  role?: string;
+  text?: string;
+  data?: Record<string, unknown> | null;
+  raw?: Record<string, unknown> | null;
+}
+
+interface AgentConversationPayloadResponse {
+  issue_id: string;
+  available: boolean;
+  provider?: string;
+  prompt?: string;
+  metadata?: Record<string, unknown> | null;
+  entries?: AgentConversationEntryPayload[];
+  last_message?: string;
+  transcript_timestamp?: string;
+}
+
+interface ApiConversationResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    conversation: AgentConversationPayloadResponse;
+  };
 }
 
 interface CreateIssueInput {
@@ -183,6 +220,11 @@ function buildAttachmentUrl(issueId: string, attachmentPath: string): string {
     .map((segment) => encodeURIComponent(segment));
   const normalized = segments.join('/');
   return buildApiUrl(`/issues/${safeIssueId}/attachments/${normalized}`);
+}
+
+function buildAgentConversationUrl(issueId: string): string {
+  const safeIssueId = encodeURIComponent(issueId);
+  return buildApiUrl(`/issues/${safeIssueId}/agent/conversation`);
 }
 
 function escapeHtml(value: string): string {
@@ -1919,6 +1961,82 @@ function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModal
   const description = issue.description?.trim();
   const notes = issue.notes?.trim();
 
+  const conversationUrl = useMemo(() => buildAgentConversationUrl(issue.id), [issue.id]);
+  const [conversation, setConversation] = useState<AgentConversationPayloadResponse | null>(null);
+  const [conversationLoading, setConversationLoading] = useState(false);
+  const [conversationError, setConversationError] = useState<string | null>(null);
+  const [conversationExpanded, setConversationExpanded] = useState(false);
+  const fetchAbortRef = useRef<AbortController | null>(null);
+
+  const providerLabel = conversation?.provider ?? issue.investigation?.agent_id ?? null;
+
+  const hasAgentTranscript = Boolean(
+    issue.metadata?.extra?.agent_transcript_path || issue.metadata?.extra?.agent_last_message_path,
+  );
+
+  useEffect(() => {
+    if (fetchAbortRef.current) {
+      fetchAbortRef.current.abort();
+      fetchAbortRef.current = null;
+    }
+    setConversation(null);
+    setConversationError(null);
+    setConversationExpanded(false);
+    setConversationLoading(false);
+  }, [issue.id]);
+
+  const fetchConversation = useCallback(async () => {
+    if (fetchAbortRef.current) {
+      fetchAbortRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
+
+    setConversationLoading(true);
+    setConversationError(null);
+
+    try {
+      const response = await fetch(conversationUrl, { signal: controller.signal });
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+      const payload: ApiConversationResponse = await response.json();
+      if (!payload.success) {
+        throw new Error(payload.message || 'Transcript request failed');
+      }
+      setConversation(payload.data?.conversation ?? null);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+      console.error('[IssueTracker] Failed to fetch agent conversation', error);
+      setConversationError(error instanceof Error ? error.message : 'Failed to load transcript');
+    } finally {
+      if (fetchAbortRef.current === controller) {
+        fetchAbortRef.current = null;
+      }
+      setConversationLoading(false);
+    }
+  }, [conversationUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (fetchAbortRef.current) {
+        fetchAbortRef.current.abort();
+        fetchAbortRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleToggleConversation = () => {
+    const next = !conversationExpanded;
+    setConversationExpanded(next);
+    if (next && !conversation && !conversationLoading) {
+      void fetchConversation();
+    }
+  };
+
   const handleStatusChange = async (event: ChangeEvent<HTMLSelectElement>) => {
     const newStatus = event.target.value as IssueStatus;
     if (newStatus !== issue.status && onStatusChange) {
@@ -2056,6 +2174,55 @@ function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModal
           </section>
         )}
 
+        {hasAgentTranscript && (
+          <section className="issue-detail-section">
+            <div className="issue-section-heading">
+              <h3>Agent Transcript</h3>
+              {providerLabel && <span className="issue-section-meta">Backend: {providerLabel}</span>}
+            </div>
+            {conversation?.last_message && (
+              <p className="agent-transcript-last-message">
+                <strong>Last message:</strong> {conversation.last_message}
+              </p>
+            )}
+            {conversation?.transcript_timestamp && (
+              <p className="agent-transcript-timestamp">
+                Captured: {formatDateTime(conversation.transcript_timestamp)}
+              </p>
+            )}
+            <div className="agent-transcript-actions">
+              <button type="button" className="agent-transcript-toggle" onClick={handleToggleConversation}>
+                {conversationExpanded ? 'Hide Transcript' : 'View Transcript'}
+                {conversationLoading && <Loader2 size={14} className="agent-transcript-spinner" />}
+              </button>
+              {!conversationExpanded && conversation && conversation.available === false && (
+                <span className="agent-transcript-hint">Transcript not captured for this run.</span>
+              )}
+            </div>
+            {conversationError && (
+              <div className="agent-transcript-error" role="alert">
+                {conversationError}
+              </div>
+            )}
+            {conversationExpanded && (
+              conversationLoading ? (
+                <div className="agent-transcript-loading">
+                  <Loader2 size={16} className="agent-transcript-spinner" />
+                  <span>Loading transcript…</span>
+                </div>
+              ) : conversation ? (
+                conversation.available ? (
+                  <AgentConversationPanel conversation={conversation} />
+                ) : (
+                  <div className="agent-transcript-empty">Transcript not available for this run.</div>
+                )
+              ) : (
+                <div className="agent-transcript-empty">Transcript not loaded yet.</div>
+              )
+            )}
+          </section>
+        )}
+
         {issue.metadata?.extra?.agent_last_error && (
           <section className="issue-detail-section">
             <h3>Agent Execution Error</h3>
@@ -2102,6 +2269,67 @@ function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModal
 
 interface MarkdownViewProps {
   content: string;
+}
+
+interface AgentConversationPanelProps {
+  conversation: AgentConversationPayloadResponse;
+}
+
+function AgentConversationPanel({ conversation }: AgentConversationPanelProps) {
+  const entries = Array.isArray(conversation.entries) ? conversation.entries : [];
+
+  if (entries.length === 0 && !conversation.prompt) {
+    return <div className="agent-transcript-empty">Transcript captured but no events were recorded.</div>;
+  }
+
+  return (
+    <div className="agent-conversation" role="log" aria-live="polite">
+      {conversation.prompt && (
+        <details className="agent-conversation-prompt">
+          <summary>Initial prompt</summary>
+          <pre>{conversation.prompt}</pre>
+        </details>
+      )}
+      <ol className="agent-conversation-list">
+        {entries.map((entry, index) => {
+          const key = `${entry.id ?? index}-${entry.type ?? entry.kind}-${index}`;
+          const detailsData = entry.data && Object.keys(entry.data).length > 0 ? entry.data : null;
+          const rawData = !detailsData && entry.raw && Object.keys(entry.raw).length > 0 ? entry.raw : null;
+
+          return (
+            <li key={key} className="agent-conversation-item">
+              <div className="agent-conversation-entry">
+                <div className="agent-conversation-entry-meta">
+                  <span className={`agent-conversation-chip agent-conversation-chip--${entry.kind}`}>
+                    {entry.kind}
+                  </span>
+                  {entry.type && <span className="agent-conversation-type">{entry.type}</span>}
+                  {entry.role && <span className="agent-conversation-role">{entry.role}</span>}
+                </div>
+                {entry.text && (
+                  <div className="agent-conversation-text">
+                    <MarkdownView content={entry.text} />
+                  </div>
+                )}
+                {detailsData && (
+                  <details className="agent-conversation-data">
+                    <summary>Details</summary>
+                    <pre>{JSON.stringify(detailsData, null, 2)}</pre>
+                  </details>
+                )}
+                {rawData && (
+                  <details className="agent-conversation-data">
+                    <summary>Raw event</summary>
+                    <pre>{JSON.stringify(rawData, null, 2)}</pre>
+                  </details>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
 }
 
 function MarkdownView({ content }: MarkdownViewProps) {

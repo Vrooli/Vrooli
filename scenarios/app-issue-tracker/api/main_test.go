@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -325,6 +326,138 @@ func TestGetIssueAttachmentHandlerServesContent(t *testing.T) {
 	}
 	if string(data) != artifactContent {
 		t.Fatalf("unexpected attachment body: %q", string(data))
+	}
+}
+
+func TestGetIssueAgentConversationHandler(t *testing.T) {
+	server := newTestServer(t)
+
+	issue := &Issue{
+		ID:    "issue-xyz",
+		Title: "Transcript check",
+		Metadata: struct {
+			CreatedAt  string            `yaml:"created_at" json:"created_at"`
+			UpdatedAt  string            `yaml:"updated_at" json:"updated_at"`
+			ResolvedAt string            `yaml:"resolved_at,omitempty" json:"resolved_at,omitempty"`
+			Tags       []string          `yaml:"tags,omitempty" json:"tags,omitempty"`
+			Labels     map[string]string `yaml:"labels,omitempty" json:"labels,omitempty"`
+			Watchers   []string          `yaml:"watchers,omitempty" json:"watchers,omitempty"`
+			Extra      map[string]string `yaml:"extra,omitempty" json:"extra,omitempty"`
+		}{
+			CreatedAt: time.Now().UTC().Format(time.RFC3339),
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+			Extra:     make(map[string]string),
+		},
+	}
+
+	transcriptDir := filepath.Join(server.config.ScenarioRoot, "tmp", "codex")
+	if err := os.MkdirAll(transcriptDir, 0755); err != nil {
+		t.Fatalf("failed to create transcript directory: %v", err)
+	}
+
+	transcriptPath := filepath.Join(transcriptDir, "issue-xyz-conversation.jsonl")
+	transcriptLines := []string{
+		`{"sandbox":"workspace-write","provider":"openai","model":"gpt-5-codex"}`,
+		`{"prompt":"Fix the failing test\\n"}`,
+		`{"id":"0","msg":{"type":"task_started"}}`,
+		`{"id":"0","msg":{"type":"agent_message","message":"All good now."}}`,
+	}
+	if err := os.WriteFile(transcriptPath, []byte(strings.Join(transcriptLines, "\n")), 0644); err != nil {
+		t.Fatalf("failed to write transcript: %v", err)
+	}
+
+	lastMessagePath := filepath.Join(transcriptDir, "issue-xyz-last.txt")
+	if err := os.WriteFile(lastMessagePath, []byte("All good now."), 0644); err != nil {
+		t.Fatalf("failed to write last message: %v", err)
+	}
+
+	issue.Metadata.Extra["agent_transcript_path"] = transcriptPath
+	issue.Metadata.Extra["agent_last_message_path"] = lastMessagePath
+	issue.Investigation.AgentID = "codex"
+
+	if _, err := server.saveIssue(issue, "completed"); err != nil {
+		t.Fatalf("failed to save issue: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/issues/issue-xyz/agent/conversation", nil)
+	req = mux.SetURLVars(req, map[string]string{
+		"id": "issue-xyz",
+	})
+
+	resp := httptest.NewRecorder()
+	server.getIssueAgentConversationHandler(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d (%s)", resp.Code, resp.Body.String())
+	}
+
+	var body struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Conversation AgentConversationPayload `json:"conversation"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if !body.Success {
+		t.Fatalf("expected success response")
+	}
+
+	conversation := body.Data.Conversation
+	if !conversation.Available {
+		t.Fatalf("expected transcript to be available")
+	}
+	if conversation.Provider != "codex" {
+		t.Fatalf("expected provider codex, got %s", conversation.Provider)
+	}
+	if conversation.LastMessage != "All good now." {
+		t.Fatalf("unexpected last message: %s", conversation.LastMessage)
+	}
+	if len(conversation.Entries) == 0 {
+		t.Fatalf("expected conversation entries")
+	}
+	if conversation.Entries[0].Kind != "prompt" {
+		t.Fatalf("expected first entry to be prompt, got %s", conversation.Entries[0].Kind)
+	}
+}
+
+func TestGetIssueAgentConversationHandlerWithoutTranscript(t *testing.T) {
+	server := newTestServer(t)
+
+	issue := &Issue{
+		ID:    "issue-no-transcript",
+		Title: "No transcript available",
+	}
+	if _, err := server.saveIssue(issue, "open"); err != nil {
+		t.Fatalf("failed to save issue: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/issues/issue-no-transcript/agent/conversation", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": issue.ID})
+	resp := httptest.NewRecorder()
+	server.getIssueAgentConversationHandler(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d", resp.Code)
+	}
+
+	var body struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Conversation AgentConversationPayload `json:"conversation"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+	if !body.Success {
+		t.Fatalf("expected success response")
+	}
+	if body.Data.Conversation.Available {
+		t.Fatalf("expected transcript to be unavailable")
 	}
 }
 

@@ -27,11 +27,11 @@ type Config struct {
 
 // ProcessorState tracks the state of the background issue processor
 type ProcessorState struct {
-	Active           bool `json:"active"`
-	ConcurrentSlots  int  `json:"concurrent_slots"`
-	RefreshInterval  int  `json:"refresh_interval"`
-	CurrentlyRunning int  `json:"currently_running"`
-	MaxIssues        int  `json:"max_issues"` // Maximum issues to process (0 = unlimited)
+	Active            bool `json:"active"`
+	ConcurrentSlots   int  `json:"concurrent_slots"`
+	RefreshInterval   int  `json:"refresh_interval"`
+	CurrentlyRunning  int  `json:"currently_running"`
+	MaxIssues         int  `json:"max_issues"` // Maximum issues to process (0 = unlimited)
 	MaxIssuesDisabled bool `json:"max_issues_disabled"`
 }
 
@@ -249,6 +249,29 @@ type CreateIssueRequest struct {
 	ScreenshotFilename    string                    `json:"screenshot_filename"`
 	Attachments           []LegacyAttachmentPayload `json:"attachments"`
 	Artifacts             []ArtifactPayload         `json:"artifacts"`
+}
+
+// AgentConversationEntry captures a single event from an agent transcript
+type AgentConversationEntry struct {
+	Kind string                 `json:"kind"`
+	ID   string                 `json:"id,omitempty"`
+	Type string                 `json:"type,omitempty"`
+	Role string                 `json:"role,omitempty"`
+	Text string                 `json:"text,omitempty"`
+	Data map[string]interface{} `json:"data,omitempty"`
+	Raw  map[string]interface{} `json:"raw,omitempty"`
+}
+
+// AgentConversationPayload is returned to the UI for transcript rendering
+type AgentConversationPayload struct {
+	IssueID             string                   `json:"issue_id"`
+	Available           bool                     `json:"available"`
+	Provider            string                   `json:"provider,omitempty"`
+	Prompt              string                   `json:"prompt,omitempty"`
+	Metadata            map[string]interface{}   `json:"metadata,omitempty"`
+	Entries             []AgentConversationEntry `json:"entries,omitempty"`
+	LastMessage         string                   `json:"last_message,omitempty"`
+	TranscriptTimestamp string                   `json:"transcript_timestamp,omitempty"`
 }
 
 // Agent represents an AI agent that can investigate issues

@@ -144,6 +144,7 @@ func main() {
 	v1.HandleFunc("/issues/{id}", server.getIssueHandler).Methods("GET")
 	v1.HandleFunc("/issues/{id}", server.updateIssueHandler).Methods("PUT", "PATCH")
 	v1.HandleFunc("/issues/{id}", server.deleteIssueHandler).Methods("DELETE")
+	v1.HandleFunc("/issues/{id}/agent/conversation", server.getIssueAgentConversationHandler).Methods("GET")
 	v1.HandleFunc("/issues/search", server.searchIssuesHandler).Methods("GET")
 	// v1.HandleFunc("/issues/search/similar", server.vectorSearchHandler).Methods("POST") // TODO: Implement vector search
 	v1.HandleFunc("/agents", server.getAgentsHandler).Methods("GET")

@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,6 +24,8 @@ type ClaudeExecutionResult struct {
 	MaxTurnsExceeded bool
 	ExitCode         int
 	ExecutionTime    time.Duration
+	TranscriptPath   string
+	LastMessagePath  string
 }
 
 // executeClaudeCode executes Claude Code directly (aligned with ecosystem-manager pattern)
@@ -56,6 +59,19 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	cmd := exec.CommandContext(ctx, settings.CLICommand, args...)
 	cmd.Dir = s.config.ScenarioRoot
 
+	transcriptDir := filepath.Join(s.config.ScenarioRoot, "tmp", "codex")
+	if err := os.MkdirAll(transcriptDir, 0o755); err != nil {
+		return &ClaudeExecutionResult{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to create Codex transcript directory: %v", err),
+		}, err
+	}
+
+	fileSafeTag := sanitizeForFilename(agentTag)
+	timestamp := time.Now().UnixNano()
+	transcriptFile := filepath.Join(transcriptDir, fmt.Sprintf("%s-%d-conversation.jsonl", fileSafeTag, timestamp))
+	lastMessageFile := filepath.Join(transcriptDir, fmt.Sprintf("%s-%d-last.txt", fileSafeTag, timestamp))
+
 	// Set environment variables (ecosystem-manager pattern)
 	skipPermissionsValue := "no"
 	if settings.SkipPermissions {
@@ -81,6 +97,8 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		"CODEX_SKIP_PERMISSIONS="+codexSkipValue,
 		"CODEX_SKIP_CONFIRMATIONS="+codexSkipConfirm,
 		"CODEX_AGENT_TAG="+agentTag,
+		"CODEX_TRANSCRIPT_FILE="+transcriptFile,
+		"CODEX_LAST_MESSAGE_FILE="+lastMessageFile,
 	)
 
 	log.Printf("Claude execution settings: MAX_TURNS=%d, ALLOWED_TOOLS=%s, SKIP_PERMISSIONS=%v, TIMEOUT=%ds",
@@ -93,24 +111,30 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return &ClaudeExecutionResult{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to create stdout pipe: %v", err),
+			Success:         false,
+			Error:           fmt.Sprintf("Failed to create stdout pipe: %v", err),
+			TranscriptPath:  transcriptFile,
+			LastMessagePath: lastMessageFile,
 		}, err
 	}
 
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
 		return &ClaudeExecutionResult{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to create stderr pipe: %v", err),
+			Success:         false,
+			Error:           fmt.Sprintf("Failed to create stderr pipe: %v", err),
+			TranscriptPath:  transcriptFile,
+			LastMessagePath: lastMessageFile,
 		}, err
 	}
 
 	// Start the command
 	if err := cmd.Start(); err != nil {
 		return &ClaudeExecutionResult{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to start Claude Code: %v", err),
+			Success:         false,
+			Error:           fmt.Sprintf("Failed to start Claude Code: %v", err),
+			TranscriptPath:  transcriptFile,
+			LastMessagePath: lastMessageFile,
 		}, err
 	}
 
@@ -205,11 +229,13 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		log.Printf("⏰ TIMEOUT: Issue %s execution exceeded %v limit (ran for %v)",
 			issueID, timeoutDuration, executionTime.Round(time.Second))
 		return &ClaudeExecutionResult{
-			Success:       false,
-			Output:        combinedOutput,
-			Error:         fmt.Sprintf("⏰ TIMEOUT: Execution exceeded %v limit (ran for %v). Consider increasing timeout in Settings or simplifying the task.", timeoutDuration, executionTime.Round(time.Second)),
-			ExitCode:      exitCode,
-			ExecutionTime: executionTime,
+			Success:         false,
+			Output:          combinedOutput,
+			Error:           fmt.Sprintf("⏰ TIMEOUT: Execution exceeded %v limit (ran for %v). Consider increasing timeout in Settings or simplifying the task.", timeoutDuration, executionTime.Round(time.Second)),
+			ExitCode:        exitCode,
+			ExecutionTime:   executionTime,
+			TranscriptPath:  transcriptFile,
+			LastMessagePath: lastMessageFile,
 		}, nil
 	}
 
@@ -223,6 +249,8 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 			MaxTurnsExceeded: true,
 			ExitCode:         exitCode,
 			ExecutionTime:    executionTime,
+			TranscriptPath:   transcriptFile,
+			LastMessagePath:  lastMessageFile,
 		}, nil
 	}
 
@@ -238,11 +266,13 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		log.Printf("Rate limit detected for issue %s", issueID)
 		// Note: Rate limit handling will be done by caller
 		return &ClaudeExecutionResult{
-			Success:       false,
-			Output:        combinedOutput,
-			Error:         "RATE_LIMIT: API rate limit reached",
-			ExitCode:      exitCode,
-			ExecutionTime: executionTime,
+			Success:         false,
+			Output:          combinedOutput,
+			Error:           "RATE_LIMIT: API rate limit reached",
+			ExitCode:        exitCode,
+			ExecutionTime:   executionTime,
+			TranscriptPath:  transcriptFile,
+			LastMessagePath: lastMessageFile,
 		}, nil
 	}
 
@@ -264,21 +294,25 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 				issueID, exitCode)
 			// Override failure - agent produced valid work despite non-zero exit
 			return &ClaudeExecutionResult{
-				Success:       true,
-				Output:        combinedOutput,
-				ExitCode:      exitCode,
-				ExecutionTime: executionTime,
+				Success:         true,
+				Output:          combinedOutput,
+				ExitCode:        exitCode,
+				ExecutionTime:   executionTime,
+				TranscriptPath:  transcriptFile,
+				LastMessagePath: lastMessageFile,
 			}, nil
 		}
 
 		// Real failure - no valid output
 		log.Printf("Claude Code failed for issue %s with exit code %d", issueID, exitCode)
 		return &ClaudeExecutionResult{
-			Success:       false,
-			Output:        combinedOutput,
-			Error:         fmt.Sprintf("Claude Code execution failed (exit code %d): %s", exitCode, waitErr),
-			ExitCode:      exitCode,
-			ExecutionTime: executionTime,
+			Success:         false,
+			Output:          combinedOutput,
+			Error:           fmt.Sprintf("Claude Code execution failed (exit code %d): %s", exitCode, waitErr),
+			ExitCode:        exitCode,
+			ExecutionTime:   executionTime,
+			TranscriptPath:  transcriptFile,
+			LastMessagePath: lastMessageFile,
 		}, nil
 	}
 
@@ -287,10 +321,12 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		issueID, len(combinedOutput), executionTime.Round(time.Second))
 
 	return &ClaudeExecutionResult{
-		Success:       true,
-		Output:        combinedOutput,
-		ExitCode:      exitCode,
-		ExecutionTime: executionTime,
+		Success:         true,
+		Output:          combinedOutput,
+		ExitCode:        exitCode,
+		ExecutionTime:   executionTime,
+		TranscriptPath:  transcriptFile,
+		LastMessagePath: lastMessageFile,
 	}, nil
 }
 
@@ -298,4 +334,24 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 func detectMaxTurnsExceeded(output string) bool {
 	lower := strings.ToLower(output)
 	return strings.Contains(lower, "max turns") && strings.Contains(lower, "reached")
+}
+
+func sanitizeForFilename(input string) string {
+	var builder strings.Builder
+	for _, r := range input {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			builder.WriteRune(r)
+		case r == '-', r == '_':
+			builder.WriteRune(r)
+		default:
+			builder.WriteRune('_')
+		}
+	}
+
+	if builder.Len() == 0 {
+		return "codex"
+	}
+
+	return builder.String()
 }

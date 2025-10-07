@@ -396,6 +396,12 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 					if result.MaxTurnsExceeded {
 						issue.Metadata.Extra["max_turns_exceeded"] = "true"
 					}
+					if result.TranscriptPath != "" {
+						issue.Metadata.Extra["agent_transcript_path"] = result.TranscriptPath
+					}
+					if result.LastMessagePath != "" {
+						issue.Metadata.Extra["agent_last_message_path"] = result.LastMessagePath
+					}
 					issue.Metadata.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 					s.writeIssueMetadata(issueDir, issue)
 				}
@@ -445,6 +451,12 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		delete(issue.Metadata.Extra, "agent_last_error")
 		delete(issue.Metadata.Extra, "max_turns_exceeded")
 		issue.Metadata.Extra["agent_last_status"] = "completed"
+		if result.TranscriptPath != "" {
+			issue.Metadata.Extra["agent_transcript_path"] = result.TranscriptPath
+		}
+		if result.LastMessagePath != "" {
+			issue.Metadata.Extra["agent_last_message_path"] = result.LastMessagePath
+		}
 
 		issue.Metadata.ResolvedAt = nowUTC.Format(time.RFC3339)
 
