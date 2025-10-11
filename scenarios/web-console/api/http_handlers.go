@@ -307,6 +307,12 @@ func writeJSONError(w http.ResponseWriter, status int, message string) {
 }
 
 func handleGenerateCommand(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
 	var req struct {
 		Prompt  string   `json:"prompt"`
 		Context []string `json:"context"`

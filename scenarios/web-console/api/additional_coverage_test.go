@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 )
@@ -23,7 +24,7 @@ func TestHandlerCoverage(t *testing.T) {
 			Method: http.MethodPost,
 			Path:   "/api/v1/generate-command",
 			Body: map[string]interface{}{
-				"userInput": "list files",
+				"prompt": "list files",
 			},
 		})
 		w := httptest.NewRecorder()
@@ -41,7 +42,7 @@ func TestHandlerCoverage(t *testing.T) {
 			Method: http.MethodPost,
 			Path:   "/api/v1/generate-command",
 			Body: map[string]interface{}{
-				"userInput": "",
+				"prompt": "",
 			},
 		})
 		w := httptest.NewRecorder()
@@ -159,6 +160,9 @@ func TestConfigCoverage(t *testing.T) {
 
 	t.Run("ResolveWorkingDir_WithEnv", func(t *testing.T) {
 		testDir := env.TempDir + "/custom"
+		if err := os.MkdirAll(testDir, 0o755); err != nil {
+			t.Fatalf("failed to create custom directory: %v", err)
+		}
 		t.Setenv("WEB_CONSOLE_WORKING_DIR", testDir)
 
 		wd, err := resolveWorkingDir()

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"log"
@@ -110,12 +111,17 @@ func (c *wsClient) writeLoop() {
 func (c *wsClient) readLoop() {
 	defer c.close()
 	for {
-		_, data, err := c.conn.ReadMessage()
+		messageType, data, err := c.conn.ReadMessage()
 		if err != nil {
 			if !websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
 				// Unexpected error; session continues but client disconnects
 			}
 			return
+		}
+
+		if messageType == websocket.BinaryMessage {
+			c.handleBinaryMessage(data)
+			continue
 		}
 
 		var envelope websocketEnvelope
@@ -161,6 +167,43 @@ func (c *wsClient) readLoop() {
 		default:
 			// ignore unsupported types
 		}
+	}
+}
+
+func (c *wsClient) handleBinaryMessage(data []byte) {
+	if len(data) == 0 {
+		return
+	}
+
+	switch data[0] {
+	case 0x01: // input message
+		if len(data) < 11 {
+			return
+		}
+
+		seq := binary.BigEndian.Uint64(data[1:9])
+		sourceLen := int(binary.BigEndian.Uint16(data[9:11]))
+
+		offset := 11
+		if sourceLen < 0 || len(data) < offset+sourceLen {
+			return
+		}
+
+		source := ""
+		if sourceLen > 0 {
+			source = string(data[offset : offset+sourceLen])
+		}
+		offset += sourceLen
+
+		if offset >= len(data) {
+			return
+		}
+
+		payload := data[offset:]
+		_ = c.session.handleInput(c, payload, seq, source)
+
+	default:
+		// Ignore unsupported binary frames to maintain forward compatibility
 	}
 }
 

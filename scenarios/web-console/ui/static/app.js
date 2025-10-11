@@ -41,6 +41,26 @@ const elements = {
 
 const shortcutButtons = Array.from(document.querySelectorAll('[data-shortcut-id]'))
 
+const debugFlags = (() => {
+  if (typeof window === 'undefined') {
+    return Object.freeze({ inputTelemetry: false })
+  }
+
+  const globalDebug = window.__WEB_CONSOLE_DEBUG__ || {}
+  const fromStorage = (() => {
+    try {
+      const raw = window.localStorage?.getItem('webConsoleDebug')
+      return raw ? JSON.parse(raw) : {}
+    } catch (_error) {
+      return {}
+    }
+  })()
+
+  return Object.freeze({
+    inputTelemetry: Boolean(globalDebug.inputTelemetry || fromStorage.inputTelemetry)
+  })
+})()
+
 const TAB_COLOR_OPTIONS = [
   {
     id: 'sky',
@@ -149,6 +169,12 @@ const terminalDefaults = {
   }
 }
 
+const INPUT_BATCH_MAX_CHARS = 64
+const INPUT_CONTROL_FLUSH_PATTERN = /[\r\n\x03\x04\x1b\x7f]/
+const LOCAL_ECHO_MAX_BUFFER = 2048
+const LOCAL_ECHO_TIMEOUT_MS = 5000
+const LOCAL_ECHO_ENABLED = false
+
 const AGGREGATED_EVENT_TYPES = new Set(['ws-empty-frame'])
 const SUPPRESSED_EVENT_LABELS = {
   'ws-empty-frame': 'Empty frames suppressed'
@@ -169,6 +195,10 @@ function formatCommandLabel(command, args) {
 }
 
 const textDecoder = new TextDecoder()
+const textEncoder = new TextEncoder()
+const scheduleMicrotask = typeof queueMicrotask === 'function'
+  ? queueMicrotask
+  : (cb) => Promise.resolve().then(cb)
 
 const state = {
   tabs: [],
@@ -197,6 +227,20 @@ const state = {
 let tabSequence = 0
 
 state.bridge = initializeIframeBridge()
+
+function debugLog(tab, message, extra) {
+  if (!tab || typeof window === 'undefined') return
+  const runtimeDebug = window.__WEB_CONSOLE_DEBUG__ || {}
+  const enabled = Boolean(runtimeDebug.inputTelemetry || debugFlags.inputTelemetry)
+  if (!enabled) return
+  const payload = extra ? { ...extra } : undefined
+  const prefix = `[web-console:${tab.id || 'unknown'}]`
+  if (payload) {
+    console.debug(prefix, message, payload)
+  } else {
+    console.debug(prefix, message)
+  }
+}
 
 // Load workspace from server
 async function initializeWorkspace() {
@@ -541,6 +585,8 @@ function createTerminalTab({ focus = false, id = null, label = null, colorId = T
     hasReceivedLiveOutput: false, // Track if we've received first live output (not replay)
     heartbeatInterval: null,
     inputSeq: 0,
+    inputBatch: null,
+    inputBatchScheduled: false,
     replayPending: false,
     replayComplete: true,
     lastReplayCount: 0,
@@ -549,8 +595,16 @@ function createTerminalTab({ focus = false, id = null, label = null, colorId = T
     events: [],
     suppressed: initialSuppressedState(),
     pendingWrites: [],
+    localEchoBuffer: [],
     errorMessage: '',
     lastSentSize: { cols: 0, rows: 0 },
+    telemetry: {
+      typed: 0,
+      queued: 0,
+      sent: 0,
+      batches: 0,
+      lastBatchSize: 0
+    },
     domItem: null,
     domButton: null,
     domClose: null,
@@ -561,22 +615,7 @@ function createTerminalTab({ focus = false, id = null, label = null, colorId = T
     sendResize(tab, cols, rows)
   })
 
-  // Track last input time to prevent duplicate visual input bug
-  let lastInputTime = 0
-  let lastInputData = ''
-
   term.onData((data) => {
-    const now = Date.now()
-
-    // Deduplicate rapid identical inputs (visual bug workaround)
-    // If same data arrives within 50ms, it's likely a duplicate event
-    if (data === lastInputData && (now - lastInputTime) < 50) {
-      console.log('Duplicate input event detected and ignored:', data)
-      return
-    }
-
-    lastInputTime = now
-    lastInputData = data
     handleTerminalData(tab, data)
   })
 
@@ -606,6 +645,9 @@ function destroyTerminalTab(tab) {
     clearInterval(tab.heartbeatInterval)
     tab.heartbeatInterval = null
   }
+  tab.inputBatchScheduled = false
+  tab.inputBatch = null
+  tab.localEchoBuffer = []
   try {
     tab.term?.dispose()
   } catch (_error) {
@@ -1157,44 +1199,265 @@ function handleTerminalData(tab, data) {
     return
   }
 
-  if (tab.socket && tab.socket.readyState === WebSocket.OPEN) {
-    const success = transmitInput(tab, data, { appendNewline: false, clearError: true })
-    if (!success) {
-      showError(tab, 'Terminal stream is not connected')
+  if (tab.telemetry) {
+    tab.telemetry.typed += data.length
+  }
+
+  debugLog(tab, 'terminal-data', { length: data.length })
+
+  if (LOCAL_ECHO_ENABLED) {
+    applyLocalEcho(tab, data)
+  }
+  enqueueTerminalInput(tab, data)
+
+  if (!tab.socket || tab.socket.readyState !== WebSocket.OPEN) {
+    ensureSessionForPendingInput(tab, 'auto-start:terminal-input')
+  }
+}
+
+function enqueueTerminalInput(tab, data) {
+  if (!tab) return
+
+  const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now()
+
+  if (!tab.inputBatch) {
+    tab.inputBatch = {
+      chunks: [data],
+      size: data.length,
+      createdAt: now
+    }
+    if (INPUT_CONTROL_FLUSH_PATTERN.test(data)) {
+      flushInputBatch(tab, { reason: 'control-char' })
+    } else {
+      scheduleInputBatchFlush(tab)
     }
     return
   }
 
-  // Queue input for when connection is ready
-  queueInput(tab, data, { appendNewline: false })
+  tab.inputBatch.chunks.push(data)
+  tab.inputBatch.size += data.length
 
-  // If we have an existing session, try to reconnect to it first
-  // This prevents creating a new session (which resets the terminal)
+  if (INPUT_CONTROL_FLUSH_PATTERN.test(data)) {
+    flushInputBatch(tab, { reason: 'control-char' })
+    return
+  }
+
+  if (tab.inputBatch.size >= INPUT_BATCH_MAX_CHARS) {
+    flushInputBatch(tab, { reason: 'batch-size' })
+    return
+  }
+
+  scheduleInputBatchFlush(tab)
+}
+
+function scheduleInputBatchFlush(tab) {
+  if (!tab) return
+  if (tab.inputBatchScheduled) {
+    return
+  }
+  tab.inputBatchScheduled = true
+  scheduleMicrotask(() => {
+    tab.inputBatchScheduled = false
+    flushInputBatch(tab, { reason: 'microtask' })
+  })
+}
+
+function flushInputBatch(tab, options = {}) {
+  if (!tab || !tab.inputBatch) {
+    return
+  }
+
+  tab.inputBatchScheduled = false
+
+  const { chunks, size } = tab.inputBatch
+  tab.inputBatch = null
+
+  if (!Array.isArray(chunks) || chunks.length === 0) {
+    return
+  }
+
+  const payload = chunks.join('')
+  if (payload.length === 0) {
+    return
+  }
+
+  const isMicrotaskFlush = options.reason === 'microtask'
+  if (isMicrotaskFlush && payload.length === 1 && payload.charCodeAt(0) === 10) {
+    debugLog(tab, 'flush-input-batch', {
+      reason: 'microtask-skipped-newline',
+      size,
+      skipped: true
+    })
+    tab.pendingWrites.unshift({ value: payload, meta: { appendNewline: false } })
+    return
+  }
+
+  const meta = {
+    appendNewline: false,
+    eventType: 'terminal-batch',
+    source: 'terminal',
+    batchSize: size,
+    flushReason: options.reason || 'flush'
+  }
+
+  debugLog(tab, 'flush-input-batch', {
+    reason: meta.flushReason,
+    length: payload.length,
+    size
+  })
+
+  if (tab.socket && tab.socket.readyState === WebSocket.OPEN) {
+    const sent = transmitInput(tab, payload, meta)
+    if (!sent) {
+      queueInput(tab, payload, meta)
+      ensureSessionForPendingInput(tab, 'auto-start:transmit-failed')
+    }
+    return
+  }
+
+  queueInput(tab, payload, meta)
+}
+
+function ensureSessionForPendingInput(tab, reason) {
+  if (!tab) return
+
   if (tab.session && tab.session.id && !tab.socket) {
-    // Session exists but socket is disconnected - reconnect to preserve state
+    if (tab.reconnecting) {
+      showError(tab, 'Reconnecting to session…')
+      return
+    }
     showError(tab, 'Reconnecting to session…')
     reconnectSession(tab, tab.session.id).catch((error) => {
       appendEvent(tab, 'reconnect-on-input-failed', error)
-      // Reconnection failed - only now start a new session
       if (tab.phase === 'idle' || tab.phase === 'closed') {
         showError(tab, 'Starting new session…')
-        startSession(tab, { reason: 'auto-start:input-after-reconnect-fail' }).catch((startError) => {
+        startSession(tab, { reason: reason || 'auto-start:input-after-reconnect-fail' }).catch((startError) => {
           appendEvent(tab, 'session-error', startError)
           showError(tab, startError instanceof Error ? startError.message : 'Unable to start terminal session')
         })
       }
     })
-  } else if (tab.phase === 'idle' || tab.phase === 'closed') {
-    // No existing session - safe to start a new one
+    return
+  }
+
+  if (tab.phase === 'idle' || tab.phase === 'closed') {
     showError(tab, 'Starting new session…')
-    startSession(tab, { reason: 'auto-start:input' }).catch((error) => {
+    startSession(tab, { reason: reason || 'auto-start:input' }).catch((error) => {
       appendEvent(tab, 'session-error', error)
       showError(tab, error instanceof Error ? error.message : 'Unable to start terminal session')
     })
-  } else {
-    // Socket is connecting or session is starting - input is queued
+    return
+  }
+
+  if (!tab.socket || tab.socket.readyState !== WebSocket.OPEN) {
     showError(tab, 'Connecting…')
   }
+}
+
+function applyLocalEcho(tab, data) {
+  if (!tab || typeof data !== 'string' || data.length === 0) {
+    return
+  }
+  if (!tab.socket || tab.socket.readyState !== WebSocket.OPEN) {
+    return
+  }
+  if (!Array.isArray(tab.localEchoBuffer)) {
+    tab.localEchoBuffer = []
+  }
+
+  pruneStaleLocalEcho(tab)
+
+  const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now()
+
+  let buffer = ''
+  for (const char of data) {
+    if (!isPrintableLocalEchoChar(char)) {
+      continue
+    }
+    buffer += char
+    tab.localEchoBuffer.push({ value: char, timestamp: now })
+    if (tab.localEchoBuffer.length > LOCAL_ECHO_MAX_BUFFER) {
+      tab.localEchoBuffer.shift()
+    }
+  }
+
+  if (buffer.length > 0) {
+    tab.term.write(buffer)
+    debugLog(tab, 'local-echo-applied', { length: buffer.length })
+  }
+}
+
+function isPrintableLocalEchoChar(char) {
+  if (typeof char !== 'string' || char.length === 0) return false
+  const code = char.codePointAt(0)
+  return typeof code === 'number' && code >= 0x20 && code <= 0x7e
+}
+
+function pruneStaleLocalEcho(tab) {
+  if (!tab || !Array.isArray(tab.localEchoBuffer) || tab.localEchoBuffer.length === 0) {
+    return
+  }
+  const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now()
+
+  while (tab.localEchoBuffer.length > 0) {
+    const entry = tab.localEchoBuffer[0]
+    if (!entry) break
+    if (now - entry.timestamp <= LOCAL_ECHO_TIMEOUT_MS) {
+      break
+    }
+    tab.localEchoBuffer.shift()
+  }
+
+  if (tab.localEchoBuffer.length > LOCAL_ECHO_MAX_BUFFER) {
+    tab.localEchoBuffer.splice(0, tab.localEchoBuffer.length - LOCAL_ECHO_MAX_BUFFER)
+  }
+}
+
+function filterLocalEcho(tab, text) {
+  if (!tab || typeof text !== 'string' || text.length === 0) {
+    return text
+  }
+
+  if (!Array.isArray(tab.localEchoBuffer) || tab.localEchoBuffer.length === 0) {
+    return text
+  }
+
+  pruneStaleLocalEcho(tab)
+
+  if (tab.localEchoBuffer.length === 0) {
+    return text
+  }
+
+  const pending = tab.localEchoBuffer
+  let result = ''
+  let mismatchDetected = false
+  for (const char of text) {
+    const next = pending[0]
+    if (next && next.value === char) {
+      pending.shift()
+      debugLog(tab, 'local-echo-ack', { char, remaining: pending.length })
+      continue
+    }
+    mismatchDetected = true
+    debugLog(tab, 'local-echo-mismatch', {
+      expected: next ? next.value : null,
+      actual: char,
+      remaining: pending.length
+    })
+    result += char
+  }
+
+  if (mismatchDetected) {
+    tab.localEchoBuffer.length = 0
+  }
+
+  return result
 }
 
 function queueInput(tab, value, meta = {}) {
@@ -1205,7 +1468,19 @@ function queueInput(tab, value, meta = {}) {
     tab.pendingWrites = []
   }
   ensureInputSequence(tab, meta)
+  if (typeof meta.batchSize !== 'number') {
+    meta.batchSize = value.length
+  }
   tab.pendingWrites.push({ value, meta })
+  if (tab.telemetry) {
+    tab.telemetry.queued += 1
+    tab.telemetry.lastBatchSize = Array.isArray(tab.pendingWrites) ? tab.pendingWrites.length : 0
+  }
+  debugLog(tab, 'queued-input', {
+    length: value.length,
+    appendNewline: meta.appendNewline === true,
+    pendingCount: tab.pendingWrites.length
+  })
 }
 
 function flushPendingWrites(tab) {
@@ -1216,7 +1491,14 @@ function flushPendingWrites(tab) {
     return
   }
   const queue = tab.pendingWrites.splice(0)
+  if (queue.length > 0 && tab.telemetry) {
+    tab.telemetry.batches += 1
+    tab.telemetry.lastBatchSize = queue.length
+  }
   queue.forEach((item) => {
+    if (item && item.meta && typeof item.meta.batchSize !== 'number') {
+      item.meta.batchSize = typeof item.value === 'string' ? item.value.length : 0
+    }
     const success = transmitInput(tab, item.value, item.meta)
     if (!success) {
       tab.pendingWrites.unshift(item)
@@ -1740,7 +2022,18 @@ function handleOutputPayload(tab, payload, options = {}) {
     }
   }
 
-  tab.term.write(text)
+  const filteredText = filterLocalEcho(tab, text)
+
+  debugLog(tab, 'output-received', {
+    length: typeof text === 'string' ? text.length : 0,
+    renderedLength: typeof filteredText === 'string' ? filteredText.length : 0,
+    replay: options.replay === true,
+    timestamp: payload.timestamp || null
+  })
+
+  if (filteredText.length > 0) {
+    tab.term.write(filteredText)
+  }
 
   // Force terminal refresh on first real output (not replay) to ensure prompt is visible
   // This fixes blank terminal issue when shell prompt arrives after WebSocket connects
@@ -2100,33 +2393,68 @@ function transmitInput(tab, value, meta = {}) {
   if (!normalized) return true
 
   const seq = ensureInputSequence(tab, meta)
-  const payload = {
-    type: 'input',
-    payload: {
-      data: normalized,
-      encoding: 'utf-8',
-      seq,
-      source: tab.id || undefined
-    }
+  const dataBytes = textEncoder.encode(normalized)
+  const sourceString = typeof tab.id === 'string' ? tab.id : ''
+  const sourceBytesFull = textEncoder.encode(sourceString)
+  const sourceLen = Math.min(sourceBytesFull.length, 0xffff)
+
+  const headerLength = 1 + 8 + 2 + sourceLen
+  const frame = new Uint8Array(headerLength + dataBytes.length)
+  let offset = 0
+
+  // Message type marker (0x01 = input)
+  frame[offset] = 0x01
+  offset += 1
+
+  // Sequence number (uint64 big-endian)
+  let seqValue = Number(seq)
+  for (let i = 7; i >= 0; i -= 1) {
+    frame[offset + i] = seqValue & 0xff
+    seqValue = Math.floor(seqValue / 256)
+  }
+  offset += 8
+
+  // Source length (uint16 big-endian)
+  frame[offset] = (sourceLen >> 8) & 0xff
+  frame[offset + 1] = sourceLen & 0xff
+  offset += 2
+
+  if (sourceLen > 0) {
+    frame.set(sourceBytesFull.subarray(0, sourceLen), offset)
+    offset += sourceLen
   }
 
+  // Data payload
+  frame.set(dataBytes, offset)
+
   try {
-    tab.socket.send(JSON.stringify(payload))
+    tab.socket.send(frame)
   } catch (error) {
     appendEvent(tab, 'stdin-send-error', error)
     return false
   }
 
+  if (tab.telemetry) {
+    tab.telemetry.sent += 1
+    tab.telemetry.lastBatchSize = meta && typeof meta.batchSize === 'number' ? meta.batchSize : 1
+  }
+  debugLog(tab, 'sent-input', {
+    length: normalized.length,
+    seq,
+    appendedNewline: shouldAppendNewline,
+    batchSize: meta && typeof meta.batchSize === 'number' ? meta.batchSize : 1
+  })
+
   recordTranscript(tab, {
     timestamp: Date.now(),
     direction: 'stdin',
     encoding: 'utf-8',
-    data: btoa(payload.payload.data)
+    data: btoa(normalized)
   })
 
   if (meta.eventType) {
     appendEvent(tab, meta.eventType, {
-      length: payload.payload.data.length,
+      length: normalized.length,
       source: meta.source || undefined,
       command: meta.command || undefined
     })
@@ -2497,7 +2825,17 @@ async function reconnectSession(tab, sessionId) {
     setTabSocketState(tab, 'connecting')
     const response = await proxyToApi(`/api/v1/sessions/${sessionId}`)
     if (!response.ok) {
-      console.error('Failed to fetch session:', sessionId)
+      const status = response.status
+      appendEvent(tab, 'session-reconnect-miss', { sessionId, status })
+      if (status === 404) {
+        tab.session = null
+        setTabPhase(tab, 'idle')
+        setTabSocketState(tab, 'disconnected')
+        showError(tab, 'Session expired. Type to launch a new shell.')
+      } else {
+        setTabSocketState(tab, 'error')
+        showError(tab, `Unable to reconnect (status ${status})`)
+      }
       return
     }
     const data = await response.json()
@@ -2507,8 +2845,14 @@ async function reconnectSession(tab, sessionId) {
     }
     connectWebSocket(tab, sessionId)
     setTabPhase(tab, 'running')
+    showError(tab, '')
   } catch (error) {
-    console.error('Failed to reconnect session:', error)
+    appendEvent(tab, 'session-reconnect-error', {
+      sessionId,
+      message: error instanceof Error ? error.message : String(error)
+    })
+    setTabSocketState(tab, 'error')
+    showError(tab, 'Unable to reconnect to session')
   } finally {
     tab.reconnecting = false
   }
