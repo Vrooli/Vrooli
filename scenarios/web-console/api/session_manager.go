@@ -130,6 +130,10 @@ func (m *sessionManager) listSummaries() []sessionSummary {
 	return result
 }
 
+func (m *sessionManager) capacity() int {
+	return m.cfg.maxConcurrent
+}
+
 func (m *sessionManager) makeProxyGuard(next http.Handler) http.Handler {
 	if !m.cfg.enableProxyGuard {
 		return next

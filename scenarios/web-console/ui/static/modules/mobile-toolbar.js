@@ -15,6 +15,10 @@ const toolbarState = {
   }
 }
 
+const transcriptDecoder = typeof TextDecoder !== 'undefined' ? new TextDecoder() : null
+const MAX_CONTEXT_CHARS = 1600
+const MAX_CONTEXT_LINES = 12
+
 /**
  * Check if device is mobile/touch
  */
@@ -659,10 +663,11 @@ export function showSnackbar(message, type = 'info', duration = 3000) {
     color: white;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    z-index: 10000;
+    z-index: 320000;
     font-size: 14px;
     font-weight: 500;
     opacity: 0;
+    pointer-events: none;
     transition: transform 0.3s ease, opacity 0.3s ease;
   `
 
@@ -682,39 +687,157 @@ export function showSnackbar(message, type = 'info', duration = 3000) {
   }, duration)
 }
 
-/**
- * Generate AI command (placeholder implementation)
- * This feature requires backend API integration
- */
-export async function generateAICommand(prompt, getActiveTabFn, sendKeyToTerminalFn) {
-  // This is a placeholder implementation
-  // In production, this would call a backend API that integrates with an AI service
+function stripControlSequences(value) {
+  if (!value) return ''
+  return value
+    .replace(/\u001B\[[0-9;?]*[ -\/]*[@-~]/g, '') // CSI sequences
+    .replace(/\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g, '') // OSC sequences
+    .replace(/\u001B[()#][0-9A-Za-z]/g, '') // charset designators
+    .replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, '') // control chars
+    .replace(/\r/g, '')
+}
 
-  try {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500))
+function decodeTranscriptEntry(entry) {
+  if (!entry || typeof entry.data !== 'string' || entry.data.length === 0) {
+    return ''
+  }
 
-    // For now, just return an error indicating the feature needs backend implementation
-    return {
-      success: false,
-      error: 'AI command generation requires backend API integration. This feature is not yet implemented.'
+  const normalizeBase64 = (value) => value.replace(/\s+/g, '')
+
+  if (entry.encoding === 'base64') {
+    if (!transcriptDecoder) return ''
+    try {
+      const bytes = Uint8Array.from(atob(normalizeBase64(entry.data)), (c) => c.charCodeAt(0))
+      return transcriptDecoder.decode(bytes)
+    } catch (_error) {
+      return ''
+    }
+  }
+
+  if (entry.encoding === 'utf-8') {
+    if (transcriptDecoder) {
+      try {
+        const bytes = Uint8Array.from(atob(normalizeBase64(entry.data)), (c) => c.charCodeAt(0))
+        return transcriptDecoder.decode(bytes)
+      } catch (_error) {
+        // fall through to raw string
+      }
+    }
+  }
+
+  return entry.data
+}
+
+function extractTerminalContext(tab) {
+  if (!tab || !Array.isArray(tab.transcript) || tab.transcript.length === 0) {
+    return []
+  }
+
+  const collected = []
+  let charBudget = MAX_CONTEXT_CHARS
+
+  for (let i = tab.transcript.length - 1; i >= 0 && charBudget > 0 && collected.length < MAX_CONTEXT_LINES; i -= 1) {
+    const entry = tab.transcript[i]
+    if (!entry || typeof entry.data !== 'string') continue
+    const direction = entry.direction || 'stdout'
+    if (direction && !['stdout', 'stderr', 'stdin'].includes(direction)) {
+      continue
     }
 
-    // Future implementation would look like:
-    // const response = await fetch('/api/ai/generate-command', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ prompt })
-    // })
-    // const data = await response.json()
-    // if (data.command) {
-    //   const tab = getActiveTabFn()
-    //   if (tab) {
-    //     sendKeyToTerminalFn(data.command + '\n')
-    //   }
-    //   return { success: true, command: data.command }
-    // }
-    // return { success: false, error: data.error }
+    const decoded = decodeTranscriptEntry(entry)
+    if (!decoded) continue
+    const sanitized = stripControlSequences(decoded)
+    if (!sanitized) continue
+
+    const entryLines = sanitized
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+
+    if (entryLines.length === 0) {
+      continue
+    }
+
+    if (direction === 'stdin') {
+      for (let j = 0; j < entryLines.length; j += 1) {
+        entryLines[j] = `$ ${entryLines[j]}`
+      }
+    }
+
+    for (let j = entryLines.length - 1; j >= 0 && charBudget > 0 && collected.length < MAX_CONTEXT_LINES; j -= 1) {
+      const line = entryLines[j]
+      if (!line) continue
+      charBudget -= line.length
+      collected.push(line)
+    }
+  }
+
+  return collected.reverse()
+}
+
+/**
+ * Generate AI command by delegating to the backend Ollama integration
+ */
+export async function generateAICommand(prompt, getActiveTabFn, sendKeyToTerminalFn) {
+  try {
+    const activeTab = typeof getActiveTabFn === 'function' ? getActiveTabFn() : null
+    const context = extractTerminalContext(activeTab)
+
+    const response = await fetch('/api/generate-command', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ prompt, context })
+    })
+
+    let data = null
+    const contentType = response.headers.get('Content-Type') || ''
+    if (contentType.includes('application/json')) {
+      try {
+        data = await response.json()
+      } catch (_error) {
+        data = null
+      }
+    } else {
+      const text = await response.text()
+      if (text) {
+        data = { error: text }
+      }
+    }
+
+    if (!response.ok) {
+      const errorMessage = data && data.error ? data.error : `Command generation failed (${response.status})`
+      const normalized = typeof errorMessage === 'string' ? errorMessage.trim() : ''
+      const finalMessage = normalized.includes('requires backend API integration')
+        ? 'Backend command generation is disabled on this instance. Ensure the web-console API is rebuilt with Ollama support or that resource-ollama is provisioned.'
+        : normalized || 'Command generation failed.'
+      return {
+        success: false,
+        error: finalMessage
+      }
+    }
+
+    const command = data && typeof data.command === 'string' ? data.command.trim() : ''
+    if (!command) {
+      const errorMessage = data && data.error ? data.error : 'Command generation returned no output'
+      return {
+        success: false,
+        error: errorMessage
+      }
+    }
+
+    if (typeof sendKeyToTerminalFn === 'function') {
+      const payload = command.endsWith('\n') ? command : `${command}\n`
+      sendKeyToTerminalFn(payload)
+    }
+
+    return {
+      success: true,
+      command
+    }
   } catch (error) {
     console.error('AI command generation error:', error)
     return {

@@ -1,1565 +1,148 @@
-const elements = {
-  sessionId: document.getElementById('sessionId'),
-  sessionPhase: document.getElementById('sessionPhase'),
-  socketState: document.getElementById('socketState'),
-  sessionCommand: document.getElementById('sessionCommand'),
-  transcriptSize: document.getElementById('transcriptSize'),
-  eventFeed: document.getElementById('eventFeed'),
-  eventMeta: document.getElementById('eventMeta'),
-  errorBanner: document.getElementById('errorBanner'),
-  tabList: document.getElementById('tabList'),
-  addTabBtn: document.getElementById('addTabBtn'),
-  tabAddSlot: document.getElementById('tabAddSlot'),
-  terminalHost: document.getElementById('terminalHost'),
-  layout: document.getElementById('mainLayout'),
-  drawerToggle: document.getElementById('drawerToggle'),
-  drawerClose: document.getElementById('drawerClose'),
-  drawerIndicator: document.getElementById('drawerIndicator'),
-  detailsDrawer: document.getElementById('detailsDrawer'),
-  drawerBackdrop: document.getElementById('drawerBackdrop'),
-  tabContextMenu: document.getElementById('tabContextMenu'),
-  tabContextForm: document.getElementById('tabContextForm'),
-  tabContextName: document.getElementById('tabContextName'),
-  tabContextColors: document.getElementById('tabContextColors'),
-  tabContextCancel: document.getElementById('tabContextCancel'),
-  tabContextReset: document.getElementById('tabContextReset'),
-  tabContextBackdrop: document.getElementById('tabContextBackdrop'),
-  signOutAllSessions: document.getElementById('signOutAllSessions'),
-  aiCommandInput: document.getElementById('aiCommandInput'),
-  aiGenerateBtn: document.getElementById('aiGenerateBtn'),
-  composeBtn: document.getElementById('composeInputBtn'),
-  composeDialog: document.getElementById('composeDialog'),
-  composeBackdrop: document.getElementById('composeBackdrop'),
-  composeForm: document.getElementById('composeForm'),
-  composeClose: document.getElementById('composeClose'),
-  composeCancel: document.getElementById('composeCancel'),
-  composeTextarea: document.getElementById('composeTextarea'),
-  composeAppendNewline: document.getElementById('composeAppendNewline'),
-  composeCharCount: document.getElementById('composeCharCount'),
-  composeSend: document.getElementById('composeSend')
-}
+import {
+  elements,
+  state
+} from './modules/state.js'
+import {
+  configureTabManager,
+  setTerminalEventHandlers,
+  initializeTabCustomizationUI,
+  initializeShortcutButtons,
+  createTerminalTab,
+  destroyTerminalTab,
+  findTab,
+  getActiveTab,
+  renderTabs,
+  closeTabCustomization,
+  setActiveTab
+} from './modules/tab-manager.js'
+import {
+  configureSessionService,
+  startSession,
+  stopSession,
+  reconnectSession,
+  handleTerminalData,
+  transmitInputForTab,
+  queueInputForTab,
+  sendResizeForTab,
+  handleSignOutAllSessions,
+  handleCloseDetachedTabs,
+  updateSessionActions,
+  handleShortcutAction
+} from './modules/session-service.js'
+import {
+  configureSessionOverview,
+  renderSessionOverview,
+  queueSessionOverviewRefresh,
+  startSessionOverviewWatcher,
+  stopSessionOverviewWatcher,
+  refreshSessionOverview
+} from './modules/session-overview.js'
+import {
+  configureWorkspace,
+  initializeWorkspace,
+  syncTabToWorkspace,
+  deleteTabFromWorkspace,
+  syncActiveTabState,
+  connectWorkspaceWebSocket
+} from './modules/workspace.js'
+import {
+  configureComposer,
+  initializeComposerUI,
+  openComposeDialog,
+  closeComposeDialog,
+  isComposerOpen,
+  updateComposeFeedback
+} from './modules/composer.js'
+import {
+  openDrawer,
+  closeDrawer,
+  toggleDrawer,
+  applyDrawerState,
+  updateDrawerIndicator,
+  resetUnreadEvents
+} from './modules/drawer.js'
+import {
+  renderEventMeta,
+  renderEvents,
+  renderError,
+  configureEventFeed,
+  appendEvent,
+  showError
+} from './modules/event-feed.js'
+import { configureAIIntegration, initializeAIIntegration } from './modules/ai-integration.js'
+import { initializeIframeBridge } from './modules/bridge.js'
 
-const shortcutButtons = Array.from(document.querySelectorAll('[data-shortcut-id]'))
-
-const debugFlags = (() => {
-  if (typeof window === 'undefined') {
-    return Object.freeze({ inputTelemetry: false })
-  }
-
-  const globalDebug = window.__WEB_CONSOLE_DEBUG__ || {}
-  const fromStorage = (() => {
-    try {
-      const raw = window.localStorage?.getItem('webConsoleDebug')
-      return raw ? JSON.parse(raw) : {}
-    } catch (_error) {
-      return {}
-    }
-  })()
-
-  return Object.freeze({
-    inputTelemetry: Boolean(globalDebug.inputTelemetry || fromStorage.inputTelemetry)
-  })
-})()
-
-const TAB_COLOR_OPTIONS = [
-  {
-    id: 'sky',
-    label: 'Sky',
-    swatch: '#38bdf8',
-    styles: {
-      border: 'rgba(56, 189, 248, 0.28)',
-      hover: 'rgba(56, 189, 248, 0.45)',
-      active: 'rgba(56, 189, 248, 0.65)',
-      selectedStart: 'rgba(56, 189, 248, 0.35)',
-      selectedEnd: 'rgba(14, 116, 144, 0.38)',
-      glow: 'rgba(56, 189, 248, 0.35)',
-      label: '#f8fafc'
-    }
-  },
-  {
-    id: 'emerald',
-    label: 'Emerald',
-    swatch: '#34d399',
-    styles: {
-      border: 'rgba(52, 211, 153, 0.26)',
-      hover: 'rgba(16, 185, 129, 0.42)',
-      active: 'rgba(16, 185, 129, 0.62)',
-      selectedStart: 'rgba(16, 185, 129, 0.32)',
-      selectedEnd: 'rgba(5, 150, 105, 0.38)',
-      glow: 'rgba(16, 185, 129, 0.32)',
-      label: '#ecfeff'
-    }
-  },
-  {
-    id: 'amber',
-    label: 'Amber',
-    swatch: '#f59e0b',
-    styles: {
-      border: 'rgba(245, 158, 11, 0.32)',
-      hover: 'rgba(245, 158, 11, 0.48)',
-      active: 'rgba(245, 158, 11, 0.68)',
-      selectedStart: 'rgba(251, 191, 36, 0.35)',
-      selectedEnd: 'rgba(217, 119, 6, 0.42)',
-      glow: 'rgba(245, 158, 11, 0.35)',
-      label: '#fffbeb'
-    }
-  },
-  {
-    id: 'sunset',
-    label: 'Sunset',
-    swatch: '#f97316',
-    styles: {
-      border: 'rgba(249, 115, 22, 0.32)',
-      hover: 'rgba(249, 115, 22, 0.48)',
-      active: 'rgba(249, 115, 22, 0.7)',
-      selectedStart: 'rgba(251, 146, 60, 0.36)',
-      selectedEnd: 'rgba(194, 65, 12, 0.38)',
-      glow: 'rgba(249, 115, 22, 0.36)',
-      label: '#fff7ed'
-    }
-  },
-  {
-    id: 'violet',
-    label: 'Violet',
-    swatch: '#a855f7',
-    styles: {
-      border: 'rgba(168, 85, 247, 0.32)',
-      hover: 'rgba(139, 92, 246, 0.5)',
-      active: 'rgba(139, 92, 246, 0.7)',
-      selectedStart: 'rgba(196, 181, 253, 0.36)',
-      selectedEnd: 'rgba(126, 58, 242, 0.42)',
-      glow: 'rgba(168, 85, 247, 0.38)',
-      label: '#f5f3ff'
-    }
-  },
-  {
-    id: 'slate',
-    label: 'Slate',
-    swatch: '#64748b',
-    styles: {
-      border: 'rgba(100, 116, 139, 0.32)',
-      hover: 'rgba(100, 116, 139, 0.5)',
-      active: 'rgba(100, 116, 139, 0.7)',
-      selectedStart: 'rgba(148, 163, 184, 0.32)',
-      selectedEnd: 'rgba(71, 85, 105, 0.48)',
-      glow: 'rgba(100, 116, 139, 0.35)',
-      label: '#f8fafc'
-    }
-  }
-]
-
-const TAB_COLOR_DEFAULT = TAB_COLOR_OPTIONS[0]?.id || 'sky'
-const TAB_COLOR_MAP = TAB_COLOR_OPTIONS.reduce((map, option) => {
-  map[option.id] = option
-  return map
-}, {})
-
-const TAB_LONG_PRESS_DELAY = 550
-const tabColorButtons = new Map()
-
-const terminalDefaults = {
-  convertEol: true,
-  cursorBlink: true,
-  fontFamily: 'JetBrains Mono, SFMono-Regular, Menlo, monospace',
-  fontSize: 14,
-  theme: {
-    background: '#0f172a',
-    foreground: '#e2e8f0',
-    cursor: '#38bdf8'
-  }
-}
-
-const INPUT_BATCH_MAX_CHARS = 64
-const INPUT_CONTROL_FLUSH_PATTERN = /[\r\n\x03\x04\x1b\x7f]/
-const LOCAL_ECHO_MAX_BUFFER = 2048
-const LOCAL_ECHO_TIMEOUT_MS = 5000
-const LOCAL_ECHO_ENABLED = false
-
-const AGGREGATED_EVENT_TYPES = new Set(['ws-empty-frame'])
-const SUPPRESSED_EVENT_LABELS = {
-  'ws-empty-frame': 'Empty frames suppressed'
-}
-
-function initialSuppressedState() {
-  return {
-    'ws-empty-frame': 0
-  }
-}
-
-function formatCommandLabel(command, args) {
-  if (!command) return '—'
-  if (Array.isArray(args) && args.length > 0) {
-    return `${command} ${args.join(' ')}`
-  }
-  return command
-}
-
-const textDecoder = new TextDecoder()
-const textEncoder = new TextEncoder()
-const scheduleMicrotask = typeof queueMicrotask === 'function'
-  ? queueMicrotask
-  : (cb) => Promise.resolve().then(cb)
-
-const state = {
-  tabs: [],
-  activeTabId: null,
-  bridge: null,
-  workspaceSocket: null,
-  workspaceReconnectTimer: null,
-  drawer: {
-    open: false,
-    unreadCount: 0,
-    previousFocus: null
-  },
-  tabMenu: {
-    open: false,
-    tabId: null,
-    selectedColor: TAB_COLOR_DEFAULT,
-    anchor: { x: 0, y: 0 }
-  },
-  composer: {
-    open: false,
-    previousFocus: null,
-    appendNewline: true
-  }
-}
-
-let tabSequence = 0
-
-state.bridge = initializeIframeBridge()
-
-function debugLog(tab, message, extra) {
-  if (!tab || typeof window === 'undefined') return
-  const runtimeDebug = window.__WEB_CONSOLE_DEBUG__ || {}
-  const enabled = Boolean(runtimeDebug.inputTelemetry || debugFlags.inputTelemetry)
-  if (!enabled) return
-  const payload = extra ? { ...extra } : undefined
-  const prefix = `[web-console:${tab.id || 'unknown'}]`
-  if (payload) {
-    console.debug(prefix, message, payload)
-  } else {
-    console.debug(prefix, message)
-  }
-}
-
-// Load workspace from server
-async function initializeWorkspace() {
-  try {
-    const response = await proxyToApi('/api/v1/workspace')
-    if (!response.ok) {
-      throw new Error(`Failed to load workspace: ${response.status}`)
-    }
-    const workspace = await response.json()
-
-    // Restore tabs from workspace
-    if (workspace.tabs && workspace.tabs.length > 0) {
-      workspace.tabs.forEach((tabMeta) => {
-        const tab = createTerminalTab({
-          focus: false,
-          id: tabMeta.id,
-          label: tabMeta.label,
-          colorId: tabMeta.colorId
-        })
-        if (tab && tabMeta.sessionId) {
-          // Try to reconnect to existing session (may fail if session expired)
-          reconnectSession(tab, tabMeta.sessionId).catch(() => {
-            // Session no longer exists, that's okay
-            console.log(`Session ${tabMeta.sessionId} no longer available for tab ${tabMeta.id}`)
-          })
-        }
-      })
-
-      // Set active tab
-      if (workspace.activeTabId) {
-        setActiveTab(workspace.activeTabId)
-      }
-    } else {
-      // No tabs in workspace, create initial tab
-      const initialTab = createTerminalTab({ focus: true })
-      if (initialTab) {
-        await syncTabToWorkspace(initialTab)
-        startSession(initialTab, { reason: 'initial-tab' }).catch((error) => {
-          appendEvent(initialTab, 'session-error', error)
-          showError(initialTab, error instanceof Error ? error.message : 'Unable to start terminal session')
-        })
-      }
-    }
-  } catch (error) {
-    console.error('Failed to initialize workspace:', error)
-    // Fallback: create initial tab
-    const initialTab = createTerminalTab({ focus: true })
-    if (initialTab) {
-      await syncTabToWorkspace(initialTab)
-      startSession(initialTab, { reason: 'initial-tab' }).catch((error) => {
-        appendEvent(initialTab, 'session-error', error)
-        showError(initialTab, error instanceof Error ? error.message : 'Unable to start terminal session')
-      })
-    }
-  }
-
-  // Connect workspace WebSocket
-  connectWorkspaceWebSocket()
-}
-
-// Sync a local tab to the server workspace
-async function syncTabToWorkspace(tab) {
-  try {
-    await proxyToApi('/api/v1/workspace/tabs', {
-      method: 'POST',
-      json: {
-        id: tab.id,
-        label: tab.label,
-        colorId: tab.colorId,
-        order: state.tabs.indexOf(tab)
-      }
-    })
-  } catch (error) {
-    console.error('Failed to sync tab to workspace:', error)
-  }
-}
-
-// Initialize workspace on load
-initializeWorkspace()
-
-elements.addTabBtn.addEventListener('click', async () => {
-  const tab = createTerminalTab({ focus: true })
-  if (tab) {
-    await syncTabToWorkspace(tab)
-    startSession(tab, { reason: 'new-tab' }).catch((error) => {
-      appendEvent(tab, 'session-error', error)
-      showError(tab, error instanceof Error ? error.message : 'Unable to start terminal session')
-    })
-  }
+configureSessionService({
+  onActiveTabNeedsUpdate: updateUI,
+  onSessionActionsChanged: updateSessionActions,
+  queueSessionOverviewRefresh
 })
 
-shortcutButtons.forEach((button) => {
-  button.addEventListener('click', () => handleShortcutButton(button))
+configureTabManager({
+  onActiveTabChanged: handleActiveTabChanged,
+  onTabCloseRequested: (tab) => closeTab(tab.id),
+  onTabMetadataChanged: handleTabMetadataChanged,
+  onShortcut: handleShortcutAction
 })
 
-if (elements.signOutAllSessions) {
-  elements.signOutAllSessions.addEventListener('click', handleSignOutAllSessions)
-}
+setTerminalEventHandlers({
+  onResize: sendResizeForTab,
+  onData: (tab, data) => handleTerminalData(tab, data)
+})
+
+configureEventFeed({
+  onActiveTabMutation: updateUI
+})
+
+configureSessionOverview({
+  updateSessionActions
+})
+
+configureWorkspace({
+  queueSessionOverviewRefresh
+})
+
+configureComposer({
+  onSubmit: handleComposerSubmit,
+  getActiveTab
+})
+
+configureAIIntegration({
+  getActiveTab,
+  transmitInput: transmitInputForTab,
+  queueInput: queueInputForTab,
+  startSession
+})
 
 initializeTabCustomizationUI()
+initializeShortcutButtons()
+initializeComposerUI()
+initializeAIIntegration()
 
-if (elements.composeBtn) {
-  elements.composeBtn.addEventListener('click', () => openComposeDialog())
-}
-if (elements.composeCancel) {
-  elements.composeCancel.addEventListener('click', () => closeComposeDialog({ preserveValue: false }))
-}
-if (elements.composeClose) {
-  elements.composeClose.addEventListener('click', () => closeComposeDialog({ preserveValue: false }))
-}
-if (elements.composeBackdrop) {
-  elements.composeBackdrop.addEventListener('click', () => closeComposeDialog({ preserveValue: false }))
-}
-if (elements.composeForm) {
-  elements.composeForm.addEventListener('submit', handleComposeSubmit)
-}
-if (elements.composeTextarea) {
-  elements.composeTextarea.addEventListener('input', updateComposeFeedback)
-}
-if (elements.composeAppendNewline) {
-  elements.composeAppendNewline.addEventListener('change', updateComposeFeedback)
-}
-
+applyDrawerState()
+updateDrawerIndicator()
 updateComposeFeedback()
 
-if (elements.drawerToggle) {
-  elements.drawerToggle.addEventListener('click', () => toggleDrawer())
-}
-
-if (elements.drawerClose) {
-  elements.drawerClose.addEventListener('click', () => closeDrawer())
-}
-
-if (elements.drawerBackdrop) {
-  elements.drawerBackdrop.addEventListener('click', () => closeDrawer())
-}
-
-document.addEventListener('keydown', (event) => {
-  if (event.key !== 'Escape') return
-  if (state.composer.open) {
-    event.preventDefault()
-    closeComposeDialog({ preserveValue: false })
-    return
-  }
-  if (state.tabMenu.open) {
-    event.preventDefault()
-    closeTabCustomization()
-    return
-  }
-  if (state.drawer.open) {
-    event.preventDefault()
-    closeDrawer()
-  }
-})
-
-window.addEventListener('resize', () => {
-  requestAnimationFrame(() => {
-    const active = getActiveTab()
-    if (active) {
-      active.fitAddon?.fit()
-    }
-    if (state.tabMenu.open) {
-      positionTabContextMenu(state.tabMenu.anchor)
-    }
-  })
-})
-
-// Handle visibility changes (tab switching)
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) {
-    // Tab became visible - refresh active terminal and check connections
-    const activeTab = getActiveTab()
-    if (activeTab && activeTab.term) {
-      // Force terminal refresh to fix blank screen issue
-      // The terminal canvas can lose its rendered content when backgrounded
-      const forceRender = () => {
-        try {
-          // Focus terminal first - this is crucial for the render pipeline
-          activeTab.term.focus()
-
-          // Fit to container size
-          activeTab.fitAddon?.fit()
-
-          // Scroll to bottom (ensures viewport is correct)
-          activeTab.term.scrollToBottom()
-
-          // Force render pipeline by writing empty string
-          // This triggers internal rendering that might be paused
-          activeTab.term.write('')
-
-          // Refresh entire terminal display
-          activeTab.term.refresh(0, activeTab.term.rows - 1)
-        } catch (error) {
-          console.warn('Failed to refresh terminal on visibility change:', error)
-        }
-      }
-
-      // Multiple refresh attempts for maximum reliability
-      // Different timing handles various browser restoration states
-      requestAnimationFrame(forceRender)
-      setTimeout(forceRender, 100)
-      setTimeout(forceRender, 250)
-    }
-
-    // Check all tabs for disconnected sessions that need reconnection
-    state.tabs.forEach((tab) => {
-      if (tab.session && tab.phase === 'running' && !tab.socket) {
-        // Session exists but socket is disconnected - try to reconnect
-        appendEvent(tab, 'visibility-reconnect', { sessionId: tab.session.id })
-        reconnectSession(tab, tab.session.id).catch((error) => {
-          console.warn('Failed to reconnect on visibility change:', error)
-        })
-      }
-    })
-  }
-})
-
+initializeEventListeners()
+initializeWorkspace()
+startSessionOverviewWatcher()
+updateSessionActions()
+renderSessionOverview()
 updateUI()
-updateDrawerIndicator()
-applyDrawerState()
-
-function toggleDrawer(forceState) {
-  if (typeof forceState === 'boolean') {
-    return forceState ? openDrawer() : closeDrawer()
-  }
-  if (state.drawer.open) {
-    closeDrawer()
-  } else {
-    openDrawer()
-  }
-}
-
-function openDrawer() {
-  if (state.drawer.open) return
-  state.drawer.open = true
-  state.drawer.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
-  applyDrawerState()
-  resetUnreadEvents()
-  requestAnimationFrame(() => {
-    if (!elements.detailsDrawer || typeof elements.detailsDrawer.focus !== 'function') return
-    try {
-      elements.detailsDrawer.focus({ preventScroll: true })
-    } catch (_error) {
-      elements.detailsDrawer.focus()
-    }
-  })
-}
-
-function closeDrawer() {
-  if (!state.drawer.open) return
-  state.drawer.open = false
-  applyDrawerState()
-  updateDrawerIndicator()
-  const fallback = state.drawer.previousFocus && state.drawer.previousFocus.isConnected ? state.drawer.previousFocus : elements.drawerToggle
-  requestAnimationFrame(() => {
-    fallback?.focus?.()
-    state.drawer.previousFocus = null
-  })
-}
-
-function applyDrawerState() {
-  if (!elements.layout || !elements.detailsDrawer || !elements.drawerToggle) return
-  elements.layout.classList.toggle('drawer-open', state.drawer.open)
-  elements.detailsDrawer.setAttribute('aria-hidden', state.drawer.open ? 'false' : 'true')
-  if (state.drawer.open) {
-    elements.detailsDrawer.removeAttribute('inert')
-  } else {
-    elements.detailsDrawer.setAttribute('inert', '')
-  }
-  elements.drawerToggle.setAttribute('aria-expanded', state.drawer.open ? 'true' : 'false')
-  if (elements.drawerBackdrop) {
-    elements.drawerBackdrop.setAttribute('aria-hidden', state.drawer.open ? 'false' : 'true')
-  }
-}
-
-function resetUnreadEvents() {
-  if (!state.drawer) return
-  if (state.drawer.unreadCount !== 0) {
-    state.drawer.unreadCount = 0
-  }
-  updateDrawerIndicator()
-}
-
-function updateDrawerIndicator() {
-  if (!elements.drawerIndicator) return
-  const count = state.drawer?.unreadCount || 0
-  const hasUnread = count > 0
-  if (elements.drawerToggle) {
-    elements.drawerToggle.setAttribute('aria-label', hasUnread ? 'Open session details (new activity)' : 'Open session details')
-    elements.drawerToggle.classList.toggle('has-unread', hasUnread)
-  }
-  if (hasUnread) {
-    elements.drawerIndicator.classList.remove('hidden')
-    elements.drawerIndicator.setAttribute('aria-hidden', 'false')
-  } else {
-    elements.drawerIndicator.classList.add('hidden')
-    elements.drawerIndicator.setAttribute('aria-hidden', 'true')
-  }
-}
-
-function createTerminalTab({ focus = false, id = null, label = null, colorId = TAB_COLOR_DEFAULT } = {}) {
-  if (!elements.terminalHost) return null
-  if (!id) {
-    id = `tab-${Date.now()}-${++tabSequence}`
-  }
-  if (!label) {
-    tabSequence++
-    label = `Terminal ${tabSequence}`
-  }
-
-  const container = document.createElement('div')
-  container.className = 'terminal-screen'
-  container.dataset.tabId = id
-
-  elements.terminalHost.appendChild(container)
-
-  const term = new window.Terminal({ ...terminalDefaults })
-  const fitAddon = new window.FitAddon.FitAddon()
-  term.loadAddon(fitAddon)
-  term.open(container)
-
-  // Write initial space to ensure terminal canvas is initialized
-  // This prevents blank screen on initial render
-  term.write('\r')
-
-  fitAddon.fit()
-
-  const tab = {
-    id,
-    label,
-    defaultLabel: label,
-    colorId: colorId || TAB_COLOR_DEFAULT,
-    term,
-    fitAddon,
-    container,
-    phase: 'idle',
-    socketState: 'disconnected',
-    session: null,
-    socket: null,
-    reconnecting: false,
-    hasEverConnected: false, // Track if terminal has received content
-    hasReceivedLiveOutput: false, // Track if we've received first live output (not replay)
-    heartbeatInterval: null,
-    inputSeq: 0,
-    inputBatch: null,
-    inputBatchScheduled: false,
-    replayPending: false,
-    replayComplete: true,
-    lastReplayCount: 0,
-    lastReplayTruncated: false,
-    transcript: [],
-    events: [],
-    suppressed: initialSuppressedState(),
-    pendingWrites: [],
-    localEchoBuffer: [],
-    errorMessage: '',
-    lastSentSize: { cols: 0, rows: 0 },
-    telemetry: {
-      typed: 0,
-      queued: 0,
-      sent: 0,
-      batches: 0,
-      lastBatchSize: 0
-    },
-    domItem: null,
-    domButton: null,
-    domClose: null,
-    domLabel: null
-  }
-
-  term.onResize(({ cols, rows }) => {
-    sendResize(tab, cols, rows)
-  })
-
-  term.onData((data) => {
-    handleTerminalData(tab, data)
-  })
-
-  container.addEventListener('mousedown', () => {
-    setActiveTab(tab.id)
-  })
-
-  state.tabs.push(tab)
-  renderTabs()
-
-  if (focus || state.activeTabId === null) {
-    setActiveTab(tab.id)
-  } else {
-    tab.container.classList.remove('active')
-  }
-
-  return tab
-}
-
-function destroyTerminalTab(tab) {
-  if (!tab) return
-  if (state.tabMenu.open && state.tabMenu.tabId === tab.id) {
-    closeTabCustomization()
-  }
-  // Clear heartbeat interval
-  if (tab.heartbeatInterval) {
-    clearInterval(tab.heartbeatInterval)
-    tab.heartbeatInterval = null
-  }
-  tab.inputBatchScheduled = false
-  tab.inputBatch = null
-  tab.localEchoBuffer = []
-  try {
-    tab.term?.dispose()
-  } catch (_error) {
-    // ignore
-  }
-  try {
-    tab.socket?.close()
-  } catch (_error) {
-    // ignore
-  }
-  if (tab.container?.parentElement) {
-    tab.container.parentElement.removeChild(tab.container)
-  }
-  if (tab.domItem?.parentElement) {
-    tab.domItem.parentElement.removeChild(tab.domItem)
-  }
-  tab.domItem = null
-  tab.domButton = null
-  tab.domClose = null
-  tab.domLabel = null
-}
-
-function getActiveTab() {
-  if (!state.activeTabId) return null
-  return state.tabs.find((tab) => tab.id === state.activeTabId) || null
-}
-
-function findTab(tabId) {
-  return state.tabs.find((tab) => tab.id === tabId) || null
-}
-
-function setActiveTab(tabId) {
-  const tab = findTab(tabId)
-  if (!tab) {
-    return
-  }
-  const previousActiveId = state.activeTabId
-  state.activeTabId = tabId
-  state.tabs.forEach((entry) => {
-    if (!entry.container) return
-    if (entry.id === tabId) {
-      entry.container.classList.add('active')
-    } else {
-      entry.container.classList.remove('active')
-    }
-    updateTabButtonState(entry)
-  })
-  resetUnreadEvents()
-  focusTerminal(tab)
-  updateUI()
-
-  // Sync active tab change to server (only if it actually changed)
-  if (previousActiveId !== tabId) {
-    proxyToApi('/api/v1/workspace', {
-      method: 'PUT',
-      json: {
-        activeTabId: tabId,
-        tabs: state.tabs.map((t, idx) => ({
-          id: t.id,
-          label: t.label,
-          colorId: t.colorId,
-          order: idx,
-          sessionId: t.session ? t.session.id : null
-        }))
-      }
-    }).catch((error) => {
-      console.error('Failed to sync active tab to server:', error)
-    })
-  }
-}
-
-function updateTabButtonState(tab) {
-  if (!tab.domButton) return
-  tab.domButton.setAttribute('aria-selected', tab.id === state.activeTabId ? 'true' : 'false')
-  tab.domButton.dataset.phase = tab.phase
-  tab.domButton.dataset.socketState = tab.socketState
-  tab.domButton.classList.toggle('tab-running', tab.phase === 'running')
-  tab.domButton.classList.toggle('tab-error', tab.socketState === 'error')
-  if (tab.domClose) {
-    tab.domClose.disabled = state.tabs.length === 1
-  }
-  applyTabAppearance(tab)
-}
-
-function focusTerminal(tab) {
-  if (!tab) return
-  requestAnimationFrame(() => {
-    tab.term.focus()
-    tab.fitAddon?.fit()
-
-    // Force render pipeline before refresh
-    // This is critical when the terminal canvas may have lost content
-    tab.term.write('')
-
-    // Refresh the terminal canvas to ensure content is visible
-    // This fixes blank screen issues when switching between tabs
-    try {
-      tab.term?.refresh(0, tab.term.rows - 1)
-    } catch (error) {
-      console.warn('Failed to refresh terminal on focus:', error)
-    }
-  })
-}
-
-function renderTabs() {
-  if (!elements.tabList) return
-
-  const knownIds = new Set(state.tabs.map((tab) => tab.id))
-
-  Array.from(elements.tabList.children).forEach((child) => {
-    const tabId = child instanceof HTMLElement ? child.dataset.tabId : undefined
-    if (tabId && !knownIds.has(tabId)) {
-      elements.tabList.removeChild(child)
-    }
-  })
-
-  state.tabs.forEach((tab) => {
-    if (!tab.domItem) {
-      const item = document.createElement('div')
-      item.className = 'tab-item'
-      item.dataset.tabId = tab.id
-
-      const selectBtn = document.createElement('button')
-      selectBtn.type = 'button'
-      selectBtn.className = 'tab-button'
-      selectBtn.dataset.tabId = tab.id
-      selectBtn.setAttribute('role', 'tab')
-      selectBtn.title = tab.label
-      const labelSpan = document.createElement('span')
-      labelSpan.className = 'tab-label'
-      labelSpan.textContent = tab.label
-      selectBtn.appendChild(labelSpan)
-      selectBtn.addEventListener('click', () => setActiveTab(tab.id))
-      registerTabCustomizationHandlers(selectBtn, tab)
-
-      const closeBtn = document.createElement('button')
-      closeBtn.type = 'button'
-      closeBtn.className = 'tab-close'
-      closeBtn.dataset.tabId = tab.id
-      closeBtn.setAttribute('aria-label', `Close ${tab.label}`)
-      closeBtn.textContent = '×'
-      closeBtn.addEventListener('click', (event) => {
-        event.stopPropagation()
-        closeTab(tab.id)
-      })
-
-      item.appendChild(selectBtn)
-      item.appendChild(closeBtn)
-
-      const insertionPoint = elements.tabAddSlot || elements.addTabBtn || null
-      if (insertionPoint && elements.tabList.contains(insertionPoint)) {
-        elements.tabList.insertBefore(item, insertionPoint)
-      } else {
-        elements.tabList.appendChild(item)
-      }
-
-      tab.domItem = item
-      tab.domButton = selectBtn
-      tab.domClose = closeBtn
-      tab.domLabel = labelSpan
-    } else {
-      const insertionPoint = elements.tabAddSlot || elements.addTabBtn || null
-      if (insertionPoint && elements.tabList.contains(insertionPoint)) {
-        elements.tabList.insertBefore(tab.domItem, insertionPoint)
-      } else {
-        elements.tabList.appendChild(tab.domItem)
-      }
-    }
-
-    if (tab.domLabel) {
-      tab.domLabel.textContent = tab.label
-    } else {
-      tab.domButton.textContent = tab.label
-    }
-    tab.domButton.title = tab.label
-    if (tab.domClose) {
-      tab.domClose.setAttribute('aria-label', `Close ${tab.label}`)
-    }
-    applyTabAppearance(tab)
-    updateTabButtonState(tab)
-  })
-}
-
-function registerTabCustomizationHandlers(button, tab) {
-  if (!button) return
-  button.addEventListener('contextmenu', (event) => {
-    event.preventDefault()
-    handleTabCustomizationRequest(tab, event)
-  })
-
-  button.addEventListener('pointerdown', (event) => {
-    if (event.pointerType === 'mouse') return
-    let longPressTriggered = false
-    const timer = window.setTimeout(() => {
-      longPressTriggered = true
-      handleTabCustomizationRequest(tab, event)
-    }, TAB_LONG_PRESS_DELAY)
-
-    const cancel = () => {
-      window.clearTimeout(timer)
-      button.removeEventListener('pointerup', cancel)
-      button.removeEventListener('pointerleave', cancel)
-      button.removeEventListener('pointercancel', cancel)
-      if (longPressTriggered) {
-        button.addEventListener('click', suppressNextClick, { once: true, capture: true })
-      }
-    }
-
-    button.addEventListener('pointerup', cancel)
-    button.addEventListener('pointerleave', cancel)
-    button.addEventListener('pointercancel', cancel)
-  })
-}
-
-function handleTabCustomizationRequest(tab, triggerEvent) {
-  if (!tab) return
-  let anchor
-  if (triggerEvent && typeof triggerEvent.clientX === 'number' && typeof triggerEvent.clientY === 'number') {
-    anchor = { x: triggerEvent.clientX, y: triggerEvent.clientY }
-  } else if (tab.domButton) {
-    const rect = tab.domButton.getBoundingClientRect()
-    anchor = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-  } else {
-    anchor = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
-  }
-  setActiveTab(tab.id)
-  openTabCustomization(tab, anchor)
-}
-
-let tabMenuCloseTimer = null
-
-function initializeTabCustomizationUI() {
-  const container = elements.tabContextColors
-  if (!container) return
-  container.innerHTML = ''
-  tabColorButtons.clear()
-
-  TAB_COLOR_OPTIONS.forEach((option) => {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = 'tab-color-option'
-    button.dataset.colorId = option.id
-    button.style.setProperty('--swatch-color', option.swatch)
-    button.setAttribute('role', 'option')
-    button.setAttribute('aria-label', `${option.label} tab color`)
-    button.addEventListener('click', () => {
-      selectTabColor(option.id)
-    })
-    tabColorButtons.set(option.id, button)
-    container.appendChild(button)
-  })
-
-  if (elements.tabContextForm) {
-    elements.tabContextForm.addEventListener('submit', handleTabContextSubmit)
-  }
-  if (elements.tabContextCancel) {
-    elements.tabContextCancel.addEventListener('click', () => closeTabCustomization())
-  }
-  if (elements.tabContextBackdrop) {
-    elements.tabContextBackdrop.addEventListener('click', () => closeTabCustomization())
-  }
-  if (elements.tabContextReset) {
-    elements.tabContextReset.addEventListener('click', handleTabContextReset)
-  }
-
-  selectTabColor(TAB_COLOR_DEFAULT)
-}
-
-function openTabCustomization(tab, anchor) {
-  if (!elements.tabContextMenu || !elements.tabContextBackdrop || !elements.tabContextName) return
-
-  if (tabMenuCloseTimer) {
-    window.clearTimeout(tabMenuCloseTimer)
-    tabMenuCloseTimer = null
-  }
-
-  const option = TAB_COLOR_MAP[tab.colorId] ? tab.colorId : TAB_COLOR_DEFAULT
-
-  state.tabMenu.open = true
-  state.tabMenu.tabId = tab.id
-  state.tabMenu.selectedColor = option
-  state.tabMenu.anchor = anchor || { x: window.innerWidth / 2, y: window.innerHeight / 2 }
-
-  elements.tabContextName.value = tab.label
-  selectTabColor(state.tabMenu.selectedColor)
-
-  elements.tabContextBackdrop.classList.remove('hidden')
-  elements.tabContextMenu.classList.remove('hidden')
-  elements.tabContextMenu.style.left = '0px'
-  elements.tabContextMenu.style.top = '0px'
-
-  requestAnimationFrame(() => {
-    elements.tabContextBackdrop.classList.add('active')
-    elements.tabContextBackdrop.setAttribute('aria-hidden', 'false')
-    positionTabContextMenu(state.tabMenu.anchor)
-    elements.tabContextMenu.classList.add('active')
-    elements.tabContextMenu.setAttribute('aria-hidden', 'false')
-    try {
-      elements.tabContextName.focus({ preventScroll: true })
-    } catch (_error) {
-      elements.tabContextName.focus()
-    }
-    elements.tabContextName.select()
-  })
-}
-
-function closeTabCustomization() {
-  if (!state.tabMenu.open) return
-  state.tabMenu.open = false
-  state.tabMenu.tabId = null
-  state.tabMenu.anchor = { x: 0, y: 0 }
-  state.tabMenu.selectedColor = TAB_COLOR_DEFAULT
-
-  if (!elements.tabContextMenu || !elements.tabContextBackdrop) return
-
-  elements.tabContextMenu.classList.remove('active')
-  elements.tabContextMenu.setAttribute('aria-hidden', 'true')
-  elements.tabContextBackdrop.classList.remove('active')
-  elements.tabContextBackdrop.setAttribute('aria-hidden', 'true')
-
-  tabMenuCloseTimer = window.setTimeout(() => {
-    elements.tabContextMenu?.classList.add('hidden')
-    elements.tabContextBackdrop?.classList.add('hidden')
-    tabMenuCloseTimer = null
-  }, 180)
-}
-
-function positionTabContextMenu(anchor) {
-  if (!elements.tabContextMenu) return
-  const menu = elements.tabContextMenu
-  const { x, y } = anchor || { x: window.innerWidth / 2, y: window.innerHeight / 2 }
-
-  const padding = 16
-  const rect = menu.getBoundingClientRect()
-
-  let left = x
-  let top = y
-
-  if (left + rect.width + padding > window.innerWidth) {
-    left = window.innerWidth - rect.width - padding
-  }
-  if (left < padding) {
-    left = padding
-  }
-  if (top + rect.height + padding > window.innerHeight) {
-    top = window.innerHeight - rect.height - padding
-  }
-  if (top < padding) {
-    top = padding
-  }
-
-  menu.style.left = `${left}px`
-  menu.style.top = `${top}px`
-}
-
-function selectTabColor(colorId) {
-  const option = TAB_COLOR_MAP[colorId] ? colorId : TAB_COLOR_DEFAULT
-  state.tabMenu.selectedColor = option
-  tabColorButtons.forEach((button, id) => {
-    const isSelected = id === option
-    button.setAttribute('aria-selected', isSelected ? 'true' : 'false')
-    button.classList.toggle('selected', isSelected)
-  })
-}
-
-function handleTabContextSubmit(event) {
-  event.preventDefault()
-  const tabId = state.tabMenu.tabId
-  const tab = tabId ? findTab(tabId) : null
-  if (!tab) {
-    closeTabCustomization()
-    return
-  }
-
-  const inputValue = elements.tabContextName?.value?.trim() || ''
-  const colorId = state.tabMenu.selectedColor && TAB_COLOR_MAP[state.tabMenu.selectedColor] ? state.tabMenu.selectedColor : TAB_COLOR_DEFAULT
-
-  tab.label = inputValue || tab.defaultLabel || tab.label
-  tab.colorId = colorId
-
-  if (tab.domLabel) {
-    tab.domLabel.textContent = tab.label
-  }
-  if (tab.domButton) {
-    tab.domButton.title = tab.label
-  }
-  if (tab.domClose) {
-    tab.domClose.setAttribute('aria-label', `Close ${tab.label}`)
-  }
-
-  applyTabAppearance(tab)
-  updateTabButtonState(tab)
-  renderTabs()
-  if (tab.id === state.activeTabId) {
-    updateUI()
-  }
-
-  // Sync to server
-  proxyToApi(`/api/v1/workspace/tabs/${tabId}`, {
-    method: 'PATCH',
-    json: {
-      label: tab.label,
-      colorId: tab.colorId
-    }
-  }).catch((error) => {
-    console.error('Failed to update tab on server:', error)
-  })
-
-  closeTabCustomization()
-}
-
-function handleTabContextReset() {
-  if (!state.tabMenu.open) return
-  const tabId = state.tabMenu.tabId
-  const tab = tabId ? findTab(tabId) : null
-  if (!tab) {
-    closeTabCustomization()
-    return
-  }
-  const fallbackLabel = tab.defaultLabel || tab.label
-  if (elements.tabContextName) {
-    elements.tabContextName.value = fallbackLabel
-  }
-  state.tabMenu.selectedColor = TAB_COLOR_DEFAULT
-  selectTabColor(TAB_COLOR_DEFAULT)
-}
-
-function suppressNextClick(event) {
-  event.preventDefault()
-  event.stopImmediatePropagation()
-}
-
-function applyTabAppearance(tab) {
-  if (!tab?.domButton) return
-  if (!TAB_COLOR_MAP[tab.colorId]) {
-    tab.colorId = TAB_COLOR_DEFAULT
-  }
-  const option = TAB_COLOR_MAP[tab.colorId] || TAB_COLOR_MAP[TAB_COLOR_DEFAULT]
-  const styles = option?.styles || TAB_COLOR_MAP[TAB_COLOR_DEFAULT].styles
-  if (!styles) return
-  const style = tab.domButton.style
-  tab.domButton.dataset.tabColor = option?.id || TAB_COLOR_DEFAULT
-  style.setProperty('--tab-color-border', styles.border)
-  style.setProperty('--tab-color-border-hover', styles.hover)
-  style.setProperty('--tab-color-border-active', styles.active)
-  style.setProperty('--tab-color-selected-start', styles.selectedStart)
-  style.setProperty('--tab-color-selected-end', styles.selectedEnd)
-  style.setProperty('--tab-color-glow', styles.glow)
-  style.setProperty('--tab-color-label', styles.label)
-}
-
-async function closeTab(tabId) {
-  const tab = findTab(tabId)
-  if (!tab) return
-
-  if (state.tabMenu.open && state.tabMenu.tabId === tabId) {
-    closeTabCustomization()
-  }
-
-  await stopSession(tab)
-
-  destroyTerminalTab(tab)
-
-  state.tabs = state.tabs.filter((entry) => entry.id !== tabId)
-
-  // Sync deletion to server
-  proxyToApi(`/api/v1/workspace/tabs/${tabId}`, {
-    method: 'DELETE'
-  }).catch((error) => {
-    console.error('Failed to delete tab from server:', error)
-  })
-
-  if (state.activeTabId === tabId) {
-    const fallback = state.tabs[state.tabs.length - 1] || state.tabs[0] || null
-    state.activeTabId = fallback ? fallback.id : null
-  }
-
-  renderTabs()
-
-  if (state.tabs.length === 0) {
-    const replacement = createTerminalTab({ focus: true })
-    if (replacement) {
-      startSession(replacement, { reason: 'replacement-tab' }).catch((error) => {
-        appendEvent(replacement, 'session-error', error)
-        showError(replacement, error instanceof Error ? error.message : 'Unable to start terminal session')
-      })
-    }
-  } else if (state.activeTabId) {
-    const active = getActiveTab()
-    if (active) {
-      setActiveTab(active.id)
-    }
-  } else {
-    updateUI()
-  }
-}
-
-function handleShortcutButton(button) {
-  if (!button) return
-  const command = (button.dataset.command || '').trim()
-  const id = button.dataset.shortcutId || 'unknown'
-  if (!command) {
-    const tab = getActiveTab()
-    if (tab) appendEvent(tab, 'shortcut-invalid', { id })
-    return
-  }
-
-  let tab = getActiveTab()
-  if (!tab) {
-    tab = createTerminalTab({ focus: true })
-    if (tab) {
-      startSession(tab, { reason: `shortcut:${id}` }).catch((error) => {
-        appendEvent(tab, 'session-error', error)
-        showError(tab, error instanceof Error ? error.message : 'Unable to start terminal session')
-      })
-    }
-  }
-  if (!tab) return
-
-  const meta = {
-    eventType: 'shortcut',
-    source: id,
-    command,
-    clearError: true,
-    appendNewline: true
-  }
-
-  if (tab.socket && tab.socket.readyState === WebSocket.OPEN) {
-    const success = transmitInput(tab, command, meta)
-    if (!success) {
-      showError(tab, 'Terminal stream is not connected')
-    }
-    return
-  }
-
-  queueInput(tab, command, meta)
-  appendEvent(tab, 'shortcut-queued', { id, command })
-
-  if (tab.phase === 'idle' || tab.phase === 'closed') {
-    startSession(tab, { reason: `shortcut:${id}` }).catch((error) => {
-      appendEvent(tab, 'shortcut-start-error', error)
-      showError(tab, 'Unable to start terminal session for shortcut')
-    })
-  }
-}
-
-function handleTerminalData(tab, data) {
-  if (!tab || typeof data !== 'string' || data.length === 0) {
-    return
-  }
-
-  if (tab.telemetry) {
-    tab.telemetry.typed += data.length
-  }
-
-  debugLog(tab, 'terminal-data', { length: data.length })
-
-  if (LOCAL_ECHO_ENABLED) {
-    applyLocalEcho(tab, data)
-  }
-  enqueueTerminalInput(tab, data)
-
-  if (!tab.socket || tab.socket.readyState !== WebSocket.OPEN) {
-    ensureSessionForPendingInput(tab, 'auto-start:terminal-input')
-  }
-}
-
-function enqueueTerminalInput(tab, data) {
-  if (!tab) return
-
-  const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now()
-
-  if (!tab.inputBatch) {
-    tab.inputBatch = {
-      chunks: [data],
-      size: data.length,
-      createdAt: now
-    }
-    if (INPUT_CONTROL_FLUSH_PATTERN.test(data)) {
-      flushInputBatch(tab, { reason: 'control-char' })
-    } else {
-      scheduleInputBatchFlush(tab)
-    }
-    return
-  }
-
-  tab.inputBatch.chunks.push(data)
-  tab.inputBatch.size += data.length
-
-  if (INPUT_CONTROL_FLUSH_PATTERN.test(data)) {
-    flushInputBatch(tab, { reason: 'control-char' })
-    return
-  }
-
-  if (tab.inputBatch.size >= INPUT_BATCH_MAX_CHARS) {
-    flushInputBatch(tab, { reason: 'batch-size' })
-    return
-  }
-
-  scheduleInputBatchFlush(tab)
-}
-
-function scheduleInputBatchFlush(tab) {
-  if (!tab) return
-  if (tab.inputBatchScheduled) {
-    return
-  }
-  tab.inputBatchScheduled = true
-  scheduleMicrotask(() => {
-    tab.inputBatchScheduled = false
-    flushInputBatch(tab, { reason: 'microtask' })
-  })
-}
-
-function flushInputBatch(tab, options = {}) {
-  if (!tab || !tab.inputBatch) {
-    return
-  }
-
-  tab.inputBatchScheduled = false
-
-  const { chunks, size } = tab.inputBatch
-  tab.inputBatch = null
-
-  if (!Array.isArray(chunks) || chunks.length === 0) {
-    return
-  }
-
-  const payload = chunks.join('')
-  if (payload.length === 0) {
-    return
-  }
-
-  const isMicrotaskFlush = options.reason === 'microtask'
-  if (isMicrotaskFlush && payload.length === 1 && payload.charCodeAt(0) === 10) {
-    debugLog(tab, 'flush-input-batch', {
-      reason: 'microtask-skipped-newline',
-      size,
-      skipped: true
-    })
-    tab.pendingWrites.unshift({ value: payload, meta: { appendNewline: false } })
-    return
-  }
-
-  const meta = {
-    appendNewline: false,
-    eventType: 'terminal-batch',
-    source: 'terminal',
-    batchSize: size,
-    flushReason: options.reason || 'flush'
-  }
-
-  debugLog(tab, 'flush-input-batch', {
-    reason: meta.flushReason,
-    length: payload.length,
-    size
-  })
-
-  if (tab.socket && tab.socket.readyState === WebSocket.OPEN) {
-    const sent = transmitInput(tab, payload, meta)
-    if (!sent) {
-      queueInput(tab, payload, meta)
-      ensureSessionForPendingInput(tab, 'auto-start:transmit-failed')
-    }
-    return
-  }
-
-  queueInput(tab, payload, meta)
-}
-
-function ensureSessionForPendingInput(tab, reason) {
-  if (!tab) return
-
-  if (tab.session && tab.session.id && !tab.socket) {
-    if (tab.reconnecting) {
-      showError(tab, 'Reconnecting to session…')
-      return
-    }
-    showError(tab, 'Reconnecting to session…')
-    reconnectSession(tab, tab.session.id).catch((error) => {
-      appendEvent(tab, 'reconnect-on-input-failed', error)
-      if (tab.phase === 'idle' || tab.phase === 'closed') {
-        showError(tab, 'Starting new session…')
-        startSession(tab, { reason: reason || 'auto-start:input-after-reconnect-fail' }).catch((startError) => {
-          appendEvent(tab, 'session-error', startError)
-          showError(tab, startError instanceof Error ? startError.message : 'Unable to start terminal session')
-        })
-      }
-    })
-    return
-  }
-
-  if (tab.phase === 'idle' || tab.phase === 'closed') {
-    showError(tab, 'Starting new session…')
-    startSession(tab, { reason: reason || 'auto-start:input' }).catch((error) => {
-      appendEvent(tab, 'session-error', error)
-      showError(tab, error instanceof Error ? error.message : 'Unable to start terminal session')
-    })
-    return
-  }
-
-  if (!tab.socket || tab.socket.readyState !== WebSocket.OPEN) {
-    showError(tab, 'Connecting…')
-  }
-}
-
-function applyLocalEcho(tab, data) {
-  if (!tab || typeof data !== 'string' || data.length === 0) {
-    return
-  }
-  if (!tab.socket || tab.socket.readyState !== WebSocket.OPEN) {
-    return
-  }
-  if (!Array.isArray(tab.localEchoBuffer)) {
-    tab.localEchoBuffer = []
-  }
-
-  pruneStaleLocalEcho(tab)
-
-  const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now()
-
-  let buffer = ''
-  for (const char of data) {
-    if (!isPrintableLocalEchoChar(char)) {
-      continue
-    }
-    buffer += char
-    tab.localEchoBuffer.push({ value: char, timestamp: now })
-    if (tab.localEchoBuffer.length > LOCAL_ECHO_MAX_BUFFER) {
-      tab.localEchoBuffer.shift()
-    }
-  }
-
-  if (buffer.length > 0) {
-    tab.term.write(buffer)
-    debugLog(tab, 'local-echo-applied', { length: buffer.length })
-  }
-}
-
-function isPrintableLocalEchoChar(char) {
-  if (typeof char !== 'string' || char.length === 0) return false
-  const code = char.codePointAt(0)
-  return typeof code === 'number' && code >= 0x20 && code <= 0x7e
-}
-
-function pruneStaleLocalEcho(tab) {
-  if (!tab || !Array.isArray(tab.localEchoBuffer) || tab.localEchoBuffer.length === 0) {
-    return
-  }
-  const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now()
-
-  while (tab.localEchoBuffer.length > 0) {
-    const entry = tab.localEchoBuffer[0]
-    if (!entry) break
-    if (now - entry.timestamp <= LOCAL_ECHO_TIMEOUT_MS) {
-      break
-    }
-    tab.localEchoBuffer.shift()
-  }
-
-  if (tab.localEchoBuffer.length > LOCAL_ECHO_MAX_BUFFER) {
-    tab.localEchoBuffer.splice(0, tab.localEchoBuffer.length - LOCAL_ECHO_MAX_BUFFER)
-  }
-}
-
-function filterLocalEcho(tab, text) {
-  if (!tab || typeof text !== 'string' || text.length === 0) {
-    return text
-  }
-
-  if (!Array.isArray(tab.localEchoBuffer) || tab.localEchoBuffer.length === 0) {
-    return text
-  }
-
-  pruneStaleLocalEcho(tab)
-
-  if (tab.localEchoBuffer.length === 0) {
-    return text
-  }
-
-  const pending = tab.localEchoBuffer
-  let result = ''
-  let mismatchDetected = false
-  for (const char of text) {
-    const next = pending[0]
-    if (next && next.value === char) {
-      pending.shift()
-      debugLog(tab, 'local-echo-ack', { char, remaining: pending.length })
-      continue
-    }
-    mismatchDetected = true
-    debugLog(tab, 'local-echo-mismatch', {
-      expected: next ? next.value : null,
-      actual: char,
-      remaining: pending.length
-    })
-    result += char
-  }
-
-  if (mismatchDetected) {
-    tab.localEchoBuffer.length = 0
-  }
-
-  return result
-}
-
-function queueInput(tab, value, meta = {}) {
-  if (!tab || typeof value !== 'string' || value.length === 0) {
-    return
-  }
-  if (!Array.isArray(tab.pendingWrites)) {
-    tab.pendingWrites = []
-  }
-  ensureInputSequence(tab, meta)
-  if (typeof meta.batchSize !== 'number') {
-    meta.batchSize = value.length
-  }
-  tab.pendingWrites.push({ value, meta })
-  if (tab.telemetry) {
-    tab.telemetry.queued += 1
-    tab.telemetry.lastBatchSize = Array.isArray(tab.pendingWrites) ? tab.pendingWrites.length : 0
-  }
-  debugLog(tab, 'queued-input', {
-    length: value.length,
-    appendNewline: meta.appendNewline === true,
-    pendingCount: tab.pendingWrites.length
-  })
-}
-
-function flushPendingWrites(tab) {
-  if (!tab || !tab.socket || tab.socket.readyState !== WebSocket.OPEN) {
-    return
-  }
-  if (!Array.isArray(tab.pendingWrites) || tab.pendingWrites.length === 0) {
-    return
-  }
-  const queue = tab.pendingWrites.splice(0)
-  if (queue.length > 0 && tab.telemetry) {
-    tab.telemetry.batches += 1
-    tab.telemetry.lastBatchSize = queue.length
-  }
-  queue.forEach((item) => {
-    if (item && item.meta && typeof item.meta.batchSize !== 'number') {
-      item.meta.batchSize = typeof item.value === 'string' ? item.value.length : 0
-    }
-    const success = transmitInput(tab, item.value, item.meta)
-    if (!success) {
-      tab.pendingWrites.unshift(item)
-    }
-  })
-}
-
-function setTabPhase(tab, phase) {
-  if (!tab) return
-  tab.phase = phase
-  updateTabButtonState(tab)
-  if (tab.id === state.activeTabId) {
-    updateUI()
-  }
-}
-
-function setTabSocketState(tab, socketState) {
-  if (!tab) return
-  tab.socketState = socketState
-  updateTabButtonState(tab)
-  if (tab.id === state.activeTabId) {
-    updateUI()
-  }
-}
+connectWorkspaceWebSocket()
 
 function updateUI() {
   const tab = getActiveTab()
-  updateComposeFeedback()
 
   if (!tab) {
-    if (elements.sessionId) elements.sessionId.textContent = '—'
-    if (elements.sessionPhase) elements.sessionPhase.textContent = 'idle'
-    if (elements.socketState) elements.socketState.textContent = 'disconnected'
-    if (elements.sessionCommand) elements.sessionCommand.textContent = '—'
-    if (elements.transcriptSize) elements.transcriptSize.textContent = '0 records'
     renderEventMeta(null)
     renderEvents(null)
     renderError(null)
     emitSessionUpdate(null)
     updateSessionActions()
-    resetUnreadEvents()
+    renderSessionOverview()
+    updateDrawerIndicator()
     return
-  }
-
-  const phase = tab.phase || 'idle'
-  const socketState = tab.socketState || 'disconnected'
-
-  if (elements.sessionId) {
-    elements.sessionId.textContent = tab.session ? `${tab.session.id.slice(0, 8)}…` : '—'
-  }
-  if (elements.sessionPhase) {
-    elements.sessionPhase.textContent = phase
-  }
-  if (elements.socketState) {
-    elements.socketState.textContent = socketState
-  }
-  if (elements.sessionCommand) {
-    elements.sessionCommand.textContent = tab.session ? formatCommandLabel(tab.session.command, tab.session.args) : '—'
-  }
-  if (elements.transcriptSize) {
-    elements.transcriptSize.textContent = `${tab.transcript.length} records`
   }
 
   renderEventMeta(tab)
@@ -1567,928 +150,8 @@ function updateUI() {
   renderError(tab)
   emitSessionUpdate(tab)
   updateSessionActions()
+  renderSessionOverview()
   updateDrawerIndicator()
-}
-
-function updateSessionActions() {
-  const button = elements.signOutAllSessions
-  if (!button) return
-  if (button.dataset.busy === 'true') {
-    button.disabled = true
-    return
-  }
-  const hasActiveSessions = state.tabs.some((entry) => entry.session && entry.phase !== 'closed')
-  button.disabled = !hasActiveSessions
-}
-
-function renderError(tab) {
-  if (!elements.errorBanner) return
-  const message = tab ? tab.errorMessage : ''
-  if (message) {
-    elements.errorBanner.textContent = message
-    elements.errorBanner.classList.remove('hidden')
-  } else {
-    elements.errorBanner.textContent = ''
-    elements.errorBanner.classList.add('hidden')
-  }
-}
-
-function renderEvents(tab) {
-  if (!elements.eventFeed) return
-  elements.eventFeed.innerHTML = ''
-  if (!tab) return
-  const recent = tab.events.slice(-50).reverse()
-  recent.forEach((event) => {
-    const li = document.createElement('li')
-    const time = document.createElement('time')
-    time.textContent = new Date(event.timestamp).toLocaleTimeString()
-    const label = document.createElement('div')
-    label.textContent = event.type
-    label.style.fontWeight = '600'
-    li.appendChild(time)
-    li.appendChild(label)
-    if (event.payload !== undefined) {
-      const detail = document.createElement('pre')
-      detail.className = 'event-detail'
-      detail.textContent = formatEventPayload(event.payload)
-      li.appendChild(detail)
-    }
-    elements.eventFeed.appendChild(li)
-  })
-}
-
-function renderEventMeta(tab) {
-  if (!elements.eventMeta) return
-  if (!tab) {
-    elements.eventMeta.textContent = ''
-    elements.eventMeta.classList.add('hidden')
-    return
-  }
-  const summaries = Object.entries(tab.suppressed)
-    .filter(([, count]) => count > 0)
-    .map(([type, count]) => `${SUPPRESSED_EVENT_LABELS[type] || type}: ${count}`)
-
-  if (summaries.length === 0) {
-    elements.eventMeta.textContent = ''
-    elements.eventMeta.classList.add('hidden')
-  } else {
-    elements.eventMeta.textContent = summaries.join(' • ')
-    elements.eventMeta.classList.remove('hidden')
-  }
-}
-
-function appendEvent(tab, type, payload) {
-  if (!tab) return
-  const normalized = payload instanceof Error ? { message: payload.message, stack: payload.stack } : payload
-  if (AGGREGATED_EVENT_TYPES.has(type)) {
-    recordSuppressedEvent(tab, type)
-    return
-  }
-  tab.events.push({ type, payload: normalized, timestamp: Date.now() })
-  if (tab.events.length > 500) {
-    tab.events.splice(0, tab.events.length - 500)
-  }
-  if (!state.drawer.open && tab.id === state.activeTabId) {
-    const nextCount = (state.drawer.unreadCount || 0) + 1
-    state.drawer.unreadCount = nextCount > 999 ? 999 : nextCount
-  }
-  if (tab.id === state.activeTabId) {
-    updateUI()
-  }
-}
-
-function recordSuppressedEvent(tab, type) {
-  if (!tab) return
-  const current = (tab.suppressed[type] || 0) + 1
-  tab.suppressed[type] = current
-  if (tab.id === state.activeTabId && (current === 1 || current % 25 === 0)) {
-    renderEventMeta(tab)
-  }
-}
-
-function recordTranscript(tab, entry) {
-  if (!tab) return
-  tab.transcript.push(entry)
-  if (tab.transcript.length > 5000) {
-    tab.transcript.splice(0, tab.transcript.length - 5000)
-  }
-  if (tab.id === state.activeTabId) {
-    updateUI()
-  }
-}
-
-function showError(tab, message) {
-  if (!tab) return
-  tab.errorMessage = message || ''
-  if (tab.id === state.activeTabId) {
-    renderError(tab)
-  }
-}
-
-async function startSession(tab, options = {}) {
-  if (!tab || tab.phase === 'creating' || tab.phase === 'running') return
-  showError(tab, '')
-  setTabPhase(tab, 'creating')
-  setTabSocketState(tab, 'connecting')
-
-  try {
-    const payload = {}
-    if (options.reason) payload.reason = options.reason
-    if (options.command) payload.command = options.command
-    if (Array.isArray(options.args) && options.args.length > 0) payload.args = options.args
-    if (options.metadata) payload.metadata = options.metadata
-    if (tab.id) payload.tabId = tab.id
-
-    const response = await proxyToApi('/api/v1/sessions', {
-      method: 'POST',
-      json: payload
-    })
-    if (!response.ok) {
-      const text = await response.text()
-      throw new Error(text || `API error (${response.status})`)
-    }
-    const data = await response.json()
-    const sessionArgs = Array.isArray(data.args) ? [...data.args] : Array.isArray(options.args) ? [...options.args] : []
-    const sessionCommand = data.command || options.command || ''
-    tab.session = {
-      ...data,
-      command: sessionCommand,
-      args: sessionArgs,
-      commandLine: formatCommandLabel(sessionCommand, sessionArgs)
-    }
-    tab.transcript = []
-    tab.events = []
-    tab.suppressed = initialSuppressedState()
-    tab.pendingWrites = Array.isArray(tab.pendingWrites) ? tab.pendingWrites : []
-    tab.errorMessage = ''
-    tab.lastSentSize = { cols: 0, rows: 0 }
-    tab.inputSeq = 0
-    tab.replayPending = false
-    tab.replayComplete = true
-    tab.lastReplayCount = 0
-    tab.lastReplayTruncated = false
-    tab.hasReceivedLiveOutput = false // Reset for new session
-    tab.term.reset()
-    renderEventMeta(tab)
-    appendEvent(tab, 'session-created', {
-      ...data,
-      reason: options.reason || null,
-      command: tab.session.command,
-      args: tab.session.args
-    })
-    connectWebSocket(tab, data.id)
-    setTabPhase(tab, 'running')
-    state.bridge?.emit('session-started', { ...data, tabId: tab.id })
-  } catch (error) {
-    setTabPhase(tab, 'idle')
-    setTabSocketState(tab, 'disconnected')
-    showError(tab, error instanceof Error ? error.message : 'Unknown error starting session')
-    appendEvent(tab, 'session-error', error)
-  }
-}
-
-async function stopSession(tab) {
-  if (!tab || !tab.session) return
-  if (tab.phase === 'closing') return
-  setTabPhase(tab, 'closing')
-  setTabSocketState(tab, 'closing')
-  appendEvent(tab, 'session-stop-requested', { id: tab.session.id })
-  try {
-    await proxyToApi(`/api/v1/sessions/${tab.session.id}`, { method: 'DELETE' })
-  } catch (error) {
-    appendEvent(tab, 'session-stop-error', error)
-  } finally {
-    try {
-      tab.socket?.close()
-    } catch (_error) {
-      // ignore
-    }
-    tab.socket = null
-    setTabPhase(tab, 'closed')
-    setTabSocketState(tab, 'disconnected')
-    state.bridge?.emit('session-ended', { id: tab.session.id, tabId: tab.id })
-  }
-}
-
-async function handleSignOutAllSessions() {
-  const button = elements.signOutAllSessions
-  if (!button || button.dataset.busy === 'true') return
-
-  const sessions = state.tabs.filter((tab) => tab.session && tab.phase !== 'closed')
-  if (sessions.length === 0) {
-    button.blur()
-    return
-  }
-
-  const confirmMessage =
-    sessions.length === 1
-      ? 'Sign out the active session? This will close the terminal.'
-      : `Sign out all ${sessions.length} sessions? This will close every terminal.`
-  if (!window.confirm(confirmMessage)) {
-    return
-  }
-
-  const originalLabel = button.textContent || ''
-  button.dataset.busy = 'true'
-  button.dataset.label = originalLabel
-  button.disabled = true
-  button.textContent = 'Signing out…'
-
-  sessions.forEach((tab) => {
-    appendEvent(tab, 'session-stop-all-requested', { id: tab.session.id })
-    setTabPhase(tab, 'closing')
-    const socketOpen = tab.socket && tab.socket.readyState === WebSocket.OPEN
-    setTabSocketState(tab, socketOpen ? 'closing' : 'disconnected')
-  })
-
-  try {
-    const response = await proxyToApi('/api/v1/sessions', { method: 'DELETE' })
-    if (!response.ok) {
-      const text = await response.text()
-      throw new Error(text || `API error (${response.status})`)
-    }
-
-    let payload
-    const contentType = response.headers.get('Content-Type') || ''
-    if (contentType.includes('application/json')) {
-      try {
-        payload = await response.json()
-      } catch (_error) {
-        payload = null
-      }
-    }
-
-    const eventPayload =
-      payload && typeof payload === 'object'
-        ? payload
-        : { status: 'terminating_all', terminated: sessions.length }
-
-    sessions.forEach((tab) => {
-      appendEvent(tab, 'session-stop-all', eventPayload)
-      if (tab.socket) {
-        try {
-          tab.socket.close()
-        } catch (_error) {
-          // ignore close failures
-        }
-      }
-    })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unable to sign out sessions'
-    const activeTab = getActiveTab()
-    if (activeTab) {
-      showError(activeTab, message)
-    }
-    sessions.forEach((tab) => {
-      appendEvent(tab, 'session-stop-all-error', error)
-      if (tab.phase === 'closing') {
-        setTabPhase(tab, tab.session ? 'running' : 'idle')
-      }
-      if (tab.socketState === 'closing') {
-        const socketOpen = tab.socket && tab.socket.readyState === WebSocket.OPEN
-        setTabSocketState(tab, socketOpen ? 'open' : 'disconnected')
-      }
-    })
-  } finally {
-    const label = button.dataset.label || 'Sign out all sessions'
-    button.textContent = label
-    delete button.dataset.label
-    delete button.dataset.busy
-    button.disabled = false
-    updateSessionActions()
-  }
-}
-
-function connectWebSocket(tab, sessionId) {
-  if (!tab || !sessionId) {
-    return
-  }
-
-  const url = buildWebSocketUrl(`/ws/sessions/${sessionId}/stream`)
-  const previousSocket = tab.socket
-  const socket = new WebSocket(url)
-  tab.socket = socket
-  tab.replayPending = true
-  tab.replayComplete = false
-  tab.lastReplayCount = 0
-  tab.lastReplayTruncated = false
-
-  if (previousSocket && previousSocket !== socket) {
-    try {
-      previousSocket.close()
-    } catch (error) {
-      appendEvent(tab, 'ws-close-error', {
-        message: error instanceof Error ? error.message : String(error)
-      })
-    }
-  }
-
-  socket.addEventListener('open', () => {
-    if (tab.socket !== socket) {
-      return
-    }
-    setTabSocketState(tab, 'open')
-    appendEvent(tab, 'ws-open', { sessionId })
-    if (typeof tab.term.cols === 'number' && typeof tab.term.rows === 'number') {
-      sendResize(tab, tab.term.cols, tab.term.rows)
-    }
-    flushPendingWrites(tab)
-
-    // Start heartbeat to keep connection alive
-    if (tab.heartbeatInterval) {
-      clearInterval(tab.heartbeatInterval)
-    }
-    tab.heartbeatInterval = setInterval(() => {
-      if (tab.socket === socket && socket.readyState === WebSocket.OPEN) {
-        try {
-          socket.send(JSON.stringify({ type: 'heartbeat', payload: {} }))
-        } catch (error) {
-          console.warn('Heartbeat send failed:', error)
-        }
-      }
-    }, 30000) // Send heartbeat every 30 seconds
-  })
-
-  socket.addEventListener('message', async (event) => {
-    if (tab.socket !== socket) {
-      return
-    }
-    const raw = await normalizeSocketData(event.data, tab)
-    if (!raw || raw.trim().length === 0) {
-      recordSuppressedEvent(tab, 'ws-empty-frame')
-      return
-    }
-    try {
-      const envelope = JSON.parse(raw)
-      handleStreamEnvelope(tab, envelope)
-    } catch (error) {
-      appendEvent(tab, 'ws-message-error', {
-        message: error instanceof Error ? error.message : String(error),
-        raw
-      })
-      showError(tab, 'Failed to process stream message')
-    }
-  })
-
-  socket.addEventListener('error', (error) => {
-    if (tab.socket !== socket) {
-      return
-    }
-    setTabSocketState(tab, 'error')
-    showError(tab, 'WebSocket error occurred')
-    appendEvent(tab, 'ws-error', error)
-  })
-
-  socket.addEventListener('close', (event) => {
-    if (tab.socket !== socket) {
-      return
-    }
-
-    // Clear heartbeat interval
-    if (tab.heartbeatInterval) {
-      clearInterval(tab.heartbeatInterval)
-      tab.heartbeatInterval = null
-    }
-
-    setTabSocketState(tab, 'disconnected')
-    appendEvent(tab, 'ws-close', { code: event.code, reason: event.reason, sessionId })
-
-    // Clear socket reference
-    tab.socket = null
-
-    // Don't mark as closed on clean WebSocket close - session may still be alive on server
-    // Only mark closed if we're explicitly closing the session
-    const isExplicitClose = tab.phase === 'closing'
-
-    if (isExplicitClose) {
-      // We explicitly requested to close - mark as closed
-      setTabPhase(tab, 'closed')
-      state.bridge?.emit('session-ended', { id: sessionId, reason: 'explicit-close', tabId: tab.id })
-    } else if (tab.session && tab.phase === 'running') {
-      // Session still exists - keep phase as 'running' and attempt reconnection
-      // This preserves session state so user input will reconnect instead of starting new session
-      appendEvent(tab, 'ws-reconnecting', { sessionId, attempt: 1, code: event.code })
-      setTimeout(() => {
-        // Double-check session and socket state before reconnecting
-        if (tab.session && tab.session.id === sessionId && !tab.socket) {
-          reconnectSession(tab, sessionId).catch((error) => {
-            appendEvent(tab, 'ws-reconnect-failed', error)
-            setTabPhase(tab, 'closed')
-            showError(tab, 'Session disconnected. Type to start a new session.')
-          })
-        }
-      }, 1000)
-    } else {
-      // No session to reconnect to
-      if (tab.phase !== 'closed' && tab.phase !== 'idle') {
-        setTabPhase(tab, 'closed')
-      }
-    }
-  })
-}
-
-function handleStreamEnvelope(tab, envelope) {
-  if (!tab || !envelope || typeof envelope.type !== 'string') return
-
-  switch (envelope.type) {
-    case 'output':
-      handleOutputPayload(tab, envelope.payload)
-      break
-    case 'output_replay':
-      handleReplayPayload(tab, envelope.payload)
-      break
-    case 'status':
-      handleStatusPayload(tab, envelope.payload)
-      break
-    case 'heartbeat':
-      appendEvent(tab, 'session-heartbeat', envelope.payload)
-      break
-    default:
-      appendEvent(tab, 'session-envelope', envelope)
-  }
-}
-
-function handleOutputPayload(tab, payload, options = {}) {
-  if (!tab || !payload || typeof payload.data !== 'string') return
-
-  let text = payload.data
-  if (payload.encoding === 'base64') {
-    try {
-      const bytes = Uint8Array.from(atob(payload.data), (c) => c.charCodeAt(0))
-      text = textDecoder.decode(bytes)
-    } catch (error) {
-      appendEvent(tab, 'decode-error', error)
-      return
-    }
-  }
-
-  const filteredText = filterLocalEcho(tab, text)
-
-  debugLog(tab, 'output-received', {
-    length: typeof text === 'string' ? text.length : 0,
-    renderedLength: typeof filteredText === 'string' ? filteredText.length : 0,
-    replay: options.replay === true,
-    timestamp: payload.timestamp || null
-  })
-
-  if (filteredText.length > 0) {
-    tab.term.write(filteredText)
-  }
-
-  // Force terminal refresh on first real output (not replay) to ensure prompt is visible
-  // This fixes blank terminal issue when shell prompt arrives after WebSocket connects
-  if (options.replay !== true && !tab.hasReceivedLiveOutput) {
-    tab.hasReceivedLiveOutput = true
-
-    // Use multiple refresh strategies for maximum reliability
-    // The terminal canvas can fail to render in various browser/tab states
-    const forceRender = () => {
-      try {
-        // Strategy 1: Focus the terminal (critical for render pipeline)
-        if (tab.id === state.activeTabId && document.hasFocus()) {
-          tab.term.focus()
-        }
-
-        // Strategy 2: Fit to container (ensures proper dimensions)
-        tab.fitAddon?.fit()
-
-        // Strategy 3: Scroll to bottom (ensures viewport is correct)
-        tab.term.scrollToBottom()
-
-        // Strategy 4: Write empty string (triggers internal render)
-        tab.term.write('')
-
-        // Strategy 5: Explicit refresh of all rows
-        tab.term.refresh(0, tab.term.rows - 1)
-      } catch (error) {
-        console.warn('Failed to refresh terminal on first output:', error)
-      }
-    }
-
-    // Execute immediately
-    forceRender()
-
-    // Also execute after next frame AND after small delay
-    // This handles cases where browser hasn't fully painted yet
-    requestAnimationFrame(forceRender)
-    setTimeout(forceRender, 50)
-  }
-
-  if (options.record !== false) {
-    const entry = {
-      timestamp: payload.timestamp ? Date.parse(payload.timestamp) : Date.now(),
-      direction: payload.direction || 'stdout',
-      encoding: payload.encoding,
-      data: payload.data
-    }
-    if (options.replay === true) {
-      entry.replay = true
-    }
-    recordTranscript(tab, entry)
-  }
-}
-
-function handleReplayPayload(tab, payload) {
-  if (!tab || !payload || typeof payload !== 'object') return
-
-  const chunks = Array.isArray(payload.chunks) ? payload.chunks : []
-  const wasPending = tab.replayPending === true
-
-  if (wasPending) {
-    tab.replayPending = false
-    tab.replayComplete = false
-    tab.lastReplayCount = 0
-    tab.lastReplayTruncated = false
-
-    // Only reset terminal on first connection, not on reconnects
-    // This prevents blank screen when returning to tab after disconnect
-    // On reconnect, preserve existing terminal state and write replay additively
-    if (!tab.hasEverConnected && chunks.length > 0) {
-      try {
-        tab.term.reset()
-      } catch (_error) {
-        // ignore reset failures
-      }
-      tab.transcript = []
-    }
-
-    appendEvent(tab, 'output-replay-started', {
-      expected: typeof payload.count === 'number' ? payload.count : chunks.length
-    })
-    renderEventMeta(tab)
-  }
-
-  if (chunks.length > 0) {
-    chunks.forEach((chunk) => {
-      handleOutputPayload(tab, chunk, { replay: true })
-    })
-  }
-
-  if (typeof payload.count === 'number') {
-    tab.lastReplayCount = payload.count
-  } else if (chunks.length > 0) {
-    tab.lastReplayCount = chunks.length
-  }
-
-  if (payload.truncated !== undefined) {
-    tab.lastReplayTruncated = Boolean(payload.truncated)
-  }
-
-  if (payload.complete) {
-    tab.replayComplete = true
-    tab.hasEverConnected = true  // Mark that we've received session content
-    const eventPayload = {
-      count: tab.lastReplayCount,
-      truncated: tab.lastReplayTruncated
-    }
-    if (payload.generated) {
-      const generatedTs = Date.parse(payload.generated)
-      if (!Number.isNaN(generatedTs)) {
-        eventPayload.generatedAt = generatedTs
-      }
-    }
-    appendEvent(tab, 'output-replay-complete', eventPayload)
-
-    // Force terminal refresh after replay completes
-    // This ensures content is visible, especially important for reconnections
-    if (tab.id === state.activeTabId) {
-      const forceRender = () => {
-        try {
-          tab.term.focus()
-          tab.fitAddon?.fit()
-          tab.term.scrollToBottom()
-          tab.term.write('')
-          tab.term.refresh(0, tab.term.rows - 1)
-        } catch (error) {
-          console.warn('Failed to refresh terminal after replay:', error)
-        }
-      }
-
-      // Multiple refresh attempts for reliability
-      requestAnimationFrame(forceRender)
-      setTimeout(forceRender, 50)
-    }
-  } else {
-    tab.replayPending = true
-  }
-
-  if (tab.id === state.activeTabId) {
-    updateUI()
-  }
-}
-
-function handleStatusPayload(tab, payload) {
-  if (!tab) return
-  appendEvent(tab, 'session-status', payload)
-
-  if (payload && typeof payload === 'object') {
-    recordTranscript(tab, {
-      timestamp: payload.timestamp ? Date.parse(payload.timestamp) : Date.now(),
-      direction: 'status',
-      message: JSON.stringify(payload)
-    })
-
-    if (payload.status === 'started') {
-      setTabPhase(tab, 'running')
-      setTabSocketState(tab, 'open')
-      showError(tab, '')
-      return
-    }
-
-    if (payload.status === 'command_exit_error') {
-      setTabPhase(tab, 'closed')
-      setTabSocketState(tab, 'disconnected')
-      showError(tab, `Command exited: ${payload.reason || 'unknown error'}`)
-      notifyPanic(tab, payload)
-      return
-    }
-
-    if (payload.status === 'closed') {
-      setTabPhase(tab, 'closed')
-      setTabSocketState(tab, 'disconnected')
-      if (payload.reason && !payload.reason.includes('client_requested')) {
-        showError(tab, `Session closed: ${payload.reason}`)
-      }
-      return
-    }
-
-    return
-  }
-
-  recordTranscript(tab, {
-    timestamp: Date.now(),
-    direction: 'status',
-    message: JSON.stringify(payload)
-  })
-}
-
-function notifyPanic(tab, payload) {
-  if (!tab) return
-  const reason = payload && typeof payload === 'object' && payload.reason ? payload.reason : 'unknown error'
-  tab.term.write(`\r\n\u001b[31mCommand exited\u001b[0m: ${reason}\r\n`)
-  tab.term.write('Review the event feed or transcripts for details.\r\n')
-}
-
-function openComposeDialog(prefill = '') {
-  if (!elements.composeDialog || !elements.composeTextarea) return
-  if (state.composer.open) {
-    elements.composeTextarea.focus()
-    return
-  }
-
-  if (!prefill && typeof window !== 'undefined' && window.getSelection) {
-    try {
-      const selected = window.getSelection().toString()
-      if (selected && selected.trim().length > 0) {
-        prefill = selected.trimEnd()
-      }
-    } catch (_error) {
-      // ignore selection access issues
-    }
-  }
-
-  state.composer.open = true
-  state.composer.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
-
-  elements.composeDialog.classList.remove('hidden')
-  elements.composeBackdrop?.classList.remove('hidden')
-  elements.composeDialog.setAttribute('aria-hidden', 'false')
-
-  elements.composeTextarea.value = prefill || ''
-  if (elements.composeAppendNewline) {
-    elements.composeAppendNewline.checked = state.composer.appendNewline !== false
-  }
-  updateComposeFeedback()
-
-  requestAnimationFrame(() => {
-    elements.composeTextarea?.focus()
-    elements.composeTextarea?.select()
-  })
-}
-
-function closeComposeDialog(options = {}) {
-  if (!state.composer.open) {
-    return
-  }
-  state.composer.open = false
-
-  elements.composeDialog?.classList.add('hidden')
-  elements.composeBackdrop?.classList.add('hidden')
-  elements.composeDialog?.setAttribute('aria-hidden', 'true')
-
-  if (!options.preserveValue && elements.composeTextarea) {
-    elements.composeTextarea.value = ''
-  }
-
-  updateComposeFeedback()
-
-  if (state.composer.previousFocus && typeof state.composer.previousFocus.focus === 'function') {
-    try {
-      state.composer.previousFocus.focus()
-    } catch (_error) {
-      // ignore focus failures
-    }
-  }
-  state.composer.previousFocus = null
-}
-
-function updateComposeFeedback() {
-  if (!elements.composeTextarea || !elements.composeSend) return
-  const value = elements.composeTextarea.value || ''
-  const newline = elements.composeAppendNewline ? elements.composeAppendNewline.checked : true
-  state.composer.appendNewline = newline
-
-  const needsNewline = newline && !value.endsWith('\n')
-
-  const tab = getActiveTab()
-
-  if (elements.composeCharCount) {
-    const totalChars = value.length + (needsNewline ? 1 : 0)
-    const baseLabel = needsNewline
-      ? `${totalChars} chars (includes appended newline)`
-      : `${totalChars} chars`
-    elements.composeCharCount.textContent = tab ? baseLabel : `No active terminal · ${baseLabel}`
-  }
-
-  const trimmed = value.trim()
-  elements.composeSend.disabled = !tab || trimmed.length === 0
-}
-
-function handleComposeSubmit(event) {
-  event.preventDefault()
-  if (!elements.composeTextarea) return
-  const tab = getActiveTab()
-  if (!tab) {
-    updateComposeFeedback()
-    return
-  }
-
-  const value = elements.composeTextarea.value
-  const trimmed = value.trim()
-  if (!trimmed) {
-    updateComposeFeedback()
-    return
-  }
-
-  const appendNewline = elements.composeAppendNewline ? elements.composeAppendNewline.checked : true
-  const meta = {
-    appendNewline,
-    eventType: 'composer-send',
-    source: 'composer'
-  }
-
-  let sent = false
-  if (tab.socket && tab.socket.readyState === WebSocket.OPEN) {
-    sent = transmitInput(tab, value, meta)
-  } else {
-    queueInput(tab, value, meta)
-    if (tab.phase === 'idle' || tab.phase === 'closed') {
-      startSession(tab, { reason: 'composer-input' }).catch((error) => {
-        appendEvent(tab, 'session-error', error)
-        showError(tab, error instanceof Error ? error.message : 'Unable to start terminal session')
-      })
-    }
-    sent = true
-  }
-
-  if (sent) {
-    appendEvent(tab, 'composer-send', {
-      length: value.length,
-      appendedNewline: appendNewline,
-      queued: !(tab.socket && tab.socket.readyState === WebSocket.OPEN)
-    })
-    elements.composeTextarea.value = ''
-    updateComposeFeedback()
-    closeComposeDialog({ preserveValue: false })
-  } else {
-    showError(tab, 'Failed to send message to terminal')
-  }
-}
-
-function ensureInputSequence(tab, meta = {}) {
-  if (!tab) {
-    return 0
-  }
-  if (meta && typeof meta.seq === 'number') {
-    return meta.seq
-  }
-  if (!Number.isInteger(tab.inputSeq)) {
-    tab.inputSeq = 0
-  }
-  tab.inputSeq += 1
-  meta.seq = tab.inputSeq
-  return meta.seq
-}
-
-function transmitInput(tab, value, meta = {}) {
-  if (!tab || !tab.socket || tab.socket.readyState !== WebSocket.OPEN) {
-    return false
-  }
-  if (typeof value !== 'string' || value.length === 0) {
-    return false
-  }
-
-  const shouldAppendNewline = meta.appendNewline === true
-  const normalized = shouldAppendNewline ? (value.endsWith('\n') ? value : `${value}\n`) : value
-  if (!normalized) return true
-
-  const seq = ensureInputSequence(tab, meta)
-  const dataBytes = textEncoder.encode(normalized)
-  const sourceString = typeof tab.id === 'string' ? tab.id : ''
-  const sourceBytesFull = textEncoder.encode(sourceString)
-  const sourceLen = Math.min(sourceBytesFull.length, 0xffff)
-
-  const headerLength = 1 + 8 + 2 + sourceLen
-  const frame = new Uint8Array(headerLength + dataBytes.length)
-  let offset = 0
-
-  // Message type marker (0x01 = input)
-  frame[offset] = 0x01
-  offset += 1
-
-  // Sequence number (uint64 big-endian)
-  let seqValue = Number(seq)
-  for (let i = 7; i >= 0; i -= 1) {
-    frame[offset + i] = seqValue & 0xff
-    seqValue = Math.floor(seqValue / 256)
-  }
-  offset += 8
-
-  // Source length (uint16 big-endian)
-  frame[offset] = (sourceLen >> 8) & 0xff
-  frame[offset + 1] = sourceLen & 0xff
-  offset += 2
-
-  if (sourceLen > 0) {
-    frame.set(sourceBytesFull.subarray(0, sourceLen), offset)
-    offset += sourceLen
-  }
-
-  // Data payload
-  frame.set(dataBytes, offset)
-
-  try {
-    tab.socket.send(frame)
-  } catch (error) {
-    appendEvent(tab, 'stdin-send-error', error)
-    return false
-  }
-
-  if (tab.telemetry) {
-    tab.telemetry.sent += 1
-    tab.telemetry.lastBatchSize = meta && typeof meta.batchSize === 'number' ? meta.batchSize : 1
-  }
-  debugLog(tab, 'sent-input', {
-    length: normalized.length,
-    seq,
-    appendedNewline: shouldAppendNewline,
-    batchSize: meta && typeof meta.batchSize === 'number' ? meta.batchSize : 1
-  })
-
-  recordTranscript(tab, {
-    timestamp: Date.now(),
-    direction: 'stdin',
-    encoding: 'utf-8',
-    data: btoa(normalized)
-  })
-
-  if (meta.eventType) {
-    appendEvent(tab, meta.eventType, {
-      length: normalized.length,
-      source: meta.source || undefined,
-      command: meta.command || undefined
-    })
-  }
-
-  if (meta.clearError !== false) {
-    showError(tab, '')
-  }
-
-  return true
-}
-
-function sendResize(tab, cols, rows) {
-  if (!tab || !tab.socket || tab.socket.readyState !== WebSocket.OPEN) {
-    return
-  }
-  if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols <= 0 || rows <= 0) {
-    return
-  }
-  const { cols: lastCols, rows: lastRows } = tab.lastSentSize
-  if (cols === lastCols && rows === lastRows) {
-    return
-  }
-  const payload = {
-    type: 'resize',
-    payload: { cols, rows }
-  }
-  try {
-    tab.socket.send(JSON.stringify(payload))
-    tab.lastSentSize = { cols, rows }
-    appendEvent(tab, 'terminal-resize', { cols, rows })
-  } catch (error) {
-    appendEvent(tab, 'terminal-resize-error', error)
-  }
 }
 
 function emitSessionUpdate(tab) {
@@ -2510,471 +173,225 @@ function emitSessionUpdate(tab) {
   })
 }
 
-function proxyToApi(path, { method = 'GET', json, headers } = {}) {
-  const targetPath = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? path : `/${path}`}`
-  const requestInit = { method, headers: headers ? new Headers(headers) : new Headers() }
-  if (json !== undefined) {
-    requestInit.headers.set('Content-Type', 'application/json')
-    requestInit.body = JSON.stringify(json)
-  }
-  return fetch(targetPath, requestInit)
+function handleActiveTabChanged(tab, previousId) {
+  resetUnreadEvents()
+  updateUI()
+  syncActiveTabState()
 }
 
-function buildWebSocketUrl(path) {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const host = window.location.host
-  const normalized = path.startsWith('/') ? path : `/${path}`
-  return `${protocol}//${host}${normalized}`
-}
-
-function isArrayBufferView(value) {
-  return value && typeof value === 'object' && ArrayBuffer.isView(value)
-}
-
-async function normalizeSocketData(data, tab) {
-  if (typeof data === 'string') {
-    return data
-  }
-  try {
-    if (data instanceof Blob && typeof data.text === 'function') {
-      return await data.text()
-    }
-    if (data instanceof ArrayBuffer) {
-      return textDecoder.decode(data)
-    }
-    if (isArrayBufferView(data)) {
-      const view = data
-      const buffer = view.byteOffset === 0 && view.byteLength === view.buffer.byteLength
-        ? view.buffer
-        : view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength)
-      return textDecoder.decode(buffer)
-    }
-  } catch (error) {
-    if (tab) {
-      appendEvent(tab, 'ws-decode-error', error)
-    }
-  }
-  return ''
-}
-
-function initializeIframeBridge() {
-  const CHANNEL = 'web-console'
-  const emit = (type, payload) => {
-    if (window.parent) {
-      window.parent.postMessage({ channel: CHANNEL, type, payload }, '*')
-    }
-  }
-
-  window.addEventListener('message', async (event) => {
-    const message = event.data
-    if (!message || message.channel !== CHANNEL) {
-      return
-    }
-    try {
-      switch (message.type) {
-        case 'init-session':
-          emit('ready', { timestamp: Date.now() })
-          break
-        case 'end-session': {
-          const tab = getActiveTab()
-          if (tab) {
-            await stopSession(tab)
-          }
-          emit('session-ended', { requestedByParent: true })
-          break
-        }
-        case 'request-screenshot':
-          if (window.html2canvas) {
-            const canvas = await window.html2canvas(document.body, { backgroundColor: '#0f172a' })
-            emit('screenshot', { image: canvas.toDataURL('image/png', 0.9), requestedAt: Date.now() })
-          } else {
-            emit('error', { type: 'request-screenshot', message: 'html2canvas not available' })
-          }
-          break
-        case 'request-transcript': {
-          const tab = getActiveTab()
-          emit('transcript', { transcript: tab ? tab.transcript : [], requestedAt: Date.now(), tabId: tab?.id || null })
-          break
-        }
-        case 'request-logs': {
-          const tab = getActiveTab()
-          emit('logs', { logs: tab ? tab.events.slice(-100) : [], requestedAt: Date.now(), tabId: tab?.id || null })
-          break
-        }
-        default:
-          emit('error', { type: 'unknown-command', payload: message })
-      }
-    } catch (error) {
-      emit('error', { type: message.type, message: error instanceof Error ? error.message : 'unknown error' })
-    }
-  })
-
-  emit('bridge-initialized', { timestamp: Date.now() })
-  return { emit }
-}
-
-function formatEventPayload(payload) {
-  if (payload === undefined || payload === null) {
-    return ''
-  }
-  if (typeof payload === 'string') {
-    return payload
-  }
-  try {
-    return JSON.stringify(payload, null, 2)
-  } catch (_error) {
-    return '[unserializable payload]'
-  }
-}
-
-// Workspace WebSocket connection
-function connectWorkspaceWebSocket() {
-  if (state.workspaceSocket && state.workspaceSocket.readyState === WebSocket.OPEN) {
-    return
-  }
-
-  const url = buildWebSocketUrl('/ws/workspace/stream')
-  const socket = new WebSocket(url)
-  state.workspaceSocket = socket
-
-  socket.addEventListener('open', () => {
-    console.log('Workspace WebSocket connected')
-    if (state.workspaceReconnectTimer) {
-      clearTimeout(state.workspaceReconnectTimer)
-      state.workspaceReconnectTimer = null
-    }
-  })
-
-  socket.addEventListener('message', async (event) => {
-    try {
-      // Handle different data types (string, Blob, ArrayBuffer)
-      let rawData = event.data
-      if (rawData instanceof Blob) {
-        rawData = await rawData.text()
-      } else if (rawData instanceof ArrayBuffer) {
-        rawData = new TextDecoder().decode(rawData)
-      }
-
-      const data = JSON.parse(rawData)
-
-      // Ignore status messages from proxy
-      if (data.type === 'status' && data.payload?.status === 'upstream_connected') {
-        return
-      }
-
-      // First message might be the initial workspace state (not wrapped in event)
-      if (data.activeTabId !== undefined && data.tabs !== undefined) {
-        console.log('Received initial workspace state')
-        return // We already loaded workspace via REST, ignore this
-      }
-
-      handleWorkspaceEvent(data)
-    } catch (error) {
-      console.error('Failed to parse workspace event:', error)
-    }
-  })
-
-  socket.addEventListener('close', () => {
-    console.log('Workspace WebSocket closed, reconnecting...')
-    state.workspaceSocket = null
-    if (!state.workspaceReconnectTimer) {
-      state.workspaceReconnectTimer = setTimeout(() => {
-        connectWorkspaceWebSocket()
-      }, 3000)
-    }
-  })
-
-  socket.addEventListener('error', (error) => {
-    console.error('Workspace WebSocket error:', error)
-  })
-}
-
-// Handle workspace events from server
-function handleWorkspaceEvent(event) {
-  if (!event || !event.type) return
-
-  switch (event.type) {
-    case 'workspace-full-update':
-      handleWorkspaceFullUpdate(event.payload)
-      break
-    case 'tab-added':
-      handleTabAdded(event.payload)
-      break
-    case 'tab-updated':
-      handleTabUpdated(event.payload)
-      break
-    case 'tab-removed':
-      handleTabRemoved(event.payload)
-      break
-    case 'active-tab-changed':
-      handleActiveTabChanged(event.payload)
-      break
-    case 'session-attached':
-      handleSessionAttached(event.payload)
-      break
-    case 'session-detached':
-      handleSessionDetached(event.payload)
-      break
-    case 'keyboard-toolbar-mode-changed':
-      handleKeyboardToolbarModeChanged(event.payload)
-      break
-    default:
-      console.log('Unknown workspace event:', event.type)
-  }
-}
-
-function handleWorkspaceFullUpdate(payload) {
-  // TODO: Implement full workspace sync
-  console.log('Full workspace update:', payload)
-}
-
-function handleTabAdded(payload) {
-  // Check if tab already exists locally
-  const existing = findTab(payload.id)
-  if (existing) return
-
-  // Create tab locally
-  createTerminalTab({
-    focus: false,
-    id: payload.id,
-    label: payload.label,
-    colorId: payload.colorId
-  })
-}
-
-function handleTabUpdated(payload) {
-  const tab = findTab(payload.id)
-  if (!tab) return
-
-  tab.label = payload.label
-  tab.colorId = payload.colorId
-  applyTabAppearance(tab)
+function handleTabMetadataChanged(tab) {
+  syncTabToWorkspace(tab)
+  syncActiveTabState()
   renderTabs()
-  if (tab.id === state.activeTabId) {
-    updateUI()
-  }
+  updateUI()
 }
 
-function handleTabRemoved(payload) {
-  const tab = findTab(payload.id)
+async function closeTab(tabId) {
+  const tab = findTab(tabId)
   if (!tab) return
 
-  // Remove tab locally (but don't sync back to server)
-  destroyTerminalTab(tab)
-  state.tabs = state.tabs.filter((entry) => entry.id !== payload.id)
+  if (state.tabMenu.open && state.tabMenu.tabId === tabId) {
+    closeTabCustomization()
+  }
 
-  if (state.activeTabId === payload.id) {
-    const fallback = state.tabs[state.tabs.length - 1] || state.tabs[0] || null
+  await stopSession(tab)
+
+  destroyTerminalTab(tab)
+  state.tabs = state.tabs.filter((entry) => entry.id !== tabId)
+
+  await deleteTabFromWorkspace(tabId)
+
+  let fallback = null
+  if (state.activeTabId === tabId) {
+    fallback = state.tabs[state.tabs.length - 1] || state.tabs[0] || null
     state.activeTabId = fallback ? fallback.id : null
   }
 
   renderTabs()
-  if (state.activeTabId) {
-    const active = getActiveTab()
-    if (active) {
-      setActiveTab(active.id)
+
+  if (state.tabs.length === 0) {
+    const replacement = createTerminalTab({ focus: true })
+    if (replacement) {
+      await syncTabToWorkspace(replacement)
+      startSession(replacement, { reason: 'replacement-tab' }).catch((error) => {
+        appendEvent(replacement, 'session-error', error)
+        showError(replacement, error instanceof Error ? error.message : 'Unable to start terminal session')
+      })
     }
+  } else if (fallback) {
+    setActiveTab(fallback.id)
   } else {
     updateUI()
   }
+
+  syncActiveTabState()
+  updateSessionActions()
+  renderSessionOverview()
 }
 
-function handleActiveTabChanged(payload) {
-  if (payload.id && payload.id !== state.activeTabId) {
-    setActiveTab(payload.id)
+function handleComposerSubmit({ tab, value, appendNewline }) {
+  if (!tab) {
+    updateComposeFeedback()
+    return false
   }
+
+  const meta = {
+    appendNewline,
+    eventType: 'composer-send',
+    source: 'composer'
+  }
+
+  let sent = false
+  if (tab.socket && tab.socket.readyState === WebSocket.OPEN) {
+    sent = transmitInputForTab(tab, value, meta)
+  } else {
+    queueInputForTab(tab, value, meta)
+    if (tab.phase === 'idle' || tab.phase === 'closed') {
+      startSession(tab, { reason: 'composer-input' }).catch((error) => {
+        appendEvent(tab, 'session-error', error)
+        showError(tab, error instanceof Error ? error.message : 'Unable to start terminal session')
+      })
+    }
+    sent = true
+  }
+
+  if (!sent) {
+    showError(tab, 'Failed to send message to terminal')
+  }
+
+  return sent
 }
 
-function handleSessionAttached(payload) {
-  const tab = findTab(payload.tabId)
-  if (!tab || !payload.sessionId) return
-
-  // Reconnect to session if needed
-  if (!tab.session || tab.session.id !== payload.sessionId) {
-    reconnectSession(tab, payload.sessionId)
-  }
-}
-
-function handleSessionDetached(payload) {
-  const tab = findTab(payload.tabId)
-  if (!tab) return
-
-  // Mark session as detached
-  if (tab.session) {
-    tab.session = null
-    setTabPhase(tab, 'idle')
-    setTabSocketState(tab, 'disconnected')
-  }
-}
-
-function handleKeyboardToolbarModeChanged(payload) {
-  // Deprecated - keyboard toolbar mode has been removed
-  console.log('Keyboard toolbar mode changed event (deprecated):', payload)
-}
-
-async function reconnectSession(tab, sessionId) {
-  if (!tab || !sessionId) {
-    return
-  }
-  if (tab.reconnecting) {
-    return
-  }
-
-  tab.reconnecting = true
-  try {
-    setTabSocketState(tab, 'connecting')
-    const response = await proxyToApi(`/api/v1/sessions/${sessionId}`)
-    if (!response.ok) {
-      const status = response.status
-      appendEvent(tab, 'session-reconnect-miss', { sessionId, status })
-      if (status === 404) {
-        tab.session = null
-        setTabPhase(tab, 'idle')
-        setTabSocketState(tab, 'disconnected')
-        showError(tab, 'Session expired. Type to launch a new shell.')
-      } else {
-        setTabSocketState(tab, 'error')
-        showError(tab, `Unable to reconnect (status ${status})`)
+function initializeEventListeners() {
+  if (elements.addTabBtn) {
+    elements.addTabBtn.addEventListener('click', async () => {
+      const tab = createTerminalTab({ focus: true })
+      if (tab) {
+        await syncTabToWorkspace(tab)
+        startSession(tab, { reason: 'new-tab' }).catch((error) => {
+          appendEvent(tab, 'session-error', error)
+          showError(tab, error instanceof Error ? error.message : 'Unable to start terminal session')
+        })
       }
-      return
-    }
-    const data = await response.json()
-    tab.session = {
-      ...data,
-      commandLine: formatCommandLabel(data.command, data.args)
-    }
-    connectWebSocket(tab, sessionId)
-    setTabPhase(tab, 'running')
-    showError(tab, '')
-  } catch (error) {
-    appendEvent(tab, 'session-reconnect-error', {
-      sessionId,
-      message: error instanceof Error ? error.message : String(error)
     })
-    setTabSocketState(tab, 'error')
-    showError(tab, 'Unable to reconnect to session')
-  } finally {
-    tab.reconnecting = false
   }
-}
 
-
-// Get current workspace state
-async function getWorkspaceState() {
-  try {
-    const response = await proxyToApi('/api/v1/workspace')
-    if (!response.ok) return null
-    return await response.json()
-  } catch (error) {
-    console.error('Failed to get workspace state:', error)
-    return null
+  if (elements.signOutAllSessions) {
+    elements.signOutAllSessions.addEventListener('click', handleSignOutAllSessions)
   }
-}
 
-// AI Command Generation initialization
-if (typeof window !== 'undefined' && document.readyState === 'complete' || document.readyState === 'interactive') {
-  initAICommandAsync()
-} else {
-  window.addEventListener('DOMContentLoaded', initAICommandAsync)
-}
+  if (elements.closeDetachedTabs) {
+    elements.closeDetachedTabs.addEventListener('click', handleCloseDetachedTabs)
+  }
 
-async function initAICommandAsync() {
-  try {
-    const { generateAICommand, showSnackbar, initializeMobileToolbar } = await import('./modules/mobile-toolbar.js')
+  if (elements.sessionOverviewRefresh) {
+    elements.sessionOverviewRefresh.addEventListener('click', () => refreshSessionOverview({ silent: false }))
+  }
 
-    // Helper function to get active tab
-    const getActiveTabFn = () => getActiveTab()
+  if (elements.drawerToggle) {
+    elements.drawerToggle.addEventListener('click', () => toggleDrawer())
+  }
 
-    // Helper function to send keys to active terminal
-    const sendKeyToTerminalFn = (key) => {
+  if (elements.drawerClose) {
+    elements.drawerClose.addEventListener('click', () => closeDrawer())
+  }
+
+  if (elements.drawerBackdrop) {
+    elements.drawerBackdrop.addEventListener('click', () => closeDrawer())
+  }
+
+  document.addEventListener('keydown', handleGlobalKeyDown)
+  window.addEventListener('resize', handleWindowResize)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+
+  state.bridge = initializeIframeBridge({
+    'init-session': () => {
+      state.bridge?.emit('ready', { timestamp: Date.now() })
+    },
+    'end-session': async () => {
       const tab = getActiveTab()
-      if (!tab) {
-        console.warn('No active terminal to send key to')
-        return
+      if (tab) {
+        await stopSession(tab)
       }
-
-      // Send key directly to terminal via WebSocket if connected
-      if (tab.socket && tab.socket.readyState === WebSocket.OPEN) {
-        transmitInput(tab, key, { appendNewline: false, clearError: true })
+      state.bridge?.emit('session-ended', { requestedByParent: true })
+    },
+    'request-screenshot': async () => {
+      if (window.html2canvas) {
+        const canvas = await window.html2canvas(document.body, { backgroundColor: '#0f172a' })
+        state.bridge?.emit('screenshot', { image: canvas.toDataURL('image/png', 0.9), requestedAt: Date.now() })
       } else {
-        // Queue for when session starts
-        queueInput(tab, key, { appendNewline: false })
-        if (tab.phase === 'idle' || tab.phase === 'closed') {
-          startSession(tab, { reason: 'ai-command-input' }).catch((error) => {
-            appendEvent(tab, 'session-error', error)
-            showError(tab, error instanceof Error ? error.message : 'Unable to start terminal session')
-          })
-        }
+        state.bridge?.emit('error', { type: 'request-screenshot', message: 'html2canvas not available' })
+      }
+    },
+    'request-transcript': () => {
+      const tab = getActiveTab()
+      state.bridge?.emit('transcript', { transcript: tab ? tab.transcript : [], requestedAt: Date.now(), tabId: tab?.id || null })
+    },
+    'request-logs': () => {
+      const tab = getActiveTab()
+      state.bridge?.emit('logs', { logs: tab ? tab.events.slice(-100) : [], requestedAt: Date.now(), tabId: tab?.id || null })
+    }
+  })
+}
+
+function handleGlobalKeyDown(event) {
+  if (event.key !== 'Escape') return
+  if (isComposerOpen()) {
+    event.preventDefault()
+    closeComposeDialog({ preserveValue: false })
+    return
+  }
+  if (state.tabMenu.open) {
+    event.preventDefault()
+    closeTabCustomization()
+    return
+  }
+  if (state.drawer.open) {
+    event.preventDefault()
+    closeDrawer()
+  }
+}
+
+function handleWindowResize() {
+  requestAnimationFrame(() => {
+    const active = getActiveTab()
+    if (active) {
+      active.fitAddon?.fit()
+    }
+    if (state.tabMenu.open) {
+      closeTabCustomization()
+    }
+  })
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) return
+
+  const activeTab = getActiveTab()
+  if (activeTab && activeTab.term) {
+    const forceRender = () => {
+      try {
+        activeTab.term.focus()
+        activeTab.fitAddon?.fit()
+        activeTab.term.scrollToBottom()
+        activeTab.term.write('')
+        activeTab.term.refresh(0, activeTab.term.rows - 1)
+      } catch (error) {
+        console.warn('Failed to refresh terminal on visibility change:', error)
       }
     }
 
-    // Initialize mobile toolbar
-    const mobileToolbar = initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn)
-
-    // Set up AI command input handlers
-    if (elements.aiGenerateBtn && elements.aiCommandInput) {
-      elements.aiGenerateBtn.addEventListener('click', async () => {
-        const prompt = elements.aiCommandInput.value.trim()
-        if (!prompt) return
-
-        // Show loading state
-        const iconElement = elements.aiGenerateBtn.querySelector('.ai-icon')
-        const originalIcon = iconElement ? iconElement.outerHTML : ''
-        elements.aiGenerateBtn.disabled = true
-        elements.aiGenerateBtn.classList.add('loading')
-        elements.aiGenerateBtn.innerHTML = '<span class="loading-spinner"></span>'
-
-        try {
-          const result = await generateAICommand(prompt, getActiveTabFn, sendKeyToTerminalFn)
-
-          if (result.success) {
-            // Clear input on success
-            elements.aiCommandInput.value = ''
-            showSnackbar('Command generated successfully', 'success', 2000)
-          } else {
-            showSnackbar(result.error || 'Failed to generate command', 'error', 4000)
-          }
-        } finally {
-          elements.aiGenerateBtn.disabled = false
-          elements.aiGenerateBtn.classList.remove('loading')
-          elements.aiGenerateBtn.innerHTML = originalIcon
-          // Re-initialize lucide icons after replacing HTML
-          if (window.lucide) {
-            lucide.createIcons()
-          }
-        }
-      })
-
-      // Allow Enter key to trigger generation
-      elements.aiCommandInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault()
-          elements.aiGenerateBtn.click()
-        }
-      })
-
-      console.log('AI command generation initialized successfully')
-    }
-
-    // Set up debug toolbar toggle
-    const debugToolbarToggle = document.getElementById('debugToolbarToggle')
-    if (debugToolbarToggle && mobileToolbar) {
-      debugToolbarToggle.addEventListener('change', (e) => {
-        const isEnabled = e.target.checked
-        // Persist state to localStorage
-        localStorage.setItem('debugToolbarEnabled', isEnabled.toString())
-
-        if (isEnabled) {
-          // Enable floating mode with debug flag to override desktop behavior
-          mobileToolbar.setMode('floating', true)
-          mobileToolbar.show()
-        } else {
-          mobileToolbar.setMode('disabled', false)
-          mobileToolbar.hide()
-        }
-      })
-    }
-  } catch (error) {
-    console.error('Failed to initialize AI command generation:', error)
+    requestAnimationFrame(forceRender)
+    setTimeout(forceRender, 100)
+    setTimeout(forceRender, 250)
   }
+
+  state.tabs.forEach((tab) => {
+    if (tab.session && tab.phase === 'running' && !tab.socket) {
+      appendEvent(tab, 'visibility-reconnect', { sessionId: tab.session.id })
+      reconnectSession(tab, tab.session.id).catch((error) => {
+        console.warn('Failed to reconnect on visibility change:', error)
+      })
+    }
+  })
 }

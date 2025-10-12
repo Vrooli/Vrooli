@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -476,6 +477,53 @@ func TestHandleCreateSession(t *testing.T) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	})
+}
+
+func TestListSessionsIncludesCapacity(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	cfg := setupTestConfig(env.TempDir)
+	manager, metrics, ws := setupTestSessionManager(t, cfg)
+	mux := http.NewServeMux()
+	registerRoutes(mux, manager, metrics, ws)
+
+	// Seed one session so list has data
+	s := createTestSession(t, manager, createSessionRequest{})
+	defer cleanupSession(s)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions", nil)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	headerValue := w.Header().Get("X-Session-Capacity")
+	if headerValue != strconv.Itoa(cfg.maxConcurrent) {
+		t.Fatalf("expected capacity header %d, got %q", cfg.maxConcurrent, headerValue)
+	}
+
+	var payload struct {
+		Sessions []sessionSummary `json:"sessions"`
+		Capacity int              `json:"capacity"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if payload.Capacity != cfg.maxConcurrent {
+		t.Fatalf("expected payload capacity %d, got %d", cfg.maxConcurrent, payload.Capacity)
+	}
+
+	if len(payload.Sessions) == 0 {
+		t.Fatal("expected at least one session entry in payload")
+	}
 }
 
 func TestHandleGenerateCommand(t *testing.T) {

@@ -1,51 +1,76 @@
 /**
- * Global state and constants for web-console
+ * Global DOM references, shared constants, and mutable state for the web-console UI.
  */
 
-// DOM elements
+const byId = (id) => document.getElementById(id)
+
 export const elements = {
-  sessionId: document.getElementById('sessionId'),
-  sessionPhase: document.getElementById('sessionPhase'),
-  socketState: document.getElementById('socketState'),
-  sessionCommand: document.getElementById('sessionCommand'),
-  transcriptSize: document.getElementById('transcriptSize'),
-  eventFeed: document.getElementById('eventFeed'),
-  eventMeta: document.getElementById('eventMeta'),
-  errorBanner: document.getElementById('errorBanner'),
-  tabList: document.getElementById('tabList'),
-  addTabBtn: document.getElementById('addTabBtn'),
-  tabAddSlot: document.getElementById('tabAddSlot'),
-  terminalHost: document.getElementById('terminalHost'),
-  layout: document.getElementById('mainLayout'),
-  drawerToggle: document.getElementById('drawerToggle'),
-  drawerClose: document.getElementById('drawerClose'),
-  drawerIndicator: document.getElementById('drawerIndicator'),
-  detailsDrawer: document.getElementById('detailsDrawer'),
-  drawerBackdrop: document.getElementById('drawerBackdrop'),
-  tabContextMenu: document.getElementById('tabContextMenu'),
-  tabContextForm: document.getElementById('tabContextForm'),
-  tabContextName: document.getElementById('tabContextName'),
-  tabContextColors: document.getElementById('tabContextColors'),
-  tabContextCancel: document.getElementById('tabContextCancel'),
-  tabContextReset: document.getElementById('tabContextReset'),
-  tabContextBackdrop: document.getElementById('tabContextBackdrop'),
-  signOutAllSessions: document.getElementById('signOutAllSessions')
+  sessionOverviewCount: byId('sessionOverviewCount'),
+  sessionOverviewList: byId('sessionOverviewList'),
+  sessionOverviewEmpty: byId('sessionOverviewEmpty'),
+  sessionOverviewMeta: byId('sessionOverviewMeta'),
+  sessionOverviewAlert: byId('sessionOverviewAlert'),
+  sessionOverviewRefresh: byId('sessionOverviewRefresh'),
+  detachedTabsMeta: byId('detachedTabsMeta'),
+  closeDetachedTabs: byId('closeDetachedTabs'),
+  eventFeed: byId('eventFeed'),
+  eventFeedCount: byId('eventFeedCount'),
+  eventMeta: byId('eventMeta'),
+  errorBanner: byId('errorBanner'),
+  tabList: byId('tabList'),
+  addTabBtn: byId('addTabBtn'),
+  tabAddSlot: byId('tabAddSlot'),
+  terminalHost: byId('terminalHost'),
+  layout: byId('mainLayout'),
+  drawerToggle: byId('drawerToggle'),
+  drawerClose: byId('drawerClose'),
+  drawerIndicator: byId('drawerIndicator'),
+  detailsDrawer: byId('detailsDrawer'),
+  drawerBackdrop: byId('drawerBackdrop'),
+  tabContextMenu: byId('tabContextMenu'),
+  tabContextForm: byId('tabContextForm'),
+  tabContextName: byId('tabContextName'),
+  tabContextColors: byId('tabContextColors'),
+  tabContextCancel: byId('tabContextCancel'),
+  tabContextReset: byId('tabContextReset'),
+  tabContextBackdrop: byId('tabContextBackdrop'),
+  signOutAllSessions: byId('signOutAllSessions'),
+  aiCommandInput: byId('aiCommandInput'),
+  aiGenerateBtn: byId('aiGenerateBtn'),
+  composeBtn: byId('composeInputBtn'),
+  composeDialog: byId('composeDialog'),
+  composeBackdrop: byId('composeBackdrop'),
+  composeForm: byId('composeForm'),
+  composeClose: byId('composeClose'),
+  composeCancel: byId('composeCancel'),
+  composeTextarea: byId('composeTextarea'),
+  composeAppendNewline: byId('composeAppendNewline'),
+  composeCharCount: byId('composeCharCount'),
+  composeSend: byId('composeSend')
 }
 
-// Terminal defaults
-export const terminalDefaults = {
-  convertEol: true,
-  cursorBlink: true,
-  fontFamily: 'JetBrains Mono, SFMono-Regular, Menlo, monospace',
-  fontSize: 14,
-  theme: {
-    background: '#0f172a',
-    foreground: '#e2e8f0',
-    cursor: '#38bdf8'
+export const shortcutButtons = Array.from(document.querySelectorAll('[data-shortcut-id]'))
+
+export const debugFlags = (() => {
+  if (typeof window === 'undefined') {
+    return Object.freeze({ inputTelemetry: false })
   }
-}
 
-// Tab color options
+  const globalDebug = window.__WEB_CONSOLE_DEBUG__ || {}
+  const fromStorage = (() => {
+    try {
+      const raw = window.localStorage?.getItem('webConsoleDebug')
+      return raw ? JSON.parse(raw) : {}
+    } catch (_error) {
+      return {}
+    }
+  })()
+
+  return Object.freeze({
+    inputTelemetry: Boolean(globalDebug.inputTelemetry || fromStorage.inputTelemetry)
+  })
+})()
+
 export const TAB_COLOR_OPTIONS = [
   {
     id: 'sky',
@@ -141,7 +166,24 @@ export const TAB_COLOR_MAP = TAB_COLOR_OPTIONS.reduce((map, option) => {
 
 export const TAB_LONG_PRESS_DELAY = 550
 
-// Event aggregation
+export const terminalDefaults = {
+  convertEol: true,
+  cursorBlink: true,
+  fontFamily: 'JetBrains Mono, SFMono-Regular, Menlo, monospace',
+  fontSize: 14,
+  theme: {
+    background: '#0f172a',
+    foreground: '#e2e8f0',
+    cursor: '#38bdf8'
+  }
+}
+
+export const INPUT_BATCH_MAX_CHARS = 64
+export const INPUT_CONTROL_FLUSH_PATTERN = /[\r\n\x03\x04\x1b\x7f]/
+export const LOCAL_ECHO_MAX_BUFFER = 2048
+export const LOCAL_ECHO_TIMEOUT_MS = 5000
+export const LOCAL_ECHO_ENABLED = false
+
 export const AGGREGATED_EVENT_TYPES = new Set(['ws-empty-frame'])
 export const SUPPRESSED_EVENT_LABELS = {
   'ws-empty-frame': 'Empty frames suppressed'
@@ -153,7 +195,6 @@ export function initialSuppressedState() {
   }
 }
 
-// Application state
 export const state = {
   tabs: [],
   activeTabId: null,
@@ -170,14 +211,31 @@ export const state = {
     tabId: null,
     selectedColor: TAB_COLOR_DEFAULT,
     anchor: { x: 0, y: 0 }
+  },
+  composer: {
+    open: false,
+    previousFocus: null,
+    appendNewline: true
+  },
+  sessions: {
+    items: [],
+    loading: false,
+    lastFetched: 0,
+    error: null,
+    pollHandle: null,
+    refreshTimer: null,
+    needsRefresh: false,
+    capacity: null
   }
 }
 
-export let tabSequence = 0
+let tabSequence = 0
 
-export function incrementTabSequence() {
-  return ++tabSequence
+export function nextTabSequence() {
+  tabSequence += 1
+  return tabSequence
 }
 
-// Shortcut buttons
-export const shortcutButtons = Array.from(document.querySelectorAll('[data-shortcut-id]'))
+export function resetTabSequence(value = 0) {
+  tabSequence = Number.isFinite(value) && value >= 0 ? value : 0
+}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -91,7 +92,12 @@ func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metric
 		case http.MethodPost:
 			handleCreateSession(w, r, manager, ws)
 		case http.MethodGet:
-			writeJSON(w, http.StatusOK, manager.listSummaries())
+			capacity := manager.capacity()
+			w.Header().Set("X-Session-Capacity", strconv.Itoa(capacity))
+			writeJSON(w, http.StatusOK, map[string]any{
+				"sessions": manager.listSummaries(),
+				"capacity": capacity,
+			})
 		case http.MethodDelete:
 			terminated := manager.deleteAllSessions(reasonClientRequested)
 			writeJSON(w, http.StatusOK, map[string]any{

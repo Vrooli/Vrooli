@@ -101,17 +101,50 @@
             >×</button>
           </div>
           <section class="panel">
-            <h2>Session</h2>
-            <ul class="info-list">
-              <li><span>ID</span><span id="sessionId">—</span></li>
-              <li><span>Phase</span><span id="sessionPhase">idle</span></li>
-              <li><span>Socket</span><span id="socketState">disconnected</span></li>
-              <li><span>Command</span><span id="sessionCommand">—</span></li>
-              <li><span>Transcript</span><span id="transcriptSize">0 records</span></li>
-            </ul>
+            <div class="session-overview">
+              <div class="session-overview-header">
+                <h2>Sessions</h2>
+                <div class="session-overview-actions">
+                  <span id="sessionOverviewCount" class="session-overview-count panel-count" role="status" aria-live="polite">0 of —</span>
+                  <button
+                    id="sessionOverviewRefresh"
+                    class="session-overview-refresh"
+                    type="button"
+                    aria-label="Refresh session overview"
+                    title="Refresh session overview"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      width="16"
+                      height="16"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M21 2v6h-6" />
+                      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                      <path d="M3 22v-6h6" />
+                      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <ul id="sessionOverviewList" class="session-overview-list"></ul>
+              <p id="sessionOverviewEmpty" class="session-overview-empty panel-note hidden">No active sessions.</p>
+              <div id="sessionOverviewAlert" class="session-overview-alert hidden" role="alert">
+                <i data-lucide="alert-triangle" aria-hidden="true"></i>
+                <span>Unmapped sessions detected. Use “Sign out all sessions” to clean up.</span>
+              </div>
+              <p id="detachedTabsMeta" class="session-overview-meta panel-note hidden"></p>
+              <p id="sessionOverviewMeta" class="session-overview-meta panel-note hidden"></p>
+            </div>
             <div class="panel-actions">
               <button id="signOutAllSessions" class="btn btn-danger" type="button">Sign out all sessions</button>
-              <p class="panel-note">Closes every active terminal session for this console.</p>
+              <button id="closeDetachedTabs" class="btn btn-ghost hidden" type="button">Close detached tabs</button>
+              <p class="panel-note">Clean up lingering sessions or tabs with the actions above.</p>
             </div>
           </section>
 
@@ -131,11 +164,13 @@
                 <span class="shortcut-command">vrooli status --verbose</span>
               </button>
             </div>
-            <p class="panel-note">Shortcuts run inside the active terminal. We'll boot a shell automatically if needed.</p>
           </section>
 
           <section class="panel">
-            <h2>Event Feed</h2>
+            <div class="panel-title-row">
+              <h2>Event Feed</h2>
+              <span id="eventFeedCount" class="panel-count" role="status" aria-live="polite">0</span>
+            </div>
             <div id="eventMeta" class="event-meta hidden"></div>
             <ul id="eventFeed" class="event-feed"></ul>
           </section>
@@ -149,11 +184,6 @@
               </label>
             </div>
             <p class="panel-note">Enable to test the mobile keyboard toolbar on desktop.</p>
-          </section>
-
-          <section class="panel warning">
-            <h2>Safety Notice</h2>
-            <p><strong>This console ships with no authentication.</strong> Always embed it behind a secure proxy and parent scenario with proper identity controls.</p>
           </section>
         </aside>
 

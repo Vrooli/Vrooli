@@ -1,13 +1,21 @@
 /**
- * Event feed management - logging and display
+ * Event feed management – logging, transcript tracking, and rendering helpers.
  */
 
-import { elements, AGGREGATED_EVENT_TYPES, SUPPRESSED_EVENT_LABELS, state } from './state.js'
+import {
+  elements,
+  state,
+  AGGREGATED_EVENT_TYPES,
+  SUPPRESSED_EVENT_LABELS
+} from './state.js'
 import { formatEventPayload } from './utils.js'
 
-/**
- * Append event to tab's event log
- */
+let activeTabMutationHandler = null
+
+export function configureEventFeed({ onActiveTabMutation } = {}) {
+  activeTabMutationHandler = typeof onActiveTabMutation === 'function' ? onActiveTabMutation : null
+}
+
 export function appendEvent(tab, type, payload) {
   if (!tab) return
   const normalized = payload instanceof Error ? { message: payload.message, stack: payload.stack } : payload
@@ -23,47 +31,59 @@ export function appendEvent(tab, type, payload) {
     const nextCount = (state.drawer.unreadCount || 0) + 1
     state.drawer.unreadCount = nextCount > 999 ? 999 : nextCount
   }
+  if (tab.id === state.activeTabId && activeTabMutationHandler) {
+    activeTabMutationHandler('event-appended')
+  }
 }
 
-/**
- * Record suppressed event
- */
 export function recordSuppressedEvent(tab, type) {
   if (!tab) return
   const current = (tab.suppressed[type] || 0) + 1
   tab.suppressed[type] = current
-  if (tab.id === state.activeTabId && (current === 1 || current % 25 === 0)) {
+  if (tab.id === state.activeTabId) {
     renderEventMeta(tab)
+    if (activeTabMutationHandler) {
+      activeTabMutationHandler('suppressed-event')
+    }
   }
 }
 
-/**
- * Record transcript entry
- */
 export function recordTranscript(tab, entry) {
   if (!tab) return
   tab.transcript.push(entry)
   if (tab.transcript.length > 5000) {
     tab.transcript.splice(0, tab.transcript.length - 5000)
   }
+  if (tab.id === state.activeTabId && activeTabMutationHandler) {
+    activeTabMutationHandler('transcript-recorded')
+  }
 }
 
-/**
- * Show error message
- */
 export function showError(tab, message) {
   if (!tab) return
   tab.errorMessage = message || ''
+  if (tab.id === state.activeTabId && activeTabMutationHandler) {
+    activeTabMutationHandler('error-updated')
+  }
 }
 
-/**
- * Render events in sidebar
- */
 export function renderEvents(tab) {
   if (!elements.eventFeed) return
   elements.eventFeed.innerHTML = ''
+  const events = tab && Array.isArray(tab.events) ? tab.events : []
+  const totalEvents = events.length
+  if (elements.eventFeedCount) {
+    const countLabel = totalEvents === 0
+      ? 'No events recorded'
+      : totalEvents === 1
+        ? '1 event recorded (latest 50 shown)'
+        : `${totalEvents} events recorded (latest 50 shown)`
+    elements.eventFeedCount.textContent = String(totalEvents)
+    elements.eventFeedCount.setAttribute('aria-label', countLabel)
+    elements.eventFeedCount.title = countLabel
+  }
   if (!tab) return
-  const recent = tab.events.slice(-50).reverse()
+  const recent = events.slice(-50).reverse()
   recent.forEach((event) => {
     const li = document.createElement('li')
     const time = document.createElement('time')
@@ -83,9 +103,6 @@ export function renderEvents(tab) {
   })
 }
 
-/**
- * Render event metadata (suppressed events)
- */
 export function renderEventMeta(tab) {
   if (!elements.eventMeta) return
   if (!tab) {
@@ -106,9 +123,6 @@ export function renderEventMeta(tab) {
   }
 }
 
-/**
- * Render error banner
- */
 export function renderError(tab) {
   if (!elements.errorBanner) return
   const message = tab ? tab.errorMessage : ''
