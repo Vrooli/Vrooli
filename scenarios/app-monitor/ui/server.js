@@ -28,7 +28,11 @@ const LOOPBACK_HOST = '127.0.0.1';
 const API_BASE = `http://${LOOPBACK_HOST}:${API_PORT}`;
 const APP_PROXY_PREFIX = '/apps';
 const APP_PROXY_SEGMENT = 'proxy';
+const APP_PORTS_SEGMENT = 'ports';
 const LOOPBACK_HOSTS = new Set([LOOPBACK_HOST, 'localhost', '::1', '[::1]', '0.0.0.0']);
+const LOOPBACK_HOST_ARRAY = Array.from(LOOPBACK_HOSTS);
+const PORT_LABEL_SANITIZE_REGEX = /[^a-z0-9]+/g;
+const DEFAULT_PRIMARY_LABEL = 'ui';
 const HOP_BY_HOP_HEADERS = new Set([
     'connection',
     'keep-alive',
@@ -46,8 +50,8 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 const APP_CACHE_TTL_MS = 15_000;
-const APP_PORT_CACHE = new Map();
-const APP_PORT_INFLIGHT = new Map();
+const APP_PROXY_CACHE = new Map();
+const APP_PROXY_INFLIGHT = new Map();
 
 const PROXY_AFFINITY_TTL_MS = 120_000;
 const PROXY_AFFINITY_MAX_ENTRIES = 5_000;
@@ -250,6 +254,526 @@ const computeAppUIPort = (app) => {
     return null;
 };
 
+const normalizePortLabel = (label) => {
+    if (typeof label !== 'string') {
+        return null;
+    }
+    const trimmed = label.trim();
+    if (!trimmed) {
+        return null;
+    }
+    return trimmed.toLowerCase();
+};
+
+const slugifyPortLabel = (label, port) => {
+    const normalized = normalizePortLabel(label);
+    if (normalized && normalized !== String(port)) {
+        const slug = normalized.replace(PORT_LABEL_SANITIZE_REGEX, '-').replace(/^-+|-+$/g, '');
+        if (slug) {
+            return slug;
+        }
+    }
+    return `port-${port}`;
+};
+
+const createPortEntry = ({
+    appId,
+    port,
+    label,
+    source,
+    priority = 0,
+    kind = null,
+}) => {
+    if (typeof port !== 'number' || !Number.isInteger(port) || port <= 0 || port > 65535) {
+        throw new Error(`Invalid port for ${appId}: ${port}`);
+    }
+
+    const normalizedLabel = normalizePortLabel(label);
+    const entry = {
+        appId,
+        port,
+        label: typeof label === 'string' && label.trim() ? label.trim() : null,
+        normalizedLabel,
+        slug: slugifyPortLabel(label, port),
+        source: source || 'unknown',
+        priority: Number.isFinite(priority) ? priority : 0,
+        kind,
+        isPrimary: false,
+        path: null,
+        aliases: [],
+    };
+
+    return entry;
+};
+
+const buildPortAliasIndex = (entries) => {
+    const aliasIndex = new Map();
+    for (const entry of entries) {
+        const aliases = new Set();
+        if (entry.label) {
+            aliases.add(entry.label);
+        }
+        if (entry.normalizedLabel) {
+            aliases.add(entry.normalizedLabel);
+        }
+        if (entry.slug) {
+            aliases.add(entry.slug);
+        }
+        aliases.add(String(entry.port));
+        if (entry.isPrimary) {
+            aliases.add(DEFAULT_PRIMARY_LABEL);
+            aliases.add('primary');
+            aliases.add('default');
+        }
+
+        entry.aliases = Array.from(aliases);
+
+        for (const alias of entry.aliases) {
+            const normalized = normalizePortLabel(alias);
+            if (!normalized) {
+                continue;
+            }
+            if (!aliasIndex.has(normalized)) {
+                aliasIndex.set(normalized, entry);
+            }
+        }
+    }
+
+    return aliasIndex;
+};
+
+const buildAppProxyState = (appId, metadata) => {
+    const entries = [];
+    const entryKeySet = new Set();
+    const portIndex = new Map();
+
+    const registerEntry = (draftEntry) => {
+        const key = `${draftEntry.port}:${draftEntry.slug}`;
+        if (entryKeySet.has(key)) {
+            return entries.find((entry) => entry.port === draftEntry.port && entry.slug === draftEntry.slug);
+        }
+
+        entries.push(draftEntry);
+        entryKeySet.add(key);
+
+        if (!portIndex.has(draftEntry.port)) {
+            portIndex.set(draftEntry.port, []);
+        }
+        portIndex.get(draftEntry.port).push(draftEntry);
+        return draftEntry;
+    };
+
+    const portMappings = metadata?.port_mappings || {};
+    const environment = metadata?.environment || {};
+    const config = metadata?.config || {};
+
+    for (const [label, value] of Object.entries(portMappings)) {
+        const port = parsePortField(value);
+        if (port === null) {
+            continue;
+        }
+        registerEntry(
+            createPortEntry({
+                appId,
+                port,
+                label,
+                source: 'port_mappings',
+                priority: 30,
+            })
+        );
+    }
+
+    for (const [label, value] of Object.entries(environment)) {
+        const normalizedLabel = normalizePortLabel(label);
+        if (!normalizedLabel || (!normalizedLabel.includes('port') && !normalizedLabel.includes('url'))) {
+            continue;
+        }
+        const port = parsePortField(value);
+        if (port === null) {
+            continue;
+        }
+        registerEntry(
+            createPortEntry({
+                appId,
+                port,
+                label,
+                source: 'environment',
+                priority: normalizedLabel.includes('ui') ? 15 : 10,
+            })
+        );
+    }
+
+    const configPrimaryPort = parsePortField(config.primary_port);
+    if (configPrimaryPort !== null) {
+        registerEntry(
+            createPortEntry({
+                appId,
+                port: configPrimaryPort,
+                label: normalizePortLabel(config.primary_port_label) || 'primary',
+                source: 'config.primary_port',
+                priority: 80,
+            })
+        );
+    }
+
+    if (typeof config.primary_port_label === 'string') {
+        const labeledPort =
+            getPortFromMappings(portMappings, config.primary_port_label) ??
+            getPortFromEnvironment(environment, config.primary_port_label);
+        if (labeledPort !== null) {
+            registerEntry(
+                createPortEntry({
+                    appId,
+                    port: labeledPort,
+                    label: config.primary_port_label,
+                    source: 'config.primary_port_label',
+                    priority: 70,
+                })
+            );
+        }
+    }
+
+    const fallbackPort = parsePortField(metadata?.port);
+    if (fallbackPort !== null) {
+        registerEntry(
+            createPortEntry({
+                appId,
+                port: fallbackPort,
+                label: 'port',
+                source: 'metadata.port',
+                priority: 5,
+            })
+        );
+    }
+
+    const primaryPort = computeAppUIPort(metadata);
+    if (primaryPort === null) {
+        throw new Error(`App ${appId} does not expose a preview port`);
+    }
+
+    const existingPrimaryCandidates = portIndex.get(primaryPort) || [];
+    let primaryEntry = existingPrimaryCandidates.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0] ?? null;
+
+    if (!primaryEntry) {
+        primaryEntry = registerEntry(
+            createPortEntry({
+                appId,
+                port: primaryPort,
+                label: DEFAULT_PRIMARY_LABEL,
+                source: 'heuristic',
+                priority: 90,
+            })
+        );
+    }
+
+    primaryEntry.isPrimary = true;
+    const encodedAppId = encodeURIComponent(appId);
+    const defaultPath = `${APP_PROXY_PREFIX}/${encodedAppId}/${APP_PROXY_SEGMENT}`;
+    primaryEntry.path = defaultPath;
+
+    const slugUsage = new Map();
+    for (const entry of entries) {
+        if (entry === primaryEntry) {
+            continue;
+        }
+
+        let slug = entry.slug;
+        const usageKey = `${entry.port}:${slug}`;
+        let suffix = 1;
+        while (slugUsage.has(usageKey)) {
+            suffix += 1;
+            slug = `${entry.slug}-${suffix}`;
+        }
+        slugUsage.set(usageKey, true);
+        entry.slug = slug;
+        entry.path = `${APP_PROXY_PREFIX}/${encodedAppId}/${APP_PORTS_SEGMENT}/${encodeURIComponent(slug)}/${APP_PROXY_SEGMENT}`;
+    }
+
+    const aliasIndex = buildPortAliasIndex(entries);
+
+    return {
+        appId,
+        fetchedAt: Date.now(),
+        entries,
+        primaryEntry,
+        aliasIndex,
+        metadata,
+    };
+};
+
+const selectPortEntry = (state, portKey) => {
+    if (!state) {
+        return null;
+    }
+    if (portKey == null || (typeof portKey === 'string' && portKey.trim() === '')) {
+        return state.primaryEntry;
+    }
+
+    const normalizedKey = normalizePortLabel(portKey);
+    if (normalizedKey && state.aliasIndex.has(normalizedKey)) {
+        return state.aliasIndex.get(normalizedKey);
+    }
+
+    const numericPort = parseNumericPort(portKey);
+    if (numericPort !== null) {
+        const match = state.entries.find((entry) => entry.port === numericPort);
+        if (match) {
+            return match;
+        }
+    }
+
+    return null;
+};
+
+const buildProxyBootstrapPayload = (state) => {
+    const payloadEntries = state.entries.map((entry) => ({
+        port: entry.port,
+        label: entry.label,
+        slug: entry.slug,
+        path: entry.path,
+        aliases: entry.aliases,
+        source: entry.source,
+        isPrimary: entry.isPrimary,
+    }));
+
+    return {
+        appId: state.appId,
+        generatedAt: Date.now(),
+        hosts: LOOPBACK_HOST_ARRAY,
+        primary: {
+            port: state.primaryEntry.port,
+            label: state.primaryEntry.label,
+            slug: state.primaryEntry.slug,
+            path: state.primaryEntry.path,
+            aliases: state.primaryEntry.aliases,
+        },
+        ports: payloadEntries,
+    };
+};
+
+const escapeForInlineScript = (value) => value.replace(/<\//g, '\\u003C/');
+
+const buildProxyBootstrapScript = (state) => {
+    const payload = buildProxyBootstrapPayload(state);
+    const serialized = escapeForInlineScript(JSON.stringify(payload));
+
+    return `;(() => {\n` +
+        `  const INFO_KEY = '__APP_MONITOR_PROXY_INFO__';\n` +
+        `  const INDEX_KEY = '__APP_MONITOR_PROXY_INDEX__';\n` +
+        `  const payload = ${serialized};\n` +
+        `  if (typeof window === 'undefined') {\n` +
+        `    return;\n` +
+        `  }\n` +
+        `  window[INFO_KEY] = payload;\n` +
+        `  const buildIndex = (data) => {\n` +
+        `    if (!data || !Array.isArray(data.ports)) {\n` +
+        `      return null;\n` +
+        `    }\n` +
+        `    const aliasMap = new Map();\n` +
+        `    for (const entry of data.ports) {\n` +
+        `      if (!entry || typeof entry.port !== 'number') {\n` +
+        `        continue;\n` +
+        `      }\n` +
+        `      const aliases = Array.isArray(entry.aliases) ? entry.aliases : [];\n` +
+        `      aliases.push(String(entry.port));\n` +
+        `      for (const alias of aliases) {\n` +
+        `        if (typeof alias !== 'string') {\n` +
+        `          continue;\n` +
+        `        }\n` +
+        `        const key = alias.trim().toLowerCase();\n` +
+        `        if (key && !aliasMap.has(key)) {\n` +
+        `          aliasMap.set(key, entry);\n` +
+        `        }\n` +
+        `      }\n` +
+        `    }\n` +
+        `    return {\n` +
+        `      appId: data.appId,\n` +
+        `      generatedAt: data.generatedAt,\n` +
+        `      aliasMap,\n` +
+        `      primary: data.primary,\n` +
+        `      hosts: new Set(Array.isArray(data.hosts) ? data.hosts.map((host) => host.toLowerCase()) : []),\n` +
+        `    };\n` +
+        `  };\n` +
+        `  const getIndex = () => {\n` +
+        `    const latest = window[INFO_KEY];\n` +
+        `    if (!latest) {\n` +
+        `      return null;\n` +
+        `    }\n` +
+        `    const existing = window[INDEX_KEY];\n` +
+        `    if (!existing || existing.appId !== latest.appId || existing.generatedAt !== latest.generatedAt) {\n` +
+        `      const nextIndex = buildIndex(latest);\n` +
+        `      window[INDEX_KEY] = nextIndex;\n` +
+        `      return nextIndex;\n` +
+        `    }\n` +
+        `    return existing;\n` +
+        `  };\n` +
+        `  const joinPath = (basePath, nextPath) => {\n` +
+        `    const trimmedBase = typeof basePath === 'string' ? basePath.replace(/\\/$/, '') : '';\n` +
+        `    const normalizedNext = typeof nextPath === 'string' ? nextPath : '';\n` +
+        `    if (!normalizedNext || normalizedNext === '/') {\n` +
+        `      return trimmedBase + '/';\n` +
+        `    }\n` +
+        `    return trimmedBase + (normalizedNext.startsWith('/') ? normalizedNext : '/' + normalizedNext);\n` +
+        `  };\n` +
+        `  const resolveTarget = (href, scheme) => {\n` +
+        `    if (!href) {\n` +
+        `      return null;\n` +
+        `    }\n` +
+        `    let url;\n` +
+        `    try {\n` +
+        `      url = new URL(href, window.location.href);\n` +
+        `    } catch (error) {\n` +
+        `      return null;\n` +
+        `    }\n` +
+        `    const index = getIndex();\n` +
+        `    if (!index || !index.hosts.has(url.hostname.toLowerCase())) {\n` +
+        `      return null;\n` +
+        `    }\n` +
+        `    const portKey = url.port ? url.port : '';\n` +
+        `    let entry = portKey ? index.aliasMap.get(portKey.toLowerCase()) : null;\n` +
+        `    if (!entry && !portKey) {\n` +
+        `      entry = index.primary;\n` +
+        `    }\n` +
+        `    if (!entry) {\n` +
+        `      return null;\n` +
+        `    }\n` +
+        `    const basePath = entry.path || index.primary?.path;\n` +
+        `    if (!basePath) {\n` +
+        `      return null;\n` +
+        `    }\n` +
+        `    const protocol = scheme === 'ws'\n` +
+        `      ? (window.location.protocol === 'https:' ? 'wss:' : 'ws:')\n` +
+        `      : window.location.protocol;\n` +
+        `    const host = window.location.host;\n` +
+        `    const path = joinPath(basePath, url.pathname || '/');\n` +
+        `    const search = url.search || '';\n` +
+        `    const hash = scheme === 'ws' ? '' : (url.hash || '');\n` +
+        `    return protocol + '//' + host + path + search + hash;\n` +
+        `  };\n` +
+        `  const ensurePatched = () => {\n` +
+        `    if (window.__APP_MONITOR_PROXY_SHIMMED__) {\n` +
+        `      return;\n` +
+        `    }\n` +
+        `    window.__APP_MONITOR_PROXY_SHIMMED__ = true;\n` +
+        `    const originalFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;\n` +
+        `    if (originalFetch) {\n` +
+        `      window.fetch = function(resource, init) {\n` +
+        `        let rewritten = null;\n` +
+        `        if (typeof resource === 'string' || resource instanceof URL) {\n` +
+        `          rewritten = resolveTarget(resource.toString(), 'http');\n` +
+        `          if (rewritten) {\n` +
+        `            return originalFetch.call(this, rewritten, init);\n` +
+        `          }\n` +
+        `        } else if (resource instanceof Request) {\n` +
+        `          rewritten = resolveTarget(resource.url, 'http');\n` +
+        `          if (rewritten) {\n` +
+        `            const cloned = resource.clone();\n` +
+        `            const { method } = cloned;\n` +
+        `            const headers = new Headers(cloned.headers);\n` +
+        `            const bodyUsed = method && (method.toUpperCase() === 'GET' || method.toUpperCase() === 'HEAD');\n` +
+        `            const initOptions = {\n` +
+        `              method,\n` +
+        `              headers,\n` +
+        `              cache: cloned.cache,\n` +
+        `              credentials: cloned.credentials,\n` +
+        `              integrity: cloned.integrity,\n` +
+        `              keepalive: cloned.keepalive,\n` +
+        `              mode: cloned.mode,\n` +
+        `              redirect: cloned.redirect,\n` +
+        `              referrer: cloned.referrer && cloned.referrer !== 'about:client' ? cloned.referrer : undefined,\n` +
+        `              referrerPolicy: cloned.referrerPolicy,\n` +
+        `              signal: cloned.signal,\n` +
+        `            };\n` +
+        `            if (!bodyUsed) {\n` +
+        `              initOptions.body = cloned.body;\n` +
+        `            }\n` +
+        `            if ('duplex' in cloned) {\n` +
+        `              initOptions.duplex = cloned.duplex;\n` +
+        `            }\n` +
+        `            const rewrittenRequest = new Request(rewritten, initOptions);\n` +
+        `            return originalFetch.call(this, rewrittenRequest, init);\n` +
+        `          }\n` +
+        `        }\n` +
+        `        return originalFetch.call(this, resource, init);\n` +
+        `      };\n` +
+        `    }\n` +
+        `    if (typeof window.Request === 'function') {\n` +
+        `      const OriginalRequest = window.Request;\n` +
+        `      const PatchedRequest = function(input, init) {\n` +
+        `        let updatedInput = input;\n` +
+        `        if (typeof input === 'string' || input instanceof URL) {\n` +
+        `          const rewritten = resolveTarget(input.toString(), 'http');\n` +
+        `          if (rewritten) {\n` +
+        `            updatedInput = rewritten;\n` +
+        `          }\n` +
+        `        }\n` +
+        `        return new OriginalRequest(updatedInput, init);\n` +
+        `      };\n` +
+        `      PatchedRequest.prototype = OriginalRequest.prototype;\n` +
+        `      Object.setPrototypeOf(PatchedRequest, OriginalRequest);\n` +
+        `      window.Request = PatchedRequest;\n` +
+        `    }\n` +
+        `    if (typeof window.XMLHttpRequest === 'function') {\n` +
+        `      const originalOpen = window.XMLHttpRequest.prototype.open;\n` +
+        `      window.XMLHttpRequest.prototype.open = function(method, url, async, user, password) {\n` +
+        `        let rewrittenUrl = url;\n` +
+        `        if (typeof url === 'string') {\n` +
+        `          const rewritten = resolveTarget(url, 'http');\n` +
+        `          if (rewritten) {\n` +
+        `            rewrittenUrl = rewritten;\n` +
+        `          }\n` +
+        `        }\n` +
+        `        return originalOpen.call(this, method, rewrittenUrl, async, user, password);\n` +
+        `      };\n` +
+        `    }\n` +
+        `    if (typeof window.WebSocket === 'function') {\n` +
+        `      const OriginalWebSocket = window.WebSocket;\n` +
+        `      const PatchedWebSocket = function(target, protocols) {\n` +
+        `        let url = target;\n` +
+        `        if (typeof target === 'string' || target instanceof URL) {\n` +
+        `          const rewritten = resolveTarget(target.toString(), 'ws');\n` +
+        `          if (rewritten) {\n` +
+        `            url = rewritten;\n` +
+        `          }\n` +
+        `        }\n` +
+        `        if (protocols === undefined) {\n` +
+        `          return new OriginalWebSocket(url);\n` +
+        `        }\n` +
+        `        return new OriginalWebSocket(url, protocols);\n` +
+        `      };\n` +
+        `      Object.setPrototypeOf(PatchedWebSocket, OriginalWebSocket);\n` +
+        `      PatchedWebSocket.prototype = OriginalWebSocket.prototype;\n` +
+        `      window.WebSocket = PatchedWebSocket;\n` +
+        `    }\n` +
+        `    if (typeof window.EventSource === 'function') {\n` +
+        `      const OriginalEventSource = window.EventSource;\n` +
+        `      const PatchedEventSource = function(url, config) {\n` +
+        `        let rewrittenUrl = url;\n` +
+        `        if (typeof url === 'string' || url instanceof URL) {\n` +
+        `          const rewritten = resolveTarget(url.toString(), 'http');\n` +
+        `          if (rewritten) {\n` +
+        `            rewrittenUrl = rewritten;\n` +
+        `          }\n` +
+        `        }\n` +
+        `        return new OriginalEventSource(rewrittenUrl, config);\n` +
+        `      };\n` +
+        `      PatchedEventSource.prototype = OriginalEventSource.prototype;\n` +
+        `      Object.setPrototypeOf(PatchedEventSource, OriginalEventSource);\n` +
+        `      window.EventSource = PatchedEventSource;\n` +
+        `    }\n` +
+        `    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {\n` +
+        `      const originalSendBeacon = navigator.sendBeacon.bind(navigator);\n` +
+        `      navigator.sendBeacon = function(url, data) {\n` +
+        `        const rewritten = resolveTarget(url, 'http');\n` +
+        `        const targetUrl = rewritten || url;\n` +
+        `        return originalSendBeacon(targetUrl, data);\n` +
+        `      };\n` +
+        `    }\n` +
+        `  };\n` +
+        `  ensurePatched();\n` +
+        `})();`;
+};
+
 const fetchAppMetadata = async (appId) => {
     const url = `${API_BASE}/api/v1/apps/${encodeURIComponent(appId)}`;
     try {
@@ -270,31 +794,40 @@ const fetchAppMetadata = async (appId) => {
     }
 };
 
-const resolveAppPreviewTarget = async (appId) => {
-    const cached = APP_PORT_CACHE.get(appId);
+const resolveAppProxyState = async (appId) => {
+    const cached = APP_PROXY_CACHE.get(appId);
     if (cached && Date.now() - cached.fetchedAt < APP_CACHE_TTL_MS) {
         return cached;
     }
 
-    if (APP_PORT_INFLIGHT.has(appId)) {
-        return APP_PORT_INFLIGHT.get(appId);
+    if (APP_PROXY_INFLIGHT.has(appId)) {
+        return APP_PROXY_INFLIGHT.get(appId);
     }
 
     const lookupPromise = (async () => {
         const metadata = await fetchAppMetadata(appId);
-        const port = computeAppUIPort(metadata);
-        if (port === null) {
-            throw new Error(`App ${appId} does not expose a preview port`);
-        }
-        const result = { port, fetchedAt: Date.now() };
-        APP_PORT_CACHE.set(appId, result);
-        return result;
+        const state = buildAppProxyState(appId, metadata);
+        APP_PROXY_CACHE.set(appId, state);
+        return state;
     })().finally(() => {
-        APP_PORT_INFLIGHT.delete(appId);
+        APP_PROXY_INFLIGHT.delete(appId);
     });
 
-    APP_PORT_INFLIGHT.set(appId, lookupPromise);
+    APP_PROXY_INFLIGHT.set(appId, lookupPromise);
     return lookupPromise;
+};
+
+const resolveAppProxyTarget = async (appId, portKey = null) => {
+    const state = await resolveAppProxyState(appId);
+    const entry = selectPortEntry(state, portKey);
+    if (!entry) {
+        throw new Error(portKey ? `App ${appId} does not expose a port matching "${portKey}"` : `App ${appId} does not expose a preview port`);
+    }
+    return {
+        port: entry.port,
+        entry,
+        state,
+    };
 };
 
 const sanitizeRequestHeaders = (headers = {}, port, req) => {
@@ -314,6 +847,7 @@ const sanitizeRequestHeaders = (headers = {}, port, req) => {
     sanitized['x-forwarded-proto'] = protoHeader;
     const remoteAddr = headers['x-forwarded-for'] || req?.socket?.remoteAddress || LOOPBACK_HOST;
     sanitized['x-forwarded-for'] = remoteAddr;
+    sanitized['accept-encoding'] = 'identity';
     return sanitized;
 };
 
@@ -404,8 +938,13 @@ const stripProxyPrefix = (fullPath) => {
         return '/';
     }
 
-    const pattern = new RegExp(`^${APP_PROXY_PREFIX}/[^/]+/${APP_PROXY_SEGMENT}`);
-    const stripped = fullPath.replace(pattern, '');
+    const portPattern = new RegExp(`^${APP_PROXY_PREFIX}/[^/]+/${APP_PORTS_SEGMENT}/[^/]+/${APP_PROXY_SEGMENT}`);
+    const basePattern = new RegExp(`^${APP_PROXY_PREFIX}/[^/]+/${APP_PROXY_SEGMENT}`);
+
+    let stripped = fullPath.replace(portPattern, '');
+    if (stripped === fullPath) {
+        stripped = fullPath.replace(basePattern, '');
+    }
     if (!stripped) {
         return '/';
     }
@@ -459,18 +998,35 @@ const parseForAffinity = (value, fallbackHost = '') => {
     }
 };
 
-const extractAppIdFromProxyPath = (path) => {
+const extractProxyContextFromPath = (path) => {
     if (typeof path !== 'string') {
         return null;
     }
-    const match = path.match(new RegExp(`^${APP_PROXY_PREFIX}/([^/]+)/${APP_PROXY_SEGMENT}`));
+    const portMatch = path.match(new RegExp(`^${APP_PROXY_PREFIX}/([^/]+)/${APP_PORTS_SEGMENT}/([^/]+)/${APP_PROXY_SEGMENT}`));
+    if (portMatch) {
+        let appId = portMatch[1];
+        let portKey = portMatch[2];
+        try {
+            appId = decodeURIComponent(appId);
+        } catch (error) {
+            // noop
+        }
+        try {
+            portKey = decodeURIComponent(portKey);
+        } catch (error) {
+            // noop
+        }
+        return { appId, portKey };
+    }
+    const baseMatch = path.match(new RegExp(`^${APP_PROXY_PREFIX}/([^/]+)/${APP_PROXY_SEGMENT}`));
+    const match = baseMatch;
     if (!match) {
         return null;
     }
     try {
-        return decodeURIComponent(match[1]);
+        return { appId: decodeURIComponent(match[1]), portKey: null };
     } catch (error) {
-        return match[1];
+        return { appId: match[1], portKey: null };
     }
 };
 
@@ -670,7 +1226,7 @@ const resolveAppIdForKey = (key, refererKey, visited = new Set()) => {
     return freshest ? freshest.appId : null;
 };
 
-const resolveAppIdFromRequest = (req) => {
+const resolveProxyContextFromRequest = (req) => {
     if (!req) {
         return null;
     }
@@ -685,16 +1241,22 @@ const resolveAppIdFromRequest = (req) => {
         return null;
     }
 
+    const requestContext = extractProxyContextFromPath(requestParts.path);
+    if (requestContext?.appId) {
+        return requestContext;
+    }
+
     const refererHeader = req.headers.referer || req.headers.referrer;
     let refererParts = null;
     let refererKey = null;
+    let refererContext = null;
     if (typeof refererHeader === 'string' && refererHeader.length > 0) {
         refererParts = parseForAffinity(refererHeader, hostHeader);
         if (refererParts) {
             refererKey = buildAffinityKey(refererParts);
-            const refererAppId = extractAppIdFromProxyPath(refererParts.path);
-            if (refererAppId) {
-                return refererAppId;
+            refererContext = extractProxyContextFromPath(refererParts.path);
+            if (refererContext?.appId) {
+                return refererContext;
             }
         }
     }
@@ -707,11 +1269,14 @@ const resolveAppIdFromRequest = (req) => {
 
     const direct = resolveAppIdForKey(requestKey, refererKey);
     if (direct) {
-        return direct;
+        return { appId: direct, portKey: refererContext?.portKey ?? requestContext?.portKey ?? null };
     }
 
     if (refererKey) {
-        return resolveAppIdForKey(refererKey, null);
+        const refererAppId = resolveAppIdForKey(refererKey, null);
+        if (refererAppId) {
+            return { appId: refererAppId, portKey: refererContext?.portKey ?? null };
+        }
     }
 
     return null;
@@ -757,10 +1322,10 @@ const abortWebSocketUpgrade = (socket, statusCode, message) => {
     socket.destroy();
 };
 
-const proxyWebSocketUpgrade = async ({ req, socket, head, appId, targetPath }) => {
+const proxyWebSocketUpgrade = async ({ req, socket, head, appId, portKey, targetPath }) => {
     let target;
     try {
-        target = await resolveAppPreviewTarget(appId);
+        target = await resolveAppProxyTarget(appId, portKey);
     } catch (error) {
         console.error('[APP PROXY][WS] Failed to resolve app:', error.message);
         abortWebSocketUpgrade(socket, 502, 'Bad Gateway');
@@ -796,7 +1361,7 @@ const proxyWebSocketUpgrade = async ({ req, socket, head, appId, targetPath }) =
     upstream.on('error', (error) => {
         console.error('[APP PROXY][WS] Upstream error:', error.message);
         if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') {
-            APP_PORT_CACHE.delete(appId);
+            APP_PROXY_CACHE.delete(appId);
         }
         socket.destroy();
     });
@@ -806,12 +1371,31 @@ const proxyWebSocketUpgrade = async ({ req, socket, head, appId, targetPath }) =
     });
 };
 
-const proxyHttpRequest = async ({ req, res, appId, targetPath }) => {
-    const { port } = await resolveAppPreviewTarget(appId);
+const proxyHttpRequest = async ({ req, res, appId, portKey, targetPath }) => {
+    let target;
+    try {
+        target = await resolveAppProxyTarget(appId, portKey);
+    } catch (error) {
+        console.error('[APP PROXY] Failed to resolve target:', error.message);
+        res.status(502).json({
+            error: 'Application preview unavailable',
+            details: error.message,
+            appId,
+            port: portKey ?? undefined,
+        });
+        return;
+    }
+
+    const { port, state, entry } = target;
     const sanitizedHeaders = sanitizeRequestHeaders(req.headers, port, req);
+    sanitizedHeaders['accept-encoding'] = 'identity';
     const requestPath = targetPath && targetPath.length > 0 ? targetPath : '/';
 
-    console.log(`[APP PROXY] ${req.method} ${req.originalUrl} -> http://${LOOPBACK_HOST}:${port}${requestPath}`);
+    const portLabel = entry?.label || entry?.slug || String(entry?.port);
+    console.log(
+        `[APP PROXY] ${req.method} ${req.originalUrl} -> http://${LOOPBACK_HOST}:${port}${requestPath}` +
+            (portLabel ? ` [${portLabel}]` : '')
+    );
 
     return new Promise((resolve) => {
         const proxyReq = http.request(
@@ -825,6 +1409,15 @@ const proxyHttpRequest = async ({ req, res, appId, targetPath }) => {
             (proxyRes) => {
                 recordProxyAffinityForRequest({ req, appId, targetPath: requestPath });
                 const rewrittenHeaders = rewriteResponseHeaders(proxyRes.headers, appId, port);
+                const contentTypeHeader = proxyRes.headers['content-type'] || proxyRes.headers['Content-Type'];
+                const shouldInjectBootstrap =
+                    typeof contentTypeHeader === 'string' && /text\/html/i.test(contentTypeHeader);
+
+                if (shouldInjectBootstrap) {
+                    delete rewrittenHeaders['content-length'];
+                    delete rewrittenHeaders['Content-Length'];
+                }
+
                 res.status(proxyRes.statusCode ?? 502);
                 for (const [headerKey, headerValue] of Object.entries(rewrittenHeaders)) {
                     if (typeof headerValue === 'undefined') {
@@ -832,15 +1425,53 @@ const proxyHttpRequest = async ({ req, res, appId, targetPath }) => {
                     }
                     res.setHeader(headerKey, headerValue);
                 }
-                proxyRes.pipe(res);
-                proxyRes.on('end', resolve);
+
+                if (!shouldInjectBootstrap) {
+                    proxyRes.pipe(res);
+                    proxyRes.on('end', resolve);
+                    return;
+                }
+
+                const chunks = [];
+                proxyRes.on('data', (chunk) => {
+                    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+                });
+                proxyRes.on('end', () => {
+                    try {
+                        const bodyBuffer = Buffer.concat(chunks);
+                        const body = bodyBuffer.toString('utf8');
+                        const script = buildProxyBootstrapScript(state);
+                        const scriptTag = `<script data-app-monitor="proxy-bootstrap">${script}</script>`;
+
+                        let injected = body;
+                        if (body.includes('</head>')) {
+                            injected = body.replace('</head>', `${scriptTag}</head>`);
+                        } else if (body.includes('<body')) {
+                            const bodyIndex = body.indexOf('<body');
+                            const closeIndex = body.indexOf('>', bodyIndex);
+                            if (closeIndex !== -1) {
+                                injected = `${body.slice(0, closeIndex + 1)}${scriptTag}${body.slice(closeIndex + 1)}`;
+                            } else {
+                                injected = `${scriptTag}${body}`;
+                            }
+                        } else {
+                            injected = `${scriptTag}${body}`;
+                        }
+
+                        res.send(injected);
+                    } catch (error) {
+                        console.error('[APP PROXY] Failed to inject bootstrap script:', error.message);
+                        res.send(Buffer.concat(chunks));
+                    }
+                    resolve();
+                });
             }
         );
 
         proxyReq.on('error', (err) => {
             console.error('[APP PROXY] error:', err.message);
             if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET') {
-                APP_PORT_CACHE.delete(appId);
+                APP_PROXY_CACHE.delete(appId);
             }
             if (!res.headersSent) {
                 res.status(502).json({
@@ -863,6 +1494,43 @@ const proxyHttpRequest = async ({ req, res, appId, targetPath }) => {
     });
 };
 
+app.use(`${APP_PROXY_PREFIX}/:appId/${APP_PORTS_SEGMENT}/:portKey/${APP_PROXY_SEGMENT}`, async (req, res, next) => {
+    try {
+        const targetPath = stripProxyPrefix(req.originalUrl);
+        await proxyHttpRequest({
+            req,
+            res,
+            appId: req.params.appId,
+            portKey: req.params.portKey,
+            targetPath,
+        });
+        return;
+    } catch (error) {
+        console.error('[APP PROXY] Failed to proxy request:', error.message);
+        if (!res.headersSent) {
+            res.status(502).json({ error: 'Application preview unavailable', details: error.message });
+        }
+    }
+    if (!res.headersSent) {
+        next();
+    }
+});
+
+app.get(`${APP_PROXY_PREFIX}/:appId/_proxy/metadata`, async (req, res) => {
+    try {
+        const state = await resolveAppProxyState(req.params.appId);
+        res.json({
+            success: true,
+            data: buildProxyBootstrapPayload(state),
+        });
+    } catch (error) {
+        res.status(404).json({
+            success: false,
+            error: error.message,
+        });
+    }
+});
+
 app.use(`${APP_PROXY_PREFIX}/:appId/${APP_PROXY_SEGMENT}`, async (req, res, next) => {
     try {
         const targetPath = stripProxyPrefix(req.originalUrl);
@@ -870,6 +1538,7 @@ app.use(`${APP_PROXY_PREFIX}/:appId/${APP_PROXY_SEGMENT}`, async (req, res, next
             req,
             res,
             appId: req.params.appId,
+            portKey: null,
             targetPath,
         });
         return;
@@ -890,13 +1559,24 @@ app.use(async (req, res, next) => {
     }
 
     const targetPath = stripProxyPrefix(req.originalUrl);
-    const affinityAppId = resolveAppIdFromRequest(req);
-    if (affinityAppId) {
+    const hostHeader = normalizeHost(req.headers.host || '');
+
+    const refererHeader = req.headers.referer || req.headers.referrer;
+    const fetchSite = req.headers['sec-fetch-site'];
+    const refererDetails =
+        typeof refererHeader === 'string' && refererHeader.length > 0
+            ? parseForAffinity(refererHeader, hostHeader)
+            : null;
+    const refererContext = refererDetails ? extractProxyContextFromPath(refererDetails.path) : null;
+
+    const affinityContext = resolveProxyContextFromRequest(req);
+    if (affinityContext?.appId) {
         try {
             await proxyHttpRequest({
                 req,
                 res,
-                appId: affinityAppId,
+                appId: affinityContext.appId,
+                portKey: affinityContext.portKey ?? refererContext?.portKey ?? null,
                 targetPath,
             });
             return;
@@ -908,19 +1588,15 @@ app.use(async (req, res, next) => {
         }
     }
 
-    const referer = req.headers.referer || req.headers.referrer;
-    if (!referer || typeof referer !== 'string') {
+    if (
+        !refererDetails ||
+        !refererContext ||
+        (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'same-site' && fetchSite !== 'none')
+    ) {
         return next();
     }
 
-    const fetchSite = req.headers['sec-fetch-site'];
-    if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'same-site' && fetchSite !== 'none') {
-        return next();
-    }
-
-    const hostHeader = normalizeHost(req.headers.host || '');
-    const refererDetails = parseForAffinity(referer, hostHeader);
-    if (!refererDetails) {
+    if (refererDetails.host && hostHeader && refererDetails.host !== hostHeader) {
         return next();
     }
 
@@ -932,6 +1608,7 @@ app.use(async (req, res, next) => {
                 req,
                 res,
                 appId: refererAffinityAppId,
+                portKey: refererContext.portKey ?? null,
                 targetPath,
             });
             return;
@@ -943,16 +1620,7 @@ app.use(async (req, res, next) => {
         }
     }
 
-    if (!refererDetails.path.startsWith(`${APP_PROXY_PREFIX}/`) || !refererDetails.path.includes(`/${APP_PROXY_SEGMENT}`)) {
-        return next();
-    }
-
-    if (refererDetails.host && hostHeader && refererDetails.host !== hostHeader) {
-        return next();
-    }
-
-    const appId = extractAppIdFromProxyPath(refererDetails.path);
-    if (!appId) {
+    if (!refererContext.appId) {
         return next();
     }
 
@@ -960,14 +1628,19 @@ app.use(async (req, res, next) => {
         await proxyHttpRequest({
             req,
             res,
-            appId,
+            appId: refererContext.appId,
+            portKey: refererContext.portKey ?? null,
             targetPath,
         });
         return;
     } catch (error) {
         console.error('[APP PROXY] Referer-based proxy failed:', error.message);
         if (!res.headersSent) {
-            res.status(502).json({ error: 'Application preview unavailable', details: error.message, appId });
+            res.status(502).json({
+                error: 'Application preview unavailable',
+                details: error.message,
+                appId: refererContext.appId,
+            });
         }
     }
     if (!res.headersSent) {
@@ -1113,17 +1786,23 @@ server.on('upgrade', async (req, socket, head) => {
     }
 
     if (parsed.pathname.startsWith(`${APP_PROXY_PREFIX}/`) && parsed.pathname.includes(`/${APP_PROXY_SEGMENT}`)) {
-        const match = parsed.pathname.match(new RegExp(`^${APP_PROXY_PREFIX}/([^/]+)/${APP_PROXY_SEGMENT}(.*)?$`));
-        if (!match) {
+        const context = extractProxyContextFromPath(parsed.pathname);
+        if (!context?.appId) {
             abortWebSocketUpgrade(socket, 400, 'Bad Request');
             return;
         }
 
-        const appId = decodeURIComponent(match[1]);
         const strippedPath = stripProxyPrefix(parsed.pathname);
         const targetPath = `${strippedPath}${parsed.search || ''}`;
 
-        await proxyWebSocketUpgrade({ req, socket, head, appId, targetPath });
+        await proxyWebSocketUpgrade({
+            req,
+            socket,
+            head,
+            appId: context.appId,
+            portKey: context.portKey ?? null,
+            targetPath,
+        });
         return;
     }
 

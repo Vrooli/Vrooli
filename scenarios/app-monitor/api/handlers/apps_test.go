@@ -256,6 +256,23 @@ func TestCheckAppIframeBridge(t *testing.T) {
 	})
 }
 
+func TestCheckAppLocalhostUsage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	appService := services.NewAppService(nil)
+	handler := NewAppHandler(appService)
+
+	router := setupTestRouter()
+	router.GET("/apps/:id/diagnostics/localhost", handler.CheckAppLocalhostUsage)
+
+	req := httptest.NewRequest("GET", "/apps/test-app/diagnostics/localhost", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code == 0 {
+		t.Error("expected handler to write a response")
+	}
+}
+
 func TestGetAppLogs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	appService := services.NewAppService(nil)

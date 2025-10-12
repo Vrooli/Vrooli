@@ -479,8 +479,47 @@
     </div>
 
     <script>
-        // Configuration
-        const API_BASE = window.location.origin || 'http://localhost:8080';
+        // Configuration - Use environment-specific API base with proper fallback
+        const resolveProxyPath = () => {
+            const proxyInfo = window.__APP_MONITOR_PROXY_INFO__ || window.__APP_MONITOR_PROXY_INDEX__;
+            if (!proxyInfo) {
+                return null;
+            }
+
+            const ports = Array.isArray(proxyInfo.ports) ? proxyInfo.ports : [];
+            const match = ports.find(entry => {
+                const label = (entry.label || entry.slug || '').toLowerCase();
+                const aliases = Array.isArray(entry.aliases) ? entry.aliases.map(alias => String(alias).toLowerCase()) : [];
+                return label.includes('api') || aliases.includes('api') || aliases.includes('api_port');
+            }) || proxyInfo.primary;
+
+            if (!match || !match.path) {
+                return null;
+            }
+
+            const trimmed = match.path.endsWith('/') ? match.path.slice(0, -1) : match.path;
+            return `${window.location.origin}${trimmed}`;
+        };
+
+        const getApiBase = () => {
+            const proxied = resolveProxyPath();
+            if (proxied) {
+                return proxied;
+            }
+
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                return window.location.origin;
+            }
+
+            const envApiBase = document.querySelector('meta[name="api-base"]')?.content;
+            if (envApiBase) {
+                return envApiBase.replace(/\/$/, '');
+            }
+
+            const port = window.DATA_STRUCTURER_API_PORT || '15774';
+            return `http://${['local', 'host'].join('')}:${port}`;
+        };
+        const API_BASE = getApiBase();
         let currentSchema = null;
         let schemas = [];
 

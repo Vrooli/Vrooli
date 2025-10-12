@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -8,9 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -75,6 +79,21 @@ type BridgeRuleReport struct {
 	CheckedAt    time.Time             `json:"checked_at"`
 }
 
+type LocalhostUsageFinding struct {
+	FilePath string `json:"file_path"`
+	Line     int    `json:"line"`
+	Snippet  string `json:"snippet"`
+	Pattern  string `json:"pattern"`
+}
+
+type LocalhostUsageReport struct {
+	Scenario  string                  `json:"scenario"`
+	CheckedAt time.Time               `json:"checked_at"`
+	Findings  []LocalhostUsageFinding `json:"findings"`
+	Scanned   int                     `json:"files_scanned"`
+	Warnings  []string                `json:"warnings,omitempty"`
+}
+
 // AppLogsResult captures lifecycle logs and background step logs for a scenario.
 type AppLogsResult struct {
 	Lifecycle  []string
@@ -113,6 +132,77 @@ const (
 	attachmentConsoleName    = "app-monitor-console.json"
 	attachmentNetworkName    = "app-monitor-network.json"
 	attachmentScreenshotName = "app-monitor-screenshot.png"
+)
+
+var (
+	localhostPatterns = []struct {
+		Regex *regexp.Regexp
+		Label string
+	}{
+		{Regex: regexp.MustCompile(`(?i)https?://(?:127\.0\.0\.1|localhost|0\.0\.0\.0)`), Label: "HTTP"},
+		{Regex: regexp.MustCompile(`(?i)wss?://(?:127\.0\.0\.1|localhost|0\.0\.0\.0)`), Label: "WebSocket"},
+		{Regex: regexp.MustCompile(`(?i)(?:^|[^\w])(127\.0\.0\.1|localhost|0\.0\.0\.0):(\d+)`), Label: "HostPort"},
+	}
+
+	localhostSkipDirectories = map[string]struct{}{
+		".git":         {},
+		".hg":          {},
+		".svn":         {},
+		".cache":       {},
+		".next":        {},
+		".nuxt":        {},
+		"dist":         {},
+		"build":        {},
+		"node_modules": {},
+		"vendor":       {},
+		".venv":        {},
+		".idea":        {},
+		".vscode":      {},
+		"coverage":     {},
+		"tmp":          {},
+	}
+
+	localhostSkipFiles = map[string]struct{}{
+		"package-lock.json": {},
+		"package-lock.yaml": {},
+		"yarn.lock":         {},
+		"pnpm-lock.yaml":    {},
+	}
+
+	localhostAllowedExtensions = map[string]struct{}{
+		"":        {}, // dotfiles without extension
+		".c":      {},
+		".cc":     {},
+		".cpp":    {},
+		".css":    {},
+		".env":    {},
+		".go":     {},
+		".html":   {},
+		".ini":    {},
+		".java":   {},
+		".js":     {},
+		".jsx":    {},
+		".json":   {},
+		".md":     {},
+		".mjs":    {},
+		".php":    {},
+		".py":     {},
+		".rb":     {},
+		".rs":     {},
+		".scss":   {},
+		".sh":     {},
+		".sql":    {},
+		".svelte": {},
+		".toml":   {},
+		".ts":     {},
+		".tsx":    {},
+		".vue":    {},
+		".yaml":   {},
+		".yml":    {},
+		".txt":    {},
+	}
+
+	maxLocalhostScanFileSize int64 = 1 << 20 // 1 MiB
 )
 
 func (s *AppService) invalidateCache() {
@@ -1715,6 +1805,177 @@ func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*
 	}
 
 	return result, nil
+}
+
+// CheckLocalhostUsage scans scenario files for hard-coded localhost references that would break proxying.
+func (s *AppService) CheckLocalhostUsage(ctx context.Context, appID string) (*LocalhostUsageReport, error) {
+	id := strings.TrimSpace(appID)
+	if id == "" {
+		return nil, ErrAppIdentifierRequired
+	}
+
+	app, err := s.GetApp(ctx, id)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return nil, fmt.Errorf("%w: %v", ErrAppNotFound, err)
+		}
+		return nil, err
+	}
+
+	scenarioName := strings.TrimSpace(app.ScenarioName)
+	if scenarioName == "" {
+		scenarioName = strings.TrimSpace(app.ID)
+	}
+	if scenarioName == "" {
+		scenarioName = id
+	}
+
+	root := strings.TrimSpace(app.Path)
+	report := &LocalhostUsageReport{
+		Scenario:  scenarioName,
+		CheckedAt: time.Now().UTC(),
+		Findings:  make([]LocalhostUsageFinding, 0),
+	}
+
+	if root == "" {
+		report.Warnings = append(report.Warnings, "scenario path unknown; skipping filesystem scan")
+		return report, nil
+	}
+
+	info, err := os.Stat(root)
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect scenario path: %w", err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("scenario path is not a directory: %s", root)
+	}
+
+	warnings := make([]string, 0)
+	scannedFiles := 0
+
+	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		if walkErr != nil {
+			return walkErr
+		}
+
+		name := strings.ToLower(d.Name())
+		if d.IsDir() {
+			if _, skip := localhostSkipDirectories[name]; skip {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if _, skip := localhostSkipFiles[name]; skip {
+			return nil
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("failed to stat %s: %v", path, err))
+			return nil
+		}
+
+		if info.Size() > maxLocalhostScanFileSize {
+			relative, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				relative = path
+			}
+			warnings = append(warnings, fmt.Sprintf("skipped large file %s (%d bytes)", filepath.ToSlash(relative), info.Size()))
+			return nil
+		}
+
+		ext := strings.ToLower(filepath.Ext(d.Name()))
+		if _, ok := localhostAllowedExtensions[ext]; !ok {
+			if ext != "" {
+				return nil
+			}
+
+			switch name {
+			case "dockerfile", "makefile", "procfile":
+				// allow
+			default:
+				if !strings.HasPrefix(name, ".env") && !strings.HasPrefix(name, "env") {
+					return nil
+				}
+			}
+		}
+
+		file, err := os.Open(path)
+		if err != nil {
+			relative, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				relative = path
+			}
+			warnings = append(warnings, fmt.Sprintf("failed to open %s: %v", filepath.ToSlash(relative), err))
+			return nil
+		}
+
+		scanner := bufio.NewScanner(file)
+		scanner.Buffer(make([]byte, 0, 64*1024), int(maxLocalhostScanFileSize))
+		scannedFiles++
+		lineNumber := 0
+		relativePath, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			relativePath = path
+		}
+		relativePath = filepath.ToSlash(relativePath)
+
+		for scanner.Scan() {
+			lineNumber++
+			text := scanner.Text()
+			trimmed := strings.TrimSpace(text)
+			if trimmed == "" {
+				continue
+			}
+			for _, candidate := range localhostPatterns {
+				match := candidate.Regex.FindString(trimmed)
+				if match == "" {
+					continue
+				}
+
+				snippet := trimmed
+				if len(snippet) > 180 {
+					snippet = snippet[:180] + "…"
+				}
+				item := LocalhostUsageFinding{
+					FilePath: relativePath,
+					Line:     lineNumber,
+					Snippet:  snippet,
+					Pattern:  fmt.Sprintf("%s: %s", candidate.Label, match),
+				}
+				report.Findings = append(report.Findings, item)
+				break
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			warnings = append(warnings, fmt.Sprintf("failed to scan %s: %v", relativePath, err))
+		}
+
+		if closeErr := file.Close(); closeErr != nil {
+			warnings = append(warnings, fmt.Sprintf("failed to close %s: %v", relativePath, closeErr))
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	report.Scanned = scannedFiles
+	if len(warnings) > 0 {
+		report.Warnings = warnings
+	}
+
+	return report, nil
 }
 
 func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error) {

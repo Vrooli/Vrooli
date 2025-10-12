@@ -1,5 +1,16 @@
 import axios, { AxiosError } from 'axios';
-import type { App, Resource, LogEntry, ApiResponse, AppLogsResponse, AppViewStats, ResourceDetail, BridgeRuleReport } from '@/types';
+import type {
+  App,
+  Resource,
+  LogEntry,
+  ApiResponse,
+  AppLogsResponse,
+  AppViewStats,
+  ResourceDetail,
+  BridgeRuleReport,
+  AppProxyMetadata,
+  LocalhostUsageReport,
+} from '@/types';
 import { logger } from '@/services/logger';
 
 // Create axios instance with default config
@@ -194,6 +205,38 @@ export const appService = {
     } catch (error) {
       logger.error(`Failed to fetch iframe bridge diagnostics for ${appId}`, error);
       throw error;
+    }
+  },
+
+  async getAppProxyMetadata(appId: string): Promise<AppProxyMetadata | null> {
+    try {
+      const { data } = await api.get<ApiResponse<AppProxyMetadata>>(
+        `/apps/${encodeURIComponent(appId)}/_proxy/metadata`,
+      );
+      if (data?.success === false) {
+        logger.warn(`Proxy metadata request for ${appId} returned error: ${data.error}`);
+        return null;
+      }
+      return data?.data ?? null;
+    } catch (error) {
+      logger.warn(`Failed to fetch proxy metadata for ${appId}`, error);
+      return null;
+    }
+  },
+
+  async getAppLocalhostReport(appId: string): Promise<LocalhostUsageReport | null> {
+    try {
+      const { data } = await api.get<ApiResponse<LocalhostUsageReport>>(
+        `/apps/${encodeURIComponent(appId)}/diagnostics/localhost`,
+      );
+      if (data?.success === false) {
+        logger.warn(`Localhost usage diagnostic for ${appId} returned error: ${data.error}`);
+        return null;
+      }
+      return data?.data ?? null;
+    } catch (error) {
+      logger.warn(`Failed to fetch localhost usage report for ${appId}`, error);
+      return null;
     }
   },
 };

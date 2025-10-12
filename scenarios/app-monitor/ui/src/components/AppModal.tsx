@@ -1,6 +1,6 @@
 import { useState, CSSProperties } from 'react';
 import clsx from 'clsx';
-import type { App } from '@/types';
+import type { App, AppProxyMetadata, AppProxyPortInfo, LocalhostUsageReport } from '@/types';
 import './AppModal.css';
 
 interface AppModalProps {
@@ -9,9 +9,11 @@ interface AppModalProps {
   onClose: () => void;
   onAction: (appId: string, action: 'start' | 'stop' | 'restart') => Promise<void>;
   onViewLogs: (appId: string) => void;
+  proxyMetadata?: AppProxyMetadata | null;
+  localhostReport?: LocalhostUsageReport | null;
 }
 
-export default function AppModal({ app, isOpen, onClose, onAction, onViewLogs }: AppModalProps) {
+export default function AppModal({ app, isOpen, onClose, onAction, onViewLogs, proxyMetadata, localhostReport }: AppModalProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -32,6 +34,20 @@ export default function AppModal({ app, isOpen, onClose, onAction, onViewLogs }:
   const otherPorts = portEntries
     .filter(([label]) => label !== 'UI_PORT' && label !== 'API_PORT')
     .map(([label, value]) => ({ label: label.toUpperCase(), value: String(value) }));
+
+  const proxyRoutes: AppProxyPortInfo[] = proxyMetadata?.ports
+    ? [...proxyMetadata.ports].sort((a, b) => {
+        if (a.isPrimary === b.isPrimary) {
+          const aLabel = (a.label || a.slug || '').toLowerCase();
+          const bLabel = (b.label || b.slug || '').toLowerCase();
+          return aLabel.localeCompare(bLabel);
+        }
+        return a.isPrimary ? -1 : 1;
+      })
+    : [];
+  const localhostFindings = localhostReport?.findings ?? [];
+  const localhostWarnings = localhostReport?.warnings ?? [];
+  const showLocalhostDiagnostics = Boolean(localhostReport);
 
   const uptime = app.uptime && app.uptime !== 'N/A' ? app.uptime : 'N/A';
   const runtime = app.runtime && app.runtime !== 'N/A' && app.runtime !== uptime ? app.runtime : null;
@@ -126,6 +142,54 @@ export default function AppModal({ app, isOpen, onClose, onAction, onViewLogs }:
                       {port.label}: {port.value}
                     </span>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {proxyRoutes.length > 0 && (
+              <div className="detail-row full-width">
+                <span className="detail-label">PROXY ROUTES:</span>
+                <div className="detail-tags">
+                  {proxyRoutes.map((route) => {
+                    const routeLabel = (route.label || route.slug || `PORT ${route.port}`).toUpperCase();
+                    return (
+                      <span className="tag-chip" key={`${route.path}-${routeLabel}`}>
+                        {routeLabel}: {route.path}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {showLocalhostDiagnostics && (
+              <div className="detail-row full-width">
+                <span className="detail-label">LOCALHOST:</span>
+                <div className="detail-description">
+                  {localhostFindings.length === 0 ? (
+                    <span>No hard-coded localhost references detected.</span>
+                  ) : (
+                    <ul>
+                      {localhostFindings.slice(0, 5).map((finding) => (
+                        <li key={`${finding.file_path}:${finding.line}`}>
+                          <code>{finding.file_path}:{finding.line}</code>
+                          {' '}
+                          {finding.pattern ? `(${finding.pattern}) ` : ''}
+                          {finding.snippet}
+                        </li>
+                      ))}
+                      {localhostFindings.length > 5 && (
+                        <li>…and {localhostFindings.length - 5} more occurrences</li>
+                      )}
+                    </ul>
+                  )}
+                  {localhostWarnings.length > 0 && (
+                    <ul>
+                      {localhostWarnings.map((warning, index) => (
+                        <li key={`localhost-warning-${index}`}>{warning}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             )}

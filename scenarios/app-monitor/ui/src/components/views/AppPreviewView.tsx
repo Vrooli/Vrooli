@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Bug, ExternalLink, Info, Loader2, Power, Refresh
 import { appService } from '@/services/api';
 import { useAppsStore } from '@/state/appsStore';
 import { logger } from '@/services/logger';
-import type { App } from '@/types';
+import type { App, AppProxyMetadata, LocalhostUsageReport } from '@/types';
 import AppModal from '../AppModal';
 import ReportIssueDialog from '../report/ReportIssueDialog';
 import { buildPreviewUrl, isRunningStatus, isStoppedStatus, locateAppByIdentifier } from '@/utils/appPreview';
@@ -47,6 +47,8 @@ const AppPreviewView = () => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
+  const [proxyMetadata, setProxyMetadata] = useState<AppProxyMetadata | null>(null);
+  const [localhostReport, setLocalhostReport] = useState<LocalhostUsageReport | null>(null);
   const complianceRunRef = useRef(false);
   const initialPreviewUrlRef = useRef<string | null>(null);
   const restartMonitorRef = useRef<{ cancel: () => void } | null>(null);
@@ -270,6 +272,16 @@ const AppPreviewView = () => {
     () => bridgeState.isSupported && bridgeState.caps.includes('screenshot'),
     [bridgeState.caps, bridgeState.isSupported],
   );
+  const localhostIssueMessage = useMemo(() => {
+    if (!localhostReport) {
+      return null;
+    }
+    const count = localhostReport.findings?.length ?? 0;
+    if (count > 0) {
+      return `${count} hard-coded localhost reference${count === 1 ? '' : 's'} detected. Update requests to use the proxy base.`;
+    }
+    return null;
+  }, [localhostReport]);
 
   useEffect(() => {
     setIframeLoadedAt(null);
@@ -545,6 +557,44 @@ const AppPreviewView = () => {
       setCurrentApp(match);
     }
   }, [apps, appId]);
+
+  useEffect(() => {
+    const appIdentifier = currentApp?.id;
+    if (!appIdentifier) {
+      setProxyMetadata(null);
+      setLocalhostReport(null);
+      return;
+    }
+
+    let cancelled = false;
+    setProxyMetadata(prev => (prev && prev.appId === appIdentifier ? prev : null));
+    setLocalhostReport(prev => {
+      if (!prev) {
+        return prev;
+      }
+      return prev.scenario === appIdentifier ? prev : null;
+    });
+
+    const loadDiagnostics = async () => {
+      const [metadata, localhostDiagnostics] = await Promise.all([
+        appService.getAppProxyMetadata(appIdentifier),
+        appService.getAppLocalhostReport(appIdentifier),
+      ]);
+
+      if (!cancelled) {
+        setProxyMetadata(metadata);
+        setLocalhostReport(localhostDiagnostics);
+      }
+    };
+
+    loadDiagnostics().catch((error) => {
+      logger.warn('Failed to load proxy diagnostics', error);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentApp?.id]);
 
   useEffect(() => {
     if (!appId) {
@@ -1054,6 +1104,12 @@ const AppPreviewView = () => {
         </div>
       )}
 
+      {localhostIssueMessage && (
+        <div className="preview-status">
+          {localhostIssueMessage}
+        </div>
+      )}
+
       {previewUrl ? (
         <div className="preview-iframe-container" ref={previewContainerRef}>
           <iframe
@@ -1096,6 +1152,8 @@ const AppPreviewView = () => {
             setModalOpen(false);
             navigate(`/logs/${appIdentifier}`);
           }}
+          proxyMetadata={proxyMetadata}
+          localhostReport={localhostReport}
         />
       )}
 

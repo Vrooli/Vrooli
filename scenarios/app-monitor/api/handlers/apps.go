@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -356,6 +357,35 @@ func (h *AppHandler) CheckAppIframeBridge(c *gin.Context) {
 			status = http.StatusNotFound
 		case errors.Is(err, services.ErrScenarioAuditorUnavailable):
 			status = http.StatusServiceUnavailable
+		}
+
+		c.JSON(status, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+	})
+}
+
+// CheckAppLocalhostUsage scans scenario files for localhost references that bypass the proxy.
+func (h *AppHandler) CheckAppLocalhostUsage(c *gin.Context) {
+	id := c.Param("id")
+
+	result, err := h.appService.CheckLocalhostUsage(c.Request.Context(), id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrAppNotFound):
+			status = http.StatusNotFound
+		case errors.Is(err, context.Canceled):
+			status = http.StatusRequestTimeout
 		}
 
 		c.JSON(status, gin.H{

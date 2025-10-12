@@ -24,6 +24,39 @@ export interface App {
   last_viewed_at?: string | null;
 }
 
+export interface AppProxyPortInfo {
+  port: number;
+  label?: string | null;
+  slug?: string | null;
+  path: string;
+  aliases?: string[];
+  source?: string;
+  isPrimary?: boolean;
+}
+
+export interface AppProxyMetadata {
+  appId: string;
+  generatedAt: number;
+  hosts: string[];
+  primary: AppProxyPortInfo;
+  ports: AppProxyPortInfo[];
+}
+
+export interface LocalhostUsageFinding {
+  file_path: string;
+  line: number;
+  snippet: string;
+  pattern: string;
+}
+
+export interface LocalhostUsageReport {
+  scenario: string;
+  checked_at: string;
+  files_scanned: number;
+  findings: LocalhostUsageFinding[];
+  warnings?: string[];
+}
+
 export interface AppViewStats {
   scenario_name: string;
   view_count: number;
