@@ -3,11 +3,15 @@
 
 set -euo pipefail
 
+# Determine APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/../../lib"
 CONFIG_DIR="${SCRIPT_DIR}/../../config"
 
-# Source configuration first
+# Source port registry and configuration first
+source "${APP_ROOT}/scripts/resources/port_registry.sh" || exit 1
 source "${CONFIG_DIR}/defaults.sh"
 
 # Source libraries to test

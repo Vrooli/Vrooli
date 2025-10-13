@@ -3,13 +3,25 @@
 
 set -euo pipefail
 
+# Determine APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+
+# Source port registry for proper port allocation
+source "${APP_ROOT}/scripts/resources/port_registry.sh" || {
+    echo "Error: Failed to source port_registry.sh" >&2
+    return 1
+}
+
 # Resource configuration
 readonly OPENTRIPPLANNER_IMAGE="opentripplanner/opentripplanner:latest"
 readonly OPENTRIPPLANNER_CONTAINER="vrooli-opentripplanner"
 readonly OPENTRIPPLANNER_NETWORK="vrooli-network"
 
-# Get configuration from environment or defaults
-export OTP_PORT="${OTP_PORT:-8080}"
+# Get port from registry (no fallback to avoid port conflicts)
+OTP_PORT="${RESOURCE_PORTS["opentripplanner"]}"
+export OTP_PORT
+
+# Get other configuration from environment or defaults
 export OTP_HEAP_SIZE="${OTP_HEAP_SIZE:-2G}"
 export OTP_BUILD_TIMEOUT="${OTP_BUILD_TIMEOUT:-300}"
 export OTP_DATA_DIR="${OTP_DATA_DIR:-${HOME}/.vrooli/opentripplanner/data}"
@@ -74,14 +86,20 @@ opentripplanner::uninstall() {
 opentripplanner::start() {
     local wait_flag="${1:-}"
     local timeout="${2:-60}"
-    
+
     if opentripplanner::is_running; then
         echo "OpenTripPlanner is already running"
         return 2
     fi
-    
+
+    # Remove any stopped container with the same name
+    if docker ps -a --format '{{.Names}}' | grep -q "^${OPENTRIPPLANNER_CONTAINER}$"; then
+        echo "Removing stopped container..."
+        docker rm "${OPENTRIPPLANNER_CONTAINER}" &>/dev/null || true
+    fi
+
     echo "Starting OpenTripPlanner..."
-    
+
     # Ensure data directory exists
     mkdir -p "${OTP_DATA_DIR}" "${OTP_CACHE_DIR}"
     
@@ -165,22 +183,27 @@ EOF
 opentripplanner::stop() {
     local force="${1:-}"
     local timeout="${2:-30}"
-    
-    if ! opentripplanner::is_running; then
+
+    # Check if container exists (running or stopped)
+    if ! docker ps -a --format '{{.Names}}' | grep -q "^${OPENTRIPPLANNER_CONTAINER}$"; then
         echo "OpenTripPlanner is not running"
         return 2
     fi
-    
+
     echo "Stopping OpenTripPlanner..."
-    
-    if [[ "$force" == "--force" ]]; then
-        docker kill "${OPENTRIPPLANNER_CONTAINER}" &>/dev/null || true
-    else
-        docker stop -t "$timeout" "${OPENTRIPPLANNER_CONTAINER}" &>/dev/null || true
+
+    # Stop if running
+    if opentripplanner::is_running; then
+        if [[ "$force" == "--force" ]]; then
+            docker kill "${OPENTRIPPLANNER_CONTAINER}" &>/dev/null || true
+        else
+            docker stop -t "$timeout" "${OPENTRIPPLANNER_CONTAINER}" &>/dev/null || true
+        fi
     fi
-    
+
+    # Always try to remove the container
     docker rm "${OPENTRIPPLANNER_CONTAINER}" &>/dev/null || true
-    
+
     echo "OpenTripPlanner stopped successfully"
     return 0
 }

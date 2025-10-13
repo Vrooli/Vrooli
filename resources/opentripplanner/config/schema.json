@@ -5,8 +5,7 @@
   "properties": {
     "port": {
       "type": "integer",
-      "description": "API port for OpenTripPlanner",
-      "default": 8080,
+      "description": "API port for OpenTripPlanner (automatically retrieved from port_registry.sh, no manual override recommended)",
       "minimum": 1024,
       "maximum": 65535
     },

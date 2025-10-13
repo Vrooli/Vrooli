@@ -3,7 +3,11 @@
 
 set -euo pipefail
 
-# Source configuration
+# Determine APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+
+# Source port registry and configuration
+source "${APP_ROOT}/scripts/resources/port_registry.sh" || exit 1
 source "$(dirname "${BASH_SOURCE[0]}")/../../config/defaults.sh"
 
 echo "Running OpenTripPlanner smoke tests..."
@@ -58,11 +62,18 @@ fi
 echo -n "6. Checking for container errors... "
 # Count critical errors (exclude known safe ones)
 # Use || true to handle grep not finding matches with pipefail
-error_count=$(docker logs "${OPENTRIPPLANNER_CONTAINER}" 2>&1 | grep -iE "error|exception|fatal" | grep -v "No errors" | grep -v "Parameter error" | wc -l || true)
+# Exclude GTFS-RT HTTP 403 errors (expected when API key not configured)
+error_count=$(docker logs "${OPENTRIPPLANNER_CONTAINER}" 2>&1 \
+    | grep -iE "error|exception|fatal" \
+    | grep -v "No errors" \
+    | grep -v "Parameter error" \
+    | grep -v "HTTP request failed with status code 403" \
+    | grep -v "Error while running polling updater.*FeedSpecAlerts" \
+    | wc -l || true)
 if [[ ${error_count} -lt 5 ]]; then  # Allow some startup warnings
     echo "✓"
 else
-    echo "✗ (Found ${error_count} errors in logs)"
+    echo "✗ (Found ${error_count} critical errors in logs)"
     exit 1
 fi
 

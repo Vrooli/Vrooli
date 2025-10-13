@@ -3,7 +3,11 @@
 
 set -euo pipefail
 
-# Source configuration
+# Determine APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+
+# Source port registry and configuration
+source "${APP_ROOT}/scripts/resources/port_registry.sh" || exit 1
 source "$(dirname "${BASH_SOURCE[0]}")/../../config/defaults.sh"
 
 echo "Running OpenTripPlanner integration tests..."

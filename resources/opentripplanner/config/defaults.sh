@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 # OpenTripPlanner Default Configuration
 
-# Service configuration
-export OTP_PORT="${OTP_PORT:-8080}"
+# Determine APP_ROOT if not set
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+
+# Source port registry to get the allocated port (no fallback to avoid conflicts)
+source "${APP_ROOT}/scripts/resources/port_registry.sh" || {
+    echo "Error: Failed to source port_registry.sh" >&2
+    exit 1
+}
+
+# Service configuration - port from registry
+export OTP_PORT="${RESOURCE_PORTS["opentripplanner"]}"
 export OTP_HEAP_SIZE="${OTP_HEAP_SIZE:-2G}"
 export OTP_BUILD_TIMEOUT="${OTP_BUILD_TIMEOUT:-300}"
 

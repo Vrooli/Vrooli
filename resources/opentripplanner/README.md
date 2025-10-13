@@ -72,11 +72,11 @@ vrooli resource opentripplanner content execute \
 # Get the configured port
 OTP_PORT=$(./scripts/resources/port_registry.sh opentripplanner | grep opentripplanner | awk '{print $3}')
 
-# Open in browser (default: 8080)
-xdg-open "http://localhost:${OTP_PORT:-8080}/"
+# Open in browser
+xdg-open "http://localhost:${OTP_PORT}/"
 
 # Or check API status
-curl "http://localhost:${OTP_PORT:-8080}/otp/" | jq '.version'
+curl "http://localhost:${OTP_PORT}/otp/" | jq '.version'
 ```
 
 ### Export to PostGIS
@@ -105,7 +105,7 @@ vrooli resource opentripplanner content execute --action plan-trip \
 
 ### Environment Variables
 ```bash
-OTP_PORT=8080                     # API port (registered in port_registry.sh)
+OTP_PORT                          # API port (from port_registry.sh)
 OTP_HEAP_SIZE=2G                  # JVM heap memory
 OTP_BUILD_TIMEOUT=300             # Graph build timeout (seconds)
 OTP_DATA_DIR=~/.vrooli/opentripplanner/data   # Data directory
@@ -231,7 +231,8 @@ const query = `{
   }
 }`;
 
-// Use Docker network hostname (container-to-container)
+// Use Docker network hostname (container-to-container communication)
+// Note: 8080 is the container's internal port, not the host port
 const otp = await $http.post('http://vrooli-opentripplanner:8080/otp/transmodel/v3', {
   body: { query }
 });
