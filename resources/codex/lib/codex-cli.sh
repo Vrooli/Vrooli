@@ -175,6 +175,12 @@ EOF
 #######################################
 codex::cli::execute() {
     local prompt="$1"
+
+    if [[ "${CODEX_SKIP_PERMISSIONS:-}" == "true" ]]; then
+        export CODEX_CLI_MODE="yolo"
+        export CODEX_CLI_SANDBOX="danger-full-access"
+    fi
+
     local mode="${2:-${CODEX_CLI_MODE:-auto}}"
     
     if ! codex::cli::is_installed; then
@@ -191,6 +197,9 @@ codex::cli::execute() {
     
     # Create workspace directory
     local workspace="${CODEX_WORKSPACE:-/tmp/codex-workspace}"
+    if [[ "${CODEX_SKIP_PERMISSIONS:-}" == "true" && "$workspace" == "/tmp/codex-workspace" ]]; then
+        workspace="${PWD}"
+    fi
     mkdir -p "$workspace"
     
     log::info "Executing with Codex agent (mode: $mode)..."
@@ -346,6 +355,14 @@ codex::cli::apply_legacy_env() {
 
     if [[ -n "${AGENT_TAG:-}" ]]; then
         export CODEX_AGENT_TAG="$AGENT_TAG"
+    fi
+
+    if [[ "${CODEX_SKIP_PERMISSIONS:-}" == "true" ]]; then
+        export CODEX_CLI_MODE="yolo"
+        export CODEX_CLI_SANDBOX="danger-full-access"
+        if [[ -z "${CODEX_WORKSPACE:-}" || "${CODEX_WORKSPACE}" == "/tmp/codex-workspace" ]]; then
+            export CODEX_WORKSPACE="$PWD"
+        fi
     fi
 }
 
