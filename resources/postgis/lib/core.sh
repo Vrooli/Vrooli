@@ -151,13 +151,13 @@ postgis::content::remove() {
     log::warning "Removing spatial table: $table_name"
     read -p "Are you sure? (y/N): " -r
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        docker exec "${container}" psql -U vrooli -d "$database" \
-            -c "DROP TABLE IF EXISTS $table_name CASCADE;" 2>/dev/null && {
+        if docker exec "${container}" psql -U vrooli -d "$database" \
+            -c "DROP TABLE IF EXISTS $table_name CASCADE;" 2>/dev/null; then
             log::success "Table removed: $table_name"
-        } || {
+        else
             log::error "Failed to remove table: $table_name"
             return 1
-        }
+        fi
     else
         log::info "Operation cancelled"
     fi

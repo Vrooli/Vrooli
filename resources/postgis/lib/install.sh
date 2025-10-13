@@ -141,8 +141,9 @@ postgis_install() {
     fi
     
     # Verify installation
-    local version=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -t -c "SELECT PostGIS_Version();" 2>/dev/null | xargs)
-    
+    local version
+    version=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -t -c "SELECT PostGIS_Version();" 2>/dev/null | xargs)
+
     if [ -n "$version" ]; then
         # Register PostGIS CLI with vrooli
         if [ -n "${var_SCRIPTS_RESOURCES_LIB_DIR:-}" ] && [ -f "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" ]; then

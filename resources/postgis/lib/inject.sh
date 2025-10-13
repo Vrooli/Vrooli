@@ -107,7 +107,8 @@ postgis_list_injected() {
             ORDER BY f_table_schema, f_table_name" 2>/dev/null
     
     # Count total spatial objects
-    local total=$(PGPASSWORD="$POSTGIS_PG_PASSWORD" psql -h "$POSTGIS_PG_HOST" -p "$POSTGIS_PG_PORT" \
+    local total
+    total=$(PGPASSWORD="$POSTGIS_PG_PASSWORD" psql -h "$POSTGIS_PG_HOST" -p "$POSTGIS_PG_PORT" \
         -U "$POSTGIS_PG_USER" -d "$database" \
         -c "SELECT COUNT(*) FROM geometry_columns" -t -A 2>/dev/null || echo "0")
     

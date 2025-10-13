@@ -38,9 +38,11 @@ postgis::health::start_server() {
                 # Get detailed status
                 local version
                 version=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -t -c "SELECT PostGIS_Version();" 2>/dev/null | xargs | head -c 50)
-                
+
                 # Create response
-                local response="{\"status\":\"healthy\",\"service\":\"postgis\",\"version\":\"${version:-unknown}\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+                local timestamp
+                timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+                local response="{\"status\":\"healthy\",\"service\":\"postgis\",\"version\":\"${version:-unknown}\",\"timestamp\":\"${timestamp}\"}"
                 local content_length=${#response}
                 
                 # Send HTTP response
@@ -48,7 +50,9 @@ postgis::health::start_server() {
                     "$content_length" "$response" | nc -l -p "$POSTGIS_HEALTH_PORT" -q 1
             else
                 # Send unhealthy response
-                local response="{\"status\":\"unhealthy\",\"service\":\"postgis\",\"error\":\"Database not accessible\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+                local timestamp
+                timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+                local response="{\"status\":\"unhealthy\",\"service\":\"postgis\",\"error\":\"Database not accessible\",\"timestamp\":\"${timestamp}\"}"
                 local content_length=${#response}
                 
                 printf 'HTTP/1.1 503 Service Unavailable\r\nContent-Type: application/json\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s' \

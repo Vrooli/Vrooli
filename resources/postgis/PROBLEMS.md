@@ -1,131 +1,273 @@
 # PostGIS Resource - Known Problems & Solutions
 
-## Current Issues
+## Current Status
 
-None - All major issues resolved!
+✅ **Production Ready** - All P0, P1, and P2 requirements met with comprehensive test coverage
 
-## Recent Improvements (2025-10-03)
+## Recent Improvements
 
-### Code Quality Enhancements
-- Fixed shellcheck SC2155 warnings across all test files by separating variable declarations from command substitution assignments
-  - `test/phases/test-smoke.sh`: Fixed 2 instances (version, result)
-  - `test/phases/test-unit.sh`: Fixed 2 instances (startup_order, dependencies)
-  - `test/phases/test-integration.sh`: Fixed 7 instances (distance, explain_result, table_exists, area, intersects, start_time, end_time)
-- Fixed shellcheck SC2015 warning in `cli.sh` by replacing `&&`/`||` pattern with proper if-then-else
-- Added shellcheck disable directive for SC2034 (CLI_COMMAND_HANDLERS used by framework)
-- All test phases verified passing after code quality improvements
+### 2025-10-13 - Test CLI Enhancement
+**What Changed:**
+- Added CLI exposure for P2 feature test commands (extended, geocoding, spatial, visualization)
+- Test runner already supported these commands, now accessible via CLI
+- Registered test subcommands in CLI framework for proper help display
+- All test phases now properly documented and accessible
 
-### Previous Improvements (2025-09-30)
-- Fixed shellcheck warnings in `lib/geocoding.sh` - separated variable declarations from assignments to avoid masking return values (SC2155)
-- Fixed shellcheck warning in `lib/common.sh` - separated container_path declaration from assignment
+**New Commands:**
+```bash
+vrooli resource postgis test extended      # Core + P2 feature tests
+vrooli resource postgis test geocoding     # Geocoding P2 tests
+vrooli resource postgis test spatial       # Spatial analysis P2 tests
+vrooli resource postgis test visualization # Visualization P2 tests
+```
 
-## Resolved Issues
+**Impact:**
+- P2 feature tests now discoverable via `--help`
+- Complete test coverage now properly exposed
+- Documentation matches implementation
+- Consistent with other v2.0 resources
 
-### 1. pgRouting Extension Support (RESOLVED - 2025-09-15)
-**Problem**: pgRouting extension was not available in the Alpine-based PostGIS image
-**Solution**: Created custom Dockerfile using Debian-based PostGIS image with pgRouting
-**Status**: ✅ Resolved - pgRouting 3.8.0 now available with full routing capabilities
+**Implementation:**
+- Added test functions to `lib/test.sh`
+- Registered CLI_COMMAND_HANDLERS in `cli.sh`
+- Registered test subcommands via `cli::register_subcommand`
+- Zero shellcheck warnings
 
-### 2. GDAL Tools and ogr2ogr Support (RESOLVED - 2025-09-15)
-**Problem**: GDAL tools were not available for importing various GIS formats
-**Solution**: Custom Docker image now includes gdal-bin package
-**Status**: ✅ Resolved - ogr2ogr and other GDAL tools now available
+### 2025-10-13 - Test Data Cleanup Enhancement
+**What Changed:**
+- Added comprehensive cleanup utilities for test data management
+- Automatic test data cleanup after integration tests
+- New CLI commands for manual cleanup operations
+- Prevents test data accumulation in databases
 
-### 3. Spatial Routing Initialization Feedback (RESOLVED - 2025-09-15)
-**Problem**: `vrooli resource postgis spatial init-routing` command exited without proper feedback
-**Solution**: Enhanced error handling to show table creation status and pgRouting availability
-**Status**: ✅ Resolved - Command now provides clear feedback about what was created
+**New Commands:**
+```bash
+vrooli resource postgis cleanup all               # Full cleanup
+vrooli resource postgis cleanup test-tables       # Remove test tables
+vrooli resource postgis cleanup test-databases    # Remove test databases
+vrooli resource postgis cleanup geocoding-cache   # Clear cache
+```
 
-### 4. GIS Format Import Support (RESOLVED - 2025-09-15)  
-**Problem**: Only SQL file import was working, needed support for GeoJSON, KML, shapefile formats
-**Solution**: Added wrapper functions for ogr2ogr with graceful fallback to SQL import
-**Status**: ✅ Resolved - Functions ready and ogr2ogr is now available
+**Impact:**
+- Tests now clean up automatically after completion
+- Prevents database bloat from accumulated test data
+- Provides manual cleanup options for development
+- Integration tests drop temporary databases and tables
 
-### 1. v2.0 Contract Compliance (RESOLVED)
-**Problem**: Missing test structure, schema.json, and proper test phases
-**Solution**: Created complete test/phases directory with smoke, unit, and integration tests
-**Status**: ✅ Resolved - All v2.0 requirements met
+**Implementation:**
+- New `lib/cleanup.sh` with cleanup functions
+- Integration tests call cleanup after test execution
+- CLI registers cleanup commands for manual use
+- Shellcheck compliant, zero warnings
 
-### 2. Test Utility Dependencies (RESOLVED)
-**Problem**: Test scripts referenced non-existent test.sh utility file
-**Solution**: Embedded minimal test utilities directly in test scripts
-**Status**: ✅ Resolved - Tests run without external dependencies
+### 2025-10-13 - Credentials Command Enhancement
+**What Changed:**
+- Added `credentials` command to display connection information in multiple formats
+- Supports text, JSON, and environment variable formats
+- Includes password masking with optional `--show-secrets` flag
+- Provides psql and docker exec connection examples
+- Follows v2.0 universal contract optional credentials command specification
 
-### 3. Lifecycle Management (RESOLVED)
-**Problem**: Install, start, stop, restart commands untested
-**Solution**: Implemented and tested all lifecycle commands
-**Status**: ✅ Resolved - All lifecycle operations working
+**Usage Examples:**
+```bash
+# Text format (default, password masked)
+vrooli resource postgis credentials
 
-### 4. HTTP Health Endpoint (RESOLVED)
-**Problem**: PostGIS lacked an HTTP endpoint at `/health`
-**Solution**: Implemented HTTP health server using netcat on port 5435
-**Status**: ✅ Resolved - `timeout 5 curl -sf http://localhost:5435/health` returns JSON status
+# JSON format for programmatic access
+vrooli resource postgis credentials --format json
 
-## Performance Considerations
+# Environment variables for shell scripts
+vrooli resource postgis credentials --format env
 
-### 1. Container Startup Time
-- Current: 8-18 seconds
-- Acceptable for most use cases
-- Could be optimized with custom image
+# Show actual passwords
+vrooli resource postgis credentials --show-secrets
+```
 
-### 2. Spatial Query Performance
-- Indexes properly created and used
-- Bulk insert performance: ~70ms for 1000 points (excellent)
-- Distance calculations use geography type for accuracy
+**Impact:**
+- Easier integration for scenarios needing PostGIS connection info
+- Supports automation via JSON and env formats
+- Secure by default (passwords masked unless explicitly requested)
+- Consistent with v2.0 contract credential standards
 
-## Security Notes
+### 2025-10-13 - Final Cleanup & Validation
+**What Changed:**
+- Removed deprecated backup file (cli.backup.sh) from previous v2.0 migration
+- Removed legacy BATS test file (test/integration.bats) - replaced by run-tests.sh
+- Final validation confirms 100% v2.0 contract compliance
+- All tests pass, zero shellcheck warnings, production ready
 
-### 1. Default Credentials
-- Using vrooli/vrooli for development
-- Should be changed for production deployments
-- Credentials configurable via environment variables
+**Files Removed:**
+- cli.backup.sh (outdated pre-v2.0 CLI backup)
+- test/integration.bats (superseded by test/phases/test-integration.sh)
 
-### 2. Network Isolation
-- Container uses vrooli-network for isolation
-- Port 5434 exposed only on localhost by default
-- Suitable for development environments
+**Impact:**
+- Cleaner codebase with no legacy artifacts
+- All functionality preserved and validated
+- Resource remains at 100% PRD completion
 
-## Completed Features (P2)
+### 2025-10-13 - Documentation Consistency
+**What Changed:**
+- Updated schema.json to reflect the actual custom image being used (vrooli/postgis-routing:16-3.4)
+- Clarified that the custom image includes pgRouting support with fallback to standard alpine image
+- Ensured all documentation accurately represents the current implementation
 
-### 1. Advanced Spatial Analysis ✅
-- Network analysis capabilities (routing, shortest path)
-- Watershed calculations implemented
-- Viewshed analysis functional
-- Service area/isochrone calculation
-- Spatial clustering (DBSCAN)
-- All accessible via `vrooli resource postgis spatial` commands
+**Impact:**
+- Configuration schema now matches actual deployment
+- Developers have accurate reference for image expectations
+- Documentation is consistent across all files
 
-### 2. Geocoding Service ✅
-- Address to coordinate conversion implemented
-- Reverse geocoding (coordinates to address)
-- Batch geocoding support
-- Caching for performance
-- Accessible via `vrooli resource postgis geocoding` commands
+### 2025-10-13 - Test Infrastructure Enhancement
+**What Changed:**
+- Enhanced test runner to support optional P2 feature tests (geocoding, spatial, visualization)
+- Added `extended` test suite option to run core + P2 tests
+- Improved test phase organization with clear separation of P0/P1 (core) vs P2 (optional) tests
 
-### 3. Visualization Support ✅
-- GeoJSON generation from SQL queries
-- Heat map creation from point data
-- Choropleth (colored regions) maps
-- Map tile generation (MVT format)
-- HTML map viewer generation
-- All accessible via `vrooli resource postgis visualization` commands
+**Test Phase Structure:**
+- **Core Tests** (required): `smoke`, `unit`, `integration` - test P0/P1 requirements
+- **Optional Tests** (P2 features): `geocoding`, `spatial`, `visualization` - test advanced features
+- **Extended Suite**: `all` + optional tests for comprehensive validation
 
-## Integration Notes
+**Usage:**
+```bash
+vrooli resource postgis test all        # Core tests only (default)
+vrooli resource postgis test extended   # Core + P2 feature tests
+vrooli resource postgis test geocoding  # Individual P2 test
+```
 
-### With Other Resources
-- **PostgreSQL**: PostGIS runs as standalone container, doesn't conflict with main postgres resource
-- **Ollama**: Can generate location descriptions from PostGIS data
-- **n8n**: Can trigger workflows based on geofencing events
-- **MinIO**: Can store/retrieve GeoJSON and KML files
+### 2025-10-13 - Code Quality & Test Reliability
+**Code Quality:**
+- Fixed shellcheck SC2154 warning in `test/run-tests.sh`
+- Fixed shellcheck SC2015 warning in `lib/core.sh`
+- Improved error handling in `postgis::content::remove` function
+- All shellcheck validations pass with zero warnings
 
-## Maintenance
+**Test Optimization:**
+- Fixed unit test sourcing issue with `postgis::status::check` function
+- Optimized integration tests to skip redundant lifecycle checks
+- Increased test timeout to 600s for comprehensive testing
+- All test phases pass reliably
+
+**Current Performance:**
+- Smoke tests: <1s (quick health validation)
+- Unit tests: <1s (library function tests)
+- Integration tests: ~30-40s (end-to-end scenarios)
+- Full test suite: ~40-45s total
+
+### 2025-10-03 - Comprehensive Shellcheck Cleanup
+**Test File Improvements:**
+- Fixed 11 SC2155 warnings (separated declarations from command substitutions)
+  - `test-smoke.sh`: version, result variables
+  - `test-unit.sh`: startup_order, dependencies variables
+  - `test-integration.sh`: distance, explain_result, table_exists, area, intersects, start_time, end_time variables
+- Fixed SC2015 warning in `cli.sh` (proper if-then-else pattern)
+- Added SC2034 directive for framework-used variables
+
+**Library Improvements:**
+- Fixed SC2155 in `lib/geocoding.sh` and `lib/common.sh`
+- Improved error handling by avoiding return value masking
+- All test phases verified passing
+
+## Historical Issues (All Resolved)
+
+### 2025-09-15 - Advanced Spatial Features
+1. **pgRouting Extension** - Created custom Debian-based image with pgRouting 3.8.0
+2. **GDAL Tools** - Added gdal-bin package for format conversion (ogr2ogr, etc.)
+3. **Routing Initialization** - Enhanced feedback for spatial routing setup
+4. **GIS Format Import** - Added support for GeoJSON, KML, shapefiles via ogr2ogr
+
+### 2025-09-12 - v2.0 Contract & Infrastructure
+1. **v2.0 Compliance** - Implemented complete test structure with smoke/unit/integration phases
+2. **Test Dependencies** - Embedded utilities directly in test scripts
+3. **Lifecycle Management** - Implemented and validated all lifecycle commands
+4. **Health Endpoint** - Added HTTP health server on port 5435 with JSON status
+
+## Performance Characteristics
+
+### Startup Performance
+- **Container Launch**: 8-18 seconds (acceptable for development)
+- **Health Check Response**: <1 second
+- **Extension Loading**: ~2-3 seconds for PostGIS initialization
+
+### Query Performance
+- **Spatial Queries**: <500ms with proper indexing
+- **Bulk Inserts**: ~70ms for 1000 points
+- **Distance Calculations**: Geography type for accurate geodetic distances
+- **Index Usage**: GIST indexes automatically used for spatial predicates
+
+## Security & Configuration
+
+### Development Credentials
+- **Default**: vrooli/vrooli (suitable for local development)
+- **Production**: Configure via environment variables (POSTGIS_USER, POSTGIS_PASSWORD)
+- **Best Practice**: Use strong passwords and restrict network access
+
+### Network Security
+- **Isolation**: Uses vrooli-network for container isolation
+- **Port Binding**: 5434 exposed on localhost only (127.0.0.1:5434)
+- **External Access**: Blocked by default for security
+- **Production**: Consider additional firewall rules and SSL/TLS
+
+## Feature Capabilities
+
+### Core Features (P0/P1)
+- **Spatial Database**: PostGIS 3.4 extensions with geography/geometry types
+- **Data Import**: SQL, GeoJSON, KML, shapefiles via content management
+- **Query Optimization**: Spatial indexes, EXPLAIN analysis, configuration tuning
+- **Integration**: Works with Ollama, n8n, QuestDB, Redis for cross-resource workflows
+- **Lifecycle**: Full install/start/stop/restart/uninstall support
+- **Health Monitoring**: HTTP endpoint + comprehensive status checking
+
+### Advanced Features (P2)
+1. **Spatial Analysis** (`vrooli resource postgis spatial`)
+   - Network routing with pgRouting 3.8.0
+   - Proximity and service area calculations
+   - Watershed and viewshed analysis
+   - Spatial clustering (DBSCAN)
+
+2. **Geocoding** (`vrooli resource postgis geocoding`)
+   - Address ↔ coordinate conversion
+   - Reverse geocoding with radius search
+   - Batch processing support
+   - Built-in caching for performance
+
+3. **Visualization** (`vrooli resource postgis visualization`)
+   - GeoJSON export from queries
+   - Heat map and choropleth generation
+   - MVT tile creation
+   - HTML map viewer generation
+
+## Cross-Resource Integration
+
+### Scenario Integration Examples
+- **Location Services**: Real-time asset tracking with geofencing triggers
+- **Analytics**: Combine spatial queries with time-series data (QuestDB)
+- **AI Enhancement**: Generate location descriptions using Ollama
+- **Workflow Automation**: Trigger n8n workflows based on spatial events
+- **Data Storage**: Store/retrieve GIS files with MinIO
+
+### No Conflicts
+- Runs as standalone container on port 5434
+- Doesn't conflict with main PostgreSQL resource (port 5433)
+- Uses separate vrooli-network namespace
+
+## Maintenance & Operations
 
 ### Regular Tasks
-- Monitor disk usage for spatial data
-- Update PostGIS version when new releases available
-- Review and optimize spatial indexes periodically
+1. **Disk Space**: Monitor `~/.vrooli/postgis` volume usage
+2. **Version Updates**: Check for PostGIS and pgRouting updates quarterly
+3. **Index Health**: Run `vrooli resource postgis performance vacuum` monthly
+4. **Performance**: Review query performance with `analyze-query` command
 
-### Backup Considerations
-- Spatial data should be backed up regularly
-- Use pg_dump with PostGIS-specific flags
-- Test restore procedures for spatial data
+### Backup Strategy
+```bash
+# Backup with PostGIS support
+docker exec postgis-main pg_dump -U vrooli -d spatial -Fc -f /backup/spatial.dump
+
+# Restore spatial data
+docker exec postgis-main pg_restore -U vrooli -d spatial /backup/spatial.dump
+```
+
+### Troubleshooting
+- **Won't Start**: Check port 5434 availability, Docker running, disk space
+- **Slow Queries**: Verify spatial indexes exist, run VACUUM ANALYZE
+- **Connection Refused**: Ensure container is healthy: `vrooli resource status postgis`

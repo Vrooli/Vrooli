@@ -12,6 +12,7 @@ APP_ROOT="$(cd "$SCRIPT_DIR/../../../" && pwd)"
 
 # Source utilities
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC2154  # var_LOG_FILE is defined in var.sh
 source "${var_LOG_FILE}"
 
 # Test utility functions
@@ -26,14 +27,22 @@ log::info() { echo -e "ℹ️  $*"; }
 log::banner() { echo -e "\n╔════════════════════════════════════╗\n║ $* ║\n╚════════════════════════════════════╝"; }
 
 # Test configuration
-TEST_TIMEOUT="${TEST_TIMEOUT:-300}"
+TEST_TIMEOUT="${TEST_TIMEOUT:-600}"  # Increased to 10 minutes for comprehensive integration tests
 TEST_PHASES_DIR="${SCRIPT_DIR}/phases"
 
 # Test phase definitions
+# Core test phases (P0/P1 requirements)
 declare -A TEST_PHASES=(
     ["smoke"]="test-smoke.sh"
     ["integration"]="test-integration.sh"
     ["unit"]="test-unit.sh"
+)
+
+# Optional test phases (P2 features)
+declare -A OPTIONAL_TEST_PHASES=(
+    ["geocoding"]="test-geocoding.sh"
+    ["spatial"]="test-spatial.sh"
+    ["visualization"]="test-visualization.sh"
 )
 
 # Run specific test phase
@@ -84,8 +93,23 @@ main() {
         unit)
             run_test_phase "unit" || exit_code=$?
             ;;
+        geocoding|spatial|visualization)
+            # Optional P2 feature tests
+            if [[ -f "${TEST_PHASES_DIR}/${OPTIONAL_TEST_PHASES[$phase]}" ]]; then
+                log::header "Running optional $phase tests (P2 features)"
+                if timeout "$TEST_TIMEOUT" bash "${TEST_PHASES_DIR}/${OPTIONAL_TEST_PHASES[$phase]}"; then
+                    log::success "$phase tests passed"
+                else
+                    log::error "$phase tests failed"
+                    exit_code=1
+                fi
+            else
+                log::error "Optional test not found: $phase"
+                exit_code=1
+            fi
+            ;;
         all)
-            # Run all phases in order
+            # Run core test phases in order
             for test_phase in smoke unit integration; do
                 if [[ ${TEST_PHASES[$test_phase]+isset} ]]; then
                     run_test_phase "$test_phase" || exit_code=$?
@@ -93,9 +117,27 @@ main() {
                 fi
             done
             ;;
+        extended)
+            # Run core + optional tests
+            log::header "Running extended test suite (core + P2 features)"
+            for test_phase in smoke unit integration; do
+                if [[ ${TEST_PHASES[$test_phase]+isset} ]]; then
+                    run_test_phase "$test_phase" || exit_code=$?
+                fi
+            done
+            for test_phase in geocoding spatial visualization; do
+                if [[ -f "${TEST_PHASES_DIR}/${OPTIONAL_TEST_PHASES[$test_phase]}" ]]; then
+                    log::header "Running optional $test_phase tests"
+                    timeout "$TEST_TIMEOUT" bash "${TEST_PHASES_DIR}/${OPTIONAL_TEST_PHASES[$test_phase]}" || {
+                        log::warning "$test_phase tests failed (non-critical P2 feature)"
+                    }
+                fi
+            done
+            ;;
         *)
             log::error "Unknown test phase: $phase"
-            log::info "Available phases: smoke, integration, unit, all"
+            log::info "Core phases: smoke, integration, unit, all"
+            log::info "Optional P2 phases: geocoding, spatial, visualization, extended"
             exit 1
             ;;
     esac

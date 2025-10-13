@@ -12,6 +12,7 @@ APP_ROOT="$(cd "$SCRIPT_DIR/../../../../" && pwd)"
 
 # Source utilities
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC2154  # var_LOG_FILE is set by var.sh
 source "${var_LOG_FILE}"
 
 # Test utility functions

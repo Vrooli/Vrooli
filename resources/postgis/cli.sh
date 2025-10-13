@@ -24,7 +24,9 @@ POSTGIS_CLI_DIR="${APP_ROOT}/resources/postgis"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Source utilities
+# shellcheck disable=SC2154  # var_LOG_FILE is set by var.sh
 source "${var_LOG_FILE}"
+# shellcheck disable=SC2154  # var_RESOURCES_COMMON_FILE is set by var.sh
 source "${var_RESOURCES_COMMON_FILE}"
 
 # Source v2.0 CLI Command Framework
@@ -34,7 +36,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${POSTGIS_CLI_DIR}/config/defaults.sh"
 
 # Source resource libraries (only what exists)
-for lib in core common install status test inject performance health integration visualization geocoding spatial_analysis; do
+for lib in core common install status test inject performance health integration visualization geocoding spatial_analysis cleanup; do
     lib_file="${POSTGIS_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -55,14 +57,24 @@ CLI_COMMAND_HANDLERS["manage::start"]="postgis::docker::start"
 CLI_COMMAND_HANDLERS["manage::stop"]="postgis::docker::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="postgis::docker::restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="postgis::status::check"
+CLI_COMMAND_HANDLERS["test::unit"]="postgis::test::unit"
 CLI_COMMAND_HANDLERS["test::integration"]="postgis::test::integration"
+CLI_COMMAND_HANDLERS["test::all"]="postgis::test::all"
+CLI_COMMAND_HANDLERS["test::extended"]="postgis::test::extended"
+CLI_COMMAND_HANDLERS["test::geocoding"]="postgis::test::geocoding"
+CLI_COMMAND_HANDLERS["test::spatial"]="postgis::test::spatial"
+CLI_COMMAND_HANDLERS["test::visualization"]="postgis::test::visualization"
 
 # Content handlers for spatial data management
 # shellcheck disable=SC2034  # CLI_COMMAND_HANDLERS is used by CLI framework
 CLI_COMMAND_HANDLERS["content::add"]="postgis::content::add"
+# shellcheck disable=SC2034  # CLI_COMMAND_HANDLERS is used by CLI framework
 CLI_COMMAND_HANDLERS["content::list"]="postgis::content::list"
+# shellcheck disable=SC2034  # CLI_COMMAND_HANDLERS is used by CLI framework
 CLI_COMMAND_HANDLERS["content::get"]="postgis::content::get"
+# shellcheck disable=SC2034  # CLI_COMMAND_HANDLERS is used by CLI framework
 CLI_COMMAND_HANDLERS["content::remove"]="postgis::content::remove"
+# shellcheck disable=SC2034  # CLI_COMMAND_HANDLERS is used by CLI framework
 CLI_COMMAND_HANDLERS["content::execute"]="postgis::content::execute"
 
 # ==============================================================================
@@ -70,6 +82,7 @@ CLI_COMMAND_HANDLERS["content::execute"]="postgis::content::execute"
 # ==============================================================================
 cli::register_command "status" "Show detailed PostGIS status" "postgis::status"
 cli::register_command "logs" "Show PostGIS container logs" "postgis::docker::logs"
+cli::register_command "credentials" "Display integration credentials" "postgis::credentials"
 
 # ==============================================================================
 # OPTIONAL RESOURCE-SPECIFIC COMMANDS FOR SPATIAL DATA
@@ -85,6 +98,12 @@ cli::register_subcommand "content" "disable-database" "Disable PostGIS in specif
 
 # Add spatial query examples command
 cli::register_command "examples" "Show example spatial queries" "postgis_show_examples"
+
+# Register optional test subcommands (P2 features)
+cli::register_subcommand "test" "extended" "Run core + P2 feature tests" "postgis::test::extended"
+cli::register_subcommand "test" "geocoding" "Run geocoding tests (P2)" "postgis::test::geocoding"
+cli::register_subcommand "test" "spatial" "Run spatial analysis tests (P2)" "postgis::test::spatial"
+cli::register_subcommand "test" "visualization" "Run visualization tests (P2)" "postgis::test::visualization"
 
 # ==============================================================================
 # PERFORMANCE OPTIMIZATION COMMANDS
@@ -140,6 +159,13 @@ cli::register_subcommand "spatial" "watershed" "Perform watershed analysis" "pos
 cli::register_subcommand "spatial" "viewshed" "Calculate viewshed" "postgis::spatial::viewshed"
 cli::register_subcommand "spatial" "cluster" "Perform spatial clustering" "postgis::spatial::cluster"
 cli::register_subcommand "spatial" "statistics" "Calculate spatial statistics" "postgis::spatial::statistics"
+
+# Cleanup commands for test data management
+cli::register_command "cleanup" "Cleanup test data and caches" "postgis::cleanup::all"
+cli::register_subcommand "cleanup" "test-tables" "Remove test tables" "postgis::cleanup::test_tables"
+cli::register_subcommand "cleanup" "test-databases" "Remove test databases" "postgis::cleanup::test_databases"
+cli::register_subcommand "cleanup" "geocoding-cache" "Clear geocoding cache" "postgis::cleanup::geocoding_cache"
+cli::register_subcommand "cleanup" "all" "Full cleanup of all test data" "postgis::cleanup::all"
 
 # Only execute if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

@@ -19,6 +19,9 @@ PostGIS is a spatial database extension for PostgreSQL that adds geographic obje
 # Check PostGIS status and health
 vrooli resource postgis status
 
+# Get connection credentials
+vrooli resource postgis credentials
+
 # Start PostGIS if not running
 vrooli resource postgis start
 
@@ -139,8 +142,26 @@ PostGIS runs as a standalone containerized PostgreSQL instance:
 - **Container**: `postgis-main` (PostgreSQL 16 + PostGIS 3.4)
 - **Port**: 5434
 - **Database**: `spatial`
-- **Credentials**: `vrooli/vrooli`
+- **Credentials**: `vrooli/vrooli` (use `vrooli resource postgis credentials` to view)
 - **Extensions**: PostGIS, PostGIS Raster, PostGIS Topology
+
+### Getting Connection Information
+
+Display connection credentials in various formats:
+
+```bash
+# Human-readable format (password masked)
+vrooli resource postgis credentials
+
+# JSON format for programmatic access
+vrooli resource postgis credentials --format json
+
+# Environment variables for shell scripts
+vrooli resource postgis credentials --format env
+
+# Show actual passwords
+vrooli resource postgis credentials --show-secrets
+```
 
 ## Key Features
 
@@ -169,6 +190,26 @@ PostGIS enhances other resources:
 - **MinIO**: Store geographic files (KML, GeoJSON, shapefiles)
 - **QuestDB**: Time-series tracking of moving objects
 - **Browserless**: Generate map visualizations
+
+## Cleanup & Maintenance
+
+PostGIS includes cleanup utilities for test data management:
+
+```bash
+# Remove all test data (recommended after development/testing)
+vrooli resource postgis cleanup all
+
+# Specific cleanup operations
+vrooli resource postgis cleanup test-tables       # Remove test tables from spatial database
+vrooli resource postgis cleanup test-databases    # Remove temporary test databases
+vrooli resource postgis cleanup geocoding-cache   # Clear geocoding cache
+```
+
+### When to Use Cleanup
+- After running tests to remove temporary data
+- During development to clean up test artifacts
+- Before production deployment to ensure clean state
+- When troubleshooting to reset test environments
 
 ## Status
 

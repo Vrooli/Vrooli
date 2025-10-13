@@ -13,8 +13,8 @@
         },
         "image": {
           "type": "string",
-          "default": "postgis/postgis:16-3.4-alpine",
-          "description": "Docker image for PostGIS"
+          "default": "vrooli/postgis-routing:16-3.4",
+          "description": "Docker image for PostGIS with pgRouting (falls back to postgis/postgis:16-3.4-alpine if custom build unavailable)"
         },
         "port": {
           "type": "integer",

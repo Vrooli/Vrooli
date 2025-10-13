@@ -68,8 +68,9 @@ postgis::spatial::init_routing() {
     fi
     
     # Check what was created
-    local table_count=$(docker exec -i postgis-main psql -U vrooli -d spatial -t -A -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('road_network', 'road_vertices')" 2>/dev/null)
-    
+    local table_count
+    table_count=$(docker exec -i postgis-main psql -U vrooli -d spatial -t -A -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('road_network', 'road_vertices')" 2>/dev/null)
+
     echo "✅ Routing tables initialized successfully"
     echo "  - Created road_network table with spatial indices"
     echo "  - Created road_vertices table"
@@ -196,9 +197,11 @@ postgis::spatial::service_area() {
     fi
     
     # Calculate distance based on time and speed
-    local distance_km=$(echo "scale=2; $minutes * $speed_kmh / 60" | bc 2>/dev/null || echo "12.5")
-    local distance_m=$(echo "scale=0; $distance_km * 1000" | bc 2>/dev/null || echo "12500")
-    
+    local distance_km
+    distance_km=$(echo "scale=2; $minutes * $speed_kmh / 60" | bc 2>/dev/null || echo "12.5")
+    local distance_m
+    distance_m=$(echo "scale=0; $distance_km * 1000" | bc 2>/dev/null || echo "12500")
+
     # Create isochrone polygon
     local isochrone_query="
         WITH center AS (
@@ -225,8 +228,9 @@ postgis::spatial::service_area() {
 postgis::spatial::watershed() {
     local pour_point_lat="${1:-}"
     local pour_point_lon="${2:-}"
+    # shellcheck disable=SC2034  # dem_table is reserved for future raster support
     local dem_table="${3:-elevation_raster}"
-    
+
     if [[ -z "$pour_point_lat" ]] || [[ -z "$pour_point_lon" ]]; then
         echo "Usage: resource-postgis spatial watershed <lat> <lon> [dem_table]"
         return 1

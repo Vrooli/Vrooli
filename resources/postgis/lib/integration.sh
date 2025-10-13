@@ -34,9 +34,11 @@ postgis::integration::export_for_n8n() {
     
     local export_dir="${POSTGIS_DATA_DIR}/exports"
     mkdir -p "$export_dir"
-    
-    local export_file="${export_dir}/${table_name}_$(date +%Y%m%d_%H%M%S).${format}"
-    
+
+    local timestamp
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    local export_file="${export_dir}/${table_name}_${timestamp}.${format}"
+
     log::info "Exporting $table_name to $format format for n8n..."
     
     case "$format" in
@@ -341,13 +343,14 @@ postgis::integration::status() {
     
     # Check which integrations are set up
     log::info "Checking installed integrations..."
-    
-    local tables=$(docker exec "${container}" psql -U vrooli -d spatial -t -c "
-        SELECT tablename FROM pg_tables 
-        WHERE schemaname = 'public' 
+
+    local tables
+    tables=$(docker exec "${container}" psql -U vrooli -d spatial -t -c "
+        SELECT tablename FROM pg_tables
+        WHERE schemaname = 'public'
         AND tablename IN ('ollama_spatial_embeddings', 'spatial_timeseries', 'spatial_cache')
         ORDER BY tablename;" 2>/dev/null)
-    
+
     if [[ -n "$tables" ]]; then
         echo "Installed integration tables:"
         echo "$tables" | while read -r table; do

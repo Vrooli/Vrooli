@@ -212,8 +212,9 @@ FROM pg_indexes
 WHERE tablename = '${table_name}'
 AND indexname LIKE '%${geom_column}%';
 EOF
-    
-    if [[ $? -eq 0 ]]; then
+
+    # Check if index creation succeeded
+    if docker exec "${POSTGIS_CONTAINER}" psql -U "${POSTGIS_PG_USER}" -d "${POSTGIS_PG_DATABASE}" -t -c "SELECT 1 FROM pg_indexes WHERE tablename = '${table_name}' AND indexname LIKE '%${geom_column}%' LIMIT 1" 2>/dev/null | grep -q 1; then
         log::success "Spatial index created successfully"
         return 0
     else
@@ -236,13 +237,14 @@ postgis::performance::vacuum_analyze() {
     fi
     
     log::info "Running VACUUM ANALYZE on spatial tables..."
-    
+
     # Get list of tables with geometry columns
-    local tables=$(docker exec "${container}" psql -U vrooli -d spatial -t -c "
-        SELECT DISTINCT f_table_name 
-        FROM geometry_columns 
+    local tables
+    tables=$(docker exec "${container}" psql -U vrooli -d spatial -t -c "
+        SELECT DISTINCT f_table_name
+        FROM geometry_columns
         WHERE f_table_schema = 'public';" 2>/dev/null)
-    
+
     for table in $tables; do
         if [[ -n "$table" ]]; then
             log::info "Vacuuming table: $table"

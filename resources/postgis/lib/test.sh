@@ -68,9 +68,49 @@ postgis::test::all() {
     postgis_run_tests "all"
 }
 
+#######################################
+# Run extended tests (core + P2 features)
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+postgis::test::extended() {
+    postgis_run_tests "extended"
+}
+
+#######################################
+# Run geocoding tests (P2 feature)
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+postgis::test::geocoding() {
+    postgis_run_tests "geocoding"
+}
+
+#######################################
+# Run spatial analysis tests (P2 feature)
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+postgis::test::spatial() {
+    postgis_run_tests "spatial"
+}
+
+#######################################
+# Run visualization tests (P2 feature)
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+postgis::test::visualization() {
+    postgis_run_tests "visualization"
+}
+
 # Export functions
 export -f postgis_run_tests
 export -f postgis::test::smoke
 export -f postgis::test::integration
 export -f postgis::test::unit
 export -f postgis::test::all
+export -f postgis::test::extended
+export -f postgis::test::geocoding
+export -f postgis::test::spatial
+export -f postgis::test::visualization

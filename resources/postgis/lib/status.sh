@@ -103,9 +103,11 @@ postgis::status::collect_data() {
         # Read last test results
         if [[ -r "$test_results_file" ]]; then
             test_timestamp=$(jq -r '.timestamp // ""' "$test_results_file" 2>/dev/null)
-            local test_passed=$(jq -r '.passed // "unknown"' "$test_results_file" 2>/dev/null)
-            local test_total=$(jq -r '.total // "unknown"' "$test_results_file" 2>/dev/null)
-            
+            local test_passed
+            test_passed=$(jq -r '.passed // "unknown"' "$test_results_file" 2>/dev/null)
+            local test_total
+            test_total=$(jq -r '.total // "unknown"' "$test_results_file" 2>/dev/null)
+
             if [[ -n "$test_timestamp" && "$test_passed" != "unknown" ]]; then
                 if [[ "$test_passed" == "$test_total" ]]; then
                     test_status="passed"
@@ -240,5 +242,113 @@ postgis_status() {
     status::run_standard "postgis" "postgis::status::collect_data" "postgis::status::display_text" "$@"
 }
 
-# Export function
+#######################################
+# Display PostGIS credentials and connection information
+# Args: [--format text|json|env] [--show-secrets]
+#######################################
+postgis::credentials() {
+    local format="text"
+    local show_secrets="false"
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --show-secrets)
+                show_secrets="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    # Check if PostGIS is running
+    if ! docker ps --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
+        if [[ "$format" == "json" ]]; then
+            echo '{"error": "PostGIS container not running"}'
+        else
+            log::error "PostGIS container not running"
+        fi
+        return 2
+    fi
+
+    # Collect credential data
+    local host="localhost"
+    local port="${POSTGIS_STANDALONE_PORT:-5434}"
+    local database="spatial"
+    local user="vrooli"
+    local password="vrooli"
+    local connection_url
+
+    # Mask password if not showing secrets
+    local display_password="********"
+    if [[ "$show_secrets" == "true" ]]; then
+        display_password="$password"
+        connection_url="postgresql://${user}:${password}@${host}:${port}/${database}"
+    else
+        connection_url="postgresql://${user}:********@${host}:${port}/${database}"
+    fi
+
+    # Format output
+    case "$format" in
+        json)
+            cat <<EOF
+{
+  "host": "$host",
+  "port": $port,
+  "database": "$database",
+  "user": "$user",
+  "password": "$display_password",
+  "connection_url": "$connection_url",
+  "psql_command": "psql -h $host -p $port -U $user -d $database",
+  "docker_command": "docker exec -it $POSTGIS_CONTAINER psql -U $user -d $database"
+}
+EOF
+            ;;
+        env)
+            echo "export POSTGIS_HOST=\"$host\""
+            echo "export POSTGIS_PORT=\"$port\""
+            echo "export POSTGIS_DATABASE=\"$database\""
+            echo "export POSTGIS_USER=\"$user\""
+            if [[ "$show_secrets" == "true" ]]; then
+                echo "export POSTGIS_PASSWORD=\"$password\""
+            else
+                echo "export POSTGIS_PASSWORD=\"********\""
+            fi
+            echo "export POSTGIS_URL=\"$connection_url\""
+            ;;
+        text|*)
+            echo "PostGIS Connection Credentials"
+            echo "=============================="
+            echo
+            echo "Connection Details:"
+            echo "  Host: $host"
+            echo "  Port: $port"
+            echo "  Database: $database"
+            echo "  User: $user"
+            echo "  Password: $display_password"
+            echo
+            echo "Connection URL:"
+            echo "  $connection_url"
+            echo
+            echo "Connect via psql:"
+            echo "  psql -h $host -p $port -U $user -d $database"
+            echo
+            echo "Connect via Docker:"
+            echo "  docker exec -it $POSTGIS_CONTAINER psql -U $user -d $database"
+            echo
+            if [[ "$show_secrets" == "false" ]]; then
+                echo "💡 Use --show-secrets to display actual password values"
+            fi
+            ;;
+    esac
+}
+
+# Export functions
 export -f postgis_status
+export -f postgis::credentials

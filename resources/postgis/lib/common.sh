@@ -3,6 +3,7 @@
 
 # Get script directory
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+# shellcheck disable=SC2034  # POSTGIS_LIB_DIR used by sourcing scripts
 POSTGIS_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
 POSTGIS_ROOT_DIR="${APP_ROOT}/resources/postgis"
 
@@ -14,6 +15,7 @@ source "${POSTGIS_ROOT_DIR}/config/defaults.sh"
 
 # Source shared utilities
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC2154  # var_LOG_FILE is set by var.sh
 source "${var_LOG_FILE}" 2>/dev/null || true
 
 # Helper function to execute PostgreSQL commands via Docker

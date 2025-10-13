@@ -237,8 +237,9 @@ postgis::geocoding::batch() {
         echo "Processing $current/$total: $address"
         
         # Geocode each address
-        local result=$(postgis::geocoding::geocode "$address" true 2>/dev/null | grep "✅" | sed 's/.*: //')
-        
+        local result
+        result=$(postgis::geocoding::geocode "$address" true 2>/dev/null | grep "✅" | sed 's/.*: //')
+
         if [[ -n "$result" ]]; then
             echo "\"$address\",$result" >> "$output_file"
         else
@@ -274,9 +275,10 @@ postgis::geocoding::import_places() {
     "
     
     docker exec -i postgis-main psql -U vrooli -d spatial -c "$import_query" 2>/dev/null
-    
-    local count=$(docker exec -i postgis-main psql -U vrooli -d spatial -t -A -c "SELECT COUNT(*) FROM places" 2>/dev/null)
-    
+
+    local count
+    count=$(docker exec -i postgis-main psql -U vrooli -d spatial -t -A -c "SELECT COUNT(*) FROM places" 2>/dev/null)
+
     echo "✅ Imported places. Total in database: $count"
     return 0
 }
