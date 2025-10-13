@@ -721,7 +721,7 @@ export function useReportScreenshot({
     if (!canCapture) {
       setReportScreenshotError('Load the preview to capture a screenshot.');
     }
-  }, [cancelScreenshotCountdown, resetScreenshotState, canCaptureScreenshot]);
+  }, [cancelScreenshotCountdown, resetScreenshotState]);
 
   const cleanupAfterDialogClose = useCallback((canCapture: boolean) => {
     cancelScreenshotCountdown();

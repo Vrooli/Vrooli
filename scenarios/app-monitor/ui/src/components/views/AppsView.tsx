@@ -133,69 +133,6 @@ const ViewToggle = memo(({ viewMode, onClick }: { viewMode: AppViewMode; onClick
 ));
 ViewToggle.displayName = 'ViewToggle';
 
-// Virtual scrolling component for large lists
-const VirtualAppList = memo(({ 
-  apps, 
-  viewMode, 
-  onPreview, 
-  onDetails,
-  onAppAction,
-}: {
-  apps: App[];
-  viewMode: AppViewMode;
-  onPreview: (app: App) => void;
-  onDetails: (app: App) => void;
-  onAppAction: (appId: string, action: 'start' | 'stop') => void;
-}) => {
-  // For lists with many items, implement virtual scrolling
-  const ITEMS_PER_PAGE = 50;
-  const [visibleRange, setVisibleRange] = useState({ start: 0, end: ITEMS_PER_PAGE });
-  
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const itemHeight = viewMode === 'grid' ? 200 : 100; // Approximate heights
-      const start = Math.floor(scrollTop / itemHeight);
-      const end = start + Math.ceil(window.innerHeight / itemHeight) + 10; // Buffer
-      
-      setVisibleRange({ start, end });
-    };
-    
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [viewMode]);
-  
-  // Only render visible items for performance
-  const visibleApps = apps.slice(visibleRange.start, visibleRange.end);
-  
-  return (
-    <div className={clsx('apps-grid', viewMode)}>
-      {/* Spacer for virtual scrolling */}
-      {visibleRange.start > 0 && (
-        <div style={{ height: `${visibleRange.start * (viewMode === 'grid' ? 200 : 100)}px` }} />
-      )}
-      
-      {visibleApps.map(app => (
-        <AppCard
-          key={app.id}
-          app={app}
-          viewMode={viewMode}
-          onCardClick={onPreview}
-          onDetails={onDetails}
-          onStart={(id) => onAppAction(id, 'start')}
-          onStop={(id) => onAppAction(id, 'stop')}
-        />
-      ))}
-      
-      {/* Spacer for virtual scrolling */}
-      {visibleRange.end < apps.length && (
-        <div style={{ height: `${(apps.length - visibleRange.end) * (viewMode === 'grid' ? 200 : 100)}px` }} />
-      )}
-    </div>
-  );
-});
-VirtualAppList.displayName = 'VirtualAppList';
-
 const formatStatusText = (status?: string, isPartial?: boolean) => {
   if (isPartial) {
     return 'SYNCING';
@@ -210,6 +147,9 @@ const formatStatusText = (status?: string, isPartial?: boolean) => {
 };
 
 const runningStates = new Set(['running', 'healthy', 'degraded', 'unhealthy']);
+
+const GRID_INITIAL_BATCH = 24;
+const GRID_BATCH_SIZE = 24;
 
 const AppListRow = memo(({ app, onPreview, onDetails, onAppAction }: {
   app: App;
@@ -417,9 +357,12 @@ const AppsView = memo(() => {
   const [viewMode, setViewMode] = useState<AppViewMode>('grid');
   const [selectedApp, setSelectedApp] = useState<App | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(GRID_INITIAL_BATCH);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const initialPositionsRef = useRef<Map<string, number>>(new Map());
   const emptyReloadRef = useRef(false);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const prevFiltersRef = useRef({ search, sortOption, viewMode });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loading = loadingInitial && apps.length === 0;
@@ -432,6 +375,20 @@ const AppsView = memo(() => {
   useEffect(() => () => {
     clearError();
   }, [clearError]);
+
+  useEffect(() => () => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (viewMode !== 'grid' && observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+  }, [viewMode]);
 
   useEffect(() => {
     if (hasInitialized && !loadingInitial && apps.length === 0) {
@@ -698,6 +655,24 @@ const AppsView = memo(() => {
     }
   }, [apps, search, sortOption]);
 
+  useEffect(() => {
+    const previous = prevFiltersRef.current;
+    const filtersChanged = previous.search !== search || previous.sortOption !== sortOption;
+    const viewChanged = previous.viewMode !== viewMode;
+
+    if (viewMode === 'grid') {
+      if (filtersChanged || viewChanged) {
+        setVisibleCount(Math.min(filteredApps.length, GRID_INITIAL_BATCH));
+      } else if (filteredApps.length < visibleCount) {
+        setVisibleCount(filteredApps.length);
+      }
+    } else if (visibleCount !== filteredApps.length) {
+      setVisibleCount(filteredApps.length);
+    }
+
+    prevFiltersRef.current = { search, sortOption, viewMode };
+  }, [filteredApps.length, search, sortOption, viewMode, visibleCount]);
+
   const handleAppAction = useCallback(async (appId: string, action: 'start' | 'stop' | 'restart') => {
     logger.info(`App action: ${action} for ${appId}`);
 
@@ -731,6 +706,12 @@ const AppsView = memo(() => {
     navigate({
       pathname: `/apps/${encodeURIComponent(app.id)}/preview`,
       search: currentSearch ? `?${currentSearch}` : undefined,
+    }, {
+      state: {
+        fromAppsList: true,
+        originAppId: app.id,
+        navTimestamp: Date.now(),
+      },
     });
   }, [navigate, searchParams]);
 
@@ -766,7 +747,34 @@ const AppsView = memo(() => {
     updateSearchParam('sort', value === DEFAULT_SORT ? null : value);
   }, [updateSearchParam]);
 
-  const useVirtualScrolling = viewMode === 'grid' && filteredApps.length > 100;
+  const isGridView = viewMode === 'grid';
+  const gridHasMore = isGridView && visibleCount < filteredApps.length;
+  const displayedApps = isGridView ? filteredApps.slice(0, visibleCount) : filteredApps;
+
+  const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    if (!node || !isGridView || !gridHasMore) {
+      return;
+    }
+
+    observerRef.current = new IntersectionObserver((entries) => {
+      const [entry] = entries;
+      if (entry.isIntersecting) {
+        setVisibleCount(prev => {
+          if (prev >= filteredApps.length) {
+            return prev;
+          }
+          return Math.min(filteredApps.length, prev + GRID_BATCH_SIZE);
+        });
+      }
+    }, { root: null, rootMargin: '200px 0px', threshold: 0.1 });
+
+    observerRef.current.observe(node);
+  }, [filteredApps.length, gridHasMore, isGridView]);
 
   const handleErrorDismiss = useCallback(() => {
     setErrorMessage(null);
@@ -842,28 +850,25 @@ const AppsView = memo(() => {
             </tbody>
           </table>
         </div>
-      ) : useVirtualScrolling ? (
-        <VirtualAppList
-          apps={filteredApps}
-          viewMode={viewMode}
-          onPreview={handleAppPreview}
-          onDetails={handleAppDetails}
-          onAppAction={handleAppAction}
-        />
       ) : (
-        <div className={clsx('apps-grid', viewMode)}>
-          {filteredApps.map(app => (
-            <AppCard
-              key={app.id}
-              app={app}
-              viewMode={viewMode}
-              onCardClick={handleAppPreview}
-              onDetails={handleAppDetails}
-              onStart={(id) => handleAppAction(id, 'start')}
-              onStop={(id) => handleAppAction(id, 'stop')}
-            />
-          ))}
-        </div>
+        <>
+          <div className={clsx('apps-grid', viewMode)}>
+            {displayedApps.map(app => (
+              <AppCard
+                key={app.id}
+                app={app}
+                viewMode={viewMode}
+                onCardClick={handleAppPreview}
+                onDetails={handleAppDetails}
+                onStart={(id) => handleAppAction(id, 'start')}
+                onStop={(id) => handleAppAction(id, 'stop')}
+              />
+            ))}
+          </div>
+          {gridHasMore && (
+            <div className="apps-grid__sentinel" ref={loadMoreRef} aria-hidden="true" />
+          )}
+        </>
       )}
 
       {modalOpen && selectedApp && (

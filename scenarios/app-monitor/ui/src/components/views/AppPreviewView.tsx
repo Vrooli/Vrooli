@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent, MouseEvent } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { ArrowLeft, ArrowRight, Bug, ExternalLink, Info, Loader2, Power, RefreshCw, RotateCcw, ScrollText } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bug, ExternalLink, Info, Loader2, Power, RefreshCw, RotateCcw, ScrollText, X } from 'lucide-react';
 import { appService } from '@/services/api';
 import { useAppsStore } from '@/state/appsStore';
 import { logger } from '@/services/logger';
@@ -18,6 +18,7 @@ const PREVIEW_LOAD_TIMEOUT_MS = 6000;
 const PREVIEW_CONNECTING_LABEL = 'Connecting to preview...';
 const PREVIEW_TIMEOUT_MESSAGE = 'Preview did not respond. Ensure the application UI is running and reachable from App Monitor.';
 const PREVIEW_MIXED_CONTENT_MESSAGE = 'Preview blocked: browser refused to load HTTP content inside an HTTPS dashboard. Expose the UI through the tunnel hostname or enable HTTPS for the scenario.';
+const IOS_AUTOBACK_GUARD_MS = 1500;
 
 const AppPreviewView = () => {
   const apps = useAppsStore(state => state.apps);
@@ -27,7 +28,25 @@ const AppPreviewView = () => {
   const hasInitialized = useAppsStore(state => state.hasInitialized);
   const navigate = useNavigate();
   const { appId } = useParams<{ appId: string }>();
+  type PreviewLocationState = {
+    fromAppsList?: boolean;
+    originAppId?: string;
+    navTimestamp?: number;
+  };
   const location = useLocation();
+  const locationState: PreviewLocationState | null = location.state && typeof location.state === 'object'
+    ? location.state as PreviewLocationState
+    : null;
+  const isIosSafari = useMemo(() => {
+    if (typeof navigator === 'undefined') {
+      return false;
+    }
+    const ua = navigator.userAgent || '';
+    const isIOS = /iP(ad|hone|od)/i.test(ua);
+    const isWebKit = /WebKit/i.test(ua);
+    const isExcluded = /CriOS|FxiOS|OPiOS|EdgiOS/i.test(ua);
+    return isIOS && isWebKit && !isExcluded;
+  }, []);
   const [currentApp, setCurrentApp] = useState<App | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewUrlInput, setPreviewUrlInput] = useState('');
@@ -49,17 +68,113 @@ const AppPreviewView = () => {
   const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
   const [proxyMetadata, setProxyMetadata] = useState<AppProxyMetadata | null>(null);
   const [localhostReport, setLocalhostReport] = useState<LocalhostUsageReport | null>(null);
+  const [bridgeMessageDismissed, setBridgeMessageDismissed] = useState(false);
+  const [localhostMessageDismissed, setLocalhostMessageDismissed] = useState(false);
   const complianceRunRef = useRef(false);
   const initialPreviewUrlRef = useRef<string | null>(null);
   const restartMonitorRef = useRef<{ cancel: () => void } | null>(null);
   const lastRefreshRequestRef = useRef(0);
   const lastRecordedViewRef = useRef<{ id: string | null; timestamp: number }>({ id: null, timestamp: 0 });
+  const iosPopGuardRef = useRef<{ active: boolean; timeoutId: number | null; activatedAt: number; handledCount: number }>({
+    active: false,
+    timeoutId: null,
+    activatedAt: 0,
+    handledCount: 0,
+  });
+  const iosGuardedLocationKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!hasInitialized && !loadingInitial) {
       void loadApps();
     }
   }, [hasInitialized, loadApps, loadingInitial]);
+
+  useEffect(() => {
+    if (!isIosSafari) {
+      iosGuardedLocationKeyRef.current = null;
+      if (iosPopGuardRef.current.timeoutId) {
+        window.clearTimeout(iosPopGuardRef.current.timeoutId);
+        iosPopGuardRef.current.timeoutId = null;
+      }
+      iosPopGuardRef.current.active = false;
+      return;
+    }
+
+    if (!locationState?.fromAppsList) {
+      iosGuardedLocationKeyRef.current = null;
+      if (iosPopGuardRef.current.timeoutId) {
+        window.clearTimeout(iosPopGuardRef.current.timeoutId);
+        iosPopGuardRef.current.timeoutId = null;
+      }
+      iosPopGuardRef.current.active = false;
+      return;
+    }
+
+    if (iosGuardedLocationKeyRef.current === location.key) {
+      return;
+    }
+
+    iosGuardedLocationKeyRef.current = location.key;
+    const guard = iosPopGuardRef.current;
+    guard.active = true;
+    guard.activatedAt = Date.now();
+    guard.handledCount = 0;
+    if (guard.timeoutId) {
+      window.clearTimeout(guard.timeoutId);
+    }
+    guard.timeoutId = window.setTimeout(() => {
+      guard.active = false;
+      guard.timeoutId = null;
+    }, IOS_AUTOBACK_GUARD_MS);
+  }, [isIosSafari, location.key, locationState?.fromAppsList]);
+
+  useEffect(() => {
+    if (!isIosSafari) {
+      return;
+    }
+
+    const guard = iosPopGuardRef.current;
+    const handlePopState = () => {
+      if (!guard.active) {
+        return;
+      }
+
+      const elapsed = Date.now() - guard.activatedAt;
+      const shouldSuppress = guard.handledCount === 0 && elapsed >= 0 && elapsed <= IOS_AUTOBACK_GUARD_MS;
+
+      if (shouldSuppress) {
+        guard.handledCount = 1;
+        guard.active = false;
+        if (guard.timeoutId) {
+          window.clearTimeout(guard.timeoutId);
+          guard.timeoutId = null;
+        }
+        window.requestAnimationFrame(() => {
+          if (window.history.length > 1) {
+            window.history.forward();
+          }
+        });
+        return;
+      }
+
+      guard.active = false;
+      if (guard.timeoutId) {
+        window.clearTimeout(guard.timeoutId);
+        guard.timeoutId = null;
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (guard.timeoutId) {
+        window.clearTimeout(guard.timeoutId);
+        guard.timeoutId = null;
+      }
+      guard.active = false;
+      guard.handledCount = 0;
+    };
+  }, [isIosSafari]);
 
   const matchesAppIdentifier = useCallback((app: App, identifier?: string | null) => {
     if (!identifier) {
@@ -120,6 +235,29 @@ const AppPreviewView = () => {
     onLocation: handleBridgeLocation,
   });
 
+  useEffect(() => {
+    if (!isIosSafari) {
+      return;
+    }
+
+    if (!locationState?.fromAppsList) {
+      return;
+    }
+
+    if (!bridgeState.isReady && !iframeLoadedAt) {
+      return;
+    }
+
+    const nextState: PreviewLocationState = { ...(locationState ?? {}), fromAppsList: false };
+    navigate({
+      pathname: location.pathname,
+      search: location.search || undefined,
+    }, {
+      replace: true,
+      state: nextState,
+    });
+  }, [bridgeState.isReady, iframeLoadedAt, isIosSafari, location.pathname, location.search, locationState, navigate]);
+
   const resetPreviewState = useCallback((options?: { force?: boolean }) => {
     if (!options?.force && hasCustomPreviewUrl) {
       return;
@@ -176,7 +314,7 @@ const AppPreviewView = () => {
     });
   }, [appId, setAppsState]);
 
-  const stopRestartMonitor = useCallback(() => {
+  const stopLifecycleMonitor = useCallback(() => {
     if (restartMonitorRef.current) {
       restartMonitorRef.current.cancel();
       restartMonitorRef.current = null;
@@ -190,8 +328,8 @@ const AppPreviewView = () => {
     setPreviewReloadToken(prev => prev + 1);
   }, [resetState]);
 
-  const beginRestartMonitor = useCallback((appIdentifier: string) => {
-    stopRestartMonitor();
+  const beginLifecycleMonitor = useCallback((appIdentifier: string, lifecycle: 'start' | 'restart') => {
+    stopLifecycleMonitor();
 
     let cancelled = false;
     restartMonitorRef.current = {
@@ -222,11 +360,13 @@ const AppPreviewView = () => {
                 if (!hasCustomPreviewUrl) {
                   applyDefaultPreviewUrl(candidateUrl);
                 }
-                setStatusMessage('Application restarted. Refreshing preview...');
+                setStatusMessage(lifecycle === 'restart'
+                  ? 'Application restarted. Refreshing preview...'
+                  : 'Application started. Refreshing preview...');
                 setPreviewOverlay(null);
                 setLoading(false);
                 reloadPreview();
-                stopRestartMonitor();
+                stopLifecycleMonitor();
                 window.setTimeout(() => {
                   if (!cancelled) {
                     setStatusMessage(null);
@@ -237,7 +377,7 @@ const AppPreviewView = () => {
             }
           }
         } catch (error) {
-          logger.warn('Restart monitor poll failed', error);
+          logger.warn('Lifecycle monitor poll failed', error);
         }
 
         const delay = attempt < 5 ? 1000 : 2000;
@@ -246,12 +386,14 @@ const AppPreviewView = () => {
 
       if (!cancelled) {
         setLoading(false);
-        setPreviewOverlay({ type: 'error', message: 'Application has not come back online yet. Try refreshing.' });
+        setPreviewOverlay({ type: 'error', message: lifecycle === 'restart'
+          ? 'Application has not come back online yet. Try refreshing.'
+          : 'Application is still starting. Try refreshing in a moment.' });
       }
     };
 
     void poll();
-  }, [applyDefaultPreviewUrl, commitAppUpdate, hasCustomPreviewUrl, reloadPreview, setLoading, setPreviewOverlay, setStatusMessage, stopRestartMonitor]);
+  }, [applyDefaultPreviewUrl, commitAppUpdate, hasCustomPreviewUrl, reloadPreview, setLoading, setPreviewOverlay, setStatusMessage, stopLifecycleMonitor]);
 
   const activePreviewUrl = useMemo(() => bridgeState.href || previewUrl || '', [bridgeState.href, previewUrl]);
   const canCaptureScreenshot = useMemo(() => Boolean(activePreviewUrl), [activePreviewUrl]);
@@ -282,6 +424,12 @@ const AppPreviewView = () => {
     }
     return null;
   }, [localhostReport]);
+
+  useEffect(() => {
+    if (localhostIssueMessage) {
+      setLocalhostMessageDismissed(false);
+    }
+  }, [localhostIssueMessage]);
 
   useEffect(() => {
     setIframeLoadedAt(null);
@@ -405,6 +553,12 @@ const AppPreviewView = () => {
     return `Preview bridge diagnostics failed (${detail}). History syncing may be unreliable.`;
   }, [bridgeCompliance, bridgeState.isSupported]);
 
+  useEffect(() => {
+    if (bridgeIssueMessage) {
+      setBridgeMessageDismissed(false);
+    }
+  }, [bridgeIssueMessage]);
+
   const canGoBack = bridgeState.isSupported ? bridgeState.canGoBack : historyIndex > 0;
   const canGoForward = bridgeState.isSupported ? bridgeState.canGoForward : (historyIndex >= 0 && historyIndex < history.length - 1);
   const openPreviewTarget = bridgeState.isSupported && bridgeState.href ? bridgeState.href : previewUrl;
@@ -420,15 +574,15 @@ const AppPreviewView = () => {
 
   useEffect(() => {
     setFetchAttempted(false);
-    stopRestartMonitor();
+    stopLifecycleMonitor();
     setPreviewOverlay(null);
-  }, [appId, stopRestartMonitor]);
+  }, [appId, stopLifecycleMonitor]);
 
   useEffect(() => {
     return () => {
-      stopRestartMonitor();
+      stopLifecycleMonitor();
     };
-  }, [stopRestartMonitor]);
+  }, [stopLifecycleMonitor]);
 
   useEffect(() => {
     setHasCustomPreviewUrl(false);
@@ -717,8 +871,37 @@ const AppPreviewView = () => {
   }, [setAppsState]);
 
   const handleAppAction = useCallback(async (appToControl: string, action: 'start' | 'stop' | 'restart') => {
-    await executeAppAction(appToControl, action);
-  }, [executeAppAction]);
+    if (action === 'restart') {
+      setPreviewOverlay({ type: 'restart', message: 'Restarting application...' });
+      setLoading(true);
+      reloadPreview();
+    } else if (action === 'start') {
+      setPreviewOverlay({ type: 'waiting', message: 'Waiting for application to start...' });
+      setLoading(true);
+    }
+
+    const success = await executeAppAction(appToControl, action);
+    if (!success) {
+      if (action === 'start') {
+        setPreviewOverlay({ type: 'error', message: 'Unable to start the application. Check logs for details.' });
+        setLoading(false);
+      } else if (action === 'restart') {
+        setPreviewOverlay({ type: 'error', message: 'Unable to restart the application. Check logs for details.' });
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (action === 'start') {
+      beginLifecycleMonitor(appToControl, 'start');
+    } else if (action === 'restart') {
+      setPreviewOverlay({ type: 'waiting', message: 'Waiting for application to restart...' });
+      beginLifecycleMonitor(appToControl, 'restart');
+    } else if (action === 'stop') {
+      setPreviewOverlay(prev => (prev && prev.type === 'waiting' ? null : prev));
+      setLoading(false);
+    }
+  }, [beginLifecycleMonitor, executeAppAction, reloadPreview, setLoading]);
 
   const handleToggleApp = useCallback(() => {
     if (!currentApp || pendingAction) {
@@ -733,23 +916,8 @@ const AppPreviewView = () => {
     if (!currentApp || pendingAction || !isRunningStatus(currentApp.status)) {
       return;
     }
-
-    const targetId = currentApp.id;
-    setPreviewOverlay({ type: 'restart', message: 'Restarting application...' });
-    setLoading(true);
-    reloadPreview();
-
-    void executeAppAction(targetId, 'restart').then(success => {
-      if (!success) {
-        setLoading(false);
-        setPreviewOverlay({ type: 'error', message: 'Unable to restart the application. Check logs for details.' });
-        return;
-      }
-
-      setPreviewOverlay({ type: 'waiting', message: 'Waiting for application to restart...' });
-      beginRestartMonitor(targetId);
-    });
-  }, [beginRestartMonitor, currentApp, executeAppAction, pendingAction, reloadPreview]);
+    void handleAppAction(currentApp.id, 'restart');
+  }, [currentApp, handleAppAction, pendingAction]);
 
   const applyPreviewUrlInput = useCallback(() => {
     const trimmed = previewUrlInput.trim();
@@ -1098,15 +1266,31 @@ const AppPreviewView = () => {
         </div>
       </div>
 
-      {bridgeIssueMessage && (
-        <div className="preview-status">
-          {bridgeIssueMessage}
+      {bridgeIssueMessage && !bridgeMessageDismissed && (
+        <div className="preview-status" role="status">
+          <span className="preview-status__message">{bridgeIssueMessage}</span>
+          <button
+            type="button"
+            className="preview-status__dismiss"
+            onClick={() => setBridgeMessageDismissed(true)}
+            aria-label="Dismiss bridge diagnostics message"
+          >
+            <X aria-hidden size={16} />
+          </button>
         </div>
       )}
 
-      {localhostIssueMessage && (
-        <div className="preview-status">
-          {localhostIssueMessage}
+      {localhostIssueMessage && !localhostMessageDismissed && (
+        <div className="preview-status" role="status">
+          <span className="preview-status__message">{localhostIssueMessage}</span>
+          <button
+            type="button"
+            className="preview-status__dismiss"
+            onClick={() => setLocalhostMessageDismissed(true)}
+            aria-label="Dismiss localhost reference warning"
+          >
+            <X aria-hidden size={16} />
+          </button>
         </div>
       )}
 

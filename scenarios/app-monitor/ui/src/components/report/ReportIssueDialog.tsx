@@ -805,7 +805,7 @@ const ReportIssueDialog = ({
     }
   }, [diagnosticsLastFetchedAt]);
 
-  const diagnosticsViolations = diagnosticsReport?.violations ?? [];
+  const diagnosticsViolations = useMemo(() => diagnosticsReport?.violations ?? [], [diagnosticsReport]);
   const diagnosticsDescription = useMemo(() => {
     if (!diagnosticsReport) {
       return '';

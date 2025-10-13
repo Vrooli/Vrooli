@@ -95,6 +95,81 @@ const candidatePortKeys = [
     'port'
 ];
 
+const ROOT_ASSET_PREFIXES = [
+    '/@vite',
+    '/@react-refresh',
+    '/@fs/',
+    '/src/',
+    '/node_modules/.vite/',
+    '/assets/'
+];
+
+const ROOT_ASSET_EXTENSIONS = new Set([
+    '.js',
+    '.mjs',
+    '.ts',
+    '.tsx',
+    '.jsx',
+    '.css',
+    '.map',
+    '.json',
+    '.svg',
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.ico',
+    '.webp',
+    '.woff',
+    '.woff2',
+    '.ttf',
+    '.eot',
+    '.wasm'
+]);
+
+const hasAssetExtension = (path) => {
+    if (typeof path !== 'string') {
+        return false;
+    }
+    const questionIndex = path.indexOf('?');
+    const hashIndex = path.indexOf('#');
+    let clean = path;
+    if (questionIndex !== -1) {
+        clean = clean.slice(0, questionIndex);
+    }
+    if (hashIndex !== -1) {
+        clean = clean.slice(0, hashIndex);
+    }
+    const lastSlash = clean.lastIndexOf('/');
+    const fileName = lastSlash === -1 ? clean : clean.slice(lastSlash + 1);
+    const dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex === -1) {
+        return false;
+    }
+    const ext = fileName.slice(dotIndex).toLowerCase();
+    return ROOT_ASSET_EXTENSIONS.has(ext);
+};
+
+const startsWithAssetPrefix = (path) => {
+    if (typeof path !== 'string') {
+        return false;
+    }
+    return ROOT_ASSET_PREFIXES.some((prefix) => path.startsWith(prefix));
+};
+
+const isProxiableRootAssetRequest = (path) => {
+    if (typeof path !== 'string') {
+        return false;
+    }
+    if (path.startsWith(`${APP_PROXY_PREFIX}/`)) {
+        return false;
+    }
+    if (path.startsWith('/api/') || path.startsWith('/ws') || path === '/api' || path === '/ws') {
+        return false;
+    }
+    return startsWithAssetPrefix(path) || hasAssetExtension(path);
+};
+
 const parseNumericPort = (value) => {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) {
@@ -777,7 +852,7 @@ const buildProxyBootstrapScript = (state) => {
 const fetchAppMetadata = async (appId) => {
     const url = `${API_BASE}/api/v1/apps/${encodeURIComponent(appId)}`;
     try {
-        const response = await axios.get(url, { timeout: 5000 });
+        const response = await axios.get(url, { timeout: 10000 });
         if (response.data && typeof response.data === 'object') {
             if (response.data.success === false) {
                 throw new Error(response.data.error || 'App lookup failed');
@@ -1493,6 +1568,99 @@ const proxyHttpRequest = async ({ req, res, appId, portKey, targetPath }) => {
         }
     });
 };
+
+const proxyStaticAssetRequest = async ({ req, res, appId, portKey }) => {
+    let target;
+    try {
+        target = await resolveAppProxyTarget(appId, portKey ?? null);
+    } catch (error) {
+        return false;
+    }
+
+    const { port } = target;
+    const sanitizedHeaders = sanitizeRequestHeaders(req.headers, port, req);
+    sanitizedHeaders['accept-encoding'] = 'identity';
+
+    return await new Promise((resolve) => {
+        const upstreamReq = http.request(
+            {
+                hostname: LOOPBACK_HOST,
+                port,
+                method: req.method,
+                path: req.originalUrl,
+                headers: sanitizedHeaders,
+            },
+            (upstreamRes) => {
+                const contentTypeHeader = upstreamRes.headers['content-type'] || upstreamRes.headers['Content-Type'];
+                if (typeof contentTypeHeader === 'string' && /text\/html/i.test(contentTypeHeader)) {
+                    upstreamRes.resume();
+                    upstreamRes.on('end', () => resolve(false));
+                    return;
+                }
+
+                recordProxyAffinityForRequest({ req, appId, targetPath: req.originalUrl });
+                const rewrittenHeaders = rewriteResponseHeaders(upstreamRes.headers, appId, port);
+
+                res.status(upstreamRes.statusCode ?? 200);
+                for (const [headerKey, headerValue] of Object.entries(rewrittenHeaders)) {
+                    if (typeof headerValue === 'undefined') {
+                        continue;
+                    }
+                    res.setHeader(headerKey, headerValue);
+                }
+
+                upstreamRes.pipe(res);
+                upstreamRes.on('end', () => resolve(true));
+            }
+        );
+
+        upstreamReq.on('error', (error) => {
+            if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') {
+                APP_PROXY_CACHE.delete(appId);
+            }
+            resolve(false);
+        });
+
+        const method = (req.method || 'GET').toUpperCase();
+        if (method === 'GET' || method === 'HEAD') {
+            upstreamReq.end();
+        } else {
+            req.pipe(upstreamReq);
+        }
+    });
+};
+
+app.use(async (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+        return next();
+    }
+
+    const path = req.path || req.originalUrl || '';
+    if (!isProxiableRootAssetRequest(path)) {
+        return next();
+    }
+
+    const context = resolveProxyContextFromRequest(req);
+    if (!context?.appId) {
+        return next();
+    }
+
+    try {
+        const served = await proxyStaticAssetRequest({
+            req,
+            res,
+            appId: context.appId,
+            portKey: context.portKey ?? null,
+        });
+        if (served) {
+            return;
+        }
+    } catch (error) {
+        console.error('[APP PROXY] Root asset proxy failed:', error.message);
+    }
+
+    return next();
+});
 
 app.use(`${APP_PROXY_PREFIX}/:appId/${APP_PORTS_SEGMENT}/:portKey/${APP_PROXY_SEGMENT}`, async (req, res, next) => {
     try {

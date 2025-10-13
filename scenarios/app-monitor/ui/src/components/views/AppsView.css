@@ -285,6 +285,11 @@
   gap: 1.5rem;
 }
 
+.apps-grid__sentinel {
+  width: 100%;
+  height: 1px;
+}
+
 .apps-view-message {
   margin-top: 1.5rem;
   padding: 0.85rem 1.1rem;

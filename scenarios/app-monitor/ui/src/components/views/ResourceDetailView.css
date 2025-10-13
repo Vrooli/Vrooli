@@ -226,13 +226,13 @@
   opacity: 0.85;
 }
 
-.status-chip-row {
+.resource-detail .status-chip-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
 }
 
-.status-chip {
+.resource-detail .status-chip {
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
   background: rgba(0, 0, 0, 0.4);
@@ -243,23 +243,23 @@
   min-width: 110px;
 }
 
-.status-chip .label {
+.resource-detail .status-chip .label {
   font-size: 0.7rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--matrix-dark-green);
 }
 
-.status-chip .value {
+.resource-detail .status-chip .value {
   font-size: 0.9rem;
   color: var(--matrix-light-green);
 }
 
-.status-chip.positive {
+.resource-detail .status-chip.positive {
   border-color: rgba(0, 255, 65, 0.35);
 }
 
-.status-chip.negative {
+.resource-detail .status-chip.negative {
   border-color: rgba(255, 0, 64, 0.4);
   color: var(--matrix-red);
 }

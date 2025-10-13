@@ -210,8 +210,9 @@ export const appService = {
 
   async getAppProxyMetadata(appId: string): Promise<AppProxyMetadata | null> {
     try {
-      const { data } = await api.get<ApiResponse<AppProxyMetadata>>(
+      const { data } = await axios.get<ApiResponse<AppProxyMetadata>>(
         `/apps/${encodeURIComponent(appId)}/_proxy/metadata`,
+        { baseURL: '' },
       );
       if (data?.success === false) {
         logger.warn(`Proxy metadata request for ${appId} returned error: ${data.error}`);
