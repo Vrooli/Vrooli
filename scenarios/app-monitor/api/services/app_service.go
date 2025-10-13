@@ -34,6 +34,11 @@ type orchestratorCache struct {
 	loading   bool
 }
 
+const (
+	orchestratorCacheTTL = 60 * time.Second
+	partialCacheTTL      = 30 * time.Second
+)
+
 type viewStatsEntry struct {
 	Count       int64
 	FirstViewed time.Time
@@ -268,7 +273,7 @@ type scenarioPort struct {
 func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.App, error) {
 	// Check cache first (cache valid for 15 seconds)
 	s.cache.mu.RLock()
-	cacheFresh := time.Since(s.cache.timestamp) < 15*time.Second
+	cacheFresh := time.Since(s.cache.timestamp) < orchestratorCacheTTL
 	if cacheFresh && len(s.cache.data) > 0 && !s.cache.isPartial {
 		cachedData := s.cache.data
 		s.cache.mu.RUnlock()
@@ -280,7 +285,7 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	s.cache.mu.Lock()
 
 	// Check cache again after acquiring lock
-	cacheFresh = time.Since(s.cache.timestamp) < 15*time.Second
+	cacheFresh = time.Since(s.cache.timestamp) < orchestratorCacheTTL
 	if cacheFresh && len(s.cache.data) > 0 && !s.cache.isPartial {
 		cachedData := s.cache.data
 		s.cache.mu.Unlock()
@@ -664,6 +669,86 @@ func normalizeIdentifier(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }
 
+func (s *AppService) getAppFromCache(id string, allowPartial bool) (*repository.App, bool) {
+	if s == nil || s.cache == nil {
+		return nil, false
+	}
+
+	normalizedID := normalizeIdentifier(id)
+	if normalizedID == "" {
+		return nil, false
+	}
+
+	s.cache.mu.RLock()
+	defer s.cache.mu.RUnlock()
+
+	if len(s.cache.data) == 0 {
+		return nil, false
+	}
+
+	age := time.Since(s.cache.timestamp)
+	isPartial := s.cache.isPartial
+
+	if !allowPartial {
+		if isPartial || age > orchestratorCacheTTL {
+			return nil, false
+		}
+	} else {
+		expiry := orchestratorCacheTTL
+		if isPartial {
+			expiry = partialCacheTTL
+		}
+		if age > expiry {
+			return nil, false
+		}
+	}
+
+	for i := range s.cache.data {
+		candidate := s.cache.data[i]
+		identifiers := []string{
+			normalizeIdentifier(candidate.ID),
+			normalizeIdentifier(candidate.Name),
+			normalizeIdentifier(candidate.ScenarioName),
+		}
+
+		for _, ident := range identifiers {
+			if ident != "" && ident == normalizedID {
+				copy := candidate
+				return &copy, isPartial
+			}
+		}
+	}
+
+	return nil, false
+}
+
+func (s *AppService) hydrateOrchestratorCacheAsync() {
+	if s == nil || s.cache == nil {
+		return
+	}
+
+	s.cache.mu.RLock()
+	isLoading := s.cache.loading
+	partial := s.cache.isPartial
+	age := time.Since(s.cache.timestamp)
+	s.cache.mu.RUnlock()
+
+	if isLoading {
+		return
+	}
+
+	shouldHydrate := partial || age > orchestratorCacheTTL
+	if !shouldHydrate {
+		return
+	}
+
+	go func() {
+		if _, err := s.GetAppsFromOrchestrator(context.Background()); err != nil {
+			fmt.Printf("Warning: background hydration during app lookup failed: %v\n", err)
+		}
+	}()
+}
+
 func (s *AppService) storeViewStats(stats *repository.AppViewStats, aliases ...string) {
 	if stats == nil {
 		return
@@ -992,6 +1077,13 @@ func (s *AppService) GetApps(ctx context.Context) ([]repository.App, error) {
 // GetApp retrieves a single app by ID
 func (s *AppService) GetApp(ctx context.Context, id string) (*repository.App, error) {
 	var lastErr error
+
+	if cached, isPartial := s.getAppFromCache(id, true); cached != nil {
+		if isPartial {
+			s.hydrateOrchestratorCacheAsync()
+		}
+		return cached, nil
+	}
 
 	apps, err := s.GetAppsFromOrchestrator(ctx)
 	if err == nil {
