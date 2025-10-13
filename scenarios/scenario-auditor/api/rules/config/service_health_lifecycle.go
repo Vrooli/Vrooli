@@ -24,18 +24,18 @@ Interoperability Requirements:
 
 <test-case id="missing-lifecycle" should-fail="true" path=".vrooli/service.json">
   <description>service.json missing lifecycle section</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "demo"}
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>lifecycle.health</expected-message>
 </test-case>
 
 <test-case id="missing-endpoints" should-fail="true" path=".vrooli/service.json">
   <description>health block without endpoints</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "lifecycle": {
     "health": {
@@ -43,14 +43,14 @@ Interoperability Requirements:
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>2</expected-violations>
   <expected-message>endpoints</expected-message>
 </test-case>
 
 <test-case id="missing-api-endpoint" should-fail="true" path=".vrooli/service.json">
   <description>health endpoints missing api route</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "lifecycle": {
     "health": {
@@ -59,14 +59,14 @@ Interoperability Requirements:
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>2</expected-violations>
   <expected-message>api endpoint</expected-message>
 </test-case>
 
 <test-case id="missing-api-check" should-fail="true" path=".vrooli/service.json">
   <description>health checks missing api_endpoint entry</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "lifecycle": {
     "health": {
@@ -75,14 +75,14 @@ Interoperability Requirements:
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>api_endpoint</expected-message>
 </test-case>
 
 <test-case id="ui-requires-endpoint" should-fail="true" path=".vrooli/service.json">
   <description>UI port defined but no UI endpoint</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {"env_var": "API_PORT"},
@@ -104,14 +104,14 @@ Interoperability Requirements:
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>2</expected-violations>
   <expected-message>ui endpoint</expected-message>
 </test-case>
 
 <test-case id="valid-health-config" should-fail="false" path=".vrooli/service.json">
   <description>Valid lifecycle health configuration for API and UI</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {"env_var": "API_PORT"},
@@ -145,12 +145,12 @@ Interoperability Requirements:
     }
   }
 }
-  </input>
+  ]]></input>
 </test-case>
 
 <test-case id="wrong-api-endpoint-path" should-fail="true" path=".vrooli/service.json">
   <description>API endpoint using non-standard path</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {"api": {"env_var": "API_PORT"}},
   "lifecycle": {
@@ -162,14 +162,14 @@ Interoperability Requirements:
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>must be '/health'</expected-message>
 </test-case>
 
 <test-case id="ui-root-endpoint" should-fail="true" path=".vrooli/service.json">
   <description>UI endpoint using root path instead of /health</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {"api": {"env_var": "API_PORT"}, "ui": {"env_var": "UI_PORT"}},
   "lifecycle": {
@@ -181,14 +181,14 @@ Interoperability Requirements:
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>2</expected-violations>
   <expected-message>must be '/health'</expected-message>
 </test-case>
 
 <test-case id="ui-no-health-check" should-fail="true" path=".vrooli/service.json">
   <description>UI port exists but no ui_endpoint health check defined</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {"api": {"env_var": "API_PORT"}, "ui": {"env_var": "UI_PORT"}},
   "lifecycle": {
@@ -200,14 +200,14 @@ Interoperability Requirements:
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>ui_endpoint</expected-message>
 </test-case>
 
 <test-case id="empty-ui-port-object" should-fail="false" path=".vrooli/service.json">
   <description>Empty UI port object should not require UI health endpoint</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {"api": {"env_var": "API_PORT"}, "ui": {}},
   "lifecycle": {
@@ -219,7 +219,7 @@ Interoperability Requirements:
     }
   }
 }
-  </input>
+  ]]></input>
 </test-case>
 */
 

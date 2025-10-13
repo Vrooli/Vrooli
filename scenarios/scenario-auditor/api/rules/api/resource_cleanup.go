@@ -16,7 +16,7 @@ Targets: api
 
 <test-case id="http-client-no-timeout" should-fail="true">
   <description>HTTP client without timeout</description>
-  <input language="go">
+  <input language="go"><![CDATA[
 func makeRequest(url string) (*Response, error) {
     client := &http.Client{}
     resp, err := client.Get(url)
@@ -26,14 +26,14 @@ func makeRequest(url string) (*Response, error) {
     defer resp.Body.Close()
     return processResponse(resp)
 }
-  </input>
+]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>HTTP Client Without Timeout</expected-message>
 </test-case>
 
 <test-case id="response-body-not-closed" should-fail="true">
   <description>HTTP response body not closed</description>
-  <input language="go">
+  <input language="go"><![CDATA[
 func fetchData(url string) ([]byte, error) {
     resp, err := http.Get(url)
     if err != nil {
@@ -42,14 +42,14 @@ func fetchData(url string) ([]byte, error) {
     // Missing: defer resp.Body.Close()
     return io.ReadAll(resp.Body)
 }
-  </input>
+]]></input>
   <expected-violations>2</expected-violations>
   <expected-message>response body must be closed</expected-message>
 </test-case>
 
 <test-case id="file-not-closed" should-fail="true">
   <description>File handle not properly closed</description>
-  <input language="go">
+  <input language="go"><![CDATA[
 func readConfig() (*Config, error) {
     file, err := os.Open("config.json")
     if err != nil {
@@ -61,14 +61,14 @@ func readConfig() (*Config, error) {
     err = decoder.Decode(&config)
     return &config, err
 }
-  </input>
+]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>File Not Closed</expected-message>
 </test-case>
 
 <test-case id="db-rows-not-closed" should-fail="true">
   <description>Database rows not closed after query</description>
-  <input language="go">
+  <input language="go"><![CDATA[
 func getUsers(db *sql.DB) ([]User, error) {
     rows, err := db.Query("SELECT id, name FROM users")
     if err != nil {
@@ -84,14 +84,14 @@ func getUsers(db *sql.DB) ([]User, error) {
     }
     return users, nil
 }
-  </input>
+]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>Database Rows Not Closed</expected-message>
 </test-case>
 
 <test-case id="goroutine-no-context" should-fail="true">
   <description>Goroutine without context for cancellation</description>
-  <input language="go">
+  <input language="go"><![CDATA[
 func startWorker() {
     go func() {
         for {
@@ -100,14 +100,14 @@ func startWorker() {
         }
     }()
 }
-  </input>
+]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>Goroutine Without Context</expected-message>
 </test-case>
 
 <test-case id="proper-resource-cleanup" should-fail="false">
   <description>Proper resource management with all cleanups</description>
-  <input language="go">
+  <input language="go"><![CDATA[
 func fetchAndStore(url string, filepath string) error {
     // HTTP client with timeout
     client := &http.Client{
@@ -130,12 +130,12 @@ func fetchAndStore(url string, filepath string) error {
     _, err = io.Copy(file, resp.Body)
     return err
 }
-  </input>
+]]></input>
 </test-case>
 
 <test-case id="proper-db-cleanup" should-fail="false">
   <description>Database operations with proper cleanup</description>
-  <input language="go">
+  <input language="go"><![CDATA[
 func queryDatabase(db *sql.DB) ([]Result, error) {
     rows, err := db.Query("SELECT * FROM results")
     if err != nil {
@@ -153,12 +153,12 @@ func queryDatabase(db *sql.DB) ([]Result, error) {
     }
     return results, rows.Err()
 }
-  </input>
+]]></input>
 </test-case>
 
 <test-case id="goroutine-with-context" should-fail="false">
   <description>Goroutine with proper context handling</description>
-  <input language="go">
+  <input language="go"><![CDATA[
 func startWorkerWithContext(ctx context.Context) {
     go func(ctx context.Context) {
         ticker := time.NewTicker(1 * time.Second)
@@ -174,7 +174,7 @@ func startWorkerWithContext(ctx context.Context) {
         }
     }(ctx)
 }
-  </input>
+]]></input>
 </test-case>
 */
 

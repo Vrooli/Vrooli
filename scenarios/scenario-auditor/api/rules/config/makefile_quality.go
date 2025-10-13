@@ -16,7 +16,7 @@ Targets: makefile
 
 <test-case id="quality-valid" should-fail="false">
   <description>Quality targets follow template structure</description>
-  <input language="make">
+  <input language="make"><![CDATA[
 fmt:
 	@$(MAKE) fmt-go
 	@$(MAKE) fmt-ui
@@ -51,12 +51,12 @@ check:
 	@$(MAKE) fmt
 	@$(MAKE) lint
 	@$(MAKE) test
-  </input>
+  ]]></input>
 </test-case>
 
 <test-case id="quality-missing-lint-go" should-fail="true">
   <description>Lint target does not call lint-go</description>
-  <input language="make">
+  <input language="make"><![CDATA[
 fmt:
 	@$(MAKE) fmt-go
 	@$(MAKE) fmt-ui
@@ -96,7 +96,7 @@ check:
 	@$(MAKE) fmt
 	@$(MAKE) lint
 	@$(MAKE) test
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>lint target must include '@$(MAKE) lint-go'</expected-message>
 </test-case>

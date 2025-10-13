@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -617,9 +618,99 @@ func createRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// editRuleWithAIHandler edits a rule using AI assistance (not yet implemented)
+// editRuleWithAIHandler edits a rule using AI assistance
 func editRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "AI rule editing not yet implemented", http.StatusNotImplemented, nil)
+	logger := NewLogger()
+
+	// Extract rule ID from URL
+	vars := mux.Vars(r)
+	ruleID := vars["ruleId"]
+
+	if ruleID == "" {
+		HTTPError(w, "Rule ID is required", http.StatusBadRequest, nil)
+		return
+	}
+
+	var req struct {
+		Changes    string `json:"changes"`
+		Motivation string `json:"motivation"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
+		return
+	}
+
+	// Load the rule to get its file path and content
+	svc, err := ruleService()
+	if err != nil {
+		HTTPError(w, "Failed to initialize rule engine", http.StatusInternalServerError, err)
+		return
+	}
+
+	ruleInfos, err := svc.Load()
+	if err != nil {
+		HTTPError(w, "Failed to load rules", http.StatusInternalServerError, err)
+		return
+	}
+
+	ruleInfo, exists := ruleInfos[ruleID]
+	if !exists {
+		HTTPError(w, fmt.Sprintf("Rule %s not found", ruleID), http.StatusNotFound, nil)
+		return
+	}
+
+	// Read the current rule file content
+	ruleContent, err := os.ReadFile(ruleInfo.FilePath)
+	if err != nil {
+		HTTPError(w, fmt.Sprintf("Failed to read rule file: %s", ruleInfo.FilePath), http.StatusInternalServerError, err)
+		return
+	}
+
+	spec := RuleEditingSpec{
+		RuleID:      ruleID,
+		Changes:     req.Changes,
+		Motivation:  req.Motivation,
+		FilePath:    ruleInfo.FilePath,
+		RuleContent: string(ruleContent),
+	}
+
+	prompt, label, metadata, err := buildRuleEditingPrompt(spec)
+	if err != nil {
+		HTTPError(w, err.Error(), http.StatusBadRequest, err)
+		return
+	}
+
+	label = safeFallback(label, "Edit rule")
+	name := fmt.Sprintf("Edit %s", ruleID)
+
+	agentInfo, err := agentManager.StartAgent(AgentStartConfig{
+		Label:    label,
+		Name:     name,
+		Action:   agentActionEditRule,
+		Prompt:   prompt,
+		Model:    openRouterModel,
+		Metadata: metadata,
+	})
+	if err != nil {
+		HTTPError(w, "Failed to start rule editing agent", http.StatusInternalServerError, err)
+		return
+	}
+
+	logger.Info(fmt.Sprintf("Started rule editing agent %s for %s", agentInfo.ID, ruleID))
+
+	response := map[string]interface{}{
+		"success":  true,
+		"message":  fmt.Sprintf("Rule editing agent started for %s", ruleID),
+		"agent":    agentInfo,
+		"metadata": metadata,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.Error("Failed to encode rule editing response", err)
+		HTTPError(w, "Failed to encode response", http.StatusInternalServerError, err)
+	}
 }
 
 // testRuleHandler runs all test cases for a specific rule
@@ -716,8 +807,8 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Scenario  string   `json:"scenario"`   // Single scenario (deprecated, for backward compatibility)
-		Scenarios []string `json:"scenarios"`  // Multiple scenarios (new)
+		Scenario  string   `json:"scenario"`  // Single scenario (deprecated, for backward compatibility)
+		Scenarios []string `json:"scenarios"` // Multiple scenarios (new)
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -780,67 +871,130 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Process scenarios (single or batch)
-	results := []map[string]interface{}{}
-	overallStart := time.Now()
-
+	// Normalize and filter scenario list before evaluation
+	validScenarios := make([]string, 0, len(scenarios))
 	for _, scenarioName := range scenarios {
 		scenarioName = strings.TrimSpace(scenarioName)
 		if scenarioName == "" {
 			continue
 		}
+		validScenarios = append(validScenarios, scenarioName)
+	}
 
-		start := time.Now()
-		violations, filesScanned, _, evalErr := evaluateRuleOnScenario(ruleInfo, scenarioName)
+	workerCount := runtime.NumCPU()
+	if workerCount < 2 {
+		workerCount = 2
+	}
+	if workerCount > 8 {
+		workerCount = 8
+	}
+	if workerCount > len(validScenarios) {
+		workerCount = len(validScenarios)
+	}
 
-		result := map[string]interface{}{
-			"rule_id":       ruleID,
-			"scenario":      scenarioName,
-			"files_scanned": filesScanned,
-			"targets":       sortedTargets,
-			"duration_ms":   time.Since(start).Milliseconds(),
-		}
+	type scenarioJob struct {
+		index int
+		name  string
+	}
 
-		if evalErr != nil {
-			if os.IsNotExist(evalErr) {
-				result["error"] = "Scenario not found"
-				result["violations"] = []StandardsViolation{}
+	type scenarioResult struct {
+		index int
+		value map[string]interface{}
+	}
+
+	jobs := make(chan scenarioJob)
+	resultsCh := make(chan scenarioResult, len(validScenarios))
+	var wg sync.WaitGroup
+
+	logger.Info(fmt.Sprintf("Executing rule %s across %d scenarios using %d workers", ruleID, len(validScenarios), workerCount))
+
+	worker := func() {
+		defer wg.Done()
+		for job := range jobs {
+			start := time.Now()
+			violations, filesScanned, _, evalErr := evaluateRuleOnScenario(ruleInfo, job.name)
+
+			result := map[string]interface{}{
+				"rule_id":       ruleID,
+				"scenario":      job.name,
+				"files_scanned": filesScanned,
+				"targets":       sortedTargets,
+				"duration_ms":   time.Since(start).Milliseconds(),
+			}
+
+			if evalErr != nil {
+				if os.IsNotExist(evalErr) {
+					result["error"] = "Scenario not found"
+					result["violations"] = []StandardsViolation{}
+				} else {
+					logger.Error(fmt.Sprintf("Failed to execute rule %s on scenario %s", ruleID, job.name), evalErr)
+					result["error"] = fmt.Sprintf("Failed to evaluate rule: %v", evalErr)
+					result["violations"] = []StandardsViolation{}
+				}
 			} else {
-				logger.Error(fmt.Sprintf("Failed to execute rule %s on scenario %s", ruleID, scenarioName), evalErr)
-				result["error"] = fmt.Sprintf("Failed to evaluate rule: %v", evalErr)
-				result["violations"] = []StandardsViolation{}
-			}
-		} else {
-			warning := ""
-			if filesScanned == 0 && len(violations) == 0 && !containsStructure {
-				warning = fmt.Sprintf("No matching files were scanned for this rule in the selected scenario. Targets evaluated: %s.", strings.Join(sortedTargets, ", "))
+				warning := ""
+				if filesScanned == 0 && len(violations) == 0 && !containsStructure {
+					warning = fmt.Sprintf("No matching files were scanned for this rule in the selected scenario. Targets evaluated: %s.", strings.Join(sortedTargets, ", "))
+				}
+
+				if violations == nil {
+					violations = []StandardsViolation{}
+				}
+
+				result["violations"] = violations
+				if warning != "" {
+					result["warning"] = warning
+				}
 			}
 
-			if violations == nil {
-				violations = []StandardsViolation{}
-			}
-
-			result["violations"] = violations
-			if warning != "" {
-				result["warning"] = warning
-			}
+			resultsCh <- scenarioResult{index: job.index, value: result}
 		}
+	}
 
-		results = append(results, result)
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go worker()
+	}
+
+	overallStart := time.Now()
+
+	go func() {
+		for idx, scenarioName := range validScenarios {
+			jobs <- scenarioJob{index: idx, name: scenarioName}
+		}
+		close(jobs)
+	}()
+
+	go func() {
+		wg.Wait()
+		close(resultsCh)
+	}()
+
+	orderedResults := make([]map[string]interface{}, len(validScenarios))
+	for res := range resultsCh {
+		orderedResults[res.index] = res.value
+	}
+	elapsed := time.Since(overallStart)
+
+	filteredResults := make([]map[string]interface{}, 0, len(orderedResults))
+	for _, result := range orderedResults {
+		if result != nil {
+			filteredResults = append(filteredResults, result)
+		}
 	}
 
 	// Return appropriate response format
 	var response interface{}
-	if len(results) == 1 {
+	if len(filteredResults) == 1 {
 		// Single scenario: backward compatible response
-		response = results[0]
+		response = filteredResults[0]
 	} else {
 		// Multiple scenarios: batch response
 		response = map[string]interface{}{
 			"rule_id":           ruleID,
-			"total_scenarios":   len(results),
-			"total_duration_ms": time.Since(overallStart).Milliseconds(),
-			"results":           results,
+			"total_scenarios":   len(filteredResults),
+			"total_duration_ms": elapsed.Milliseconds(),
+			"results":           filteredResults,
 		}
 	}
 

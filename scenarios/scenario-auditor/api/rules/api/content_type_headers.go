@@ -289,8 +289,43 @@ func CheckContentTypeHeaders(content []byte, filePath string) []Violation {
 			continue
 		}
 
-		if strings.Contains(lowerLine, "json.newencoder") || strings.Contains(lowerLine, "json.marshal") {
+		// Only check json.NewEncoder(w) - actual HTTP responses
+		// Skip json.Marshal unless it's clearly being written to ResponseWriter
+		if strings.Contains(lowerLine, "json.newencoder(w)") {
 			if !hasHeaderBefore(lines, i, true) && !containsJSONHelper(lowerLine, jsonHelpers) {
+				violations = append(violations, Violation{
+					Type:           "content_type_headers",
+					Severity:       "medium",
+					Title:          "Missing JSON Content-Type Header",
+					Description:    "JSON response missing Content-Type header",
+					Message:        "JSON response missing Content-Type header",
+					FilePath:       filePath,
+					LineNumber:     i + 1,
+					CodeSnippet:    line,
+					Recommendation: "Add w.Header().Set(\"Content-Type\", \"application/json\") before writing response",
+					Standard:       "api-design-v1",
+				})
+			}
+			continue
+		}
+
+		// For json.Marshal, only flag if followed by w.Write within a few lines
+		if strings.Contains(lowerLine, "json.marshal") {
+			// Check if this is followed by w.Write within 5 lines (likely HTTP response)
+			isHTTPResponse := false
+			endLine := i + 5
+			if endLine > len(lines) {
+				endLine = len(lines)
+			}
+			for j := i; j < endLine; j++ {
+				if strings.Contains(strings.ToLower(lines[j]), "w.write(") {
+					isHTTPResponse = true
+					break
+				}
+			}
+
+			// Only flag if it's actually used for HTTP response
+			if isHTTPResponse && !hasHeaderBefore(lines, i, true) && !containsJSONHelper(lowerLine, jsonHelpers) {
 				violations = append(violations, Violation{
 					Type:           "content_type_headers",
 					Severity:       "medium",

@@ -29,6 +29,7 @@ const (
 	agentActionStandardsFix     = "standards_fix"
 	agentActionVulnerabilityFix = "vulnerability_fix"
 	agentActionCreateRule       = "create_rule"
+	agentActionEditRule         = "edit_rule"
 
 	// DEPRECATED: Rule test actions moved to app-issue-tracker integration
 	// These constants are kept for backward compatibility with logging/history
@@ -505,6 +506,14 @@ func fallbackAgentName(name, label, action, ruleID string) string {
 			return label
 		}
 		return "Create new rule"
+	case agentActionEditRule:
+		if label != "" {
+			return label
+		}
+		if ruleID != "" {
+			return fmt.Sprintf("Edit %s", ruleID)
+		}
+		return "Edit rule"
 	case agentActionStandardsFix:
 		if label != "" {
 			return label

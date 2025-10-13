@@ -18,19 +18,19 @@ Targets: service_json
 
 <test-case id="missing-develop-steps" should-fail="true">
   <description>service.json without lifecycle develop steps</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "demo-svc"},
   "lifecycle": {}
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>lifecycle.develop.steps</expected-message>
 </test-case>
 
 <test-case id="missing-start-api" should-fail="true">
   <description>Develop steps missing the required start-api command</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "demo"},
   "lifecycle": {
@@ -41,14 +41,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>start-api</expected-message>
 </test-case>
 
 <test-case id="bad-start-api" should-fail="true">
   <description>start-api exists but uses the wrong binary name</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "demo"},
   "lifecycle": {
@@ -66,14 +66,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>cd api && ./demo-api</expected-message>
 </test-case>
 
 <test-case id="missing-start-ui" should-fail="true">
   <description>UI port present but no start-ui step</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "demo"},
   "ports": {
@@ -94,14 +94,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>start-ui</expected-message>
 </test-case>
 
 <test-case id="show-urls-last" should-fail="true">
   <description>show-urls is not the final develop step</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "demo"},
   "lifecycle": {
@@ -119,14 +119,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>show-urls</expected-message>
 </test-case>
 
 <test-case id="valid-develop" should-fail="false">
   <description>Valid develop configuration with API and UI steps</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "demo"},
   "ports": {
@@ -157,7 +157,7 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
 </test-case>
 */
 

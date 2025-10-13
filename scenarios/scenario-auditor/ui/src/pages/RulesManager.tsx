@@ -1,4 +1,4 @@
-import { AgentInfo, RuleImplementationStatus, RuleScenarioBatchTestResult, RuleScenarioTestResult, RuleTestStatus, Scenario } from '@/types/api'
+import { AgentInfo, RuleImplementationStatus, RuleScenarioTestResult, RuleTestStatus, Scenario } from '@/types/api'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Brain, CheckCircle, ChevronDown, CircleStop, Clock, Code, Eye, EyeOff, FileText, Info, Play, Plus, RefreshCw, Search, Shield, Target, Terminal, TestTube, X, XCircle } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
@@ -369,7 +369,6 @@ export default function RulesManager() {
   }, [selectedRule])
 
   const ruleStatuses = (rulesData?.rule_statuses || {}) as Record<string, RuleTestStatus>
-  const currentRuleStatus = selectedRule ? ruleStatuses[selectedRule] : undefined
   const filteredScenarioOptions = useMemo(() => {
     const list = Array.isArray(scenarioOptions) ? scenarioOptions : []
     const term = scenarioSearchTerm.trim().toLowerCase()
@@ -378,26 +377,6 @@ export default function RulesManager() {
     }
     return list.filter(option => option.name.toLowerCase().includes(term))
   }, [scenarioOptions, scenarioSearchTerm])
-  const allTestsPassing = useMemo(() => {
-    if (testResults) {
-      if (testResults.error) {
-        return false
-      }
-      if (typeof testResults.failed === 'number' && typeof testResults.total_tests === 'number' && testResults.total_tests > 0) {
-        return testResults.failed === 0
-      }
-      return false
-    }
-    if (currentRuleStatus) {
-      if (currentRuleStatus.error) {
-        return false
-      }
-      if (typeof currentRuleStatus.failed === 'number' && typeof currentRuleStatus.total === 'number' && currentRuleStatus.total > 0) {
-        return currentRuleStatus.failed === 0
-      }
-    }
-    return false
-  }, [testResults, currentRuleStatus])
   const createCategoryEntries: Array<[string, { name?: string }]> = Object.keys(apiCategories).length > 0
     ? Object.entries(apiCategories)
     : [

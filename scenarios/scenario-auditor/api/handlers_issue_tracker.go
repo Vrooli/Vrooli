@@ -792,11 +792,12 @@ func buildViolationArtifact(rule Rule, scenarios []string, ruleInfo RuleInfo) st
 
 		for _, violation := range violations {
 			relPath := violation.FilePath
-			if scenarioRoot := getScenarioRoot(); scenarioRoot != "" {
-				if rel, err := filepath.Rel(scenarioRoot, violation.FilePath); err == nil {
-					relPath = rel
+			if vrooliRoot := getVrooliRoot(); vrooliRoot != "" {
+				if rel, err := filepath.Rel(vrooliRoot, violation.FilePath); err == nil {
+					relPath = filepath.ToSlash(rel)
 				}
 			}
+			relPath = filepath.ToSlash(relPath)
 
 			b.WriteString(fmt.Sprintf("#### File: `%s:%d`\n\n", relPath, violation.LineNumber))
 
@@ -844,12 +845,22 @@ func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rules
 		return nil
 	}
 
-	scenarioRoot := getScenarioRoot()
-	scenarioPath := filepath.Join(scenarioRoot, "scenarios", scenarioName)
+	vrooliRoot := getVrooliRoot()
+	if strings.TrimSpace(vrooliRoot) == "" {
+		logger.Warn("Unable to resolve Vrooli root while building violation artifact", nil)
+		return nil
+	}
 
-	// Check if scenario exists
-	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
-		logger.Warn(fmt.Sprintf("Scenario path does not exist: %s", scenarioPath), nil)
+	scenarioPath := filepath.Join(vrooliRoot, "scenarios", scenarioName)
+
+	statInfo, statErr := os.Stat(scenarioPath)
+	if statErr != nil {
+		logger.Warn(fmt.Sprintf("Scenario path does not exist: %s", scenarioPath), map[string]interface{}{"error": statErr.Error()})
+		return nil
+	}
+
+	if !statInfo.IsDir() {
+		logger.Warn(fmt.Sprintf("Scenario path is not a directory: %s", scenarioPath), nil)
 		return nil
 	}
 

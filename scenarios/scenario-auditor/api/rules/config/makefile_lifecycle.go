@@ -16,7 +16,7 @@ Targets: makefile
 
 <test-case id="lifecycle-valid" should-fail="false">
   <description>Lifecycle commands use vrooli scenario CLI</description>
-  <input language="make">
+  <input language="make"><![CDATA[
 SCENARIO_NAME := $(notdir $(CURDIR))
 
 start:
@@ -38,12 +38,12 @@ logs:
 status:
 	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
-  </input>
+  ]]></input>
 </test-case>
 
 <test-case id="lifecycle-legacy-run" should-fail="true">
   <description>Start command uses legacy run</description>
-  <input language="make">
+  <input language="make"><![CDATA[
 SCENARIO_NAME := $(notdir $(CURDIR))
 
 start:
@@ -65,7 +65,7 @@ logs:
 status:
 	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>execute 'vrooli scenario start</expected-message>
 </test-case>

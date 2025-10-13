@@ -95,8 +95,19 @@ func (tr *TestHarness) ExtractTestCases(content string) ([]TestCase, error) {
 			} else {
 				testCase.Language = "text"
 			}
-			// Decode HTML entities (e.g., &lt; -> <, &gt; -> >, &amp; -> &)
-			testCase.Input = strings.TrimSpace(html.UnescapeString(inputMatch[2]))
+
+			rawInput := inputMatch[2]
+
+			// Strip CDATA markers if present (used to preserve special characters in XML)
+			// CDATA format: <![CDATA[...content...]]>
+			cdataRegex := regexp.MustCompile(`(?s)^\s*<!\[CDATA\[(.*?)\]\]>\s*$`)
+			if cdataMatch := cdataRegex.FindStringSubmatch(rawInput); len(cdataMatch) > 1 {
+				// CDATA content - use as-is (no HTML entity decoding needed)
+				testCase.Input = strings.TrimSpace(cdataMatch[1])
+			} else {
+				// Regular XML content - decode HTML entities (e.g., &lt; -> <, &gt; -> >, &amp; -> &)
+				testCase.Input = strings.TrimSpace(html.UnescapeString(rawInput))
+			}
 		}
 
 		violationsRegex := regexp.MustCompile(`<expected-violations>(\d+)</expected-violations>`)

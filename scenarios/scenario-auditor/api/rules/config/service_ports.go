@@ -19,20 +19,20 @@ Targets: service_json
 
 <test-case id="missing-ports-block" should-fail="true" path=".vrooli/service.json">
   <description>service.json without a ports section</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {
     "name": "sample"
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>ports</expected-message>
 </test-case>
 
 <test-case id="incorrect-api-env-var" should-fail="true" path=".vrooli/service.json">
   <description>API port defined with wrong env var</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {
@@ -41,14 +41,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>API_PORT</expected-message>
 </test-case>
 
 <test-case id="incorrect-api-range" should-fail="true" path=".vrooli/service.json">
   <description>API port range outside the allowed window</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {
@@ -57,14 +57,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>15000-19999</expected-message>
 </test-case>
 
 <test-case id="ui-env-var-check" should-fail="true" path=".vrooli/service.json">
   <description>UI port defined without the expected env var</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {
@@ -77,14 +77,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>UI_PORT</expected-message>
 </test-case>
 
 <test-case id="valid-config" should-fail="false" path=".vrooli/service.json">
   <description>Valid ports configuration with api and ui ranges</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {
@@ -99,7 +99,7 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
 </test-case>
 
 <test-case id="invalid-json" should-fail="true" path=".vrooli/service.json">
@@ -111,7 +111,7 @@ Targets: service_json
 
 <test-case id="missing-api-entry" should-fail="true" path=".vrooli/service.json">
   <description>ports block defined without api entry</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "ui": {
@@ -120,14 +120,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>ports configuration must define</expected-message>
 </test-case>
 
 <test-case id="api-range-missing" should-fail="true" path=".vrooli/service.json">
   <description>API port missing range definition</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {
@@ -135,14 +135,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>ports.api.range</expected-message>
 </test-case>
 
 <test-case id="ui-range-mismatch" should-fail="true" path=".vrooli/service.json">
   <description>UI range provided but outside approved window</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {
@@ -155,14 +155,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>ports.ui.range</expected-message>
 </test-case>
 
 <test-case id="ui-port-fixed-valid" should-fail="false" path=".vrooli/service.json">
   <description>UI port uses fixed assignment with port field in valid range</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {
@@ -175,12 +175,12 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
 </test-case>
 
 <test-case id="ui-port-fixed-reserved" should-fail="true" path=".vrooli/service.json">
   <description>UI port uses fixed assignment in reserved range</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {
@@ -193,14 +193,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>reserved range</expected-message>
 </test-case>
 
 <test-case id="api-range-invalid-format" should-fail="true" path=".vrooli/service.json">
   <description>API range has invalid format</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {
@@ -209,14 +209,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>invalid format</expected-message>
 </test-case>
 
 <test-case id="api-range-inverted" should-fail="true" path=".vrooli/service.json">
   <description>API range has start greater than end</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {
@@ -225,14 +225,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>start must be less than end</expected-message>
 </test-case>
 
 <test-case id="api-range-overlaps-reserved" should-fail="true" path=".vrooli/service.json">
   <description>API range overlaps with reserved ranges</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {
@@ -241,27 +241,27 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>reserved range</expected-message>
 </test-case>
 
 <test-case id="ports-api-not-object" should-fail="true" path=".vrooli/service.json">
   <description>api entry is not an object</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": 8080
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>ports.api must be</expected-message>
 </test-case>
 
 <test-case id="ignored-non-service-json" should-fail="false" path="config.json">
   <description>Rule should ignore files that are not service.json</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "ports": {
     "api": {
@@ -270,7 +270,7 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
 </test-case>
 */
 

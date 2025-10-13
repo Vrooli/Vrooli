@@ -29,18 +29,28 @@ else
 fi
 cd ..
 
-echo "Checking Go CLI dependencies..."
+echo "Checking CLI..."
 cd cli
-if [ -f "go.mod" ]; then
-    echo "Downloading CLI dependencies..."
-    go mod download
-    
-    echo "Verifying CLI dependencies..."
-    go mod verify
-    
-    echo "✅ Go CLI dependencies verified"
+if [ -f "scenario-auditor" ]; then
+    # CLI is a bash script, verify it's executable and has valid syntax
+    if [ -x "scenario-auditor" ]; then
+        echo "✅ CLI script is executable"
+    else
+        echo "⚠️  CLI script not executable, fixing permissions..."
+        chmod +x scenario-auditor
+    fi
+
+    # Verify bash syntax
+    if bash -n scenario-auditor 2>/dev/null; then
+        echo "✅ CLI script syntax valid"
+    else
+        echo "❌ CLI script has syntax errors"
+        exit 1
+    fi
+
+    echo "✅ CLI validated"
 else
-    echo "❌ go.mod not found in cli directory"
+    echo "❌ CLI script not found"
     exit 1
 fi
 cd ..

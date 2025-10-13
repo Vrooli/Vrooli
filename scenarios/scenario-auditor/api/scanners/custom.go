@@ -413,7 +413,14 @@ func (c *CustomPatternScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 func (c *CustomPatternScanner) shouldScanFile(filePath string, opts ScanOptions) bool {
 	// Check excludes
 	for _, exclude := range opts.ExcludePatterns {
-		if matched, _ := filepath.Match(exclude, filePath); matched {
+		// Support both glob patterns and path substring matches
+		if matched, _ := filepath.Match(exclude, filepath.Base(filePath)); matched {
+			return false
+		}
+		// Check for path-based exclusions (e.g., "*/test/*" or "*test*")
+		if strings.Contains(filePath, "/test/") || strings.Contains(filePath, "/tests/") ||
+			strings.Contains(filePath, "/testdata/") || strings.Contains(filePath, "/fixtures/") ||
+			strings.HasSuffix(filePath, "_test.go") || strings.Contains(filepath.Base(filePath), "test") {
 			return false
 		}
 	}
@@ -422,7 +429,7 @@ func (c *CustomPatternScanner) shouldScanFile(filePath string, opts ScanOptions)
 	if len(opts.IncludePatterns) > 0 {
 		included := false
 		for _, include := range opts.IncludePatterns {
-			if matched, _ := filepath.Match(include, filePath); matched {
+			if matched, _ := filepath.Match(include, filepath.Base(filePath)); matched {
 				included = true
 				break
 			}

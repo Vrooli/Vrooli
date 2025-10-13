@@ -4,15 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	rules "scenario-auditor/rules"
 )
 
 /*
-Rule: Test File Coverage
-Description: Ensure every Go source file in the scenario has a companion *_test.go file
+Rule: Test Package Coverage
+Description: Ensure every Go package (directory) with source files has at least one *_test.go file
 Reason: Guarantees core logic is exercised by automated tests, preventing untested regressions
 Category: structure
 Severity: medium
@@ -30,7 +29,7 @@ Targets: structure
 }
   </input>
   <expected-violations>1</expected-violations>
-  <expected-message>user_service_test.go</expected-message>
+  <expected-message>Missing test file in directory api/</expected-message>
 </test-case>
 
 <test-case id="all-tested" should-fail="false" path="scenarios/demo">
@@ -85,7 +84,21 @@ Targets: structure
 }
   </input>
   <expected-violations>1</expected-violations>
-  <expected-message>api/lib/util/file_test.go</expected-message>
+  <expected-message>Missing test file in directory api/lib/util/</expected-message>
+</test-case>
+
+<test-case id="multiple-sources-one-test" should-fail="false" path="scenarios/demo">
+  <description>Multiple Go sources covered by single test file</description>
+  <input language="json">
+{
+  "scenario": "demo",
+  "files": [
+    "api/a.go",
+    "api/b.go",
+    "api/a_test.go"
+  ]
+}
+  </input>
 </test-case>
 */
 
@@ -122,33 +135,54 @@ func CheckTestFileCoverage(content []byte, scenarioPath string, scenario string)
 		return nil, nil
 	}
 
-	sort.Strings(files)
-	fileSet := make(map[string]struct{}, len(files))
-	for _, f := range files {
-		fileSet[f] = struct{}{}
+	dirMap := make(map[string][]string)
+	for _, file := range files {
+		dir := filepath.Dir(file)
+		if dir == "." {
+			dir = ""
+		}
+		dirMap[dir] = append(dirMap[dir], file)
 	}
 
 	var violations []rules.Violation
-	for _, file := range files {
-		if shouldSkipForCoverage(file) {
-			continue
-		}
+	for dir, filesInDir := range dirMap {
+		hasSource := false
+		hasTest := false
+		var sourceFiles []string
+		for _, file := range filesInDir {
+			// Check if this is a test file first
+			if strings.HasSuffix(file, "_test.go") {
+				hasTest = true
+				continue
+			}
 
-		expectedTest := coverageMate(file)
-		if _, ok := fileSet[expectedTest]; ok {
-			continue
-		}
+			// Then check if we should skip this file (generated, vendor, etc.)
+			if shouldSkipForCoverage(file) {
+				continue
+			}
 
-		violations = append(violations, rules.Violation{
-			Type:           "test_coverage",
-			Severity:       "medium",
-			Title:          "Missing Test File",
-			Message:        fmt.Sprintf("Missing test file %s", filepath.ToSlash(expectedTest)),
-			Description:    fmt.Sprintf("Missing test file %s for %s", filepath.ToSlash(expectedTest), filepath.ToSlash(file)),
-			FilePath:       filepath.ToSlash(file),
-			Recommendation: fmt.Sprintf("Create %s to cover %s", filepath.Base(expectedTest), filepath.Base(file)),
-			Standard:       "testing-standards-v1",
-		})
+			// It's a regular source file
+			hasSource = true
+			sourceFiles = append(sourceFiles, file)
+		}
+		if hasSource && !hasTest {
+			dirPath := dir
+			if dirPath == "" {
+				dirPath = "."
+			} else if !strings.HasSuffix(dirPath, "/") {
+				dirPath = dirPath + "/"
+			}
+			violations = append(violations, rules.Violation{
+				Type:           "test_coverage",
+				Severity:       "medium",
+				Title:          "Missing Test File",
+				Message:        fmt.Sprintf("Missing test file in directory %s", dirPath),
+				Description:    fmt.Sprintf("Missing test file in directory %s for files: %s", dirPath, strings.Join(sourceFiles, ", ")),
+				FilePath:       dirPath,
+				Recommendation: fmt.Sprintf("Create at least one *_test.go file in %s to cover the source files", dirPath),
+				Standard:       "testing-standards-v1",
+			})
+		}
 	}
 
 	return violations, nil
@@ -165,9 +199,6 @@ func normalizePath(path string) string {
 
 func shouldSkipForCoverage(path string) bool {
 	if !strings.HasSuffix(path, ".go") {
-		return true
-	}
-	if strings.HasSuffix(path, "_test.go") {
 		return true
 	}
 

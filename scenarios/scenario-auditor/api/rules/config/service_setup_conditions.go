@@ -18,21 +18,21 @@ Targets: service_json
 
 <test-case id="missing-condition" should-fail="true">
   <description>Lifecycle setup condition block is missing</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
   "lifecycle": {
     "setup": {}
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>lifecycle.setup.condition</expected-message>
 </test-case>
 
 <test-case id="missing-binary-check" should-fail="true">
   <description>First check is not binaries with <scenario>-api target</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
   "lifecycle": {
@@ -52,14 +52,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>2</expected-violations>
   <expected-message>binaries</expected-message>
 </test-case>
 
 <test-case id="missing-cli-check" should-fail="true">
   <description>Second check is not CLI with scenario target</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
   "lifecycle": {
@@ -79,14 +79,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>cli</expected-message>
 </test-case>
 
 <test-case id="incorrect-targets" should-fail="true">
   <description>Binaries and CLI checks exist but targets do not match scenario name</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
   "lifecycle": {
@@ -106,14 +106,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>2</expected-violations>
   <expected-message>api/scenario-auditor-api</expected-message>
 </test-case>
 
 <test-case id="missing-service-name" should-fail="true">
   <description>condition defined but service.name missing</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "lifecycle": {
     "setup": {
@@ -126,23 +126,23 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>service.name</expected-message>
 </test-case>
 
 <test-case id="ignored-non-service-json" should-fail="false" path="config.json">
   <description>Rule skips files outside of service.json</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"}
 }
-  </input>
+  ]]></input>
 </test-case>
 
 <test-case id="valid-condition" should-fail="false">
   <description>Valid setup condition with required binaries and CLI checks</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
   "lifecycle": {
@@ -166,7 +166,7 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
 </test-case>
 */
 

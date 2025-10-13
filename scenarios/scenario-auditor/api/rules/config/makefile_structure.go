@@ -16,7 +16,7 @@ Targets: makefile
 
 <test-case id="structure-valid" should-fail="false">
   <description>Canonical Makefile follows the template</description>
-  <input language="make">
+  <input language="make"><![CDATA[
 # Demo Scenario Makefile
 #
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
@@ -46,7 +46,7 @@ help: ## Show this help message
 	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make &lt;command&gt;"
+	@echo "  make <command>"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -94,12 +94,12 @@ lint-go: ## Lint Go code
 
 lint-ui: ## Lint UI code
 	@echo "Linting UI..."
-</input>
+]]></input>
 </test-case>
 
 <test-case id="structure-missing-header" should-fail="true">
   <description>Header lines missing required guidance</description>
-  <input language="make">
+  <input language="make"><![CDATA[
 # Demo Scenario Makefile
 #
 # Missing lifecycle guidance on purpose
@@ -129,7 +129,7 @@ help: ## Show this help message
 	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make &lt;command&gt;"
+	@echo "  make <command>"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -177,14 +177,14 @@ lint-go: ## Lint Go code
 
 lint-ui: ## Lint UI code
 	@echo "Linting UI..."
-</input>
+]]></input>
 <expected-violations>1</expected-violations>
 <expected-message>Header must explain lifecycle requirement</expected-message>
 </test-case>
 
 <test-case id="structure-order-phony" should-fail="true">
   <description>.PHONY must be the first directive after the header</description>
-  <input language="make">
+  <input language="make"><![CDATA[
 # Demo Scenario Makefile
 #
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
@@ -214,7 +214,7 @@ help: ## Show this help message
 	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make &lt;command&gt;"
+	@echo "  make <command>"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -262,14 +262,14 @@ lint-go: ## Lint Go code
 
 lint-ui: ## Lint UI code
 	@echo "Linting UI..."
-</input>
+]]></input>
 <expected-violations>2</expected-violations>
 <expected-message>.PHONY target declaration</expected-message>
 </test-case>
 
 <test-case id="structure-help-first" should-fail="true">
   <description>help target must be defined before other targets</description>
-  <input language="make">
+  <input language="make"><![CDATA[
 # Demo Scenario Makefile
 #
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
@@ -302,7 +302,7 @@ help: ## Show this help message
 	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make &lt;command&gt;"
+	@echo "  make <command>"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -347,14 +347,14 @@ lint-go: ## Lint Go code
 
 lint-ui: ## Lint UI code
 	@echo "Linting UI..."
-</input>
+]]></input>
 <expected-violations>2</expected-violations>
 <expected-message>help target must be defined before any other targets</expected-message>
 </test-case>
 
 <test-case id="structure-shortcuts-terminal" should-fail="true">
   <description>Shortcut targets must be the final content in the Makefile</description>
-  <input language="make">
+  <input language="make"><![CDATA[
 # Demo Scenario Makefile
 #
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
@@ -384,7 +384,7 @@ help: ## Show this help message
 	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make &lt;command&gt;"
+	@echo "  make <command>"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -437,14 +437,14 @@ restart: stop start
 .PHONY: make-executable
 make-executable:
 	@echo "fix permissions"
-</input>
+]]></input>
 <expected-violations>3</expected-violations>
 <expected-message>Shortcut targets must be the final content in the Makefile</expected-message>
 </test-case>
 
 <test-case id="structure-shortcuts-valid" should-fail="false">
   <description>Shortcut aliases are present and terminate the file</description>
-  <input language="make">
+  <input language="make"><![CDATA[
 # Demo Scenario Makefile
 #
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
@@ -474,7 +474,7 @@ help: ## Show this help message
 	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make &lt;command&gt;"
+	@echo "  make <command>"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -524,12 +524,12 @@ lint-ui: ## Lint UI code
 dev: start
 restart: stop start
 rebuild: clean build
-</input>
+]]></input>
 </test-case>
 
 <test-case id="structure-missing-target-definitions" should-fail="true">
   <description>Targets declared in .PHONY but not defined</description>
-  <input language="make">
+  <input language="make"><![CDATA[
 # Demo Scenario Makefile
 #
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
@@ -559,7 +559,7 @@ help: ## Show this help message
 	@echo "$(BLUE)📅 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make &lt;command&gt;"
+	@echo "  make <command>"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -575,7 +575,7 @@ start: ## Start this scenario
 
 # Development shortcuts
 dev: start
-</input>
+]]></input>
 <expected-violations>12</expected-violations>
 <expected-message>Required target</expected-message>
 </test-case>

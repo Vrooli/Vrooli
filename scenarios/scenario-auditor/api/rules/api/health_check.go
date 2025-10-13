@@ -847,3 +847,46 @@ func containsHealthHandlerImplementation(content string) bool {
 
 	return false
 }
+
+// containsHealthTimeoutHandling checks if health check handlers implement proper timeout handling
+// This prevents health checks from hanging indefinitely when dependencies are unresponsive
+func containsHealthTimeoutHandling(content string) bool {
+	// Common timeout patterns in health check handlers
+	timeoutPatterns := []string{
+		// Context-based timeouts
+		`context\.WithTimeout`,           // context.WithTimeout(r.Context(), duration)
+		`ctx\s*,\s*cancel\s*:=\s*context\.WithTimeout`, // ctx, cancel := context.WithTimeout(...)
+
+		// HTTP client timeouts
+		`Client\s*:\s*&\w+\{[^}]*Timeout\s*:`, // Client: &http.Client{Timeout: ...}
+		`Timeout\s*:\s*\d+`,               // Timeout: 5 * time.Second
+
+		// HTTP timeout handler
+		`http\.TimeoutHandler`,           // http.TimeoutHandler(handler, duration)
+
+		// Time-based timeouts
+		`time\.After\s*\(`,               // time.After(duration)
+		`select\s*\{[^}]*case\s*<-\s*time\.After`, // select { case <-time.After(...) }
+
+		// Channel-based timeouts
+		`timeout\s*:=\s*time\.After`,      // timeout := time.After(duration)
+		`case\s*<-\s*timeout\s*:`,         // case <-timeout:
+
+		// Context deadline
+		`ctx\.Deadline\(\)`,              // ctx.Deadline()
+		`context\.WithDeadline`,          // context.WithDeadline(...)
+
+		// Timeout in function parameters or variables
+		`timeout\s+time\.Duration`,        // timeout time.Duration
+		`timeout\s*:=\s*\d+`,             // timeout := 5
+	}
+
+	for _, pattern := range timeoutPatterns {
+		matched, err := regexp.MatchString(pattern, content)
+		if err == nil && matched {
+			return true
+		}
+	}
+
+	return false
+}

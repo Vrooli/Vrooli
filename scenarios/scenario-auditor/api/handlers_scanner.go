@@ -342,6 +342,18 @@ func (job *SecurityScanJob) run(ctx context.Context, targets []securityScanTarge
 			Path:           target.Path,
 			ScanType:       req.Type,
 			TargetedChecks: req.TargetedChecks,
+			ExcludePatterns: []string{
+				"*_test.go",           // Go test files
+				"*test*.go",           // Test utility files
+				"*/test/*",            // Test directories
+				"*/tests/*",           // Tests directories
+				"**/test/**",          // Nested test directories
+				"**/tests/**",         // Nested tests directories
+				"*/testdata/*",        // Test data
+				"**/testdata/**",      // Nested test data
+				"*/fixtures/*",        // Test fixtures
+				"**/fixtures/**",      // Nested test fixtures
+			},
 			Context:        ctx,
 			Progress: func(scannerType scanners.ScannerType, result *scanners.ScanResult) {
 				job.handleScannerProgress(target.Name, scannerType, result)
@@ -637,6 +649,7 @@ func cancelSecurityScanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		if errors.Is(err, errSecurityScanFinished) {
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"status":  status,
@@ -808,6 +821,7 @@ func enhancedGetVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 		response["note"] = "No vulnerabilities found. Run a security scan to detect real vulnerabilities."
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 

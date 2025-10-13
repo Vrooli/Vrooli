@@ -34,7 +34,8 @@ Bring every listed scenario back into compliance by resolving the supplied viola
 4. Preserve existing behaviour unless a change is required to resolve a violation.
 
 ## Recommended Commands
-- `scenario-auditor scan <scenario>` — rerun the standards check per scenario after applying fixes.
+- `scenario-auditor scan <scenario> --rule <rule_id> --wait --timeout 600` — rerun a targeted standards check after applying fixes (replace `<rule_id>` with the relevant standard).
+- `scenario-auditor scan <scenario>` — fall back to a full scan only if necessary.
 - `git diff` — review modifications before finishing.
 
 ## Reference Guidance
@@ -42,7 +43,7 @@ Bring every listed scenario back into compliance by resolving the supplied viola
 
 ## Deliverable
 - Apply the necessary code changes for each scenario.
-- Re-run `scenario-auditor scan <scenario>` for every scenario you touched to confirm the violations are resolved.
+- Re-run `scenario-auditor scan <scenario> --rule <rule_id> --wait --timeout 600` for every scenario you touched to confirm the targeted violations are resolved.
 - Summarise the fixes made, remaining risks, and validation steps in your final response.
 - Do not edit files outside the listed scenario paths or perform unrelated work.
 

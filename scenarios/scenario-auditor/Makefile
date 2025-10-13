@@ -1,95 +1,125 @@
-# Scenario Auditor Makefile
-# Comprehensive standards enforcement system for Vrooli scenarios
+# Scenario Makefile
+#
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/scenario-auditor-api). ALWAYS use these commands.
+#
+# Usage:
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
 
-.PHONY: help install build test clean run stop logs health setup
+.PHONY: help start stop test logs status clean build dev install setup health run scan-current scan-all rules restart rebuild make-executable fmt fmt-go fmt-ui lint lint-go lint-ui install-cli test-unit test-integration test-structure test-deps test-business test-performance
 
-# Default target
-help:
-	@echo "Scenario Auditor - Standards Enforcement System"
+.DEFAULT_GOAL := help
+
+SCENARIO_NAME := $(notdir $(CURDIR))
+
+GREEN := \033[1;32m
+YELLOW := \033[1;33m
+BLUE := \033[1;34m
+RED := \033[1;31m
+RESET := \033[0m
+
+help: ## Show this help message
+	@echo "$(BLUE)🔍 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
-	@echo "Available commands:"
-	@echo "  install     Install all dependencies"
-	@echo "  build       Build API and CLI binaries"
-	@echo "  test        Run comprehensive test suite"
-	@echo "  run         Start the scenario in development mode"
-	@echo "  stop        Stop all running processes"
-	@echo "  clean       Clean build artifacts"
-	@echo "  health      Check system health"
-	@echo "  setup       Full setup (install + build)"
+	@echo "$(YELLOW)Usage:$(RESET)"
+	@echo "  make <command>"
 	@echo ""
-	@echo "Testing commands:"
-	@echo "  test-unit         Run unit tests only"
-	@echo "  test-integration  Run integration tests only"
-	@echo "  test-structure    Run structure validation"
-	@echo "  test-deps         Check dependencies"
-	@echo "  test-business     Run business logic tests"
-	@echo "  test-performance  Run performance tests"
+	@echo "$(YELLOW)Commands:$(RESET)"
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-16s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
+	@echo ""
+
+# Lifecycle commands
+start: ## Start this scenario
+	@echo "$(BLUE)Starting $(SCENARIO_NAME)...$(RESET)"
+	@vrooli scenario start $(SCENARIO_NAME)
+
+stop: ## Stop this scenario
+	@echo "$(BLUE)Stopping $(SCENARIO_NAME)...$(RESET)"
+	@vrooli scenario stop $(SCENARIO_NAME) || true
+	@echo "$(GREEN)✅ Stopped$(RESET)"
+
+status: ## Show scenario status
+	@vrooli scenario status $(SCENARIO_NAME)
+
+logs: ## Show scenario logs
+	@vrooli scenario logs $(SCENARIO_NAME)
 
 # Installation
-install:
+install: ## Install all dependencies
 	@echo "📦 Installing dependencies..."
 	@cd api && go mod download
-	@cd cli && go mod download
 	@if [ -f ui/package.json ] && command -v node >/dev/null 2>&1; then \
 		cd ui && npm install --prefer-offline --no-audit --no-fund --loglevel error; \
 	fi
-	@echo "✅ Dependencies installed"
+	@echo "$(GREEN)✅ Dependencies installed$(RESET)"
 
 # Build
-build:
+build: ## Build API and CLI binaries
 	@echo "🔨 Building binaries..."
 	@cd api && go build -o scenario-auditor-api .
-	@echo "✅ Build complete"
+	@chmod +x cli/scenario-auditor
+	@echo "$(GREEN)✅ Build complete$(RESET)"
 
 # Install CLI globally
-install-cli:
+install-cli: ## Install CLI command globally
 	@echo "📦 Installing CLI globally..."
 	@cd cli && ./install.sh
 
 # Setup (install + build)
-setup: install build install-cli
-	@echo "✅ Setup complete"
+setup: install build install-cli ## Full setup (install + build)
+	@echo "$(GREEN)✅ Setup complete$(RESET)"
 
 # Testing
-test:
+test: ## Run comprehensive test suite
 	@echo "🧪 Running full test suite..."
 	@chmod +x test/run-tests.sh
 	@./test/run-tests.sh
 
-test-unit:
+test-unit: ## Run unit tests only
 	@echo "🧪 Running unit tests..."
 	@chmod +x test/phases/test-unit.sh
 	@./test/phases/test-unit.sh
 
-test-integration:
+test-integration: ## Run integration tests only
 	@echo "🧪 Running integration tests..."
 	@chmod +x test/phases/test-integration.sh
 	@./test/phases/test-integration.sh
 
-test-structure:
+test-structure: ## Run structure validation
 	@echo "🧪 Running structure tests..."
 	@chmod +x test/phases/test-structure.sh
 	@./test/phases/test-structure.sh
 
-test-deps:
+test-deps: ## Check dependencies
 	@echo "🧪 Checking dependencies..."
 	@chmod +x test/phases/test-dependencies.sh
 	@./test/phases/test-dependencies.sh
 
-test-business:
+test-business: ## Run business logic tests
 	@echo "🧪 Running business logic tests..."
 	@chmod +x test/phases/test-business.sh
 	@./test/phases/test-business.sh
 
-test-performance:
+test-performance: ## Run performance tests
 	@echo "🧪 Running performance tests..."
 	@chmod +x test/phases/test-performance.sh
 	@./test/phases/test-performance.sh
 
 # Development
-run:
-	@echo "🚀 Starting Scenario Auditor..."
+dev: start ## Start development mode (alias for start)
+
+run: ## Run scenario locally (for testing only)
+	@echo "$(YELLOW)⚠️  Using local run mode (for testing only)$(RESET)"
+	@echo "$(YELLOW)⚠️  For production, use 'make start' instead$(RESET)"
 	@if [ ! -f api/scenario-auditor-api ]; then make build; fi
 	@export API_PORT=$${API_PORT:-15001} && \
 	export UI_PORT=$${UI_PORT:-35001} && \
@@ -102,36 +132,23 @@ run:
 		cd ../ui && npm run dev & \
 		echo "$$!" > ../ui.pid; \
 	fi && \
-	echo "✅ Scenario Auditor is running:" && \
+	echo "$(GREEN)✅ Scenario Auditor is running:$(RESET)" && \
 	echo "  Dashboard: http://localhost:$$UI_PORT" && \
 	echo "  API: http://localhost:$$API_PORT/api/v1" && \
 	echo "  Health: http://localhost:$$API_PORT/api/v1/health"
 
-stop:
-	@echo "🛑 Stopping Scenario Auditor..."
-	@vrooli scenario stop scenario-auditor || true
-	@echo "✅ Stopped"
-
-logs:
-	@echo "📋 Recent logs:"
-	@if [ -d test/artifacts ]; then \
-		ls -lt test/artifacts/*.log 2>/dev/null | head -5 || echo "No log files found"; \
-	else \
-		echo "No artifacts directory found"; \
-	fi
-
-health:
+health: ## Check system health
 	@echo "🏥 Checking health..."
 	@export API_PORT=$${API_PORT:-15001} && \
 	if curl -s "http://localhost:$$API_PORT/api/v1/health" >/dev/null 2>&1; then \
-		echo "✅ API is healthy"; \
+		echo "$(GREEN)✅ API is healthy$(RESET)"; \
 	else \
-		echo "❌ API is not responding"; \
+		echo "$(RED)❌ API is not responding$(RESET)"; \
 		exit 1; \
 	fi
 
 # Clean
-clean:
+clean: ## Clean build artifacts
 	@echo "🧹 Cleaning build artifacts..."
 	@rm -f api/scenario-auditor-api
 	@rm -f cli/scenario-auditor
@@ -139,46 +156,70 @@ clean:
 	@rm -rf ui/dist
 	@rm -rf ui/node_modules/.vite
 	@find test/artifacts -name "*.log" -type f -delete 2>/dev/null || true
-	@echo "✅ Clean complete"
+	@echo "$(GREEN)✅ Clean complete$(RESET)"
+
+# Formatting and Linting
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-go: ## Format Go code
+	@if command -v gofumpt >/dev/null 2>&1; then \
+		echo "$(BLUE)Formatting Go code with gofumpt...$(RESET)"; \
+		cd api && gofumpt -w .; \
+		cd cli && gofumpt -w .; \
+		echo "$(GREEN)✅ Go code formatted$(RESET)"; \
+	else \
+		echo "$(YELLOW)⚠️  gofumpt not installed, using gofmt...$(RESET)"; \
+		cd api && go fmt ./...; \
+		cd cli && go fmt ./...; \
+	fi
+
+fmt-ui: ## Format UI code
+	@if [ -f ui/package.json ] && command -v node >/dev/null 2>&1; then \
+		echo "$(BLUE)Formatting UI code...$(RESET)"; \
+		cd ui && npm run format 2>/dev/null || echo "$(YELLOW)⚠️  No format script in package.json$(RESET)"; \
+	else \
+		echo "$(YELLOW)⚠️  No UI or Node.js not installed$(RESET)"; \
+	fi
+
+lint: lint-go lint-ui ## Lint all code
+
+lint-go: ## Lint Go code
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		echo "$(BLUE)Linting Go code...$(RESET)"; \
+		cd api && golangci-lint run; \
+		cd cli && golangci-lint run; \
+		echo "$(GREEN)✅ Go code linted$(RESET)"; \
+	else \
+		echo "$(YELLOW)⚠️  golangci-lint not installed$(RESET)"; \
+		echo "$(YELLOW)    Install: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest$(RESET)"; \
+	fi
+
+lint-ui: ## Lint UI code
+	@if [ -f ui/package.json ] && command -v node >/dev/null 2>&1; then \
+		echo "$(BLUE)Linting UI code...$(RESET)"; \
+		cd ui && npm run lint 2>/dev/null || echo "$(YELLOW)⚠️  No lint script in package.json$(RESET)"; \
+	else \
+		echo "$(YELLOW)⚠️  No UI or Node.js not installed$(RESET)"; \
+	fi
 
 # Utilities
-scan-current:
+scan-current: ## Scan current scenario for violations
 	@echo "🔍 Scanning current scenario..."
-	@if [ -f cli/scenario-auditor ]; then \
-		cd cli && ./scenario-auditor scan current; \
-	else \
-		echo "❌ CLI not built. Run 'make build' first."; \
-		exit 1; \
-	fi
+	@scenario-auditor scan $(SCENARIO_NAME) || echo "$(RED)❌ CLI not installed. Run 'make install-cli'$(RESET)"
 
-scan-all:
+scan-all: ## Scan all scenarios
 	@echo "🔍 Scanning all scenarios..."
-	@if [ -f cli/scenario-auditor ]; then \
-		cd cli && ./scenario-auditor scan; \
-	else \
-		echo "❌ CLI not built. Run 'make build' first."; \
-		exit 1; \
-	fi
+	@scenario-auditor scan || echo "$(RED)❌ CLI not installed. Run 'make install-cli'$(RESET)"
 
-rules:
+rules: ## List available rules
 	@echo "📋 Listing available rules..."
-	@if [ -f cli/scenario-auditor ]; then \
-		cd cli && ./scenario-auditor rules; \
-	else \
-		echo "❌ CLI not built. Run 'make build' first."; \
-		exit 1; \
-	fi
+	@scenario-auditor rules || echo "$(RED)❌ CLI not installed. Run 'make install-cli'$(RESET)"
 
-# Development shortcuts
-dev: run
+restart: stop start ## Restart scenario
 
-restart: stop run
+rebuild: clean build ## Clean and rebuild
 
-rebuild: clean build
-
-# Make sure test scripts are executable
-.PHONY: make-executable
-make-executable:
+make-executable: ## Make test scripts executable
 	@chmod +x test/run-tests.sh
 	@chmod +x test/phases/*.sh
 	@chmod +x cli/install.sh

@@ -13,40 +13,54 @@ function healthCheckPlugin(): Plugin {
         handle: async (req: any, res: any, next: any) => {
           if (req.url === '/health') {
             // Test API connectivity
-            const apiPort = process.env.API_PORT || '15001'
-            let apiStatus = 'unknown'
-            let apiReachable = false
+            const apiPort = process.env.API_PORT || '18507'
+            let apiConnected = false
+            let apiError = null
+            let latencyMs = null
+            const checkTimestamp = new Date().toISOString()
 
             try {
               const apiUrl = `http://localhost:${apiPort}/api/v1/health`
+              const startTime = Date.now()
               const response = await fetch(apiUrl, {
                 signal: AbortSignal.timeout(3000)
               })
 
               if (response.ok) {
-                apiStatus = 'healthy'
-                apiReachable = true
+                apiConnected = true
+                latencyMs = Date.now() - startTime
               } else {
-                apiStatus = `error: ${response.status}`
+                apiError = {
+                  code: `HTTP_${response.status}`,
+                  message: `API returned status ${response.status}`,
+                  category: 'network',
+                  retryable: true
+                }
               }
             } catch (error) {
-              apiStatus = `unreachable: ${error instanceof Error ? error.message : 'unknown error'}`
+              const errorMessage = error instanceof Error ? error.message : 'unknown error'
+              apiError = {
+                code: errorMessage.includes('timeout') ? 'TIMEOUT' : 'CONNECTION_REFUSED',
+                message: `Failed to connect to API: ${errorMessage}`,
+                category: 'network',
+                retryable: true
+              }
             }
 
-            const overallStatus = apiReachable ? 'healthy' : 'degraded'
-            res.statusCode = apiReachable ? 200 : 503
+            const overallStatus = apiConnected ? 'healthy' : 'degraded'
+            res.statusCode = apiConnected ? 200 : 503
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify({
               status: overallStatus,
               service: 'scenario-auditor-ui',
               timestamp: new Date().toISOString(),
-              uptime: process.uptime(),
-              checks: {
-                api: {
-                  status: apiStatus,
-                  reachable: apiReachable,
-                  url: `http://localhost:${apiPort}/api/v1`
-                }
+              readiness: true,
+              api_connectivity: {
+                connected: apiConnected,
+                api_url: `http://localhost:${apiPort}/api/v1`,
+                last_check: checkTimestamp,
+                error: apiError,
+                latency_ms: latencyMs
               }
             }))
             return
@@ -71,7 +85,7 @@ export default defineConfig({
     allowedHosts: ['scenario-auditor.itsagitime.com'],
     proxy: {
       '/api': {
-        target: `http://localhost:${process.env.API_PORT || '15001'}`,
+        target: `http://localhost:${process.env.API_PORT || '18507'}`,
         changeOrigin: true,
       },
     },

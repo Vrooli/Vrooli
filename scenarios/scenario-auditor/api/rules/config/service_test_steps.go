@@ -18,33 +18,33 @@ Targets: service_json
 
 <test-case id="missing-lifecycle" should-fail="true">
   <description>service.json missing lifecycle object</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {
     "name": "demo"
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>lifecycle</expected-message>
 </test-case>
 
 <test-case id="missing-test-object" should-fail="true">
   <description>service.json missing lifecycle.test</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "lifecycle": {
     "develop": {}
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>lifecycle.test</expected-message>
 </test-case>
 
 <test-case id="missing-steps-array" should-fail="true">
   <description>service.json missing lifecycle.test.steps</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "lifecycle": {
     "test": {
@@ -52,14 +52,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>steps</expected-message>
 </test-case>
 
 <test-case id="steps-not-array" should-fail="true">
   <description>lifecycle.test.steps is not an array</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "lifecycle": {
     "test": {
@@ -67,14 +67,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>array</expected-message>
 </test-case>
 
 <test-case id="missing-required-step" should-fail="true">
   <description>steps defined but required run-tests step missing</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "lifecycle": {
     "test": {
@@ -87,14 +87,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>run-tests</expected-message>
 </test-case>
 
 <test-case id="valid-test-steps" should-fail="false">
   <description>Valid lifecycle.test.steps configuration including extra step</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "lifecycle": {
     "test": {
@@ -113,12 +113,12 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
 </test-case>
 
 <test-case id="ignored-non-service-json" should-fail="false" path="config.json">
   <description>Rule ignores non service.json files</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "lifecycle": {
     "test": {
@@ -126,7 +126,7 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
 </test-case>
 */
 

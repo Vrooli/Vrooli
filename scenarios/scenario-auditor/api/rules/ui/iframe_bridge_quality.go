@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	rules "scenario-auditor/rules"
@@ -161,9 +162,16 @@ var (
 	bridgeImportPattern           = regexp.MustCompile(`(?m)(import\s+[^;]*@vrooli/iframe-bridge[^\n]*|require\([^\n]*@vrooli/iframe-bridge[^\n]*\))`)
 	captureLogsDisabledPattern    = regexp.MustCompile(`(?s)captureLogs\s*:\s*(?:false|\{[^}]*enabled\s*:\s*false)`)
 	captureNetworkDisabledPattern = regexp.MustCompile(`(?s)captureNetwork\s*:\s*(?:false|\{[^}]*enabled\s*:\s*false)`)
+	iframeRuleDir                 string
 )
 
 const sharedBridgePackageName = "@vrooli/iframe-bridge"
+
+func init() {
+	if _, file, _, ok := runtime.Caller(0); ok {
+		iframeRuleDir = filepath.Dir(file)
+	}
+}
 
 // CheckIframeBridgeQuality validates canonical UI bridge implementation and bootstrap usage.
 func CheckIframeBridgeQuality(content []byte, filePath string) []rules.Violation {
@@ -282,21 +290,20 @@ func validateBridgePackage(content []byte, path string) []rules.Violation {
 }
 
 func validateBridgeDependencyInstallation(manifestPath, version string) string {
-	dir := filepath.Dir(manifestPath)
+	candidates := manifestDirCandidates(manifestPath)
 
 	if strings.HasPrefix(strings.TrimSpace(version), "file:") {
 		spec := strings.TrimSpace(strings.TrimPrefix(version, "file:"))
 		if spec != "" {
-			resolved := filepath.Clean(filepath.Join(dir, spec))
-			if _, err := os.Stat(resolved); err != nil {
+			resolved := resolveFirstExistingPath(candidates, spec)
+			if resolved == "" {
 				return fmt.Sprintf("Local iframe bridge dependency path %q could not be resolved", spec)
 			}
 		}
 	}
 
-	bridgePath := filepath.Join(dir, "node_modules", "@vrooli", "iframe-bridge")
-	info, err := os.Lstat(bridgePath)
-	if err != nil {
+	bridgePath, info := findFirstExistingBridgePath(candidates)
+	if bridgePath == "" {
 		return "Installed iframe bridge package not found in node_modules; reinstall dependencies"
 	}
 
@@ -310,7 +317,7 @@ func validateBridgeDependencyInstallation(manifestPath, version string) string {
 	}
 
 	expectedBundle := filepath.Join(resolved, "dist", "iframeBridgeChild.js")
-	if _, err := os.Stat(expectedBundle); err != nil {
+	if !pathExists(expectedBundle) {
 		return "Iframe bridge package installation is incomplete; dist/iframeBridgeChild.js is missing"
 	}
 
@@ -396,6 +403,93 @@ func dependencyVersionFromMap(deps map[string]interface{}, name string) string {
 	default:
 		return ""
 	}
+}
+
+func manifestDirCandidates(manifestPath string) []string {
+	clean := strings.TrimSpace(manifestPath)
+	dir := filepath.Dir(clean)
+	add := func(list *[]string, seen map[string]bool, candidate string) {
+		if candidate == "" {
+			return
+		}
+		canonical := filepath.Clean(candidate)
+		if seen[canonical] {
+			return
+		}
+		seen[canonical] = true
+		*list = append(*list, canonical)
+	}
+
+	seen := map[string]bool{}
+	var candidates []string
+
+	if filepath.IsAbs(dir) {
+		add(&candidates, seen, dir)
+		debugLogManifest(manifestPath, candidates)
+		return candidates
+	}
+
+	if iframeRuleDir != "" {
+		add(&candidates, seen, filepath.Join(iframeRuleDir, dir))
+		add(&candidates, seen, filepath.Join(filepath.Dir(iframeRuleDir), dir))
+	}
+
+	if wd, err := os.Getwd(); err == nil {
+		add(&candidates, seen, filepath.Join(wd, dir))
+	}
+
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		add(&candidates, seen, filepath.Join(root, "scenarios", "scenario-auditor", "api", dir))
+		add(&candidates, seen, filepath.Join(root, dir))
+	}
+
+	add(&candidates, seen, dir)
+
+	debugLogManifest(manifestPath, candidates)
+	return candidates
+}
+
+func debugLogManifest(manifestPath string, candidates []string) {
+	if os.Getenv("SCENARIO_AUDITOR_DEBUG_BRIDGE") != "1" {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "[iframe_bridge_quality] manifest=%s candidates=%v\n", manifestPath, candidates)
+}
+
+func resolveFirstExistingPath(bases []string, relative string) string {
+	relative = filepath.Clean(relative)
+	for _, base := range bases {
+		if base == "" {
+			continue
+		}
+		candidate := filepath.Join(base, relative)
+		if pathExists(candidate) {
+			return candidate
+		}
+	}
+	return ""
+}
+
+func findFirstExistingBridgePath(bases []string) (string, os.FileInfo) {
+	for _, base := range bases {
+		if base == "" {
+			continue
+		}
+		candidate := filepath.Join(base, "node_modules", "@vrooli", "iframe-bridge")
+		info, err := os.Lstat(candidate)
+		if err == nil {
+			return candidate, info
+		}
+	}
+	return "", nil
+}
+
+func pathExists(path string) bool {
+	if path == "" {
+		return false
+	}
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func scenarioFromFilePath(path string) string {

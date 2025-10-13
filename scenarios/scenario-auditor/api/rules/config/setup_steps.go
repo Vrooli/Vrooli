@@ -18,21 +18,21 @@ Targets: service_json
 
 <test-case id="missing-setup-steps" should-fail="true">
   <description>service.json without lifecycle.setup steps</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {
     "name": "file-tools"
   },
   "lifecycle": {}
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>lifecycle.setup.steps</expected-message>
 </test-case>
 
 <test-case id="missing-install-cli" should-fail="true">
   <description>Setup steps missing the install-cli task</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "file-tools"},
   "lifecycle": {
@@ -44,14 +44,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>install-cli</expected-message>
 </test-case>
 
 <test-case id="mismatched-build-api" should-fail="true">
   <description>Build step does not output scenario-name-api binary</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "file-tools"},
   "lifecycle": {
@@ -64,14 +64,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>build-api</expected-message>
 </test-case>
 
 <test-case id="show-urls-last" should-fail="true">
   <description>show-urls step is not last in the list</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "file-tools"},
   "lifecycle": {
@@ -84,14 +84,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>show-urls</expected-message>
 </test-case>
 
 <test-case id="install-cli-run-mismatch" should-fail="true">
   <description>install-cli step uses an unexpected run command</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "file-tools"},
   "lifecycle": {
@@ -104,14 +104,14 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>install-cli run command</expected-message>
 </test-case>
 
 <test-case id="missing-service-name" should-fail="true">
   <description>install-cli exists but service.name is missing</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "lifecycle": {
     "setup": {
@@ -123,23 +123,23 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>service.name</expected-message>
 </test-case>
 
 <test-case id="ignored-non-service-json" should-fail="false" path="config.json">
   <description>Rule is skipped for files other than service.json</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "file-tools"}
 }
-  </input>
+  ]]></input>
 </test-case>
 
 <test-case id="valid-setup" should-fail="false">
   <description>Setup steps include install-cli, scenario-specific build, and show-urls last</description>
-  <input language="json">
+  <input language="json"><![CDATA[
 {
   "service": {"name": "file-tools"},
   "lifecycle": {
@@ -165,7 +165,7 @@ Targets: service_json
     }
   }
 }
-  </input>
+  ]]></input>
 </test-case>
 */
 

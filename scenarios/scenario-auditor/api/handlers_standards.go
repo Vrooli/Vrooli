@@ -1063,6 +1063,7 @@ func cancelStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		if errors.Is(err, errStandardsScanFinished) {
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"status":  status,

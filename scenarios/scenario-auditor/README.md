@@ -26,8 +26,8 @@ The Scenario Auditor is Vrooli's permanent quality gatekeeper, ensuring every sc
 
 ### 🤖 AI Integration
 - **Automated Fixes**: Claude Code agent spawning for violation fixes
-- **Rule Generation**: Create new rules from natural language descriptions
-- **Rule Enhancement**: AI-assisted modification of existing rules
+- **Rule Creation**: Create new rules from natural language descriptions via `/api/v1/rules/create`
+- **Rule Editing**: AI-assisted modification of existing rules via `/api/v1/rules/ai/edit/{ruleId}`
 - **Intelligent Analysis**: Smart categorization and prioritization
 
 ## 🚀 Quick Start
@@ -65,31 +65,71 @@ scenario-auditor fix ecosystem-manager --auto
 
 ## 📋 CLI Commands
 
+The CLI is a lightweight wrapper around the scenario-auditor API. Make sure the scenario is running before using CLI commands:
+
 ```bash
-scenario-auditor scan [scenario]     # Scan scenario for violations
+# Start the scenario first
+vrooli scenario start scenario-auditor
+
+# Then use CLI commands
+scenario-auditor scan [scenario] [--rule <rule_id>] [--wait] [--timeout <s>]
 scenario-auditor rules               # List available rules
-scenario-auditor fix [scenario]      # Generate fixes for violations
 scenario-auditor health              # Check API health
 scenario-auditor version             # Show version
 scenario-auditor help                # Show help
 ```
+
+**Note**: The CLI now uses async job-based scanning. Scans run in the background and the CLI polls for completion. Large scenarios may take 20-30 seconds to scan completely.
+
+### Port Detection
+
+The CLI automatically detects the correct API port using this precedence:
+
+1. `SCENARIO_AUDITOR_API_PORT` environment variable (scenario-specific)
+2. Auto-detection from running `scenario-auditor-api` process (most reliable)
+3. `API_PORT` environment variable (only if in valid range 15000-19999)
+4. Default port `18507`
+
+This ensures the CLI works correctly even when multiple scenarios are running with different port assignments.
 
 ### Examples
 ```bash
 # Scan current scenario
 scenario-auditor scan
 
-# Scan specific scenario
+# Target a specific rule and wait for completion (recommended for fixes)
+scenario-auditor scan ecosystem-manager --rule iframe_bridge_quality --wait --timeout 600
+
+# Run a full scan only if you need the complete violation list
 scenario-auditor scan ecosystem-manager
 
-# List rules by category
-scenario-auditor rules --category config
+# List available rules
+scenario-auditor rules
 
-# Generate automated fixes
-scenario-auditor fix ecosystem-manager --auto
-
-# Check system health
+# Check API health
 scenario-auditor health
+
+# Show version
+scenario-auditor version
+
+# List a scenario's violations after the scan job completes
+scenario-auditor rules --category ui | grep iframe_bridge_quality
+
+```
+
+### Targeted Rule Validation
+
+The CLI supports targeted validations so agents (or humans) can re-check a single rule without triggering the entire standards catalog:
+
+- Use `--rule <rule_id>` (repeatable) or `--rules <id1,id2>` to restrict the scan.
+- Combine with `--wait` to stream job status and `--timeout <seconds>` (default 600) to bound execution time.
+- Prefer targeted scans when closing issues; fall back to a full scan only when you need the global violation list.
+
+Example:
+
+```bash
+# Re-run a targeted scan and surface the resulting job details
+scenario-auditor scan agent-dashboard --rule service_json_ports --wait --timeout 600
 ```
 
 ## 🏗️ Architecture
@@ -173,6 +213,8 @@ make test-structure     # Directory structure
 make test-deps          # Dependencies check
 make test-business      # Business logic
 make test-performance   # Performance metrics
+make test-rules-engine  # Rule engine validation (ADDED 2025-10-05)
+make test-ui-practices  # UI practices enforcement (ADDED 2025-10-05)
 ```
 
 ### Test Structure
@@ -185,9 +227,13 @@ test/
 │   ├── test-structure.sh   # Structure validation
 │   ├── test-dependencies.sh # Dependency checks
 │   ├── test-business.sh    # Business logic
-│   └── test-performance.sh # Performance tests
+│   ├── test-performance.sh # Performance tests
+│   ├── test-rules-engine.sh # Rule engine functionality (ADDED 2025-10-05)
+│   └── test-ui-practices.sh # UI best practices validation (ADDED 2025-10-05)
 └── artifacts/             # Test outputs and logs
 ```
+
+**Note**: The test suite now includes comprehensive rule engine and UI practices validation that matches the service.json lifecycle configuration.
 
 ## 🎯 Development
 

@@ -30,7 +30,8 @@ Bring the scenario back into compliance by addressing the violations listed belo
 4. Preserve existing behaviour unless change is required to resolve the violation.
 
 ## Recommended Commands
-- `scenario-auditor scan {{ .Scenario }}` — rerun the standards check.
+- `scenario-auditor scan {{ .Scenario }} --rule <rule_id> --wait --timeout 600` — rerun a targeted standards check (replace `<rule_id>` with the relevant standard).
+- `scenario-auditor scan {{ .Scenario }}` — fall back to a full scan only if necessary.
 - `git diff` — review modifications before finishing.
 
 ## Reference Guidance
@@ -38,7 +39,7 @@ Bring the scenario back into compliance by addressing the violations listed belo
 
 ## Deliverable
 - Apply the necessary code changes.
-- Re-run `scenario-auditor scan {{ .Scenario }}` to verify the violations are resolved.
+- Re-run `scenario-auditor scan {{ .Scenario }} --rule <rule_id> --wait --timeout 600` to verify the targeted violations are resolved.
 - Summarise the fixes made, remaining risks, and validation steps in your final response.
 - Do not edit files outside `{{ .ScenarioPath }}` or perform unrelated work.
 

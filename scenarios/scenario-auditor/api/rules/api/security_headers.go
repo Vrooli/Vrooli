@@ -16,19 +16,19 @@ Targets: api
 
 <test-case id="missing-cors-headers" should-fail="true">
   <description>API endpoint missing CORS headers</description>
-  <input language="go">
+  <input language="go"><![CDATA[
 func HandleRequest(w http.ResponseWriter, r *http.Request) {
     data := getData()
     json.NewEncoder(w).Encode(data)
 }
-  </input>
+]]></input>
   <expected-violations>2</expected-violations>
   <expected-message>Missing CORS headers</expected-message>
 </test-case>
 
 <test-case id="proper-cors-setup" should-fail="false">
   <description>Correctly configured CORS and security headers</description>
-  <input language="go">
+  <input language="go"><![CDATA[
 func HandleRequest(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Access-Control-Allow-Origin", "https://trusted.com")
     w.Header().Set("Access-Control-Allow-Methods", "GET, POST")
@@ -39,38 +39,38 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Strict-Transport-Security", "max-age=31536000")
     json.NewEncoder(w).Encode(data)
 }
-  </input>
+]]></input>
 </test-case>
 
 <test-case id="wildcard-cors-insecure" should-fail="true">
   <description>Insecure wildcard CORS configuration</description>
-  <input language="go">
+  <input language="go"><![CDATA[
 func HandleRequest(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+    w.Header().Set("Access-Control-Allow-Origin", "*")
     w.Header().Set("Access-Control-Allow-Credentials", "true")
     json.NewEncoder(w).Encode(data)
 }
-  </input>
+]]></input>
   <expected-violations>2</expected-violations>
   <expected-message>Insecure CORS configuration</expected-message>
 </test-case>
 
 <test-case id="missing-security-headers" should-fail="true">
   <description>Missing security headers like X-Frame-Options</description>
-  <input language="go">
+  <input language="go"><![CDATA[
 func SecureEndpoint(w http.ResponseWriter, r *http.Request) {
     // Only has CORS, missing other security headers
     w.Header().Set("Access-Control-Allow-Origin", "https://app.com")
     w.Write([]byte("response"))
 }
-  </input>
+]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>Missing security headers</expected-message>
 </test-case>
 
 <test-case id="complete-security-headers" should-fail="false">
   <description>Complete set of security headers</description>
-  <input language="go">
+  <input language="go"><![CDATA[
 func SecureEndpoint(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("X-Content-Type-Options", "nosniff")
     w.Header().Set("X-Frame-Options", "DENY")
@@ -79,7 +79,7 @@ func SecureEndpoint(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Access-Control-Allow-Origin", "https://app.com")
     w.Write([]byte("response"))
 }
-  </input>
+]]></input>
 </test-case>
 */
 
