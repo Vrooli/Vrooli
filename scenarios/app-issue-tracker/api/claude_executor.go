@@ -32,6 +32,7 @@ type ClaudeExecutionResult struct {
 // This replaces the bash wrapper approach with direct Go execution
 func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID string, startTime time.Time, timeoutDuration time.Duration) (*ClaudeExecutionResult, error) {
 	settings := GetAgentSettings()
+	const idleTimeout = 10 * time.Minute
 
 	log.Printf("Executing Claude Code for issue %s (prompt length: %d characters, timeout: %v)",
 		issueID, len(prompt), timeoutDuration)
@@ -85,7 +86,8 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	}
 
 	timeoutSeconds := int(timeoutDuration.Seconds())
-	cmd.Env = append(os.Environ(),
+	env := append([]string{}, os.Environ()...)
+	env = append(env,
 		"MAX_TURNS="+strconv.Itoa(settings.MaxTurns),
 		"ALLOWED_TOOLS="+settings.AllowedTools,
 		"TIMEOUT="+strconv.Itoa(timeoutSeconds),
@@ -100,6 +102,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		"CODEX_TRANSCRIPT_FILE="+transcriptFile,
 		"CODEX_LAST_MESSAGE_FILE="+lastMessageFile,
 	)
+	cmd.Env = env
 
 	log.Printf("Claude execution settings: MAX_TURNS=%d, ALLOWED_TOOLS=%s, SKIP_PERMISSIONS=%v, TIMEOUT=%ds",
 		settings.MaxTurns, settings.AllowedTools, settings.SkipPermissions, timeoutSeconds)
@@ -145,8 +148,41 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	var combinedMu sync.Mutex
 	var lastActivity int64
 	atomic.StoreInt64(&lastActivity, time.Now().UnixNano())
+	idleTriggered := atomic.Bool{}
 
 	readsDone := make(chan struct{})
+	idleMonitorStop := make(chan struct{})
+
+	startIdleMonitor := func() {
+		if idleTimeout <= 0 {
+			return
+		}
+
+		go func() {
+			ticker := time.NewTicker(1 * time.Minute)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					last := time.Unix(0, atomic.LoadInt64(&lastActivity))
+					if time.Since(last) >= idleTimeout {
+						idleTriggered.Store(true)
+						log.Printf("⚠️ Inactivity detected for issue %s (no output for %v) - terminating agent", issueID, idleTimeout)
+						if cmd.Process != nil {
+							if err := cmd.Process.Kill(); err != nil {
+								log.Printf("Warning: failed to kill idle agent process for issue %s: %v", issueID, err)
+							}
+						}
+						return
+					}
+				case <-idleMonitorStop:
+					return
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
 
 	streamPipe := func(stream string, reader io.ReadCloser) {
 		defer reader.Close()
@@ -180,11 +216,15 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	go func() { defer wg.Done(); streamPipe("stdout", stdoutPipe) }()
 	go func() { defer wg.Done(); streamPipe("stderr", stderrPipe) }()
 
+	startIdleMonitor()
+
 	// Wait for command to complete
 	go func() {
 		wg.Wait()
 		close(readsDone)
 	}()
+
+	defer close(idleMonitorStop)
 
 	// Wait for either command completion or context timeout
 	waitErrChan := make(chan error, 1)
@@ -279,6 +319,17 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	// Check for non-zero exit (ecosystem-manager pattern)
 	// CRITICAL: Check output quality, not just exit codes
 	if waitErr != nil && exitCode != 0 {
+		if idleTriggered.Load() {
+			return &ClaudeExecutionResult{
+				Success:         false,
+				Output:          combinedOutput,
+				Error:           fmt.Sprintf("Claude Code execution ended due to inactivity (no output for %v)", idleTimeout),
+				ExitCode:        exitCode,
+				ExecutionTime:   executionTime,
+				TranscriptPath:  transcriptFile,
+				LastMessagePath: lastMessageFile,
+			}, nil
+		}
 		// Check if we have substantial, structured output despite error
 		hasValidReport := false
 		if len(combinedOutput) > 500 {

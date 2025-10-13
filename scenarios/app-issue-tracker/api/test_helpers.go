@@ -1,6 +1,3 @@
-//go:build testing
-// +build testing
-
 package main
 
 import (
@@ -41,10 +38,10 @@ func setupTestLogger() func() {
 
 // TestEnvironment manages isolated test environment
 type TestEnvironment struct {
-	TempDir    string
-	IssuesDir  string
-	Server     *Server
-	Cleanup    func()
+	TempDir   string
+	IssuesDir string
+	Server    *Server
+	Cleanup   func()
 }
 
 // setupTestDirectory creates an isolated test environment with proper cleanup
