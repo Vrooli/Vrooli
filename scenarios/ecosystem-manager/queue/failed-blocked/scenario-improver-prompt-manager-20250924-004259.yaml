@@ -1,0 +1,42 @@
+id: scenario-improver-prompt-manager-20250924-004259
+title: Enhance scenario prompt-manager
+type: scenario
+operation: improver
+target: prompt-manager
+targets:
+    - prompt-manager
+category: ""
+priority: medium
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: failed-blocked
+current_phase: blocked
+started_at: "2025-10-05T20:20:02-04:00"
+completed_at: "2025-10-05T20:20:32-04:00"
+completion_count: 1
+last_completed_at: "2025-09-28T00:29:31-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-24T00:42:59-04:00"
+updated_at: "2025-10-05T20:21:33-04:00"
+tags: []
+notes: "Notes from last time:\n\n- **What was accomplished:** \nStarted health monitor for claude-code (PID: 123455, interval: 30s)\nNon-TTY environment detected - using automation-friendly settings\n\n- **Current status:** \nRunning Claude Code\nWARNING: Permission checks are disabled!\n\n- **Remaining issues or limitations:** \nPermission checks are not enabled, potentially affecting task integrity.\n\n- **Suggested next actions:** None reported"
+results:
+    error: "Claude Code execution failed (exit code 1): [INFO]    Started health monitor for claude-code (PID: 123455, interval: 30s)\n[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n"
+    execution_time: 30s
+    failed_at: "2025-10-05T20:20:32-04:00"
+    output: "[INFO]    Started health monitor for claude-code (PID: 123455, interval: 30s)\n[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n"
+    prompt_size: 25622 chars (25.02 KB)
+    recycler_classification: some_progress
+    recycler_updated_at: "2025-10-05T20:21:33-04:00"
+    started_at: "2025-10-05T20:20:02-04:00"
+    success: false
+    timeout_allowed: 58m0s
+    timeout_failure: false
+consecutive_completion_claims: 0
+consecutive_failures: 5
+processor_auto_requeue: false
