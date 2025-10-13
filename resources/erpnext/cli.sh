@@ -23,9 +23,9 @@ ERPNEXT_CLI_DIR="${APP_ROOT}/resources/erpnext"
 
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
-# shellcheck disable=SC1091
+# shellcheck disable=SC1091,SC2154  # var_LOG_FILE is set by var.sh
 source "${var_LOG_FILE}"
-# shellcheck disable=SC1091
+# shellcheck disable=SC1091,SC2154  # var_RESOURCES_COMMON_FILE is set by var.sh
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
@@ -51,19 +51,25 @@ done
 cli::init "erpnext" "ERPNext ERP system management" "v2"
 
 # Override default handlers to point directly to ERPNext implementations
-CLI_COMMAND_HANDLERS["manage::install"]="erpnext::install::execute"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="erpnext::install::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="erpnext::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="erpnext::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="erpnext::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="erpnext::test::smoke"
+# shellcheck disable=SC2034  # CLI_COMMAND_HANDLERS is used by CLI framework
+{
+    CLI_COMMAND_HANDLERS["manage::install"]="erpnext::install::execute"
+    CLI_COMMAND_HANDLERS["manage::uninstall"]="erpnext::install::uninstall"
+    CLI_COMMAND_HANDLERS["manage::start"]="erpnext::start"
+    CLI_COMMAND_HANDLERS["manage::stop"]="erpnext::stop"
+    CLI_COMMAND_HANDLERS["manage::restart"]="erpnext::restart"
+    CLI_COMMAND_HANDLERS["test::smoke"]="erpnext::test::smoke"
+}
 
 # Override content handlers for ERPNext-specific functionality
-CLI_COMMAND_HANDLERS["content::add"]="erpnext::content::add"
-CLI_COMMAND_HANDLERS["content::list"]="erpnext::content::list" 
-CLI_COMMAND_HANDLERS["content::get"]="erpnext::content::get"
-CLI_COMMAND_HANDLERS["content::remove"]="erpnext::content::remove"
-CLI_COMMAND_HANDLERS["content::execute"]="erpnext::content::execute"
+# shellcheck disable=SC2034  # CLI_COMMAND_HANDLERS is used by CLI framework
+{
+    CLI_COMMAND_HANDLERS["content::add"]="erpnext::content::add"
+    CLI_COMMAND_HANDLERS["content::list"]="erpnext::content::list"
+    CLI_COMMAND_HANDLERS["content::get"]="erpnext::content::get"
+    CLI_COMMAND_HANDLERS["content::remove"]="erpnext::content::remove"
+    CLI_COMMAND_HANDLERS["content::execute"]="erpnext::content::execute"
+}
 
 # Add custom test phases for ERPNext
 cli::register_subcommand "test" "performance" "Run performance tests on ERPNext" "erpnext::test::performance"

@@ -14,6 +14,7 @@ ERPNEXT_TEST_DIR="${ERPNEXT_RESOURCE_DIR}/test"
 
 # Source utilities
 source "${APP_ROOT}/scripts/lib/utils/var.sh" || return 1
+# shellcheck disable=SC2154  # var_LIB_UTILS_DIR is set by var.sh
 source "${var_LIB_UTILS_DIR}/format.sh" || return 1
 source "${var_LIB_UTILS_DIR}/log.sh" || return 1
 

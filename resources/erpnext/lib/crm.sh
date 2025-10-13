@@ -46,8 +46,8 @@ erpnext::crm::list_customers() {
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Customer" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -92,8 +92,8 @@ erpnext::crm::create_customer() {
         -H "Content-Type: application/json" \
         -d "$data" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Customer" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -129,8 +129,8 @@ erpnext::crm::list_leads() {
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Lead" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -179,8 +179,8 @@ erpnext::crm::create_lead() {
         -H "Content-Type: application/json" \
         -d "$data" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Lead" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -216,8 +216,8 @@ erpnext::crm::list_contacts() {
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Contact" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -271,8 +271,8 @@ erpnext::crm::create_contact() {
         -H "Content-Type: application/json" \
         -d "$data" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Contact" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -308,8 +308,8 @@ erpnext::crm::list_opportunities() {
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Opportunity" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)

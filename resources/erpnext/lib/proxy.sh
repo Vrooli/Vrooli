@@ -20,21 +20,23 @@ erpnext::proxy::request() {
     local path="${2:-/}"
     local data="${3:-}"
     local site_name="${ERPNEXT_SITE_NAME:-vrooli.local}"
-    
-    # Build curl command with proper headers
-    local curl_cmd="curl -sf -X $method"
-    curl_cmd="$curl_cmd -H 'Host: $site_name'"
-    curl_cmd="$curl_cmd -H 'X-Forwarded-Host: localhost:${ERPNEXT_PORT}'"
-    curl_cmd="$curl_cmd -H 'X-Forwarded-Proto: http'"
-    
+
+    # Execute curl directly without eval for security and simplicity
     if [[ -n "$data" ]]; then
-        curl_cmd="$curl_cmd -H 'Content-Type: application/json'"
-        curl_cmd="$curl_cmd -d '$data'"
+        curl -sf -X "$method" \
+            -H "Host: $site_name" \
+            -H "X-Forwarded-Host: localhost:${ERPNEXT_PORT}" \
+            -H "X-Forwarded-Proto: http" \
+            -H "Content-Type: application/json" \
+            -d "$data" \
+            "http://localhost:${ERPNEXT_PORT}${path}"
+    else
+        curl -sf -X "$method" \
+            -H "Host: $site_name" \
+            -H "X-Forwarded-Host: localhost:${ERPNEXT_PORT}" \
+            -H "X-Forwarded-Proto: http" \
+            "http://localhost:${ERPNEXT_PORT}${path}"
     fi
-    
-    curl_cmd="$curl_cmd 'http://localhost:${ERPNEXT_PORT}${path}'"
-    
-    eval $curl_cmd
 }
 
 erpnext::proxy::get() {

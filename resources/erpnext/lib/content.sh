@@ -56,7 +56,8 @@ erpnext::content::add() {
         doctype)
             if [[ -n "$file" ]] && [[ -f "$file" ]]; then
                 # Read doctype definition from file
-                local doctype_json=$(cat "$file")
+                local doctype_json
+                doctype_json=$(cat "$file")
                 name="${name:-$(echo "$doctype_json" | jq -r '.name // .doctype' 2>/dev/null)}"
             else
                 # Create simple doctype
@@ -162,7 +163,7 @@ erpnext::content::list() {
             # List local scripts
             log::info "Local Scripts:"
             if [[ -d "${HOME}/.erpnext/scripts" ]]; then
-                ls -1 "${HOME}/.erpnext/scripts" 2>/dev/null | sed 's/^/  - /' || echo "  None"
+                find "${HOME}/.erpnext/scripts" -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | sed 's/^/  - /' || echo "  None"
             else
                 echo "  None"
             fi

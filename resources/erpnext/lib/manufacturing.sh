@@ -50,7 +50,7 @@ erpnext::manufacturing::create_bom() {
     if [[ -z "$item_code" ]]; then
         log::error "Usage: manufacturing create-bom <item_code> [quantity]"
         return 1
-    }
+    fi
     
     local session_id
     session_id=$(erpnext::api::login 2>/dev/null) || {
@@ -59,7 +59,8 @@ erpnext::manufacturing::create_bom() {
     }
     
     # Create a basic BOM
-    local bom_data=$(jq -n \
+    local bom_data
+    bom_data=$(jq -n \
         --arg item "$item_code" \
         --arg qty "$quantity" \
         '{
@@ -70,7 +71,7 @@ erpnext::manufacturing::create_bom() {
             "is_default": 1,
             "items": []
         }')
-    
+
     local response
     response=$(timeout 5 curl -sf -X POST \
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
@@ -78,8 +79,8 @@ erpnext::manufacturing::create_bom() {
         -H "Content-Type: application/json" \
         -d "${bom_data}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/BOM" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "BOM for '$item_code' created successfully"
         echo "$response" | jq '.' 2>/dev/null || echo "$response"
     else
@@ -97,7 +98,7 @@ erpnext::manufacturing::add_bom_item() {
     if [[ -z "$bom_name" ]] || [[ -z "$item_code" ]]; then
         log::error "Usage: manufacturing add-bom-item <bom_name> <item_code> [quantity]"
         return 1
-    }
+    fi
     
     local session_id
     session_id=$(erpnext::api::login 2>/dev/null) || {
@@ -116,14 +117,15 @@ erpnext::manufacturing::add_bom_item() {
         log::error "BOM not found: $bom_name"
         erpnext::api::logout "$session_id" 2>/dev/null || true
         return 1
-    }
+    fi
     
     # Add item to BOM items array
-    local updated_bom=$(echo "$bom_response" | jq \
+    local updated_bom
+    updated_bom=$(echo "$bom_response" | jq \
         --arg item "$item_code" \
         --arg qty "$qty" \
         '.data.items += [{"item_code": $item, "qty": ($qty | tonumber)}]')
-    
+
     # Update BOM
     local response
     response=$(timeout 5 curl -sf -X PUT \
@@ -132,8 +134,8 @@ erpnext::manufacturing::add_bom_item() {
         -H "Content-Type: application/json" \
         -d "${updated_bom}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/BOM/${bom_name}" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "Added ${qty} x ${item_code} to BOM"
     else
         log::error "Failed to update BOM"
@@ -177,7 +179,7 @@ erpnext::manufacturing::create_work_order() {
     if [[ -z "$item_code" ]]; then
         log::error "Usage: manufacturing create-work-order <item_code> [quantity] [bom_name]"
         return 1
-    }
+    fi
     
     local session_id
     session_id=$(erpnext::api::login 2>/dev/null) || {
@@ -186,7 +188,8 @@ erpnext::manufacturing::create_work_order() {
     }
     
     # Create work order
-    local work_order_data=$(jq -n \
+    local work_order_data
+    work_order_data=$(jq -n \
         --arg item "$item_code" \
         --arg qty "$qty" \
         --arg bom "$bom" \
@@ -198,7 +201,7 @@ erpnext::manufacturing::create_work_order() {
             "wip_warehouse": "Work In Progress - TC",
             "fg_warehouse": "Finished Goods - TC"
         }')
-    
+
     local response
     response=$(timeout 5 curl -sf -X POST \
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
@@ -206,8 +209,8 @@ erpnext::manufacturing::create_work_order() {
         -H "Content-Type: application/json" \
         -d "${work_order_data}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Work Order" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "Work order for ${qty} x ${item_code} created successfully"
         echo "$response" | jq '.' 2>/dev/null || echo "$response"
     else

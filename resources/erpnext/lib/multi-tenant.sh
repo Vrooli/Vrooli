@@ -52,7 +52,7 @@ erpnext::multi_tenant::create_company() {
     if [[ -z "$company_name" ]] || [[ -z "$abbr" ]]; then
         log::error "Usage: multi-tenant create-company <company_name> <abbreviation> [currency] [country]"
         return 1
-    }
+    fi
     
     local session_id
     session_id=$(erpnext::api::login 2>/dev/null) || {
@@ -61,7 +61,8 @@ erpnext::multi_tenant::create_company() {
     }
     
     # Create new company/organization
-    local company_data=$(jq -n \
+    local company_data
+    company_data=$(jq -n \
         --arg name "$company_name" \
         --arg abbr "$abbr" \
         --arg curr "$currency" \
@@ -84,8 +85,8 @@ erpnext::multi_tenant::create_company() {
         -H "Content-Type: application/json" \
         -d "${company_data}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Company" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "Company '$company_name' created successfully"
         echo "$response" | jq '.' 2>/dev/null || echo "$response"
     else
@@ -102,12 +103,11 @@ erpnext::multi_tenant::create_company() {
 erpnext::multi_tenant::assign_user_to_company() {
     local user_email="${1}"
     local company_name="${2}"
-    local role="${3:-Employee}"
-    
+
     if [[ -z "$user_email" ]] || [[ -z "$company_name" ]]; then
         log::error "Usage: multi-tenant assign-user <user_email> <company_name> [role]"
         return 1
-    }
+    fi
     
     local session_id
     session_id=$(erpnext::api::login 2>/dev/null) || {
@@ -116,7 +116,8 @@ erpnext::multi_tenant::assign_user_to_company() {
     }
     
     # Create user permission for company
-    local permission_data=$(jq -n \
+    local permission_data
+    permission_data=$(jq -n \
         --arg user "$user_email" \
         --arg company "$company_name" \
         '{
@@ -134,8 +135,8 @@ erpnext::multi_tenant::assign_user_to_company() {
         -H "Content-Type: application/json" \
         -d "${permission_data}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/User Permission" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "User '$user_email' assigned to company '$company_name'"
     else
         log::warn "User assignment may already exist or failed"
@@ -154,7 +155,7 @@ erpnext::multi_tenant::switch_company() {
     if [[ -z "$company_name" ]]; then
         log::error "Usage: multi-tenant switch-company <company_name>"
         return 1
-    }
+    fi
     
     local session_id
     session_id=$(erpnext::api::login 2>/dev/null) || {
@@ -170,8 +171,8 @@ erpnext::multi_tenant::switch_company() {
         -H "Content-Type: application/json" \
         -d "{\"company\":\"${company_name}\"}" \
         "http://localhost:${ERPNEXT_PORT}/api/method/frappe.desk.doctype.desktop_icon.desktop_icon.set_default_company" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "Switched to company '$company_name'"
         echo "$response" | jq '.' 2>/dev/null || echo "$response"
     else
@@ -192,7 +193,7 @@ erpnext::multi_tenant::get_company_data() {
     if [[ -z "$company_name" ]]; then
         log::error "Usage: multi-tenant get-data <company_name> [doctype]"
         return 1
-    }
+    fi
     
     local session_id
     session_id=$(erpnext::api::login 2>/dev/null) || {
@@ -228,7 +229,7 @@ erpnext::multi_tenant::configure_company() {
     if [[ -z "$company_name" ]] || [[ -z "$setting" ]] || [[ -z "$value" ]]; then
         log::error "Usage: multi-tenant configure <company_name> <setting> <value>"
         return 1
-    }
+    fi
     
     local session_id
     session_id=$(erpnext::api::login 2>/dev/null) || {
@@ -237,11 +238,12 @@ erpnext::multi_tenant::configure_company() {
     }
     
     # Update company setting
-    local update_data=$(jq -n \
+    local update_data
+    update_data=$(jq -n \
         --arg setting "$setting" \
         --arg value "$value" \
         '{($setting): $value}')
-    
+
     local response
     response=$(timeout 5 curl -sf -X PUT \
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
@@ -249,8 +251,8 @@ erpnext::multi_tenant::configure_company() {
         -H "Content-Type: application/json" \
         -d "${update_data}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Company/${company_name}" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "Company '$company_name' setting '$setting' updated"
     else
         log::error "Failed to update company setting"

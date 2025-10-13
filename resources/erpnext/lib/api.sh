@@ -48,24 +48,24 @@ erpnext::api::login() {
     local username="${1:-Administrator}"
     local password="${2:-${ERPNEXT_ADMIN_PASSWORD:-admin}}"
     local site_name="${ERPNEXT_SITE_NAME:-vrooli.local}"
-    
+
     # Use cookie jar to capture session
     local cookie_file="/tmp/erpnext_cookies_$$"
-    
-    local response
-    response=$(timeout 5 curl -sf -c "$cookie_file" -X POST \
+
+    # shellcheck disable=SC2034  # response is used for exit code check
+    if timeout 5 curl -sf -c "$cookie_file" -X POST \
         -H "Host: ${site_name}" \
         -H "Content-Type: application/json" \
         -d "{\"usr\":\"${username}\",\"pwd\":\"${password}\"}" \
-        "http://localhost:${ERPNEXT_PORT}/api/method/login" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+        "http://localhost:${ERPNEXT_PORT}/api/method/login" &>/dev/null; then
+
         # Extract session ID from cookie file (last field on sid line)
-        local sid=$(grep -E "sid\s+" "$cookie_file" 2>/dev/null | awk '{print $NF}')
-        
+        local sid
+        sid=$(grep -E "sid\s+" "$cookie_file" 2>/dev/null | awk '{print $NF}')
+
         # Clean up cookie file
         rm -f "$cookie_file"
-        
+
         if [[ -n "$sid" ]]; then
             echo "$sid"
         else
@@ -101,16 +101,17 @@ erpnext::api::get() {
     local endpoint="${1}"
     local session_id="${2:-}"
     local site_name="${ERPNEXT_SITE_NAME:-vrooli.local}"
-    
-    local auth_header=""
+
     if [[ -n "$session_id" ]]; then
-        auth_header="-H \"Cookie: sid=${session_id}\""
+        timeout 5 curl -sf \
+            -H "Host: ${site_name}" \
+            -H "Cookie: sid=${session_id}" \
+            "http://localhost:${ERPNEXT_PORT}${endpoint}"
+    else
+        timeout 5 curl -sf \
+            -H "Host: ${site_name}" \
+            "http://localhost:${ERPNEXT_PORT}${endpoint}"
     fi
-    
-    eval timeout 5 curl -sf \
-        -H "Host: ${site_name}" \
-        $auth_header \
-        "http://localhost:${ERPNEXT_PORT}${endpoint}"
 }
 
 erpnext::api::post() {
@@ -118,18 +119,21 @@ erpnext::api::post() {
     local data="${2}"
     local session_id="${3:-}"
     local site_name="${ERPNEXT_SITE_NAME:-vrooli.local}"
-    
-    local auth_header=""
+
     if [[ -n "$session_id" ]]; then
-        auth_header="-H \"Cookie: sid=${session_id}\""
+        timeout 5 curl -sf -X POST \
+            -H "Host: ${site_name}" \
+            -H "Content-Type: application/json" \
+            -H "Cookie: sid=${session_id}" \
+            -d "${data}" \
+            "http://localhost:${ERPNEXT_PORT}${endpoint}"
+    else
+        timeout 5 curl -sf -X POST \
+            -H "Host: ${site_name}" \
+            -H "Content-Type: application/json" \
+            -d "${data}" \
+            "http://localhost:${ERPNEXT_PORT}${endpoint}"
     fi
-    
-    eval timeout 5 curl -sf -X POST \
-        -H "Host: ${site_name}" \
-        -H "Content-Type: application/json" \
-        $auth_header \
-        -d "'${data}'" \
-        "http://localhost:${ERPNEXT_PORT}${endpoint}"
 }
 
 ################################################################################

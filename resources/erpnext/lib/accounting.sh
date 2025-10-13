@@ -47,8 +47,8 @@ erpnext::accounting::list_invoices() {
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/${type// /%20}" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -84,10 +84,11 @@ erpnext::accounting::create_invoice() {
             return 1
         }
     fi
-    
+
     # Get current date in YYYY-MM-DD format
-    local posting_date=$(date +%Y-%m-%d)
-    
+    local posting_date
+    posting_date=$(date +%Y-%m-%d)
+
     local data="{
         \"doctype\":\"Sales Invoice\",
         \"customer\":\"${customer}\",
@@ -110,8 +111,8 @@ erpnext::accounting::create_invoice() {
         -H "Content-Type: application/json" \
         -d "$data" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Sales%20Invoice" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -147,8 +148,8 @@ erpnext::accounting::list_journal_entries() {
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Journal%20Entry" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -185,8 +186,8 @@ erpnext::accounting::list_accounts() {
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Account?limit=50" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -223,8 +224,8 @@ erpnext::accounting::list_payments() {
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Payment%20Entry" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -260,10 +261,11 @@ erpnext::accounting::create_payment() {
             return 1
         }
     fi
-    
+
     # Get current date in YYYY-MM-DD format
-    local posting_date=$(date +%Y-%m-%d)
-    
+    local posting_date
+    posting_date=$(date +%Y-%m-%d)
+
     # Determine party type based on payment type
     local party_type="Customer"
     [[ "$type" == "Pay" ]] && party_type="Supplier"
@@ -285,8 +287,8 @@ erpnext::accounting::create_payment() {
         -H "Content-Type: application/json" \
         -d "$data" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Payment%20Entry" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -330,8 +332,8 @@ erpnext::accounting::get_balance_sheet() {
             -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
             -H "Cookie: sid=${session_id}" \
             "http://localhost:${ERPNEXT_PORT}/api/resource/Account?filters=[[\"root_type\",\"=\",\"${account_type}\"]]&limit=20" 2>/dev/null)
-        
-        if [[ $? -eq 0 ]]; then
+
+        if [[ -n "$response" ]]; then
             echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)

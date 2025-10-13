@@ -52,7 +52,7 @@ erpnext::ecommerce::add_product() {
     if [[ -z "$item_code" ]] || [[ -z "$item_name" ]]; then
         log::error "Usage: ecommerce add-product <item_code> <item_name> [price] [description]"
         return 1
-    }
+    fi
     
     local session_id
     session_id=$(erpnext::api::login 2>/dev/null) || {
@@ -61,7 +61,8 @@ erpnext::ecommerce::add_product() {
     }
     
     # Create item with e-commerce settings
-    local item_data=$(jq -n \
+    local item_data
+    item_data=$(jq -n \
         --arg code "$item_code" \
         --arg name "$item_name" \
         --arg price "$price" \
@@ -78,7 +79,7 @@ erpnext::ecommerce::add_product() {
             "standard_rate": ($price | tonumber),
             "description": $desc
         }')
-    
+
     local response
     response=$(timeout 5 curl -sf -X POST \
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
@@ -86,8 +87,8 @@ erpnext::ecommerce::add_product() {
         -H "Content-Type: application/json" \
         -d "${item_data}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Item" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "Product '$item_name' added successfully"
         echo "$response" | jq '.' 2>/dev/null || echo "$response"
     else
@@ -102,8 +103,9 @@ erpnext::ecommerce::add_product() {
 ################################################################################
 
 erpnext::ecommerce::get_cart() {
+    # shellcheck disable=SC2034  # customer reserved for future multi-customer support
     local customer="${1:-Guest}"
-    
+
     local session_id
     session_id=$(erpnext::api::login 2>/dev/null) || {
         log::error "Failed to authenticate"
@@ -133,7 +135,7 @@ erpnext::ecommerce::add_to_cart() {
     if [[ -z "$item_code" ]]; then
         log::error "Usage: ecommerce add-to-cart <item_code> [quantity]"
         return 1
-    }
+    fi
     
     local session_id
     session_id=$(erpnext::api::login 2>/dev/null) || {
@@ -149,8 +151,8 @@ erpnext::ecommerce::add_to_cart() {
         -H "Content-Type: application/json" \
         -d "{\"item_code\":\"${item_code}\",\"qty\":${qty}}" \
         "http://localhost:${ERPNEXT_PORT}/api/method/erpnext.shopping_cart.cart.update_cart" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "Added ${qty} x ${item_code} to cart"
         echo "$response" | jq '.' 2>/dev/null || echo "$response"
     else
@@ -175,7 +177,8 @@ erpnext::ecommerce::configure_store() {
     }
     
     # Configure shopping cart settings
-    local settings_data=$(jq -n \
+    local settings_data
+    settings_data=$(jq -n \
         --arg name "$store_name" \
         --arg curr "$currency" \
         '{
@@ -187,7 +190,7 @@ erpnext::ecommerce::configure_store() {
             "show_price": 1,
             "show_stock_availability": 1
         }')
-    
+
     local response
     response=$(timeout 5 curl -sf -X POST \
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
@@ -195,8 +198,8 @@ erpnext::ecommerce::configure_store() {
         -H "Content-Type: application/json" \
         -d "${settings_data}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Shopping Cart Settings" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "Store configured successfully"
     else
         log::warn "Store configuration may already exist or failed"

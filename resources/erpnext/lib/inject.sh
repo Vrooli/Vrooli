@@ -59,8 +59,9 @@ erpnext::inject::app() {
     local target_dir="$2"
     
     mkdir -p "$target_dir"
-    
-    local filename="$(basename "$file")"
+
+    local filename
+    filename="$(basename "$file")"
     cp "$file" "$target_dir/$filename" || {
         log::error "Failed to copy app file"
         return 1
@@ -89,8 +90,9 @@ erpnext::inject::doctype() {
         log::error "Invalid JSON in DocType file"
         return 1
     fi
-    
-    local filename="$(basename "$file")"
+
+    local filename
+    filename="$(basename "$file")"
     cp "$file" "$target_dir/$filename" || {
         log::error "Failed to copy DocType file"
         return 1
@@ -117,8 +119,9 @@ erpnext::inject::script() {
     if ! python3 -m py_compile "$file" 2>/dev/null; then
         log::warn "Python syntax check failed, but continuing..."
     fi
-    
-    local filename="$(basename "$file")"
+
+    local filename
+    filename="$(basename "$file")"
     cp "$file" "$target_dir/$filename" || {
         log::error "Failed to copy script file"
         return 1

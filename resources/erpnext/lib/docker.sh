@@ -37,7 +37,7 @@ erpnext::docker::stop() {
 erpnext::docker::pull() {
     log::info "Pulling ERPNext Docker images..."
     
-    docker pull frappe/erpnext:${ERPNEXT_VERSION} || {
+    docker pull "frappe/erpnext:${ERPNEXT_VERSION}" || {
         log::error "Failed to pull ERPNext image"
         return 1
     }

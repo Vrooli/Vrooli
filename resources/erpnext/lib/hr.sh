@@ -46,8 +46,8 @@ erpnext::hr::list_employees() {
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Employee" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -92,7 +92,8 @@ erpnext::hr::create_employee() {
     fi
     
     # Get current date for joining
-    local date_of_joining=$(date +%Y-%m-%d)
+    local date_of_joining
+    date_of_joining=$(date +%Y-%m-%d)
     local employee_name="${first_name} ${last_name}"
     
     # Build JSON data
@@ -115,8 +116,8 @@ erpnext::hr::create_employee() {
         -H "Content-Type: application/json" \
         -d "$data" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Employee" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -152,8 +153,8 @@ erpnext::hr::list_departments() {
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Department" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -190,8 +191,8 @@ erpnext::hr::list_leave_applications() {
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Leave%20Application" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -246,8 +247,8 @@ erpnext::hr::create_leave_application() {
         -H "Content-Type: application/json" \
         -d "$data" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Leave%20Application" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -284,8 +285,8 @@ erpnext::hr::list_attendance() {
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Attendance?filters=[[\"attendance_date\",\"=\",\"${date}\"]]" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "Attendance for $date:"
         echo "$response" | python3 -c "
 import sys, json
@@ -337,8 +338,8 @@ erpnext::hr::mark_attendance() {
         -H "Content-Type: application/json" \
         -d "$data" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Attendance" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -374,8 +375,8 @@ erpnext::hr::list_salary_structures() {
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Salary%20Structure" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)

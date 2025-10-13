@@ -235,7 +235,8 @@ erpnext::workflow::cli::list() {
     result=$(erpnext::workflow::list "$session_id")
 
     if [[ -n "$result" ]]; then
-        local count=$(echo "$result" | jq '.data | length' 2>/dev/null || echo "0")
+        local count
+        count=$(echo "$result" | jq '.data | length' 2>/dev/null || echo "0")
         if [[ "$count" -eq "0" ]]; then
             log::info "No workflows found. Creating sample workflow..."
             local sample_result

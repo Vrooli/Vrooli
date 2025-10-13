@@ -28,7 +28,8 @@ erpnext::mobile_ui::enable_responsive() {
     }
     
     # Enable mobile-responsive settings
-    local settings_data=$(jq -n '{
+    local settings_data
+    settings_data=$(jq -n '{
         "doctype": "Website Settings",
         "enable_view_tracking": 1,
         "disable_signup": 0,
@@ -38,7 +39,7 @@ erpnext::mobile_ui::enable_responsive() {
         "navbar_template": "Standard Navbar",
         "footer_template": "Standard Footer"
     }')
-    
+
     local response
     response=$(timeout 5 curl -sf -X POST \
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
@@ -46,8 +47,8 @@ erpnext::mobile_ui::enable_responsive() {
         -H "Content-Type: application/json" \
         -d "${settings_data}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Website Settings" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "Mobile responsive UI enabled"
     else
         log::warn "Mobile UI settings may already exist"
@@ -68,7 +69,8 @@ erpnext::mobile_ui::configure_theme() {
     }
     
     # Create or update mobile-optimized theme
-    local theme_data=$(jq -n \
+    local theme_data
+    theme_data=$(jq -n \
         --arg name "$theme_name" \
         --arg primary "$primary_color" \
         --arg bg "$background_color" \
@@ -84,7 +86,7 @@ erpnext::mobile_ui::configure_theme() {
             "button_rounded_corners": 1,
             "button_shadows": 0
         }')
-    
+
     local response
     response=$(timeout 5 curl -sf -X POST \
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
@@ -92,8 +94,8 @@ erpnext::mobile_ui::configure_theme() {
         -H "Content-Type: application/json" \
         -d "${theme_data}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Website Theme" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "Mobile theme '$theme_name' configured"
     else
         log::warn "Theme configuration may already exist"
@@ -117,7 +119,8 @@ erpnext::mobile_ui::configure_pwa() {
     }
     
     # Configure Progressive Web App settings
-    local pwa_data=$(jq -n \
+    local pwa_data
+    pwa_data=$(jq -n \
         --arg name "$app_name" \
         --arg short "$app_short_name" \
         '{
@@ -133,7 +136,7 @@ erpnext::mobile_ui::configure_pwa() {
             "display": "standalone",
             "orientation": "portrait"
         }')
-    
+
     local response
     response=$(timeout 5 curl -sf -X POST \
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
@@ -141,8 +144,8 @@ erpnext::mobile_ui::configure_pwa() {
         -H "Content-Type: application/json" \
         -d "${pwa_data}" \
         "http://localhost:${ERPNEXT_PORT}/api/method/frappe.website.doctype.website_settings.website_settings.set_pwa_settings" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "PWA configuration set for '$app_name'"
     else
         log::warn "PWA settings may already be configured"
@@ -198,11 +201,12 @@ erpnext::mobile_ui::optimize_touch() {
     }
     
     # Add custom CSS for touch optimization
-    local css_data=$(jq -n '{
+    local css_data
+    css_data=$(jq -n '{
         "doctype": "Custom CSS",
         "css": "/* Touch-friendly targets */\n.clickable, .btn, a, input, select, textarea {\n  min-height: 44px;\n  min-width: 44px;\n}\n\n/* Improved touch scrolling */\n.scrollable {\n  -webkit-overflow-scrolling: touch;\n  overflow-y: auto;\n}\n\n/* Disable hover effects on touch devices */\n@media (hover: none) {\n  .hover-effect:hover {\n    background: inherit;\n  }\n}\n\n/* Larger form inputs on mobile */\n@media (max-width: 768px) {\n  input, select, textarea {\n    font-size: 16px !important;\n  }\n}"
     }')
-    
+
     local response
     response=$(timeout 5 curl -sf -X POST \
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
@@ -210,8 +214,8 @@ erpnext::mobile_ui::optimize_touch() {
         -H "Content-Type: application/json" \
         -d "${css_data}" \
         "http://localhost:${ERPNEXT_PORT}/api/method/frappe.website.doctype.website_settings.website_settings.add_custom_css" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "Touch optimization applied"
     else
         log::warn "Touch optimization may already be configured"
@@ -234,7 +238,8 @@ erpnext::mobile_ui::create_mobile_dashboard() {
     }
     
     # Create mobile-optimized dashboard
-    local dashboard_data=$(jq -n \
+    local dashboard_data
+    dashboard_data=$(jq -n \
         --arg name "$dashboard_name" \
         '{
             "doctype": "Dashboard",
@@ -267,7 +272,7 @@ erpnext::mobile_ui::create_mobile_dashboard() {
                 }
             ]
         }')
-    
+
     local response
     response=$(timeout 5 curl -sf -X POST \
         -H "Host: ${ERPNEXT_SITE_NAME:-vrooli.local}" \
@@ -275,8 +280,8 @@ erpnext::mobile_ui::create_mobile_dashboard() {
         -H "Content-Type: application/json" \
         -d "${dashboard_data}" \
         "http://localhost:${ERPNEXT_PORT}/api/resource/Dashboard" 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
+
+    if [[ -n "$response" ]]; then
         log::success "Mobile dashboard '$dashboard_name' created"
     else
         log::warn "Dashboard may already exist"

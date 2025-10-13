@@ -332,9 +332,10 @@ erpnext::report::cli::export() {
     # Export report
     local result
     result=$(erpnext::report::export "$report_name" "$format" "$filters" "$session_id")
-    
+
     if [[ -n "$result" ]]; then
-        local output_file="/tmp/erpnext_report_${report_name}_$(date +%Y%m%d_%H%M%S).${format}"
+        local output_file
+        output_file="/tmp/erpnext_report_${report_name}_$(date +%Y%m%d_%H%M%S).${format}"
         echo "$result" > "$output_file"
         log::success "Report exported to: $output_file"
     else

@@ -2,7 +2,7 @@
 
 Complete open-source ERP with accounting, inventory, HR, CRM, and project management capabilities.
 
-**Status**: ✅ v2.0 Contract Compliant | 100% PRD Complete | All Tests Passing
+**Status**: ✅ v2.0 Contract Compliant | 94% PRD Complete (15/16 requirements) | All Tests Passing
 
 ## Overview
 
@@ -212,10 +212,7 @@ erpnext::api::get "/api/resource/User" "$SESSION_ID"
 ## Documentation
 
 - [Product Requirements Document](PRD.md) - Complete feature specifications and progress
-- [Configuration Guide](docs/configuration.md)
-- [API Reference](docs/api.md)
-- [Custom App Development](docs/custom-apps.md)
-- [Injection Guide](docs/injection.md)
+- [Known Problems and Solutions](PROBLEMS.md) - Troubleshooting guide and common issues
 
 ## Resource Requirements
 

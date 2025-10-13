@@ -220,11 +220,13 @@ erpnext::projects::cli::list() {
     result=$(erpnext::projects::list "$session_id")
 
     if [[ -n "$result" ]]; then
-        local count=$(echo "$result" | jq '.data | length' 2>/dev/null || echo "0")
+        local count
+        count=$(echo "$result" | jq '.data | length' 2>/dev/null || echo "0")
         if [[ "$count" -eq "0" ]]; then
             log::info "No projects found. Creating sample project..."
             # Create sample project
-            local project_json='{
+            local project_json
+            project_json='{
                 "doctype": "Project",
                 "project_name": "Website Redesign",
                 "expected_start_date": "'$(date +%Y-%m-%d)'",
@@ -315,7 +317,8 @@ erpnext::projects::cli::add_task() {
     fi
 
     # Create task
-    local task_json="{
+    local task_json
+    task_json="{
         \"doctype\": \"Task\",
         \"subject\": \"${task_subject}\",
         \"project\": \"${project}\",
@@ -430,7 +433,8 @@ erpnext::projects::cli::log_time() {
     fi
 
     # Create timesheet
-    local timesheet_json="{
+    local timesheet_json
+    timesheet_json="{
         \"doctype\": \"Timesheet\",
         \"time_logs\": [{
             \"project\": \"${project}\",

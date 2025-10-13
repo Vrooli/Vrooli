@@ -233,7 +233,8 @@ erpnext::inventory::cli::list_items() {
     result=$(erpnext::inventory::list_items "$session_id")
 
     if [[ -n "$result" ]]; then
-        local count=$(echo "$result" | jq '.data | length' 2>/dev/null || echo "0")
+        local count
+        count=$(echo "$result" | jq '.data | length' 2>/dev/null || echo "0")
         if [[ "$count" -eq "0" ]]; then
             log::info "No items found. Creating sample items..."
             # Create sample items
@@ -342,7 +343,8 @@ erpnext::inventory::cli::list_warehouses() {
     result=$(erpnext::inventory::list_warehouses "$session_id")
 
     if [[ -n "$result" ]]; then
-        local count=$(echo "$result" | jq '.data | length' 2>/dev/null || echo "0")
+        local count
+        count=$(echo "$result" | jq '.data | length' 2>/dev/null || echo "0")
         if [[ "$count" -eq "0" ]]; then
             log::info "No warehouses found. Creating default warehouse..."
             local warehouse='{"doctype":"Warehouse","warehouse_name":"Main Warehouse","warehouse_type":"Transit"}'
@@ -381,7 +383,8 @@ erpnext::inventory::cli::create_po() {
     fi
 
     # Create purchase order
-    local po_json="{
+    local po_json
+    po_json="{
         \"doctype\":\"Purchase Order\",
         \"supplier\":\"${supplier}\",
         \"transaction_date\":\"$(date +%Y-%m-%d)\",

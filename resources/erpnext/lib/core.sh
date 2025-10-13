@@ -15,6 +15,7 @@ ERPNEXT_CONFIG_DIR="${ERPNEXT_RESOURCE_DIR}/config"
 
 # Source dependencies
 source "${APP_ROOT}/scripts/lib/utils/var.sh" || return 1
+# shellcheck disable=SC2154  # var_LIB_UTILS_DIR is set by var.sh
 source "${var_LIB_UTILS_DIR}/format.sh" || return 1
 source "${var_LIB_UTILS_DIR}/log.sh" || return 1
 source "${APP_ROOT}/scripts/resources/port_registry.sh" || return 1
@@ -247,7 +248,7 @@ erpnext::status() {
         
         # API status
         local api_status
-        api_status=$(erpnext::get_api_status 2>/dev/null || echo "Unknown")
+        api_status=$(erpnext::get_api_status 5 2>/dev/null || echo "Unknown")
         if [[ "$api_status" == *"operational"* ]]; then
             log::success "  API: $api_status"
         else
