@@ -9,6 +9,31 @@ require('dotenv').config();
 
 const app = express();
 
+app.use(express.json({ limit: '256kb' }));
+
+const CLIENT_DEBUG_EVENTS = [];
+
+app.post('/__debug/client-event', (req, res) => {
+    const { event, detail, timestamp, userAgent } = req.body || {};
+    const entry = {
+        event: typeof event === 'string' ? event : 'unknown',
+        timestamp: typeof timestamp === 'number' ? new Date(timestamp).toISOString() : new Date().toISOString(),
+        detail: detail || null,
+        userAgent: userAgent || req.headers['user-agent'] || null,
+        ip: req.ip,
+    };
+    CLIENT_DEBUG_EVENTS.push(entry);
+    if (CLIENT_DEBUG_EVENTS.length > 250) {
+        CLIENT_DEBUG_EVENTS.splice(0, CLIENT_DEBUG_EVENTS.length - 250);
+    }
+    console.log('[CLIENT_EVENT]', JSON.stringify(entry));
+    res.status(204).end();
+});
+
+app.get('/__debug/client-event', (_req, res) => {
+    res.json({ events: CLIENT_DEBUG_EVENTS });
+});
+
 // Ensure required environment variables are set
 if (!process.env.UI_PORT) {
     console.error('Error: UI_PORT environment variable is required');

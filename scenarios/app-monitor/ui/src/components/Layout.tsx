@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
@@ -161,6 +161,46 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   const historyButtonRef = useRef<HTMLButtonElement | null>(null);
   const historyMenuRef = useRef<HTMLDivElement | null>(null);
   const historyItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const recordRouteDebug = useCallback((event: string, detail?: Record<string, unknown>) => {
+    try {
+      const payload = {
+        event,
+        timestamp: Date.now(),
+        detail: {
+          pathname: location.pathname,
+          search: location.search,
+          ...(detail ?? {}),
+        },
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+      };
+      const body = JSON.stringify(payload);
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        const blob = new Blob([body], { type: 'application/json' });
+        navigator.sendBeacon('/__debug/client-event', blob);
+      } else {
+        void fetch('/__debug/client-event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          keepalive: true,
+        });
+      }
+    } catch (error) {
+      // Debug logging is best-effort
+    }
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    recordRouteDebug('route-change', { key: location.key });
+  }, [location.key, recordRouteDebug]);
+
+  useEffect(() => {
+    recordRouteDebug('layout-mount');
+    return () => {
+      recordRouteDebug('layout-unmount');
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const previewRouteInfo = useMemo(() => {
     const match = location.pathname.match(/^\/apps\/([^/]+)\/preview/);
@@ -561,6 +601,11 @@ export default function Layout({ children, isConnected }: LayoutProps) {
       return;
     }
 
+    recordRouteDebug('navigate-event', {
+      source: 'history-menu',
+      targetPath: `/apps/${encodeURIComponent(identifier)}/preview`,
+      search: location.search || undefined,
+    });
     navigate({
       pathname: `/apps/${encodeURIComponent(identifier)}/preview`,
       search: location.search || undefined,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { Search as SearchIcon, SlidersHorizontal, X } from 'lucide-react';
 import { appService } from '@/services/api';
@@ -346,6 +346,7 @@ const AppsView = memo(() => {
   const storeError = useAppsStore(state => state.error);
   const clearError = useAppsStore(state => state.clearError);
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
   const initialSortParam = searchParams.get('sort');
@@ -364,6 +365,35 @@ const AppsView = memo(() => {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const prevFiltersRef = useRef({ search, sortOption, viewMode });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const recordNavigateEvent = useCallback((info: Record<string, unknown>) => {
+    try {
+      const payload = {
+        event: 'navigate-event',
+        timestamp: Date.now(),
+        detail: {
+          pathname: location.pathname,
+          search: location.search,
+          ...info,
+        },
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+      };
+      const body = JSON.stringify(payload);
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        const blob = new Blob([body], { type: 'application/json' });
+        navigator.sendBeacon('/__debug/client-event', blob);
+      } else {
+        void fetch('/__debug/client-event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          keepalive: true,
+        });
+      }
+    } catch (error) {
+      // best-effort debug logging
+    }
+  }, [location.pathname, location.search]);
 
   const loading = loadingInitial && apps.length === 0;
   const hydrating = loadingDetailed;
@@ -703,6 +733,13 @@ const AppsView = memo(() => {
 
   const handleAppPreview = useCallback((app: App) => {
     const currentSearch = searchParams.toString();
+    recordNavigateEvent({
+      source: 'apps-grid',
+      action: 'preview',
+      appId: app.id,
+      targetPath: `/apps/${encodeURIComponent(app.id)}/preview`,
+      targetSearch: currentSearch ? `?${currentSearch}` : undefined,
+    });
     navigate({
       pathname: `/apps/${encodeURIComponent(app.id)}/preview`,
       search: currentSearch ? `?${currentSearch}` : undefined,
@@ -713,13 +750,19 @@ const AppsView = memo(() => {
         navTimestamp: Date.now(),
       },
     });
-  }, [navigate, searchParams]);
+  }, [navigate, recordNavigateEvent, searchParams]);
 
   const handleViewLogs = useCallback((appId: string) => {
     setModalOpen(false);
     setSelectedApp(null);
+    recordNavigateEvent({
+      source: 'apps-grid',
+      action: 'view-logs',
+      appId,
+      targetPath: `/logs/${appId}`,
+    });
     navigate(`/logs/${appId}`);
-  }, [navigate]);
+  }, [navigate, recordNavigateEvent]);
 
   const toggleViewMode = useCallback(() => {
     setViewMode(prev => prev === 'grid' ? 'list' : 'grid');

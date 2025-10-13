@@ -18,7 +18,7 @@ const PREVIEW_LOAD_TIMEOUT_MS = 6000;
 const PREVIEW_CONNECTING_LABEL = 'Connecting to preview...';
 const PREVIEW_TIMEOUT_MESSAGE = 'Preview did not respond. Ensure the application UI is running and reachable from App Monitor.';
 const PREVIEW_MIXED_CONTENT_MESSAGE = 'Preview blocked: browser refused to load HTTP content inside an HTTPS dashboard. Expose the UI through the tunnel hostname or enable HTTPS for the scenario.';
-const IOS_AUTOBACK_GUARD_MS = 1500;
+const IOS_AUTOBACK_GUARD_MS = 15000;
 
 const AppPreviewView = () => {
   const apps = useAppsStore(state => state.apps);
@@ -85,12 +85,96 @@ const AppPreviewView = () => {
     handledCount: 0,
   });
   const iosGuardedLocationKeyRef = useRef<string | null>(null);
+  const lastStateSnapshotRef = useRef<string>('');
+
+  const recordDebugEvent = useCallback((event: string, detail?: Record<string, unknown>) => {
+    try {
+      if (typeof window === 'undefined') {
+        return;
+      }
+      const payload = {
+        event,
+        timestamp: Date.now(),
+        detail: detail ?? null,
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+      };
+      const body = JSON.stringify(payload);
+      if (navigator && typeof navigator.sendBeacon === 'function') {
+        const blob = new Blob([body], { type: 'application/json' });
+        navigator.sendBeacon('/__debug/client-event', blob);
+      } else {
+        void fetch('/__debug/client-event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          keepalive: true,
+        });
+      }
+    } catch (error) {
+      // Best-effort debug logging; ignore failures
+    }
+  }, []);
+
+  const recordNavigateEvent = useCallback((info: Record<string, unknown>) => {
+    recordDebugEvent('navigate-event', {
+      appId,
+      ...info,
+    });
+  }, [appId, recordDebugEvent]);
+
+  const updatePreviewGuard = useCallback((patch: Record<string, unknown>) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const globalWindow = window as typeof window & {
+      __appMonitorPreviewGuard?: {
+        active: boolean;
+        armedAt: number;
+        ttl: number;
+        key: string | null;
+        appId: string | null;
+        recoverPath: string | null;
+      ignoreNextPopstate?: boolean;
+      lastSuppressedAt?: number;
+      recoverState?: unknown;
+      };
+    };
+    const guard = globalWindow.__appMonitorPreviewGuard ?? {
+      active: false,
+      armedAt: 0,
+      ttl: IOS_AUTOBACK_GUARD_MS,
+      key: null,
+      appId: null,
+      recoverPath: null,
+      ignoreNextPopstate: false,
+      lastSuppressedAt: 0,
+    };
+    Object.assign(guard, patch);
+    guard.ttl = typeof guard.ttl === 'number' ? guard.ttl : IOS_AUTOBACK_GUARD_MS;
+    globalWindow.__appMonitorPreviewGuard = guard;
+    recordDebugEvent('preview-guard-update', guard);
+  }, [recordDebugEvent]);
 
   useEffect(() => {
     if (!hasInitialized && !loadingInitial) {
       void loadApps();
     }
   }, [hasInitialized, loadApps, loadingInitial]);
+
+  useEffect(() => {
+    recordDebugEvent('preview-mount', {
+      appId,
+      locationState,
+      isIosSafari,
+      pathname: location.pathname,
+    });
+    return () => {
+      recordDebugEvent('preview-unmount', {
+        appId: lastAppIdRef.current,
+      });
+      updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
+    };
+  }, [appId, isIosSafari, location.pathname, locationState, recordDebugEvent, updatePreviewGuard]);
 
   useEffect(() => {
     if (appId) {
@@ -139,7 +223,22 @@ const AppPreviewView = () => {
       guard.active = false;
       guard.timeoutId = null;
     }, IOS_AUTOBACK_GUARD_MS);
-  }, [isIosSafari, location.key, locationState?.fromAppsList, locationState?.suppressedAutoBack]);
+    recordDebugEvent('ios-guard-armed', {
+      key: location.key,
+      appId,
+      navTimestamp: locationState?.navTimestamp,
+    });
+    updatePreviewGuard({
+      active: true,
+      armedAt: Date.now(),
+      ttl: IOS_AUTOBACK_GUARD_MS,
+      key: location.key,
+      appId: appId ?? null,
+      recoverPath: `${location.pathname}${location.search ?? ''}`,
+      ignoreNextPopstate: false,
+      recoverState: typeof window !== 'undefined' ? window.history.state : undefined,
+    });
+  }, [appId, isIosSafari, location.key, locationState?.fromAppsList, locationState?.suppressedAutoBack, locationState?.navTimestamp, recordDebugEvent, updatePreviewGuard]);
 
   useEffect(() => {
     if (!isIosSafari) {
@@ -164,6 +263,11 @@ const AppPreviewView = () => {
         }
         const targetLocation = previewLocationRef.current;
         const hasTargetPath = Boolean(targetLocation.pathname);
+        recordDebugEvent('ios-popstate-suppressed', {
+          elapsed,
+          appId,
+          targetPath: targetLocation.pathname,
+        });
         if (hasTargetPath) {
           const nextState: PreviewLocationState = {
             ...(locationState ?? {}),
@@ -172,12 +276,25 @@ const AppPreviewView = () => {
             navTimestamp: locationState?.navTimestamp ?? Date.now(),
             suppressedAutoBack: true,
           };
-          navigate({
-            pathname: targetLocation.pathname,
-            search: targetLocation.search || undefined,
-          }, {
-            replace: true,
-            state: nextState,
+          window.requestAnimationFrame(() => {
+            recordNavigateEvent({
+              reason: 'ios-guard-restore',
+              targetPath: targetLocation.pathname,
+              targetSearch: targetLocation.search,
+              replace: true,
+            });
+            navigate({
+              pathname: targetLocation.pathname,
+              search: targetLocation.search || undefined,
+            }, {
+              replace: true,
+              state: nextState,
+            });
+            recordDebugEvent('ios-guard-restore', {
+              pathname: targetLocation.pathname,
+              search: targetLocation.search,
+              appId,
+            });
           });
         }
         return;
@@ -188,6 +305,10 @@ const AppPreviewView = () => {
         window.clearTimeout(guard.timeoutId);
         guard.timeoutId = null;
       }
+      recordDebugEvent('ios-popstate-allowed', {
+        elapsed,
+        appId,
+      });
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -199,8 +320,12 @@ const AppPreviewView = () => {
       }
       guard.active = false;
       guard.handledCount = 0;
+      recordDebugEvent('ios-guard-disposed', {
+        appId,
+      });
+      updatePreviewGuard({ active: false, key: null });
     };
-  }, [isIosSafari, locationState, navigate]);
+  }, [appId, isIosSafari, locationState, navigate, recordDebugEvent, updatePreviewGuard]);
 
   const matchesAppIdentifier = useCallback((app: App, identifier?: string | null) => {
     if (!identifier) {
@@ -276,6 +401,12 @@ const AppPreviewView = () => {
       suppressedAutoBack: false,
     };
 
+    recordNavigateEvent({
+      reason: 'ios-guard-reset-state',
+      targetPath: location.pathname,
+      targetSearch: location.search,
+      replace: true,
+    });
     navigate({
       pathname: location.pathname,
       search: location.search || undefined,
@@ -283,7 +414,13 @@ const AppPreviewView = () => {
       replace: true,
       state: nextState,
     });
-  }, [isIosSafari, location.pathname, location.search, locationState, navigate]);
+    recordDebugEvent('ios-guard-reset-state', {
+      pathname: location.pathname,
+      search: location.search,
+      appId,
+    });
+    updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
+  }, [appId, isIosSafari, location.pathname, location.search, locationState, navigate, recordDebugEvent, recordNavigateEvent, updatePreviewGuard]);
 
   const resetPreviewState = useCallback((options?: { force?: boolean }) => {
     if (!options?.force && hasCustomPreviewUrl) {
@@ -590,14 +727,22 @@ const AppPreviewView = () => {
   const canGoForward = bridgeState.isSupported ? bridgeState.canGoForward : (historyIndex >= 0 && historyIndex < history.length - 1);
   const openPreviewTarget = bridgeState.isSupported && bridgeState.href ? bridgeState.href : previewUrl;
 
-    useEffect(() => {
+  useEffect(() => {
     if (!appId) {
+      recordNavigateEvent({
+        reason: 'missing-app-id',
+        targetPath: '/apps',
+        targetSearch: location.search || undefined,
+        replace: true,
+        locationState,
+      });
+      updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
       navigate({
         pathname: '/apps',
         search: location.search || undefined,
       }, { replace: true });
     }
-  }, [appId, location.search, navigate]);
+  }, [appId, location.search, locationState, navigate, recordNavigateEvent, updatePreviewGuard]);
 
   useEffect(() => {
     setFetchAttempted(false);
@@ -738,6 +883,26 @@ const AppPreviewView = () => {
       setCurrentApp(match);
     }
   }, [apps, appId]);
+
+  useEffect(() => {
+    const storeMatch = appId ? locateAppByIdentifier(apps, appId) : null;
+    const snapshot = {
+      appId,
+      hasCurrentApp: Boolean(currentApp),
+      currentStatus: currentApp?.status ?? null,
+      currentIsPartial: currentApp?.is_partial ?? null,
+      appsCount: apps.length,
+      hasStoreMatch: Boolean(storeMatch),
+      matchIsPartial: storeMatch?.is_partial ?? null,
+      locationKey: location.key,
+      locationState,
+    };
+    const snapshotKey = JSON.stringify(snapshot);
+    if (snapshotKey !== lastStateSnapshotRef.current) {
+      lastStateSnapshotRef.current = snapshotKey;
+      recordDebugEvent('preview-state', snapshot);
+    }
+  }, [appId, apps, currentApp, location.key, locationState, recordDebugEvent]);
 
   useEffect(() => {
     const appIdentifier = currentApp?.id;
@@ -1052,6 +1217,7 @@ const AppPreviewView = () => {
   }, [appId, bridgeState.href, commitAppUpdate, hasCustomPreviewUrl, previewUrl, reloadPreview]);
 
   const handleGoBack = useCallback(() => {
+    updatePreviewGuard({ active: false, key: null });
     if (bridgeState.isSupported) {
       sendBridgeNav('BACK');
       return;
@@ -1068,7 +1234,7 @@ const AppPreviewView = () => {
     setPreviewUrlInput(targetUrl);
     setHasCustomPreviewUrl(true);
     setStatusMessage(null);
-  }, [bridgeState.isSupported, history, historyIndex, sendBridgeNav]);
+  }, [bridgeState.isSupported, history, historyIndex, sendBridgeNav, updatePreviewGuard]);
 
   const handleGoForward = useCallback(() => {
     if (bridgeState.isSupported) {
@@ -1101,9 +1267,14 @@ const AppPreviewView = () => {
 
   const handleViewLogs = useCallback(() => {
     if (currentApp) {
+      recordNavigateEvent({
+        reason: 'toolbar-view-logs',
+        targetPath: `/logs/${currentApp.id}`,
+      });
+      updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
       navigate(`/logs/${currentApp.id}`);
     }
-  }, [currentApp, navigate]);
+  }, [currentApp, navigate, recordNavigateEvent, updatePreviewGuard]);
 
   const handleIframeLoad = useCallback(() => {
     setIframeLoadError(null);
@@ -1361,6 +1532,11 @@ const AppPreviewView = () => {
           onAction={handleAppAction}
           onViewLogs={(appIdentifier) => {
             setModalOpen(false);
+            recordNavigateEvent({
+              reason: 'modal-view-logs',
+              targetPath: `/logs/${appIdentifier}`,
+            });
+            updatePreviewGuard({ active: false, key: null, recoverPath: null, recoverState: null });
             navigate(`/logs/${appIdentifier}`);
           }}
           proxyMetadata={proxyMetadata}
