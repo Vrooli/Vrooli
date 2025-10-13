@@ -32,6 +32,7 @@ const AppPreviewView = () => {
     fromAppsList?: boolean;
     originAppId?: string;
     navTimestamp?: number;
+    suppressedAutoBack?: boolean;
   };
   const location = useLocation();
   const locationState: PreviewLocationState | null = location.state && typeof location.state === 'object'
@@ -47,6 +48,8 @@ const AppPreviewView = () => {
     const isExcluded = /CriOS|FxiOS|OPiOS|EdgiOS/i.test(ua);
     return isIOS && isWebKit && !isExcluded;
   }, []);
+  const previewLocationRef = useRef<{ pathname: string; search: string }>({ pathname: location.pathname, search: location.search || '' });
+  const lastAppIdRef = useRef<string | null>(appId ?? null);
   const [currentApp, setCurrentApp] = useState<App | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewUrlInput, setPreviewUrlInput] = useState('');
@@ -90,6 +93,16 @@ const AppPreviewView = () => {
   }, [hasInitialized, loadApps, loadingInitial]);
 
   useEffect(() => {
+    if (appId) {
+      lastAppIdRef.current = appId;
+      previewLocationRef.current = {
+        pathname: `/apps/${encodeURIComponent(appId)}/preview`,
+        search: location.search || '',
+      };
+    }
+  }, [appId, location.search]);
+
+  useEffect(() => {
     if (!isIosSafari) {
       iosGuardedLocationKeyRef.current = null;
       if (iosPopGuardRef.current.timeoutId) {
@@ -100,7 +113,7 @@ const AppPreviewView = () => {
       return;
     }
 
-    if (!locationState?.fromAppsList) {
+    if (!locationState?.fromAppsList || locationState?.suppressedAutoBack) {
       iosGuardedLocationKeyRef.current = null;
       if (iosPopGuardRef.current.timeoutId) {
         window.clearTimeout(iosPopGuardRef.current.timeoutId);
@@ -126,7 +139,7 @@ const AppPreviewView = () => {
       guard.active = false;
       guard.timeoutId = null;
     }, IOS_AUTOBACK_GUARD_MS);
-  }, [isIosSafari, location.key, locationState?.fromAppsList]);
+  }, [isIosSafari, location.key, locationState?.fromAppsList, locationState?.suppressedAutoBack]);
 
   useEffect(() => {
     if (!isIosSafari) {
@@ -149,11 +162,24 @@ const AppPreviewView = () => {
           window.clearTimeout(guard.timeoutId);
           guard.timeoutId = null;
         }
-        window.requestAnimationFrame(() => {
-          if (window.history.length > 1) {
-            window.history.forward();
-          }
-        });
+        const targetLocation = previewLocationRef.current;
+        const hasTargetPath = Boolean(targetLocation.pathname);
+        if (hasTargetPath) {
+          const nextState: PreviewLocationState = {
+            ...(locationState ?? {}),
+            fromAppsList: true,
+            originAppId: locationState?.originAppId ?? lastAppIdRef.current ?? undefined,
+            navTimestamp: locationState?.navTimestamp ?? Date.now(),
+            suppressedAutoBack: true,
+          };
+          navigate({
+            pathname: targetLocation.pathname,
+            search: targetLocation.search || undefined,
+          }, {
+            replace: true,
+            state: nextState,
+          });
+        }
         return;
       }
 
@@ -174,7 +200,7 @@ const AppPreviewView = () => {
       guard.active = false;
       guard.handledCount = 0;
     };
-  }, [isIosSafari]);
+  }, [isIosSafari, locationState, navigate]);
 
   const matchesAppIdentifier = useCallback((app: App, identifier?: string | null) => {
     if (!identifier) {
@@ -240,15 +266,16 @@ const AppPreviewView = () => {
       return;
     }
 
-    if (!locationState?.fromAppsList) {
+    if (!locationState?.fromAppsList || !locationState?.suppressedAutoBack) {
       return;
     }
 
-    if (!bridgeState.isReady && !iframeLoadedAt) {
-      return;
-    }
+    const nextState: PreviewLocationState = {
+      ...(locationState ?? {}),
+      fromAppsList: false,
+      suppressedAutoBack: false,
+    };
 
-    const nextState: PreviewLocationState = { ...(locationState ?? {}), fromAppsList: false };
     navigate({
       pathname: location.pathname,
       search: location.search || undefined,
@@ -256,7 +283,7 @@ const AppPreviewView = () => {
       replace: true,
       state: nextState,
     });
-  }, [bridgeState.isReady, iframeLoadedAt, isIosSafari, location.pathname, location.search, locationState, navigate]);
+  }, [isIosSafari, location.pathname, location.search, locationState, navigate]);
 
   const resetPreviewState = useCallback((options?: { force?: boolean }) => {
     if (!options?.force && hasCustomPreviewUrl) {
