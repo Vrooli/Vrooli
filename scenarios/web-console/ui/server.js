@@ -1,5 +1,5 @@
 import { createServer, request as httpRequest, STATUS_CODES } from 'http'
-import { createReadStream, existsSync } from 'fs'
+import { createReadStream, existsSync, statSync } from 'fs'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { WebSocketServer, WebSocket } from 'ws'
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const { UI_PORT, API_PORT } = process.env
+const { UI_PORT, API_PORT, ASSET_VERSION } = process.env
 
 if (!UI_PORT) {
   console.error('Web Console UI requires UI_PORT environment variable')
@@ -21,6 +21,20 @@ if (!API_PORT) {
 }
 
 const staticRoot = path.join(__dirname, 'static')
+
+const assetVersion = (() => {
+  if (ASSET_VERSION && ASSET_VERSION.trim().length > 0) {
+    return ASSET_VERSION.trim()
+  }
+  try {
+    const bundleStat = statSync(path.join(staticRoot, 'app.js'))
+    const styleStat = statSync(path.join(staticRoot, 'styles.css'))
+    const newest = Math.max(bundleStat.mtimeMs, styleStat.mtimeMs)
+    return Math.floor(newest).toString(36)
+  } catch (_error) {
+    return Date.now().toString(36)
+  }
+})()
 
 const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
@@ -37,6 +51,17 @@ const MIME_TYPES = {
 function contentTypeFor(filePath) {
   const ext = path.extname(filePath).toLowerCase()
   return MIME_TYPES[ext] || 'application/octet-stream'
+}
+
+function cacheControlFor(filePath) {
+  const ext = path.extname(filePath).toLowerCase()
+  if (ext === '.html') {
+    return 'no-store'
+  }
+  if (ext === '.js' || ext === '.css') {
+    return 'public, max-age=31536000, immutable'
+  }
+  return 'public, max-age=86400'
 }
 
 function sanitizeCloseCode(code, fallback = 1000) {
@@ -142,16 +167,32 @@ async function serveStatic(req, res) {
       return serveFallback(res)
     }
 
+    if (path.basename(filePath) === 'index.html') {
+      const html = await fs.readFile(filePath, 'utf-8')
+      res.setHeader('Content-Type', contentTypeFor(filePath))
+      res.setHeader('Cache-Control', cacheControlFor(filePath))
+      res.end(html.replace(/__ASSET_VERSION__/g, assetVersion))
+      return
+    }
+
     res.setHeader('Content-Type', contentTypeFor(filePath))
+    res.setHeader('Cache-Control', cacheControlFor(filePath))
     const stream = createReadStream(filePath)
     stream.on('error', (err) => {
       console.error('[static] stream error', err.message)
-      serveFallback(res)
+      serveFallback(res).catch((fallbackError) => {
+        console.error('[static] fallback error', fallbackError.message)
+        if (!res.headersSent) {
+          res.statusCode = 500
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end(STATUS_CODES[500])
+        }
+      })
     })
     stream.pipe(res)
   } catch (error) {
     if (error.code === 'ENOENT') {
-      serveFallback(res)
+      await serveFallback(res)
     } else {
       console.error('[static] error', error.message)
       res.statusCode = 500
@@ -161,11 +202,20 @@ async function serveStatic(req, res) {
   }
 }
 
-function serveFallback(res) {
+async function serveFallback(res) {
   const fallback = path.join(staticRoot, 'index.html')
   if (existsSync(fallback)) {
-    res.setHeader('Content-Type', contentTypeFor(fallback))
-    createReadStream(fallback).pipe(res)
+    try {
+      const html = await fs.readFile(fallback, 'utf-8')
+      res.setHeader('Content-Type', contentTypeFor(fallback))
+      res.setHeader('Cache-Control', cacheControlFor(fallback))
+      res.end(html.replace(/__ASSET_VERSION__/g, assetVersion))
+    } catch (error) {
+      console.error('[static] fallback read error', error.message)
+      res.statusCode = 500
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end(STATUS_CODES[500])
+    }
   } else {
     res.statusCode = 404
     res.setHeader('Content-Type', 'text/plain')
