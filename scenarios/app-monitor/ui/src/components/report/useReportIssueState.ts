@@ -764,36 +764,206 @@ const useReportIssueState = ({
   }, [diagnosticsReport]);
 
   const diagnosticsDescription = useMemo(() => {
-    if (!diagnosticsReport) {
+    const runtimeFailures = (() => {
+      if (!bridgeCompliance || bridgeCompliance.ok || !Array.isArray(bridgeCompliance.failures)) {
+        return [] as string[];
+      }
+      const seen = new Set<string>();
+      return bridgeCompliance.failures
+        .map(code => BRIDGE_FAILURE_LABELS[code] ?? code)
+        .filter(message => {
+          const normalized = (message ?? '').toString().trim();
+          if (!normalized || seen.has(normalized)) {
+            return false;
+          }
+          seen.add(normalized);
+          return true;
+        });
+    })();
+
+    const hasDiagnosticsReport = Boolean(diagnosticsReport);
+    const hasRuntimeIssues = runtimeFailures.length > 0;
+
+    if (!hasDiagnosticsReport && !hasRuntimeIssues) {
       return '';
     }
 
-    if (diagnosticsScannedFileCount <= 0) {
-      return [
-        'Scenario auditor did not scan any files for App Monitor compatibility checks.',
-        'Ensure the scenario UI package depends on @vrooli/iframe-bridge, exports a bootstrap entry point, and that configuration files are included in the rule targets.',
-      ].join('\n');
-    }
-
-    if (!diagnosticsViolations.length) {
-      return '';
-    }
-
-    const header = `Scenario auditor detected ${diagnosticsViolations.length} App Monitor compatibility issue${diagnosticsViolations.length === 1 ? '' : 's'}:`;
-    const items = diagnosticsViolations.map((violation, index) => {
-      const recommendation = violation.recommendation ? ` Recommendation: ${violation.recommendation}` : '';
-      const location = violation.file_path ? ` (${violation.file_path}:${violation.line ?? 1})` : '';
-      const prefix = `${index + 1}. ${violation.title}${location}`;
-      return `${prefix} — ${violation.description || violation.type}.${recommendation}`.trim();
+    const hasRuleProblems = diagnosticsRuleResults.some((rule) => {
+      const combinedWarnings = [rule.warning, ...(rule.warnings ?? [])]
+        .map(entry => (entry ?? '').toString().trim())
+        .filter(entry => entry.length > 0);
+      return rule.violations.length > 0 || combinedWarnings.length > 0;
     });
-    return [header, ...items].join('\n');
-  }, [diagnosticsReport, diagnosticsScannedFileCount, diagnosticsViolations]);
+
+    const hasScanFailure = diagnosticsScannedFileCount <= 0;
+    const hasGlobalWarnings = diagnosticsWarnings.length > 0;
+
+    if (!hasRuntimeIssues && !hasRuleProblems && !hasScanFailure && !hasGlobalWarnings) {
+      return '';
+    }
+
+    const scenarioSlug = (() => {
+      const candidates = [
+        diagnosticsReport?.scenario,
+        app?.scenario_name,
+        app?.id,
+        appId,
+      ];
+      const match = candidates
+        .map(value => (value ?? '').toString().trim())
+        .find(value => value.length > 0);
+      return match ?? 'scenario';
+    })();
+
+    const formatTimestamp = (value: string | number | null | undefined) => {
+      if (!value) {
+        return null;
+      }
+      try {
+        return new Date(value).toLocaleString();
+      } catch {
+        return null;
+      }
+    };
+
+    const lines: string[] = [];
+    lines.push(`Scenario-auditor diagnostics for ${scenarioSlug}`);
+
+    if (diagnosticsReport?.checked_at) {
+      const formatted = formatTimestamp(diagnosticsReport.checked_at);
+      if (formatted) {
+        lines.push(`Checked at ${formatted}.`);
+      }
+    }
+
+    if (diagnosticsReport) {
+      const scanMeta: string[] = [];
+      if (diagnosticsScannedFileCount > 0) {
+        scanMeta.push(`files scanned: ${diagnosticsScannedFileCount}`);
+      } else {
+        scanMeta.push('no files were scanned');
+      }
+
+      if (typeof diagnosticsReport.duration_ms === 'number' && Number.isFinite(diagnosticsReport.duration_ms)) {
+        scanMeta.push(`duration: ${Math.max(0, Math.round(diagnosticsReport.duration_ms))} ms`);
+      }
+
+      if (scanMeta.length > 0) {
+        lines.push(`Scan summary — ${scanMeta.join(', ')}.`);
+      }
+
+      if (diagnosticsWarnings.length > 0) {
+        lines.push('Scenario-auditor warnings:');
+        diagnosticsWarnings.forEach((warning) => {
+          lines.push(`- ${warning}`);
+        });
+      }
+
+      if (diagnosticsScannedFileCount <= 0) {
+        lines.push('Scenario-auditor could not inspect the UI package. Ensure the scenario depends on @vrooli/iframe-bridge, exports a bootstrap entry, and includes UI/config files in rule targets.');
+      }
+
+      const ruleDetails: string[] = [];
+      diagnosticsRuleResults.forEach((rule) => {
+        const trimmedRuleId = (rule.rule_id ?? '').trim();
+        const ruleNameCandidate = rule.name ?? trimmedRuleId;
+        const trimmedRuleName = (ruleNameCandidate ?? '').toString().trim();
+        const ruleName = trimmedRuleName.length > 0 ? trimmedRuleName : 'Diagnostics rule';
+
+        const combinedWarnings = Array.from(new Set(
+          [rule.warning, ...(rule.warnings ?? [])]
+            .map(entry => (entry ?? '').toString().trim())
+            .filter(entry => entry.length > 0),
+        ));
+
+        const hasRuleViolations = rule.violations.length > 0;
+        const hasRuleWarnings = combinedWarnings.length > 0;
+
+        if (!hasRuleViolations && !hasRuleWarnings && diagnosticsScannedFileCount > 0) {
+          return;
+        }
+
+        const headerParts = [ruleName];
+        if (trimmedRuleId) {
+          headerParts.push(`(${trimmedRuleId})`);
+        }
+
+        const headerLine = headerParts.join(' ').trim();
+        ruleDetails.push(`- ${headerLine}`);
+
+        if (hasRuleViolations) {
+          rule.violations.forEach((violation, violationIndex) => {
+            const location = violation.file_path
+              ? `${violation.file_path}${typeof violation.line === 'number' ? `:${violation.line}` : ''}`
+              : null;
+            const locationLabel = location ? ` (${location})` : '';
+            const recommendation = (violation.recommendation ?? '').trim();
+            const base = `${violationIndex + 1}. ${violation.title}${locationLabel} — ${violation.description || violation.type}`;
+            ruleDetails.push(`    - ${base}`);
+            if (recommendation) {
+              ruleDetails.push(`      Recommendation: ${recommendation}`);
+            }
+          });
+        }
+
+        combinedWarnings.forEach((warning, warningIndex) => {
+          ruleDetails.push(`    - Warning ${warningIndex + 1}: ${warning}`);
+        });
+
+        if (trimmedRuleId) {
+          ruleDetails.push(`    - Re-run: scenario-auditor scan ${scenarioSlug} --rule ${trimmedRuleId} --wait --timeout 600`);
+        }
+      });
+
+      if (ruleDetails.length > 0) {
+        lines.push('Rule findings:');
+        lines.push(...ruleDetails);
+      }
+    }
+
+    if (hasRuntimeIssues) {
+      lines.push('Runtime bridge diagnostics reported issues:');
+      runtimeFailures.forEach((failure) => {
+        lines.push(`- ${failure}`);
+      });
+      lines.push('Retest by reloading the preview in App Monitor and re-running diagnostics after the iframe bridge initializes.');
+    }
+
+    if (scenarioSlug) {
+      lines.push(`Full scan: scenario-auditor scan ${scenarioSlug} --wait --timeout 600`);
+    }
+
+    return lines.join('\n');
+  }, [
+    app?.id,
+    app?.scenario_name,
+    appId,
+    bridgeCompliance,
+    diagnosticsReport,
+    diagnosticsRuleResults,
+    diagnosticsScannedFileCount,
+    diagnosticsViolations,
+    diagnosticsWarnings,
+  ]);
 
   const handleApplyDiagnosticsDescription = useCallback(() => {
     if (!diagnosticsDescription) {
       return;
     }
-    setReportMessage(diagnosticsDescription);
+    setReportMessage(previous => {
+      const next = diagnosticsDescription;
+      if (!next) {
+        return previous;
+      }
+
+      const current = previous ?? '';
+      const trimmedCurrent = current.trimEnd();
+      if (!trimmedCurrent) {
+        return next;
+      }
+
+      return `${trimmedCurrent}\n\n${next}`;
+    });
     window.setTimeout(() => {
       textareaRef.current?.focus();
     }, 0);
@@ -980,7 +1150,7 @@ const useReportIssueState = ({
     return 'idle';
   }, [diagnosticsLoading, diagnosticsStatus, diagnosticsEvaluation]);
 
-  const showDiagnosticsSetDescription = diagnosticsState === 'fail' && diagnosticsViolations.length > 0 && Boolean(diagnosticsDescription);
+  const showDiagnosticsSetDescription = Boolean(diagnosticsDescription);
 
   return {
     textareaRef,
