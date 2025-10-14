@@ -1184,6 +1184,13 @@
   color: rgba(255, 212, 128, 0.95);
 }
 
+.report-dialog__bridge-head-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .report-dialog__bridge-meta {
   margin: 0;
   font-size: 0.75rem;
@@ -1196,6 +1203,19 @@
   font-size: 0.78rem;
   color: rgba(180, 255, 227, 0.75);
   letter-spacing: 0.04em;
+}
+
+.report-dialog__bridge-body {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.report-dialog__bridge-card-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .report-dialog__bridge-inline {
@@ -1213,6 +1233,12 @@
   border-color: rgba(255, 196, 0, 0.32);
   background: rgba(64, 28, 0, 0.62);
   color: rgba(255, 212, 160, 0.92);
+}
+
+.report-dialog__bridge-inline--error {
+  border-color: rgba(255, 82, 82, 0.35);
+  background: rgba(64, 0, 8, 0.62);
+  color: rgba(255, 190, 190, 0.92);
 }
 
 .report-dialog__bridge-inline--success {
@@ -1262,16 +1288,31 @@
   margin-top: 0.3rem;
 }
 
-.report-dialog__bridge-list {
-  margin: 0;
-  padding-left: 1.1rem;
-  font-size: 0.78rem;
-  color: rgba(255, 212, 160, 0.9);
-  letter-spacing: 0.04em;
+.report-dialog__bridge-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 191, 0.25);
+  background: rgba(0, 28, 24, 0.45);
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
 }
 
-.report-dialog__bridge-list li + li {
-  margin-top: 0.3rem;
+.report-dialog__bridge-toggle svg {
+  transition: transform 0.2s ease;
+}
+
+.report-dialog__bridge-toggle--collapsed svg {
+  transform: rotate(-90deg);
+}
+
+.report-dialog__bridge-toggle:hover {
+  background: rgba(0, 255, 191, 0.18);
+  color: rgba(0, 28, 24, 0.95);
 }
 
 .report-dialog__preview-buttons {
@@ -1532,6 +1573,50 @@
   border-radius: 50%;
   background: rgba(255, 193, 7, 0.8);
   box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.25);
+}
+
+.report-dialog__bridge-rule-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.report-dialog__bridge-rule-head svg {
+  flex-shrink: 0;
+}
+
+.report-dialog__bridge-sublist {
+  margin: 0.4rem 0 0;
+  padding-left: 0;
+  list-style: none;
+  font-size: 0.74rem;
+}
+
+.report-dialog__bridge-sublist li {
+  position: relative;
+  margin-bottom: 0.4rem;
+  padding-left: 1.35rem;
+}
+
+.report-dialog__bridge-sublist li::before {
+  content: '';
+  position: absolute;
+  top: 0.42rem;
+  left: 0.25rem;
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.85);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.32);
+}
+
+.report-dialog__bridge-subnote {
+  margin-top: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .report-dialog__bridge-summary {

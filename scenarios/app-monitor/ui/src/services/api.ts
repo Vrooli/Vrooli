@@ -7,7 +7,7 @@ import type {
   AppLogsResponse,
   AppViewStats,
   ResourceDetail,
-  BridgeRuleReport,
+  BridgeDiagnosticsReport,
   AppProxyMetadata,
   LocalhostUsageReport,
 } from '@/types';
@@ -196,9 +196,9 @@ export const appService = {
 
   async getIframeBridgeDiagnostics(
     appId: string,
-  ): Promise<ApiResponse<BridgeRuleReport>> {
+  ): Promise<ApiResponse<BridgeDiagnosticsReport>> {
     try {
-      const { data } = await api.get<ApiResponse<BridgeRuleReport>>(
+      const { data } = await api.get<ApiResponse<BridgeDiagnosticsReport>>(
         `/apps/${encodeURIComponent(appId)}/diagnostics/iframe-bridge`,
       );
       return data;

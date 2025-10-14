@@ -238,7 +238,16 @@ const AppPreviewView = () => {
       ignoreNextPopstate: false,
       recoverState: typeof window !== 'undefined' ? window.history.state : undefined,
     });
-  }, [appId, isIosSafari, location.key, locationState?.fromAppsList, locationState?.suppressedAutoBack, locationState?.navTimestamp, recordDebugEvent, updatePreviewGuard]);
+  }, [
+    appId,
+    isIosSafari,
+    location.key,
+    location.pathname,
+    location.search,
+    locationState,
+    recordDebugEvent,
+    updatePreviewGuard,
+  ]);
 
   useEffect(() => {
     if (!isIosSafari) {
@@ -325,7 +334,7 @@ const AppPreviewView = () => {
       });
       updatePreviewGuard({ active: false, key: null });
     };
-  }, [appId, isIosSafari, locationState, navigate, recordDebugEvent, updatePreviewGuard]);
+  }, [appId, isIosSafari, locationState, navigate, recordDebugEvent, recordNavigateEvent, updatePreviewGuard]);
 
   const matchesAppIdentifier = useCallback((app: App, identifier?: string | null) => {
     if (!identifier) {

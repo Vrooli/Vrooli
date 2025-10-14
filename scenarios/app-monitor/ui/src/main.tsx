@@ -65,7 +65,7 @@ if (typeof window !== 'undefined' && typeof window.history !== 'undefined') {
   if (!history.__appMonitorDebugPatched) {
     const wrapHistoryMethod = <T extends 'pushState' | 'replaceState'>(method: T) => {
       const original = history[method]
-      return function patched(this: typeof history, state: any, title: string, url?: string | URL | null) {
+      return function patched(this: typeof history, state: unknown, title: string, url?: string | URL | null) {
         sendDebugEvent(`history-${method}`, {
           state,
           title,

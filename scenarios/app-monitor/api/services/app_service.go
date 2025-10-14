@@ -63,6 +63,7 @@ var (
 )
 
 type BridgeRuleViolation struct {
+	RuleID         string `json:"rule_id,omitempty"`
 	Type           string `json:"type"`
 	Title          string `json:"title"`
 	Description    string `json:"description"`
@@ -75,13 +76,27 @@ type BridgeRuleViolation struct {
 
 type BridgeRuleReport struct {
 	RuleID       string                `json:"rule_id"`
+	Name         string                `json:"name,omitempty"`
 	Scenario     string                `json:"scenario"`
 	FilesScanned int                   `json:"files_scanned"`
 	DurationMs   int64                 `json:"duration_ms"`
 	Warning      string                `json:"warning,omitempty"`
+	Warnings     []string              `json:"warnings,omitempty"`
 	Targets      []string              `json:"targets,omitempty"`
 	Violations   []BridgeRuleViolation `json:"violations"`
 	CheckedAt    time.Time             `json:"checked_at"`
+}
+
+type BridgeDiagnosticsReport struct {
+	Scenario     string                `json:"scenario"`
+	CheckedAt    time.Time             `json:"checked_at"`
+	FilesScanned int                   `json:"files_scanned"`
+	DurationMs   int64                 `json:"duration_ms"`
+	Warning      string                `json:"warning,omitempty"`
+	Warnings     []string              `json:"warnings,omitempty"`
+	Targets      []string              `json:"targets,omitempty"`
+	Violations   []BridgeRuleViolation `json:"violations"`
+	Results      []BridgeRuleReport    `json:"results"`
 }
 
 type LocalhostUsageFinding struct {
@@ -1801,7 +1816,7 @@ type scenarioAuditorViolation struct {
 }
 
 // CheckIframeBridgeRule validates scenario iframe bridge compliance via scenario-auditor.
-func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*BridgeRuleReport, error) {
+func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*BridgeDiagnosticsReport, error) {
 	id := strings.TrimSpace(appID)
 	if id == "" {
 		return nil, ErrAppIdentifierRequired
@@ -1815,12 +1830,34 @@ func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*
 		return nil, err
 	}
 
-	scenarioName := strings.TrimSpace(app.ScenarioName)
-	if scenarioName == "" {
-		scenarioName = strings.TrimSpace(app.ID)
+	scenarioDisplayName := strings.TrimSpace(app.ScenarioName)
+	scenarioSlug := ""
+
+	scenarioPath := strings.TrimSpace(app.Path)
+	if scenarioPath != "" {
+		cleaned := filepath.Clean(scenarioPath)
+		base := filepath.Base(cleaned)
+		scenarioSlug = sanitizeCommandIdentifier(base)
 	}
-	if scenarioName == "" {
-		scenarioName = id
+
+	if scenarioSlug == "" {
+		scenarioSlug = sanitizeCommandIdentifier(scenarioDisplayName)
+	}
+	if scenarioSlug == "" {
+		scenarioSlug = sanitizeCommandIdentifier(app.ID)
+	}
+	if scenarioSlug == "" {
+		scenarioSlug = sanitizeCommandIdentifier(id)
+	}
+	if scenarioSlug == "" {
+		scenarioSlug = "scenario"
+	}
+
+	if scenarioDisplayName == "" {
+		scenarioDisplayName = strings.TrimSpace(app.Name)
+	}
+	if scenarioDisplayName == "" {
+		scenarioDisplayName = scenarioSlug
 	}
 
 	port, err := s.locateScenarioAuditorAPIPort(ctx)
@@ -1828,75 +1865,194 @@ func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*
 		return nil, fmt.Errorf("%w: %v", ErrScenarioAuditorUnavailable, err)
 	}
 
-	payload := struct {
-		Scenario string `json:"scenario"`
-	}{Scenario: scenarioName}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
+	type auditorRuleSpec struct {
+		ID   string
+		Name string
 	}
 
-	endpoint := fmt.Sprintf("http://localhost:%d/api/v1/rules/iframe_bridge_quality/scenario-test", port)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
+	rules := []auditorRuleSpec{
+		{ID: "iframe_bridge_quality", Name: "Scenario UI Bridge Quality"},
+		{ID: "localhost_proxy_compact", Name: "Proxy-Compatible UI Base"},
+		{ID: "secure_tunnel", Name: "Secure Tunnel Setup"},
+		{ID: "service_ports", Name: "Ports Configuration"},
 	}
-	req.Header.Set("Content-Type", "application/json")
+
+	results := make([]BridgeRuleReport, 0, len(rules))
+	allViolations := make([]BridgeRuleViolation, 0)
+	warningsSet := make(map[string]struct{})
+	targetsSet := make(map[string]struct{})
+	var (
+		aggregatedScenario string
+		aggregatedDuration int64
+		aggregatedFiles    int
+	)
 
 	client := &http.Client{Timeout: 20 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrScenarioAuditorUnavailable, err)
-	}
-	defer resp.Body.Close()
+	checkedAt := time.Now().UTC()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("%w: scenario %s", ErrScenarioBridgeScenarioMissing, scenarioName)
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		reason := strings.TrimSpace(string(bodyBytes))
-		if reason == "" {
-			reason = http.StatusText(resp.StatusCode)
+	for _, rule := range rules {
+		payload := struct {
+			Scenario string `json:"scenario"`
+		}{Scenario: scenarioSlug}
+		body, err := json.Marshal(payload)
+		if err != nil {
+			return nil, err
 		}
-		return nil, fmt.Errorf("scenario-auditor returned status %d: %s", resp.StatusCode, reason)
+
+		endpoint := fmt.Sprintf("http://localhost:%d/api/v1/rules/%s/scenario-test", port, rule.ID)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrScenarioAuditorUnavailable, err)
+		}
+
+		bodyBytes, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if readErr != nil {
+			return nil, fmt.Errorf("failed to read scenario-auditor response: %w", readErr)
+		}
+
+		if resp.StatusCode == http.StatusNotFound {
+			var apiErr struct {
+				Error   string `json:"error"`
+				Message string `json:"message"`
+			}
+
+			message := strings.TrimSpace(string(bodyBytes))
+			if err := json.Unmarshal(bodyBytes, &apiErr); err == nil {
+				if strings.TrimSpace(apiErr.Error) != "" {
+					message = strings.TrimSpace(apiErr.Error)
+				} else if strings.TrimSpace(apiErr.Message) != "" {
+					message = strings.TrimSpace(apiErr.Message)
+				}
+			}
+			if message == "" {
+				message = http.StatusText(resp.StatusCode)
+			}
+
+			warningMessage := fmt.Sprintf("Scenario auditor could not evaluate %s: %s", rule.Name, message)
+			warningsSet[warningMessage] = struct{}{}
+			results = append(results, BridgeRuleReport{
+				RuleID:       rule.ID,
+				Name:         rule.Name,
+				Scenario:     scenarioSlug,
+				FilesScanned: 0,
+				DurationMs:   0,
+				Warning:      warningMessage,
+				Warnings:     []string{warningMessage},
+				Violations:   []BridgeRuleViolation{},
+				CheckedAt:    checkedAt,
+			})
+			continue
+		}
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			reason := strings.TrimSpace(string(bodyBytes))
+			if reason == "" {
+				reason = http.StatusText(resp.StatusCode)
+			}
+			return nil, fmt.Errorf("scenario-auditor returned status %d: %s", resp.StatusCode, reason)
+		}
+
+		var auditorResp scenarioAuditorRuleResponse
+		if decodeErr := json.Unmarshal(bodyBytes, &auditorResp); decodeErr != nil {
+			return nil, fmt.Errorf("failed to decode scenario-auditor response: %w", decodeErr)
+		}
+
+		scenario := strings.TrimSpace(auditorResp.Scenario)
+		if scenario == "" {
+			scenario = scenarioSlug
+		}
+
+		converted := BridgeRuleReport{
+			RuleID:       strings.TrimSpace(auditorResp.RuleID),
+			Name:         rule.Name,
+			Scenario:     scenario,
+			FilesScanned: auditorResp.FilesScanned,
+			DurationMs:   auditorResp.DurationMs,
+			Warning:      strings.TrimSpace(auditorResp.Warning),
+			Warnings:     nil,
+			Targets:      auditorResp.Targets,
+			Violations:   make([]BridgeRuleViolation, 0, len(auditorResp.Violations)),
+			CheckedAt:    checkedAt,
+		}
+
+		if trimmed := strings.TrimSpace(auditorResp.Warning); trimmed != "" {
+			converted.Warnings = []string{trimmed}
+			warningsSet[trimmed] = struct{}{}
+		}
+
+		for _, target := range converted.Targets {
+			target = strings.TrimSpace(target)
+			if target == "" {
+				continue
+			}
+			targetsSet[target] = struct{}{}
+		}
+
+		for _, violation := range auditorResp.Violations {
+			converted.Violations = append(converted.Violations, BridgeRuleViolation{
+				RuleID:         converted.RuleID,
+				Type:           strings.TrimSpace(violation.Type),
+				Title:          strings.TrimSpace(violation.Title),
+				Description:    strings.TrimSpace(violation.Description),
+				FilePath:       strings.TrimSpace(violation.FilePath),
+				Line:           violation.LineNumber,
+				Recommendation: strings.TrimSpace(violation.Recommendation),
+				Severity:       strings.TrimSpace(violation.Severity),
+				Standard:       strings.TrimSpace(violation.Standard),
+			})
+		}
+
+		if converted.FilesScanned > aggregatedFiles {
+			aggregatedFiles = converted.FilesScanned
+		}
+		aggregatedDuration += converted.DurationMs
+
+		if aggregatedScenario == "" {
+			aggregatedScenario = converted.Scenario
+		}
+
+		results = append(results, converted)
+		allViolations = append(allViolations, converted.Violations...)
 	}
 
-	var auditorResp scenarioAuditorRuleResponse
-	if err := json.NewDecoder(resp.Body).Decode(&auditorResp); err != nil {
-		return nil, fmt.Errorf("failed to decode scenario-auditor response: %w", err)
+	warnings := make([]string, 0, len(warningsSet))
+	for warning := range warningsSet {
+		warnings = append(warnings, warning)
+	}
+	if len(warnings) > 1 {
+		sort.Strings(warnings)
 	}
 
-	scenario := strings.TrimSpace(auditorResp.Scenario)
-	if scenario == "" {
-		scenario = scenarioName
+	if aggregatedScenario == "" {
+		aggregatedScenario = scenarioSlug
 	}
 
-	result := &BridgeRuleReport{
-		RuleID:       strings.TrimSpace(auditorResp.RuleID),
-		Scenario:     scenario,
-		FilesScanned: auditorResp.FilesScanned,
-		DurationMs:   auditorResp.DurationMs,
-		Warning:      strings.TrimSpace(auditorResp.Warning),
-		Targets:      auditorResp.Targets,
-		Violations:   make([]BridgeRuleViolation, 0, len(auditorResp.Violations)),
-		CheckedAt:    time.Now().UTC(),
+	targets := make([]string, 0, len(targetsSet))
+	for target := range targetsSet {
+		targets = append(targets, target)
+	}
+	if len(targets) > 1 {
+		sort.Strings(targets)
 	}
 
-	for _, violation := range auditorResp.Violations {
-		result.Violations = append(result.Violations, BridgeRuleViolation{
-			Type:           strings.TrimSpace(violation.Type),
-			Title:          strings.TrimSpace(violation.Title),
-			Description:    strings.TrimSpace(violation.Description),
-			FilePath:       strings.TrimSpace(violation.FilePath),
-			Line:           violation.LineNumber,
-			Recommendation: strings.TrimSpace(violation.Recommendation),
-			Severity:       strings.TrimSpace(violation.Severity),
-			Standard:       strings.TrimSpace(violation.Standard),
-		})
-	}
-
-	return result, nil
+	return &BridgeDiagnosticsReport{
+		Scenario:     aggregatedScenario,
+		CheckedAt:    checkedAt,
+		FilesScanned: aggregatedFiles,
+		DurationMs:   aggregatedDuration,
+		Warning:      strings.Join(warnings, "\n"),
+		Warnings:     warnings,
+		Targets:      targets,
+		Violations:   allViolations,
+		Results:      results,
+	}, nil
 }
 
 // CheckLocalhostUsage scans scenario files for hard-coded localhost references that would break proxying.

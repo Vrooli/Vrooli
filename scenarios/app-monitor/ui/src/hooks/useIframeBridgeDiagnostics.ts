@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { appService } from '@/services/api';
 import { logger } from '@/services/logger';
-import type { BridgeRuleReport } from '@/types';
+import type { BridgeDiagnosticsReport } from '@/types';
 
 type DiagnosticsStatus = 'idle' | 'loading' | 'success' | 'error';
 type DiagnosticsEvaluation = 'pass' | 'fail' | 'unknown';
@@ -14,7 +14,7 @@ interface UseIframeBridgeDiagnosticsOptions {
 interface UseIframeBridgeDiagnosticsResult {
   status: DiagnosticsStatus;
   loading: boolean;
-  report: BridgeRuleReport | null;
+  report: BridgeDiagnosticsReport | null;
   error: string | null;
   warning: string | null;
   evaluation: DiagnosticsEvaluation;
@@ -28,7 +28,7 @@ const DEFAULT_ERROR_MESSAGE = 'Failed to load iframe bridge diagnostics.';
 
 const useIframeBridgeDiagnostics = ({ appId, enabled = true }: UseIframeBridgeDiagnosticsOptions): UseIframeBridgeDiagnosticsResult => {
   const [status, setStatus] = useState<DiagnosticsStatus>('idle');
-  const [report, setReport] = useState<BridgeRuleReport | null>(null);
+  const [report, setReport] = useState<BridgeDiagnosticsReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [lastFetchedAt, setLastFetchedAt] = useState<number | null>(null);

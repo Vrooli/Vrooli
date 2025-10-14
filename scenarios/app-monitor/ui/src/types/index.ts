@@ -144,6 +144,7 @@ export interface ApiResponse<T = unknown> {
 }
 
 export interface BridgeRuleViolation {
+  rule_id?: string;
   type: string;
   title: string;
   description: string;
@@ -156,13 +157,27 @@ export interface BridgeRuleViolation {
 
 export interface BridgeRuleReport {
   rule_id: string;
+  name?: string;
   scenario: string;
   files_scanned: number;
   duration_ms: number;
   warning?: string;
+  warnings?: string[];
   targets?: string[];
   violations: BridgeRuleViolation[];
   checked_at: string;
+}
+
+export interface BridgeDiagnosticsReport {
+  scenario: string;
+  checked_at: string;
+  files_scanned: number;
+  duration_ms: number;
+  warning?: string;
+  warnings?: string[];
+  targets?: string[];
+  violations: BridgeRuleViolation[];
+  results: BridgeRuleReport[];
 }
 
 export interface AppLogStream {

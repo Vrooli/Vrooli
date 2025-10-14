@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"app-monitor-api/repository"
 )
@@ -222,6 +223,7 @@ func TestAppServiceErrors(t *testing.T) {
 func TestBridgeRuleViolation(t *testing.T) {
 	t.Run("ValidateStructure", func(t *testing.T) {
 		violation := BridgeRuleViolation{
+			RuleID:         "rule-one",
 			Type:           "error",
 			Title:          "Test Error",
 			Description:    "Test description",
@@ -236,6 +238,10 @@ func TestBridgeRuleViolation(t *testing.T) {
 			t.Errorf("Expected type 'error', got %s", violation.Type)
 		}
 
+		if violation.RuleID != "rule-one" {
+			t.Errorf("Expected rule_id 'rule-one', got %s", violation.RuleID)
+		}
+
 		if violation.Line != 10 {
 			t.Errorf("Expected line 10, got %d", violation.Line)
 		}
@@ -246,9 +252,11 @@ func TestBridgeRuleReport(t *testing.T) {
 	t.Run("ValidateStructure", func(t *testing.T) {
 		report := BridgeRuleReport{
 			RuleID:       "test-rule",
+			Name:         "Test Rule",
 			Scenario:     "test-scenario",
 			FilesScanned: 5,
 			DurationMs:   100,
+			Warnings:     []string{"warn"},
 			Violations:   []BridgeRuleViolation{},
 		}
 
@@ -258,6 +266,42 @@ func TestBridgeRuleReport(t *testing.T) {
 
 		if report.FilesScanned != 5 {
 			t.Errorf("Expected 5 files scanned, got %d", report.FilesScanned)
+		}
+
+		if report.Name != "Test Rule" {
+			t.Errorf("Expected rule name 'Test Rule', got %s", report.Name)
+		}
+
+		if len(report.Warnings) != 1 {
+			t.Errorf("Expected 1 warning, got %d", len(report.Warnings))
+		}
+	})
+}
+
+func TestBridgeDiagnosticsReport(t *testing.T) {
+	t.Run("ValidateStructure", func(t *testing.T) {
+		report := BridgeDiagnosticsReport{
+			Scenario:     "demo",
+			CheckedAt:    time.Now(),
+			FilesScanned: 10,
+			DurationMs:   250,
+			Warnings:     []string{"rule1"},
+			Violations: []BridgeRuleViolation{
+				{RuleID: "demo", Type: "test", Title: "Test", Description: "desc"},
+			},
+			Results: []BridgeRuleReport{{RuleID: "demo-rule"}},
+		}
+
+		if report.FilesScanned != 10 {
+			t.Errorf("Expected 10 files scanned, got %d", report.FilesScanned)
+		}
+
+		if len(report.Results) != 1 {
+			t.Errorf("Expected 1 rule result, got %d", len(report.Results))
+		}
+
+		if report.Results[0].RuleID != "demo-rule" {
+			t.Errorf("Expected rule id 'demo-rule', got %s", report.Results[0].RuleID)
 		}
 	})
 }
