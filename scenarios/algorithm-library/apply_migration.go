@@ -25,7 +25,7 @@ func main() {
 	}
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
 	if dbPassword == "" {
-		dbPassword = "vrooli"
+		log.Fatal("POSTGRES_PASSWORD environment variable is required")
 	}
 	dbName := os.Getenv("POSTGRES_DB")
 	if dbName == "" {

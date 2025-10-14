@@ -28,12 +28,12 @@ vrooli scenario run data-structurer
 cd cli && ./install.sh
 
 # Set environment variable for CLI (if multiple scenarios running)
-export DATA_STRUCTURER_API_PORT=15774
+export DATA_STRUCTURER_API_PORT=$(vrooli scenario port data-structurer API_PORT)
 ```
 
 ### Basic Usage
 
-> **Note**: If running multiple scenarios, set `export DATA_STRUCTURER_API_PORT=15774` to ensure CLI connects to the correct service.
+> **Note**: If running multiple scenarios, set `export DATA_STRUCTURER_API_PORT=$(vrooli scenario port data-structurer API_PORT)` to ensure CLI connects to the correct service.
 
 1. **Create a Schema**
 ```bash

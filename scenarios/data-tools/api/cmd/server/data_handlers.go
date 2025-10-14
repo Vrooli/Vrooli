@@ -14,17 +14,17 @@ import (
 
 // ParseRequest represents the request for data parsing
 type ParseRequest struct {
-	Data    interface{}                  `json:"data"`
-	Format  string                       `json:"format"`
-	Options dataprocessor.ParseOptions  `json:"options"`
+	Data    interface{}                `json:"data"`
+	Format  string                     `json:"format"`
+	Options dataprocessor.ParseOptions `json:"options"`
 }
 
 // TransformRequest represents the request for data transformation
 type TransformRequest struct {
-	DatasetID       string                           `json:"dataset_id,omitempty"`
-	Data            []map[string]interface{}         `json:"data,omitempty"`
-	Transformations []dataprocessor.Transformation   `json:"transformations"`
-	Options         map[string]interface{}           `json:"options"`
+	DatasetID       string                         `json:"dataset_id,omitempty"`
+	Data            []map[string]interface{}       `json:"data,omitempty"`
+	Transformations []dataprocessor.Transformation `json:"transformations"`
+	Options         map[string]interface{}         `json:"options"`
 }
 
 // ValidateRequest represents the request for data validation
@@ -70,6 +70,12 @@ func (s *Server) handleDataParse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate required fields
+	if req.Format == "" {
+		s.sendError(w, http.StatusBadRequest, "format is required")
+		return
+	}
+
 	// Convert data to string for parsing
 	dataStr := ""
 	switch v := req.Data.(type) {
@@ -91,7 +97,10 @@ func (s *Server) handleDataParse(w http.ResponseWriter, r *http.Request) {
 		dataStr = string(bytes)
 	}
 
-	// Parse data
+	// Parse data with type inference enabled by default
+	if !req.Options.InferTypes {
+		req.Options.InferTypes = true // P1 feature: smart data type inference enabled by default
+	}
 	parser := dataprocessor.NewParser()
 	result, err := parser.Parse(dataStr, dataprocessor.DataFormat(req.Format), req.Options)
 	if err != nil {
@@ -102,10 +111,10 @@ func (s *Server) handleDataParse(w http.ResponseWriter, r *http.Request) {
 	// Store dataset metadata in database
 	datasetID := uuid.New().String()
 	schemaJSON, _ := json.Marshal(result.Schema)
-	
+
 	query := `INSERT INTO datasets (id, name, schema_definition, format, row_count, column_count, quality_score, created_at)
 	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	
+
 	_, err = s.db.Exec(query,
 		datasetID,
 		fmt.Sprintf("dataset_%s", datasetID[:8]),
@@ -116,7 +125,7 @@ func (s *Server) handleDataParse(w http.ResponseWriter, r *http.Request) {
 		result.Schema.QualityScore,
 		time.Now(),
 	)
-	
+
 	if err != nil {
 		// Log error but don't fail the request
 		fmt.Printf("Failed to store dataset metadata: %v\n", err)
@@ -140,7 +149,7 @@ func (s *Server) handleDataTransform(w http.ResponseWriter, r *http.Request) {
 
 	// Get data to transform
 	var data []map[string]interface{}
-	
+
 	if req.DatasetID != "" {
 		// Load dataset from database
 		// In production, this would load actual data from storage
@@ -165,14 +174,21 @@ func (s *Server) handleDataTransform(w http.ResponseWriter, r *http.Request) {
 	transformationID := uuid.New().String()
 	paramsJSON, _ := json.Marshal(req.Transformations)
 	statsJSON, _ := json.Marshal(result.ExecutionStats)
-	
-	query := `INSERT INTO data_transformations 
+
+	// Determine transformation type
+	transformationType := "custom"
+	if len(req.Transformations) == 1 {
+		// Single transformation - use its type directly
+		transformationType = string(req.Transformations[0].Type)
+	}
+
+	query := `INSERT INTO data_transformations
 	          (id, transformation_type, parameters, execution_stats, execution_time_ms, rows_processed, success, created_at)
 	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	
+
 	_, err = s.db.Exec(query,
 		transformationID,
-		"multi",
+		transformationType,
 		paramsJSON,
 		statsJSON,
 		result.ExecutionStats.ExecutionTimeMs,
@@ -180,7 +196,7 @@ func (s *Server) handleDataTransform(w http.ResponseWriter, r *http.Request) {
 		result.ExecutionStats.Success,
 		time.Now(),
 	)
-	
+
 	if err != nil {
 		fmt.Printf("Failed to store transformation metadata: %v\n", err)
 	}
@@ -220,7 +236,7 @@ func (s *Server) handleDataValidate(w http.ResponseWriter, r *http.Request) {
 
 	// Get data to validate
 	var data []map[string]interface{}
-	
+
 	if req.DatasetID != "" {
 		// Load dataset from database
 		// In production, this would load actual data from storage
@@ -236,22 +252,22 @@ func (s *Server) handleDataValidate(w http.ResponseWriter, r *http.Request) {
 	// Validate data
 	isValid := true
 	violations := []map[string]interface{}{}
-	
+
 	// Check completeness
 	completeness := calculateCompleteness(data)
-	
+
 	// Check for duplicates
 	duplicateCount := countDuplicates(data)
-	
+
 	// Check for anomalies
 	anomalies := detectAnomalies(data)
-	
+
 	// Calculate accuracy (based on schema validation)
 	accuracy := calculateAccuracy(data, req.Schema)
-	
+
 	// Calculate consistency (based on data patterns)
 	consistency := calculateConsistency(data)
-	
+
 	// Apply custom quality rules
 	for _, rule := range req.QualityRules {
 		ruleViolations := applyQualityRule(data, rule)
@@ -260,7 +276,7 @@ func (s *Server) handleDataValidate(w http.ResponseWriter, r *http.Request) {
 			isValid = false
 		}
 	}
-	
+
 	// Calculate overall quality score
 	qualityScore := (completeness + accuracy + consistency) / 3.0
 	if duplicateCount > 0 {
@@ -284,12 +300,12 @@ func (s *Server) handleDataValidate(w http.ResponseWriter, r *http.Request) {
 	// Store quality report in database
 	if req.DatasetID != "" {
 		anomaliesJSON, _ := json.Marshal(anomalies)
-		
+
 		query := `INSERT INTO data_quality_reports 
 		          (dataset_id, completeness_score, accuracy_score, consistency_score, 
 		           anomalies_detected, duplicate_count, generated_at)
 		          VALUES ($1, $2, $3, $4, $5, $6, $7)`
-		
+
 		_, err := s.db.Exec(query,
 			req.DatasetID,
 			completeness,
@@ -299,7 +315,7 @@ func (s *Server) handleDataValidate(w http.ResponseWriter, r *http.Request) {
 			duplicateCount,
 			time.Now(),
 		)
-		
+
 		if err != nil {
 			fmt.Printf("Failed to store quality report: %v\n", err)
 		}
@@ -322,7 +338,7 @@ func (s *Server) handleDataQuery(w http.ResponseWriter, r *http.Request) {
 
 	// For demo purposes, execute query against database
 	// In production, this would handle dataset joins and complex queries
-	
+
 	limit := 1000
 	if l, ok := req.Options["limit"].(float64); ok {
 		limit = int(l)
@@ -387,8 +403,8 @@ func (s *Server) handleDataQuery(w http.ResponseWriter, r *http.Request) {
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
 		"result": map[string]interface{}{
-			"data":     results,
-			"columns":  columns,
+			"data":      results,
+			"columns":   columns,
 			"row_count": len(results),
 		},
 		"query_id": queryID,
@@ -405,19 +421,19 @@ func (s *Server) handleStreamCreate(w http.ResponseWriter, r *http.Request) {
 
 	// Create streaming source
 	streamID := uuid.New().String()
-	
+
 	sourceConfigJSON, _ := json.Marshal(req.SourceConfig)
 	processingRulesJSON, _ := json.Marshal(req.ProcessingRules)
-	
+
 	query := `INSERT INTO streaming_sources 
 	          (id, name, source_type, connection_config, processing_rules, is_active, created_at)
 	          VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	
+
 	sourceType := "webhook" // Default
 	if t, ok := req.SourceConfig["type"].(string); ok {
 		sourceType = t
 	}
-	
+
 	_, err := s.db.Exec(query,
 		streamID,
 		fmt.Sprintf("stream_%s", streamID[:8]),
@@ -427,7 +443,7 @@ func (s *Server) handleStreamCreate(w http.ResponseWriter, r *http.Request) {
 		true,
 		time.Now(),
 	)
-	
+
 	if err != nil {
 		s.sendError(w, http.StatusInternalServerError, fmt.Sprintf("failed to create stream: %v", err))
 		return
@@ -450,10 +466,10 @@ func calculateCompleteness(data []map[string]interface{}) float64 {
 	if len(data) == 0 {
 		return 0.0
 	}
-	
+
 	totalCells := 0
 	filledCells := 0
-	
+
 	for _, row := range data {
 		for _, value := range row {
 			totalCells++
@@ -462,39 +478,39 @@ func calculateCompleteness(data []map[string]interface{}) float64 {
 			}
 		}
 	}
-	
+
 	if totalCells == 0 {
 		return 0.0
 	}
-	
+
 	return float64(filledCells) / float64(totalCells)
 }
 
 func countDuplicates(data []map[string]interface{}) int {
 	seen := make(map[string]bool)
 	duplicates := 0
-	
+
 	for _, row := range data {
 		// Create a unique key for the row
 		rowJSON, _ := json.Marshal(row)
 		rowKey := string(rowJSON)
-		
+
 		if seen[rowKey] {
 			duplicates++
 		} else {
 			seen[rowKey] = true
 		}
 	}
-	
+
 	return duplicates
 }
 
 func detectAnomalies(data []map[string]interface{}) []map[string]interface{} {
 	anomalies := []map[string]interface{}{}
-	
+
 	// Statistical anomaly detection for numeric fields
 	numericStats := make(map[string][]float64)
-	
+
 	// Collect numeric values
 	for _, row := range data {
 		for key, value := range row {
@@ -506,15 +522,15 @@ func detectAnomalies(data []map[string]interface{}) []map[string]interface{} {
 			}
 		}
 	}
-	
+
 	// Calculate statistics and detect outliers
 	for field, values := range numericStats {
 		if len(values) < 4 {
 			continue
 		}
-		
+
 		mean, stdDev := calculateStats(values)
-		
+
 		// Find outliers (values beyond 3 standard deviations)
 		for i, row := range data {
 			if val, ok := toFloat64(row[field]); ok {
@@ -531,7 +547,7 @@ func detectAnomalies(data []map[string]interface{}) []map[string]interface{} {
 			}
 		}
 	}
-	
+
 	// Detect pattern anomalies in string fields
 	for i, row := range data {
 		for field, value := range row {
@@ -547,7 +563,7 @@ func detectAnomalies(data []map[string]interface{}) []map[string]interface{} {
 						"details":   "Potentially malicious content detected",
 					})
 				}
-				
+
 				// Check for unexpected format
 				if field == "email" && !strings.Contains(strVal, "@") {
 					anomalies = append(anomalies, map[string]interface{}{
@@ -562,7 +578,7 @@ func detectAnomalies(data []map[string]interface{}) []map[string]interface{} {
 			}
 		}
 	}
-	
+
 	return anomalies
 }
 
@@ -586,14 +602,14 @@ func calculateStats(values []float64) (mean, stdDev float64) {
 	if len(values) == 0 {
 		return 0, 0
 	}
-	
+
 	// Calculate mean
 	sum := 0.0
 	for _, v := range values {
 		sum += v
 	}
 	mean = sum / float64(len(values))
-	
+
 	// Calculate standard deviation
 	varSum := 0.0
 	for _, v := range values {
@@ -602,7 +618,7 @@ func calculateStats(values []float64) (mean, stdDev float64) {
 	}
 	variance := varSum / float64(len(values))
 	stdDev = math.Sqrt(variance)
-	
+
 	return mean, stdDev
 }
 
@@ -617,23 +633,23 @@ func calculateAccuracy(data []map[string]interface{}, schema dataprocessor.Schem
 	if len(data) == 0 || len(schema.Columns) == 0 {
 		return 0.0
 	}
-	
+
 	totalChecks := 0
 	passedChecks := 0
-	
+
 	// Check each row against schema
 	for _, row := range data {
 		for _, col := range schema.Columns {
 			totalChecks++
 			value, exists := row[col.Name]
-			
+
 			// Check existence
 			if !exists {
 				if !col.Nullable {
 					continue // Failed check
 				}
 			}
-			
+
 			// Check type
 			if value != nil && isCorrectType(value, col.Type) {
 				passedChecks++
@@ -642,11 +658,11 @@ func calculateAccuracy(data []map[string]interface{}, schema dataprocessor.Schem
 			}
 		}
 	}
-	
+
 	if totalChecks == 0 {
 		return 1.0
 	}
-	
+
 	return float64(passedChecks) / float64(totalChecks)
 }
 
@@ -654,9 +670,9 @@ func calculateConsistency(data []map[string]interface{}) float64 {
 	if len(data) == 0 {
 		return 1.0
 	}
-	
+
 	consistencyScore := 1.0
-	
+
 	// Check field consistency (all rows have same fields)
 	fieldCounts := make(map[string]int)
 	for _, row := range data {
@@ -664,17 +680,17 @@ func calculateConsistency(data []map[string]interface{}) float64 {
 			fieldCounts[field]++
 		}
 	}
-	
+
 	// Calculate field consistency
 	for _, count := range fieldCounts {
 		fieldConsistency := float64(count) / float64(len(data))
 		consistencyScore *= fieldConsistency
 	}
-	
+
 	// Check format consistency for string fields
 	patternConsistency := checkPatternConsistency(data)
 	consistencyScore = (consistencyScore + patternConsistency) / 2.0
-	
+
 	return consistencyScore
 }
 
@@ -706,10 +722,10 @@ func checkPatternConsistency(data []map[string]interface{}) float64 {
 	if len(data) == 0 {
 		return 1.0
 	}
-	
+
 	// Check date format consistency
 	datePatterns := make(map[string]map[string]int) // field -> pattern -> count
-	
+
 	for _, row := range data {
 		for field, value := range row {
 			if strVal, ok := value.(string); ok {
@@ -723,32 +739,32 @@ func checkPatternConsistency(data []map[string]interface{}) float64 {
 			}
 		}
 	}
-	
+
 	// Calculate consistency score based on pattern uniformity
 	totalScore := 0.0
 	fieldCount := 0
-	
+
 	for _, patterns := range datePatterns {
 		fieldCount++
 		total := 0
 		maxCount := 0
-		
+
 		for _, count := range patterns {
 			total += count
 			if count > maxCount {
 				maxCount = count
 			}
 		}
-		
+
 		if total > 0 {
 			totalScore += float64(maxCount) / float64(total)
 		}
 	}
-	
+
 	if fieldCount == 0 {
 		return 1.0
 	}
-	
+
 	return totalScore / float64(fieldCount)
 }
 
@@ -771,7 +787,7 @@ func detectPattern(str string) string {
 
 func applyQualityRule(data []map[string]interface{}, rule QualityRule) []map[string]interface{} {
 	violations := []map[string]interface{}{}
-	
+
 	// Simple rule application - in production use rule engine
 	switch rule.RuleType {
 	case "required_field":
@@ -788,11 +804,49 @@ func applyQualityRule(data []map[string]interface{}, rule QualityRule) []map[str
 			}
 		}
 	}
-	
+
 	return violations
 }
 
 func hasLimit(sql string) bool {
 	// Simple check - in production use proper SQL parser
 	return strings.Contains(strings.ToUpper(sql), "LIMIT")
+}
+
+// ProfileRequest represents the request for data profiling
+type ProfileRequest struct {
+	DatasetID string                   `json:"dataset_id,omitempty"`
+	Data      []map[string]interface{} `json:"data,omitempty"`
+}
+
+// handleDataProfile handles data profiling requests (P1 feature)
+func (s *Server) handleDataProfile(w http.ResponseWriter, r *http.Request) {
+	var req ProfileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.sendError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Get data to profile
+	var data []map[string]interface{}
+
+	if req.DatasetID != "" {
+		// Load dataset from database
+		// In production, this would load actual data from storage
+		s.sendError(w, http.StatusNotImplemented, "dataset loading not implemented")
+		return
+	} else if req.Data != nil {
+		data = req.Data
+	} else {
+		s.sendError(w, http.StatusBadRequest, "either dataset_id or data is required")
+		return
+	}
+
+	// Generate comprehensive data profile
+	profiler := dataprocessor.NewProfiler()
+	profile := profiler.ProfileDataset(data)
+
+	s.sendJSON(w, http.StatusOK, map[string]interface{}{
+		"profile": profile,
+	})
 }

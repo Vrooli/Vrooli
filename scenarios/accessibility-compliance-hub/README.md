@@ -1,19 +1,39 @@
 # Accessibility Compliance Hub
 
-> **Automated WCAG compliance testing, remediation, and monitoring for all Vrooli scenarios**
+> **⚠️ PROTOTYPE STATUS: Infrastructure complete, core functionality not yet implemented**
 
 ## 🎯 Purpose
 
-The Accessibility Compliance Hub ensures every Vrooli scenario meets WCAG 2.1 AA standards, making all generated applications accessible to users with disabilities. This isn't just about compliance - it's about expanding market reach by 15% and preventing costly lawsuits while building better user experiences for everyone.
+The Accessibility Compliance Hub is designed to ensure every Vrooli scenario meets WCAG 2.1 AA standards, making all generated applications accessible to users with disabilities.
 
-## ✨ Key Features
+### ⚠️ Current Status (2025-10-05)
+**PROTOTYPE/SKELETON** - This scenario has excellent infrastructure but NO working accessibility compliance functionality:
 
-- **Automated Auditing**: Scans all scenario UIs for WCAG violations
-- **Smart Auto-Fix**: Automatically remediates 80% of common issues
-- **AI-Powered Suggestions**: Intelligent fixes for complex accessibility problems
-- **Compliance Dashboard**: Real-time visibility into accessibility status
-- **Pattern Library**: Reusable accessible components for all scenarios
-- **Report Generation**: VPAT and compliance documentation
+**What Works:**
+- ✅ Go API server with lifecycle integration
+- ✅ Health check endpoints
+- ✅ Static UI prototype with accessible HTML
+- ✅ Comprehensive test suite (100% coverage)
+- ✅ Port allocation and Makefile commands
+
+**What Doesn't Work (All P0 Requirements):**
+- ❌ NO actual WCAG scanning (no axe-core/pa11y integration)
+- ❌ NO auto-remediation capability
+- ❌ NO database storage (PostgreSQL declared but not integrated)
+- ❌ NO resource integrations (Browserless, Ollama, N8n, Redis, Qdrant unused)
+- ❌ CLI is stub only (prints mock messages)
+- ❌ API returns mock data only
+
+**Business Value:** Currently $0 (cannot deliver on compliance checking until core functionality is implemented)
+
+## ✨ Planned Features (Not Yet Implemented)
+
+- **Automated Auditing**: Scans all scenario UIs for WCAG violations (❌ NOT IMPLEMENTED)
+- **Smart Auto-Fix**: Automatically remediates 80% of common issues (❌ NOT IMPLEMENTED)
+- **AI-Powered Suggestions**: Intelligent fixes for complex accessibility problems (❌ NOT IMPLEMENTED)
+- **Compliance Dashboard**: Real-time visibility into accessibility status (⚠️ MOCK UI ONLY)
+- **Pattern Library**: Reusable accessible components for all scenarios (❌ NOT IMPLEMENTED)
+- **Report Generation**: VPAT and compliance documentation (❌ NOT IMPLEMENTED)
 
 ## 🚀 Quick Start
 
@@ -24,12 +44,155 @@ vrooli scenario run accessibility-compliance-hub
 # Access the dashboard (port auto-assigned from 40000-40999 range)
 open http://localhost:${UI_PORT:-40000}
 
-# Run audit via CLI
+# Run audit via CLI (stub only - not functional)
 accessibility-compliance-hub audit <scenario-name> --auto-fix
 
-# Generate compliance report
+# Generate compliance report (stub only - not functional)
 accessibility-compliance-hub report <scenario-name> --format pdf
 ```
+
+## 🛣️ Implementation Roadmap
+
+This scenario has **excellent infrastructure** but needs core functionality. Here's the recommended implementation path:
+
+### Phase 1: Database Integration (CRITICAL - P0)
+```bash
+# 1. Setup PostgreSQL database
+./scripts/setup-database.sh
+
+# 2. Add database connection to API (api/main.go)
+# - Import database/sql and lib/pq
+# - Create connection pool
+# - Add connection health check
+
+# 3. Verify database connectivity
+# - Update /health endpoint to check DB
+# - Test database queries
+```
+
+**Files to modify:**
+- `api/main.go` - Add PostgreSQL connection setup
+- `api/go.mod` - Add `github.com/lib/pq` dependency
+- `.vrooli/service.json` - Ensure postgres resource is required
+
+### Phase 2: Axe-Core Integration (CRITICAL - P0)
+```bash
+# 1. Add axe-core scanning capability
+# - Install axe-core via npm (for Browserless execution)
+# - Create scanner module in api/scanner.go
+# - Implement WCAG level configuration
+
+# 2. Implement /api/v1/accessibility/audit endpoint
+# - Accept scenario_id, wcag_level, auto_fix params
+# - Use Browserless to capture scenario UI
+# - Run axe-core against captured page
+# - Parse and store results in PostgreSQL
+# - Return audit report
+
+# 3. Test scanning functionality
+# - Audit test scenario
+# - Verify violations detected
+# - Confirm database storage
+```
+
+**Files to create/modify:**
+- `api/scanner.go` - Axe-core scanning logic
+- `api/handlers_audit.go` - Real /audit endpoint (replace mock)
+- `api/models.go` - Database models matching schema
+
+### Phase 3: Browserless Integration (CRITICAL - P0)
+```bash
+# 1. Add Browserless resource calls
+# - Use resource-browserless CLI via exec
+# - Capture screenshots of scenario UIs
+# - Execute JavaScript (axe-core) in browser context
+
+# 2. Implement UI capture workflow
+# - Resolve scenario URL from registry
+# - Capture full-page screenshot
+# - Store screenshot path in audit report
+```
+
+**Files to modify:**
+- `api/scanner.go` - Add Browserless CLI calls
+- `initialization/automation/n8n/accessibility-audit.json` - Already has workflow template
+
+### Phase 4: Auto-Remediation (P0)
+```bash
+# 1. Implement pattern matching
+# - Load patterns from PostgreSQL
+# - Match violations to fixable patterns
+# - Generate code patches
+
+# 2. Create fix application system
+# - Safe file modification logic
+# - Git snapshot before fixes
+# - Rollback capability
+# - Fix verification
+```
+
+**Files to create:**
+- `api/remediation.go` - Auto-fix logic
+- `api/patterns.go` - Pattern matching
+
+### Phase 5: Ollama Integration (P1)
+```bash
+# 1. Add AI-powered suggestions
+# - Call Ollama via resource-ollama CLI
+# - Analyze complex violations
+# - Generate contextual fix suggestions
+
+# 2. Store AI suggestions in database
+# - Link to accessibility_issues table
+# - Track suggestion quality over time
+```
+
+### Phase 6: Testing & Validation (P0)
+```bash
+# Run against test scenario
+./scripts/test-integration.sh
+
+# Verify all features work
+make test
+
+# Check standards compliance
+scenario-auditor audit accessibility-compliance-hub
+```
+
+### Quick Win: Database Setup
+**Start here** - The database schema is complete and ready to use:
+```bash
+./scripts/setup-database.sh
+```
+
+This creates all tables, indexes, and default patterns. Then update the API to connect to it.
+
+## 🧹 Development Notes
+
+**Important**: This is a prototype scenario. Before committing changes:
+```bash
+# Run validation checks (recommended before every commit)
+make validate
+
+# Clean compiled binaries to avoid false audit violations
+make clean
+# OR manually remove
+rm -f api/accessibility-compliance-hub-api
+
+# Run tests to verify functionality
+make test
+```
+
+**Validation Script**: The `make validate` command runs comprehensive checks:
+- No compiled binaries present
+- Test artifacts properly gitignored
+- Configuration files valid
+- Required files exist
+- CLI is executable
+- Go code compiles
+- All tests pass
+
+The compiled binary causes 160+ false positive audit violations and should never be committed to git (protected by `.gitignore`).
 
 ## 🏗️ Architecture
 

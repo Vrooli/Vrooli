@@ -1,3 +1,23 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+(function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window.parent === window || window.__competitorMonitorBridgeInitialized) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[CompetitorChangeMonitor] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'competitor-change-monitor' });
+    window.__competitorMonitorBridgeInitialized = true;
+})();
+
 // Competitor Intelligence Monitor - Main JavaScript
 
 // Dynamic API URL configuration

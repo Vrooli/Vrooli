@@ -1,0 +1,26 @@
+# Compiled binaries
+api/*-api
+api/accessibility-compliance-hub
+cli/accessibility-compliance-hub
+
+# Test artifacts
+api/coverage.html
+api/coverage.out
+coverage/
+*.test
+*.out
+
+# Build directories
+build/
+dist/
+
+# Logs
+*.log
+
+# Node modules (if UI uses npm)
+ui/node_modules/
+ui/dist/
+ui/build/
+
+# Go build cache
+api/go.sum.backup

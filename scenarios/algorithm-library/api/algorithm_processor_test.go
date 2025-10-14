@@ -22,11 +22,11 @@ func TestNewAlgorithmProcessor(t *testing.T) {
 func TestExecuteAlgorithm(t *testing.T) {
 	processor := NewAlgorithmProcessor("")
 	ctx := context.Background()
-	
+
 	tests := []struct {
-		name     string
-		req      AlgorithmExecutionRequest
-		wantErr  bool
+		name    string
+		req     AlgorithmExecutionRequest
+		wantErr bool
 	}{
 		{
 			name: "Python execution",
@@ -47,11 +47,11 @@ func TestExecuteAlgorithm(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := processor.ExecuteAlgorithm(ctx, tt.req)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -65,7 +65,7 @@ func TestExecuteAlgorithm(t *testing.T) {
 func TestValidateBatch(t *testing.T) {
 	processor := NewAlgorithmProcessor("")
 	ctx := context.Background()
-	
+
 	req := BatchValidationRequest{
 		AlgorithmID: "sort",
 		Language:    "python",
@@ -87,7 +87,7 @@ print(json.dumps(sort_array(arr)))
 			},
 		},
 	}
-	
+
 	result, err := processor.ValidateBatch(ctx, req)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -96,7 +96,7 @@ print(json.dumps(sort_array(arr)))
 
 func TestGetLanguageID(t *testing.T) {
 	processor := NewAlgorithmProcessor("")
-	
+
 	tests := []struct {
 		language string
 		wantID   int
@@ -109,7 +109,7 @@ func TestGetLanguageID(t *testing.T) {
 		{"cpp", 54, false},
 		{"invalid", 0, true},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.language, func(t *testing.T) {
 			id, err := processor.getLanguageID(tt.language)
@@ -164,7 +164,7 @@ func TestFormatExpectedOutput(t *testing.T) {
 func TestGenerateRandomString(t *testing.T) {
 	str := generateRandomString(10)
 	assert.Len(t, str, 10)
-	
+
 	// Should be different each time
 	str2 := generateRandomString(10)
 	assert.Len(t, str2, 10)
@@ -183,7 +183,7 @@ func TestParseFloat(t *testing.T) {
 		{"", 0},
 		{"-4.56", -4.56},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			result := parseFloat(tt.input)
@@ -267,11 +267,11 @@ func TestJudge0MockServer(t *testing.T) {
 					"id":          3,
 					"description": "Accepted",
 				},
-				"stdout":   "Hello, World!\n",
-				"stderr":   nil,
-				"time":     "0.123",
-				"memory":   1234,
-				"token":    "test-token-123",
+				"stdout":         "Hello, World!\n",
+				"stderr":         nil,
+				"time":           "0.123",
+				"memory":         1234,
+				"token":          "test-token-123",
 				"compile_output": nil,
 			})
 		default:
@@ -279,7 +279,7 @@ func TestJudge0MockServer(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	
+
 	// Test Judge0 availability check
 	client := &http.Client{Timeout: 10 * time.Second}
 	req, _ := http.NewRequest("GET", server.URL+"/about", nil)

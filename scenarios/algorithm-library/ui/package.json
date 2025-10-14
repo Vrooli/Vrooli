@@ -4,9 +4,9 @@
   "description": "Algorithm Library Web Interface",
   "private": true,
   "scripts": {
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite --port 3251 --host'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite --port ${UI_PORT:-3252} --host'",
     "build": "vite build",
-    "preview": "vite preview --port 3251 --host"
+    "preview": "vite preview --port ${UI_PORT:-3252} --host"
   },
   "dependencies": {
     "react": "^18.2.0",

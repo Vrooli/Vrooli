@@ -1,4 +1,5 @@
 {
+  "_note": "This is a static health documentation file. Localhost URLs shown are default/example values - actual runtime uses environment variables (OLLAMA_BASE_URL, UNSTRUCTURED_IO_URL, N8N_BASE_URL, QDRANT_URL) configured by the Vrooli lifecycle system.",
   "status": "healthy",
   "service": "data-structurer-ui",
   "timestamp": "2025-09-13T00:00:00Z",

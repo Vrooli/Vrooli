@@ -56,6 +56,11 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	// Configure connection pool for high concurrency
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
 	// Test connection
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
@@ -90,6 +95,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/data/validate", s.handleDataValidate).Methods("POST")
 	api.HandleFunc("/data/query", s.handleDataQuery).Methods("POST")
 	api.HandleFunc("/data/stream/create", s.handleStreamCreate).Methods("POST")
+	api.HandleFunc("/data/profile", s.handleDataProfile).Methods("POST")
 
 	// Example resource routes - customize for your scenario
 	api.HandleFunc("/resources", s.handleListResources).Methods("GET")
@@ -118,7 +124,15 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Get allowed origin from environment or default to localhost
+		allowedOrigin := getEnv("CORS_ALLOWED_ORIGIN", "http://localhost:3000")
+		origin := r.Header.Get("Origin")
+
+		// Only set CORS headers if origin matches or in development
+		if origin == allowedOrigin || getEnv("ENVIRONMENT", "development") == "development" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
@@ -212,17 +226,27 @@ func (s *Server) handleCreateResource(w http.ResponseWriter, r *http.Request) {
 	// Generate ID
 	id := uuid.New().String()
 
-	// TODO: Validate input and insert into database
-	// This is a template - customize for your needs
+	// Serialize config to JSON for JSONB storage
+	var configJSON []byte
+	if input["config"] != nil {
+		var err error
+		configJSON, err = json.Marshal(input["config"])
+		if err != nil {
+			s.sendError(w, http.StatusBadRequest, "invalid config format")
+			return
+		}
+	} else {
+		configJSON = []byte("{}")
+	}
 
-	query := `INSERT INTO resources (id, name, description, config, created_at) 
+	query := `INSERT INTO resources (id, name, description, config, created_at)
 	          VALUES ($1, $2, $3, $4, $5)`
 
 	_, err := s.db.Exec(query,
 		id,
 		input["name"],
 		input["description"],
-		input["config"],
+		configJSON,
 		time.Now(),
 	)
 
@@ -282,15 +306,40 @@ func (s *Server) handleUpdateResource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Update resource in database
-	query := `UPDATE resources SET name = $2, description = $3, config = $4, updated_at = $5 
+	// First check if resource exists
+	var exists bool
+	checkQuery := `SELECT EXISTS(SELECT 1 FROM resources WHERE id = $1)`
+	err := s.db.QueryRow(checkQuery, id).Scan(&exists)
+	if err != nil {
+		s.sendError(w, http.StatusInternalServerError, "failed to check resource")
+		return
+	}
+	if !exists {
+		s.sendError(w, http.StatusNotFound, "resource not found")
+		return
+	}
+
+	// Serialize config to JSON for JSONB storage
+	var configJSON []byte
+	if input["config"] != nil {
+		var err error
+		configJSON, err = json.Marshal(input["config"])
+		if err != nil {
+			s.sendError(w, http.StatusBadRequest, "invalid config format")
+			return
+		}
+	} else {
+		configJSON = []byte("{}")
+	}
+
+	query := `UPDATE resources SET name = $2, description = $3, config = $4, updated_at = $5
 	          WHERE id = $1`
 
 	result, err := s.db.Exec(query,
 		id,
 		input["name"],
 		input["description"],
-		input["config"],
+		configJSON,
 		time.Now(),
 	)
 

@@ -165,13 +165,19 @@ func analyzeComplexity(results []BenchmarkDataPoint) string {
 	firstSize := float64(results[0].InputSize)
 	lastSize := float64(results[len(results)-1].InputSize)
 
-	ratio := (lastTime / firstTime) / (lastSize / firstSize)
+	// Calculate time growth ratio vs size growth ratio
+	sizeGrowth := lastSize / firstSize
+	timeGrowth := lastTime / firstTime
+	ratio := timeGrowth / sizeGrowth
 
+	// For O(n): time grows proportionally with size (ratio ≈ 1)
+	// For O(n log n): time grows slightly more than linear (ratio ≈ log(lastSize)/log(firstSize))
+	// For O(n²): time grows with square of size (ratio ≈ sizeGrowth)
 	if ratio < 1.5 {
 		return "O(n) - Linear"
 	} else if ratio < 3 {
 		return "O(n log n) - Linearithmic"
-	} else if ratio < lastSize/firstSize {
+	} else if ratio <= sizeGrowth*1.2 { // Allow 20% tolerance for quadratic
 		return "O(n²) - Quadratic"
 	}
 	return "O(n²+) - Super-quadratic"

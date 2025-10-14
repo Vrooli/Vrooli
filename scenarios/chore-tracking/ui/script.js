@@ -1,3 +1,26 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+// Ensure the iframe bridge is active when embedded in orchestrator preview
+function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window.parent === window || window.__choreTrackingBridgeInitialized) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[ChoreQuest] Unable to parse parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'chore-tracking' });
+    window.__choreTrackingBridgeInitialized = true;
+}
+
+bootstrapIframeBridge();
+
 // ChoreQuest - Gamified Chore Tracking Application
 // Fun, quirky, and motivating household task management
 

@@ -157,7 +157,7 @@ COMMANDS:
         [--expires <hours>]        Set expiration time (default: 24h)
         [--clipboard]              Mark as clipboard content
         
-    list [--json] [--filter <type>]  List all active sync items
+    list [--json] [--filter <type>] [--search <term>]  List all active sync items
                                      Filter: all, file, text, clipboard
                                      
     download <item_id> [path]  Download a sync item by ID
@@ -185,10 +185,13 @@ EXAMPLES:
     
     # List all items
     device-sync-hub list
-    
+
     # List only files with JSON output
     device-sync-hub list --filter file --json
-    
+
+    # Search for items containing specific text
+    device-sync-hub list --search "meeting notes"
+
     # Download an item
     device-sync-hub download a1b2c3d4-e5f6-7890-abcd-ef1234567890
     
@@ -504,10 +507,11 @@ cmd_upload_text() {
 
 cmd_list() {
     authenticate
-    
+
     local json_output=false
     local filter_type="all"
-    
+    local search_term=""
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --json)
@@ -518,15 +522,32 @@ cmd_list() {
                 filter_type="$2"
                 shift 2
                 ;;
+            --search)
+                search_term="$2"
+                shift 2
+                ;;
             *)
                 log_error "Unknown option: $1"
                 exit 1
                 ;;
         esac
     done
-    
+
+    # Build query string with filters
+    local query_params=""
+    if [[ "$filter_type" != "all" ]]; then
+        query_params="?type=$filter_type"
+    fi
+    if [[ -n "$search_term" ]]; then
+        if [[ -z "$query_params" ]]; then
+            query_params="?search=$search_term"
+        else
+            query_params="${query_params}&search=$search_term"
+        fi
+    fi
+
     local response
-    response=$(api_request "GET" "/api/v1/sync/items" || echo "")
+    response=$(api_request "GET" "/api/v1/sync/items${query_params}" || echo "")
     
     if [[ -z "$response" ]]; then
         log_error "Failed to fetch items"

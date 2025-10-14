@@ -1,6 +1,25 @@
 -- Data Tools Database Schema
 -- Core database structure for data processing and transformation
 
+-- Resources table: Generic resources for extensibility
+CREATE TABLE IF NOT EXISTS resources (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    config JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Executions table: Track workflow executions
+CREATE TABLE IF NOT EXISTS executions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    result JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP WITH TIME ZONE
+);
+
 -- Datasets table: Main data catalog
 CREATE TABLE IF NOT EXISTS datasets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -28,7 +47,7 @@ CREATE TABLE IF NOT EXISTS datasets (
 CREATE TABLE IF NOT EXISTS data_transformations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     dataset_id UUID REFERENCES datasets(id) ON DELETE CASCADE,
-    transformation_type VARCHAR(50) CHECK (transformation_type IN ('filter', 'map', 'join', 'aggregate', 'pivot', 'custom')),
+    transformation_type VARCHAR(50) CHECK (transformation_type IN ('filter', 'map', 'join', 'aggregate', 'pivot', 'sort', 'custom')),
     parameters JSONB NOT NULL DEFAULT '{}',
     sql_query TEXT,
     input_schema JSONB DEFAULT '{}',
@@ -154,11 +173,20 @@ CREATE INDEX idx_lineage_source ON data_lineage(source_dataset_id);
 CREATE INDEX idx_lineage_target ON data_lineage(target_dataset_id);
 CREATE INDEX idx_lineage_transformation ON data_lineage(transformation_id);
 
+CREATE INDEX idx_resources_name ON resources(name);
+CREATE INDEX idx_resources_created ON resources(created_at DESC);
+
+CREATE INDEX idx_executions_status ON executions(status);
+CREATE INDEX idx_executions_created ON executions(created_at DESC);
+
 -- Update triggers for timestamps
 CREATE TRIGGER update_datasets_updated_at BEFORE UPDATE ON datasets
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_streaming_sources_updated_at BEFORE UPDATE ON streaming_sources
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_resources_updated_at BEFORE UPDATE ON resources
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Function to update dataset access time

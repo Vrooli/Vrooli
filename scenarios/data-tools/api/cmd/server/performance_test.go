@@ -326,7 +326,7 @@ func TestPerformanceMemoryUsage(t *testing.T) {
 				"config":      map[string]interface{}{"key": fmt.Sprintf("value%d", i)},
 			}
 
-			req := makeHTTPRequest("POST", "/api/v1/resources/create", createBody, "test-token")
+			req := makeHTTPRequest("POST", "/api/v1/resources", createBody, "test-token")
 			w := httptest.NewRecorder()
 
 			env.Server.router.ServeHTTP(w, req)
@@ -339,7 +339,7 @@ func TestPerformanceMemoryUsage(t *testing.T) {
 		t.Logf("Successfully created %d resources", resourceCount)
 
 		// Verify we can list them all
-		req := makeHTTPRequest("GET", "/api/v1/resources/list", nil, "test-token")
+		req := makeHTTPRequest("GET", "/api/v1/resources", nil, "test-token")
 		w := httptest.NewRecorder()
 
 		env.Server.router.ServeHTTP(w, req)

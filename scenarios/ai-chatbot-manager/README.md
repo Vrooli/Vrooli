@@ -575,12 +575,38 @@ psql $DATABASE_URL -c "\dt"
    </script>
    ```
 
+## 🔒 Security
+
+### CORS Configuration
+
+AI Chatbot Manager is designed for **embeddable widgets** that work on any website. By default, CORS is set to wildcard (`*`) to allow the widget to function across all customer domains.
+
+**Security Measures in Place:**
+- ✅ Rate limiting on all API endpoints
+- ✅ WebSocket authentication via chatbot IDs
+- ✅ Input validation and sanitization
+- ✅ SQL injection prevention with parameterized queries
+- ✅ No sensitive data exposure via CORS endpoints
+
+**Production Deployment:**
+
+For production environments where you know all customer domains, you can restrict CORS:
+
+```bash
+export CORS_ALLOWED_ORIGINS="https://example.com,https://app.example.com"
+```
+
+**Important:** Restricting CORS means the widget will **only work** on specified domains.
+
+See [SECURITY.md](SECURITY.md) for detailed security considerations and recommendations.
+
 ## 📞 Support
 
 - **Documentation**: [Full documentation](docs/)
 - **Issues**: [GitHub Issues](issues/)
 - **CLI Help**: `ai-chatbot-manager help`
 - **API Status**: `GET /health`
+- **Security**: See [SECURITY.md](SECURITY.md)
 
 ## 📄 License
 

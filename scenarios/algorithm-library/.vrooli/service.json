@@ -78,7 +78,7 @@
       "description": "Algorithm Library health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/"
+        "ui": "/health"
       },
       "checks": [
         {
@@ -92,7 +92,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${UI_PORT}",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 5000,
           "interval": 30000
@@ -125,7 +125,7 @@
            {
              "type": "binaries",
              "targets": [
-               "algorithm-library-api"
+               "api/algorithm-library-api"
              ]
            },
            {

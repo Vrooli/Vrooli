@@ -1,5 +1,36 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
 // ROI Fit Analysis Frontend Application
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '/api';
+const BRIDGE_STATE_KEY = '__roiFitBridgeInitialized';
+
+const initializeIframeBridge = () => {
+    if (!(typeof window !== 'undefined' && window.parent !== window)) {
+        return;
+    }
+
+    if (window[BRIDGE_STATE_KEY]) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[ROIFitAnalysis] Unable to parse parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ appId: 'roi-fit-analysis', parentOrigin });
+    window[BRIDGE_STATE_KEY] = true;
+};
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initializeIframeBridge();
+} else {
+    document.addEventListener('DOMContentLoaded', initializeIframeBridge, { once: true });
+}
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {

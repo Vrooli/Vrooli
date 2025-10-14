@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -182,35 +183,35 @@ func createTestFile(t *testing.T, dir, filename, content string) string {
 
 // TestAlgorithmData provides sample algorithm data for tests
 type TestAlgorithmData struct {
-	ID                  string
-	Name                string
-	DisplayName         string
-	Category            string
-	Description         string
-	ComplexityTime      string
-	ComplexitySpace     string
-	Difficulty          string
-	Tags                string
-	LanguageCount       int
-	TestCaseCount       int
-	HasValidatedImpl    bool
+	ID               string
+	Name             string
+	DisplayName      string
+	Category         string
+	Description      string
+	ComplexityTime   string
+	ComplexitySpace  string
+	Difficulty       string
+	Tags             string
+	LanguageCount    int
+	TestCaseCount    int
+	HasValidatedImpl bool
 }
 
 // getTestAlgorithm returns a standard test algorithm for reuse
 func getTestAlgorithm() TestAlgorithmData {
 	return TestAlgorithmData{
-		ID:                  "123-456-789",
-		Name:                "quicksort",
-		DisplayName:         "QuickSort",
-		Category:            "sorting",
-		Description:         "Efficient divide-and-conquer sorting algorithm",
-		ComplexityTime:      "O(n log n)",
-		ComplexitySpace:     "O(log n)",
-		Difficulty:          "medium",
-		Tags:                `["divide-conquer","in-place"]`,
-		LanguageCount:       3,
-		TestCaseCount:       5,
-		HasValidatedImpl:    true,
+		ID:               "123-456-789",
+		Name:             "quicksort",
+		DisplayName:      "QuickSort",
+		Category:         "sorting",
+		Description:      "Efficient divide-and-conquer sorting algorithm",
+		ComplexityTime:   "O(n log n)",
+		ComplexitySpace:  "O(log n)",
+		Difficulty:       "medium",
+		Tags:             `["divide-conquer","in-place"]`,
+		LanguageCount:    3,
+		TestCaseCount:    5,
+		HasValidatedImpl: true,
 	}
 }
 

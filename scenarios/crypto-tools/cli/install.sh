@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../.." && builtin pwd)}"
-CLI_DIR="${APP_ROOT}/scripts/scenarios/templates/full/cli"
-source "${APP_ROOT}/scripts/scenarios/templates/full/scripts/lib/utils/cli-install.sh"
+# Get the directory of this script
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+# Navigate to Vrooli root (cli -> crypto-tools -> scenarios -> Vrooli)
+APP_ROOT="${VROOLI_ROOT:-$(builtin cd "$SCRIPT_DIR/../../.." && builtin pwd)}"
+CLI_DIR="$SCRIPT_DIR"
 
-install_cli "$CLI_DIR/CLI_NAME_PLACEHOLDER" "CLI_NAME_PLACEHOLDER"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
+
+install_cli "$CLI_DIR/crypto-tools" "crypto-tools"

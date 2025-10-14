@@ -123,7 +123,13 @@ func (s *Server) handleHash(w http.ResponseWriter, r *http.Request) {
 		s.sendError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
-	
+
+	// Validate required fields
+	if req.Data == "" {
+		s.sendError(w, http.StatusBadRequest, "Data field is required")
+		return
+	}
+
 	startTime := time.Now()
 	
 	// Default algorithm if not specified
@@ -213,7 +219,13 @@ func (s *Server) handleEncrypt(w http.ResponseWriter, r *http.Request) {
 		s.sendError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
-	
+
+	// Validate required fields
+	if req.Data == "" {
+		s.sendError(w, http.StatusBadRequest, "Data field is required")
+		return
+	}
+
 	startTime := time.Now()
 	
 	// Default algorithm
@@ -367,17 +379,33 @@ func (s *Server) handleDecrypt(w http.ResponseWriter, r *http.Request) {
 
 // handleKeyGenerate generates new cryptographic keys
 func (s *Server) handleKeyGenerate(w http.ResponseWriter, r *http.Request) {
+	// Check for empty body by reading and checking content
+	if r.Body == nil || r.ContentLength == 0 {
+		s.sendError(w, http.StatusBadRequest, "Request body is required")
+		return
+	}
+
 	var req KeyGenRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.sendError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
-	
+
 	startTime := time.Now()
-	
-	// Default key type
+
+	// Require explicit key_type - no defaults for empty body
 	if req.KeyType == "" {
-		req.KeyType = "rsa"
+		s.sendError(w, http.StatusBadRequest, "key_type field is required")
+		return
+	}
+
+	// Validate key type
+	switch req.KeyType {
+	case "rsa", "symmetric":
+		// Supported types
+	default:
+		s.sendError(w, http.StatusBadRequest, fmt.Sprintf("Unsupported key type: %s", req.KeyType))
+		return
 	}
 	
 	// Default key size

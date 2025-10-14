@@ -145,7 +145,7 @@
       "description": "Application health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/",
+        "ui": "/health",
         "metrics": "/api/metrics"
       },
       "checks": [
@@ -160,7 +160,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${UI_PORT}/",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 5000,
           "interval": 60000
@@ -177,7 +177,7 @@
            {
              "type": "binaries",
              "targets": [
-               "crypto-tools-api"
+               "api/crypto-tools-api"
              ]
            },
            {
@@ -304,8 +304,8 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
+          "run": "curl -s http://localhost:$API_PORT/health | grep -q '\"service\":\"crypto-tools-api\"'",
+          "description": "Test API health endpoint returns valid JSON"
         },
         {
           "name": "test-ui-build",

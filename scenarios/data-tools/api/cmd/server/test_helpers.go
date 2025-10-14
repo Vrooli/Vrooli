@@ -100,13 +100,14 @@ func (s *Server) setupTestRoutes() *mux.Router {
 	router.HandleFunc("/api/v1/data/validate", s.wrapWithAuth(s.handleDataValidate)).Methods("POST")
 	router.HandleFunc("/api/v1/data/query", s.wrapWithAuth(s.handleDataQuery)).Methods("POST")
 	router.HandleFunc("/api/v1/data/stream/create", s.wrapWithAuth(s.handleStreamCreate)).Methods("POST")
+	router.HandleFunc("/api/v1/data/profile", s.wrapWithAuth(s.handleDataProfile)).Methods("POST")
 
-	// Resource endpoints
-	router.HandleFunc("/api/v1/resources/list", s.wrapWithAuth(s.handleListResourcesTest)).Methods("GET")
-	router.HandleFunc("/api/v1/resources/create", s.wrapWithAuth(s.handleCreateResourceTest)).Methods("POST")
-	router.HandleFunc("/api/v1/resources/get", s.wrapWithAuth(s.handleGetResourceTest)).Methods("GET")
-	router.HandleFunc("/api/v1/resources/update", s.wrapWithAuth(s.handleUpdateResourceTest)).Methods("POST")
-	router.HandleFunc("/api/v1/resources/delete", s.wrapWithAuth(s.handleDeleteResourceTest)).Methods("POST")
+	// Resource endpoints - match production REST patterns
+	router.HandleFunc("/api/v1/resources", s.wrapWithAuth(s.handleListResources)).Methods("GET")
+	router.HandleFunc("/api/v1/resources", s.wrapWithAuth(s.handleCreateResource)).Methods("POST")
+	router.HandleFunc("/api/v1/resources/{id}", s.wrapWithAuth(s.handleGetResource)).Methods("GET")
+	router.HandleFunc("/api/v1/resources/{id}", s.wrapWithAuth(s.handleUpdateResource)).Methods("PUT")
+	router.HandleFunc("/api/v1/resources/{id}", s.wrapWithAuth(s.handleDeleteResource)).Methods("DELETE")
 
 	// Workflow endpoints
 	router.HandleFunc("/api/v1/execute", s.wrapWithAuth(s.handleExecuteWorkflow)).Methods("POST")

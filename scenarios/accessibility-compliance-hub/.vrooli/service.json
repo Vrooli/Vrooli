@@ -1,19 +1,21 @@
 {
-  "name": "accessibility-compliance-hub",
   "version": "1.0.0",
   "description": "Automated WCAG compliance testing, remediation, and monitoring for all Vrooli scenarios",
   "category": "compliance",
   "status": "development",
+  "service": {
+    "name": "accessibility-compliance-hub"
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
       "description": "Accessibility compliance hub API port",
-      "range": "20000-20999"
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
       "description": "Accessibility compliance hub UI port",
-      "range": "40000-40999"
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -206,17 +208,43 @@
     }
   },
   "lifecycle": {
+    "setup": {
+      "description": "Install accessibility compliance hub CLI",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/accessibility-compliance-hub-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "accessibility-compliance-hub"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "description": "Install CLI binary to ~/.vrooli/bin"
+        }
+      ]
+    },
     "develop": {
       "description": "Start accessibility compliance hub services",
       "steps": [
         {
-          "name": "start-ui", 
+          "name": "start-ui",
           "run": "cd ui && python3 -m http.server ${UI_PORT} &",
           "description": "Start simple UI server for static files"
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  Note: This is a UI prototype, full API not yet implemented'",
+          "run": "echo -e '🚀 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  Note: This is a UI prototype, full API not yet implemented'",
           "description": "Display running service URLs"
         }
       ]
@@ -231,10 +259,48 @@
         },
         {
           "name": "stop-ui",
-          "run": "true",
-          "description": "Stop UI process"
+          "run": "pkill -f 'python3 -m http.server.*35[0-9][0-9][0-9]' || true; pkill -f 'python3 -m http.server.*40[0-9][0-9][0-9]' || true; sleep 1",
+          "description": "Stop UI process (kills any python http.server in UI port ranges)"
         }
       ]
+    },
+    "test": {
+      "description": "Run accessibility compliance hub test suite",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "cd api && go test -v ./... -race -coverprofile=coverage.out",
+          "description": "Run Go API tests with race detection and coverage"
+        }
+      ]
+    },
+    "health": {
+      "description": "Accessibility compliance hub health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
     }
   }
 }

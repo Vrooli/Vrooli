@@ -59,12 +59,11 @@ chmod +x "$CLI_TARGET"
 # Check if ~/.vrooli/bin is in PATH
 if [[ ":$PATH:" != *":$VROOLI_BIN_DIR:"* ]]; then
     log_warning "~/.vrooli/bin is not in your PATH"
-    
+
     # Determine shell and profile file
-    local shell_name
     shell_name=$(basename "$SHELL")
-    
-    local profile_files=()
+
+    profile_files=()
     case "$shell_name" in
         bash)
             profile_files=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile")
@@ -79,9 +78,9 @@ if [[ ":$PATH:" != *":$VROOLI_BIN_DIR:"* ]]; then
             profile_files=("$HOME/.profile")
             ;;
     esac
-    
+
     # Find the first existing profile file
-    local profile_file=""
+    profile_file=""
     for file in "${profile_files[@]}"; do
         if [[ -f "$file" ]]; then
             profile_file="$file"

@@ -68,9 +68,9 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "default": 20010,
+      "default": 15010,
       "description": "Data Backup Manager API port",
-      "range": "20000-20999"
+      "range": "15000-19999"
     }
   },
   "lifecycle": {
@@ -109,7 +109,7 @@
            {
              "type": "binaries",
              "targets": [
-               "data-backup-manager-api"
+               "api/data-backup-manager-api"
              ]
            },
            {

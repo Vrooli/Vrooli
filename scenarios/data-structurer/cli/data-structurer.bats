@@ -2,8 +2,10 @@
 # Data Structurer CLI Tests
 
 CLI_SCRIPT="${BATS_TEST_DIRNAME}/data-structurer"
-API_PORT="${API_PORT:-15770}"
-API_URL="http://localhost:${API_PORT}"
+# Use DATA_STRUCTURER_API_PORT first (scenario-specific), fall back to API_PORT, then default
+SCENARIO_API_PORT="${DATA_STRUCTURER_API_PORT:-${API_PORT:-15774}}"
+export DATA_STRUCTURER_API_PORT="$SCENARIO_API_PORT"
+API_URL="http://localhost:${SCENARIO_API_PORT}"
 
 # Setup function runs before each test
 setup() {
@@ -20,6 +22,10 @@ setup() {
     # Create temp directory for test artifacts
     TEST_TEMP_DIR="$(mktemp -d)"
     export TEST_TEMP_DIR
+
+    # Generate unique suffix for test schemas to avoid conflicts
+    TEST_SUFFIX="$(date +%s)-$$"
+    export TEST_SUFFIX
 }
 
 # Teardown function runs after each test
@@ -28,6 +34,13 @@ teardown() {
     if [ -n "$TEST_TEMP_DIR" ] && [ -d "$TEST_TEMP_DIR" ]; then
         rm -rf "$TEST_TEMP_DIR"
     fi
+}
+
+# Helper function to extract JSON from CLI output (which includes log messages on stderr)
+extract_json() {
+    local output="$1"
+    # Find the first '{' and extract from there to the end
+    echo "$output" | sed -n '/{/,$p'
 }
 
 # ============================================================================
@@ -103,7 +116,7 @@ teardown() {
 }
 EOF
 
-    run bash "$CLI_SCRIPT" create-schema "test-cli-schema" "$TEST_TEMP_DIR/test-schema.json" --description "Test schema from CLI"
+    run bash "$CLI_SCRIPT" create-schema "test-cli-schema-${TEST_SUFFIX}" "$TEST_TEMP_DIR/test-schema.json" --description "Test schema from CLI"
     [ "$status" -eq 0 ]
     [[ "$output" =~ "created" ]] || [[ "$output" =~ "success" ]] || [[ "$output" =~ "id" ]]
 }
@@ -135,11 +148,12 @@ EOF
 {"type": "object", "properties": {"field": {"type": "string"}}}
 EOF
 
-    create_output=$(bash "$CLI_SCRIPT" create-schema "test-get-schema" "$TEST_TEMP_DIR/test-schema.json" --json 2>&1)
+    create_output=$(bash "$CLI_SCRIPT" create-schema "test-get-schema-${TEST_SUFFIX}" "$TEST_TEMP_DIR/test-schema.json" --json 2>&1)
 
     # Extract schema ID (assuming JSON output contains an id field)
     if command -v jq &> /dev/null && [[ "$create_output" =~ \{.*\} ]]; then
-        schema_id=$(echo "$create_output" | jq -r '.id // empty')
+        json_only=$(extract_json "$create_output")
+        schema_id=$(echo "$json_only" | jq -r '.id // empty')
 
         if [ -n "$schema_id" ] && [ "$schema_id" != "null" ]; then
             run bash "$CLI_SCRIPT" get-schema "$schema_id"
@@ -161,10 +175,11 @@ EOF
 {"type": "object"}
 EOF
 
-    create_output=$(bash "$CLI_SCRIPT" create-schema "test-delete-schema" "$TEST_TEMP_DIR/test-schema.json" --json 2>&1)
+    create_output=$(bash "$CLI_SCRIPT" create-schema "test-delete-schema-${TEST_SUFFIX}" "$TEST_TEMP_DIR/test-schema.json" --json 2>&1)
 
     if command -v jq &> /dev/null && [[ "$create_output" =~ \{.*\} ]]; then
-        schema_id=$(echo "$create_output" | jq -r '.id // empty')
+        json_only=$(extract_json "$create_output")
+        schema_id=$(echo "$json_only" | jq -r '.id // empty')
 
         if [ -n "$schema_id" ] && [ "$schema_id" != "null" ]; then
             run bash "$CLI_SCRIPT" delete-schema "$schema_id"
@@ -193,8 +208,9 @@ EOF
     # First get list of templates
     templates_output=$(bash "$CLI_SCRIPT" list-templates --json 2>&1)
 
-    if command -v jq &> /dev/null && [[ "$templates_output" =~ \[.*\] ]]; then
-        template_id=$(echo "$templates_output" | jq -r '.[0].id // empty')
+    if command -v jq &> /dev/null && [[ "$templates_output" =~ \{.*\} ]]; then
+        json_only=$(extract_json "$templates_output")
+        template_id=$(echo "$json_only" | jq -r '.templates[0].id // empty')
 
         if [ -n "$template_id" ] && [ "$template_id" != "null" ]; then
             run bash "$CLI_SCRIPT" get-template "$template_id"
@@ -207,11 +223,14 @@ EOF
     # Get first template
     templates_output=$(bash "$CLI_SCRIPT" list-templates --json 2>&1)
 
-    if command -v jq &> /dev/null && [[ "$templates_output" =~ \[.*\] ]]; then
-        template_id=$(echo "$templates_output" | jq -r '.[0].id // empty')
+    if command -v jq &> /dev/null && [[ "$templates_output" =~ \{.*\} ]]; then
+        json_only=$(extract_json "$templates_output")
+        template_id=$(echo "$json_only" | jq -r '.templates[0].id // empty')
 
         if [ -n "$template_id" ] && [ "$template_id" != "null" ]; then
-            run bash "$CLI_SCRIPT" create-from-template "$template_id" "test-from-template"
+            # Use timestamp to ensure unique schema name
+            unique_name="test-from-template-$(date +%s)"
+            run bash "$CLI_SCRIPT" create-from-template "$template_id" "$unique_name"
             [ "$status" -eq 0 ]
             [[ "$output" =~ "created" ]] || [[ "$output" =~ "success" ]]
         fi
@@ -234,10 +253,11 @@ EOF
 }
 EOF
 
-    create_output=$(bash "$CLI_SCRIPT" create-schema "test-process-schema" "$TEST_TEMP_DIR/process-schema.json" --json 2>&1)
+    create_output=$(bash "$CLI_SCRIPT" create-schema "test-process-schema-${TEST_SUFFIX}" "$TEST_TEMP_DIR/process-schema.json" --json 2>&1)
 
     if command -v jq &> /dev/null && [[ "$create_output" =~ \{.*\} ]]; then
-        schema_id=$(echo "$create_output" | jq -r '.id // empty')
+        json_only=$(extract_json "$create_output")
+        schema_id=$(echo "$json_only" | jq -r '.id // empty')
 
         if [ -n "$schema_id" ] && [ "$schema_id" != "null" ]; then
             run bash "$CLI_SCRIPT" process "$schema_id" "John Doe, email: john@example.com"
@@ -263,10 +283,11 @@ EOF
 {"type": "object", "properties": {"field": {"type": "string"}}}
 EOF
 
-    create_output=$(bash "$CLI_SCRIPT" create-schema "test-data-schema" "$TEST_TEMP_DIR/data-schema.json" --json 2>&1)
+    create_output=$(bash "$CLI_SCRIPT" create-schema "test-data-schema-${TEST_SUFFIX}" "$TEST_TEMP_DIR/data-schema.json" --json 2>&1)
 
     if command -v jq &> /dev/null && [[ "$create_output" =~ \{.*\} ]]; then
-        schema_id=$(echo "$create_output" | jq -r '.id // empty')
+        json_only=$(extract_json "$create_output")
+        schema_id=$(echo "$json_only" | jq -r '.id // empty')
 
         if [ -n "$schema_id" ] && [ "$schema_id" != "null" ]; then
             # Process some data
@@ -300,8 +321,9 @@ EOF
     # Get list of jobs
     jobs_output=$(bash "$CLI_SCRIPT" list-jobs --json 2>&1)
 
-    if command -v jq &> /dev/null && [[ "$jobs_output" =~ \[.*\] ]]; then
-        job_id=$(echo "$jobs_output" | jq -r '.[0].id // empty')
+    if command -v jq &> /dev/null && [[ "$jobs_output" =~ \{.*\} ]]; then
+        json_only=$(extract_json "$jobs_output")
+        job_id=$(echo "$json_only" | jq -r '.jobs[0].id // empty')
 
         if [ -n "$job_id" ] && [ "$job_id" != "null" ]; then
             run bash "$CLI_SCRIPT" get-job "$job_id"

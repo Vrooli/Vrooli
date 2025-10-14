@@ -75,7 +75,7 @@ func (b *TestScenarioBuilder) AddMissingAuth(path string) *TestScenarioBuilder {
 		Name:           "Missing Authentication",
 		Method:         "GET",
 		Path:           path,
-		Token:          "", // No token
+		Token:          "",            // No token
 		ExpectedStatus: http.StatusOK, // Some endpoints allow no auth
 	})
 	return b

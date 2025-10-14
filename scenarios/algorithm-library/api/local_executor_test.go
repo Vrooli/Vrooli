@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -17,7 +18,7 @@ func TestNewLocalExecutor(t *testing.T) {
 
 func TestExecutePython(t *testing.T) {
 	executor := NewLocalExecutor(5 * time.Second)
-	
+
 	tests := []struct {
 		name       string
 		code       string
@@ -50,7 +51,7 @@ print(f"Input: {data}")`,
 			wantErr:    true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := executor.ExecutePython(tt.code, tt.stdin)
@@ -71,7 +72,7 @@ print(f"Input: {data}")`,
 
 func TestExecuteJavaScript(t *testing.T) {
 	executor := NewLocalExecutor(5 * time.Second)
-	
+
 	tests := []struct {
 		name       string
 		code       string
@@ -94,7 +95,7 @@ func TestExecuteJavaScript(t *testing.T) {
 			wantErr:    true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := executor.ExecuteJavaScript(tt.code, tt.stdin)
@@ -114,7 +115,7 @@ func TestExecuteJavaScript(t *testing.T) {
 
 func TestExecuteGo(t *testing.T) {
 	executor := NewLocalExecutor(10 * time.Second) // Go compilation takes longer
-	
+
 	tests := []struct {
 		name       string
 		code       string
@@ -146,7 +147,7 @@ func main() {
 			wantErr:    true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := executor.ExecuteGo(tt.code, tt.stdin)
@@ -165,8 +166,16 @@ func main() {
 }
 
 func TestExecuteJava(t *testing.T) {
+	// Skip test if Java is not installed
+	if _, err := exec.LookPath("javac"); err != nil {
+		t.Skip("javac not found, skipping Java tests")
+	}
+	if _, err := exec.LookPath("java"); err != nil {
+		t.Skip("java not found, skipping Java tests")
+	}
+
 	executor := NewLocalExecutor(10 * time.Second)
-	
+
 	tests := []struct {
 		name       string
 		code       string
@@ -199,7 +208,7 @@ public class Main {
 			wantErr:    true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := executor.ExecuteJava(tt.code, tt.stdin)
@@ -218,7 +227,7 @@ public class Main {
 
 func TestExecuteCPP(t *testing.T) {
 	executor := NewLocalExecutor(10 * time.Second)
-	
+
 	tests := []struct {
 		name       string
 		code       string
@@ -251,7 +260,7 @@ int main() {
 			wantErr:    true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := executor.ExecuteCPP(tt.code, tt.stdin)
@@ -315,7 +324,7 @@ func TestIndentCode(t *testing.T) {
 			want:   "    line1\n    \n    line2",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := indentCode(tt.code, tt.indent)

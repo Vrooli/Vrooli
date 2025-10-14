@@ -241,12 +241,15 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
+// healthHandler returns the health status of the API and its dependencies.
+// Returns 200 OK if healthy, 503 Service Unavailable if database is down.
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	// Check database connection
 	err := db.Ping()
 	status := "healthy"
 	if err != nil {
 		status = "unhealthy"
+		log.Printf("Health check failed - database ping error: %v", err)
 	}
 
 	response := map[string]interface{}{
@@ -262,6 +265,9 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// searchAlgorithmsHandler searches for algorithms based on query parameters.
+// Supports filtering by query text, category, complexity, language, and difficulty.
+// Query parameters: q/query (search text), category, complexity, language, difficulty.
 func searchAlgorithmsHandler(w http.ResponseWriter, r *http.Request) {
 	// Support both 'q' and 'query' parameters for flexibility
 	query := r.URL.Query().Get("q")
@@ -272,6 +278,12 @@ func searchAlgorithmsHandler(w http.ResponseWriter, r *http.Request) {
 	complexity := r.URL.Query().Get("complexity")
 	language := r.URL.Query().Get("language")
 	difficulty := r.URL.Query().Get("difficulty")
+
+	// Validate difficulty parameter if provided
+	if difficulty != "" && difficulty != "easy" && difficulty != "medium" && difficulty != "hard" {
+		http.Error(w, fmt.Sprintf("Invalid difficulty level: %s. Must be 'easy', 'medium', or 'hard'", difficulty), http.StatusBadRequest)
+		return
+	}
 
 	// Build SQL query
 	sqlQuery := `
@@ -320,8 +332,8 @@ func searchAlgorithmsHandler(w http.ResponseWriter, r *http.Request) {
 	// Execute query
 	rows, err := db.Query(sqlQuery, args...)
 	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
-		log.Printf("Search query error: %v", err)
+		log.Printf("Search query error: %v | Query: %s | Args: %v", err, sqlQuery, args)
+		http.Error(w, "Failed to search algorithms. Please try again or contact support if the problem persists.", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -501,10 +513,11 @@ func getImplementationsHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err == sql.ErrNoRows {
-		http.Error(w, "Algorithm not found", http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("Algorithm not found: %s", id), http.StatusNotFound)
 		return
 	} else if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		log.Printf("Get algorithm error for ID %s: %v", id, err)
+		http.Error(w, "Failed to retrieve algorithm. Please check the algorithm ID and try again.", http.StatusInternalServerError)
 		return
 	}
 
@@ -532,8 +545,8 @@ func getImplementationsHandler(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
-		log.Printf("Get implementations error: %v", err)
+		log.Printf("Get implementations error for algorithm %s: %v", algo.ID, err)
+		http.Error(w, "Failed to retrieve algorithm implementations. Please try again.", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -562,23 +575,56 @@ func getImplementationsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// validateAlgorithmHandler validates user code against algorithm test cases.
+// Accepts algorithm_id (name or UUID), language, and code.
+// Wraps code with test harness and executes against all test cases for the algorithm.
+// Returns validation results with pass/fail status and execution metrics.
 func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 	var req ValidationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Invalid request body: %v. Expected JSON with algorithm_id, language, and code fields.", err), http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if req.AlgorithmID == "" {
+		http.Error(w, "Missing required field: algorithm_id", http.StatusBadRequest)
+		return
+	}
+	if req.Language == "" {
+		http.Error(w, "Missing required field: language", http.StatusBadRequest)
+		return
+	}
+	if req.Code == "" {
+		http.Error(w, "Missing required field: code", http.StatusBadRequest)
+		return
+	}
+
+	// Validate language is supported
+	supportedLanguages := map[string]bool{
+		"python":     true,
+		"javascript": true,
+		"go":         true,
+		"java":       true,
+		"cpp":        true,
+		"c":          true,
+	}
+	if !supportedLanguages[strings.ToLower(req.Language)] {
+		http.Error(w, fmt.Sprintf("Unsupported language: %s. Supported languages: python, javascript, go, java, cpp, c", req.Language), http.StatusBadRequest)
 		return
 	}
 
 	// Try to parse as UUID first, if that fails, look up by name
 	algorithmID := req.AlgorithmID
+	var algorithmName string
 	if _, err := uuid.Parse(algorithmID); err != nil {
-		// Not a UUID, try to look up by name
+		// Not a UUID, try to look up by name (use name or display_name)
 		var foundID string
 		err := db.QueryRow(`
-			SELECT id FROM algorithms 
-			WHERE LOWER(name) = LOWER($1) OR LOWER(slug) = LOWER($1)
+			SELECT id, name FROM algorithms
+			WHERE LOWER(name) = LOWER($1) OR LOWER(display_name) = LOWER($1)
 			LIMIT 1
-		`, algorithmID).Scan(&foundID)
+		`, algorithmID).Scan(&foundID, &algorithmName)
 
 		if err != nil {
 			log.Printf("Failed to find algorithm by name: %v", err)
@@ -586,6 +632,14 @@ func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		algorithmID = foundID
+	} else {
+		// We have a UUID, get the algorithm name
+		err := db.QueryRow(`SELECT name FROM algorithms WHERE id = $1`, algorithmID).Scan(&algorithmName)
+		if err != nil {
+			log.Printf("Failed to find algorithm by ID: %v", err)
+			http.Error(w, fmt.Sprintf("Algorithm not found: %s", algorithmID), http.StatusNotFound)
+			return
+		}
 	}
 
 	// Get test cases for the algorithm
@@ -616,8 +670,11 @@ func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// Wrap user code with test harness that calls the function with test input
+		wrappedCode := WrapCodeWithTestHarness(req.Language, req.Code, algorithmName, inputJSON)
+
 		// Execute using n8n workflow with fallback to local execution
-		execResult, execErr := ExecuteWithFallback(req.Language, req.Code, inputJSON, 5*time.Second)
+		execResult, execErr := ExecuteWithFallback(req.Language, wrappedCode, "", 5*time.Second)
 
 		if execErr != nil && strings.Contains(execErr.Error(), "unsupported language") {
 			// For unsupported languages
@@ -645,10 +702,23 @@ func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 			})
 			allPassed = false
 		} else {
-			// Compare output (trim whitespace for comparison)
+			// Compare output (normalize JSON for comparison)
 			actualOutput := strings.TrimSpace(execResult.Output)
 			expectedOutput := strings.TrimSpace(expectedJSON)
+
+			// Try to normalize JSON (parse and re-serialize to handle formatting differences)
 			passed := actualOutput == expectedOutput
+			if !passed {
+				// Try JSON normalization - parse both and compare
+				var actualJSON, expectedJSONParsed interface{}
+				if json.Unmarshal([]byte(actualOutput), &actualJSON) == nil &&
+					json.Unmarshal([]byte(expectedOutput), &expectedJSONParsed) == nil {
+					// Compare the parsed JSON structures
+					actualNormalized, _ := json.Marshal(actualJSON)
+					expectedNormalized, _ := json.Marshal(expectedJSONParsed)
+					passed = string(actualNormalized) == string(expectedNormalized)
+				}
+			}
 
 			if !passed {
 				allPassed = false
@@ -694,13 +764,13 @@ func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	// Log usage
+	// Log usage (use resolved algorithmID UUID, not req.AlgorithmID which may be a name)
 	// Convert metadata map to JSON for storage
 	metadataJSON, _ := json.Marshal(map[string]string{"language": req.Language})
 	_, err = db.Exec(`
 		INSERT INTO usage_stats (algorithm_id, action, caller, metadata)
 		VALUES ($1, 'validate', 'api', $2)
-	`, req.AlgorithmID, metadataJSON)
+	`, algorithmID, metadataJSON)
 
 	if err != nil {
 		log.Printf("Failed to log usage: %v", err)
@@ -718,7 +788,8 @@ func getCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 		ORDER BY category
 	`)
 	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		log.Printf("Get categories error: %v", err)
+		http.Error(w, "Failed to retrieve algorithm categories. Please try again.", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -755,20 +826,21 @@ func getStatsHandler(w http.ResponseWriter, r *http.Request) {
 	db.QueryRow("SELECT COUNT(*) FROM implementations WHERE validated = true").Scan(&stats.ValidatedCount)
 
 	// Get language distribution
-	languageRows, _ := db.Query(`
+	languageRows, err := db.Query(`
 		SELECT language, COUNT(*) as count
 		FROM implementations
 		GROUP BY language
 		ORDER BY count DESC
 	`)
-	defer languageRows.Close()
-
 	languages := map[string]int{}
-	for languageRows.Next() {
-		var lang string
-		var count int
-		if err := languageRows.Scan(&lang, &count); err == nil {
-			languages[lang] = count
+	if err == nil && languageRows != nil {
+		defer languageRows.Close()
+		for languageRows.Next() {
+			var lang string
+			var count int
+			if err := languageRows.Scan(&lang, &count); err == nil {
+				languages[lang] = count
+			}
 		}
 	}
 

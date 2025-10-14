@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Futuristic dashboard for managing AI agents",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh nodemon server.js'"

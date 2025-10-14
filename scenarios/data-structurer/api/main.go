@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -20,6 +21,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"gopkg.in/yaml.v3"
 )
 
 type Schema struct {
@@ -56,10 +58,11 @@ type ProcessedData struct {
 }
 
 type ProcessingRequest struct {
-	SchemaID  uuid.UUID `json:"schema_id" binding:"required"`
-	InputType string    `json:"input_type" binding:"required,oneof=file text url"`
-	InputData string    `json:"input_data" binding:"required"`
-	BatchMode bool      `json:"batch_mode"`
+	SchemaID   uuid.UUID `json:"schema_id" binding:"required"`
+	InputType  string    `json:"input_type" binding:"required,oneof=file text url"`
+	InputData  string    `json:"input_data" binding:"required"`
+	BatchMode  bool      `json:"batch_mode"`
+	BatchItems []string  `json:"batch_items,omitempty"` // For batch mode: array of inputs
 }
 
 type ProcessingResponse struct {
@@ -68,6 +71,25 @@ type ProcessingResponse struct {
 	StructuredData  map[string]interface{} `json:"structured_data,omitempty"`
 	ConfidenceScore *float64               `json:"confidence_score,omitempty"`
 	Errors          []string               `json:"errors,omitempty"`
+}
+
+type BatchProcessingResponse struct {
+	BatchID     uuid.UUID           `json:"batch_id"`
+	Status      string              `json:"status"`
+	TotalItems  int                 `json:"total_items"`
+	Completed   int                 `json:"completed"`
+	Failed      int                 `json:"failed"`
+	Results     []ProcessingResult  `json:"results,omitempty"`
+	AvgConfidence *float64          `json:"avg_confidence,omitempty"`
+	ProcessingTimeMs int            `json:"processing_time_ms"`
+}
+
+type ProcessingResult struct {
+	ProcessingID    uuid.UUID              `json:"processing_id"`
+	Status          string                 `json:"status"`
+	StructuredData  map[string]interface{} `json:"structured_data,omitempty"`
+	ConfidenceScore *float64               `json:"confidence_score,omitempty"`
+	Error           string                 `json:"error,omitempty"`
 }
 
 type SchemaTemplate struct {
@@ -641,7 +663,7 @@ func main() {
 		dbName := os.Getenv("POSTGRES_DB")
 
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Missing database configuration. Provide DATABASE_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+			log.Fatal("❌ Missing database configuration. Provide DATABASE_URL or all required POSTGRES_* environment variables")
 		}
 
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -710,9 +732,36 @@ func main() {
 	// Initialize Gin router
 	r := gin.Default()
 
-	// CORS middleware
+	// Configure trusted proxies (localhost only for development)
+	if err := r.SetTrustedProxies([]string{"127.0.0.1", "::1"}); err != nil {
+		log.Printf("⚠️  Warning: Failed to set trusted proxies: %v", err)
+	}
+
+	// CORS middleware - restricted to localhost origins for security
 	r.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := c.Request.Header.Get("Origin")
+		// Only allow localhost origins
+		allowedOrigins := []string{
+			"http://localhost",
+			"https://localhost",
+			"http://127.0.0.1",
+			"https://127.0.0.1",
+		}
+
+		allowed := false
+		for _, allowedOrigin := range allowedOrigins {
+			if strings.HasPrefix(origin, allowedOrigin) {
+				allowed = true
+				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
+
+		if !allowed && origin != "" {
+			// For non-localhost origins, don't set CORS headers
+			log.Printf("⚠️  Blocked CORS request from non-localhost origin: %s", origin)
+		}
+
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
@@ -728,6 +777,22 @@ func main() {
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
 		handleHealthCheck(c, db)
+	})
+
+	// Serve UI at root path
+	r.GET("/", func(c *gin.Context) {
+		// When running from api directory, UI is in sibling directory
+		uiPath := "../ui/index.html"
+		if _, err := os.Stat(uiPath); os.IsNotExist(err) {
+			// Fallback: try from project root
+			uiPath = "ui/index.html"
+			if _, err := os.Stat(uiPath); os.IsNotExist(err) {
+				c.String(http.StatusNotFound, "UI file not found")
+				return
+			}
+		}
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.File(uiPath)
 	})
 
 	// API routes
@@ -1173,12 +1238,16 @@ func processData(c *gin.Context) {
 		return
 	}
 
-	// Create processing job
+	// Handle batch mode
+	if req.BatchMode {
+		processBatchData(c, req)
+		return
+	}
+
+	// Single item processing
 	processingID := uuid.New()
 	startTime := time.Now()
 
-	// For now, we'll do synchronous processing for simple cases
-	// In production, this should be async with a job queue
 	structuredData, confidence, err := performDataProcessing(req.InputType, req.InputData, req.SchemaID)
 	processingTime := int(time.Since(startTime).Milliseconds())
 
@@ -1198,8 +1267,8 @@ func processData(c *gin.Context) {
 	metadataBytes, _ := json.Marshal(metadata)
 
 	insertQuery := `
-		INSERT INTO processed_data 
-		(id, schema_id, source_file_name, raw_content, structured_data, confidence_score, 
+		INSERT INTO processed_data
+		(id, schema_id, source_file_name, raw_content, structured_data, confidence_score,
 		 processing_status, error_message, processing_time_ms, processed_at, metadata)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
@@ -1221,6 +1290,112 @@ func processData(c *gin.Context) {
 		response.ConfidenceScore = confidence
 	} else {
 		response.Errors = []string{errorMsg}
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+func processBatchData(c *gin.Context, req ProcessingRequest) {
+	if len(req.BatchItems) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "batch_items required for batch mode"})
+		return
+	}
+
+	batchID := uuid.New()
+	startTime := time.Now()
+
+	var results []ProcessingResult
+	completedCount := 0
+	failedCount := 0
+	var confidenceSum float64
+	var confidenceCount int
+
+	// Process each item in the batch
+	for _, inputData := range req.BatchItems {
+		processingID := uuid.New()
+		itemStartTime := time.Now()
+
+		structuredData, confidence, err := performDataProcessing(req.InputType, inputData, req.SchemaID)
+		itemProcessingTime := int(time.Since(itemStartTime).Milliseconds())
+
+		result := ProcessingResult{
+			ProcessingID: processingID,
+		}
+
+		if err != nil {
+			result.Status = "failed"
+			result.Error = err.Error()
+			failedCount++
+		} else {
+			result.Status = "completed"
+			result.StructuredData = structuredData
+			result.ConfidenceScore = confidence
+			completedCount++
+
+			if confidence != nil {
+				confidenceSum += *confidence
+				confidenceCount++
+			}
+		}
+
+		results = append(results, result)
+
+		// Store individual result in database
+		status := result.Status
+		var errorMsg string
+		if result.Error != "" {
+			errorMsg = result.Error
+		}
+
+		structuredDataBytes, _ := json.Marshal(structuredData)
+		metadata := map[string]interface{}{
+			"input_type":         req.InputType,
+			"processing_time_ms": itemProcessingTime,
+			"batch_id":          batchID.String(),
+		}
+		metadataBytes, _ := json.Marshal(metadata)
+
+		insertQuery := `
+			INSERT INTO processed_data
+			(id, schema_id, source_file_name, raw_content, structured_data, confidence_score,
+			 processing_status, error_message, processing_time_ms, processed_at, metadata)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		`
+
+		_, dbErr := db.Exec(insertQuery,
+			processingID, req.SchemaID, "batch_input", inputData, structuredDataBytes,
+			confidence, status, errorMsg, itemProcessingTime, time.Now(), metadataBytes)
+		if dbErr != nil {
+			log.Printf("Failed to store batch processing result: %v", dbErr)
+		}
+	}
+
+	totalProcessingTime := int(time.Since(startTime).Milliseconds())
+
+	// Calculate average confidence
+	var avgConfidence *float64
+	if confidenceCount > 0 {
+		avg := confidenceSum / float64(confidenceCount)
+		avgConfidence = &avg
+	}
+
+	// Determine overall batch status
+	batchStatus := "completed"
+	if failedCount == len(req.BatchItems) {
+		batchStatus = "failed"
+	} else if failedCount > 0 {
+		batchStatus = "partial"
+	}
+
+	response := BatchProcessingResponse{
+		BatchID:          batchID,
+		Status:           batchStatus,
+		TotalItems:       len(req.BatchItems),
+		Completed:        completedCount,
+		Failed:           failedCount,
+		Results:          results,
+		AvgConfidence:    avgConfidence,
+		ProcessingTimeMs: totalProcessingTime,
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -1433,6 +1608,7 @@ func getProcessedData(c *gin.Context) {
 
 	limit := 100
 	offset := 0
+	format := c.Query("format") // json, csv, yaml
 
 	if l := c.Query("limit"); l != "" {
 		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
@@ -1459,8 +1635,8 @@ func getProcessedData(c *gin.Context) {
 	query := `
 		SELECT id, source_file_name, structured_data, confidence_score,
 		       processing_status, created_at, processed_at, metadata
-		FROM processed_data 
-		WHERE schema_id = $1 
+		FROM processed_data
+		WHERE schema_id = $1
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`
@@ -1509,20 +1685,118 @@ func getProcessedData(c *gin.Context) {
 	countQuery := "SELECT COUNT(*) FROM processed_data WHERE schema_id = $1"
 	db.QueryRow(countQuery, schemaID).Scan(&totalCount)
 
-	c.JSON(http.StatusOK, gin.H{
-		"schema": gin.H{
-			"id":          schemaID,
-			"name":        schemaName,
-			"description": schemaDesc,
-		},
-		"data": data,
-		"pagination": gin.H{
-			"limit":       limit,
-			"offset":      offset,
-			"total_count": totalCount,
-			"has_more":    offset+len(data) < totalCount,
-		},
-	})
+	// Handle different export formats
+	switch format {
+	case "csv":
+		exportAsCSV(c, schemaName, data)
+	case "yaml":
+		exportAsYAML(c, schemaName, data)
+	default:
+		// Default JSON response
+		c.JSON(http.StatusOK, gin.H{
+			"schema": gin.H{
+				"id":          schemaID,
+				"name":        schemaName,
+				"description": schemaDesc,
+			},
+			"data": data,
+			"pagination": gin.H{
+				"limit":       limit,
+				"offset":      offset,
+				"total_count": totalCount,
+				"has_more":    offset+len(data) < totalCount,
+			},
+		})
+	}
+}
+
+func exportAsCSV(c *gin.Context, schemaName string, data []map[string]interface{}) {
+	if len(data) == 0 {
+		c.String(http.StatusOK, "")
+		return
+	}
+
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+
+	// Collect all unique keys from structured_data
+	keySet := make(map[string]bool)
+	for _, item := range data {
+		if structuredData, ok := item["structured_data"].(map[string]interface{}); ok {
+			for key := range structuredData {
+				keySet[key] = true
+			}
+		}
+	}
+
+	// Build header
+	headers := []string{"id", "source_file_name", "confidence_score", "processing_status", "created_at"}
+	for key := range keySet {
+		headers = append(headers, key)
+	}
+	writer.Write(headers)
+
+	// Write rows
+	for _, item := range data {
+		// Format confidence score properly (handle nil pointer)
+		confidenceStr := ""
+		if confidence, ok := item["confidence_score"].(*float64); ok && confidence != nil {
+			confidenceStr = fmt.Sprintf("%.2f", *confidence)
+		}
+
+		row := []string{
+			fmt.Sprintf("%v", item["id"]),
+			fmt.Sprintf("%v", item["source_file_name"]),
+			confidenceStr,
+			fmt.Sprintf("%v", item["processing_status"]),
+			fmt.Sprintf("%v", item["created_at"]),
+		}
+
+		if structuredData, ok := item["structured_data"].(map[string]interface{}); ok {
+			for key := range keySet {
+				if val, exists := structuredData[key]; exists {
+					row = append(row, fmt.Sprintf("%v", val))
+				} else {
+					row = append(row, "")
+				}
+			}
+		}
+
+		writer.Write(row)
+	}
+
+	writer.Flush()
+
+	c.Header("Content-Type", "text/csv")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.csv", schemaName))
+	c.String(http.StatusOK, buf.String())
+}
+
+func exportAsYAML(c *gin.Context, schemaName string, data []map[string]interface{}) {
+	// Convert data to JSON-serializable format first
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to prepare data for YAML"})
+		return
+	}
+
+	// Parse back to generic interface for YAML
+	var yamlReady interface{}
+	if err := json.Unmarshal(jsonData, &yamlReady); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to prepare data for YAML"})
+		return
+	}
+
+	// Marshal to YAML
+	yamlData, err := yaml.Marshal(yamlReady)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate YAML"})
+		return
+	}
+
+	c.Header("Content-Type", "application/x-yaml")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.yaml", schemaName))
+	c.String(http.StatusOK, string(yamlData))
 }
 
 // Processing Jobs (simplified for now)

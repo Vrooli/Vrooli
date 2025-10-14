@@ -12,8 +12,12 @@ RED='\033[0;31m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
-# API endpoint - dynamically get port
-API_PORT="${API_PORT:-16848}"
+# API endpoint - dynamically get port from running scenario
+if [ -z "$API_PORT" ]; then
+    API_PORT=$(vrooli scenario status algorithm-library 2>/dev/null | grep "API_PORT:" | awk '{print $2}')
+fi
+# Fallback to common port if detection fails
+API_PORT="${API_PORT:-16796}"
 API_URL="http://localhost:$API_PORT"
 
 # Check if Judge0 is available (optional dependency)
@@ -57,10 +61,19 @@ else:
 result = bubble_sort(arr)
 print(json.dumps(result))'
 
-RESPONSE=$(curl -s -X POST "$API_URL/api/v1/algorithms/validate" \
+# Get bubblesort algorithm ID dynamically
+SEARCH_RESPONSE=$(curl -s "$API_URL/api/v1/algorithms/search?query=bubble" 2>/dev/null)
+BUBBLE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.algorithms[0].id' 2>/dev/null)
+if [ -z "$BUBBLE_ID" ] || [ "$BUBBLE_ID" = "null" ]; then
+    echo -e "${RED}✗${NC} (bubblesort algorithm not found in database)"
+    echo "  Search response: $(echo "$SEARCH_RESPONSE" | head -c 200)"
+    exit 1
+fi
+
+RESPONSE=$(timeout 30 curl -s -X POST "$API_URL/api/v1/algorithms/validate" \
     -H "Content-Type: application/json" \
     -d "{
-        \"algorithm_id\": \"2db2745d-18a9-4fdd-8921-f876ee15bd1c\",
+        \"algorithm_id\": \"$BUBBLE_ID\",
         \"language\": \"python\",
         \"code\": $(echo "$PYTHON_CODE" | jq -Rs .)
     }" 2>/dev/null)
@@ -89,10 +102,10 @@ const input = JSON.parse(process.argv[2] || require("fs").readFileSync(0, "utf8"
 const arr = input.arr !== undefined ? input.arr : input;
 console.log(JSON.stringify(bubbleSort(arr)));'
 
-RESPONSE=$(curl -s -X POST "$API_URL/api/v1/algorithms/validate" \
+RESPONSE=$(timeout 30 curl -s -X POST "$API_URL/api/v1/algorithms/validate" \
     -H "Content-Type: application/json" \
     -d "{
-        \"algorithm_id\": \"2db2745d-18a9-4fdd-8921-f876ee15bd1c\",
+        \"algorithm_id\": \"$BUBBLE_ID\",
         \"language\": \"javascript\",
         \"code\": $(echo "$JS_CODE" | jq -Rs .)
     }" 2>/dev/null)
@@ -146,10 +159,10 @@ func main() {
     }
 }'
 
-RESPONSE=$(curl -s -X POST "$API_URL/api/v1/algorithms/validate" \
+RESPONSE=$(timeout 30 curl -s -X POST "$API_URL/api/v1/algorithms/validate" \
     -H "Content-Type: application/json" \
     -d "{
-        \"algorithm_id\": \"2db2745d-18a9-4fdd-8921-f876ee15bd1c\",
+        \"algorithm_id\": \"$BUBBLE_ID\",
         \"language\": \"go\",
         \"code\": $(echo "$GO_CODE" | jq -Rs .)
     }" 2>/dev/null)
@@ -189,10 +202,10 @@ public class Solution {
     }
 }'
 
-RESPONSE=$(curl -s -X POST "$API_URL/api/v1/algorithms/validate" \
+RESPONSE=$(timeout 30 curl -s -X POST "$API_URL/api/v1/algorithms/validate" \
     -H "Content-Type: application/json" \
     -d "{
-        \"algorithm_id\": \"2db2745d-18a9-4fdd-8921-f876ee15bd1c\",
+        \"algorithm_id\": \"$BUBBLE_ID\",
         \"language\": \"java\",
         \"code\": $(echo "$JAVA_CODE" | jq -Rs .)
     }" 2>/dev/null)
@@ -233,10 +246,10 @@ int main() {
     return 0;
 }'
 
-RESPONSE=$(curl -s -X POST "$API_URL/api/v1/algorithms/validate" \
+RESPONSE=$(timeout 30 curl -s -X POST "$API_URL/api/v1/algorithms/validate" \
     -H "Content-Type: application/json" \
     -d "{
-        \"algorithm_id\": \"2db2745d-18a9-4fdd-8921-f876ee15bd1c\",
+        \"algorithm_id\": \"$BUBBLE_ID\",
         \"language\": \"cpp\",
         \"code\": $(echo "$CPP_CODE" | jq -Rs .)
     }" 2>/dev/null)

@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -204,7 +205,7 @@ func invalidLanguagePattern(urlPath string) ErrorTestPattern {
 				Path:   urlPath,
 				Body: map[string]interface{}{
 					"algorithm_id": "quicksort",
-					"language":     "fortran",  // Unsupported language
+					"language":     "fortran", // Unsupported language
 					"code":         "program main\nend program",
 				},
 			}

@@ -5,8 +5,22 @@
 set -euo pipefail
 
 # Configuration
-API_BASE_URL="${API_BASE_URL:-http://localhost:${API_PORT:-15770}}"
-SCHEMA_DIR="$(dirname "$0")/../examples"
+# Use DATA_STRUCTURER_API_PORT if set, otherwise fall back to API_PORT (set by lifecycle system)
+# If neither is set, try to detect from vrooli status
+if [[ -n "${DATA_STRUCTURER_API_PORT:-}" ]]; then
+    SCENARIO_PORT="${DATA_STRUCTURER_API_PORT}"
+elif [[ -n "${API_PORT:-}" ]]; then
+    SCENARIO_PORT="${API_PORT}"
+else
+    # Try to get port from vrooli status
+    SCENARIO_PORT=$(vrooli scenario status data-structurer --json 2>/dev/null | jq -r '.scenario_data.allocated_ports.API_PORT // 15770')
+fi
+API_BASE_URL="${API_BASE_URL:-http://localhost:$SCENARIO_PORT}"
+
+# Find scenario root directory (where examples/ is located)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SCHEMA_DIR="$SCENARIO_ROOT/examples"
 
 # Colors for output
 RED='\033[0;31m'
@@ -16,11 +30,11 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 log_info() {
-    echo -e "${BLUE}[TEST INFO]${NC} $1"
+    echo -e "${BLUE}[TEST INFO]${NC} $1" >&2
 }
 
 log_success() {
-    echo -e "${GREEN}[TEST PASS]${NC} $1"
+    echo -e "${GREEN}[TEST PASS]${NC} $1" >&2
 }
 
 log_error() {
@@ -64,7 +78,8 @@ test_endpoint() {
 # Main test function
 main() {
     log_info "Starting Data Structurer Schema API tests..."
-    
+    log_info "Using API endpoint: $API_BASE_URL"
+
     local test_count=0
     local pass_count=0
     
@@ -87,8 +102,10 @@ main() {
     test_count=$((test_count + 1))
     local schema_data
     if [[ -f "$SCHEMA_DIR/contact-schema.json" ]]; then
+        # Use timestamp to ensure unique schema name
+        local timestamp=$(date +%s)
         schema_data=$(jq -n \
-            --arg name "test-contact-schema" \
+            --arg name "test-contact-schema-$timestamp" \
             --arg description "Test contact schema for API validation" \
             --argjson schema_definition "$(cat "$SCHEMA_DIR/contact-schema.json")" \
             '{
@@ -100,10 +117,19 @@ main() {
         local create_response
         if create_response=$(test_endpoint "POST" "/api/v1/schemas" "201" "$schema_data"); then
             pass_count=$((pass_count + 1))
-            
+
             # Extract schema ID for further tests
             local schema_id
-            schema_id=$(echo "$create_response" | jq -r '.id')
+            # Debug: show what we got
+            if [[ -z "$create_response" ]]; then
+                log_error "Empty response from create schema"
+                return 1
+            fi
+            schema_id=$(echo "$create_response" | jq -r '.id' 2>&1)
+            if [[ $? -ne 0 ]]; then
+                log_error "Failed to parse schema ID from response: $create_response"
+                return 1
+            fi
             
             # Test 4: Get created schema
             log_info "Test 4: Get created schema"

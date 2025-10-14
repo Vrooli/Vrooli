@@ -216,8 +216,8 @@ func TestDataTransform(t *testing.T) {
 
 	t.Run("EmptyTransformations", func(t *testing.T) {
 		transformBody := map[string]interface{}{
-			"data":             []map[string]interface{}{{"name": "John"}},
-			"transformations":  []map[string]interface{}{},
+			"data":            []map[string]interface{}{{"name": "John"}},
+			"transformations": []map[string]interface{}{},
 		}
 
 		req := makeHTTPRequest("POST", "/api/v1/data/transform", transformBody, "test-token")

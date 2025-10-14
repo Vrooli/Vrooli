@@ -114,11 +114,19 @@ except Exception as e:
 
 // ExecuteGo executes Go code locally
 func (e *LocalExecutor) ExecuteGo(code string, stdin string) (*LocalExecutionResult, error) {
+	// Check if code is already a complete program
+	hasPackage := strings.Contains(code, "package main")
+	hasMainFunc := strings.Contains(code, "func main")
+	isCompleteProgram := hasPackage && hasMainFunc
+
 	// Detect if the code is a function definition
-	isFunction := strings.Contains(code, "func ") && !strings.Contains(code, "func main")
+	isFunction := strings.Contains(code, "func ") && !hasMainFunc
 
 	var fullCode string
-	if isFunction {
+	if isCompleteProgram {
+		// Code is already a complete program, use it as-is
+		fullCode = code
+	} else if isFunction {
 		// If it's a function, place it outside main and call it
 		// Extract function name (assumes format: func functionName(...))
 		funcNameRegex := regexp.MustCompile(`func\s+(\w+)\s*\(`)
@@ -323,28 +331,46 @@ try {
 
 // ExecuteJava executes Java code locally
 func (e *LocalExecutor) ExecuteJava(code string, stdin string) (*LocalExecutionResult, error) {
-	// Create a complete Java program
-	javaCode := fmt.Sprintf(`
+	// Check if code is already a complete class
+	hasClass := strings.Contains(code, "class Main") || strings.Contains(code, "public class Main")
+	hasMainMethod := strings.Contains(code, "public static void main")
+	isCompleteProgram := hasClass && hasMainMethod
+
+	var javaCode string
+	if isCompleteProgram {
+		// Code is already a complete program, use it as-is
+		javaCode = code
+	} else {
+		// Create a complete Java program wrapping the user code
+		javaCode = fmt.Sprintf(`
 import java.util.*;
 import java.io.*;
 
 public class AlgorithmExec {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(new ByteArrayInputStream("%s".getBytes()));
-        
+
         // User code execution
         %s
     }
 }
 `, stdin, code)
+	}
+
+	// Determine class name and file name
+	className := "AlgorithmExec"
+	if isCompleteProgram {
+		className = "Main"
+	}
 
 	// Write to temporary file
-	tmpFile := "/tmp/AlgorithmExec_" + fmt.Sprintf("%d", time.Now().UnixNano()) + ".java"
+	tmpFile := "/tmp/" + className + "_" + fmt.Sprintf("%d", time.Now().UnixNano()) + ".java"
+	classFile := "/tmp/" + className + ".class"
 	if err := exec.Command("bash", "-c", fmt.Sprintf("cat > %s << 'EOF'\n%s\nEOF", tmpFile, javaCode)).Run(); err != nil {
 		return nil, fmt.Errorf("failed to create temp file: %v", err)
 	}
 	defer exec.Command("rm", tmpFile).Run()
-	defer exec.Command("rm", "/tmp/AlgorithmExec.class").Run()
+	defer exec.Command("rm", classFile).Run()
 
 	// Compile
 	compileCmd := exec.Command("javac", "-d", "/tmp", tmpFile)
@@ -364,7 +390,7 @@ public class AlgorithmExec {
 	defer cancel()
 
 	start := time.Now()
-	cmd := exec.CommandContext(ctx, "java", "-cp", "/tmp", "AlgorithmExec")
+	cmd := exec.CommandContext(ctx, "java", "-cp", "/tmp", className)
 	cmd.Stdin = strings.NewReader(stdin)
 
 	var stdout, stderr bytes.Buffer
@@ -394,8 +420,17 @@ public class AlgorithmExec {
 
 // ExecuteCPP executes C++ code locally
 func (e *LocalExecutor) ExecuteCPP(code string, stdin string) (*LocalExecutionResult, error) {
-	// Create a complete C++ program
-	cppCode := fmt.Sprintf(`
+	// Check if code already has main function
+	hasMain := strings.Contains(code, "int main(")
+	hasIncludes := strings.Contains(code, "#include")
+
+	var cppCode string
+	if hasMain && hasIncludes {
+		// Code is already a complete program, use it as-is
+		cppCode = code
+	} else {
+		// Create a complete C++ program wrapping the user code
+		cppCode = fmt.Sprintf(`
 #include <iostream>
 #include <string>
 #include <vector>
@@ -408,10 +443,11 @@ using namespace std;
 int main() {
     // User code
     %s
-    
+
     return 0;
 }
 `, code)
+	}
 
 	// Write to temporary file
 	tmpFile := "/tmp/algo_exec_" + fmt.Sprintf("%d", time.Now().UnixNano()) + ".cpp"
@@ -481,9 +517,8 @@ type LocalExecutionResult struct {
 func indentCode(code string, indent string) string {
 	lines := strings.Split(code, "\n")
 	for i, line := range lines {
-		if line != "" {
-			lines[i] = indent + line
-		}
+		// Always indent, even empty lines, to preserve formatting
+		lines[i] = indent + line
 	}
 	return strings.Join(lines, "\n")
 }

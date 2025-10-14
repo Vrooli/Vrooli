@@ -5,7 +5,17 @@
 set -euo pipefail
 
 # Configuration
-API_BASE_URL="${API_BASE_URL:-http://localhost:${API_PORT:-15770}}"
+# Get the actual port from the running scenario's status
+# Priority: DATA_STRUCTURER_API_PORT env var > scenario status > API_PORT > default
+if [[ -n "${DATA_STRUCTURER_API_PORT:-}" ]]; then
+    SCENARIO_PORT="$DATA_STRUCTURER_API_PORT"
+elif command -v vrooli >/dev/null 2>&1; then
+    # Extract port from scenario status
+    SCENARIO_PORT=$(vrooli scenario status data-structurer 2>/dev/null | grep -oP 'API_PORT: \K\d+' || echo "15769")
+else
+    SCENARIO_PORT="${API_PORT:-15769}"
+fi
+API_BASE_URL="${API_BASE_URL:-http://localhost:$SCENARIO_PORT}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -30,12 +40,24 @@ log_warning() {
     echo -e "${YELLOW}[TEST WARN]${NC} $1"
 }
 
-# Test resource availability
-test_resource() {
+# Test resource availability via API health endpoint
+test_resource_via_api() {
     local resource_name="$1"
-    local check_command="$2"
-    
-    if eval "$check_command" > /dev/null 2>&1; then
+
+    # First try to get status from API health endpoint
+    local health_response
+    if health_response=$(curl -sf "$API_BASE_URL/health" 2>/dev/null); then
+        local resource_status
+        resource_status=$(echo "$health_response" | jq -r ".dependencies.${resource_name}.status // \"unknown\"" 2>/dev/null)
+
+        if [[ "$resource_status" == "healthy" ]]; then
+            log_success "$resource_name is available (verified via API)"
+            return 0
+        fi
+    fi
+
+    # Fallback to vrooli resource status
+    if vrooli resource status "$resource_name" 2>/dev/null | grep -q 'Running: true'; then
         log_success "$resource_name is available"
         return 0
     else
@@ -54,39 +76,39 @@ main() {
     # Test 1: PostgreSQL connectivity
     log_info "Test 1: PostgreSQL connectivity"
     test_count=$((test_count + 1))
-    if test_resource "PostgreSQL" "vrooli resource status postgres | grep -q 'Running: true'"; then
+    if test_resource_via_api "postgres"; then
         pass_count=$((pass_count + 1))
     fi
-    
+
     # Test 2: Ollama availability
     log_info "Test 2: Ollama availability"
     test_count=$((test_count + 1))
-    if test_resource "Ollama" "vrooli resource status ollama | grep -q 'Running: true'"; then
+    if test_resource_via_api "ollama"; then
         pass_count=$((pass_count + 1))
     fi
-    
+
     # Test 3: Unstructured-io availability
     log_info "Test 3: Unstructured-io availability"
     test_count=$((test_count + 1))
-    if test_resource "Unstructured-io" "vrooli resource status unstructured-io | grep -q 'Running: true'"; then
+    if test_resource_via_api "unstructured_io"; then
         pass_count=$((pass_count + 1))
     else
         log_warning "Unstructured-io not available (optional resource)"
     fi
-    
+
     # Test 4: N8N availability
     log_info "Test 4: N8N availability"
     test_count=$((test_count + 1))
-    if test_resource "N8N" "vrooli resource status n8n | grep -q 'Running: true'"; then
+    if test_resource_via_api "n8n"; then
         pass_count=$((pass_count + 1))
     else
         log_warning "N8N not available (workflows won't function)"
     fi
-    
+
     # Test 5: Qdrant availability (optional)
     log_info "Test 5: Qdrant availability (optional)"
     test_count=$((test_count + 1))
-    if test_resource "Qdrant" "vrooli resource status qdrant | grep -q 'Running: true'"; then
+    if test_resource_via_api "qdrant"; then
         pass_count=$((pass_count + 1))
     else
         log_warning "Qdrant not available (semantic search won't function)"
@@ -123,12 +145,20 @@ main() {
     # Test 7: Database schema validation
     log_info "Test 7: Database schema validation"
     test_count=$((test_count + 1))
-    
-    if vrooli resource postgres query "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('schemas', 'processed_data', 'schema_templates');" 2>/dev/null | grep -q "3"; then
-        log_success "Database schema is properly initialized"
-        pass_count=$((pass_count + 1))
+
+    # Check via API health endpoint for table count
+    if health_response=$(curl -sf "$API_BASE_URL/health" 2>/dev/null); then
+        local table_count
+        table_count=$(echo "$health_response" | jq -r '.dependencies.postgres.checks.structurer_tables // 0' 2>/dev/null)
+
+        if [[ "$table_count" -eq 3 ]]; then
+            log_success "Database schema is properly initialized (3 tables found)"
+            pass_count=$((pass_count + 1))
+        else
+            log_warning "Database schema may not be fully initialized (found $table_count tables, expected 3)"
+        fi
     else
-        log_warning "Database schema may not be fully initialized"
+        log_warning "Could not verify database schema"
     fi
     
     # Summary

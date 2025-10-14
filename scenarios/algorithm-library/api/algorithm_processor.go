@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+const (
+	// LocalExecutionTokenPrefix identifies tokens from local (non-Judge0) execution
+	LocalExecutionTokenPrefix = "local_"
+)
+
 type AlgorithmProcessor struct {
 	httpClient    *http.Client
 	judge0URL     string
@@ -749,7 +754,7 @@ func (ap *AlgorithmProcessor) executeLocal(ctx context.Context, req AlgorithmExe
 		TestResult:        testResult,
 		Language:          req.Language,
 		ExecutionID:       executionID,
-		SubmissionToken:   "local_" + executionID,
+		SubmissionToken:   LocalExecutionTokenPrefix + executionID,
 		ErrorDetails:      nil,
 	}, nil
 }

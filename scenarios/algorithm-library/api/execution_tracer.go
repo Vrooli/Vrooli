@@ -9,14 +9,14 @@ import (
 
 // ExecutionTrace represents a step-by-step trace of algorithm execution
 type ExecutionTrace struct {
-	AlgorithmID   string         `json:"algorithm_id"`
-	Language      string         `json:"language"`
-	Input         interface{}    `json:"input"`
-	Steps         []TraceStep    `json:"steps"`
-	Output        interface{}    `json:"output"`
-	ExecutionTime int            `json:"execution_time_ms"`
-	MemoryUsed    int            `json:"memory_used_bytes,omitempty"`
-	Success       bool           `json:"success"`
+	AlgorithmID   string      `json:"algorithm_id"`
+	Language      string      `json:"language"`
+	Input         interface{} `json:"input"`
+	Steps         []TraceStep `json:"steps"`
+	Output        interface{} `json:"output"`
+	ExecutionTime int         `json:"execution_time_ms"`
+	MemoryUsed    int         `json:"memory_used_bytes,omitempty"`
+	Success       bool        `json:"success"`
 }
 
 // TraceStep represents a single step in algorithm execution
@@ -125,7 +125,7 @@ print("__TRACE_END__")
 	return instrumented
 }
 
-// instrumentJavaScript adds tracing to JavaScript code  
+// instrumentJavaScript adds tracing to JavaScript code
 func (t *ExecutionTracer) instrumentJavaScript(code string) string {
 	instrumented := `
 const _trace_steps = [];
@@ -180,17 +180,17 @@ func (t *ExecutionTracer) parseTraceOutput(output string, trace *ExecutionTrace)
 	// Extract trace JSON from output between markers
 	startMarker := "__TRACE_START__"
 	endMarker := "__TRACE_END__"
-	
+
 	startIdx := strings.Index(output, startMarker)
 	endIdx := strings.Index(output, endMarker)
-	
+
 	if startIdx == -1 || endIdx == -1 {
 		// No trace markers found, try to extract basic output
 		trace.Output = strings.TrimSpace(output)
 		return nil
 	}
 
-	traceJSON := output[startIdx+len(startMarker):endIdx]
+	traceJSON := output[startIdx+len(startMarker) : endIdx]
 	traceJSON = strings.TrimSpace(traceJSON)
 
 	// Parse the trace steps

@@ -25,9 +25,9 @@ type N8nExecutionRequest struct {
 
 // N8nExecutionResponse represents the response from n8n workflow
 type N8nExecutionResponse struct {
-	Success bool   `json:"success"`
-	Output  string `json:"output"`
-	Error   string `json:"error"`
+	Success bool    `json:"success"`
+	Output  string  `json:"output"`
+	Error   string  `json:"error"`
 	Time    float64 `json:"time"`
 	Memory  int     `json:"memory"`
 	Status  string  `json:"status"`
@@ -39,12 +39,12 @@ func NewN8nWorkflowClient() *N8nWorkflowClient {
 	if n8nHost == "" {
 		n8nHost = "localhost"
 	}
-	
+
 	n8nPort := os.Getenv("N8N_PORT")
 	if n8nPort == "" {
 		n8nPort = "5678"
 	}
-	
+
 	return &N8nWorkflowClient{
 		baseURL:     fmt.Sprintf("http://%s:%s", n8nHost, n8nPort),
 		webhookPath: "/webhook/algorithm-executor",
@@ -62,7 +62,7 @@ func (c *N8nWorkflowClient) IsAvailable() bool {
 		return false
 	}
 	defer resp.Body.Close()
-	
+
 	return resp.StatusCode == http.StatusOK
 }
 
@@ -73,14 +73,14 @@ func (c *N8nWorkflowClient) ExecuteCode(language, code, input string) (*N8nExecu
 		Code:     code,
 		Input:    input,
 	}
-	
+
 	reqBody, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	
+
 	resp, err := c.httpClient.Post(
-		c.baseURL + c.webhookPath,
+		c.baseURL+c.webhookPath,
 		"application/json",
 		bytes.NewBuffer(reqBody),
 	)
@@ -88,17 +88,67 @@ func (c *N8nWorkflowClient) ExecuteCode(language, code, input string) (*N8nExecu
 		return nil, fmt.Errorf("failed to execute workflow: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("workflow returned status %d", resp.StatusCode)
 	}
-	
+
 	var result N8nExecutionResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
-	
+
 	return &result, nil
+}
+
+// WrapCodeWithTestHarness wraps user code with test harness that calls it with input and prints output
+func WrapCodeWithTestHarness(language, code, algorithmName, inputJSON string) string {
+	switch language {
+	case "python":
+		return fmt.Sprintf(`%s
+
+# Test harness
+import json
+test_input = json.loads('%s')
+result = %s(test_input['arr']) if 'arr' in test_input else %s(test_input.get('n', test_input.get('array', None)))
+print(json.dumps(result))
+`, code, inputJSON, algorithmName, algorithmName)
+	case "javascript":
+		return fmt.Sprintf(`%s
+
+// Test harness
+const testInput = %s;
+const result = %s(testInput.arr !== undefined ? testInput.arr : (testInput.n !== undefined ? testInput.n : testInput.array));
+console.log(JSON.stringify(result));
+`, code, inputJSON, algorithmName)
+	case "go":
+		return fmt.Sprintf(`package main
+import (
+	"encoding/json"
+	"fmt"
+)
+
+%s
+
+func main() {
+	input := %s
+	var testInput map[string]interface{}
+	json.Unmarshal([]byte(input), &testInput)
+	var arr []int
+	if testInput["arr"] != nil {
+		for _, v := range testInput["arr"].([]interface{}) {
+			arr = append(arr, int(v.(float64)))
+		}
+	}
+	result := %s(arr)
+	output, _ := json.Marshal(result)
+	fmt.Println(string(output))
+}
+`, code, inputJSON, algorithmName)
+	default:
+		// For unsupported languages, return code as-is
+		return code
+	}
 }
 
 // ExecuteWithFallback tries to execute via n8n, falls back to local execution
@@ -118,10 +168,10 @@ func ExecuteWithFallback(language, code, input string, timeout time.Duration) (*
 		}
 		// If n8n fails, fall back to local execution
 	}
-	
+
 	// Fallback to local executor
 	executor := NewLocalExecutor(timeout)
-	
+
 	switch language {
 	case "python":
 		return executor.ExecutePython(code, input)

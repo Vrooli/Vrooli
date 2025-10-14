@@ -24,9 +24,9 @@ This scenario adds a **permanent capability** to Vrooli: a centralized, validate
 
 ```
 algorithm-library/
-├── api/              # Go API server (port 3250)
+├── api/              # Go API server (port 16796)
 ├── cli/              # Bash CLI wrapper
-├── ui/               # React web interface (port 3251)
+├── ui/               # React web interface (port 3252)
 ├── initialization/
 │   ├── postgres/     # Database schema and seed data
 │   └── n8n/         # Testing workflows via Judge0
@@ -118,18 +118,25 @@ curl -X POST http://localhost:16796/api/v1/performance/record \
 - **Intelligence Amplification**: Makes all agents better at coding
 - **Compound Value**: Each validated algorithm improves future scenarios
 
-## Initial Algorithm Set
+## Algorithm Coverage
 
-The library comes pre-seeded with 50+ fundamental algorithms:
-- **Sorting** (15): QuickSort, MergeSort, HeapSort, InsertionSort, BubbleSort, RadixSort, CountingSort, BucketSort, ShellSort, TimSort, and more
-- **Searching** (2): Binary Search, Linear Search  
-- **Graph** (9): DFS, BFS, Dijkstra, Kruskal, Topological Sort, Bellman-Ford, Floyd-Warshall, Prim, and more
-- **Dynamic Programming** (8): Fibonacci, Knapsack, LCS, Edit Distance, Coin Change, Kadane's Algorithm, and more
-- **Tree** (8): Binary Tree Traversal, BST Operations, AVL Tree, Heap Operations, Red-Black Tree, Segment Tree, and more
+The library contains 35 algorithms with 31 implementations (23 Python, 8 JavaScript):
+- **Sorting** (8 algorithms): QuickSort, MergeSort, HeapSort, InsertionSort, BubbleSort, SelectionSort, CountingSort, RadixSort
+  - 7 with implementations (87% coverage)
+- **Searching** (2): Binary Search, Linear Search (100% coverage)
+- **Graph** (11): DFS, BFS, Dijkstra, Kruskal, Topological Sort, Bellman-Ford, and more
+  - 2 with implementations (18% coverage)
+- **Dynamic Programming** (8): Fibonacci, Coin Change, Edit Distance, Knapsack, LCS, Kadane's Algorithm, and more
+  - 5 with implementations (62% coverage)
+- **Tree** (8): Binary Tree Traversal, BST Operations, AVL Tree, Heap Operations, and more
+  - 2 with implementations (25% coverage)
 - **String** (5): KMP, Rabin-Karp, Boyer-Moore, Z Algorithm, Manacher's Algorithm
-- **Mathematical** (6): GCD, Sieve of Eratosthenes, Fast Exponentiation, Matrix Multiplication, and more
-- **Backtracking** (6): N-Queens, Sudoku Solver, Permutations, Combinations, and more
+  - 1 with implementations (20% coverage)
 - **Greedy** (3): Activity Selection, Huffman Coding, Job Scheduling
+  - 1 with implementations (33% coverage)
+- **Other categories**: Backtracking, Mathematical algorithms
+
+**Overall Implementation Coverage**: 23/35 algorithms (65.7%) have working reference implementations
 
 ## Future Enhancements
 
@@ -193,6 +200,8 @@ All submissions must pass the full test suite before being accepted into the lib
 **Status**: ✅ Fully Operational (with local executor fallback)
 **Version**: 1.0.0
 **API Port**: 16796
-**UI Port**: 3252  
-**Resource Requirements**: Medium (2GB RAM)  
-**Last Updated**: 2025-09-27
+**UI Port**: 3252
+**Resource Requirements**: Medium (2GB RAM)
+**Statistics**: 35 algorithms, 31 implementations (23 Python, 8 JavaScript), 48 test cases
+**Performance**: <10ms API response times (exceeds <200ms target)
+**Last Updated**: 2025-10-11

@@ -53,17 +53,20 @@ func setupTestDatabase(t *testing.T) *TestDatabase {
 
 	dbPort := os.Getenv("POSTGRES_PORT")
 	if dbPort == "" {
-		dbPort = "5432"
+		t.Skip("POSTGRES_PORT environment variable required for database tests")
+		return nil
 	}
 
 	dbUser := os.Getenv("POSTGRES_USER")
 	if dbUser == "" {
-		dbUser = "postgres"
+		t.Skip("POSTGRES_USER environment variable required for database tests")
+		return nil
 	}
 
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
 	if dbPassword == "" {
-		dbPassword = "postgres"
+		t.Skip("POSTGRES_PASSWORD environment variable required for database tests")
+		return nil
 	}
 
 	dbName := os.Getenv("POSTGRES_DB")

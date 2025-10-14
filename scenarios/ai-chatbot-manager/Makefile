@@ -125,6 +125,55 @@ build: ## Build the scenario (if applicable)
 		echo "$(YELLOW)No build needed for this scenario$(RESET)"; \
 	fi
 
+fmt: ## Format all code
+	@$(MAKE) fmt-go
+	@$(MAKE) fmt-ui
+
+fmt-go: ## Format Go code
+	@echo "$(BLUE)🎨 Formatting Go code...$(RESET)"
+	@if [ -f api/go.mod ]; then \
+		cd api && gofumpt -w . && echo "$(GREEN)✓ Go code formatted$(RESET)"; \
+	else \
+		echo "$(YELLOW)No Go code to format$(RESET)"; \
+	fi
+
+fmt-ui: ## Format TypeScript/JavaScript code
+	@echo "$(BLUE)🎨 Formatting UI code...$(RESET)"
+	@if [ -f ui/package.json ]; then \
+		cd ui && npm run format 2>/dev/null || echo "$(YELLOW)No format script defined$(RESET)"; \
+	else \
+		echo "$(YELLOW)No UI code to format$(RESET)"; \
+	fi
+
+lint: ## Lint all code
+	@$(MAKE) lint-go
+	@$(MAKE) lint-ui
+
+lint-go: ## Lint Go code
+	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
+	@if [ -f api/go.mod ]; then \
+		cd api && golangci-lint run && echo "$(GREEN)✓ Go code linted$(RESET)"; \
+	else \
+		echo "$(YELLOW)No Go code to lint$(RESET)"; \
+	fi
+
+lint-ui: ## Lint TypeScript/JavaScript code
+	@echo "$(BLUE)🔍 Linting UI code...$(RESET)"
+	@if [ -f ui/package.json ]; then \
+		cd ui && npm run lint 2>/dev/null || echo "$(YELLOW)No lint script defined$(RESET)"; \
+	else \
+		echo "$(YELLOW)No UI code to lint$(RESET)"; \
+	fi
+
+check: ## Format, lint, and test code (pre-commit workflow)
+	@echo "$(BLUE)🔍 Running pre-commit checks...$(RESET)"
+	@$(MAKE) fmt
+	@$(MAKE) lint
+	@$(MAKE) test
+	@echo "$(GREEN)✅ All checks passed!$(RESET)"
+
+start: run  ## Alias for run
+
 health: ## Check health of all components
 	@echo "$(BLUE)🏥 Checking component health...$(RESET)"
 	@API_PORT=$$($(VROOLI_CMD) port $(SCENARIO_NAME) API_PORT 2>/dev/null); \

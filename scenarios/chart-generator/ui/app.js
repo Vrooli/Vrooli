@@ -1,3 +1,29 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_FLAG = '__chartGeneratorBridgeInitialized';
+
+function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    if (window.parent !== window) {
+        let parentOrigin;
+        try {
+            if (document.referrer) {
+                parentOrigin = new URL(document.referrer).origin;
+            }
+        } catch (error) {
+            console.warn('[ChartGenerator] Unable to parse parent origin for iframe bridge', error);
+        }
+
+        initIframeBridgeChild({ parentOrigin, appId: 'chart-generator' });
+        window[BRIDGE_FLAG] = true;
+    }
+}
+
+bootstrapIframeBridge();
+
 /**
  * Chart Generator Application
  * Handles UI interactions and chart generation

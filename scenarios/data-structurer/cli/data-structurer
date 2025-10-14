@@ -19,24 +19,32 @@ CONFIG_FILE="$CONFIG_DIR/config.yaml"
 # Ensure config directory exists
 mkdir -p "$CONFIG_DIR"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Colors for output (only use if stdout is a TTY)
+if [[ -t 1 ]]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    NC='\033[0m' # No Color
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    NC=''
+fi
 
 # Logging functions
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} $1" >&2
 }
 
 log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
 }
 
 log_warning() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "${YELLOW}[WARN]${NC} $1" >&2
 }
 
 log_error() {
@@ -370,6 +378,32 @@ cmd_list_templates() {
     fi
 }
 
+cmd_get_template() {
+    local template_id="$1"
+    local format="${2:-human}"
+
+    log_info "Fetching template: $template_id"
+    local result
+    result=$(api_get "/schema-templates/$template_id") || return 1
+
+    if [[ "$format" == "json" ]]; then
+        echo "$result" | jq .
+    else
+        local name=$(echo "$result" | jq -r '.name')
+        local category=$(echo "$result" | jq -r '.category')
+        local description=$(echo "$result" | jq -r '.description')
+        local usage_count=$(echo "$result" | jq -r '.usage_count // 0')
+
+        echo "Template: $name"
+        echo "Category: $category"
+        echo "Description: $description"
+        echo "Usage Count: $usage_count"
+        echo
+        echo "Schema Definition:"
+        echo "$result" | jq '.schema_definition'
+    fi
+}
+
 cmd_create_from_template() {
     local template_id="$1"
     local name="$2"
@@ -508,19 +542,23 @@ cmd_get_data() {
     local format="${2:-human}"
     local limit="${3:-10}"
     local offset="${4:-0}"
-    
+
+    # For CSV and YAML, use API export feature
+    if [[ "$format" == "csv" ]] || [[ "$format" == "yaml" ]]; then
+        local endpoint="/data/$schema_id?format=$format&limit=$limit&offset=$offset"
+        log_info "Exporting data as $format for schema: $schema_id"
+        api_get "$endpoint"
+        return $?
+    fi
+
     local endpoint="/data/$schema_id?limit=$limit&offset=$offset"
-    
+
     log_info "Fetching processed data for schema: $schema_id"
     local result
     result=$(api_get "$endpoint") || return 1
-    
+
     if [[ "$format" == "json" ]]; then
         echo "$result" | jq .
-    elif [[ "$format" == "csv" ]]; then
-        # Extract CSV data (simplified)
-        echo "$result" | jq -r '.data[].structured_data | keys_unsorted' | head -1 | tr '\n' ',' | sed 's/,$/\n/'
-        echo "$result" | jq -r '.data[].structured_data | [.[]] | @csv'
     else
         local schema_name=$(echo "$result" | jq -r '.schema.name')
         local total_count=$(echo "$result" | jq -r '.pagination.total_count')
@@ -558,6 +596,39 @@ cmd_list_jobs() {
         while IFS=$'\t' read -r id status priority progress created; do
             printf "%-36s %-12s %-8s %-8s %s\n" "$id" "$status" "$priority" "$progress" "$created"
         done
+    fi
+}
+
+cmd_get_job() {
+    local job_id="$1"
+    local format="${2:-human}"
+
+    log_info "Fetching job: $job_id"
+    local result
+    result=$(api_get "/jobs/$job_id") || return 1
+
+    if [[ "$format" == "json" ]]; then
+        echo "$result" | jq .
+    else
+        local status=$(echo "$result" | jq -r '.status')
+        local priority=$(echo "$result" | jq -r '.priority // "normal"')
+        local processed=$(echo "$result" | jq -r '.processed_items // 0')
+        local total=$(echo "$result" | jq -r '.total_items // 0')
+        local created=$(echo "$result" | jq -r '.created_at')
+        local updated=$(echo "$result" | jq -r '.updated_at')
+
+        echo "Job ID: $job_id"
+        echo "Status: $status"
+        echo "Priority: $priority"
+        echo "Progress: $processed / $total items"
+        echo "Created: $created"
+        echo "Updated: $updated"
+
+        if [[ "$status" == "failed" ]]; then
+            local error=$(echo "$result" | jq -r '.error_message // "Unknown error"')
+            echo
+            echo "Error: $error"
+        fi
     fi
 }
 
@@ -638,6 +709,13 @@ main() {
         list-templates)
             cmd_list_templates "${1:-}" "$format"
             ;;
+        get-template)
+            if [[ $# -lt 1 ]]; then
+                log_error "Usage: get-template <template-id>"
+                exit 1
+            fi
+            cmd_get_template "$1" "$format"
+            ;;
         create-from-template)
             if [[ $# -lt 2 ]]; then
                 log_error "Usage: create-from-template <template-id> <name> [description]"
@@ -674,9 +752,7 @@ main() {
                 log_error "Usage: get-job <job-id>"
                 exit 1
             fi
-            # Implement get-job if needed
-            log_error "get-job command not yet implemented"
-            exit 1
+            cmd_get_job "$1" "$format"
             ;;
         *)
             log_error "Unknown command: $command"

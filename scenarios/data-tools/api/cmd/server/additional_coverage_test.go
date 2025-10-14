@@ -511,7 +511,7 @@ func TestConsistencyCalculation(t *testing.T) {
 	t.Run("InconsistentFields", func(t *testing.T) {
 		data := []map[string]interface{}{
 			{"name": "John", "age": 30},
-			{"name": "Jane"}, // Missing age
+			{"name": "Jane"},                          // Missing age
 			{"name": "Bob", "age": 35, "city": "NYC"}, // Extra field
 		}
 

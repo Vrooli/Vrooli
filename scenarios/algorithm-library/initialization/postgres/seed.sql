@@ -157,18 +157,82 @@ def bfs(graph, start):
         return 0
     elif n == 1:
         return 1
-    
+
     prev, curr = 0, 1
     for _ in range(2, n + 1):
         prev, curr = curr, prev + curr
-    
+
     return curr'
+
+    WHEN 'insertion_sort' THEN 'def insertion_sort(arr):
+    arr = arr.copy()
+
+    for i in range(1, len(arr)):
+        key = arr[i]
+        j = i - 1
+
+        while j >= 0 and arr[j] > key:
+            arr[j + 1] = arr[j]
+            j -= 1
+
+        arr[j + 1] = key
+
+    return arr'
+
+    WHEN 'selection_sort' THEN 'def selection_sort(arr):
+    arr = arr.copy()
+    n = len(arr)
+
+    for i in range(n):
+        min_idx = i
+
+        for j in range(i + 1, n):
+            if arr[j] < arr[min_idx]:
+                min_idx = j
+
+        arr[i], arr[min_idx] = arr[min_idx], arr[i]
+
+    return arr'
+
+    WHEN 'heapsort' THEN 'def heapsort(arr):
+    def heapify(arr, n, i):
+        largest = i
+        left = 2 * i + 1
+        right = 2 * i + 2
+
+        if left < n and arr[left] > arr[largest]:
+            largest = left
+
+        if right < n and arr[right] > arr[largest]:
+            largest = right
+
+        if largest != i:
+            arr[i], arr[largest] = arr[largest], arr[i]
+            heapify(arr, n, largest)
+
+    arr = arr.copy()
+    n = len(arr)
+
+    # Build max heap
+    for i in range(n // 2 - 1, -1, -1):
+        heapify(arr, n, i)
+
+    # Extract elements from heap one by one
+    for i in range(n - 1, 0, -1):
+        arr[0], arr[i] = arr[i], arr[0]
+        heapify(arr, i, 0)
+
+    return arr'
 
 END,
 true, true, '1.0.0'
-FROM algo_ids;
+FROM algo_ids
+WHERE name IN ('quicksort', 'mergesort', 'bubblesort', 'binary_search', 'linear_search', 'dfs', 'bfs', 'fibonacci', 'insertion_sort', 'selection_sort', 'heapsort');
 
 -- Insert JavaScript implementations
+WITH algo_ids AS (
+    SELECT id, name FROM algorithms
+)
 INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
 SELECT id, 'javascript',
 CASE name
@@ -207,21 +271,142 @@ CASE name
     WHEN 'fibonacci' THEN 'function fibonacci(n) {
     if (n <= 0) return 0;
     if (n === 1) return 1;
-    
+
     let prev = 0;
     let curr = 1;
-    
+
     for (let i = 2; i <= n; i++) {
         [prev, curr] = [curr, prev + curr];
     }
-    
+
     return curr;
+}'
+
+    WHEN 'insertion_sort' THEN 'function insertionSort(arr) {
+    const result = [...arr];
+
+    for (let i = 1; i < result.length; i++) {
+        const key = result[i];
+        let j = i - 1;
+
+        while (j >= 0 && result[j] > key) {
+            result[j + 1] = result[j];
+            j--;
+        }
+
+        result[j + 1] = key;
+    }
+
+    return result;
+}'
+
+    WHEN 'selection_sort' THEN 'function selectionSort(arr) {
+    const result = [...arr];
+    const n = result.length;
+
+    for (let i = 0; i < n; i++) {
+        let minIdx = i;
+
+        for (let j = i + 1; j < n; j++) {
+            if (result[j] < result[minIdx]) {
+                minIdx = j;
+            }
+        }
+
+        [result[i], result[minIdx]] = [result[minIdx], result[i]];
+    }
+
+    return result;
+}'
+
+    WHEN 'heapsort' THEN 'function heapsort(arr) {
+    function heapify(arr, n, i) {
+        let largest = i;
+        const left = 2 * i + 1;
+        const right = 2 * i + 2;
+
+        if (left < n && arr[left] > arr[largest]) {
+            largest = left;
+        }
+
+        if (right < n && arr[right] > arr[largest]) {
+            largest = right;
+        }
+
+        if (largest !== i) {
+            [arr[i], arr[largest]] = [arr[largest], arr[i]];
+            heapify(arr, n, largest);
+        }
+    }
+
+    const result = [...arr];
+    const n = result.length;
+
+    // Build max heap
+    for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+        heapify(result, n, i);
+    }
+
+    // Extract elements from heap
+    for (let i = n - 1; i > 0; i--) {
+        [result[0], result[i]] = [result[i], result[0]];
+        heapify(result, i, 0);
+    }
+
+    return result;
+}'
+
+    WHEN 'mergesort' THEN 'function mergesort(arr) {
+    if (arr.length <= 1) {
+        return arr;
+    }
+
+    const mid = Math.floor(arr.length / 2);
+    const left = mergesort(arr.slice(0, mid));
+    const right = mergesort(arr.slice(mid));
+
+    return merge(left, right);
+}
+
+function merge(left, right) {
+    const result = [];
+    let i = 0, j = 0;
+
+    while (i < left.length && j < right.length) {
+        if (left[i] <= right[j]) {
+            result.push(left[i++]);
+        } else {
+            result.push(right[j++]);
+        }
+    }
+
+    return result.concat(left.slice(i)).concat(right.slice(j));
+}'
+
+    WHEN 'bubblesort' THEN 'function bubblesort(arr) {
+    const result = [...arr];
+    const n = result.length;
+
+    for (let i = 0; i < n; i++) {
+        let swapped = false;
+
+        for (let j = 0; j < n - i - 1; j++) {
+            if (result[j] > result[j + 1]) {
+                [result[j], result[j + 1]] = [result[j + 1], result[j]];
+                swapped = true;
+            }
+        }
+
+        if (!swapped) break;
+    }
+
+    return result;
 }'
 
 END,
 false, true, '1.0.0'
 FROM algo_ids
-WHERE name IN ('quicksort', 'binary_search', 'fibonacci');
+WHERE name IN ('quicksort', 'binary_search', 'fibonacci', 'insertion_sort', 'selection_sort', 'heapsort', 'mergesort', 'bubblesort');
 
 -- Insert test cases for sorting algorithms
 INSERT INTO test_cases (algorithm_id, name, description, input, expected_output, is_edge_case, sequence_order)
@@ -389,6 +574,162 @@ INSERT INTO algorithms (name, display_name, category, description, complexity_ti
     ARRAY['Data compression', 'File encoding'])
 ON CONFLICT (name) DO NOTHING;
 
+-- Insert Python implementations for additional sorting algorithms
+WITH algo_ids AS (
+    SELECT id, name FROM algorithms
+)
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'python',
+CASE name
+    WHEN 'insertion_sort' THEN 'def insertion_sort(arr):
+    arr = arr.copy()
+
+    for i in range(1, len(arr)):
+        key = arr[i]
+        j = i - 1
+
+        while j >= 0 and arr[j] > key:
+            arr[j + 1] = arr[j]
+            j -= 1
+
+        arr[j + 1] = key
+
+    return arr'
+
+    WHEN 'selection_sort' THEN 'def selection_sort(arr):
+    arr = arr.copy()
+    n = len(arr)
+
+    for i in range(n):
+        min_idx = i
+
+        for j in range(i + 1, n):
+            if arr[j] < arr[min_idx]:
+                min_idx = j
+
+        arr[i], arr[min_idx] = arr[min_idx], arr[i]
+
+    return arr'
+
+    WHEN 'heapsort' THEN 'def heapsort(arr):
+    def heapify(arr, n, i):
+        largest = i
+        left = 2 * i + 1
+        right = 2 * i + 2
+
+        if left < n and arr[left] > arr[largest]:
+            largest = left
+
+        if right < n and arr[right] > arr[largest]:
+            largest = right
+
+        if largest != i:
+            arr[i], arr[largest] = arr[largest], arr[i]
+            heapify(arr, n, largest)
+
+    arr = arr.copy()
+    n = len(arr)
+
+    # Build max heap
+    for i in range(n // 2 - 1, -1, -1):
+        heapify(arr, n, i)
+
+    # Extract elements from heap one by one
+    for i in range(n - 1, 0, -1):
+        arr[0], arr[i] = arr[i], arr[0]
+        heapify(arr, i, 0)
+
+    return arr'
+END,
+true, true, '1.0.0'
+FROM algo_ids
+WHERE name IN ('insertion_sort', 'selection_sort', 'heapsort');
+
+-- Insert JavaScript implementations for additional sorting algorithms
+WITH algo_ids AS (
+    SELECT id, name FROM algorithms
+)
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'javascript',
+CASE name
+    WHEN 'insertion_sort' THEN 'function insertionSort(arr) {
+    const result = [...arr];
+
+    for (let i = 1; i < result.length; i++) {
+        const key = result[i];
+        let j = i - 1;
+
+        while (j >= 0 && result[j] > key) {
+            result[j + 1] = result[j];
+            j--;
+        }
+
+        result[j + 1] = key;
+    }
+
+    return result;
+}'
+
+    WHEN 'selection_sort' THEN 'function selectionSort(arr) {
+    const result = [...arr];
+    const n = result.length;
+
+    for (let i = 0; i < n; i++) {
+        let minIdx = i;
+
+        for (let j = i + 1; j < n; j++) {
+            if (result[j] < result[minIdx]) {
+                minIdx = j;
+            }
+        }
+
+        [result[i], result[minIdx]] = [result[minIdx], result[i]];
+    }
+
+    return result;
+}'
+
+    WHEN 'heapsort' THEN 'function heapsort(arr) {
+    function heapify(arr, n, i) {
+        let largest = i;
+        const left = 2 * i + 1;
+        const right = 2 * i + 2;
+
+        if (left < n && arr[left] > arr[largest]) {
+            largest = left;
+        }
+
+        if (right < n && arr[right] > arr[largest]) {
+            largest = right;
+        }
+
+        if (largest !== i) {
+            [arr[i], arr[largest]] = [arr[largest], arr[i]];
+            heapify(arr, n, largest);
+        }
+    }
+
+    const result = [...arr];
+    const n = result.length;
+
+    // Build max heap
+    for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+        heapify(result, n, i);
+    }
+
+    // Extract elements from heap
+    for (let i = n - 1; i > 0; i--) {
+        [result[0], result[i]] = [result[i], result[0]];
+        heapify(result, i, 0);
+    }
+
+    return result;
+}'
+END,
+false, true, '1.0.0'
+FROM algo_ids
+WHERE name IN ('insertion_sort', 'selection_sort', 'heapsort');
+
 -- Insert initial performance benchmarks (sample data)
 INSERT INTO benchmarks (algorithm_id, language, input_size, execution_time_ms, memory_used_mb, environment_info)
 SELECT a.id, lang, size, 
@@ -408,11 +749,401 @@ FROM algorithms a,
     (VALUES (100), (1000), (10000)) AS s(size)
 WHERE a.category = 'sorting';
 
+-- Insert Python implementations for tree, dynamic programming, and greedy algorithms (from 2025-10-11)
+-- binary_tree_traversal implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'python', 'def binary_tree_traversal(tree, traversal_type="inorder"):
+    """
+    Traverse binary tree (inorder, preorder, or postorder).
+    tree: dict where tree[node] = (left, right)
+    Returns: list of nodes in traversal order
+    """
+    def inorder(node):
+        if node is None:
+            return []
+        left, right = tree.get(node, (None, None))
+        return inorder(left) + [node] + inorder(right)
+
+    def preorder(node):
+        if node is None:
+            return []
+        left, right = tree.get(node, (None, None))
+        return [node] + preorder(left) + preorder(right)
+
+    def postorder(node):
+        if node is None:
+            return []
+        left, right = tree.get(node, (None, None))
+        return postorder(left) + postorder(right) + [node]
+
+    root = list(tree.keys())[0] if tree else None
+    if traversal_type == "inorder":
+        return inorder(root)
+    elif traversal_type == "preorder":
+        return preorder(root)
+    else:
+        return postorder(root)', true, true, '1.0.0'
+FROM algorithms WHERE name = 'binary_tree_traversal'
+ON CONFLICT (algorithm_id, language, version) DO NOTHING;
+
+-- bst_insert implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'python', 'def bst_insert(root, value):
+    """
+    Insert value into binary search tree.
+    root: dict representing BST structure
+    Returns: updated BST dict
+    """
+    if not root:
+        return {value: (None, None)}
+
+    def insert_recursive(node):
+        if node is None:
+            return value
+        if value < node:
+            left, right = root.get(node, (None, None))
+            new_left = insert_recursive(left)
+            root[node] = (new_left, right)
+            if new_left == value and value not in root:
+                root[value] = (None, None)
+        elif value > node:
+            left, right = root.get(node, (None, None))
+            new_right = insert_recursive(right)
+            root[node] = (left, new_right)
+            if new_right == value and value not in root:
+                root[value] = (None, None)
+        return node
+
+    root_node = list(root.keys())[0]
+    insert_recursive(root_node)
+    return root', true, true, '1.0.0'
+FROM algorithms WHERE name = 'bst_insert'
+ON CONFLICT (algorithm_id, language, version) DO NOTHING;
+
+-- coin_change implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'python', 'def coin_change(coins, amount):
+    """
+    Find minimum coins needed to make amount.
+    Returns: minimum coins needed, or -1 if impossible
+    """
+    dp = [float(''infinity'')] * (amount + 1)
+    dp[0] = 0
+
+    for i in range(1, amount + 1):
+        for coin in coins:
+            if coin <= i:
+                dp[i] = min(dp[i], dp[i - coin] + 1)
+
+    return dp[amount] if dp[amount] != float(''infinity'') else -1', true, true, '1.0.0'
+FROM algorithms WHERE name = 'coin_change'
+ON CONFLICT (algorithm_id, language, version) DO NOTHING;
+
+-- edit_distance implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'python', 'def edit_distance(str1, str2):
+    """
+    Calculate Levenshtein distance between two strings.
+    Returns: minimum edit operations needed
+    """
+    m, n = len(str1), len(str2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+
+    for i in range(m + 1):
+        dp[i][0] = i
+    for j in range(n + 1):
+        dp[0][j] = j
+
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if str1[i-1] == str2[j-1]:
+                dp[i][j] = dp[i-1][j-1]
+            else:
+                dp[i][j] = 1 + min(
+                    dp[i-1][j],    # deletion
+                    dp[i][j-1],    # insertion
+                    dp[i-1][j-1]   # substitution
+                )
+
+    return dp[m][n]', true, true, '1.0.0'
+FROM algorithms WHERE name = 'edit_distance'
+ON CONFLICT (algorithm_id, language, version) DO NOTHING;
+
+-- counting_sort implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'python', 'def counting_sort(arr):
+    """
+    Sort array of non-negative integers using counting sort.
+    Returns: sorted array
+    """
+    if not arr:
+        return []
+
+    max_val = max(arr)
+    counts = [0] * (max_val + 1)
+
+    for num in arr:
+        counts[num] += 1
+
+    result = []
+    for num, count in enumerate(counts):
+        result.extend([num] * count)
+
+    return result', true, true, '1.0.0'
+FROM algorithms WHERE name = 'counting_sort'
+ON CONFLICT (algorithm_id, language, version) DO NOTHING;
+
+-- activity_selection implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'python', 'def activity_selection(activities):
+    """
+    Select maximum non-overlapping activities.
+    activities: list of (start, end) tuples
+    Returns: list of selected activity indices
+    """
+    if not activities:
+        return []
+
+    # Sort by end time
+    indexed = [(i, start, end) for i, (start, end) in enumerate(activities)]
+    indexed.sort(key=lambda x: x[2])
+
+    selected = [indexed[0][0]]
+    last_end = indexed[0][2]
+
+    for i, start, end in indexed[1:]:
+        if start >= last_end:
+            selected.append(i)
+            last_end = end
+
+    return selected', true, true, '1.0.0'
+FROM algorithms WHERE name = 'activity_selection'
+ON CONFLICT (algorithm_id, language, version) DO NOTHING;
+
+-- Insert Python implementations for high-value graph and dynamic programming algorithms (additional from today)
+-- dijkstra implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'python', 'import heapq
+
+def dijkstra(graph, start):
+    """
+    Find shortest paths from start to all vertices.
+    graph: dict where graph[u] = [(v, weight), ...]
+    Returns: dict of {vertex: distance}
+    """
+    distances = {vertex: float(''infinity'') for vertex in graph}
+    distances[start] = 0
+
+    pq = [(0, start)]
+    visited = set()
+
+    while pq:
+        current_dist, current = heapq.heappop(pq)
+
+        if current in visited:
+            continue
+
+        visited.add(current)
+
+        for neighbor, weight in graph.get(current, []):
+            distance = current_dist + weight
+
+            if distance < distances.get(neighbor, float(''infinity'')):
+                distances[neighbor] = distance
+                heapq.heappush(pq, (distance, neighbor))
+
+    return distances', true, true, '1.0.0'
+FROM algorithms WHERE name = 'dijkstra'
+ON CONFLICT (algorithm_id, language, version) DO NOTHING;
+
+-- kruskal implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'python', 'def kruskal(edges, num_vertices):
+    """
+    Find minimum spanning tree using Kruskal algorithm.
+    edges: list of (u, v, weight)
+    Returns: list of edges in MST
+    """
+    parent = list(range(num_vertices))
+    rank = [0] * num_vertices
+
+    def find(x):
+        if parent[x] != x:
+            parent[x] = find(parent[x])
+        return parent[x]
+
+    def union(x, y):
+        px, py = find(x), find(y)
+        if px == py:
+            return False
+        if rank[px] < rank[py]:
+            px, py = py, px
+        parent[py] = px
+        if rank[px] == rank[py]:
+            rank[px] += 1
+        return True
+
+    edges = sorted(edges, key=lambda x: x[2])
+    mst = []
+
+    for u, v, weight in edges:
+        if union(u, v):
+            mst.append((u, v, weight))
+            if len(mst) == num_vertices - 1:
+                break
+
+    return mst', true, true, '1.0.0'
+FROM algorithms WHERE name = 'kruskal'
+ON CONFLICT (algorithm_id, language, version) DO NOTHING;
+
+-- kadane_algorithm implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'python', 'def kadane_algorithm(arr):
+    """
+    Find maximum sum of contiguous subarray.
+    Returns: (max_sum, start_index, end_index)
+    """
+    if not arr:
+        return 0, 0, 0
+
+    max_sum = current_sum = arr[0]
+    max_start = max_end = 0
+    current_start = 0
+
+    for i in range(1, len(arr)):
+        if current_sum < 0:
+            current_sum = arr[i]
+            current_start = i
+        else:
+            current_sum += arr[i]
+
+        if current_sum > max_sum:
+            max_sum = current_sum
+            max_start = current_start
+            max_end = i
+
+    return max_sum, max_start, max_end', true, true, '1.0.0'
+FROM algorithms WHERE name = 'kadane_algorithm'
+ON CONFLICT (algorithm_id, language, version) DO NOTHING;
+
+-- knapsack_01 implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'python', 'def knapsack_01(weights, values, capacity):
+    """
+    Solve 0/1 knapsack problem using dynamic programming.
+    Returns: (max_value, selected_items)
+    """
+    n = len(weights)
+    dp = [[0] * (capacity + 1) for _ in range(n + 1)]
+
+    for i in range(1, n + 1):
+        for w in range(capacity + 1):
+            if weights[i-1] <= w:
+                dp[i][w] = max(
+                    values[i-1] + dp[i-1][w-weights[i-1]],
+                    dp[i-1][w]
+                )
+            else:
+                dp[i][w] = dp[i-1][w]
+
+    # Backtrack to find selected items
+    selected = []
+    w = capacity
+    for i in range(n, 0, -1):
+        if dp[i][w] != dp[i-1][w]:
+            selected.append(i-1)
+            w -= weights[i-1]
+
+    return dp[n][capacity], selected[::-1]', true, true, '1.0.0'
+FROM algorithms WHERE name = 'knapsack_01'
+ON CONFLICT (algorithm_id, language, version) DO NOTHING;
+
+-- longest_common_subsequence implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'python', 'def longest_common_subsequence(text1, text2):
+    """
+    Find longest common subsequence of two strings.
+    Returns: (length, lcs_string)
+    """
+    m, n = len(text1), len(text2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if text1[i-1] == text2[j-1]:
+                dp[i][j] = dp[i-1][j-1] + 1
+            else:
+                dp[i][j] = max(dp[i-1][j], dp[i][j-1])
+
+    # Reconstruct LCS
+    lcs = []
+    i, j = m, n
+    while i > 0 and j > 0:
+        if text1[i-1] == text2[j-1]:
+            lcs.append(text1[i-1])
+            i -= 1
+            j -= 1
+        elif dp[i-1][j] > dp[i][j-1]:
+            i -= 1
+        else:
+            j -= 1
+
+    return dp[m][n], ''''.join(reversed(lcs))', true, true, '1.0.0'
+FROM algorithms WHERE name = 'longest_common_subsequence'
+ON CONFLICT (algorithm_id, language, version) DO NOTHING;
+
+-- kmp implementation
+INSERT INTO implementations (algorithm_id, language, code, is_primary, validated, version)
+SELECT id, 'python', 'def kmp(text, pattern):
+    """
+    KMP string matching algorithm.
+    Returns: list of starting indices where pattern is found
+    """
+    def compute_lps(pattern):
+        lps = [0] * len(pattern)
+        length = 0
+        i = 1
+
+        while i < len(pattern):
+            if pattern[i] == pattern[length]:
+                length += 1
+                lps[i] = length
+                i += 1
+            else:
+                if length != 0:
+                    length = lps[length - 1]
+                else:
+                    lps[i] = 0
+                    i += 1
+        return lps
+
+    lps = compute_lps(pattern)
+    matches = []
+    i = j = 0
+
+    while i < len(text):
+        if pattern[j] == text[i]:
+            i += 1
+            j += 1
+
+        if j == len(pattern):
+            matches.append(i - j)
+            j = lps[j - 1]
+        elif i < len(text) and pattern[j] != text[i]:
+            if j != 0:
+                j = lps[j - 1]
+            else:
+                i += 1
+
+    return matches', true, true, '1.0.0'
+FROM algorithms WHERE name = 'kmp'
+ON CONFLICT (algorithm_id, language, version) DO NOTHING;
+
 -- Update implementation validation counts
 UPDATE implementations i
 SET validation_count = (
-    SELECT COUNT(*) 
-    FROM test_cases tc 
+    SELECT COUNT(*)
+    FROM test_cases tc
     WHERE tc.algorithm_id = i.algorithm_id
 ),
 last_validation = CURRENT_TIMESTAMP;

@@ -136,7 +136,7 @@
            {
              "type": "binaries",
              "targets": [
-               "data-structurer-api"
+               "api/data-structurer-api"
              ]
            },
            {
@@ -167,7 +167,7 @@
         },
         {
           "name": "test-ollama-models",
-          "run": "resource-ollama pull llama3.2 && resource-ollama pull mistral && resource-ollama pull nomic-embed-text",
+          "run": "resource-ollama content pull llama3.2 && resource-ollama content pull mistral && resource-ollama content pull nomic-embed-text",
           "description": "Ensure required AI models are available"
         },
         {
@@ -247,6 +247,14 @@
           "description": "Test postgres, ollama, and unstructured-io integration",
           "condition": {
             "file_exists": "tests/test-resource-integration.sh"
+          }
+        },
+        {
+          "name": "test-export-functionality",
+          "run": "bash tests/test-export.sh",
+          "description": "Test data export in JSON, CSV, and YAML formats",
+          "condition": {
+            "file_exists": "tests/test-export.sh"
           }
         }
       ]

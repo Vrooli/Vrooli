@@ -260,8 +260,11 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	if overallStatus == "unhealthy" {
 		statusCode = http.StatusServiceUnavailable
 	}
-	
-	s.sendJSON(w, statusCode, healthResponse)
+
+	// Send health response directly (not wrapped in Response struct)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(healthResponse)
 }
 
 // Health check helper methods
@@ -510,6 +513,12 @@ func (s *Server) getCryptoStats() map[string]interface{} {
 func (s *Server) handleListResources(w http.ResponseWriter, r *http.Request) {
 	// TODO: Implement based on your scenario needs
 	// Example: List resources from database
+
+	// Return empty list if no database
+	if s.db == nil {
+		s.sendJSON(w, http.StatusOK, []interface{}{})
+		return
+	}
 
 	query := `SELECT id, name, description, created_at FROM resources ORDER BY created_at DESC LIMIT 100`
 	rows, err := s.db.Query(query)

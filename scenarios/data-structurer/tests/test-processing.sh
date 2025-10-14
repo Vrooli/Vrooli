@@ -5,7 +5,17 @@
 set -euo pipefail
 
 # Configuration
-API_BASE_URL="${API_BASE_URL:-http://localhost:${API_PORT:-15770}}"
+# Get the actual port from the running scenario's status
+# Priority: DATA_STRUCTURER_API_PORT env var > scenario status > API_PORT > default
+if [[ -n "${DATA_STRUCTURER_API_PORT:-}" ]]; then
+    SCENARIO_PORT="$DATA_STRUCTURER_API_PORT"
+elif command -v vrooli >/dev/null 2>&1; then
+    # Extract port from scenario status
+    SCENARIO_PORT=$(vrooli scenario status data-structurer 2>/dev/null | grep -oP 'API_PORT: \K\d+' || echo "15769")
+else
+    SCENARIO_PORT="${API_PORT:-15769}"
+fi
+API_BASE_URL="${API_BASE_URL:-http://localhost:$SCENARIO_PORT}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -50,20 +60,25 @@ main() {
     # Test 2: Create a test schema for processing
     log_info "Test 2: Creating test schema"
     test_count=$((test_count + 1))
-    
-    local schema_data='{
-      "name": "test-processing-schema",
-      "description": "Schema for testing document processing",
-      "schema_definition": {
-        "type": "object",
-        "properties": {
-          "name": {"type": "string"},
-          "email": {"type": "string"},
-          "phone": {"type": "string"}
-        },
-        "required": ["name"]
-      }
-    }'
+
+    # Use timestamp to ensure unique schema name
+    local timestamp=$(date +%s%N)
+    local schema_data
+    schema_data=$(jq -n \
+        --arg name "test-processing-schema-$timestamp" \
+        '{
+          name: $name,
+          description: "Schema for testing document processing",
+          schema_definition: {
+            type: "object",
+            properties: {
+              name: {type: "string"},
+              email: {type: "string"},
+              phone: {type: "string"}
+            },
+            required: ["name"]
+          }
+        }')
     
     local create_response
     if create_response=$(curl -sf -X POST "$API_BASE_URL/api/v1/schemas" \
@@ -120,37 +135,57 @@ main() {
             else
                 log_warning "Could not retrieve processed data (may still be processing)"
             fi
-            
+
+            # Test 5: Test batch processing capability
+            log_info "Test 5: Testing batch processing support"
+            test_count=$((test_count + 1))
+
+            # Use the schema we created earlier
+            local batch_data
+            batch_data=$(jq -n \
+                --arg schema_id "$schema_id" \
+                '{
+                    schema_id: $schema_id,
+                    input_type: "text",
+                    input_data: "placeholder",
+                    batch_mode: true,
+                    batch_items: [
+                        "Item 1: test data",
+                        "Item 2: more test data",
+                        "Item 3: additional test data"
+                    ]
+                }')
+
+            # Test batch processing with actual schema
+            local batch_response
+            if batch_response=$(curl -sf -X POST "$API_BASE_URL/api/v1/process" \
+                -H "Content-Type: application/json" \
+                -d "$batch_data"); then
+
+                local batch_id
+                batch_id=$(echo "$batch_response" | jq -r '.batch_id')
+                local total_items
+                total_items=$(echo "$batch_response" | jq -r '.total_items')
+
+                if [[ -n "$batch_id" && "$batch_id" != "null" && "$total_items" == "3" ]]; then
+                    log_success "Batch processing completed with 3 items (batch_id: $batch_id)"
+                    pass_count=$((pass_count + 1))
+                else
+                    log_warning "Batch mode response unexpected: $batch_response"
+                fi
+            else
+                log_warning "Batch mode endpoint may not be working"
+            fi
+
             # Cleanup: Delete test schema
             log_info "Cleaning up test schema..."
             curl -sf -X DELETE "$API_BASE_URL/api/v1/schemas/$schema_id" > /dev/null 2>&1
-            
+
         else
             log_error "Failed to extract schema ID"
         fi
     else
         log_error "Failed to create test schema"
-    fi
-    
-    # Test 5: Test batch processing capability
-    log_info "Test 5: Testing batch processing support"
-    test_count=$((test_count + 1))
-    
-    local batch_data='{
-      "schema_id": "test-id",
-      "input_type": "text",
-      "input_data": "Multiple records here",
-      "batch_mode": true
-    }'
-    
-    # Just check if the endpoint accepts batch mode flag
-    if curl -sf -X POST "$API_BASE_URL/api/v1/process" \
-        -H "Content-Type: application/json" \
-        -d "$batch_data" 2>&1 | grep -q "schema"; then
-        log_success "Batch mode parameter accepted"
-        pass_count=$((pass_count + 1))
-    else
-        log_warning "Batch mode may not be fully implemented"
     fi
     
     # Summary

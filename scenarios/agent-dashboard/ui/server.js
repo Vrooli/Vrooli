@@ -1,14 +1,56 @@
-const express = require('express');
-const path = require('path');
-const cors = require('cors');
-const fs = require('fs');
+import express from 'express'
+import path from 'path'
+import cors from 'cors'
+import fs from 'fs'
+import { fileURLToPath } from 'url'
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 
-const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT;
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+const app = express()
+const PORT = process.env.UI_PORT || process.env.PORT
+const BRIDGE_FLAG = '__agentDashboardBridgeInitialized'
+
+function deriveParentOrigin() {
+  if (typeof document === 'undefined' || !document.referrer) {
+    return undefined
+  }
+  try {
+    return new URL(document.referrer).origin
+  } catch (error) {
+    console.warn('[AgentDashboard] Unable to parse parent origin for iframe bridge', error)
+    return undefined
+  }
+}
+
+function initializeIframeBridge() {
+  if (typeof window === 'undefined') {
+    return
+  }
+  if (window.parent === window) {
+    return
+  }
+  if (window[BRIDGE_FLAG]) {
+    return
+  }
+
+  const parentOrigin = deriveParentOrigin()
+  if (window.parent !== window) {
+    initIframeBridgeChild({ appId: 'agent-dashboard', parentOrigin })
+    window[BRIDGE_FLAG] = true
+  }
+}
+
+try {
+  initializeIframeBridge()
+} catch (error) {
+  console.error('[AgentDashboard] Failed to initialize iframe bridge', error)
+}
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors())
+app.use(express.json())
 
 // Security headers middleware
 app.use((req, res, next) => {

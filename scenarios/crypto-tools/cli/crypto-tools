@@ -10,6 +10,9 @@ readonly CLI_VERSION="1.0.0"
 readonly CONFIG_DIR="$HOME/.vrooli/crypto-tools"
 readonly CONFIG_FILE="$CONFIG_DIR/config.json"
 readonly DEFAULT_API_BASE="http://localhost:15001"
+# NOTE: This is a simple bearer token for local dev/test environments only.
+# Production deployments should use environment variables or secure credential storage.
+# See PROBLEMS.md for authentication upgrade recommendations.
 readonly DEFAULT_TOKEN="crypto-tools-api-key-2024"
 
 # Colors for output

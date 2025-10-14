@@ -34,22 +34,22 @@ type ProblemMappingResponse struct {
 
 // PlatformStats represents statistics for a coding platform
 type PlatformStats struct {
-	Platform       string `json:"platform"`
-	TotalProblems  int    `json:"total_problems"`
-	EasyCount      int    `json:"easy_count"`
-	MediumCount    int    `json:"medium_count"`
-	HardCount      int    `json:"hard_count"`
+	Platform      string `json:"platform"`
+	TotalProblems int    `json:"total_problems"`
+	EasyCount     int    `json:"easy_count"`
+	MediumCount   int    `json:"medium_count"`
+	HardCount     int    `json:"hard_count"`
 }
 
 // getAlgorithmProblemsHandler returns all problems mapped to an algorithm
 func getAlgorithmProblemsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	algorithmID := vars["id"]
-	
+
 	// Support filtering by platform
 	platform := r.URL.Query().Get("platform")
 	difficulty := r.URL.Query().Get("difficulty")
-	
+
 	// First, get algorithm info
 	var algoName, algoCategory string
 	err := db.QueryRow(`
@@ -57,7 +57,7 @@ func getAlgorithmProblemsHandler(w http.ResponseWriter, r *http.Request) {
 		FROM algorithms 
 		WHERE id = $1 OR name = $1
 	`, algorithmID).Scan(&algoName, &algoCategory)
-	
+
 	if err == sql.ErrNoRows {
 		http.Error(w, "Algorithm not found", http.StatusNotFound)
 		return
@@ -65,7 +65,7 @@ func getAlgorithmProblemsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Build query for problems
 	query := `
 		SELECT pm.id, pm.algorithm_id, pm.platform, pm.problem_id, 
@@ -74,22 +74,22 @@ func getAlgorithmProblemsHandler(w http.ResponseWriter, r *http.Request) {
 		FROM problem_mappings pm
 		WHERE pm.algorithm_id = (SELECT id FROM algorithms WHERE id = $1 OR name = $1)
 	`
-	
+
 	args := []interface{}{algorithmID}
 	argCount := 1
-	
+
 	if platform != "" {
 		argCount++
 		query += fmt.Sprintf(" AND LOWER(pm.platform) = LOWER($%d)", argCount)
 		args = append(args, platform)
 	}
-	
+
 	if difficulty != "" {
 		argCount++
 		query += fmt.Sprintf(" AND LOWER(pm.difficulty) = LOWER($%d)", argCount)
 		args = append(args, difficulty)
 	}
-	
+
 	query += ` ORDER BY 
 		CASE pm.difficulty 
 			WHEN 'easy' THEN 1
@@ -97,19 +97,19 @@ func getAlgorithmProblemsHandler(w http.ResponseWriter, r *http.Request) {
 			WHEN 'hard' THEN 3
 			ELSE 4
 		END, pm.platform, pm.problem_name`
-	
+
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	problems := []ProblemMapping{}
 	for rows.Next() {
 		var pm ProblemMapping
 		var topics pq.StringArray
-		
+
 		err := rows.Scan(
 			&pm.ID, &pm.AlgorithmID, &pm.Platform, &pm.ProblemID,
 			&pm.ProblemName, &pm.ProblemURL, &pm.Difficulty,
@@ -118,18 +118,18 @@ func getAlgorithmProblemsHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			continue
 		}
-		
+
 		pm.Topics = []string(topics)
 		problems = append(problems, pm)
 	}
-	
+
 	response := ProblemMappingResponse{
 		AlgorithmName: algoName,
 		Category:      algoCategory,
 		Problems:      problems,
 		TotalCount:    len(problems),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -139,7 +139,7 @@ func searchProblemMappingsHandler(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	platform := r.URL.Query().Get("platform")
 	difficulty := r.URL.Query().Get("difficulty")
-	
+
 	sqlQuery := `
 		SELECT DISTINCT 
 			a.id, a.display_name, a.category,
@@ -150,10 +150,10 @@ func searchProblemMappingsHandler(w http.ResponseWriter, r *http.Request) {
 		JOIN algorithms a ON pm.algorithm_id = a.id
 		WHERE 1=1
 	`
-	
+
 	args := []interface{}{}
 	argCount := 0
-	
+
 	if query != "" {
 		argCount++
 		sqlQuery += fmt.Sprintf(` AND (
@@ -163,41 +163,41 @@ func searchProblemMappingsHandler(w http.ResponseWriter, r *http.Request) {
 		)`, argCount, argCount, argCount)
 		args = append(args, "%"+query+"%")
 	}
-	
+
 	if platform != "" {
 		argCount++
 		sqlQuery += fmt.Sprintf(" AND LOWER(pm.platform) = LOWER($%d)", argCount)
 		args = append(args, platform)
 	}
-	
+
 	if difficulty != "" {
 		argCount++
 		sqlQuery += fmt.Sprintf(" AND LOWER(pm.difficulty) = LOWER($%d)", argCount)
 		args = append(args, difficulty)
 	}
-	
+
 	sqlQuery += " ORDER BY a.display_name, pm.platform, pm.problem_name LIMIT 50"
-	
+
 	rows, err := db.Query(sqlQuery, args...)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	type SearchResult struct {
 		AlgorithmID   string         `json:"algorithm_id"`
 		AlgorithmName string         `json:"algorithm_name"`
 		Category      string         `json:"category"`
 		Problem       ProblemMapping `json:"problem"`
 	}
-	
+
 	results := []SearchResult{}
 	for rows.Next() {
 		var result SearchResult
 		var pm ProblemMapping
 		var topics pq.StringArray
-		
+
 		err := rows.Scan(
 			&result.AlgorithmID, &result.AlgorithmName, &result.Category,
 			&pm.ID, &pm.Platform, &pm.ProblemID, &pm.ProblemName,
@@ -206,13 +206,13 @@ func searchProblemMappingsHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			continue
 		}
-		
+
 		pm.Topics = []string(topics)
 		pm.AlgorithmID = result.AlgorithmID
 		result.Problem = pm
 		results = append(results, result)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"results": results,
@@ -233,14 +233,14 @@ func getPlatformStatsHandler(w http.ResponseWriter, r *http.Request) {
 		GROUP BY platform
 		ORDER BY total DESC
 	`
-	
+
 	rows, err := db.Query(query)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	stats := []PlatformStats{}
 	for rows.Next() {
 		var s PlatformStats
@@ -253,7 +253,7 @@ func getPlatformStatsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		stats = append(stats, s)
 	}
-	
+
 	// Also get total algorithm coverage
 	var totalAlgorithms, algorithmsWithProblems int
 	db.QueryRow("SELECT COUNT(*) FROM algorithms").Scan(&totalAlgorithms)
@@ -261,14 +261,14 @@ func getPlatformStatsHandler(w http.ResponseWriter, r *http.Request) {
 		SELECT COUNT(DISTINCT algorithm_id) 
 		FROM problem_mappings
 	`).Scan(&algorithmsWithProblems)
-	
+
 	response := map[string]interface{}{
-		"platforms":               stats,
-		"total_algorithms":        totalAlgorithms,
+		"platforms":                stats,
+		"total_algorithms":         totalAlgorithms,
 		"algorithms_with_problems": algorithmsWithProblems,
-		"coverage_percentage":     float64(algorithmsWithProblems) / float64(totalAlgorithms) * 100,
+		"coverage_percentage":      float64(algorithmsWithProblems) / float64(totalAlgorithms) * 100,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -280,16 +280,16 @@ func addProblemMappingHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validate required fields
 	if pm.AlgorithmID == "" || pm.Platform == "" || pm.ProblemID == "" || pm.ProblemName == "" {
 		http.Error(w, "Missing required fields", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Normalize platform name
 	pm.Platform = strings.ToLower(pm.Platform)
-	
+
 	// Insert the mapping
 	var id string
 	err := db.QueryRow(`
@@ -307,12 +307,12 @@ func addProblemMappingHandler(w http.ResponseWriter, r *http.Request) {
 		RETURNING id
 	`, pm.AlgorithmID, pm.Platform, pm.ProblemID, pm.ProblemName,
 		pm.ProblemURL, pm.Difficulty, pq.Array(pm.Topics), pm.Notes).Scan(&id)
-	
+
 	if err != nil {
 		http.Error(w, "Failed to add problem mapping", http.StatusInternalServerError)
 		return
 	}
-	
+
 	pm.ID = id
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -324,11 +324,11 @@ func getRecommendedProblemsHandler(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
 	difficulty := r.URL.Query().Get("difficulty")
 	limit := r.URL.Query().Get("limit")
-	
+
 	if limit == "" {
 		limit = "10"
 	}
-	
+
 	query := `
 		SELECT DISTINCT
 			a.id, a.display_name, a.category,
@@ -338,22 +338,22 @@ func getRecommendedProblemsHandler(w http.ResponseWriter, r *http.Request) {
 		JOIN algorithms a ON pm.algorithm_id = a.id
 		WHERE pm.problem_url IS NOT NULL AND pm.problem_url != ''
 	`
-	
+
 	args := []interface{}{}
 	argCount := 0
-	
+
 	if category != "" {
 		argCount++
 		query += fmt.Sprintf(" AND a.category = $%d", argCount)
 		args = append(args, category)
 	}
-	
+
 	if difficulty != "" {
 		argCount++
 		query += fmt.Sprintf(" AND pm.difficulty = $%d", argCount)
 		args = append(args, difficulty)
 	}
-	
+
 	// Order by difficulty and randomize within each difficulty level
 	query += ` ORDER BY 
 		CASE pm.difficulty 
@@ -363,14 +363,14 @@ func getRecommendedProblemsHandler(w http.ResponseWriter, r *http.Request) {
 			ELSE 4
 		END, RANDOM()
 		LIMIT ` + limit
-	
+
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	type RecommendedProblem struct {
 		AlgorithmID   string   `json:"algorithm_id"`
 		AlgorithmName string   `json:"algorithm_name"`
@@ -382,12 +382,12 @@ func getRecommendedProblemsHandler(w http.ResponseWriter, r *http.Request) {
 		Difficulty    string   `json:"difficulty"`
 		Topics        []string `json:"topics"`
 	}
-	
+
 	recommendations := []RecommendedProblem{}
 	for rows.Next() {
 		var rec RecommendedProblem
 		var topics pq.StringArray
-		
+
 		err := rows.Scan(
 			&rec.AlgorithmID, &rec.AlgorithmName, &rec.Category,
 			&rec.Platform, &rec.ProblemID, &rec.ProblemName,
@@ -396,11 +396,11 @@ func getRecommendedProblemsHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			continue
 		}
-		
+
 		rec.Topics = []string(topics)
 		recommendations = append(recommendations, rec)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"recommendations": recommendations,

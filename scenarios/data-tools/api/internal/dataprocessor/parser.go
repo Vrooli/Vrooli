@@ -44,10 +44,10 @@ type ParseResult struct {
 
 // ParseOptions contains options for data parsing
 type ParseOptions struct {
-	Delimiter   string `json:"delimiter"`
-	Headers     bool   `json:"headers"`
-	InferTypes  bool   `json:"infer_types"`
-	SampleSize  int    `json:"sample_size"`
+	Delimiter  string `json:"delimiter"`
+	Headers    bool   `json:"headers"`
+	InferTypes bool   `json:"infer_types"`
+	SampleSize int    `json:"sample_size"`
 }
 
 // Parser handles data parsing operations
@@ -79,31 +79,31 @@ func (p *Parser) Parse(data string, format DataFormat, options ParseOptions) (*P
 // detectFormat attempts to detect the data format
 func (p *Parser) detectFormat(data string) DataFormat {
 	trimmed := strings.TrimSpace(data)
-	
+
 	if strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
 		return FormatJSON
 	}
 	if strings.HasPrefix(trimmed, "<?xml") || strings.HasPrefix(trimmed, "<") {
 		return FormatXML
 	}
-	
+
 	return FormatCSV
 }
 
 // parseCSV parses CSV data
 func (p *Parser) parseCSV(data string, options ParseOptions) (*ParseResult, error) {
 	reader := csv.NewReader(strings.NewReader(data))
-	
+
 	if options.Delimiter != "" {
 		reader.Comma = rune(options.Delimiter[0])
 	}
-	
+
 	// Read all records
 	records, err := reader.ReadAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse CSV: %w", err)
 	}
-	
+
 	if len(records) == 0 {
 		return &ParseResult{
 			Schema:   Schema{Columns: []Column{}, RowCount: 0},
@@ -111,10 +111,10 @@ func (p *Parser) parseCSV(data string, options ParseOptions) (*ParseResult, erro
 			Warnings: []string{"No data found"},
 		}, nil
 	}
-	
+
 	var headers []string
 	var dataRows [][]string
-	
+
 	if options.Headers && len(records) > 0 {
 		headers = records[0]
 		if len(records) > 1 {
@@ -129,7 +129,7 @@ func (p *Parser) parseCSV(data string, options ParseOptions) (*ParseResult, erro
 		}
 		dataRows = records
 	}
-	
+
 	// Infer column types
 	columns := make([]Column, len(headers))
 	for i, header := range headers {
@@ -138,12 +138,12 @@ func (p *Parser) parseCSV(data string, options ParseOptions) (*ParseResult, erro
 			Type:     "string",
 			Nullable: false,
 		}
-		
+
 		if options.InferTypes && len(dataRows) > 0 {
 			columns[i].Type = p.inferColumnType(dataRows, i)
 		}
 	}
-	
+
 	// Create preview
 	preview := []interface{}{}
 	sampleSize := options.SampleSize
@@ -153,7 +153,7 @@ func (p *Parser) parseCSV(data string, options ParseOptions) (*ParseResult, erro
 	if sampleSize > 10 {
 		sampleSize = 10
 	}
-	
+
 	for i := 0; i < sampleSize && i < len(dataRows); i++ {
 		row := make(map[string]interface{})
 		for j, value := range dataRows[i] {
@@ -163,10 +163,10 @@ func (p *Parser) parseCSV(data string, options ParseOptions) (*ParseResult, erro
 		}
 		preview = append(preview, row)
 	}
-	
+
 	// Calculate quality score
 	qualityScore := p.calculateQualityScore(dataRows, columns)
-	
+
 	return &ParseResult{
 		Schema: Schema{
 			Columns:      columns,
@@ -184,17 +184,17 @@ func (p *Parser) parseJSON(data string, options ParseOptions) (*ParseResult, err
 	if err := json.Unmarshal([]byte(data), &jsonData); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
-	
+
 	// Handle array of objects
 	if arr, ok := jsonData.([]interface{}); ok {
 		return p.parseJSONArray(arr, options)
 	}
-	
+
 	// Handle single object
 	if obj, ok := jsonData.(map[string]interface{}); ok {
 		return p.parseJSONArray([]interface{}{obj}, options)
 	}
-	
+
 	return nil, fmt.Errorf("unsupported JSON structure")
 }
 
@@ -207,7 +207,7 @@ func (p *Parser) parseJSONArray(arr []interface{}, options ParseOptions) (*Parse
 			Warnings: []string{"Empty array"},
 		}, nil
 	}
-	
+
 	// Collect all unique keys
 	keyMap := make(map[string]string)
 	for _, item := range arr {
@@ -219,7 +219,7 @@ func (p *Parser) parseJSONArray(arr []interface{}, options ParseOptions) (*Parse
 			}
 		}
 	}
-	
+
 	// Create columns
 	columns := []Column{}
 	for key, dataType := range keyMap {
@@ -229,7 +229,7 @@ func (p *Parser) parseJSONArray(arr []interface{}, options ParseOptions) (*Parse
 			Nullable: false,
 		})
 	}
-	
+
 	// Create preview
 	sampleSize := options.SampleSize
 	if sampleSize == 0 || sampleSize > len(arr) {
@@ -238,9 +238,9 @@ func (p *Parser) parseJSONArray(arr []interface{}, options ParseOptions) (*Parse
 	if sampleSize > 10 {
 		sampleSize = 10
 	}
-	
+
 	preview := arr[:sampleSize]
-	
+
 	return &ParseResult{
 		Schema: Schema{
 			Columns:      columns,
@@ -256,10 +256,10 @@ func (p *Parser) parseJSONArray(arr []interface{}, options ParseOptions) (*Parse
 func (p *Parser) parseXML(data string, options ParseOptions) (*ParseResult, error) {
 	// Simple XML parsing - in production, use more sophisticated XML parsing
 	decoder := xml.NewDecoder(strings.NewReader(data))
-	
+
 	elements := []map[string]interface{}{}
 	current := make(map[string]interface{})
-	
+
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
@@ -268,7 +268,7 @@ func (p *Parser) parseXML(data string, options ParseOptions) (*ParseResult, erro
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse XML: %w", err)
 		}
-		
+
 		switch se := token.(type) {
 		case xml.StartElement:
 			current[se.Name.Local] = ""
@@ -284,7 +284,7 @@ func (p *Parser) parseXML(data string, options ParseOptions) (*ParseResult, erro
 			}
 		}
 	}
-	
+
 	if len(elements) == 0 {
 		return &ParseResult{
 			Schema:   Schema{Columns: []Column{}, RowCount: 0},
@@ -292,7 +292,7 @@ func (p *Parser) parseXML(data string, options ParseOptions) (*ParseResult, erro
 			Warnings: []string{"No data elements found in XML"},
 		}, nil
 	}
-	
+
 	// Infer schema from elements
 	keyMap := make(map[string]bool)
 	for _, elem := range elements {
@@ -300,7 +300,7 @@ func (p *Parser) parseXML(data string, options ParseOptions) (*ParseResult, erro
 			keyMap[key] = true
 		}
 	}
-	
+
 	columns := []Column{}
 	for key := range keyMap {
 		columns = append(columns, Column{
@@ -309,7 +309,7 @@ func (p *Parser) parseXML(data string, options ParseOptions) (*ParseResult, erro
 			Nullable: false,
 		})
 	}
-	
+
 	// Create preview
 	sampleSize := options.SampleSize
 	if sampleSize == 0 || sampleSize > len(elements) {
@@ -318,12 +318,12 @@ func (p *Parser) parseXML(data string, options ParseOptions) (*ParseResult, erro
 	if sampleSize > 10 {
 		sampleSize = 10
 	}
-	
+
 	preview := []interface{}{}
 	for i := 0; i < sampleSize; i++ {
 		preview = append(preview, elements[i])
 	}
-	
+
 	return &ParseResult{
 		Schema: Schema{
 			Columns:      columns,
@@ -340,36 +340,36 @@ func (p *Parser) inferColumnType(rows [][]string, colIndex int) string {
 	intCount := 0
 	floatCount := 0
 	boolCount := 0
-	
+
 	for _, row := range rows {
 		if colIndex >= len(row) {
 			continue
 		}
-		
+
 		value := strings.TrimSpace(row[colIndex])
 		if value == "" {
 			continue
 		}
-		
+
 		// Check for boolean
 		if value == "true" || value == "false" {
 			boolCount++
 			continue
 		}
-		
+
 		// Check for integer
 		if _, err := strconv.ParseInt(value, 10, 64); err == nil {
 			intCount++
 			continue
 		}
-		
+
 		// Check for float
 		if _, err := strconv.ParseFloat(value, 64); err == nil {
 			floatCount++
 			continue
 		}
 	}
-	
+
 	total := len(rows)
 	if boolCount > total/2 {
 		return "boolean"
@@ -380,7 +380,7 @@ func (p *Parser) inferColumnType(rows [][]string, colIndex int) string {
 	if floatCount > total/2 {
 		return "float"
 	}
-	
+
 	return "string"
 }
 
@@ -430,24 +430,24 @@ func (p *Parser) calculateQualityScore(rows [][]string, columns []Column) float6
 	if len(rows) == 0 {
 		return 0.0
 	}
-	
+
 	totalCells := len(rows) * len(columns)
 	validCells := 0
-	
+
 	for _, row := range rows {
 		for i, cell := range row {
 			if i >= len(columns) {
 				break
 			}
-			
+
 			if cell != "" {
 				validCells++
 			}
 		}
 	}
-	
+
 	completeness := float64(validCells) / float64(totalCells)
-	
+
 	// Basic quality score based on completeness
 	// In production, add more sophisticated quality metrics
 	return completeness
