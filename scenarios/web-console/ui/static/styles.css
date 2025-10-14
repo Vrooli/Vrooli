@@ -46,7 +46,7 @@ body {
   justify-content: space-between;
   align-items: stretch;
   flex-wrap: nowrap;
-  padding: 1.5rem;
+  padding: 0.9rem 1.2rem;
   min-height: 5.25rem;
   max-width: 100vw;
   overflow-x: hidden;
@@ -800,6 +800,30 @@ body {
   transition: background 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
 
+.tab-button[data-session-state='none']::before {
+  background: rgba(148, 163, 184, 0.45);
+  box-shadow: 0 0 6px rgba(148, 163, 184, 0.35);
+  opacity: 1;
+}
+
+.tab-button[data-session-state='starting']::before {
+  background: rgba(56, 189, 248, 0.65);
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
+  opacity: 1;
+}
+
+.tab-button[data-session-state='closing']::before {
+  background: rgba(251, 191, 36, 0.7);
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
+  opacity: 1;
+}
+
+.tab-button[data-session-state='detached']::before {
+  background: rgba(248, 113, 113, 0.7);
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.55);
+  opacity: 1;
+}
+
 .tab-button.tab-running::before {
   background: #22c55e;
   box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
@@ -831,6 +855,41 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tab-button .tab-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.45rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.tab-button .tab-status-icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.tab-status-icon.tab-status-loading {
+  color: var(--accent);
+}
+
+.tab-status-icon.tab-status-loading svg {
+  animation: spin 1.1s linear infinite;
+}
+
+.tab-status-icon.tab-status-closing {
+  color: #fcd34d;
+}
+
+.tab-status-icon.tab-status-detached {
+  color: #fca5a5;
+}
+
+.tab-status-icon.tab-status-empty {
+  color: rgba(148, 163, 184, 0.75);
 }
 
 .tab-close {

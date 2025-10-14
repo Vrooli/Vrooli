@@ -31,7 +31,8 @@ import {
   renderTabs,
   applyTabAppearance,
   getDetachedTabs,
-  createTerminalTab
+  createTerminalTab,
+  refreshTabButton
 } from './tab-manager.js'
 
 const callbacks = {
@@ -67,6 +68,7 @@ function queueSessionOverviewRefresh(delay = 0) {
 export function setTabPhase(tab, phase) {
   if (!tab) return
   tab.phase = phase
+  refreshTabButton(tab)
   if (tab.id === state.activeTabId) {
     notifyActiveTabUpdate()
   }
@@ -75,6 +77,7 @@ export function setTabPhase(tab, phase) {
 export function setTabSocketState(tab, socketState) {
   if (!tab) return
   tab.socketState = socketState
+  refreshTabButton(tab)
   if (tab.id === state.activeTabId) {
     notifyActiveTabUpdate()
   }
@@ -123,6 +126,7 @@ export async function startSession(tab, options = {}) {
       commandLine: formatCommandLabel(sessionCommand, sessionArgs)
     }
     tab.wasDetached = false
+    refreshTabButton(tab)
     tab.transcript = []
     tab.events = []
     tab.suppressed = tab.suppressed || {}
@@ -157,6 +161,7 @@ export async function startSession(tab, options = {}) {
     showError(tab, message)
     appendEvent(tab, 'session-error', error)
     tab.wasDetached = true
+    refreshTabButton(tab)
     notifySessionActionsChanged()
     if (typeof message === 'string' && message.toLowerCase().includes('capacity reached')) {
       queueSessionOverviewRefresh(100)
@@ -185,6 +190,7 @@ export async function stopSession(tab) {
     setTabPhase(tab, 'closed')
     setTabSocketState(tab, 'disconnected')
     tab.wasDetached = true
+    refreshTabButton(tab)
     queueSessionOverviewRefresh(250)
     notifySessionActionsChanged()
   }
@@ -211,11 +217,13 @@ export async function reconnectSession(tab, sessionId) {
         setTabSocketState(tab, 'disconnected')
         showError(tab, 'Session expired. Type to launch a new shell.')
         tab.wasDetached = true
+        refreshTabButton(tab)
         queueSessionOverviewRefresh(250)
       } else {
         setTabSocketState(tab, 'error')
         showError(tab, `Unable to reconnect (status ${status})`)
         tab.wasDetached = true
+        refreshTabButton(tab)
       }
       notifySessionActionsChanged()
       return
@@ -226,6 +234,7 @@ export async function reconnectSession(tab, sessionId) {
       commandLine: formatCommandLabel(data.command, data.args)
     }
     tab.wasDetached = false
+    refreshTabButton(tab)
     connectWebSocket(tab, sessionId)
     setTabPhase(tab, 'running')
     showError(tab, '')
@@ -238,6 +247,7 @@ export async function reconnectSession(tab, sessionId) {
     setTabSocketState(tab, 'error')
     showError(tab, 'Unable to reconnect to session')
     tab.wasDetached = true
+    refreshTabButton(tab)
     notifySessionActionsChanged()
   } finally {
     tab.reconnecting = false
@@ -660,6 +670,7 @@ export async function handleSignOutAllSessions() {
     const socketOpen = tab.socket && tab.socket.readyState === WebSocket.OPEN
     setTabSocketState(tab, socketOpen ? 'closing' : 'disconnected')
     tab.wasDetached = true
+    refreshTabButton(tab)
   })
 
   try {

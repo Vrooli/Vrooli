@@ -17,6 +17,32 @@ let terminalHandlers = {
   onResize: null,
   onData: null
 }
+const TAB_SESSION_STATE_META = {
+  attached: {
+    icon: null,
+    label: ''
+  },
+  starting: {
+    icon: 'loader-2',
+    label: 'Session starting',
+    extraClass: 'tab-status-loading'
+  },
+  closing: {
+    icon: 'power',
+    label: 'Stopping session',
+    extraClass: 'tab-status-closing'
+  },
+  detached: {
+    icon: 'unlink',
+    label: 'Detached from session',
+    extraClass: 'tab-status-detached'
+  },
+  none: {
+    icon: 'minus',
+    label: 'No session attached',
+    extraClass: 'tab-status-empty'
+  }
+}
 let callbacks = {
   onActiveTabChanged: null,
   onTabCloseRequested: null,
@@ -163,6 +189,7 @@ export function createTerminalTab({ focus = false, id = null, label = null, colo
     domButton: null,
     domClose: null,
     domLabel: null,
+    domStatus: null,
     wasDetached: false
   }
 
@@ -230,6 +257,7 @@ export function destroyTerminalTab(tab) {
   tab.domButton = null
   tab.domClose = null
   tab.domLabel = null
+  tab.domStatus = null
 }
 
 export function getActiveTab() {
@@ -305,6 +333,11 @@ export function renderTabs() {
       labelSpan.className = 'tab-label'
       labelSpan.textContent = tab.label
       selectBtn.appendChild(labelSpan)
+
+      const statusSpan = document.createElement('span')
+      statusSpan.className = 'tab-status-icon hidden'
+      statusSpan.setAttribute('aria-hidden', 'true')
+      selectBtn.appendChild(statusSpan)
       selectBtn.addEventListener('click', () => setActiveTab(tab.id))
       registerTabCustomizationHandlers(selectBtn, tab)
 
@@ -335,6 +368,7 @@ export function renderTabs() {
       tab.domButton = selectBtn
       tab.domClose = closeBtn
       tab.domLabel = labelSpan
+      tab.domStatus = statusSpan
     } else {
       const insertionPoint = elements.tabAddSlot || elements.addTabBtn || null
       if (insertionPoint && elements.tabList.contains(insertionPoint)) {
@@ -342,6 +376,10 @@ export function renderTabs() {
       } else {
         elements.tabList.appendChild(tab.domItem)
       }
+    }
+
+    if (!tab.domStatus && tab.domButton) {
+      tab.domStatus = tab.domButton.querySelector('.tab-status-icon')
     }
 
     if (tab.domLabel) {
@@ -590,6 +628,89 @@ export function applyTabAppearance(tab) {
   style.setProperty('--tab-color-label', styles.label)
 }
 
+function updateTabSessionIndicator(tab) {
+  if (!tab?.domButton) return
+  if (!tab.domStatus) {
+    tab.domStatus = tab.domButton.querySelector('.tab-status-icon')
+  }
+
+  const hasActiveSession = Boolean(tab.session && tab.wasDetached !== true && tab.phase !== 'closed')
+  const isStarting = tab.phase === 'creating'
+  const isClosing = tab.phase === 'closing'
+  const isDetached = !hasActiveSession && (tab.wasDetached || isDetachedTab(tab) || tab.phase === 'closed')
+
+  let sessionState = 'attached'
+
+  if (isStarting) {
+    sessionState = 'starting'
+  } else if (isClosing) {
+    sessionState = 'closing'
+  } else if (hasActiveSession) {
+    sessionState = 'attached'
+  } else if (isDetached) {
+    sessionState = 'detached'
+  } else {
+    sessionState = 'none'
+  }
+
+  const stateMeta = TAB_SESSION_STATE_META[sessionState] || TAB_SESSION_STATE_META.attached
+  tab.domButton.dataset.sessionState = sessionState
+  tab.domButton.dataset.sessionAttached = hasActiveSession ? 'true' : 'false'
+
+  if (tab.domStatus) {
+    tab.domStatus.classList.remove(
+      'hidden',
+      'tab-status-loading',
+      'tab-status-closing',
+      'tab-status-detached',
+      'tab-status-empty'
+    )
+    tab.domStatus.textContent = ''
+    tab.domStatus.innerHTML = ''
+
+    if (stateMeta.icon) {
+      const lucide = typeof window !== 'undefined' ? window.lucide : null
+      const iconElement = document.createElement('i')
+      iconElement.dataset.lucide = stateMeta.icon
+      iconElement.setAttribute('aria-hidden', 'true')
+      tab.domStatus.appendChild(iconElement)
+      if (lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons({ root: tab.domStatus })
+      }
+
+      if (stateMeta.extraClass) {
+        tab.domStatus.classList.add(stateMeta.extraClass)
+      }
+      tab.domStatus.classList.remove('hidden')
+
+      const tooltip = stateMeta.label || ''
+      if (tooltip) {
+        tab.domStatus.title = tooltip
+      } else {
+        tab.domStatus.removeAttribute('title')
+      }
+    } else {
+      tab.domStatus.classList.add('hidden')
+      tab.domStatus.removeAttribute('title')
+    }
+  }
+
+  const baseLabel = tab.label || ''
+  const stateLabel = stateMeta.label || ''
+  if (baseLabel) {
+    const titleText = stateLabel ? `${baseLabel} (${stateLabel})` : baseLabel
+    tab.domButton.title = titleText
+    tab.domButton.setAttribute('aria-label', stateLabel ? `${baseLabel} – ${stateLabel}` : baseLabel)
+  } else {
+    tab.domButton.title = stateLabel
+    if (stateLabel) {
+      tab.domButton.setAttribute('aria-label', stateLabel)
+    } else {
+      tab.domButton.removeAttribute('aria-label')
+    }
+  }
+}
+
 function updateTabButtonState(tab) {
   if (!tab.domButton) return
   tab.domButton.setAttribute('aria-selected', tab.id === state.activeTabId ? 'true' : 'false')
@@ -600,7 +721,12 @@ function updateTabButtonState(tab) {
   if (tab.domClose) {
     tab.domClose.disabled = state.tabs.length === 1
   }
+  updateTabSessionIndicator(tab)
   applyTabAppearance(tab)
+}
+
+export function refreshTabButton(tab) {
+  updateTabButtonState(tab)
 }
 
 export function isDetachedTab(tab) {

@@ -6,7 +6,8 @@ import {
   destroyTerminalTab,
   renderTabs,
   applyTabAppearance,
-  getActiveTab
+  getActiveTab,
+  refreshTabButton
 } from './tab-manager.js'
 import { appendEvent, showError } from './event-feed.js'
 import { proxyToApi, buildWebSocketUrl, textDecoder } from './utils.js'
@@ -289,6 +290,7 @@ function handleSessionDetached(payload) {
     setTabSocketState(tab, 'disconnected')
   }
   tab.wasDetached = true
+  refreshTabButton(tab)
   queueSessionOverviewRefresh(250)
   updateSessionActions()
 }
