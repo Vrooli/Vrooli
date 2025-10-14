@@ -8,12 +8,11 @@ const net = require('net');
 require('dotenv').config();
 
 const app = express();
-
-app.use(express.json({ limit: '256kb' }));
+const jsonBodyParser = express.json({ limit: '256kb' });
 
 const CLIENT_DEBUG_EVENTS = [];
 
-app.post('/__debug/client-event', (req, res) => {
+app.post('/__debug/client-event', jsonBodyParser, (req, res) => {
     const { event, detail, timestamp, userAgent } = req.body || {};
     const entry = {
         event: typeof event === 'string' ? event : 'unknown',
@@ -1747,6 +1746,11 @@ app.use(`${APP_PROXY_PREFIX}/:appId/${APP_PROXY_SEGMENT}`, async (req, res, next
 });
 
 app.use(async (req, res, next) => {
+    const originalUrl = req.originalUrl || req.url || '';
+    if (originalUrl === '/api' || originalUrl.startsWith('/api/')) {
+        return next();
+    }
+
     if (req.originalUrl.startsWith(`${APP_PROXY_PREFIX}/`) && req.originalUrl.includes(`/${APP_PROXY_SEGMENT}`)) {
         return next();
     }
@@ -1873,11 +1877,49 @@ function proxyToApi(req, res, apiPath) {
         });
     });
 
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-        req.pipe(proxyReq);
-    } else {
-        proxyReq.end();
+    const method = (req.method || 'GET').toUpperCase();
+    const allowsBody = method !== 'GET' && method !== 'HEAD';
+
+    if (allowsBody) {
+        if (req.readable && !req.readableEnded) {
+            req.pipe(proxyReq);
+            return;
+        }
+
+        const resolvedBody = (() => {
+            const body = req.body;
+            if (Buffer.isBuffer(body)) {
+                return body;
+            }
+            if (typeof body === 'string') {
+                return Buffer.from(body);
+            }
+            if (body && typeof body === 'object') {
+                try {
+                    return Buffer.from(JSON.stringify(body));
+                } catch (error) {
+                    console.warn('proxyToApi could not serialize parsed body:', error.message);
+                }
+            }
+            const rawBody = req.rawBody;
+            if (Buffer.isBuffer(rawBody)) {
+                return rawBody;
+            }
+            if (typeof rawBody === 'string') {
+                return Buffer.from(rawBody);
+            }
+            return null;
+        })();
+
+        if (resolvedBody && resolvedBody.length > 0) {
+            proxyReq.setHeader('content-length', resolvedBody.length);
+            proxyReq.write(resolvedBody);
+        } else {
+            proxyReq.removeHeader('content-length');
+        }
     }
+
+    proxyReq.end();
 }
 
 // API endpoints proxy - support both versioned and unversioned for backward compatibility
