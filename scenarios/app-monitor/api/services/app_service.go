@@ -2350,61 +2350,121 @@ func buildIssueDescription(
 	networkCapturedAt string,
 ) string {
 	var builder strings.Builder
-	builder.WriteString("## App Monitor Issue Report\n\n")
-	builder.WriteString(fmt.Sprintf("- App Name: %s\n", appName))
-	builder.WriteString(fmt.Sprintf("- Scenario Identifier: %s\n", scenarioName))
+
+	safeScenarioName := sanitizeCommandIdentifier(scenarioName)
+	previewPath := extractPreviewPath(previewURL)
+	screenshotCommand := fmt.Sprintf(
+		"resource-browserless screenshot --scenario %q --output /tmp/%s-validation.png --fullpage",
+		scenarioName,
+		safeScenarioName,
+	)
+	if previewPath != "" {
+		screenshotCommand = fmt.Sprintf(
+			"resource-browserless screenshot --scenario %q --path %q --output /tmp/%s-validation.png --fullpage",
+			scenarioName,
+			previewPath,
+			safeScenarioName,
+		)
+	}
+
+	builder.WriteString("## Context\n\n")
+	builder.WriteString(fmt.Sprintf("- Scenario: `%s`\n", scenarioName))
+	builder.WriteString(fmt.Sprintf("- App Name: `%s`\n", appName))
 	if previewURL != "" {
 		builder.WriteString(fmt.Sprintf("- Preview URL: %s\n", previewURL))
+	} else {
+		builder.WriteString(fmt.Sprintf("- Preview URL: _Not captured_. Launch with:\n  ```bash\n  cd scenarios/%s\n  make start\n  ```\n", scenarioName))
 	}
 	if source != "" {
-		builder.WriteString(fmt.Sprintf("- Reported By: %s\n", source))
+		builder.WriteString(fmt.Sprintf("- Reported via: %s\n", source))
 	}
-	builder.WriteString(fmt.Sprintf("- Reported At: %s\n", reportedAt.Format(time.RFC3339)))
+	builder.WriteString(fmt.Sprintf("- Reported at: %s\n", reportedAt.Format(time.RFC3339)))
+
+	builder.WriteString("\nWhile reviewing this scenario in App Monitor, an issue or missing capability was observed. Investigate the details below, implement the necessary change in the scenario, and confirm the fix within App Monitor after completion.\n")
 
 	trimmedMessage := strings.TrimSpace(message)
-	builder.WriteString("\n### Reporter Notes\n\n")
+	builder.WriteString("\n## Reporter Notes\n\n")
 	if trimmedMessage != "" {
 		builder.WriteString(trimmedMessage)
 		builder.WriteString("\n")
 	} else {
-		builder.WriteString("_No additional notes were provided._\n")
+		builder.WriteString("_No additional reporter notes were provided._\n")
 	}
 
-	builder.WriteString("\n### Diagnostics Summary\n\n")
-	builder.WriteString(formatDiagnosticsLine("Lifecycle logs", len(logs), logsTotal, logsCapturedAt, attachmentLifecycleName))
+	builder.WriteString("\n## Captured Evidence\n\n")
+	builder.WriteString(formatEvidenceLine("Lifecycle logs", len(logs), logsTotal, logsCapturedAt, attachmentLifecycleName))
 	builder.WriteString("\n")
-	builder.WriteString(formatDiagnosticsLine("Console events", len(consoleLogs), consoleTotal, consoleCapturedAt, attachmentConsoleName))
+	builder.WriteString(formatEvidenceLine("Console events", len(consoleLogs), consoleTotal, consoleCapturedAt, attachmentConsoleName))
 	builder.WriteString("\n")
-	builder.WriteString(formatDiagnosticsLine("Network requests", len(network), networkTotal, networkCapturedAt, attachmentNetworkName))
+	builder.WriteString(formatEvidenceLine("Network requests", len(network), networkTotal, networkCapturedAt, attachmentNetworkName))
 	builder.WriteString("\n")
 	if screenshotData != "" {
-		builder.WriteString(fmt.Sprintf("- Screenshot captured (see `%s`).\n", attachmentScreenshotName))
+		builder.WriteString(fmt.Sprintf("- Screenshot attached as `%s` (base64 PNG).\n", attachmentScreenshotName))
 	} else {
-		builder.WriteString("- Screenshot not captured for this report.\n")
+		builder.WriteString("- Screenshot: not captured for this report.\n")
 	}
+
+	builder.WriteString("\nUse the artifacts above to reproduce the behavior before making any changes.\n")
+
+	builder.WriteString("\n## Investigation Checklist\n\n")
+	builder.WriteString(fmt.Sprintf("1. Open the scenario locally: `cd scenarios/%s`.\n", scenarioName))
+	builder.WriteString("2. Review the Reporter Notes and attachments to understand the observed behavior.\n")
+	builder.WriteString("3. Reproduce the issue in the preview environment (use the captured Preview URL if present).\n")
+	builder.WriteString("4. Identify the root cause in the scenario's code or configuration before implementation.\n")
+
+	builder.WriteString("\n## Implementation Guardrails\n\n")
+	builder.WriteString(fmt.Sprintf("- Modify only files under `scenarios/%s/`.\n", scenarioName))
+	builder.WriteString("- Do not run git commands (commit, push, rebase, etc.).\n")
+	builder.WriteString("- Coordinate changes through the scenario's lifecycle commands; avoid editing shared resources unless explicitly required.\n")
+
+	builder.WriteString("\n## Testing & Validation\n\n")
+	builder.WriteString(fmt.Sprintf("- Run scenario tests:\n  ```bash\n  cd scenarios/%s\n  make test\n  ```\n", scenarioName))
+	builder.WriteString(fmt.Sprintf("- Restart the scenario so App Monitor picks up the update:\n  ```bash\n  vrooli scenario restart %s\n  ```\n", scenarioName))
+	builder.WriteString("- Reproduce the original preview flow in App Monitor to confirm the issue is resolved.\n")
+
+	builder.WriteString("\n## Visual Validation\n\n")
+	builder.WriteString("- Capture before/after screenshots when visual confirmation is needed. Browserless can target the running scenario directly:\n")
+	builder.WriteString("  ```bash\n")
+	builder.WriteString(fmt.Sprintf("  %s\n", screenshotCommand))
+	builder.WriteString("  ```\n")
+	if previewPath == "" {
+		builder.WriteString(fmt.Sprintf("  Use `--path /route` if you need a specific page within `%s`.\n", scenarioName))
+	}
+	builder.WriteString("- Attach relevant screenshots to this issue so future reviewers can validate the UI changes quickly.\n")
+	builder.WriteString("- If App Monitor still shows cached content, rerun the scenario lifecycle commands above before taking the screenshot.\n")
+
+	builder.WriteString("\n## Success Criteria\n\n")
+	builder.WriteString("- [ ] Issue no longer occurs (or requested improvement is present) when using the App Monitor preview.\n")
+	builder.WriteString(fmt.Sprintf("- [ ] `make test` passes for `scenarios/%s`.\n", scenarioName))
+	builder.WriteString("- [ ] Any new logs are clean (no unexpected errors).\n")
+	builder.WriteString("- [ ] Scenario lifecycle commands complete without errors (`make start`, `make stop`).\n")
+
+	builder.WriteString("\n## Completion Notes\n\n")
+	builder.WriteString("Document the fix in the issue, including the files touched and any follow-up work that may be required. Attach updated artifacts if additional evidence is gathered during the fix.\n")
 
 	return builder.String()
 }
 
-func formatDiagnosticsLine(label string, capturedCount, reportedTotal int, capturedAt, attachmentName string) string {
+func formatEvidenceLine(label string, capturedCount, reportedTotal int, capturedAt, attachmentName string) string {
 	var builder strings.Builder
 	if capturedCount <= 0 && reportedTotal <= 0 {
-		builder.WriteString(fmt.Sprintf("- %s were not captured for this report.", label))
+		builder.WriteString(fmt.Sprintf("- %s: not captured in this report.", label))
 		return builder.String()
 	}
 
+	reported := reportedTotal
+	if reported < capturedCount {
+		reported = capturedCount
+	}
+
 	if capturedCount > 0 {
-		reported := reportedTotal
-		if reported < capturedCount {
-			reported = capturedCount
-		}
 		builder.WriteString(fmt.Sprintf("- %s: %d captured", label, capturedCount))
 		if reported > capturedCount {
-			builder.WriteString(fmt.Sprintf(" (showing subset of %d)", reported))
+			builder.WriteString(fmt.Sprintf(" (subset of %d)", reported))
 		}
-		builder.WriteString(fmt.Sprintf("; see `%s`.", attachmentName))
+		builder.WriteString(fmt.Sprintf(" — see `%s`.", attachmentName))
 	} else {
-		builder.WriteString(fmt.Sprintf("- %s: report indicated %d available, but none were attached.", label, reportedTotal))
+		builder.WriteString(fmt.Sprintf("- %s: report indicated %d available, but none were attached.", label, reported))
 	}
 
 	if capturedAt != "" {
@@ -2412,6 +2472,82 @@ func formatDiagnosticsLine(label string, capturedCount, reportedTotal int, captu
 	}
 
 	return builder.String()
+}
+
+func extractPreviewPath(previewURL string) string {
+	trimmed := strings.TrimSpace(previewURL)
+	if trimmed == "" {
+		return ""
+	}
+
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return ""
+	}
+
+	path := strings.TrimSpace(parsed.Path)
+	if path == "" || path == "/" {
+		path = ""
+	} else if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+
+	if strings.HasPrefix(path, "/apps/") {
+		if idx := strings.Index(path, "/proxy"); idx >= 0 {
+			path = path[idx+len("/proxy"):]
+			if path != "" && !strings.HasPrefix(path, "/") {
+				path = "/" + path
+			}
+		}
+	}
+
+	if path == "" || path == "/" {
+		path = ""
+	}
+
+	if path != "" && parsed.RawQuery != "" {
+		path = fmt.Sprintf("%s?%s", path, parsed.RawQuery)
+	}
+	if path != "" && parsed.Fragment != "" {
+		path = fmt.Sprintf("%s#%s", path, parsed.Fragment)
+	}
+
+	return path
+}
+
+func sanitizeCommandIdentifier(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "scenario"
+	}
+
+	trimmed = strings.ToLower(trimmed)
+	var builder strings.Builder
+	for _, r := range trimmed {
+		switch {
+		case r >= 'a' && r <= 'z':
+			builder.WriteRune(r)
+		case r >= '0' && r <= '9':
+			builder.WriteRune(r)
+		case r == '-' || r == '_':
+			builder.WriteRune(r)
+		case r == ' ' || r == '/' || r == '\\':
+			builder.WriteRune('-')
+		default:
+			builder.WriteRune('-')
+		}
+	}
+
+	result := builder.String()
+	for strings.Contains(result, "--") {
+		result = strings.ReplaceAll(result, "--", "-")
+	}
+	result = strings.Trim(result, "-")
+	if result == "" {
+		return "scenario"
+	}
+
+	return result
 }
 
 func buildIssueTags(hasScreenshot, hasConsole, hasNetwork bool) []string {
