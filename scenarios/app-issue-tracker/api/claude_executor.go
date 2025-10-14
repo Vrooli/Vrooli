@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -20,6 +21,7 @@ import (
 type ClaudeExecutionResult struct {
 	Success          bool
 	Output           string
+	LastMessage      string
 	Error            string
 	MaxTurnsExceeded bool
 	ExitCode         int
@@ -73,6 +75,21 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	transcriptFile := filepath.Join(transcriptDir, fmt.Sprintf("%s-%d-conversation.jsonl", fileSafeTag, timestamp))
 	lastMessageFile := filepath.Join(transcriptDir, fmt.Sprintf("%s-%d-last.txt", fileSafeTag, timestamp))
 
+	workspaceDir, err := os.MkdirTemp("", fmt.Sprintf("codex-%s-", fileSafeTag))
+	if err != nil {
+		return &ClaudeExecutionResult{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to create Codex workspace directory: %v", err),
+		}, err
+	}
+	defer func() {
+		if removeErr := os.RemoveAll(workspaceDir); removeErr != nil {
+			log.Printf("Warning: failed to clean Codex workspace %s: %v", workspaceDir, removeErr)
+		}
+	}()
+
+	log.Printf("Codex workspace directory: %s", workspaceDir)
+
 	// Set environment variables (ecosystem-manager pattern)
 	skipPermissionsValue := "no"
 	if settings.SkipPermissions {
@@ -101,6 +118,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		"CODEX_AGENT_TAG="+agentTag,
 		"CODEX_TRANSCRIPT_FILE="+transcriptFile,
 		"CODEX_LAST_MESSAGE_FILE="+lastMessageFile,
+		"CODEX_WORKSPACE="+workspaceDir,
 	)
 	cmd.Env = env
 
@@ -250,6 +268,8 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		combinedOutput = "(no output captured from Claude Code)"
 	}
 
+	finalMessage := extractFinalAgentMessage(combinedOutput)
+
 	executionTime := time.Since(startTime)
 	ctxErr := ctx.Err()
 
@@ -268,30 +288,34 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	if ctxErr == context.DeadlineExceeded {
 		log.Printf("⏰ TIMEOUT: Issue %s execution exceeded %v limit (ran for %v)",
 			issueID, timeoutDuration, executionTime.Round(time.Second))
-		return &ClaudeExecutionResult{
+		result := &ClaudeExecutionResult{
 			Success:         false,
 			Output:          combinedOutput,
+			LastMessage:     finalMessage,
 			Error:           fmt.Sprintf("⏰ TIMEOUT: Execution exceeded %v limit (ran for %v). Consider increasing timeout in Settings or simplifying the task.", timeoutDuration, executionTime.Round(time.Second)),
 			ExitCode:        exitCode,
 			ExecutionTime:   executionTime,
 			TranscriptPath:  transcriptFile,
 			LastMessagePath: lastMessageFile,
-		}, nil
+		}
+		return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
 	}
 
 	// Check for max turns exceeded
 	if detectMaxTurnsExceeded(combinedOutput) {
 		log.Printf("Issue %s: MAX_TURNS limit reached (%d)", issueID, settings.MaxTurns)
-		return &ClaudeExecutionResult{
+		result := &ClaudeExecutionResult{
 			Success:          false,
 			Output:           combinedOutput,
+			LastMessage:      finalMessage,
 			Error:            fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", settings.MaxTurns),
 			MaxTurnsExceeded: true,
 			ExitCode:         exitCode,
 			ExecutionTime:    executionTime,
 			TranscriptPath:   transcriptFile,
 			LastMessagePath:  lastMessageFile,
-		}, nil
+		}
+		return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
 	}
 
 	// Check for rate limits
@@ -305,30 +329,34 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		strings.Contains(lowerOutput, "quota exceeded") {
 		log.Printf("Rate limit detected for issue %s", issueID)
 		// Note: Rate limit handling will be done by caller
-		return &ClaudeExecutionResult{
+		result := &ClaudeExecutionResult{
 			Success:         false,
 			Output:          combinedOutput,
+			LastMessage:     finalMessage,
 			Error:           "RATE_LIMIT: API rate limit reached",
 			ExitCode:        exitCode,
 			ExecutionTime:   executionTime,
 			TranscriptPath:  transcriptFile,
 			LastMessagePath: lastMessageFile,
-		}, nil
+		}
+		return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
 	}
 
 	// Check for non-zero exit (ecosystem-manager pattern)
 	// CRITICAL: Check output quality, not just exit codes
 	if waitErr != nil && exitCode != 0 {
 		if idleTriggered.Load() {
-			return &ClaudeExecutionResult{
+			result := &ClaudeExecutionResult{
 				Success:         false,
 				Output:          combinedOutput,
+				LastMessage:     finalMessage,
 				Error:           fmt.Sprintf("Claude Code execution ended due to inactivity (no output for %v)", idleTimeout),
 				ExitCode:        exitCode,
 				ExecutionTime:   executionTime,
 				TranscriptPath:  transcriptFile,
 				LastMessagePath: lastMessageFile,
-			}, nil
+			}
+			return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
 		}
 		// Check if we have substantial, structured output despite error
 		hasValidReport := false
@@ -344,47 +372,209 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 			log.Printf("Issue %s: Agent exited with code %d but produced valid structured report - treating as success",
 				issueID, exitCode)
 			// Override failure - agent produced valid work despite non-zero exit
-			return &ClaudeExecutionResult{
+			result := &ClaudeExecutionResult{
 				Success:         true,
 				Output:          combinedOutput,
+				LastMessage:     finalMessage,
 				ExitCode:        exitCode,
 				ExecutionTime:   executionTime,
 				TranscriptPath:  transcriptFile,
 				LastMessagePath: lastMessageFile,
-			}, nil
+			}
+			return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
 		}
 
 		// Real failure - no valid output
 		log.Printf("Claude Code failed for issue %s with exit code %d", issueID, exitCode)
-		return &ClaudeExecutionResult{
+		result := &ClaudeExecutionResult{
 			Success:         false,
 			Output:          combinedOutput,
+			LastMessage:     finalMessage,
 			Error:           fmt.Sprintf("Claude Code execution failed (exit code %d): %s", exitCode, waitErr),
 			ExitCode:        exitCode,
 			ExecutionTime:   executionTime,
 			TranscriptPath:  transcriptFile,
 			LastMessagePath: lastMessageFile,
-		}, nil
+		}
+		return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
 	}
 
 	// Success case
 	log.Printf("Claude Code completed successfully for issue %s (output length: %d characters, time: %v)",
 		issueID, len(combinedOutput), executionTime.Round(time.Second))
 
-	return &ClaudeExecutionResult{
+	result := &ClaudeExecutionResult{
 		Success:         true,
 		Output:          combinedOutput,
+		LastMessage:     finalMessage,
 		ExitCode:        exitCode,
 		ExecutionTime:   executionTime,
 		TranscriptPath:  transcriptFile,
 		LastMessagePath: lastMessageFile,
-	}, nil
+	}
+	return s.completeClaudeResult(result, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage, settings), nil
 }
 
 // detectMaxTurnsExceeded checks if the output indicates max turns was reached
 func detectMaxTurnsExceeded(output string) bool {
 	lower := strings.ToLower(output)
 	return strings.Contains(lower, "max turns") && strings.Contains(lower, "reached")
+}
+
+func (s *Server) completeClaudeResult(result *ClaudeExecutionResult, transcriptFile, lastMessageFile, prompt, combinedOutput, finalMessage string, settings AgentSettings) *ClaudeExecutionResult {
+	if result == nil {
+		return nil
+	}
+
+	if trimmed := strings.TrimSpace(result.LastMessage); trimmed == "" {
+		result.LastMessage = strings.TrimSpace(finalMessage)
+	}
+
+	if err := ensureLastMessageFile(lastMessageFile, result.LastMessage); err != nil {
+		log.Printf("Warning: failed to persist last message fallback %s: %v", lastMessageFile, err)
+	}
+
+	if err := ensureTranscriptFile(transcriptFile, prompt, result.LastMessage, combinedOutput, settings); err != nil {
+		log.Printf("Warning: failed to persist transcript fallback %s: %v", transcriptFile, err)
+	}
+
+	return result
+}
+
+func ensureLastMessageFile(path, lastMessage string) error {
+	if strings.TrimSpace(path) == "" || strings.TrimSpace(lastMessage) == "" {
+		return nil
+	}
+	if fileExistsAndNotEmpty(path) {
+		return nil
+	}
+	return os.WriteFile(path, []byte(lastMessage), 0o644)
+}
+
+func ensureTranscriptFile(path, prompt, lastMessage, combinedOutput string, settings AgentSettings) error {
+	if strings.TrimSpace(path) == "" {
+		return nil
+	}
+	if fileExistsAndNotEmpty(path) {
+		return nil
+	}
+	if strings.TrimSpace(prompt) == "" && strings.TrimSpace(lastMessage) == "" && strings.TrimSpace(combinedOutput) == "" {
+		return nil
+	}
+	return writeFallbackTranscript(path, prompt, lastMessage, combinedOutput, settings)
+}
+
+func writeFallbackTranscript(path, prompt, lastMessage, combinedOutput string, settings AgentSettings) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	metadata := map[string]interface{}{
+		"sandbox":      "fallback-transcript",
+		"provider":     settings.Provider,
+		"generated":    true,
+		"generated_at": now,
+	}
+	if err := writeJSONLine(writer, metadata); err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(prompt) != "" {
+		if err := writeJSONLine(writer, map[string]interface{}{"prompt": prompt}); err != nil {
+			return err
+		}
+	}
+
+	if strings.TrimSpace(lastMessage) != "" {
+		entry := map[string]interface{}{
+			"id":        fmt.Sprintf("fallback-%d", time.Now().UnixNano()),
+			"timestamp": now,
+			"msg": map[string]interface{}{
+				"type":    "final_response",
+				"role":    "assistant",
+				"message": lastMessage,
+			},
+		}
+		if err := writeJSONLine(writer, entry); err != nil {
+			return err
+		}
+	}
+
+	trimmedOutput := strings.TrimSpace(combinedOutput)
+	if trimmedOutput != "" && strings.TrimSpace(lastMessage) != trimmedOutput {
+		rawEntry := map[string]interface{}{
+			"id":        fmt.Sprintf("raw-%d", time.Now().UnixNano()),
+			"timestamp": now,
+			"raw": map[string]interface{}{
+				"combined_output": trimmedOutput,
+			},
+		}
+		if err := writeJSONLine(writer, rawEntry); err != nil {
+			return err
+		}
+	}
+
+	return writer.Flush()
+}
+
+func writeJSONLine(writer *bufio.Writer, value interface{}) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	if _, err := writer.Write(data); err != nil {
+		return err
+	}
+	if err := writer.WriteByte('\n'); err != nil {
+		return err
+	}
+	return nil
+}
+
+func fileExistsAndNotEmpty(path string) bool {
+	if strings.TrimSpace(path) == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.Size() > 0
+}
+
+func extractFinalAgentMessage(output string) string {
+	cleaned := strings.TrimSpace(stripANSI(output))
+	if cleaned == "" {
+		return ""
+	}
+
+	lines := strings.Split(cleaned, "\n")
+	for len(lines) > 0 {
+		last := strings.TrimSpace(lines[len(lines)-1])
+		if last == "" || strings.HasPrefix(last, "[20") || strings.HasPrefix(last, "[SUCCESS") {
+			lines = lines[:len(lines)-1]
+			continue
+		}
+		break
+	}
+	cleaned = strings.TrimSpace(strings.Join(lines, "\n"))
+	if cleaned == "" {
+		return ""
+	}
+
+	lower := strings.ToLower(cleaned)
+	if idx := strings.LastIndex(lower, "**summary**"); idx != -1 {
+		cleaned = strings.TrimSpace(cleaned[idx:])
+	} else if idx := strings.LastIndex(lower, "summary:"); idx != -1 {
+		cleaned = strings.TrimSpace(cleaned[idx:])
+	}
+
+	return cleaned
 }
 
 func sanitizeForFilename(input string) string {

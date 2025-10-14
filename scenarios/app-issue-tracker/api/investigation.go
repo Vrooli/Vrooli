@@ -434,7 +434,11 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 
 		nowUTC := time.Now().UTC()
 
-		issue.Investigation.Report = result.Output
+		reportContent := strings.TrimSpace(result.LastMessage)
+		if reportContent == "" {
+			reportContent = result.Output
+		}
+		issue.Investigation.Report = reportContent
 		issue.Investigation.CompletedAt = nowUTC.Format(time.RFC3339)
 		issue.Metadata.UpdatedAt = nowUTC.Format(time.RFC3339)
 

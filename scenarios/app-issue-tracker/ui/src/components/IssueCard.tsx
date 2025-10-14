@@ -237,7 +237,9 @@ export function IssueCard({
           </button>
         </div>
       </header>
-      <h3 className="issue-title">{issue.title}</h3>
+      <h3 className="issue-title" title={issue.title}>
+        {issue.title}
+      </h3>
       {isRunning && (
         <div className="issue-running-indicator">
           <Brain size={14} className="issue-running-icon" />

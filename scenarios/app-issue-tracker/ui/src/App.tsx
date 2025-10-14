@@ -161,6 +161,33 @@ interface CreateIssueAttachmentPayload {
   category?: string;
 }
 
+interface LockedAttachmentDraft {
+  id: string;
+  payload: CreateIssueAttachmentPayload;
+  name: string;
+  description?: string;
+  sizeLabel?: string | null;
+  category?: string;
+}
+
+interface CreateIssueInitialFields {
+  title?: string;
+  description?: string;
+  priority?: Priority;
+  status?: IssueStatus;
+  appId?: string;
+  tags?: string[];
+  reporterName?: string;
+  reporterEmail?: string;
+}
+
+interface CreateIssuePrefill {
+  key: string;
+  initial: CreateIssueInitialFields;
+  lockedAttachments: LockedAttachmentDraft[];
+  followUpOf?: { id: string; title: string };
+}
+
 type SnackbarTone = 'info' | 'success' | 'error';
 
 interface SnackbarState {
@@ -583,6 +610,109 @@ function buildDashboardStats(issues: Issue[], apiStats?: ApiStatsPayload | null)
   };
 }
 
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function getTitlePrefix(value: string): string {
+  const match = value.match(/^(\[[^\]]+\]\s*)/);
+  return match ? match[1] : '';
+}
+
+function ensureTitlePrefix(prefix: string, candidate: string): string {
+  if (!prefix) {
+    return candidate.trim();
+  }
+  const trimmed = candidate.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  if (trimmed.startsWith(prefix.trim())) {
+    return trimmed;
+  }
+  if (/^\[[^\]]+\]/.test(trimmed)) {
+    return trimmed;
+  }
+  return `${prefix}${trimmed}`;
+}
+
+function extractReporterNotesSection(markdown?: string | null): string | null {
+  if (!markdown) {
+    return null;
+  }
+
+  const lines = markdown.split(/\r?\n/);
+  let inSection = false;
+  const collected: string[] = [];
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!inSection) {
+      if (/^##\s+reporter notes/i.test(line)) {
+        inSection = true;
+      }
+      continue;
+    }
+    if (/^##\s+/.test(line)) {
+      break;
+    }
+    collected.push(rawLine);
+  }
+
+  const section = collected.join('\n').trim();
+  if (!section) {
+    return null;
+  }
+
+  return section;
+}
+
+function deriveDisplayTitle(raw: ApiIssue): { displayTitle: string; rawTitle: string } {
+  const rawTitle = (raw.title ?? '').trim() || 'Untitled issue';
+  const prefix = getTitlePrefix(rawTitle);
+  const extras = raw.metadata?.extra ?? {};
+
+  const preferredKeys = [
+    'full_title',
+    'original_title',
+    'source_title',
+    'report_message',
+    'reporter_message',
+    'long_title',
+  ];
+
+  for (const key of preferredKeys) {
+    const value = extras?.[key];
+    if (typeof value === 'string' && value.trim()) {
+      return {
+        rawTitle,
+        displayTitle: ensureTitlePrefix(prefix, value),
+      };
+    }
+  }
+
+  if (rawTitle.endsWith('...')) {
+    const reporterNotes = extractReporterNotesSection(raw.description ?? raw.notes);
+    if (reporterNotes) {
+      const firstMeaningfulLine = reporterNotes
+        .split(/\r?\n/)
+        .map((line) => line.replace(/^[-*>\s]+/, '').trim())
+        .find((line) => line.length > 0);
+      if (firstMeaningfulLine) {
+        const sanitized = normalizeWhitespace(firstMeaningfulLine.replace(/[*`_~]/g, ''));
+        if (sanitized) {
+          return {
+            rawTitle,
+            displayTitle: ensureTitlePrefix(prefix, sanitized),
+          };
+        }
+      }
+    }
+  }
+
+  return { displayTitle: rawTitle, rawTitle };
+}
+
 function transformIssue(raw: ApiIssue): Issue {
   const labels = normalizeLabels(raw.metadata?.labels);
   const createdAt = raw.metadata?.created_at ?? raw.reporter?.timestamp ?? new Date().toISOString();
@@ -617,9 +747,12 @@ function transformIssue(raw: ApiIssue): Issue {
     raw.reporter?.name ??
     'Unassigned';
 
+  const { displayTitle, rawTitle } = deriveDisplayTitle(raw);
+
   return {
     id: raw.id,
-    title: raw.title,
+    title: displayTitle,
+    rawTitle,
     summary,
     description: description || summary,
     assignee,
@@ -636,6 +769,184 @@ function transformIssue(raw: ApiIssue): Issue {
     notes: notes || undefined,
     metadata: raw.metadata,
     investigation: raw.investigation,
+  };
+}
+
+function createLocalId(prefix: string): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return `${prefix}-${crypto.randomUUID()}`;
+    }
+  } catch (error) {
+    // Ignore crypto errors and fall back to Math.random
+  }
+  return `${prefix}-${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function encodeBytesToBase64(bytes: Uint8Array): string {
+  if (typeof window !== 'undefined' && typeof window.btoa === 'function') {
+    let binary = '';
+    const chunkSize = 0x8000; // Avoid call stack limits
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+      const chunk = bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length));
+      binary += String.fromCharCode(...chunk);
+    }
+    return window.btoa(binary);
+  }
+
+  const bufferCtor = (globalThis as Record<string, unknown>).Buffer as
+    | { from: (input: Uint8Array) => { toString: (encoding: string) => string } }
+    | undefined;
+  if (bufferCtor?.from) {
+    return bufferCtor.from(bytes).toString('base64');
+  }
+
+  let fallbackBinary = '';
+  for (let index = 0; index < bytes.length; index += 1) {
+    fallbackBinary += String.fromCharCode(bytes[index]);
+  }
+
+  const btoaFn = typeof btoa === 'function' ? btoa : undefined;
+  if (btoaFn) {
+    return btoaFn(fallbackBinary);
+  }
+
+  throw new Error('Base64 encoding is not supported in this environment.');
+}
+
+function encodeStringToBase64(value: string): { base64: string; byteLength: number } {
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(value);
+  return {
+    base64: encodeBytesToBase64(bytes),
+    byteLength: bytes.length,
+  };
+}
+
+function buildIssueSnapshot(issue: Issue): Record<string, unknown> {
+  return {
+    source_issue_id: issue.id,
+    source_issue_title_display: issue.title,
+    source_issue_title_original: issue.rawTitle ?? issue.title,
+    status: issue.status,
+    priority: issue.priority,
+    app: issue.app,
+    assignee: issue.assignee,
+    created_at: issue.createdAt,
+    updated_at: issue.updatedAt ?? null,
+    resolved_at: issue.resolvedAt ?? null,
+    summary: issue.summary,
+    description: issue.description,
+    notes: issue.notes ?? null,
+    tags: issue.tags,
+    investigation: issue.investigation ?? null,
+    metadata: issue.metadata ?? null,
+    attachments: issue.attachments.map((attachment) => ({
+      name: attachment.name,
+      path: attachment.path,
+      size: attachment.size ?? null,
+      type: attachment.type ?? null,
+      category: attachment.category ?? null,
+    })),
+  };
+}
+
+async function cloneIssueAttachment(attachment: IssueAttachment): Promise<LockedAttachmentDraft> {
+  const response = await fetch(attachment.url);
+  if (!response.ok) {
+    throw new Error(`request failed with status ${response.status}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  const base64 = encodeBytesToBase64(bytes);
+  const fallbackName = attachment.path.split(/[\\/]+/).pop() ?? 'attachment';
+  const name = attachment.name || fallbackName;
+  const responseContentType = response.headers.get('Content-Type');
+  const contentType = (attachment.type ?? responseContentType ?? 'application/octet-stream').split(';')[0];
+
+  return {
+    id: createLocalId('attachment'),
+    payload: {
+      name,
+      content: base64,
+      encoding: 'base64',
+      contentType,
+      category: attachment.category ?? 'attachment',
+    },
+    name,
+    description: 'Attachment from previous issue',
+    sizeLabel: formatFileSize(typeof attachment.size === 'number' ? attachment.size : bytes.length),
+    category: attachment.category ?? undefined,
+  };
+}
+
+async function prepareFollowUpPrefill(issue: Issue): Promise<CreateIssuePrefill> {
+  const lockedAttachments: LockedAttachmentDraft[] = [];
+
+  if (issue.attachments.length > 0) {
+    try {
+      const cloned = await Promise.all(issue.attachments.map(cloneIssueAttachment));
+      lockedAttachments.push(...cloned);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to copy attachments from ${issue.id}: ${message}`);
+    }
+  }
+
+  if (issue.investigation?.report) {
+    const heading = `# Investigation Report for ${issue.id}\n\n`;
+    const { base64, byteLength } = encodeStringToBase64(`${heading}${issue.investigation.report}`);
+    const name = `${issue.id}-investigation-report.md`;
+    lockedAttachments.push({
+      id: createLocalId('report'),
+      payload: {
+        name,
+        content: base64,
+        encoding: 'base64',
+        contentType: 'text/markdown',
+        category: 'investigation',
+      },
+      name,
+      description: 'Investigation findings copied from the previous issue',
+      sizeLabel: formatFileSize(byteLength),
+      category: 'investigation',
+    });
+  }
+
+  const snapshotJson = `${JSON.stringify(buildIssueSnapshot(issue), null, 2)}\n`;
+  const snapshot = encodeStringToBase64(snapshotJson);
+  const snapshotName = `${issue.id}-snapshot.json`;
+  lockedAttachments.push({
+    id: createLocalId('snapshot'),
+    payload: {
+      name: snapshotName,
+      content: snapshot.base64,
+      encoding: 'base64',
+      contentType: 'application/json',
+      category: 'snapshot',
+    },
+    name: snapshotName,
+    description: 'Structured JSON snapshot of the previous issue',
+    sizeLabel: formatFileSize(snapshot.byteLength),
+    category: 'snapshot',
+  });
+
+  const uniqueTags = Array.from(new Set(['follow-up', ...issue.tags])).filter(Boolean);
+  const initial: CreateIssueInitialFields = {
+    title: `Follow up: ${issue.title}`,
+    description: `Follow-up request for ${issue.id} (${issue.title}).\n\nDescribe the outstanding issues, regressions, or new instructions here.\n`,
+    priority: issue.priority ?? 'Medium',
+    status: 'open',
+    appId: issue.app || 'unknown',
+    tags: uniqueTags,
+  };
+
+  return {
+    key: `follow-up-${issue.id}-${Date.now()}`,
+    initial,
+    lockedAttachments,
+    followUpOf: { id: issue.id, title: issue.title },
   };
 }
 
@@ -686,6 +997,7 @@ function App() {
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [hiddenColumns, setHiddenColumns] = useState<IssueStatus[]>(['archived']);
   const [createIssueOpen, setCreateIssueOpen] = useState(false);
+  const [createIssuePrefill, setCreateIssuePrefill] = useState<CreateIssuePrefill | null>(null);
   const [issueDetailOpen, setIssueDetailOpen] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>(DEFAULT_STATS);
   const [loading, setLoading] = useState(true);
@@ -704,6 +1016,7 @@ function App() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
   const [runningProcesses, setRunningProcesses] = useState<Map<string, { agent_id: string; start_time: string; duration?: string }>>(new Map());
+  const [followUpLoadingId, setFollowUpLoadingId] = useState<string | null>(null);
 
   const showSnackbar = useCallback((message: string, tone: SnackbarTone = 'info') => {
     setSnackbar({ message, tone });
@@ -1349,10 +1662,12 @@ function App() {
 
   const handleCreateIssue = useCallback(() => {
     setFiltersOpen(false);
+    setCreateIssuePrefill(null);
     setCreateIssueOpen(true);
   }, []);
 
   const handleCreateIssueClose = useCallback(() => {
+    setCreateIssuePrefill(null);
     setCreateIssueOpen(false);
   }, []);
 
@@ -1367,6 +1682,24 @@ function App() {
     });
   }, []);
 
+  const handleCreateFollowUp = useCallback(
+    async (issue: Issue) => {
+      setFollowUpLoadingId(issue.id);
+      try {
+        const prefill = await prepareFollowUpPrefill(issue);
+        setCreateIssuePrefill(prefill);
+        setCreateIssueOpen(true);
+      } catch (error) {
+        console.error('[IssueTracker] Failed to prepare follow-up issue', error);
+        const message = error instanceof Error ? error.message : 'Failed to prepare follow-up issue.';
+        showSnackbar(message, 'error');
+      } finally {
+        setFollowUpLoadingId(null);
+      }
+    },
+    [showSnackbar],
+  );
+
   const handleSubmitNewIssue = useCallback(
     async (input: CreateIssueInput) => {
       const newIssueId = await createIssue(input);
@@ -1374,6 +1707,7 @@ function App() {
         setFocusedIssueId(newIssueId);
         setIssueDetailOpen(true);
       }
+      setCreateIssuePrefill(null);
     },
     [createIssue],
   );
@@ -1833,11 +2167,24 @@ function App() {
       </div>
 
       {createIssueOpen && (
-        <CreateIssueModal onClose={handleCreateIssueClose} onSubmit={handleSubmitNewIssue} />
+        <CreateIssueModal
+          key={createIssuePrefill?.key ?? 'create-issue'}
+          onClose={handleCreateIssueClose}
+          onSubmit={handleSubmitNewIssue}
+          initialData={createIssuePrefill?.initial}
+          lockedAttachments={createIssuePrefill?.lockedAttachments}
+          followUpInfo={createIssuePrefill?.followUpOf}
+        />
       )}
 
       {showIssueDetailModal && selectedIssue && (
-        <IssueDetailsModal issue={selectedIssue} onClose={handleIssueDetailClose} onStatusChange={updateIssueStatus} />
+        <IssueDetailsModal
+          issue={selectedIssue}
+          onClose={handleIssueDetailClose}
+          onStatusChange={updateIssueStatus}
+          onFollowUp={handleCreateFollowUp}
+          followUpLoadingId={followUpLoadingId}
+        />
       )}
 
       {metricsDialogOpen && (
@@ -1949,9 +2296,11 @@ interface IssueDetailsModalProps {
   issue: Issue;
   onClose: () => void;
   onStatusChange?: (issueId: string, newStatus: IssueStatus) => void | Promise<void>;
+  onFollowUp?: (issue: Issue) => void;
+  followUpLoadingId?: string | null;
 }
 
-function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModalProps) {
+function IssueDetailsModal({ issue, onClose, onStatusChange, onFollowUp, followUpLoadingId }: IssueDetailsModalProps) {
   const createdText = formatDateTime(issue.createdAt);
   const updatedText = formatDateTime(issue.updatedAt);
   const resolvedText = formatDateTime(issue.resolvedAt);
@@ -1966,6 +2315,7 @@ function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModal
   const [conversationLoading, setConversationLoading] = useState(false);
   const [conversationError, setConversationError] = useState<string | null>(null);
   const [conversationExpanded, setConversationExpanded] = useState(false);
+  const [investigationExpanded, setInvestigationExpanded] = useState(true);
   const fetchAbortRef = useRef<AbortController | null>(null);
 
   const providerLabel = conversation?.provider ?? issue.investigation?.agent_id ?? null;
@@ -1973,6 +2323,10 @@ function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModal
   const hasAgentTranscript = Boolean(
     issue.metadata?.extra?.agent_transcript_path || issue.metadata?.extra?.agent_last_message_path,
   );
+
+  const followUpAvailable =
+    (issue.status === 'completed' || issue.status === 'failed') && typeof onFollowUp === 'function';
+  const followUpLoading = followUpLoadingId === issue.id;
 
   useEffect(() => {
     if (fetchAbortRef.current) {
@@ -1983,6 +2337,7 @@ function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModal
     setConversationError(null);
     setConversationExpanded(false);
     setConversationLoading(false);
+    setInvestigationExpanded(true);
   }, [issue.id]);
 
   const fetchConversation = useCallback(async () => {
@@ -2037,6 +2392,10 @@ function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModal
     }
   };
 
+  const handleToggleInvestigation = () => {
+    setInvestigationExpanded((state) => !state);
+  };
+
   const handleStatusChange = async (event: ChangeEvent<HTMLSelectElement>) => {
     const newStatus = event.target.value as IssueStatus;
     if (newStatus !== issue.status && onStatusChange) {
@@ -2046,20 +2405,22 @@ function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModal
 
   return (
     <Modal onClose={onClose} labelledBy="issue-details-title">
-      <div className="modal-header">
-        <div>
-          <p className="modal-eyebrow">
-            <Hash size={14} />
-            {issue.id}
-          </p>
-          <h2 id="issue-details-title" className="modal-title">
-            {issue.title}
-          </h2>
+        <div className="modal-header">
+          <div>
+            <p className="modal-eyebrow">
+              <Hash size={14} />
+              {issue.id}
+            </p>
+            <h2 id="issue-details-title" className="modal-title">
+              {issue.title}
+            </h2>
+          </div>
+          <div className="modal-header-actions">
+            <button className="modal-close" type="button" aria-label="Close issue details" onClick={onClose}>
+              <X size={18} />
+            </button>
+          </div>
         </div>
-        <button className="modal-close" type="button" aria-label="Close issue details" onClick={onClose}>
-          <X size={18} />
-        </button>
-      </div>
 
       <div className="modal-body">
         {onStatusChange && (
@@ -2161,17 +2522,54 @@ function IssueDetailsModal({ issue, onClose, onStatusChange }: IssueDetailsModal
 
         {issue.investigation?.report && (
           <section className="issue-detail-section">
-            <h3>Investigation Report</h3>
-            <div className="investigation-report">
+            <div className="issue-section-heading">
+              <h3>Investigation Report</h3>
+              <button
+                type="button"
+                className="issue-section-toggle"
+                onClick={handleToggleInvestigation}
+                aria-expanded={investigationExpanded}
+              >
+                <ChevronDown
+                  size={16}
+                  className={`issue-section-toggle-icon${investigationExpanded ? ' is-open' : ''}`}
+                />
+                <span>{investigationExpanded ? 'Hide report' : 'Show report'}</span>
+              </button>
+            </div>
+            <div className={`investigation-report${investigationExpanded ? ' is-expanded' : ' is-collapsed'}`}>
               {issue.investigation.agent_id && (
                 <div className="investigation-meta">
                   <Brain size={14} />
                   <span>Agent: {issue.investigation.agent_id}</span>
                 </div>
               )}
-              <MarkdownView content={issue.investigation.report} />
+              {investigationExpanded ? (
+                <div className="investigation-report-body">
+                  <MarkdownView content={issue.investigation.report} />
+                </div>
+              ) : (
+                <p className="investigation-report-placeholder">
+                  Report hidden. Expand to review the findings.
+                </p>
+              )}
             </div>
           </section>
+        )}
+
+        {followUpAvailable && (
+          <div className="issue-followup-actions">
+            <button
+              type="button"
+              className="primary-button follow-up-button"
+              onClick={() => onFollowUp?.(issue)}
+              disabled={followUpLoading}
+              aria-label={followUpLoading ? 'Preparing follow-up issue' : 'Create follow-up issue'}
+            >
+              {followUpLoading ? <Loader2 size={16} className="button-spinner" /> : <KanbanSquare size={16} />}
+              <span>{followUpLoading ? 'Preparing…' : 'Follow Up'}</span>
+            </button>
+          </div>
         )}
 
         {hasAgentTranscript && (
@@ -2719,18 +3117,21 @@ function IssueMetaTile({ label, value, hint, icon }: IssueMetaTileProps) {
 interface CreateIssueModalProps {
   onClose: () => void;
   onSubmit: (input: CreateIssueInput) => Promise<void>;
+  initialData?: CreateIssueInitialFields | null;
+  lockedAttachments?: LockedAttachmentDraft[] | null;
+  followUpInfo?: { id: string; title: string } | null;
 }
 
-
-function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<Priority>('Medium');
-  const [status, setStatus] = useState<IssueStatus>('open');
-  const [appId, setAppId] = useState('web-ui');
-  const [tags, setTags] = useState('');
-  const [reporterName, setReporterName] = useState('');
-  const [reporterEmail, setReporterEmail] = useState('');
+function CreateIssueModal({ onClose, onSubmit, initialData, lockedAttachments: lockedAttachmentsProp, followUpInfo }: CreateIssueModalProps) {
+  const lockedAttachments = lockedAttachmentsProp ?? [];
+  const [title, setTitle] = useState(initialData?.title ?? '');
+  const [description, setDescription] = useState(initialData?.description ?? '');
+  const [priority, setPriority] = useState<Priority>(initialData?.priority ?? 'Medium');
+  const [status, setStatus] = useState<IssueStatus>(initialData?.status ?? 'open');
+  const [appId, setAppId] = useState(initialData?.appId ?? 'web-ui');
+  const [tags, setTags] = useState(initialData?.tags?.join(', ') ?? '');
+  const [reporterName, setReporterName] = useState(initialData?.reporterName ?? '');
+  const [reporterEmail, setReporterEmail] = useState(initialData?.reporterEmail ?? '');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
@@ -2868,7 +3269,7 @@ function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
       return;
     }
 
-    const preparedAttachments = attachments
+    const userPreparedAttachments = attachments
       .filter((attachment) => attachment.status === 'ready' && attachment.content)
       .map((attachment) => ({
         name: attachment.name,
@@ -2877,6 +3278,11 @@ function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
         contentType: attachment.contentType,
         category: 'attachment',
       }));
+
+    const preparedAttachments = [
+      ...lockedAttachments.map((item) => item.payload),
+      ...userPreparedAttachments,
+    ];
 
     setSubmitting(true);
     setErrorMessage(null);
@@ -2905,17 +3311,20 @@ function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
     }
   };
 
-  const attachmentCountLabel = attachments.length === 1 ? 'file' : 'files';
+  const totalAttachmentCount = lockedAttachments.length + attachments.length;
+  const attachmentCountLabel = totalAttachmentCount === 1 ? 'file' : 'files';
   const hasErroredAttachments = attachments.some((attachment) => attachment.status === 'error');
+  const modalEyebrow = followUpInfo ? 'Follow-up' : 'New Issue';
+  const modalTitle = followUpInfo ? 'Create Follow-up Issue' : 'Create Issue';
 
   return (
     <Modal onClose={onClose} labelledBy="create-issue-title">
       <form className="modal-form" onSubmit={handleSubmit}>
         <div className="modal-header">
           <div>
-            <p className="modal-eyebrow">New Issue</p>
+            <p className="modal-eyebrow">{modalEyebrow}</p>
             <h2 id="create-issue-title" className="modal-title">
-              Create Issue
+              {modalTitle}
             </h2>
           </div>
           <button className="modal-close" type="button" aria-label="Close create issue" onClick={onClose}>
@@ -2924,6 +3333,15 @@ function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
         </div>
 
         <div className="modal-body">
+          {followUpInfo && (
+            <div className="follow-up-banner">
+              <KanbanSquare size={16} />
+              <span>
+                Follow-up for {followUpInfo.id}
+                {followUpInfo.title ? ` — ${followUpInfo.title}` : ''}
+              </span>
+            </div>
+          )}
           <div className="form-grid">
             <label className="form-field">
               <span>Title</span>
@@ -3005,12 +3423,40 @@ function CreateIssueModal({ onClose, onSubmit }: CreateIssueModalProps) {
           <div className="form-section attachments-section">
             <div className="form-section-header">
               <span className="form-section-title">Attachments</span>
-              {attachments.length > 0 && (
+              {totalAttachmentCount > 0 && (
                 <span className="form-section-meta">
-                  {attachments.length} {attachmentCountLabel}
+                  {totalAttachmentCount} {attachmentCountLabel}
                 </span>
               )}
             </div>
+            {lockedAttachments.length > 0 && (
+              <div className="locked-attachments-info">
+                <p>
+                  These files from {followUpInfo ? `issue ${followUpInfo.id}` : 'the previous issue'} will be attached automatically.
+                </p>
+                <ul className="locked-attachment-list">
+                  {lockedAttachments.map((item) => {
+                    const categoryLabel = item.category
+                      ? toTitleCase(item.category.replace(/[-_]+/g, ' '))
+                      : null;
+                    const detailParts = [categoryLabel, item.description, item.sizeLabel].filter(Boolean);
+                    return (
+                      <li key={item.id} className="locked-attachment-item">
+                        <span className="locked-attachment-icon">
+                          <Paperclip size={14} />
+                        </span>
+                        <div className="locked-attachment-meta">
+                          <span className="locked-attachment-name">{item.name}</span>
+                          {detailParts.length > 0 && (
+                            <span className="locked-attachment-details">{detailParts.join(' • ')}</span>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
             <p className="form-section-description">
               Drag and drop logs, screenshots, or other helpful context.
             </p>
