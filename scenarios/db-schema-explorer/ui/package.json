@@ -15,7 +15,8 @@
     "react-json-view": "^1.21.3",
     "react-split-pane": "^0.1.92",
     "prismjs": "^1.29.0",
-    "react-simple-code-editor": "^0.13.1"
+    "react-simple-code-editor": "^0.13.1",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   },
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",

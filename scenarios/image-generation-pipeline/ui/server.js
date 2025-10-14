@@ -10,6 +10,22 @@ const path = require('path');
 const fs = require('fs');
 const url = require('url');
 
+if (typeof window !== 'undefined' && window.parent !== window && !window.__IMAGE_PIPELINE_BRIDGE_INITIALIZED) {
+    try {
+        const { initIframeBridgeChild } = require('@vrooli/iframe-bridge/child');
+
+        let parentOrigin;
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+
+        initIframeBridgeChild({ parentOrigin, appId: 'image-generation-pipeline' });
+        window.__IMAGE_PIPELINE_BRIDGE_INITIALIZED = true;
+    } catch (error) {
+        console.warn('[image-generation-pipeline] iframe bridge bootstrap skipped', error);
+    }
+}
+
 class ImageGenerationUIServer {
     constructor() {
         this.port = process.env.UI_PORT || 31350;

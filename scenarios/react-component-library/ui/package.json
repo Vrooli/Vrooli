@@ -12,6 +12,7 @@
     "@types/node": "^16.18.23",
     "@types/react": "^18.0.35",
     "@types/react-dom": "^18.0.11",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",

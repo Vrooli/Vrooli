@@ -62,10 +62,47 @@ research-assistant reports create <topic> [depth] [pages]  # Create new report
 research-assistant help            # Show available commands
 research-assistant version         # Show version information
 
-# Environment Variables (optional):
+# Environment Variables:
 # RESEARCH_ASSISTANT_API_PORT - Override API port (auto-detected by default)
 # RESEARCH_API_URL - Full API URL override
 ```
+
+## Production Deployment
+
+**Required Environment Variables:**
+For production deployments, explicitly configure all critical environment variables to avoid port conflicts:
+
+```bash
+# Critical API configuration (REQUIRED)
+export API_PORT=16813
+export UI_PORT=38841
+export API_URL=http://localhost:16813
+
+# Database configuration (REQUIRED)
+export POSTGRES_URL="postgres://user:pass@host:port/dbname"
+# OR use individual components:
+export POSTGRES_HOST=localhost
+export POSTGRES_PORT=5433
+export POSTGRES_USER=vrooli
+export POSTGRES_PASSWORD=<secure-password>
+export POSTGRES_DB=vrooli
+
+# Required resource ports (recommended for production)
+export RESOURCE_PORT_N8N=5678
+export RESOURCE_PORT_SEARXNG=8280
+export RESOURCE_PORT_QDRANT=6333
+export RESOURCE_PORT_OLLAMA=11434
+
+# Optional resource ports
+export RESOURCE_PORT_WINDMILL=8000
+export RESOURCE_PORT_MINIO=9000
+```
+
+**Security Notes:**
+- Never commit credentials to version control
+- Use environment-specific configuration files
+- The API will warn when using default ports (check logs)
+- UI server fails fast if `UI_PORT` or `API_URL` are missing
 
 ## UI Style
 Professional, clean interface with focus on information density and readability. Dark mode support for extended research sessions. Accessible on port 31001 (default).
@@ -85,7 +122,8 @@ Professional, clean interface with focus on information density and readability.
 - ✅ CLI with auto-detection (no manual configuration needed)
 - ✅ Professional SaaS UI (port 38842)
 - ✅ All critical resources healthy (postgres, n8n, ollama, qdrant, searxng)
-- ✅ **NEW**: Test infrastructure upgraded from "Minimal" to "Basic" (10 test functions, 40+ assertions)
+- ✅ Test infrastructure upgraded from "Minimal" to "Basic" (10 test functions, 40+ assertions)
+- ✅ **NEW**: Structured JSON logging for better observability (2025-10-05)
 
 **Test Coverage**:
 - Unit tests: 10 test functions covering 11 core functions (100% pass rate)
@@ -100,4 +138,4 @@ Professional, clean interface with focus on information density and readability.
 - ⚠️ Test framework declarative tests (framework limitation, phased tests working)
 - ⚠️ UI npm vulnerabilities (transitive dependencies, low production risk)
 
-**Latest Validation**: 2025-10-03 - Enhanced reliability with HTTP timeouts and graceful shutdown (unit + CLI tests + production hardening)
+**Latest Validation**: 2025-10-05 - Standards compliance improvements (Makefile structure, service.json lifecycle, reduced violations from 474→473)

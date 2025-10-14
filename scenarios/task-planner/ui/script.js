@@ -1,3 +1,9 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+    initIframeBridgeChild({ appId: 'task-planner' })
+}
+
 const API_BASE = `http://localhost:${window.location.port === '3000' ? '8090' : window.location.port.replace('3', '8')}`;
 
 class TaskPlanner {

@@ -104,7 +104,7 @@ func initDB() {
         dbName := os.Getenv("POSTGRES_DB")
         
         if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-            log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+            log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all required POSTGRES_* environment variables (HOST, PORT, USER, PASSWORD, DB)")
         }
         
         postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -168,19 +168,63 @@ func initDB() {
     }
     
     log.Println("🎉 Database connection pool established successfully!")
-    
-    // Initialize database tables
-    if err = initializeDatabase(); err != nil {
-        log.Printf("Warning: Database initialization had issues: %v", err)
-    }
+
+    // Note: Database schema is initialized by the lifecycle populate script
+    // using initialization/postgres/schema.sql - DO NOT duplicate schema here
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]interface{}{
-        "status": "healthy",
+
+    // Check database connection
+    dbHealthy := true
+    var dbLatency float64
+    dbStart := time.Now()
+    if err := db.Ping(); err != nil {
+        dbHealthy = false
+    } else {
+        dbLatency = float64(time.Since(dbStart).Milliseconds())
+    }
+
+    // Overall status
+    status := "healthy"
+    if !dbHealthy {
+        status = "degraded"
+    }
+
+    response := map[string]interface{}{
+        "status":    status,
+        "service":   "invoice-generator-api",
         "timestamp": time.Now().Format(time.RFC3339),
-    })
+        "readiness": dbHealthy, // Ready only if database is accessible
+    }
+
+    // Add database dependency status
+    if dbHealthy {
+        response["dependencies"] = map[string]interface{}{
+            "database": map[string]interface{}{
+                "connected":  true,
+                "latency_ms": dbLatency,
+                "error":      nil,
+            },
+        }
+    } else {
+        response["dependencies"] = map[string]interface{}{
+            "database": map[string]interface{}{
+                "connected":  false,
+                "latency_ms": nil,
+                "error": map[string]interface{}{
+                    "code":      "CONNECTION_FAILED",
+                    "message":   "Database connection check failed",
+                    "category":  "resource",
+                    "retryable": true,
+                },
+            },
+        }
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
 }
 
 func createInvoiceHandler(w http.ResponseWriter, r *http.Request) {
@@ -206,9 +250,12 @@ func createInvoiceHandler(w http.ResponseWriter, r *http.Request) {
     // Use default company if not provided
     companyID := "00000000-0000-0000-0000-000000000001"
 
-    // Generate invoice number using timestamp (bypass problematic function for now)
-    // TODO: Fix get_next_invoice_number function type mismatch issue
-    invoiceNumber := fmt.Sprintf("INV-%d", time.Now().Unix())
+    // Generate invoice number using database function
+    var invoiceNumber string
+    if err := db.QueryRow("SELECT get_next_invoice_number($1::uuid)", companyID).Scan(&invoiceNumber); err != nil {
+        log.Printf("Warning: Failed to generate invoice number using database function: %v, falling back to timestamp", err)
+        invoiceNumber = fmt.Sprintf("INV-%d", time.Now().Unix())
+    }
     log.Printf("Generated invoice number: %s", invoiceNumber)
     
     // Create invoice object
@@ -605,13 +652,18 @@ func main() {
     router.HandleFunc("/api/invoices/{id}/status", updateInvoiceStatusHandler).Methods("PUT")
     router.HandleFunc("/api/invoices/{id}/pdf", downloadPDFHandler).Methods("GET")
     router.HandleFunc("/api/invoices/generate-pdf", generatePDFHandler).Methods("POST")
+    router.HandleFunc("/api/invoices/extract", extractInvoiceDataHandler).Methods("POST")
     
     // Payment endpoints
     router.HandleFunc("/api/payments", recordPaymentHandler).Methods("POST")
     router.HandleFunc("/api/payments/invoice/{invoice_id}", getPaymentsHandler).Methods("GET")
     router.HandleFunc("/api/payments/summary", getPaymentSummaryHandler).Methods("GET")
     router.HandleFunc("/api/payments/{id}/refund", refundPaymentHandler).Methods("POST")
-    
+
+    // Payment reminder endpoints
+    router.HandleFunc("/api/reminders", getRemindersHandler).Methods("GET")
+    router.HandleFunc("/api/reminders/invoice/{invoice_id}", getInvoiceRemindersHandler).Methods("GET")
+
     // Recurring invoice endpoints
     router.HandleFunc("/api/recurring", createRecurringInvoiceHandler).Methods("POST")
     router.HandleFunc("/api/recurring", getRecurringInvoicesHandler).Methods("GET")
@@ -622,10 +674,38 @@ func main() {
     router.HandleFunc("/api/clients", getClientsHandler).Methods("GET")
     router.HandleFunc("/api/clients", createClientHandler).Methods("POST")
 
-    // Invoice Processor endpoints  
+    // Template endpoints (invoice template customization)
+    // NOTE: Register /default BEFORE /{id} to avoid path collision
+    router.HandleFunc("/api/templates/default", GetDefaultTemplateHandler).Methods("GET")
+    router.HandleFunc("/api/templates", ListTemplatesHandler).Methods("GET")
+    router.HandleFunc("/api/templates", CreateTemplateHandler).Methods("POST")
+    router.HandleFunc("/api/templates/{id}", GetTemplateHandler).Methods("GET")
+    router.HandleFunc("/api/templates/{id}", UpdateTemplateHandler).Methods("PUT")
+    router.HandleFunc("/api/templates/{id}", DeleteTemplateHandler).Methods("DELETE")
+
+    // Currency and Exchange Rate Routes
+    router.HandleFunc("/api/currencies", handleGetSupportedCurrencies).Methods("GET")
+    router.HandleFunc("/api/currencies/rates", handleGetExchangeRates).Methods("GET")
+    router.HandleFunc("/api/currencies/convert", handleConvertCurrency).Methods("POST")
+    router.HandleFunc("/api/currencies/rates/refresh", handleRefreshExchangeRates).Methods("POST")
+    router.HandleFunc("/api/currencies/rates", handleUpdateExchangeRate).Methods("PUT")
+
+    // Invoice Processor endpoints
     router.HandleFunc("/api/process/invoice", processInvoiceHandler).Methods("POST")
     router.HandleFunc("/api/process/payment", trackPaymentHandler).Methods("POST")
     router.HandleFunc("/api/process/recurring", processRecurringInvoicesHandler).Methods("GET", "POST")
+
+    // Analytics & Reporting endpoints
+    router.HandleFunc("/api/analytics/dashboard", getDashboardSummaryHandler).Methods("GET")
+    router.HandleFunc("/api/analytics/revenue", getRevenueAnalyticsHandler).Methods("GET")
+    router.HandleFunc("/api/analytics/clients", getClientAnalyticsHandler).Methods("GET")
+    router.HandleFunc("/api/analytics/invoices", getInvoiceAnalyticsHandler).Methods("GET")
+
+    // Logo Upload & Management endpoints
+    router.HandleFunc("/api/logos/upload", UploadLogoHandler).Methods("POST")
+    router.HandleFunc("/api/logos", ListLogosHandler).Methods("GET")
+    router.HandleFunc("/api/logos/{filename}", GetLogoHandler).Methods("GET")
+    router.HandleFunc("/api/logos/{filename}", DeleteLogoHandler).Methods("DELETE")
 
     // Configure CORS
     c := cors.New(cors.Options{

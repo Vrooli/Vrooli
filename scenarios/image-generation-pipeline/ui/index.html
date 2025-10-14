@@ -7,6 +7,13 @@
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
 </head>
 <body>
     <div class="app-container">
@@ -324,6 +331,6 @@
     <!-- Modals and overlays will be added via JavaScript -->
     <div id="modal-overlay" class="modal-overlay"></div>
     
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>

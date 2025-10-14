@@ -270,9 +270,11 @@ func main() {
 	if port == "" {
 		port = "15000"
 	}
-	
+
+	// Health check at root level (required by orchestration)
+	http.HandleFunc("/health", corsMiddleware(healthHandler))
+
 	// API endpoints
-	http.HandleFunc("/api/health", corsMiddleware(healthHandler))
 	http.HandleFunc("/api/v1/legal/generate", corsMiddleware(generateHandler))
 	http.HandleFunc("/api/v1/legal/templates/freshness", corsMiddleware(templateFreshnessHandler))
 	http.HandleFunc("/api/v1/legal/documents/history", corsMiddleware(documentHistoryHandler))

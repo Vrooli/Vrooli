@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -442,11 +443,14 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
-	// 3. Check authentication service (critical for user validation)
+	// 3. Check authentication service (important but has test mode fallback)
 	authHealth := s.checkAuthService()
 	dependencies["auth_service"] = authHealth
 	if authHealth["connected"] == false {
-		overallStatus = "unhealthy" // Auth is critical
+		// Auth failure only degrades service (test mode provides fallback)
+		if overallStatus == "healthy" {
+			overallStatus = "degraded"
+		}
 	}
 	
 	// 4. Check file storage system (important for file sync)
@@ -1170,15 +1174,42 @@ func (s *Server) syncNotificationHandler(w http.ResponseWriter, r *http.Request)
 func (s *Server) listSyncItemsHandler(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value("user").(*User)
 
+	// Build query with optional filters
 	query := `
 		SELECT id, type, content, source_device, target_devices, created_at, expires_at, status
 		FROM sync_items
 		WHERE user_id = $1 AND expires_at > NOW()
+	`
+	args := []interface{}{user.ID}
+	argIndex := 2
+
+	// Filter by type (file, text, clipboard)
+	if typeFilter := r.URL.Query().Get("type"); typeFilter != "" {
+		query += fmt.Sprintf(" AND type = $%d", argIndex)
+		args = append(args, typeFilter)
+		argIndex++
+	}
+
+	// Filter by status
+	if statusFilter := r.URL.Query().Get("status"); statusFilter != "" {
+		query += fmt.Sprintf(" AND status = $%d", argIndex)
+		args = append(args, statusFilter)
+		argIndex++
+	}
+
+	// Search by content (text search in JSON)
+	if searchTerm := r.URL.Query().Get("search"); searchTerm != "" {
+		query += fmt.Sprintf(" AND content::text ILIKE $%d", argIndex)
+		args = append(args, "%"+searchTerm+"%")
+		argIndex++
+	}
+
+	query += `
 		ORDER BY created_at DESC
 		LIMIT 100
 	`
 
-	rows, err := s.db.Query(query, user.ID)
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		http.Error(w, "Failed to fetch sync items", http.StatusInternalServerError)
 		return
@@ -2105,10 +2136,11 @@ func connectDB() (*sql.DB, error) {
 			float64(maxDelay),
 		))
 		
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.3  // 30% jitter range
-		jitter := time.Duration(jitterRange * (0.5 + float64(attempt) / float64(maxRetries*2)))
-		actualDelay := delay + jitter
+		// Add random jitter to prevent thundering herd
+		// Use true randomness (not deterministic) to prevent all instances reconnecting simultaneously
+		jitterRange := float64(delay) * 0.25  // 25% jitter range
+		randomJitter := rand.Float64() * jitterRange
+		actualDelay := delay + time.Duration(randomJitter)
 		
 		// Determine error category for better diagnostics
 		errorCategory := "unknown"
@@ -2126,7 +2158,7 @@ func connectDB() (*sql.DB, error) {
 		log.Printf("   🔍 Error category: %s", errorCategory)
 		log.Printf("   📝 Error details: %v", pingErr)
 		log.Printf("   ⏱️  Attempt duration: %v", attemptDuration)
-		log.Printf("   ⏳ Waiting %v before retry (base: %v, jitter: %v)", actualDelay, delay, jitter)
+		log.Printf("   ⏳ Waiting %v before retry (base: %v, jitter: %v)", actualDelay, delay, time.Duration(randomJitter))
 		
 		// Provide detailed status every few attempts
 		if attempt > 0 && attempt % 3 == 0 {

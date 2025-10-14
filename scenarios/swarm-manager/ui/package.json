@@ -8,6 +8,7 @@
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh nodemon server.js'"
   },
   "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "express": "^4.18.2"
   },
   "devDependencies": {

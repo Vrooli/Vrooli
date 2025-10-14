@@ -248,7 +248,7 @@ case "$1" in
         [ "$1" = "--json" ] && json_flag=true
         check_status $json_flag
         ;;
-    version)
+    version|--version|-v)
         echo -e "${MAGENTA}Date Night Planner CLI${NC}"
         echo "Version: 1.0.0"
         echo "API Version: 1.0.0"

@@ -1,3 +1,27 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_FLAG = '__documentManagerBridgeInitialized';
+
+function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window.parent === window || window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[DocumentManager] Unable to parse parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'document-manager' });
+    window[BRIDGE_FLAG] = true;
+}
+
+bootstrapIframeBridge();
+
 class DocumentManagerApp {
     constructor() {
         this.apiBaseUrl = this.getApiBaseUrl();

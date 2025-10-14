@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recommendation Engine - Management Dashboard</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
     <style>
         * {
             margin: 0;
@@ -377,9 +384,10 @@
         </footer>
     </div>
 
+    <script type="module" src="./bridge-init.js"></script>
     <script>
         const API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':' + (window.RECOMMENDATION_API_PORT || '8080');
-        
+
         let isLoading = false;
 
         async function fetchAPI(endpoint) {

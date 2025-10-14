@@ -12,7 +12,7 @@ API_PORT=${API_PORT:-19364}
 
 # Test health endpoint response time
 START_TIME=$(date +%s%N)
-curl -sf "http://localhost:${API_PORT}/api/v1/health" > /dev/null
+curl -sf "http://localhost:${API_PORT}/health" > /dev/null
 END_TIME=$(date +%s%N)
 RESPONSE_TIME=$((($END_TIME - $START_TIME) / 1000000))
 

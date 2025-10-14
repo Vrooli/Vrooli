@@ -5,24 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Email Triage - AI-Powered Email Management</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <script type="module">
-        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
-
-        if (typeof window !== 'undefined' && window.parent !== window && !window.__emailTriageBridgeInitialized) {
-            let parentOrigin;
-            try {
-                if (document.referrer) {
-                    parentOrigin = new URL(document.referrer).origin;
-                }
-            } catch (error) {
-                console.warn('[EmailTriage] Unable to parse parent origin for iframe bridge', error);
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
             }
-
-            initIframeBridgeChild({ parentOrigin, appId: 'email-triage' });
-            window.__emailTriageBridgeInitialized = true;
         }
     </script>
-    
     <!-- CSS Styles -->
     <style>
         * {
@@ -439,7 +428,16 @@
                     <h3>Configuration</h3>
                     <div class="form-group">
                         <label class="form-label">API Base URL</label>
-                        <input type="text" class="form-input" id="api-url" value="http://localhost:3200" readonly>
+                        <input type="text" class="form-input" id="api-url" value="" readonly>
+                        <script>
+                            // Set API URL dynamically when page loads
+                            document.addEventListener('DOMContentLoaded', () => {
+                                const apiUrlInput = document.getElementById('api-url');
+                                if (apiUrlInput) {
+                                    apiUrlInput.value = getApiBaseUrl();
+                                }
+                            });
+                        </script>
                     </div>
                     
                     <div class="form-group">
@@ -462,6 +460,6 @@
     </div>
     
     <!-- JavaScript -->
-    <script src="src/main.js"></script>
+    <script type="module" src="src/main.js"></script>
 </body>
 </html>

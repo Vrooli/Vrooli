@@ -102,9 +102,11 @@ func NewServer() *Server {
 }
 
 func (s *Server) SetupRoutes() {
+	// Health check at root level (required by orchestration)
+	s.app.Get("/health", s.handleHealth)
+
 	api := s.app.Group("/api/v1")
 
-	api.Get("/health", s.handleHealth)
 	api.Get("/plugins", s.handleListPlugins)
 	api.Get("/presets", s.handleListPresets)
 	api.Get("/presets/:name", s.handleGetPreset)
@@ -975,12 +977,12 @@ func main() {
 	startTime = time.Now()
 	server := NewServer()
 	server.SetupRoutes()
-	
+
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		log.Fatal("PORT environment variable is required. Set it before starting the API.")
 	}
-	
+
 	log.Printf("Image Tools API starting on port %s", port)
 	log.Fatal(server.app.Listen(":" + port))
 }

@@ -8,13 +8,16 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"financial-calculators-hub/lib"
 )
 
 type HealthResponse struct {
-	Status  string `json:"status"`
-	Service string `json:"service"`
+	Status    string `json:"status"`
+	Service   string `json:"service"`
+	Timestamp string `json:"timestamp"`
+	Readiness bool   `json:"readiness"`
 }
 
 type ErrorResponse struct {
@@ -72,8 +75,10 @@ func setupRoutes() {
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(HealthResponse{
-		Status:  "healthy",
-		Service: "financial-calculators-hub",
+		Status:    "healthy",
+		Service:   "financial-calculators-hub",
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Readiness: true,
 	})
 }
 

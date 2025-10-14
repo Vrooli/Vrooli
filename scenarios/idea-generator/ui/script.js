@@ -1,3 +1,21 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_STATE_KEY = '__ideaGeneratorBridgeInitialized';
+
+if (typeof window !== 'undefined' && window.parent !== window && !window[BRIDGE_STATE_KEY]) {
+    try {
+        let parentOrigin;
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+
+        initIframeBridgeChild({ parentOrigin, appId: 'idea-generator' });
+        window[BRIDGE_STATE_KEY] = true;
+    } catch (error) {
+        console.warn('[idea-generator] iframe bridge bootstrap skipped', error);
+    }
+}
+
 // Idea Generator UI JavaScript
 class IdeaGeneratorApp {
     constructor() {

@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh npm start'"
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh npm start'",
+    "postinstall": "bash -c 'mkdir -p node_modules/@vrooli && ln -snf ../../../../../packages/iframe-bridge node_modules/@vrooli/iframe-bridge'"
   },
   "keywords": ["product-management", "dashboard", "prioritization"],
   "author": "Vrooli",

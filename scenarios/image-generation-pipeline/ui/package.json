@@ -23,7 +23,9 @@
   "engines": {
     "node": ">=14.0.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
   "devDependencies": {},
   "repository": {
     "type": "git",

@@ -6,6 +6,9 @@
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
   },
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
   "keywords": ["foliage", "autumn", "maps", "travel"],
   "author": "Vrooli",
   "license": "MIT"

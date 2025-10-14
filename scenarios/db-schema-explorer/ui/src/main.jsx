@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 import { QueryClient, QueryClientProvider } from 'react-query'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
@@ -35,6 +36,23 @@ const darkTheme = createTheme({
     },
   },
 })
+
+
+const BRIDGE_FLAG = '__dbSchemaExplorerBridgeInitialized'
+
+if (typeof window !== 'undefined' && window.parent !== window && !window[BRIDGE_FLAG]) {
+  let parentOrigin
+  try {
+    if (document.referrer) {
+      parentOrigin = new URL(document.referrer).origin
+    }
+  } catch (error) {
+    console.warn('[DbSchemaExplorer] Unable to parse parent origin for iframe bridge', error)
+  }
+
+  initIframeBridgeChild({ parentOrigin, appId: 'db-schema-explorer' })
+  window[BRIDGE_FLAG] = true
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

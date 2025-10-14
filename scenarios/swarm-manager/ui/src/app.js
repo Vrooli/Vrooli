@@ -1,5 +1,18 @@
 // Swarm Manager - Main Application Logic
 
+(function initializeIframeBridge() {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    if (window.__swarmManagerBridgeInitialized) {
+        return;
+    }
+    if (window.parent !== window && typeof window.initIframeBridgeChild === 'function') {
+        window.initIframeBridgeChild({ appId: 'swarm-manager-ui' });
+        window.__swarmManagerBridgeInitialized = true;
+    }
+})();
+
 const API_BASE = `${window.location.protocol}//${window.location.host}`;
 let currentTask = null;
 let draggedElement = null;

@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Download } from 'lucide-react';
 
-const API_PORT = process.env.API_PORT || '20100';
-
 function MortgageCalculator() {
   const [inputs, setInputs] = useState({
     loan_amount: 300000,
@@ -27,7 +25,7 @@ function MortgageCalculator() {
     setError(null);
     
     try {
-      const response = await fetch(`http://localhost:${API_PORT}/api/v1/calculate/mortgage`, {
+      const response = await fetch('/api/v1/calculate/mortgage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(inputs)

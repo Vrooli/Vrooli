@@ -145,7 +145,7 @@
       "description": "Application health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/",
+        "ui": "/health",
         "metrics": "/api/metrics"
       },
       "checks": [
@@ -160,7 +160,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${UI_PORT}/",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 5000,
           "interval": 60000
@@ -177,7 +177,7 @@
           {
             "type": "binaries",
             "targets": [
-              "file-tools-api"
+              "api/file-tools-api"
             ]
           },
             {
@@ -293,8 +293,11 @@
         },
         {
           "name": "test-integration",
-          "run": "echo 'Integration tests: Skipped (template not customized)'",
-          "description": "Run full integration tests"
+          "run": "./test/phases/test-integration.sh",
+          "description": "Run cross-scenario integration tests",
+          "condition": {
+            "file_exists": "test/phases/test-integration.sh"
+          }
         }
       ]
     },

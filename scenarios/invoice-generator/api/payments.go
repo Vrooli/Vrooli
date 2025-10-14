@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -53,7 +54,7 @@ func recordPaymentHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// Insert payment record
 	query := `
-		INSERT INTO payments (id, invoice_id, amount, payment_date, payment_method, reference, notes)
+		INSERT INTO payments (id, invoice_id, amount, payment_date, payment_method, reference_number, notes)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING created_at`
 	
@@ -65,26 +66,10 @@ func recordPaymentHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
-	// Update invoice paid amount and balance
-	updateQuery := `
-		UPDATE invoices 
-		SET paid_amount = paid_amount + $1,
-			balance_due = total_amount - (paid_amount + $1),
-			status = CASE 
-				WHEN total_amount <= (paid_amount + $1) THEN 'paid'
-				WHEN paid_amount + $1 > 0 THEN 'partially_paid'
-				ELSE status
-			END,
-			updated_at = CURRENT_TIMESTAMP
-		WHERE id = $2`
-	
-	_, err = tx.Exec(updateQuery, payment.Amount, payment.InvoiceID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	
+
+	// Invoice amounts and status are automatically updated by trigger_payment_status trigger
+	// which runs after payment INSERT/UPDATE/DELETE
+
 	if err = tx.Commit(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -103,7 +88,7 @@ func getPaymentsHandler(w http.ResponseWriter, r *http.Request) {
 	invoiceID := vars["invoice_id"]
 	
 	query := `
-		SELECT id, invoice_id, amount, payment_date, payment_method, reference, notes, created_at
+		SELECT id, invoice_id, amount, payment_date, payment_method, reference_number, notes, created_at
 		FROM payments
 		WHERE invoice_id = $1
 		ORDER BY payment_date DESC`
@@ -166,8 +151,8 @@ func getPaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// Get recent payments
 	rows, err := db.Query(`
-		SELECT p.id, p.invoice_id, p.amount, p.payment_date, p.payment_method, 
-			   p.reference, p.notes, p.created_at
+		SELECT p.id, p.invoice_id, p.amount, p.payment_date, p.payment_method,
+			   p.reference_number, p.notes, p.created_at
 		FROM payments p
 		ORDER BY p.payment_date DESC
 		LIMIT 10
@@ -189,60 +174,117 @@ func getPaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(summary)
 }
 
-// TrackOverdueInvoices checks for overdue invoices and updates their status
+// TrackOverdueInvoices checks for overdue invoices and upcoming due dates
 func trackOverdueInvoices() {
+	// Run immediately on startup, then every 24 hours
+	processReminders()
+
 	ticker := time.NewTicker(24 * time.Hour) // Check daily
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
-		// Update overdue invoices
-		_, err := db.Exec(`
-			UPDATE invoices 
-			SET status = 'overdue',
-				updated_at = CURRENT_TIMESTAMP
-			WHERE status IN ('sent', 'partially_paid')
-				AND due_date < CURRENT_DATE
-				AND balance_due > 0
-		`)
-		
-		if err != nil {
-			log.Printf("Error updating overdue invoices: %v", err)
-			continue
-		}
-		
-		// Get overdue invoices for notifications
-		rows, err := db.Query(`
-			SELECT id, invoice_number, client_id, balance_due, due_date
-			FROM invoices
-			WHERE status = 'overdue'
-				AND last_reminder_sent < CURRENT_DATE - INTERVAL '7 days'
-				OR last_reminder_sent IS NULL
-		`)
-		
-		if err != nil {
-			log.Printf("Error fetching overdue invoices: %v", err)
-			continue
-		}
+		processReminders()
+	}
+}
+
+func processReminders() {
+	// 1. Update overdue invoices
+	_, err := db.Exec(`
+		UPDATE invoices
+		SET status = 'overdue',
+			updated_at = CURRENT_TIMESTAMP
+		WHERE status IN ('sent', 'partially_paid')
+			AND due_date < CURRENT_DATE
+			AND balance_due > 0
+	`)
+
+	if err != nil {
+		log.Printf("Error updating overdue invoices: %v", err)
+	}
+
+	// 2. Send overdue reminders (weekly for overdue invoices)
+	rows, err := db.Query(`
+		SELECT id, invoice_number, client_id, balance_due, due_date
+		FROM invoices
+		WHERE status = 'overdue'
+			AND balance_due > 0
+			AND (last_reminder_sent IS NULL
+				 OR last_reminder_sent < CURRENT_DATE - INTERVAL '7 days')
+	`)
+
+	if err != nil {
+		log.Printf("Error fetching overdue invoices: %v", err)
+	} else {
 		defer rows.Close()
-		
+
+		overdueCount := 0
 		for rows.Next() {
 			var invoiceID, invoiceNumber, clientID, dueDate string
 			var balanceDue float64
-			
+
 			err := rows.Scan(&invoiceID, &invoiceNumber, &clientID, &balanceDue, &dueDate)
 			if err != nil {
 				continue
 			}
-			
+
 			// Send overdue reminder
 			go sendOverdueReminder(invoiceID, invoiceNumber, clientID, balanceDue, dueDate)
-			
+
 			// Update last reminder sent
 			db.Exec(`
-				UPDATE invoices 
-				SET last_reminder_sent = CURRENT_DATE 
+				UPDATE invoices
+				SET last_reminder_sent = CURRENT_DATE
 				WHERE id = $1
 			`, invoiceID)
+
+			overdueCount++
+		}
+
+		if overdueCount > 0 {
+			log.Printf("Sent %d overdue reminders", overdueCount)
+		}
+	}
+
+	// 3. Send upcoming due date reminders (7 days before due date, once only)
+	upcomingRows, err := db.Query(`
+		SELECT id, invoice_number, client_id, balance_due, due_date
+		FROM invoices
+		WHERE status IN ('sent', 'partially_paid')
+			AND balance_due > 0
+			AND due_date BETWEEN CURRENT_DATE + INTERVAL '6 days' AND CURRENT_DATE + INTERVAL '8 days'
+			AND last_reminder_sent IS NULL
+	`)
+
+	if err != nil {
+		log.Printf("Error fetching upcoming invoices: %v", err)
+	} else {
+		defer upcomingRows.Close()
+
+		upcomingCount := 0
+		for upcomingRows.Next() {
+			var invoiceID, invoiceNumber, clientID, dueDate string
+			var balanceDue float64
+
+			err := upcomingRows.Scan(&invoiceID, &invoiceNumber, &clientID, &balanceDue, &dueDate)
+			if err != nil {
+				continue
+			}
+
+			// Send upcoming reminder
+			go sendUpcomingReminder(invoiceID, invoiceNumber, clientID, balanceDue, dueDate)
+
+			// Update last reminder sent
+			db.Exec(`
+				UPDATE invoices
+				SET last_reminder_sent = CURRENT_DATE
+				WHERE id = $1
+			`, invoiceID)
+
+			upcomingCount++
+		}
+
+		if upcomingCount > 0 {
+			log.Printf("Sent %d upcoming payment reminders", upcomingCount)
 		}
 	}
 }
@@ -330,14 +372,207 @@ func refundPaymentHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ReminderType represents the type of reminder being sent
+type ReminderType string
+
+const (
+	ReminderTypeOverdue        ReminderType = "overdue"
+	ReminderTypeUpcoming       ReminderType = "upcoming"
+	ReminderTypePaymentReceived ReminderType = "payment_received"
+)
+
+// ReminderRecord represents a payment reminder
+type ReminderRecord struct {
+	ID           string       `json:"id"`
+	InvoiceID    string       `json:"invoice_id"`
+	ClientID     string       `json:"client_id"`
+	ReminderType ReminderType `json:"reminder_type"`
+	SentAt       string       `json:"sent_at"`
+	Status       string       `json:"status"` // sent, failed, pending
+	Message      string       `json:"message"`
+}
+
 // Helper notification functions
 func sendPaymentNotification(payment Payment) {
-	// Implementation for sending payment confirmation emails
-	log.Printf("Payment notification sent for invoice %s: $%.2f", payment.InvoiceID, payment.Amount)
+	// Get invoice details
+	var invoiceID, clientID string
+	err := db.QueryRow(`
+		SELECT id, client_id FROM invoices WHERE id = $1
+	`, payment.InvoiceID).Scan(&invoiceID, &clientID)
+
+	if err != nil {
+		log.Printf("Error fetching invoice for payment notification: %v", err)
+		return
+	}
+
+	// Create reminder record
+	reminderID := uuid.New().String()
+	message := "Payment received: $" + formatCurrency(payment.Amount)
+
+	_, err = db.Exec(`
+		INSERT INTO payment_reminders (id, invoice_id, client_id, reminder_type, status, message)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, reminderID, invoiceID, clientID, ReminderTypePaymentReceived, "sent", message)
+
+	if err != nil {
+		log.Printf("Error creating payment notification record: %v", err)
+		return
+	}
+
+	log.Printf("Payment notification created for invoice %s: $%.2f", payment.InvoiceID, payment.Amount)
 }
 
 func sendOverdueReminder(invoiceID, invoiceNumber, clientID string, balanceDue float64, dueDate string) {
-	// Implementation for sending overdue reminders
-	log.Printf("Overdue reminder sent for invoice %s: $%.2f overdue since %s", 
+	// Create reminder record
+	reminderID := uuid.New().String()
+	message := "Invoice " + invoiceNumber + " is overdue. Amount due: $" + formatCurrency(balanceDue) + ". Due date was: " + dueDate
+
+	_, err := db.Exec(`
+		INSERT INTO payment_reminders (id, invoice_id, client_id, reminder_type, status, message)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, reminderID, invoiceID, clientID, ReminderTypeOverdue, "sent", message)
+
+	if err != nil {
+		log.Printf("Error creating overdue reminder record: %v", err)
+		return
+	}
+
+	// Update invoice reminder tracking
+	_, err = db.Exec(`
+		UPDATE invoices
+		SET reminder_count = reminder_count + 1,
+			last_reminder_date = CURRENT_TIMESTAMP
+		WHERE id = $1
+	`, invoiceID)
+
+	if err != nil {
+		log.Printf("Error updating invoice reminder count: %v", err)
+	}
+
+	log.Printf("Overdue reminder created for invoice %s: $%.2f overdue since %s",
 		invoiceNumber, balanceDue, dueDate)
+}
+
+func sendUpcomingReminder(invoiceID, invoiceNumber, clientID string, balanceDue float64, dueDate string) {
+	// Create reminder record for invoices due soon (7 days warning)
+	reminderID := uuid.New().String()
+	message := "Invoice " + invoiceNumber + " is due soon. Amount: $" + formatCurrency(balanceDue) + ". Due date: " + dueDate
+
+	_, err := db.Exec(`
+		INSERT INTO payment_reminders (id, invoice_id, client_id, reminder_type, status, message)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, reminderID, invoiceID, clientID, ReminderTypeUpcoming, "sent", message)
+
+	if err != nil {
+		log.Printf("Error creating upcoming reminder record: %v", err)
+		return
+	}
+
+	log.Printf("Upcoming payment reminder created for invoice %s: $%.2f due on %s",
+		invoiceNumber, balanceDue, dueDate)
+}
+
+// formatCurrency formats a float as currency string
+func formatCurrency(amount float64) string {
+	return fmt.Sprintf("%.2f", amount)
+}
+
+// GetRemindersHandler retrieves all payment reminders with optional filtering
+func getRemindersHandler(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters
+	reminderType := r.URL.Query().Get("type")
+	status := r.URL.Query().Get("status")
+	limit := r.URL.Query().Get("limit")
+	if limit == "" {
+		limit = "50"
+	}
+
+	// Build query
+	query := `
+		SELECT r.id, r.invoice_id, r.client_id, r.reminder_type, r.status,
+			   r.message, r.sent_at
+		FROM payment_reminders r
+		WHERE 1=1`
+
+	args := []interface{}{}
+	argCount := 1
+
+	if reminderType != "" {
+		query += fmt.Sprintf(" AND r.reminder_type = $%d", argCount)
+		args = append(args, reminderType)
+		argCount++
+	}
+
+	if status != "" {
+		query += fmt.Sprintf(" AND r.status = $%d", argCount)
+		args = append(args, status)
+		argCount++
+	}
+
+	query += fmt.Sprintf(" ORDER BY r.sent_at DESC LIMIT $%d", argCount)
+	args = append(args, limit)
+
+	// Execute query
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var reminders []ReminderRecord
+	for rows.Next() {
+		var reminder ReminderRecord
+		err := rows.Scan(&reminder.ID, &reminder.InvoiceID, &reminder.ClientID,
+			&reminder.ReminderType, &reminder.Status, &reminder.Message, &reminder.SentAt)
+		if err != nil {
+			continue
+		}
+		reminders = append(reminders, reminder)
+	}
+
+	if reminders == nil {
+		reminders = []ReminderRecord{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reminders)
+}
+
+// GetInvoiceRemindersHandler retrieves reminders for a specific invoice
+func getInvoiceRemindersHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	invoiceID := vars["invoice_id"]
+
+	query := `
+		SELECT r.id, r.invoice_id, r.client_id, r.reminder_type, r.status,
+			   r.message, r.sent_at
+		FROM payment_reminders r
+		WHERE r.invoice_id = $1
+		ORDER BY r.sent_at DESC`
+
+	rows, err := db.Query(query, invoiceID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var reminders []ReminderRecord
+	for rows.Next() {
+		var reminder ReminderRecord
+		err := rows.Scan(&reminder.ID, &reminder.InvoiceID, &reminder.ClientID,
+			&reminder.ReminderType, &reminder.Status, &reminder.Message, &reminder.SentAt)
+		if err != nil {
+			continue
+		}
+		reminders = append(reminders, reminder)
+	}
+
+	if reminders == nil {
+		reminders = []ReminderRecord{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reminders)
 }

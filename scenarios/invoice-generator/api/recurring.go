@@ -14,26 +14,27 @@ import (
 
 // RecurringInvoiceTemplate represents a recurring invoice template
 type RecurringInvoiceTemplate struct {
-	ID             string        `json:"id"`
-	CompanyID      string        `json:"company_id"`
-	ClientID       string        `json:"client_id"`
-	TemplateName   string        `json:"template_name"`
-	Frequency      string        `json:"frequency"` // monthly, quarterly, yearly
-	NextDate       string        `json:"next_date"`
-	EndDate        string        `json:"end_date,omitempty"`
-	IsActive       bool          `json:"is_active"`
-	Currency       string        `json:"currency"`
-	TaxRate        float64       `json:"tax_rate"`
-	TaxName        string        `json:"tax_name"`
-	Notes          string        `json:"notes"`
-	Terms          string        `json:"terms"`
-	Items          []InvoiceItem `json:"items"`
-	DaysDue        int           `json:"days_due"` // Days after issue date
-	AutoSend       bool          `json:"auto_send"`
-	LastGenerated  string        `json:"last_generated,omitempty"`
-	TotalGenerated int           `json:"total_generated"`
-	CreatedAt      string        `json:"created_at"`
-	UpdatedAt      string        `json:"updated_at"`
+	ID                string        `json:"id"`
+	CompanyID         string        `json:"company_id"`
+	ClientID          string        `json:"client_id"`
+	TemplateID        string        `json:"template_id,omitempty"`
+	Frequency         string        `json:"frequency"` // daily, weekly, monthly, quarterly, yearly
+	IntervalCount     int           `json:"interval_count"` // Every X periods
+	StartDate         string        `json:"start_date"`
+	EndDate           string        `json:"end_date,omitempty"`
+	NextInvoiceDate   string        `json:"next_invoice_date"`
+	IsActive          bool          `json:"is_active"`
+	PaymentTerms      int           `json:"payment_terms,omitempty"`
+	TaxRate           float64       `json:"tax_rate"`
+	DiscountRate      float64       `json:"discount_rate,omitempty"`
+	DiscountType      string        `json:"discount_type,omitempty"`
+	Notes             string        `json:"notes"`
+	Terms             string        `json:"terms"`
+	Items             []InvoiceItem `json:"items"`
+	LastGeneratedDate string        `json:"last_generated_date,omitempty"`
+	TotalGenerated    int           `json:"total_generated"`
+	CreatedAt         string        `json:"created_at"`
+	UpdatedAt         string        `json:"updated_at"`
 }
 
 // CreateRecurringInvoiceHandler creates a new recurring invoice template
@@ -47,64 +48,43 @@ func createRecurringInvoiceHandler(w http.ResponseWriter, r *http.Request) {
 	recurring.ID = uuid.New().String()
 	recurring.IsActive = true
 	recurring.TotalGenerated = 0
-	
-	if recurring.Currency == "" {
-		recurring.Currency = "USD"
+
+	if recurring.IntervalCount == 0 {
+		recurring.IntervalCount = 1
 	}
-	if recurring.DaysDue == 0 {
-		recurring.DaysDue = 30
+	if recurring.PaymentTerms == 0 {
+		recurring.PaymentTerms = 30
 	}
-	
-	tx, err := db.Begin()
+
+	// Convert items to JSONB
+	itemsJSON, err := json.Marshal(recurring.Items)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to marshal items: " + err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer tx.Rollback()
-	
+
 	// Insert recurring invoice
 	query := `
 		INSERT INTO recurring_invoices (
-			id, company_id, client_id, template_name, frequency, next_date, 
-			end_date, is_active, currency, tax_rate, tax_name, notes, terms,
-			days_due, auto_send
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+			id, company_id, client_id, template_id, frequency, interval_count,
+			start_date, end_date, next_invoice_date, is_active, payment_terms,
+			tax_rate, discount_rate, discount_type, notes, terms, items
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		RETURNING created_at, updated_at`
-	
-	err = tx.QueryRow(query,
-		recurring.ID, recurring.CompanyID, recurring.ClientID, recurring.TemplateName,
-		recurring.Frequency, recurring.NextDate, recurring.EndDate, recurring.IsActive,
-		recurring.Currency, recurring.TaxRate, recurring.TaxName, recurring.Notes,
-		recurring.Terms, recurring.DaysDue, recurring.AutoSend).
+
+	err = db.QueryRow(query,
+		recurring.ID, recurring.CompanyID, recurring.ClientID, recurring.TemplateID,
+		recurring.Frequency, recurring.IntervalCount, recurring.StartDate,
+		recurring.EndDate, recurring.NextInvoiceDate, recurring.IsActive,
+		recurring.PaymentTerms, recurring.TaxRate, recurring.DiscountRate,
+		recurring.DiscountType, recurring.Notes, recurring.Terms, itemsJSON).
 		Scan(&recurring.CreatedAt, &recurring.UpdatedAt)
-	
+
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to create recurring invoice: " + err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
-	// Insert recurring invoice items
-	for i, item := range recurring.Items {
-		item.ID = uuid.New().String()
-		_, err = tx.Exec(`
-			INSERT INTO recurring_invoice_items (
-				id, recurring_invoice_id, item_order, description, 
-				quantity, unit_price, unit, tax_rate
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-			item.ID, recurring.ID, i, item.Description,
-			item.Quantity, item.UnitPrice, item.Unit, item.TaxRate)
-		
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-	
-	if err = tx.Commit(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(recurring)
 }
@@ -112,44 +92,49 @@ func createRecurringInvoiceHandler(w http.ResponseWriter, r *http.Request) {
 // GetRecurringInvoicesHandler retrieves all recurring invoices
 func getRecurringInvoicesHandler(w http.ResponseWriter, r *http.Request) {
 	query := `
-		SELECT r.id, r.template_name, r.frequency, r.next_date, r.is_active,
-			   r.auto_send, r.total_generated, r.last_generated,
+		SELECT r.id, r.template_id, r.frequency, r.next_invoice_date, r.is_active,
+			   r.interval_count, r.last_generated_date,
 			   c.name as client_name
 		FROM recurring_invoices r
 		LEFT JOIN clients c ON r.client_id = c.id
-		ORDER BY r.next_date ASC`
-	
+		ORDER BY r.next_invoice_date ASC`
+
 	rows, err := db.Query(query)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	var invoices []map[string]interface{}
 	for rows.Next() {
 		invoice := make(map[string]interface{})
-		var id, templateName, frequency, nextDate string
-		var isActive, autoSend bool
-		var totalGenerated int
-		var lastGenerated, clientName sql.NullString
-		
-		err := rows.Scan(&id, &templateName, &frequency, &nextDate, &isActive,
-			&autoSend, &totalGenerated, &lastGenerated, &clientName)
+		var id, frequency string
+		var templateID sql.NullString
+		var nextInvoiceDate sql.NullString
+		var isActive bool
+		var intervalCount int
+		var lastGeneratedDate, clientName sql.NullString
+
+		err := rows.Scan(&id, &templateID, &frequency, &nextInvoiceDate, &isActive,
+			&intervalCount, &lastGeneratedDate, &clientName)
 		if err != nil {
 			continue
 		}
-		
+
 		invoice["id"] = id
-		invoice["template_name"] = templateName
+		if templateID.Valid {
+			invoice["template_id"] = templateID.String
+		}
 		invoice["frequency"] = frequency
-		invoice["next_date"] = nextDate
+		if nextInvoiceDate.Valid {
+			invoice["next_invoice_date"] = nextInvoiceDate.String
+		}
 		invoice["is_active"] = isActive
-		invoice["auto_send"] = autoSend
-		invoice["total_generated"] = totalGenerated
-		
-		if lastGenerated.Valid {
-			invoice["last_generated"] = lastGenerated.String
+		invoice["interval_count"] = intervalCount
+
+		if lastGeneratedDate.Valid {
+			invoice["last_generated_date"] = lastGeneratedDate.String
 		}
 		if clientName.Valid {
 			invoice["client_name"] = clientName.String
@@ -178,15 +163,15 @@ func processRecurringInvoices() {
 // GenerateDueInvoices creates invoices from recurring templates that are due
 func generateDueInvoices() {
 	today := time.Now().Format("2006-01-02")
-	
+
 	// Get all active recurring invoices due today or earlier
 	rows, err := db.Query(`
-		SELECT id, company_id, client_id, template_name, frequency, next_date,
-			   end_date, currency, tax_rate, tax_name, notes, terms,
-			   days_due, auto_send
+		SELECT id, company_id, client_id, template_id, frequency, interval_count,
+			   next_invoice_date, end_date, payment_terms, tax_rate,
+			   discount_rate, discount_type, notes, terms, items
 		FROM recurring_invoices
-		WHERE is_active = true 
-			AND next_date <= $1
+		WHERE is_active = true
+			AND next_invoice_date <= $1
 			AND (end_date IS NULL OR end_date >= $1)`,
 		today)
 	
@@ -198,114 +183,117 @@ func generateDueInvoices() {
 	
 	for rows.Next() {
 		var recurring RecurringInvoiceTemplate
-		var endDate sql.NullString
-		var idInt int
-		
-		err := rows.Scan(&idInt, &recurring.CompanyID, &recurring.ClientID,
-			&recurring.TemplateName, &recurring.Frequency, &recurring.NextDate,
-			&endDate, &recurring.Currency, &recurring.TaxRate, &recurring.TaxName,
-			&recurring.Notes, &recurring.Terms, &recurring.DaysDue, &recurring.AutoSend)
-		
+		var endDate, nextDate sql.NullString
+		var templateID, discountType sql.NullString
+		var discountRate sql.NullFloat64
+		var itemsJSON []byte
+
+		err := rows.Scan(&recurring.ID, &recurring.CompanyID, &recurring.ClientID,
+			&templateID, &recurring.Frequency, &recurring.IntervalCount,
+			&nextDate, &endDate, &recurring.PaymentTerms, &recurring.TaxRate,
+			&discountRate, &discountType, &recurring.Notes, &recurring.Terms, &itemsJSON)
+
 		if err != nil {
 			log.Printf("Error scanning recurring invoice: %v", err)
 			continue
 		}
-		
-		recurring.ID = fmt.Sprintf("%d", idInt)
+
 		if endDate.Valid {
 			recurring.EndDate = endDate.String
 		}
-		
-		// Get items for this recurring invoice
-		itemRows, err := db.Query(`
-			SELECT description, quantity, unit_price, unit, tax_rate
-			FROM recurring_invoice_items
-			WHERE recurring_invoice_id = $1
-			ORDER BY item_order`,
-			recurring.ID)
-		
-		if err != nil {
-			log.Printf("Error fetching recurring invoice items: %v", err)
+		if nextDate.Valid {
+			recurring.NextInvoiceDate = nextDate.String
+		}
+		if templateID.Valid {
+			recurring.TemplateID = templateID.String
+		}
+		if discountRate.Valid {
+			recurring.DiscountRate = discountRate.Float64
+		}
+		if discountType.Valid {
+			recurring.DiscountType = discountType.String
+		}
+
+		// Parse items from JSONB
+		var items []InvoiceItem
+		if err := json.Unmarshal(itemsJSON, &items); err != nil {
+			log.Printf("Error parsing recurring invoice items: %v", err)
 			continue
 		}
-		
-		var items []InvoiceItem
+
+		// Calculate subtotal
 		var subtotal float64
-		for itemRows.Next() {
-			var item InvoiceItem
-			err := itemRows.Scan(&item.Description, &item.Quantity,
-				&item.UnitPrice, &item.Unit, &item.TaxRate)
-			if err != nil {
-				continue
-			}
-			item.LineTotal = item.Quantity * item.UnitPrice
-			subtotal += item.LineTotal
-			items = append(items, item)
+		for i := range items {
+			items[i].LineTotal = items[i].Quantity * items[i].UnitPrice
+			subtotal += items[i].LineTotal
 		}
-		itemRows.Close()
 		
 		// Generate invoice number
 		invoiceNumber := generateInvoiceNumber(recurring.CompanyID)
 		
 		// Calculate dates
 		issueDate := time.Now()
-		dueDate := issueDate.AddDate(0, 0, recurring.DaysDue)
-		
-		// Calculate totals
-		taxAmount := subtotal * (recurring.TaxRate / 100)
-		totalAmount := subtotal + taxAmount
-		
+		dueDate := issueDate.AddDate(0, 0, recurring.PaymentTerms)
+
+		// Calculate totals (apply discount if present)
+		discountAmount := 0.0
+		if recurring.DiscountRate > 0 {
+			if recurring.DiscountType == "percentage" {
+				discountAmount = subtotal * (recurring.DiscountRate / 100)
+			} else {
+				discountAmount = recurring.DiscountRate
+			}
+		}
+		subtotalAfterDiscount := subtotal - discountAmount
+		taxAmount := subtotalAfterDiscount * (recurring.TaxRate / 100)
+		totalAmount := subtotalAfterDiscount + taxAmount
+
 		// Create the invoice
 		newInvoice := Invoice{
-			ID:            uuid.New().String(),
-			CompanyID:     recurring.CompanyID,
-			ClientID:      recurring.ClientID,
-			InvoiceNumber: invoiceNumber,
-			Status:        "draft",
-			IssueDate:     issueDate.Format("2006-01-02"),
-			DueDate:       dueDate.Format("2006-01-02"),
-			Currency:      recurring.Currency,
-			Subtotal:      subtotal,
-			TaxAmount:     taxAmount,
-			TotalAmount:   totalAmount,
-			BalanceDue:    totalAmount,
-			TaxRate:       recurring.TaxRate,
-			TaxName:       recurring.TaxName,
-			Notes:         recurring.Notes,
-			Terms:         recurring.Terms,
-			Items:         items,
+			ID:             uuid.New().String(),
+			CompanyID:      recurring.CompanyID,
+			ClientID:       recurring.ClientID,
+			InvoiceNumber:  invoiceNumber,
+			Status:         "draft",
+			IssueDate:      issueDate.Format("2006-01-02"),
+			DueDate:        dueDate.Format("2006-01-02"),
+			Currency:       "USD", // Use default from company
+			Subtotal:       subtotal,
+			TaxAmount:      taxAmount,
+			DiscountAmount: discountAmount,
+			TotalAmount:    totalAmount,
+			BalanceDue:     totalAmount,
+			TaxRate:        recurring.TaxRate,
+			Notes:          recurring.Notes,
+			Terms:          recurring.Terms,
+			Items:          items,
 		}
-		
+
 		// Insert the generated invoice
 		err = createGeneratedInvoice(newInvoice, recurring.ID)
 		if err != nil {
-			log.Printf("Error creating invoice from recurring template %s: %v", 
-				recurring.TemplateName, err)
+			log.Printf("Error creating invoice from recurring template %s: %v",
+				recurring.ID, err)
 			continue
 		}
-		
+
 		// Update recurring invoice
-		nextDate := calculateNextDate(recurring.NextDate, recurring.Frequency)
-		_, err = db.Exec(`
+		nextInvoiceDate := calculateNextDate(recurring.NextInvoiceDate, recurring.Frequency, recurring.IntervalCount)
+		_, err2 := db.Exec(`
 			UPDATE recurring_invoices
-			SET next_date = $1,
-				last_generated = CURRENT_DATE,
+			SET next_invoice_date = $1,
+				last_generated_date = CURRENT_DATE,
 				total_generated = total_generated + 1,
 				updated_at = CURRENT_TIMESTAMP
 			WHERE id = $2`,
-			nextDate, recurring.ID)
-		
-		if err != nil {
-			log.Printf("Error updating recurring invoice: %v", err)
+			nextInvoiceDate, recurring.ID)
+
+		if err2 != nil {
+			log.Printf("Error updating recurring invoice: %v", err2)
 		}
-		
-		// Auto-send if configured
-		if recurring.AutoSend {
-			go sendInvoiceEmail(newInvoice)
-		}
-		
-		log.Printf("Generated invoice %s from recurring template %s", 
-			invoiceNumber, recurring.TemplateName)
+
+		log.Printf("Generated invoice %s from recurring template %s",
+			invoiceNumber, recurring.ID)
 	}
 }
 
@@ -386,27 +374,31 @@ func deleteRecurringInvoiceHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Helper functions
-func calculateNextDate(currentDate, frequency string) string {
+func calculateNextDate(currentDate, frequency string, intervalCount int) string {
 	date, err := time.Parse("2006-01-02", currentDate)
 	if err != nil {
 		return currentDate
 	}
-	
-	switch frequency {
-	case "weekly":
-		date = date.AddDate(0, 0, 7)
-	case "biweekly":
-		date = date.AddDate(0, 0, 14)
-	case "monthly":
-		date = date.AddDate(0, 1, 0)
-	case "quarterly":
-		date = date.AddDate(0, 3, 0)
-	case "yearly":
-		date = date.AddDate(1, 0, 0)
-	default:
-		date = date.AddDate(0, 1, 0) // Default to monthly
+
+	if intervalCount == 0 {
+		intervalCount = 1
 	}
-	
+
+	switch frequency {
+	case "daily":
+		date = date.AddDate(0, 0, intervalCount)
+	case "weekly":
+		date = date.AddDate(0, 0, 7*intervalCount)
+	case "monthly":
+		date = date.AddDate(0, intervalCount, 0)
+	case "quarterly":
+		date = date.AddDate(0, 3*intervalCount, 0)
+	case "yearly":
+		date = date.AddDate(intervalCount, 0, 0)
+	default:
+		date = date.AddDate(0, intervalCount, 0) // Default to monthly
+	}
+
 	return date.Format("2006-01-02")
 }
 

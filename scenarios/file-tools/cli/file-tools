@@ -10,7 +10,8 @@ readonly CLI_VERSION="1.0.0"
 readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
 readonly CONFIG_FILE="$CONFIG_DIR/config.json"
 readonly DEFAULT_API_BASE="http://localhost:${API_PORT:-8080}"
-readonly DEFAULT_TOKEN="file-tools-token"
+# Default token for local development only - override via FILE_TOOLS_API_TOKEN env var or config file
+readonly DEFAULT_TOKEN="${FILE_TOOLS_API_TOKEN:-file-tools-token}"
 
 # Colors for output
 readonly RED='\033[0;31m'

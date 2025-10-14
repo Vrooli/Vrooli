@@ -38,10 +38,10 @@ func TestCompressionPerformance(t *testing.T) {
 		fileSize    int64
 		maxDuration time.Duration
 	}{
-		{"SmallFiles", 10, 1024, 5 * time.Second},           // 10 files of 1KB
-		{"MediumFiles", 5, 1024 * 100, 10 * time.Second},    // 5 files of 100KB
-		{"LargeFile", 1, 1024 * 1024, 15 * time.Second},     // 1 file of 1MB
-		{"ManySmallFiles", 100, 512, 20 * time.Second},      // 100 files of 512B
+		{"SmallFiles", 10, 1024, 5 * time.Second},        // 10 files of 1KB
+		{"MediumFiles", 5, 1024 * 100, 10 * time.Second}, // 5 files of 100KB
+		{"LargeFile", 1, 1024 * 1024, 15 * time.Second},  // 1 file of 1MB
+		{"ManySmallFiles", 100, 512, 20 * time.Second},   // 100 files of 512B
 	}
 
 	for _, tc := range testCases {
@@ -228,10 +228,10 @@ func TestChecksumPerformance(t *testing.T) {
 		algorithm   string
 		maxDuration time.Duration
 	}{
-		{"MD5_Small", 1024 * 10, "md5", 1 * time.Second},         // 10KB
-		{"MD5_Medium", 1024 * 1024, "md5", 2 * time.Second},      // 1MB
-		{"SHA1_Small", 1024 * 10, "sha1", 1 * time.Second},       // 10KB
-		{"SHA256_Small", 1024 * 10, "sha256", 1 * time.Second},   // 10KB
+		{"MD5_Small", 1024 * 10, "md5", 1 * time.Second},          // 10KB
+		{"MD5_Medium", 1024 * 1024, "md5", 2 * time.Second},       // 1MB
+		{"SHA1_Small", 1024 * 10, "sha1", 1 * time.Second},        // 10KB
+		{"SHA256_Small", 1024 * 10, "sha256", 1 * time.Second},    // 10KB
 		{"SHA256_Medium", 1024 * 1024, "sha256", 3 * time.Second}, // 1MB
 	}
 

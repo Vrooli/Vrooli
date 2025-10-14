@@ -2,7 +2,17 @@
 # Tests for file-tools CLI
 
 # Test configuration
-readonly TEST_CLI="./file-tools"
+# Support running from either the CLI directory or project root
+if [[ -f "./file-tools" ]]; then
+    readonly TEST_CLI="./file-tools"
+elif [[ -f "./cli/file-tools" ]]; then
+    readonly TEST_CLI="./cli/file-tools"
+elif command -v file-tools >/dev/null 2>&1; then
+    readonly TEST_CLI="file-tools"
+else
+    readonly TEST_CLI="$HOME/.local/bin/file-tools"
+fi
+
 readonly TEST_CONFIG_DIR="$HOME/.file-tools"
 readonly TEST_CONFIG_FILE="$TEST_CONFIG_DIR/config.json"
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -157,11 +158,19 @@ func TestCompleteFunnelFlow(t *testing.T) {
 		recorder = httptest.NewRecorder()
 		testServer.Server.router.ServeHTTP(recorder, req)
 
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("Final submit failed with status %d: %s", recorder.Code, recorder.Body.String())
+		}
+
 		var finalResponse map[string]interface{}
-		json.Unmarshal(recorder.Body.Bytes(), &finalResponse)
+		if err := json.Unmarshal(recorder.Body.Bytes(), &finalResponse); err != nil {
+			t.Fatalf("Failed to unmarshal final response: %v. Body: %s", err, recorder.Body.String())
+		}
+
+		t.Logf("Final response: %+v", finalResponse)
 
 		if completed, ok := finalResponse["completed"].(bool); !ok || !completed {
-			t.Error("Expected funnel to be completed")
+			t.Errorf("Expected funnel to be completed. Got response: %+v", finalResponse)
 		}
 
 		// Step 7: Verify analytics
@@ -181,12 +190,24 @@ func TestCompleteFunnelFlow(t *testing.T) {
 		}
 
 		// Step 8: Verify lead data
+		// First check directly in the database
+		var dbCompleted bool
+		dbQuery := `SELECT completed FROM funnel_builder.leads WHERE funnel_id = $1 AND session_id = $2`
+		err := testServer.Server.db.QueryRow(context.Background(), dbQuery, funnelID, sessionID).Scan(&dbCompleted)
+		if err != nil {
+			t.Fatalf("Failed to query lead from database: %v", err)
+		}
+		t.Logf("Database shows completed=%v for session %s", dbCompleted, sessionID)
+
+		// Now check via API
 		req, _ = makeHTTPRequest("GET", "/api/v1/funnels/"+funnelID+"/leads", nil)
 		recorder = httptest.NewRecorder()
 		testServer.Server.router.ServeHTTP(recorder, req)
 
 		var leads []map[string]interface{}
-		json.Unmarshal(recorder.Body.Bytes(), &leads)
+		if err := json.Unmarshal(recorder.Body.Bytes(), &leads); err != nil {
+			t.Fatalf("Failed to unmarshal leads: %v. Body: %s", err, recorder.Body.String())
+		}
 
 		if len(leads) == 0 {
 			t.Fatal("Expected at least one lead")
@@ -197,8 +218,11 @@ func TestCompleteFunnelFlow(t *testing.T) {
 			t.Errorf("Expected email 'journey@example.com', got '%v'", lead["email"])
 		}
 
-		if !lead["completed"].(bool) {
-			t.Error("Expected lead to be marked as completed")
+		completed, ok := lead["completed"].(bool)
+		if !ok {
+			t.Errorf("Expected 'completed' to be a bool, got %T: %v. Full lead: %+v", lead["completed"], lead["completed"], lead)
+		} else if !completed {
+			t.Errorf("Expected lead to be marked as completed. DB says: %v, API returned: %v", dbCompleted, completed)
 		}
 	})
 }
@@ -245,9 +269,18 @@ func TestMultipleSessionsFlow(t *testing.T) {
 			recorder := httptest.NewRecorder()
 			testServer.Server.router.ServeHTTP(recorder, req)
 
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("Failed to execute funnel: status %d, body: %s", recorder.Code, recorder.Body.String())
+			}
+
 			var response map[string]interface{}
 			json.Unmarshal(recorder.Body.Bytes(), &response)
-			sessionIDs[i] = response["session_id"].(string)
+
+			sessionID, ok := response["session_id"].(string)
+			if !ok || sessionID == "" {
+				t.Fatalf("Expected session_id in response, got: %v", response)
+			}
+			sessionIDs[i] = sessionID
 		}
 
 		// Verify all sessions are unique

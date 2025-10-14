@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Download } from 'lucide-react';
 
-const API_PORT = process.env.API_PORT || '20100';
-
 function InflationCalculator() {
   const [inputs, setInputs] = useState({
     amount: 100000,
@@ -25,7 +23,7 @@ function InflationCalculator() {
     setError(null);
     
     try {
-      const response = await fetch(`http://localhost:${API_PORT}/api/v1/calculate/inflation`, {
+      const response = await fetch('/api/v1/calculate/inflation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(inputs)

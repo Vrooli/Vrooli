@@ -423,17 +423,22 @@ func (s *Server) handleExecuteFunnel(c *gin.Context) {
 	err = s.db.QueryRow(context.Background(), leadQuery, funnelID, sessionID).Scan(&leadID)
 	if err != nil {
 		// Create new lead
+		clientIP := c.ClientIP()
+		if clientIP == "" {
+			clientIP = "127.0.0.1" // Default for tests and local development
+		}
+
 		insertQuery := `
 			INSERT INTO funnel_builder.leads (funnel_id, session_id, ip_address, user_agent)
 			VALUES ($1, $2, $3, $4)
 			RETURNING id
 		`
-		err = s.db.QueryRow(context.Background(), insertQuery, funnelID, sessionID, c.ClientIP(), c.Request.UserAgent()).Scan(&leadID)
+		err = s.db.QueryRow(context.Background(), insertQuery, funnelID, sessionID, clientIP, c.Request.UserAgent()).Scan(&leadID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		
+
 		// Record analytics event
 		s.recordEvent(funnelID, leadID, "start", nil)
 	}
@@ -508,9 +513,20 @@ func (s *Server) handleSubmitStep(c *gin.Context) {
 	if nextStep == nil {
 		// Mark lead as completed
 		completeQuery := `UPDATE funnel_builder.leads SET completed = true, completed_at = NOW() WHERE id = $1`
-		s.db.Exec(context.Background(), completeQuery, leadID)
+		result, err := s.db.Exec(context.Background(), completeQuery, leadID)
+		if err != nil {
+			log.Printf("ERROR: Failed to mark lead %s as completed: %v", leadID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete funnel"})
+			return
+		}
+		rowsAffected := result.RowsAffected()
+		if rowsAffected == 0 {
+			log.Printf("WARNING: UPDATE affected 0 rows for lead %s", leadID)
+		} else {
+			log.Printf("Successfully marked lead %s as completed (%d rows)", leadID, rowsAffected)
+		}
 		s.recordEvent(funnelID, leadID, "complete", nil)
-		
+
 		c.JSON(http.StatusOK, gin.H{
 			"completed": true,
 			"message":   "Funnel completed",
@@ -618,8 +634,37 @@ func (s *Server) handleGetLeads(c *gin.Context) {
 	var leads []Lead
 	for rows.Next() {
 		var l Lead
-		rows.Scan(&l.ID, &l.Email, &l.Phone, &l.Name, &l.Data, &l.Source, &l.Completed, &l.CreatedAt)
+		var email, phone, name, source sql.NullString
+		var data []byte
+
+		if err := rows.Scan(&l.ID, &email, &phone, &name, &data, &source, &l.Completed, &l.CreatedAt); err != nil {
+			log.Printf("Error scanning lead row: %v", err)
+			continue
+		}
+
+		// Map nullable fields
+		if email.Valid {
+			l.Email = email.String
+		}
+		if phone.Valid {
+			l.Phone = phone.String
+		}
+		if name.Valid {
+			l.Name = name.String
+		}
+		if source.Valid {
+			l.Source = source.String
+		}
+		if len(data) > 0 {
+			l.Data = json.RawMessage(data)
+		}
+
 		leads = append(leads, l)
+	}
+
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 	
 	if format == "csv" {

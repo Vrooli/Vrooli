@@ -72,6 +72,23 @@ fi
 
 run_test "CLI install script exists" "[[ -f '$SCENARIO_DIR/cli/install.sh' ]]"
 
+# Run BATS CLI tests if available
+if command -v bats &>/dev/null && [[ -f "$SCENARIO_DIR/cli/device-sync-hub.bats" ]]; then
+    echo -e "\n${BLUE}Running BATS CLI Tests:${NC}"
+    if cd "$SCENARIO_DIR" && bats cli/device-sync-hub.bats 2>&1 | tee /tmp/cli-tests.log; then
+        BATS_PASSED=$(grep -oP '\d+ tests?, 0 failures' /tmp/cli-tests.log | grep -oP '^\d+' || echo "0")
+        echo -e "${GREEN}✓ BATS CLI tests passed (${BATS_PASSED} tests)${NC}"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ BATS CLI tests failed${NC}"
+        ((TESTS_FAILED++))
+    fi
+else
+    if ! command -v bats &>/dev/null; then
+        echo -e "${YELLOW}⚠ BATS not available, skipping CLI tests${NC}"
+    fi
+fi
+
 # UI tests
 echo -e "\n${BLUE}UI Tests:${NC}"
 

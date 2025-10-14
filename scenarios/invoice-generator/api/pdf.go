@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
-	
+
 	"github.com/gorilla/mux"
 )
 
@@ -264,14 +267,20 @@ func downloadPDFHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// Generate HTML
 	htmlContent := generateInvoiceHTML(req)
-	
+
+	// Convert HTML to PDF using browserless
+	pdfBytes, err := convertHTMLToPDF(htmlContent)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("PDF generation failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	// Set headers for PDF download
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=invoice-%s.pdf", invoice.InvoiceNumber))
-	
-	// For now, return HTML with PDF content type
-	// In production, use a PDF library or service
-	w.Write([]byte(htmlContent))
+
+	// Return actual PDF bytes
+	w.Write(pdfBytes)
 }
 
 // Helper functions
@@ -309,4 +318,62 @@ func formatCompanyAddress(company *Company) string {
 		parts = append(parts, company.Country)
 	}
 	return strings.Join(parts, "\n")
+}
+
+// convertHTMLToPDF converts HTML content to PDF using browserless
+func convertHTMLToPDF(htmlContent string) ([]byte, error) {
+	browserlessURL := os.Getenv("BROWSERLESS_URL")
+	if browserlessURL == "" {
+		browserlessURL = "http://localhost:4110"
+	}
+
+	// Prepare request body for browserless PDF endpoint
+	reqBody := map[string]interface{}{
+		"html": htmlContent,
+		"options": map[string]interface{}{
+			"format":              "A4",
+			"printBackground":     true,
+			"preferCSSPageSize":   true,
+			"displayHeaderFooter": false,
+			"margin": map[string]interface{}{
+				"top":    "20px",
+				"right":  "20px",
+				"bottom": "20px",
+				"left":   "20px",
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Call browserless PDF generation endpoint
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	resp, err := client.Post(
+		browserlessURL+"/chrome/pdf",
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("browserless API call failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("browserless returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Read the PDF bytes
+	pdfBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read PDF response: %w", err)
+	}
+
+	return pdfBytes, nil
 }

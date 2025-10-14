@@ -1,4 +1,22 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
 // Fall Foliage Explorer - Interactive Application
+
+const BRIDGE_STATE_KEY = '__fallFoliageBridgeInitialized';
+
+if (typeof window !== 'undefined' && window.parent !== window && !window[BRIDGE_STATE_KEY]) {
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[FallFoliage] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'fall-foliage-explorer' });
+    window[BRIDGE_STATE_KEY] = true;
+}
 
 // Configuration
 const API_BASE = 'http://localhost:17175';  // Fixed API port from service.json
@@ -779,3 +797,12 @@ function downloadFile(content, filename, mimeType) {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 }
+
+Object.assign(window, {
+    showRegionDetails,
+    exportPredictionsCSV,
+    exportPredictionsJSON,
+    exportTripsCSV,
+    exportTripsJSON,
+    closeInfoPanel,
+});

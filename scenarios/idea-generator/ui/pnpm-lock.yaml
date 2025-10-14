@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@vrooli/iframe-bridge':
+        specifier: file:../../../packages/iframe-bridge
+        version: link:../../../packages/iframe-bridge
       axios:
         specifier: ^1.6.2
         version: 1.12.2

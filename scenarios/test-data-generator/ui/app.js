@@ -1,3 +1,9 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+    initIframeBridgeChild({ appId: 'test-data-generator-ui' })
+}
+
 class TestDataGenerator {
     constructor() {
         this.apiUrl = `http://localhost:${window.location.port === '3002' ? '3001' : '3001'}`;

@@ -137,7 +137,8 @@
     "health": {
       "description": "Date Night Planner health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -149,8 +150,16 @@
           "interval": 30000
         },
         {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
           "name": "database_connection",
-          "type": "http", 
+          "type": "http",
           "target": "http://localhost:${API_PORT}/health/database",
           "critical": true,
           "timeout": 3000,
@@ -176,7 +185,7 @@
            {
              "type": "binaries",
              "targets": [
-               "date-night-planner-api"
+               "api/date-night-planner-api"
              ]
            },
             {

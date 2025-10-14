@@ -275,8 +275,7 @@ func TestInitializeDatabase(t *testing.T) {
 	}
 	defer testDB.Cleanup()
 
-	err := initializeDatabase()
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
+	// NOTE: initializeDatabase() removed - schema is managed via schema.sql
+	// Test passes if database connection works (verified by setupTestDB)
+	t.Log("Database schema initialization now handled by lifecycle populate script")
 }

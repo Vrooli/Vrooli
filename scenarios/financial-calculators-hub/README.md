@@ -287,6 +287,22 @@ vrooli scenario stop financial-calculators-hub
 vrooli scenario run financial-calculators-hub
 ```
 
+### Database Migration Issues
+If you see errors like `pq: record "new" has no field "model_id"`, this is due to an old database schema. Run the automated migration:
+
+```bash
+# Run the database migration
+./scripts/migrate-database.sh
+
+# Restart the scenario
+make stop && make start
+
+# Verify tests pass
+make test
+```
+
+The migration safely removes old triggers and columns while preserving your data.
+
 ### Calculation Errors
 - Ensure all required parameters are provided
 - Check that values are within valid ranges

@@ -29,27 +29,31 @@ make stop
 - **Web Interface**: Professional UI for managing applications and agents
 - **CLI Tool**: Command-line interface for all operations
 
-### 🚧 Advanced Features (P1 - Infrastructure Ready)
-- **Vector Search**: Qdrant connected, implementation pending
-- **AI Analysis**: Ollama connected, integration pending
-- **Real-time Updates**: Redis connected, pub/sub pending
-- **Batch Operations**: Infrastructure ready, implementation pending
+### ✅ Advanced Features (P1 - 100% Complete)
+- **Vector Search**: ✅ Production-ready similarity search with Ollama embeddings (`/api/search` endpoint)
+- **AI Integration**: ✅ Ollama nomic-embed-text model integrated for semantic embeddings (768 dimensions)
+- **Document Indexing**: ✅ POST `/api/index` endpoint for batch document indexing
+- **Data Management**: ✅ DELETE endpoints for applications, agents, and queue items
+- **Real-time Updates**: ✅ Redis pub/sub for live event notifications (graceful degradation if Redis unavailable)
+- **Batch Operations**: ✅ POST `/api/queue/batch` endpoint for bulk approve/reject/delete operations
 
 ## Architecture
 
 ```
 ┌─────────────────┐     ┌──────────────┐     ┌──────────────┐
 │   Web UI        │────▶│   Go API     │────▶│  PostgreSQL  │
-│  (port 38106)   │     │ (port 17810) │     │  (port 5433) │
+│  (dynamic port) │     │(dynamic port)│     │  (port 5433) │
 └─────────────────┘     └──────────────┘     └──────────────┘
                               │
                     ┌─────────┴─────────┐
                     ▼                   ▼
               ┌──────────┐       ┌──────────┐
               │  Qdrant  │       │  Ollama  │
-              │ (vectors)│       │   (AI)   │
+              │ (port 6333) │     │(port 11434)│
               └──────────┘       └──────────┘
 ```
+
+**Note**: API and UI ports are dynamically allocated by Vrooli. Use `make status` to see current ports.
 
 ## API Endpoints
 
@@ -62,6 +66,7 @@ make stop
 ### Applications
 - `GET /api/applications` - List all applications
 - `POST /api/applications` - Create new application
+- `DELETE /api/applications?id={uuid}` - Delete application (cascades to agents and queue items)
 ```json
 {
   "name": "My App",
@@ -74,6 +79,7 @@ make stop
 ### Agents
 - `GET /api/agents` - List all agents
 - `POST /api/agents` - Create new agent
+- `DELETE /api/agents?id={uuid}` - Delete agent (cascades to queue items)
 ```json
 {
   "name": "Doc Analyzer",
@@ -87,6 +93,7 @@ make stop
 ### Improvement Queue
 - `GET /api/queue` - List improvement items
 - `POST /api/queue` - Add improvement item
+- `DELETE /api/queue?id={uuid}` - Delete queue item
 ```json
 {
   "agent_id": "uuid",
@@ -98,6 +105,108 @@ make stop
   "status": "pending"
 }
 ```
+
+### Vector Search & Document Indexing (AI-Powered)
+
+#### Index Documents
+- `POST /api/index` - Index documents into Qdrant for semantic search
+
+**Request:**
+```json
+{
+  "application_id": "uuid-of-application",
+  "documents": [
+    {
+      "id": "doc_readme_001",
+      "path": "/README.md",
+      "content": "Document content here...",
+      "metadata": {"type": "readme", "section": "overview"}
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "indexed": 3,
+  "failed": 0,
+  "errors": []
+}
+```
+
+#### Search Documents
+- `POST /api/search` - Semantic search for similar documentation using Ollama embeddings
+
+**Request:**
+```json
+{
+  "query": "database architecture design patterns",
+  "limit": 10
+}
+```
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "id": "4d92c6d0-c36c-54c1-b050-43ed2f751215",
+      "score": 0.697,
+      "document_id": "doc_setup_001",
+      "content": "To set up Document Manager, first install PostgreSQL...",
+      "metadata": {
+        "application_id": "uuid",
+        "application_name": "Test Application",
+        "type": "setup",
+        "path": "/docs/SETUP.md"
+      },
+      "application_name": "Test Application"
+    }
+  ],
+  "query": "database architecture design patterns",
+  "total": 1
+}
+```
+
+**Features:**
+- **Production AI Integration**: Uses Ollama's nomic-embed-text model for 768-dimensional semantic embeddings
+- **Automatic Collection Management**: Creates Qdrant collections automatically
+- **Deterministic Document IDs**: Uses UUID v5 for consistent document identification
+- **Batch Indexing**: Index multiple documents in a single request
+- **Rich Metadata**: Store and retrieve custom metadata with documents
+- **Real Similarity Search**: Actual Qdrant vector search with cosine similarity scoring
+- **Graceful Fallbacks**: Handles Ollama unavailability with informative errors
+
+### Batch Queue Operations
+- `POST /api/queue/batch` - Perform bulk operations on queue items
+
+**Request:**
+```json
+{
+  "action": "approve",  // or "reject", "delete"
+  "ids": ["uuid1", "uuid2", "uuid3"]
+}
+```
+
+**Response:**
+```json
+{
+  "succeeded": ["uuid1", "uuid2"],
+  "failed": ["uuid3"],
+  "total": 3
+}
+```
+
+**Actions:**
+- `approve`: Bulk approve queue items (sets status to 'approved')
+- `reject`: Bulk reject queue items (sets status to 'denied')
+- `delete`: Bulk delete queue items
+
+**Features:**
+- **Atomic Per-Item**: Each item is processed independently; partial failures don't affect successful operations
+- **Error Tracking**: Clear reporting of which items succeeded vs. failed
+- **Real-time Events**: Publishes batch operation events to Redis for live UI updates
 
 ## CLI Usage
 
@@ -157,6 +266,7 @@ document-manager/
 - `OLLAMA_URL` - AI model server
 - `REDIS_URL` - Cache/pub-sub
 - `N8N_URL` - Workflow automation
+- `CORS_ALLOWED_ORIGINS` - CORS allowed origins (defaults to `http://localhost:${UI_PORT}`)
 
 ## Production Deployment
 

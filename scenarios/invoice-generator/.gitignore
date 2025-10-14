@@ -1,0 +1,25 @@
+# Build artifacts
+api/invoice-generator-api
+api/invoice-generator
+build/
+dist/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+.DS_Store
+
+# Test outputs
+coverage.txt
+*.test
+
+# Development
+.env.local
+.env.development.local
+
+# UI build
+ui/dist/
+ui/build/
+ui/node_modules/

@@ -294,17 +294,44 @@ func saveNetWorthEntry(userID string, input lib.NetWorthInput, netWorth float64)
 		return nil
 	}
 
-	assetsJSON, _ := json.Marshal(input.Assets)
-	liabilitiesJSON, _ := json.Marshal(input.Liabilities)
+	// Calculate totals for assets and liabilities
+	assetsTotal := 0.0
+	for _, v := range input.Assets {
+		assetsTotal += v
+	}
 
+	liabilitiesTotal := 0.0
+	for _, v := range input.Liabilities {
+		liabilitiesTotal += v
+	}
+
+	// Create JSONB with individual items and total
+	assetsWithTotal := map[string]interface{}{
+		"total": assetsTotal,
+	}
+	for k, v := range input.Assets {
+		assetsWithTotal[k] = v
+	}
+
+	liabilitiesWithTotal := map[string]interface{}{
+		"total": liabilitiesTotal,
+	}
+	for k, v := range input.Liabilities {
+		liabilitiesWithTotal[k] = v
+	}
+
+	assetsJSON, _ := json.Marshal(assetsWithTotal)
+	liabilitiesJSON, _ := json.Marshal(liabilitiesWithTotal)
+
+	// Note: net_worth is a GENERATED ALWAYS column calculated from assets.total - liabilities.total
 	query := `
-		INSERT INTO net_worth_entries (user_id, entry_date, assets, liabilities, net_worth, notes)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO net_worth_entries (user_id, entry_date, assets, liabilities, notes)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (user_id, entry_date)
-		DO UPDATE SET assets = $3, liabilities = $4, net_worth = $5, notes = $6, updated_at = CURRENT_TIMESTAMP
+		DO UPDATE SET assets = $3, liabilities = $4, notes = $5, updated_at = CURRENT_TIMESTAMP
 	`
 
-	_, err := db.Exec(query, userID, time.Now(), assetsJSON, liabilitiesJSON, netWorth, input.Notes)
+	_, err := db.Exec(query, userID, time.Now(), assetsJSON, liabilitiesJSON, input.Notes)
 	return err
 }
 

@@ -1,8 +1,41 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
 // Email Triage Dashboard JavaScript
 // AI-powered multi-tenant email management system
 
-// Configuration
-const API_BASE_URL = 'http://localhost:3200';
+const BRIDGE_STATE_KEY = '__emailTriageBridgeInitialized';
+
+if (typeof window !== 'undefined' && window.parent !== window && !window[BRIDGE_STATE_KEY]) {
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[EmailTriage] Unable to parse parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'email-triage' });
+    window[BRIDGE_STATE_KEY] = true;
+}
+
+
+// Configuration - dynamically determine API URL
+function getApiBaseUrl() {
+    // Check for explicit API_BASE_URL in window (for testing/config)
+    if (window.API_BASE_URL) {
+        return window.API_BASE_URL;
+    }
+
+    // Use the same origin but with API port from environment or default
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    // API runs on different port - try to get from config or use relative path
+    // For production, API should be accessible via proxy or same origin
+    return `${protocol}//${hostname}:${window.API_PORT || '19544'}`;
+}
+
+const API_BASE_URL = getApiBaseUrl();
 const AUTH_TOKEN = localStorage.getItem('email-triage-auth-token') || '';
 
 // Global state
@@ -455,14 +488,14 @@ async function loadSystemStatus() {
         document.getElementById('system-status').innerHTML = `
             <div class="alert alert-danger">
                 <strong>System Status: Offline</strong><br>
-                Could not connect to API server. Please ensure the email-triage API is running on port 3200.
+                Could not connect to API server at ${API_BASE_URL}. Please ensure the email-triage API is running.
             </div>
             <div class="alert alert-info">
                 <strong>Quick Start:</strong>
                 <ol style="margin-top: 10px;">
                     <li>Start required resources: <code>vrooli resource start postgres qdrant</code></li>
                     <li>Start scenario: <code>vrooli scenario run email-triage</code></li>
-                    <li>Access dashboard at: <code>http://localhost:3201</code></li>
+                    <li>Access dashboard at: <code>${window.location.origin}</code></li>
                 </ol>
             </div>
         `;
@@ -496,3 +529,14 @@ function initializeApp() {
 
 // Start the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', initializeApp);
+
+Object.assign(window, {
+    showTab,
+    showAddAccountForm,
+    hideAddAccountForm,
+    addEmailAccount,
+    createTriageRule,
+    hideAddRuleForm,
+    searchEmails,
+    syncAccount,
+});

@@ -73,9 +73,9 @@ type CompressResponse struct {
 
 // FileOperation represents a file operation request
 type FileOperation struct {
-	Operation string   `json:"operation"` // copy, move, rename, delete
-	Source    string   `json:"source"`
-	Target    string   `json:"target,omitempty"`
+	Operation string `json:"operation"` // copy, move, rename, delete
+	Source    string `json:"source"`
+	Target    string `json:"target,omitempty"`
 	Options   struct {
 		Overwrite  bool `json:"overwrite"`
 		Recursive  bool `json:"recursive"`
@@ -141,15 +141,15 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/files/compress", s.handleCompress).Methods("POST")
 	api.HandleFunc("/files/extract", s.handleExtract).Methods("POST")
 	api.HandleFunc("/files/operation", s.handleFileOperation).Methods("POST")
-	api.HandleFunc("/files/metadata", s.handleGetMetadata).Methods("GET")  // Changed to use query param
-	api.HandleFunc("/files/metadata/extract", s.handleExtractMetadata).Methods("POST")  // New POST endpoint
+	api.HandleFunc("/files/metadata", s.handleGetMetadata).Methods("GET")              // Changed to use query param
+	api.HandleFunc("/files/metadata/extract", s.handleExtractMetadata).Methods("POST") // New POST endpoint
 	api.HandleFunc("/files/checksum", s.handleChecksum).Methods("POST")
 	api.HandleFunc("/files/split", s.handleSplit).Methods("POST")
 	api.HandleFunc("/files/merge", s.handleMerge).Methods("POST")
 	api.HandleFunc("/files/duplicates/detect", s.handleDuplicateDetection).Methods("POST")
 	api.HandleFunc("/files/organize", s.handleOrganize).Methods("POST")
 	api.HandleFunc("/files/search", s.handleSearch).Methods("GET")
-	
+
 	// New P1 endpoints
 	api.HandleFunc("/files/relationships/map", s.handleRelationshipMapping).Methods("POST")
 	api.HandleFunc("/files/storage/optimize", s.handleStorageOptimization).Methods("POST")
@@ -726,9 +726,9 @@ func (s *Server) handleExtract(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
-		"operation_id":    uuid.New().String(),
-		"extracted_files": extractedFiles,
-		"total_files":     len(extractedFiles),
+		"operation_id":     uuid.New().String(),
+		"extracted_files":  extractedFiles,
+		"total_files":      len(extractedFiles),
 		"total_size_bytes": totalSize,
 	})
 }
@@ -835,8 +835,8 @@ func (s *Server) handleChecksum(w http.ResponseWriter, r *http.Request) {
 		checksum := calculateFileChecksum(file, req.Algorithm)
 		if checksum != "" {
 			results = append(results, map[string]string{
-				"file":     file,
-				"checksum": checksum,
+				"file":      file,
+				"checksum":  checksum,
 				"algorithm": req.Algorithm,
 			})
 		}
@@ -947,21 +947,21 @@ func (s *Server) handleMerge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
-		"operation_id":  uuid.New().String(),
-		"output_file":   req.Output,
-		"merged_parts":  len(files),
-		"total_size":    totalSize,
-		"checksum":      calculateFileChecksum(req.Output, "sha256"),
+		"operation_id": uuid.New().String(),
+		"output_file":  req.Output,
+		"merged_parts": len(files),
+		"total_size":   totalSize,
+		"checksum":     calculateFileChecksum(req.Output, "sha256"),
 	})
 }
 
 // New handlers for P1 requirements
 
-// ExtractMetadataRequest represents batch metadata extraction request  
+// ExtractMetadataRequest represents batch metadata extraction request
 type ExtractMetadataRequest struct {
-	FilePaths      []string `json:"file_paths"`
+	FilePaths       []string `json:"file_paths"`
 	ExtractionTypes []string `json:"extraction_types"`
-	Options        struct {
+	Options         struct {
 		DeepAnalysis bool `json:"deep_analysis"`
 	} `json:"options"`
 }
@@ -1022,8 +1022,8 @@ type DuplicateDetectionRequest struct {
 	DetectionMethod string   `json:"detection_method"`
 	Options         struct {
 		SimilarityThreshold float64  `json:"similarity_threshold"`
-		IncludeHidden      bool     `json:"include_hidden"`
-		FileExtensions     []string `json:"file_extensions"`
+		IncludeHidden       bool     `json:"include_hidden"`
+		FileExtensions      []string `json:"file_extensions"`
 	} `json:"options"`
 }
 
@@ -1038,31 +1038,31 @@ func (s *Server) handleDuplicateDetection(w http.ResponseWriter, r *http.Request
 	hashMap := make(map[string][]map[string]interface{})
 	var totalSize int64
 	var filesScanned int
-	
+
 	for _, scanPath := range req.ScanPaths {
 		// Check if path exists
 		if _, err := os.Stat(scanPath); err != nil {
 			log.Printf("Warning: scan path does not exist: %s", scanPath)
 			continue
 		}
-		
+
 		err := filepath.Walk(scanPath, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				log.Printf("Error walking path %s: %v", path, err)
 				return nil
 			}
-			
+
 			if info.IsDir() {
 				return nil
 			}
-			
+
 			filesScanned++
-			
+
 			// Skip hidden files if requested
 			if !req.Options.IncludeHidden && strings.HasPrefix(filepath.Base(path), ".") {
 				return nil
 			}
-			
+
 			// Check file extensions if specified
 			if len(req.Options.FileExtensions) > 0 {
 				ext := strings.ToLower(filepath.Ext(path))
@@ -1077,7 +1077,7 @@ func (s *Server) handleDuplicateDetection(w http.ResponseWriter, r *http.Request
 					return nil
 				}
 			}
-			
+
 			// Calculate checksum for duplicate detection
 			checksum := calculateFileChecksum(path, "md5")
 			if checksum != "" {
@@ -1090,32 +1090,32 @@ func (s *Server) handleDuplicateDetection(w http.ResponseWriter, r *http.Request
 				hashMap[checksum] = append(hashMap[checksum], fileInfo)
 				totalSize += info.Size()
 			}
-			
+
 			return nil
 		})
-		
+
 		if err != nil {
 			log.Printf("Error walking directory %s: %v", scanPath, err)
 		}
 	}
-	
+
 	log.Printf("Duplicate scan complete: scanned %d files, found %d unique checksums", filesScanned, len(hashMap))
 
 	// Build duplicate groups
 	var duplicateGroups []map[string]interface{}
 	var totalDuplicates int
 	var totalSavingsBytes int64
-	
+
 	for _, files := range hashMap {
 		if len(files) > 1 {
 			// Calculate potential savings (keep one, remove others)
 			fileSize := files[0]["size_bytes"].(int64)
 			savings := fileSize * int64(len(files)-1)
-			
+
 			group := map[string]interface{}{
-				"group_id":               uuid.New().String(),
-				"similarity_score":       1.0, // Exact match for hash-based detection
-				"files":                  files,
+				"group_id":                uuid.New().String(),
+				"similarity_score":        1.0, // Exact match for hash-based detection
+				"files":                   files,
 				"potential_savings_bytes": savings,
 			}
 			duplicateGroups = append(duplicateGroups, group)
@@ -1125,10 +1125,10 @@ func (s *Server) handleDuplicateDetection(w http.ResponseWriter, r *http.Request
 	}
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
-		"scan_id":               uuid.New().String(),
-		"duplicate_groups":      duplicateGroups,
-		"total_duplicates":      totalDuplicates,
-		"total_savings_bytes":   totalSavingsBytes,
+		"scan_id":             uuid.New().String(),
+		"duplicate_groups":    duplicateGroups,
+		"total_duplicates":    totalDuplicates,
+		"total_savings_bytes": totalSavingsBytes,
 	})
 }
 
@@ -1141,9 +1141,9 @@ type OrganizeRequest struct {
 		Parameters map[string]interface{} `json:"parameters"`
 	} `json:"organization_rules"`
 	Options struct {
-		DryRun           bool   `json:"dry_run"`
-		CreateDirs       bool   `json:"create_directories"`
-		HandleConflicts  string `json:"handle_conflicts"`
+		DryRun          bool   `json:"dry_run"`
+		CreateDirs      bool   `json:"create_directories"`
+		HandleConflicts string `json:"handle_conflicts"`
 	} `json:"options"`
 }
 
@@ -1166,7 +1166,7 @@ func (s *Server) handleOrganize(w http.ResponseWriter, r *http.Request) {
 		// Determine organization based on rules
 		var destSubPath string
 		var reason string
-		
+
 		for _, rule := range req.Rules {
 			switch rule.RuleType {
 			case "by_type":
@@ -1195,7 +1195,7 @@ func (s *Server) handleOrganize(w http.ResponseWriter, r *http.Request) {
 				destSubPath = info.ModTime().Format("2006/01")
 				reason = "Organized by date"
 			}
-			
+
 			if destSubPath != "" {
 				break
 			}
@@ -1207,7 +1207,7 @@ func (s *Server) handleOrganize(w http.ResponseWriter, r *http.Request) {
 		}
 
 		destFile := filepath.Join(req.DestinationPath, destSubPath, filepath.Base(path))
-		
+
 		// Check for conflicts
 		if _, err := os.Stat(destFile); err == nil {
 			conflicts = append(conflicts, destFile)
@@ -1220,13 +1220,13 @@ func (s *Server) handleOrganize(w http.ResponseWriter, r *http.Request) {
 			"confidence":       0.95,
 		}
 		organizationPlan = append(organizationPlan, move)
-		
+
 		// If not dry run and no conflicts, perform the move
 		if !req.Options.DryRun && len(conflicts) == 0 {
 			if req.Options.CreateDirs {
 				os.MkdirAll(filepath.Dir(destFile), 0755)
 			}
-			
+
 			switch req.Options.HandleConflicts {
 			case "skip":
 				if _, err := os.Stat(destFile); err == nil {
@@ -1238,25 +1238,25 @@ func (s *Server) handleOrganize(w http.ResponseWriter, r *http.Request) {
 				if _, err := os.Stat(destFile); err == nil {
 					base := strings.TrimSuffix(filepath.Base(destFile), filepath.Ext(destFile))
 					ext := filepath.Ext(destFile)
-					destFile = filepath.Join(filepath.Dir(destFile), 
+					destFile = filepath.Join(filepath.Dir(destFile),
 						fmt.Sprintf("%s_%d%s", base, time.Now().Unix(), ext))
 				}
 			}
-			
+
 			copyFile(path, destFile)
 			if req.Options.HandleConflicts == "overwrite" || req.Options.HandleConflicts == "rename" {
 				os.Remove(path)
 			}
 		}
-		
+
 		return nil
 	})
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
-		"operation_id":     uuid.New().String(),
+		"operation_id":      uuid.New().String(),
 		"organization_plan": organizationPlan,
 		"estimated_time_ms": len(organizationPlan) * 50,
-		"conflicts":        conflicts,
+		"conflicts":         conflicts,
 	})
 }
 
@@ -1265,7 +1265,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("query")
 	searchType := r.URL.Query().Get("search_type")
 	searchPath := r.URL.Query().Get("path")
-	
+
 	if searchType == "" {
 		searchType = "filename"
 	}
@@ -1290,9 +1290,9 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 				log.Printf("Error accessing path %s: %v", path, err)
 				return nil
 			}
-			
+
 			filesChecked++
-			
+
 			// Check if filename matches query
 			if strings.Contains(strings.ToLower(info.Name()), strings.ToLower(query)) {
 				result := map[string]interface{}{
@@ -1307,15 +1307,15 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 				}
 				results = append(results, result)
 			}
-			
+
 			return nil
 		})
-		
+
 		if err != nil {
 			log.Printf("Error walking directory for search: %v", err)
 		}
 	}
-	
+
 	log.Printf("Search complete: checked %d files, found %d matches for query '%s'", filesChecked, len(results), query)
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
@@ -1389,7 +1389,7 @@ func (s *Server) handleRelationshipMapping(w http.ResponseWriter, r *http.Reques
 	}
 
 	relationships := make([]map[string]interface{}, 0)
-	
+
 	// Analyze each file for relationships
 	for _, filePath := range req.FilePaths {
 		info, err := os.Stat(filePath)
@@ -1398,8 +1398,8 @@ func (s *Server) handleRelationshipMapping(w http.ResponseWriter, r *http.Reques
 		}
 
 		rel := map[string]interface{}{
-			"file": filePath,
-			"type": "file",
+			"file":          filePath,
+			"type":          "file",
 			"relationships": []map[string]interface{}{},
 		}
 
@@ -1408,8 +1408,8 @@ func (s *Server) handleRelationshipMapping(w http.ResponseWriter, r *http.Reques
 		if ext == ".zip" || ext == ".tar" || ext == ".gz" {
 			rel["type"] = "archive"
 			rel["relationships"] = append(rel["relationships"].([]map[string]interface{}), map[string]interface{}{
-				"type": "contains",
-				"target": "multiple files",
+				"type":     "contains",
+				"target":   "multiple files",
 				"strength": 1.0,
 			})
 		}
@@ -1426,8 +1426,8 @@ func (s *Server) handleRelationshipMapping(w http.ResponseWriter, r *http.Reques
 			for _, match := range matches {
 				if match != filePath {
 					rel["relationships"] = append(rel["relationships"].([]map[string]interface{}), map[string]interface{}{
-						"type": "similar_to",
-						"target": match,
+						"type":     "similar_to",
+						"target":   match,
 						"strength": 0.8,
 					})
 				}
@@ -1439,8 +1439,8 @@ func (s *Server) handleRelationshipMapping(w http.ResponseWriter, r *http.Reques
 			entries, _ := os.ReadDir(filePath)
 			for _, entry := range entries {
 				rel["relationships"] = append(rel["relationships"].([]map[string]interface{}), map[string]interface{}{
-					"type": "contains",
-					"target": filepath.Join(filePath, entry.Name()),
+					"type":     "contains",
+					"target":   filepath.Join(filePath, entry.Name()),
 					"strength": 1.0,
 				})
 			}
@@ -1450,9 +1450,9 @@ func (s *Server) handleRelationshipMapping(w http.ResponseWriter, r *http.Reques
 	}
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
-		"operation_id": uuid.New().String(),
-		"relationships": relationships,
-		"total_files": len(req.FilePaths),
+		"operation_id":   uuid.New().String(),
+		"relationships":  relationships,
+		"total_files":    len(req.FilePaths),
 		"analysis_depth": req.Depth,
 	})
 }
@@ -1496,13 +1496,13 @@ func (s *Server) handleStorageOptimization(w http.ResponseWriter, r *http.Reques
 						// Estimate 50% compression ratio for text files
 						potentialSavings := info.Size() / 2
 						savingsBytes += potentialSavings
-						
+
 						recommendations = append(recommendations, map[string]interface{}{
-							"type": "compression",
-							"file": path,
-							"current_size": info.Size(),
+							"type":              "compression",
+							"file":              path,
+							"current_size":      info.Size(),
 							"estimated_savings": potentialSavings,
-							"recommendation": "Compress with gzip",
+							"recommendation":    "Compress with gzip",
 						})
 						break
 					}
@@ -1513,10 +1513,10 @@ func (s *Server) handleStorageOptimization(w http.ResponseWriter, r *http.Reques
 			if req.Options.CleanupSuggestions {
 				if time.Since(info.ModTime()) > 90*24*time.Hour {
 					recommendations = append(recommendations, map[string]interface{}{
-						"type": "cleanup",
-						"file": path,
-						"last_modified": info.ModTime(),
-						"size": info.Size(),
+						"type":           "cleanup",
+						"file":           path,
+						"last_modified":  info.ModTime(),
+						"size":           info.Size(),
 						"recommendation": "Archive old file",
 					})
 				}
@@ -1524,9 +1524,9 @@ func (s *Server) handleStorageOptimization(w http.ResponseWriter, r *http.Reques
 				// Check for large log files
 				if strings.HasSuffix(path, ".log") && info.Size() > 100*1024*1024 {
 					recommendations = append(recommendations, map[string]interface{}{
-						"type": "cleanup",
-						"file": path,
-						"size": info.Size(),
+						"type":           "cleanup",
+						"file":           path,
+						"size":           info.Size(),
 						"recommendation": "Rotate or truncate large log file",
 					})
 				}
@@ -1538,15 +1538,15 @@ func (s *Server) handleStorageOptimization(w http.ResponseWriter, r *http.Reques
 
 	// Generate summary
 	summary := map[string]interface{}{
-		"total_size_bytes": totalSize,
+		"total_size_bytes":        totalSize,
 		"potential_savings_bytes": savingsBytes,
-		"file_type_distribution": fileTypes,
+		"file_type_distribution":  fileTypes,
 	}
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
-		"operation_id": uuid.New().String(),
-		"recommendations": recommendations,
-		"summary": summary,
+		"operation_id":          uuid.New().String(),
+		"recommendations":       recommendations,
+		"summary":               summary,
 		"total_recommendations": len(recommendations),
 	})
 }
@@ -1568,7 +1568,7 @@ func (s *Server) handleAccessPatternAnalysis(w http.ResponseWriter, r *http.Requ
 	}
 
 	patterns := make([]map[string]interface{}, 0)
-	
+
 	for _, filePath := range req.FilePaths {
 		info, err := os.Stat(filePath)
 		if err != nil {
@@ -1577,16 +1577,16 @@ func (s *Server) handleAccessPatternAnalysis(w http.ResponseWriter, r *http.Requ
 
 		// Analyze access pattern
 		pattern := map[string]interface{}{
-			"file": filePath,
-			"size": info.Size(),
-			"last_modified": info.ModTime(),
+			"file":           filePath,
+			"size":           info.Size(),
+			"last_modified":  info.ModTime(),
 			"access_metrics": map[string]interface{}{},
 		}
 
 		// Calculate access frequency based on modification time
 		daysSinceModified := time.Since(info.ModTime()).Hours() / 24
 		accessFrequency := "unknown"
-		
+
 		if daysSinceModified < 1 {
 			accessFrequency = "very_high"
 		} else if daysSinceModified < 7 {
@@ -1604,8 +1604,8 @@ func (s *Server) handleAccessPatternAnalysis(w http.ResponseWriter, r *http.Requ
 		if req.Options.IncludeMetrics {
 			pattern["access_metrics"] = map[string]interface{}{
 				"days_since_modified": int(daysSinceModified),
-				"file_age_days": int(time.Since(info.ModTime()).Hours() / 24),
-				"size_category": categorizeSize(info.Size()),
+				"file_age_days":       int(time.Since(info.ModTime()).Hours() / 24),
+				"size_category":       categorizeSize(info.Size()),
 			}
 		}
 
@@ -1623,9 +1623,9 @@ func (s *Server) handleAccessPatternAnalysis(w http.ResponseWriter, r *http.Requ
 	}
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
-		"operation_id": uuid.New().String(),
-		"access_patterns": patterns,
-		"analysis_period": req.Period,
+		"operation_id":         uuid.New().String(),
+		"access_patterns":      patterns,
+		"analysis_period":      req.Period,
 		"total_files_analyzed": len(patterns),
 	})
 }
@@ -1635,9 +1635,9 @@ func (s *Server) handleIntegrityMonitoring(w http.ResponseWriter, r *http.Reques
 	var req struct {
 		FilePaths []string `json:"file_paths"`
 		Options   struct {
-			VerifyChecksums   bool `json:"verify_checksums"`
-			DetectCorruption  bool `json:"detect_corruption"`
-			CreateBaseline    bool `json:"create_baseline"`
+			VerifyChecksums  bool `json:"verify_checksums"`
+			DetectCorruption bool `json:"detect_corruption"`
+			CreateBaseline   bool `json:"create_baseline"`
 		} `json:"options"`
 	}
 
@@ -1651,7 +1651,7 @@ func (s *Server) handleIntegrityMonitoring(w http.ResponseWriter, r *http.Reques
 
 	for _, filePath := range req.FilePaths {
 		result := map[string]interface{}{
-			"file": filePath,
+			"file":   filePath,
 			"status": "ok",
 			"issues": []string{},
 		}
@@ -1670,7 +1670,7 @@ func (s *Server) handleIntegrityMonitoring(w http.ResponseWriter, r *http.Reques
 		if req.Options.VerifyChecksums {
 			checksum := calculateFileChecksum(filePath, "sha256")
 			result["checksum_sha256"] = checksum
-			
+
 			// Store baseline if requested
 			if req.Options.CreateBaseline {
 				// In a real implementation, this would store in database
@@ -1690,7 +1690,7 @@ func (s *Server) handleIntegrityMonitoring(w http.ResponseWriter, r *http.Reques
 			// Check for suspicious permissions
 			mode := info.Mode()
 			if mode.Perm() == 0 {
-				result["status"] = "warning"  
+				result["status"] = "warning"
 				result["issues"] = append(result["issues"].([]string), "File has no permissions")
 				issuesFound++
 			}
@@ -1698,8 +1698,8 @@ func (s *Server) handleIntegrityMonitoring(w http.ResponseWriter, r *http.Reques
 
 		// Add file metadata
 		result["metadata"] = map[string]interface{}{
-			"size": info.Size(),
-			"modified": info.ModTime(),
+			"size":        info.Size(),
+			"modified":    info.ModTime(),
 			"permissions": info.Mode().String(),
 		}
 
@@ -1715,11 +1715,11 @@ func (s *Server) handleIntegrityMonitoring(w http.ResponseWriter, r *http.Reques
 	}
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
-		"operation_id": uuid.New().String(),
+		"operation_id":       uuid.New().String(),
 		"monitoring_results": results,
-		"total_files": len(req.FilePaths),
-		"issues_found": issuesFound,
-		"alert_level": alertLevel,
+		"total_files":        len(req.FilePaths),
+		"issues_found":       issuesFound,
+		"alert_level":        alertLevel,
 	})
 }
 

@@ -341,8 +341,40 @@ class DeviceSyncApp {
   }
 
   // Settings modal
-  toggleSettings() {
+  async toggleSettings() {
+    const isHidden = this.elements.settingsModal.classList.contains('hidden');
     this.elements.settingsModal.classList.toggle('hidden');
+
+    // Load fresh statistics when opening settings
+    if (isHidden) {
+      await this.loadSettingsAndStats();
+    }
+  }
+
+  async loadSettingsAndStats() {
+    try {
+      const settings = await this.apiClient.getSettings();
+
+      // Update max file size display
+      if (settings.max_file_size_mb) {
+        document.getElementById('max-file-size').textContent = `${settings.max_file_size_mb} MB`;
+      }
+
+      // Update usage statistics
+      if (settings.user_stats) {
+        const stats = settings.user_stats;
+        document.getElementById('stat-total-items').textContent = stats.total_items || 0;
+        document.getElementById('stat-storage-used').textContent =
+          `${(stats.total_size_mb || 0).toFixed(2)} MB`;
+        document.getElementById('stat-files').textContent = stats.files_count || 0;
+        const textClipboard = (stats.text_count || 0) + (stats.clipboard_count || 0);
+        document.getElementById('stat-text-clipboard').textContent = textClipboard;
+        document.getElementById('stat-expires-soon').textContent = stats.expires_soon_count || 0;
+      }
+    } catch (error) {
+      console.error('Failed to load settings and stats:', error);
+      this.showToast('Failed to load statistics', 'error');
+    }
   }
 
   // Continue with implementation in next part...

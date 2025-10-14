@@ -1,3 +1,23 @@
+import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+(function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window.parent === window || window.__productManagerBridgeInitialized) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[ProductManagerAgent] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'product-manager-agent' });
+    window.__productManagerBridgeInitialized = true;
+})();
+
 // Product Manager Agent - Main Application
 const API_URL = `http://localhost:${window.location.port === '4200' ? '9200' : window.location.port - 1000}`;
 

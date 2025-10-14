@@ -6,6 +6,13 @@
     <title>Fall Foliage Explorer - Track Autumn's Beauty</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
 </head>
 <body>
     <div class="app-container">
@@ -206,6 +213,6 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>

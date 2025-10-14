@@ -25,6 +25,65 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// StructuredLogger provides JSON-structured logging for better observability
+type StructuredLogger struct {
+	logger *log.Logger
+}
+
+// NewStructuredLogger creates a new structured logger
+func NewStructuredLogger() *StructuredLogger {
+	return &StructuredLogger{
+		logger: log.New(os.Stdout, "", log.LstdFlags),
+	}
+}
+
+// LogEntry represents a structured log entry
+type LogEntry struct {
+	Timestamp string                 `json:"timestamp"`
+	Level     string                 `json:"level"`
+	Message   string                 `json:"message"`
+	Fields    map[string]interface{} `json:"fields,omitempty"`
+}
+
+// log outputs a structured log entry
+func (sl *StructuredLogger) log(level, message string, fields map[string]interface{}) {
+	entry := LogEntry{
+		Timestamp: time.Now().Format(time.RFC3339),
+		Level:     level,
+		Message:   message,
+		Fields:    fields,
+	}
+
+	jsonBytes, err := json.Marshal(entry)
+	if err != nil {
+		sl.logger.Printf("Error marshaling log entry: %v", err)
+		return
+	}
+
+	sl.logger.Println(string(jsonBytes))
+}
+
+// Info logs an informational message
+func (sl *StructuredLogger) Info(message string, fields map[string]interface{}) {
+	sl.log("info", message, fields)
+}
+
+// Warn logs a warning message
+func (sl *StructuredLogger) Warn(message string, fields map[string]interface{}) {
+	sl.log("warn", message, fields)
+}
+
+// Error logs an error message
+func (sl *StructuredLogger) Error(message string, fields map[string]interface{}) {
+	sl.log("error", message, fields)
+}
+
+// Fatal logs a fatal message and exits
+func (sl *StructuredLogger) Fatal(message string, fields map[string]interface{}) {
+	sl.log("fatal", message, fields)
+	os.Exit(1)
+}
+
 type Report struct {
 	ID                    string     `json:"id" db:"id"`
 	Title                 string     `json:"title" db:"title"`
@@ -125,14 +184,15 @@ type AnalysisRequest struct {
 }
 
 type APIServer struct {
-	db          *sql.DB
-	n8nURL      string
-	windmillURL string
-	searxngURL  string
-	qdrantURL   string
-	minioURL    string
-	ollamaURL   string
-	httpClient  *http.Client // Shared HTTP client with timeout for health checks
+	db            *sql.DB
+	n8nURL        string
+	windmillURL   string
+	searxngURL    string
+	qdrantURL     string
+	minioURL      string
+	ollamaURL     string
+	browserlessURL string
+	httpClient    *http.Client // Shared HTTP client with timeout for health checks
 }
 
 // ResearchDepthConfig defines search parameters for each research depth level
@@ -589,6 +649,9 @@ func (s *APIServer) triggerResearchWorkflow(reportID string, req ReportRequest) 
 }
 
 func main() {
+	// Initialize structured logger
+	logger := NewStructuredLogger()
+
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
@@ -604,7 +667,7 @@ func main() {
 	// Get port from environment - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
+		logger.Fatal("API_PORT environment variable is required", nil)
 	}
 
 	// Database configuration - support both POSTGRES_URL and individual components
@@ -618,72 +681,128 @@ func main() {
 		dbName := os.Getenv("POSTGRES_DB")
 
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+			logger.Fatal("Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD (not shown), POSTGRES_DB", nil)
 		}
 
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
 
-	// Service URLs - with defaults for local resources
+	// Service URLs - prefer explicit configuration, fall back to well-known ports
+	// Security Note: Defaults are only used when environment variables are not set.
+	// Production deployments should explicitly configure all resource URLs.
+
+	// n8n (REQUIRED) - workflow automation
 	n8nURL := os.Getenv("N8N_BASE_URL")
 	if n8nURL == "" {
 		n8nPort := os.Getenv("RESOURCE_PORT_N8N")
 		if n8nPort == "" {
-			n8nPort = "5678" // default n8n port
+			n8nPort = "5678"
+			logger.Warn("Using default port for n8n", map[string]interface{}{
+				"service": "n8n",
+				"port":    n8nPort,
+				"env_var": "RESOURCE_PORT_N8N",
+			})
 		}
 		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
 	}
 
+	// windmill (OPTIONAL) - dashboard UI
 	windmillURL := os.Getenv("WINDMILL_BASE_URL")
 	if windmillURL == "" {
 		windmillPort := os.Getenv("RESOURCE_PORT_WINDMILL")
 		if windmillPort == "" {
-			windmillPort = "8000" // default windmill port
+			windmillPort = "8000"
+			logger.Warn("Using default port for windmill", map[string]interface{}{
+				"service": "windmill",
+				"port":    windmillPort,
+				"env_var": "RESOURCE_PORT_WINDMILL",
+			})
 		}
 		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
 	}
 
+	// searxng (REQUIRED) - privacy-focused search
 	searxngURL := os.Getenv("SEARXNG_URL")
 	if searxngURL == "" {
 		searxngPort := os.Getenv("RESOURCE_PORT_SEARXNG")
 		if searxngPort == "" {
-			searxngPort = "8280" // actual searxng port in Vrooli
+			searxngPort = "8280"
+			logger.Warn("Using default port for searxng", map[string]interface{}{
+				"service": "searxng",
+				"port":    searxngPort,
+				"env_var": "RESOURCE_PORT_SEARXNG",
+			})
 		}
 		searxngURL = fmt.Sprintf("http://localhost:%s", searxngPort)
 	}
 
+	// qdrant (REQUIRED) - vector database
 	qdrantURL := os.Getenv("QDRANT_URL")
 	if qdrantURL == "" {
 		qdrantPort := os.Getenv("RESOURCE_PORT_QDRANT")
 		if qdrantPort == "" {
-			qdrantPort = "6333" // default qdrant port
+			qdrantPort = "6333"
+			logger.Warn("Using default port for qdrant", map[string]interface{}{
+				"service": "qdrant",
+				"port":    qdrantPort,
+				"env_var": "RESOURCE_PORT_QDRANT",
+			})
 		}
 		qdrantURL = fmt.Sprintf("http://localhost:%s", qdrantPort)
 	}
 
+	// minio (OPTIONAL) - object storage
 	minioURL := os.Getenv("MINIO_URL")
 	if minioURL == "" {
 		minioPort := os.Getenv("RESOURCE_PORT_MINIO")
-		if minioPort == "" {
-			minioPort = "9000" // default minio port
+		if minioPort != "" {
+			minioURL = fmt.Sprintf("http://localhost:%s", minioPort)
+		} else {
+			// minio is optional, leave URL empty if not explicitly configured
+			logger.Info("MinIO not configured (optional resource)", map[string]interface{}{
+				"service": "minio",
+				"status":  "optional_not_configured",
+			})
 		}
-		minioURL = fmt.Sprintf("http://localhost:%s", minioPort)
 	}
 
+	// ollama (REQUIRED) - AI model inference
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
 		ollamaPort := os.Getenv("RESOURCE_PORT_OLLAMA")
 		if ollamaPort == "" {
-			ollamaPort = "11434" // default ollama port
+			ollamaPort = "11434"
+			logger.Warn("Using default port for ollama", map[string]interface{}{
+				"service": "ollama",
+				"port":    ollamaPort,
+				"env_var": "RESOURCE_PORT_OLLAMA",
+			})
 		}
 		ollamaURL = fmt.Sprintf("http://localhost:%s", ollamaPort)
+	}
+
+	// browserless (OPTIONAL) - headless browser for JavaScript-heavy sites
+	browserlessURL := os.Getenv("BROWSERLESS_URL")
+	if browserlessURL == "" {
+		browserlessPort := os.Getenv("RESOURCE_PORT_BROWSERLESS")
+		if browserlessPort == "" {
+			browserlessPort = "4110"
+			logger.Warn("Using default port for browserless", map[string]interface{}{
+				"service": "browserless",
+				"port":    browserlessPort,
+				"env_var": "RESOURCE_PORT_BROWSERLESS",
+			})
+		}
+		browserlessURL = fmt.Sprintf("http://localhost:%s", browserlessPort)
 	}
 
 	// Connect to database
 	db, err := sql.Open("postgres", postgresURL)
 	if err != nil {
-		log.Fatal("Failed to open database connection:", err)
+		logger.Fatal("Failed to open database connection", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 	defer db.Close()
 
@@ -697,14 +816,19 @@ func main() {
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
 
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
+	logger.Info("Attempting database connection with exponential backoff", map[string]interface{}{
+		"max_retries": maxRetries,
+		"base_delay":  baseDelay.String(),
+		"max_delay":   maxDelay.String(),
+	})
 
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
+			logger.Info("Database connected successfully", map[string]interface{}{
+				"attempt": attempt + 1,
+			})
 			break
 		}
 
@@ -719,34 +843,45 @@ func main() {
 		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
 
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		logger.Warn("Database connection attempt failed", map[string]interface{}{
+			"attempt":      attempt + 1,
+			"max_retries":  maxRetries,
+			"error":        pingErr.Error(),
+			"next_attempt": actualDelay.String(),
+		})
 
 		// Provide detailed status every few attempts
 		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+			logger.Info("Retry progress update", map[string]interface{}{
+				"attempts_made":  attempt + 1,
+				"max_retries":    maxRetries,
+				"total_wait":     (time.Duration(attempt*2) * baseDelay).String(),
+				"current_delay":  delay.String(),
+				"jitter":         jitter.String(),
+			})
 		}
 
 		time.Sleep(actualDelay)
 	}
 
 	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+		logger.Fatal("Database connection failed after all retries", map[string]interface{}{
+			"max_retries": maxRetries,
+			"error":       pingErr.Error(),
+		})
 	}
 
-	log.Println("🎉 Database connection pool established successfully!")
+	logger.Info("Database connection pool established successfully", nil)
 
 	server := &APIServer{
-		db:          db,
-		n8nURL:      n8nURL,
-		windmillURL: windmillURL,
-		searxngURL:  searxngURL,
-		qdrantURL:   qdrantURL,
-		minioURL:    minioURL,
-		ollamaURL:   ollamaURL,
+		db:             db,
+		n8nURL:         n8nURL,
+		windmillURL:    windmillURL,
+		searxngURL:     searxngURL,
+		qdrantURL:      qdrantURL,
+		minioURL:       minioURL,
+		ollamaURL:      ollamaURL,
+		browserlessURL: browserlessURL,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second, // Timeout for health checks and short operations
 		},
@@ -786,6 +921,7 @@ func main() {
 	api.HandleFunc("/search", server.performSearch).Methods("POST")
 	api.HandleFunc("/search/history", server.getSearchHistory).Methods("GET")
 	api.HandleFunc("/detect-contradictions", server.detectContradictions).Methods("POST")
+	api.HandleFunc("/extract-content", server.extractWebContent).Methods("POST")
 
 	// Analysis endpoints
 	api.HandleFunc("/analyze", server.analyzeContent).Methods("POST")
@@ -805,14 +941,16 @@ func main() {
 	api.HandleFunc("/templates", server.getTemplates).Methods("GET")
 	api.HandleFunc("/depth-configs", server.getDepthConfigs).Methods("GET")
 
-	log.Printf("🚀 Research Assistant API starting on port %s", port)
-	log.Printf("🗄️ Database: %s", postgresURL)
-	log.Printf("🤖 n8n: %s", n8nURL)
-	log.Printf("💨 Windmill: %s", windmillURL)
-	log.Printf("🔍 SearXNG: %s", searxngURL)
-	log.Printf("🧠 Qdrant: %s", qdrantURL)
-	log.Printf("📦 MinIO: %s", minioURL)
-	log.Printf("🦙 Ollama: %s", ollamaURL)
+	logger.Info("Research Assistant API starting", map[string]interface{}{
+		"port":          port,
+		"database":      postgresURL,
+		"n8n_url":       n8nURL,
+		"windmill_url":  windmillURL,
+		"searxng_url":   searxngURL,
+		"qdrant_url":    qdrantURL,
+		"minio_url":     minioURL,
+		"ollama_url":    ollamaURL,
+	})
 
 	handler := corsHandler(router)
 
@@ -828,7 +966,9 @@ func main() {
 	// Run server in goroutine
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+			logger.Fatal("Server error", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
 	}()
 
@@ -837,7 +977,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("🛑 Shutting down server gracefully...")
+	logger.Info("Shutting down server gracefully", nil)
 
 	// Create shutdown context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -845,15 +985,19 @@ func main() {
 
 	// Attempt graceful shutdown
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("⚠️  Server forced to shutdown: %v", err)
+		logger.Warn("Server forced to shutdown", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 
 	// Close database connection
 	if err := db.Close(); err != nil {
-		log.Printf("⚠️  Error closing database: %v", err)
+		logger.Warn("Error closing database", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 
-	log.Println("✅ Server stopped")
+	logger.Info("Server stopped", nil)
 }
 
 // getEnv removed to prevent hardcoded defaults
@@ -865,12 +1009,13 @@ func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
 		"status":    "healthy",
 		"timestamp": time.Now().Unix(),
 		"services": map[string]interface{}{
-			"database": s.checkDatabase(),
-			"n8n":      s.checkN8N(),
-			"windmill": s.checkWindmill(),
-			"searxng":  s.checkSearXNG(),
-			"qdrant":   s.checkQdrant(),
-			"ollama":   s.checkOllama(),
+			"database":    s.checkDatabase(),
+			"n8n":         s.checkN8N(),
+			"windmill":    s.checkWindmill(),
+			"searxng":     s.checkSearXNG(),
+			"qdrant":      s.checkQdrant(),
+			"ollama":      s.checkOllama(),
+			"browserless": s.checkBrowserless(),
 		},
 	}
 
@@ -942,6 +1087,23 @@ func (s *APIServer) checkQdrant() string {
 
 func (s *APIServer) checkOllama() string {
 	resp, err := s.httpClient.Get(s.ollamaURL + "/api/tags")
+	if err != nil {
+		return "unavailable"
+	}
+	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
+
+	if resp.StatusCode != http.StatusOK {
+		return "unavailable"
+	}
+	return "healthy"
+}
+
+func (s *APIServer) checkBrowserless() string {
+	if s.browserlessURL == "" {
+		return "not_configured"
+	}
+	resp, err := s.httpClient.Get(s.browserlessURL + "/pressure")
 	if err != nil {
 		return "unavailable"
 	}
@@ -1585,6 +1747,97 @@ func (s *APIServer) detectContradictions(w http.ResponseWriter, r *http.Request)
 		"claims_analyzed": len(claims),
 		"topic":           req.Topic,
 		"warning":         "This endpoint is synchronous and may take 30-60+ seconds for multiple results. Consider implementing async job processing for production use.",
+	})
+}
+
+// extractWebContent uses Browserless to extract content from JavaScript-heavy websites
+func (s *APIServer) extractWebContent(w http.ResponseWriter, r *http.Request) {
+	if s.browserlessURL == "" {
+		http.Error(w, "Browserless service not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		URL            string `json:"url"`
+		WaitForSelector string `json:"wait_for_selector"`
+		Timeout        int    `json:"timeout"` // milliseconds
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.URL == "" {
+		http.Error(w, "URL is required", http.StatusBadRequest)
+		return
+	}
+
+	// Default timeout of 30 seconds
+	if req.Timeout == 0 {
+		req.Timeout = 30000
+	}
+
+	// Use Browserless content endpoint to get rendered HTML
+	browserlessReq := map[string]interface{}{
+		"url": req.URL,
+		"gotoOptions": map[string]interface{}{
+			"waitUntil": "networkidle0",
+			"timeout":   req.Timeout,
+		},
+	}
+
+	if req.WaitForSelector != "" {
+		browserlessReq["waitForSelector"] = map[string]interface{}{
+			"selector": req.WaitForSelector,
+			"timeout":  req.Timeout,
+		}
+	}
+
+	reqBody, err := json.Marshal(browserlessReq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: time.Duration(req.Timeout+5000) * time.Millisecond, // Add 5s buffer
+	}
+
+	browserlessURL := s.browserlessURL + "/chrome/content"
+	httpReq, err := http.NewRequest("POST", browserlessURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Browserless request failed: %v", err), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		http.Error(w, fmt.Sprintf("Browserless returned status %d: %s", resp.StatusCode, string(bodyBytes)), http.StatusBadGateway)
+		return
+	}
+
+	// Read and parse the content response
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"url":     req.URL,
+		"content": string(bodyBytes),
+		"status":  "success",
 	})
 }
 

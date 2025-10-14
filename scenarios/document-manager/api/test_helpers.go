@@ -231,6 +231,9 @@ func findSubstring(s, substr string) bool {
 // mockHTTPServer creates a mock HTTP server for testing external dependencies
 func mockHTTPServer(t *testing.T, statusCode int, responseBody string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if responseBody != "" {
+			w.Header().Set("Content-Type", "application/json")
+		}
 		w.WriteHeader(statusCode)
 		if responseBody != "" {
 			w.Write([]byte(responseBody))

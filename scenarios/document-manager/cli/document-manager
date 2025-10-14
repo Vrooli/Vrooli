@@ -5,17 +5,41 @@
 set -euo pipefail
 
 # Configuration
-# Check if API is running and auto-detect port
-API_PORT=""
-for port in 17810 17789 17787 17785 8090; do
-    if curl -sf "http://localhost:$port/health" >/dev/null 2>&1; then
-        API_PORT="$port"
-        break
+# Try multiple detection strategies in order of preference
+
+# Strategy 1: Check for running document-manager process and extract port (most reliable)
+if pgrep -f "document-manager-api" >/dev/null 2>&1; then
+    # Get PID of document-manager-api process
+    API_PID=$(pgrep -f "document-manager-api" | head -1)
+    # Extract port from lsof for that specific PID, filtering for document-manager process name
+    DETECTED_PORT=$(lsof -iTCP -sTCP:LISTEN -n -P -p "$API_PID" -a 2>/dev/null | awk '$1 ~ /document/ {print $9}' | cut -d':' -f2 | head -1)
+    # Verify the detected port works and it's document-manager
+    if [ -n "$DETECTED_PORT" ] && curl -sf "http://localhost:$DETECTED_PORT/health" 2>/dev/null | grep -q "document-manager"; then
+        :  # Port is valid, keep it
+    else
+        DETECTED_PORT=""
     fi
-done
+# Strategy 2: Use API_PORT environment variable if set (from vrooli lifecycle)
+elif [ -n "${API_PORT:-}" ] && curl -sf "http://localhost:${API_PORT}/health" 2>/dev/null | grep -q "document-manager"; then
+    DETECTED_PORT="$API_PORT"
+else
+    # Strategy 3: Try DOCUMENT_MANAGER_API_PORT environment variable
+    if [ -n "${DOCUMENT_MANAGER_API_PORT:-}" ] && curl -sf "http://localhost:${DOCUMENT_MANAGER_API_PORT}/health" 2>/dev/null | grep -q "document-manager"; then
+        DETECTED_PORT="$DOCUMENT_MANAGER_API_PORT"
+    else
+        # Strategy 4: Auto-detect by checking common ports
+        DETECTED_PORT=""
+        for port in 17810 17789 17787 17785 17776 8090; do
+            if curl -sf "http://localhost:$port/health" 2>/dev/null | grep -q "document-manager"; then
+                DETECTED_PORT="$port"
+                break
+            fi
+        done
+    fi
+fi
 
 # Fallback to environment or default if not detected
-API_PORT="${API_PORT:-${DOCUMENT_MANAGER_API_PORT:-8090}}"
+API_PORT="${DETECTED_PORT:-${DOCUMENT_MANAGER_API_PORT:-8090}}"
 API_BASE_URL="${DOCUMENT_MANAGER_API_URL:-http://localhost:${API_PORT}}"
 VERSION="2.0.0"
 

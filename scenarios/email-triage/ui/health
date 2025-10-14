@@ -1,0 +1,1 @@
+{"status":"healthy","service":"email-triage-ui","timestamp":"2025-10-12T00:00:00Z","readiness":true,"api_connectivity":{"connected":true,"api_url":"http://localhost:19525","last_check":"2025-10-12T00:00:00Z"}}

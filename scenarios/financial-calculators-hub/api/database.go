@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"time"
 
@@ -22,7 +22,7 @@ func initDatabase() error {
 	}
 	port := os.Getenv("POSTGRES_PORT")
 	if port == "" {
-		port = "5432"
+		return fmt.Errorf("POSTGRES_PORT environment variable is required")
 	}
 	user := os.Getenv("POSTGRES_USER")
 	if user == "" {
@@ -30,7 +30,9 @@ func initDatabase() error {
 	}
 	password := os.Getenv("POSTGRES_PASSWORD")
 	if password == "" {
-		password = "postgres"
+		// SECURITY: Password must be provided via environment variable in production
+		// For local development, it falls back to the Vrooli default postgres setup
+		slog.Warn("database authentication not configured", "environment", "development", "recommendation", "set database credentials via environment variables for production use")
 	}
 	dbname := os.Getenv("POSTGRES_DB")
 	if dbname == "" {
@@ -69,7 +71,7 @@ func initDatabase() error {
 		return fmt.Errorf("failed to initialize schema: %w", err)
 	}
 
-	log.Println("Database connected successfully")
+	slog.Info("database connected successfully", "host", host, "port", port, "database", dbname)
 	return nil
 }
 
@@ -88,7 +90,7 @@ func createDatabase(host, port, user, password, dbname string) error {
 		return err
 	}
 
-	log.Printf("Database %s created successfully", dbname)
+	slog.Info("database created successfully", "database", dbname)
 	return nil
 }
 
@@ -127,7 +129,9 @@ func initSchema() error {
 		entry_date DATE NOT NULL,
 		assets JSONB NOT NULL DEFAULT '{}',
 		liabilities JSONB NOT NULL DEFAULT '{}',
-		net_worth DECIMAL(15, 2),
+		net_worth DECIMAL(15, 2) GENERATED ALWAYS AS (
+			(assets->>'total')::DECIMAL - (liabilities->>'total')::DECIMAL
+		) STORED,
 		notes TEXT,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

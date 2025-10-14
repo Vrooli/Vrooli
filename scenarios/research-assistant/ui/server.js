@@ -3,8 +3,19 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT;
-const API_URL = process.env.API_URL || 'http://localhost:27750';
+
+// Fail fast when critical environment variables are missing
+const PORT = process.env.UI_PORT;
+if (!PORT) {
+    console.error('❌ UI_PORT environment variable is required');
+    process.exit(1);
+}
+
+const API_URL = process.env.API_URL;
+if (!API_URL) {
+    console.error('❌ API_URL environment variable is required');
+    process.exit(1);
+}
 
 // Middleware
 app.use(cors());

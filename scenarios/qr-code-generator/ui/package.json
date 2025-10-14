@@ -5,9 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh PORT=3100 node server.js'"
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh PORT=3100 node server.js'",
+    "postinstall": "bash -c 'mkdir -p node_modules/@vrooli && ln -snf ../../../../../packages/iframe-bridge node_modules/@vrooli/iframe-bridge'"
   },
   "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "express": "^4.18.2"
   }
 }

@@ -414,7 +414,7 @@ func TestHealthCheckEdgeCases(t *testing.T) {
 	server := setupTestServer()
 
 	t.Run("HealthCheckWithDegradedServices", func(t *testing.T) {
-		resp, body, err := makeHTTPRequest(server.app, "GET", "/api/v1/health", nil, nil)
+		resp, body, err := makeHTTPRequest(server.app, "GET", "/health", nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -442,7 +442,7 @@ func TestHealthCheckEdgeCases(t *testing.T) {
 	})
 
 	t.Run("HealthCheckMetrics", func(t *testing.T) {
-		resp, body, err := makeHTTPRequest(server.app, "GET", "/api/v1/health", nil, nil)
+		resp, body, err := makeHTTPRequest(server.app, "GET", "/health", nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}

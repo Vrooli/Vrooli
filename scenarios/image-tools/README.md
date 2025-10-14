@@ -1,15 +1,16 @@
 # 🖼️ Image Tools - Digital Darkroom
 
-> **Status**: ✅ In Production | **Version**: 1.0.0 | **Completion**: 85%
+> **Status**: ✅ Production Ready | **Version**: 1.0.0 | **Tests**: 7/7 Passing
 
 A comprehensive image manipulation toolkit with a unique retro photo lab aesthetic. Provides image compression, resizing, format conversion, and metadata management through API, CLI, and web interfaces.
 
 ## 📊 Current State
-- **P0 Requirements**: 7/8 completed (87.5%)
+- **P0 Requirements**: 8/8 completed (100%)
 - **API**: Fully functional with MinIO storage integration
 - **CLI**: Complete with all commands implemented
-- **UI**: Running with retro aesthetic (preview enhancement needed)
-- **Performance**: Exceeds targets (7ms response, 10MB memory)
+- **UI**: Running with retro aesthetic and live preview
+- **Performance**: Exceeds targets (6ms response, 11MB memory)
+- **Test Suite**: 7 phases, all passing (Dependencies, Structure, Unit, Integration, Business, Performance, Smoke)
 
 ## 🎨 Visual Style
 
@@ -93,14 +94,17 @@ Image Tools provides essential asset optimization for:
 ## 🚦 Running the Scenario
 
 ```bash
-# Start the scenario
-vrooli scenario run image-tools
+# Preferred: Use Makefile commands
+make start         # Start scenario through lifecycle system
+make test          # Run comprehensive test suite
+make logs          # View scenario logs
+make stop          # Stop scenario gracefully
+make status        # Check runtime status
 
-# Run tests
-vrooli scenario test image-tools
-
-# Check status
-image-tools status
+# Alternative: Direct CLI commands
+vrooli scenario start image-tools    # Start via CLI
+vrooli scenario test image-tools     # Test via CLI
+image-tools status                   # Check CLI status
 ```
 
 ## 🎯 Use Cases

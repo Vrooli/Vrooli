@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/joho/godotenv"
@@ -18,9 +19,10 @@ var db *sql.DB
 
 // Health response types
 type HealthResponse struct {
-	Status    string `json:"status"`
-	Service   string `json:"service"`
-	Timestamp string `json:"timestamp"`
+	Status    string          `json:"status"`
+	Service   string          `json:"service"`
+	Timestamp string          `json:"timestamp"`
+	Readiness bool            `json:"readiness"`
 	Checks    map[string]bool `json:"checks,omitempty"`
 }
 
@@ -128,6 +130,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		Status:    "healthy",
 		Service:   "date-night-planner",
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Readiness: true,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
@@ -362,7 +365,7 @@ func surpriseDateHandler(w http.ResponseWriter, r *http.Request) {
 		Activities:       req.DateSuggestion.Activities,
 		EstimatedCost:    req.DateSuggestion.EstimatedCost,
 		EstimatedDuration: req.DateSuggestion.EstimatedDuration,
-		Status:           "surprise_pending",
+		Status:           "planned",
 		IsSurprise:       true,
 		PlannedBy:        req.PlannedBy,
 		RevealDate:       revealDate,
@@ -387,7 +390,7 @@ func surpriseDateHandler(w http.ResponseWriter, r *http.Request) {
 	// Return response with surprise details hidden
 	response := map[string]interface{}{
 		"surprise_id": datePlan.ID,
-		"status": "surprise_created",
+		"status": "planned",
 		"planned_date": datePlan.PlannedDate,
 		"planner_id": req.PlannedBy,
 		"reveal_time": revealDate,
@@ -425,7 +428,7 @@ func getSurpriseHandler(w http.ResponseWriter, r *http.Request) {
 		},
 		EstimatedCost:    150,
 		EstimatedDuration: "4 hours",
-		Status:           "surprise_pending",
+		Status:           "planned",
 		IsSurprise:       true,
 		PlannedBy:        "partner-1",
 	}
@@ -437,7 +440,7 @@ func getSurpriseHandler(w http.ResponseWriter, r *http.Request) {
 	if !canViewDetails {
 		response := map[string]interface{}{
 			"surprise_id": surpriseID,
-			"status": "surprise_pending",
+			"status": "planned",
 			"planned_date": datePlan.PlannedDate,
 			"message": "This is a surprise! Details will be revealed soon.",
 		}
@@ -698,23 +701,45 @@ func generateDynamicSuggestions(req DateSuggestionRequest) []DateSuggestion {
 	return suggestions
 }
 
-// Helper function to generate UUID (simplified)
+// Helper function to generate UUID
 func generateUUID() string {
-	return fmt.Sprintf("%d-%d-%d-%d-%d",
-		time.Now().Unix(),
-		time.Now().Nanosecond(),
-		os.Getpid(),
-		time.Now().UnixNano()%1000,
-		time.Now().UnixNano()%10000,
-	)
+	return uuid.New().String()
 }
 
-// CORS middleware
+// CORS middleware with restricted origin
 func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Get UI port from environment, default to port range 35000-39999
+		uiPort := os.Getenv("UI_PORT")
+		if uiPort == "" {
+			uiPort = "35000" // Default from service.json range
+		}
+
+		// Allow origin from UI and localhost variations
+		origin := r.Header.Get("Origin")
+		allowedOrigins := []string{
+			"http://localhost:" + uiPort,
+			"http://127.0.0.1:" + uiPort,
+		}
+
+		// Check if origin is in allowed list
+		originAllowed := false
+		for _, allowed := range allowedOrigins {
+			if origin == allowed {
+				originAllowed = true
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
+
+		// If no origin header or not in development, allow localhost by default
+		if !originAllowed && origin == "" {
+			w.Header().Set("Access-Control-Allow-Origin", "http://localhost:"+uiPort)
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -726,6 +751,19 @@ func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
+	// Lifecycle protection: ensure this binary is run through Vrooli lifecycle system
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start date-night-planner
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
 	// Load environment variables
 	godotenv.Load()
 

@@ -8,9 +8,31 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-# Get API URL from environment or use default
-API_URL="${API_URL:-http://localhost:17810}"
-UI_URL="${UI_URL:-http://localhost:38106}"
+# Get API URL from environment or auto-detect from running service
+if [ -z "$API_PORT" ]; then
+    # Try to detect from running document-manager process
+    if pgrep -f "document-manager-api" >/dev/null 2>&1; then
+        API_PID=$(pgrep -f "document-manager-api" | head -1)
+        DETECTED_API_PORT=$(lsof -iTCP -sTCP:LISTEN -n -P -p "$API_PID" -a 2>/dev/null | awk '$1 ~ /document/ {print $9}' | cut -d':' -f2 | head -1)
+        API_PORT="${DETECTED_API_PORT:-17810}"
+    else
+        API_PORT="17810"
+    fi
+fi
+
+if [ -z "$UI_PORT" ]; then
+    # Try to detect UI port from running Node process
+    UI_PID=$(pgrep -f "document-manager.*server.js" | head -1)
+    if [ -n "$UI_PID" ]; then
+        DETECTED_UI_PORT=$(lsof -iTCP -sTCP:LISTEN -n -P -p "$UI_PID" -a 2>/dev/null | grep LISTEN | awk '{print $9}' | cut -d':' -f2 | head -1)
+        UI_PORT="${DETECTED_UI_PORT:-38106}"
+    else
+        UI_PORT="38106"
+    fi
+fi
+
+API_URL="${API_URL:-http://localhost:${API_PORT}}"
+UI_URL="${UI_URL:-http://localhost:${UI_PORT}}"
 
 # Test counter
 TESTS_PASSED=0

@@ -29,14 +29,18 @@ Device Sync Hub solves the daily friction of moving files and text between devic
 
 ```bash
 # Start the Device Sync Hub scenario
-vrooli scenario run device-sync-hub
+vrooli scenario start device-sync-hub
 # Or using Makefile:
-cd scenarios/device-sync-hub && make run
+cd scenarios/device-sync-hub && make start
 
-# Access points:
-# - API: http://localhost:17564
-# - Web UI: http://localhost:37181  
+# The lifecycle system will display access URLs with dynamically allocated ports
+# Example output:
+# - API: http://localhost:17402
+# - Web UI: http://localhost:37155
 # - CLI: device-sync-hub --help
+
+# Check current ports and status:
+vrooli scenario status device-sync-hub
 ```
 
 ### 2. Authentication Setup
@@ -53,7 +57,7 @@ scenario-authenticator user create user@example.com MyPassword123! user
 
 ### 3. Web Interface
 
-Visit `http://localhost:37181` on any device and:
+Visit the UI URL displayed in the status output (typically `http://localhost:37155`) on any device and:
 
 1. Login with your credentials
 2. Upload files via drag-and-drop or tap to select
@@ -63,12 +67,12 @@ Visit `http://localhost:37181` on any device and:
 ### 4. CLI Usage
 
 ```bash
-# Configure CLI environment
-export API_URL=http://localhost:17564
+# Configure CLI environment (use ports from status output)
+export API_URL=http://localhost:17402
 export AUTH_URL=http://localhost:15785
 
 # Or use with environment variables directly:
-API_URL=http://localhost:17564 AUTH_URL=http://localhost:15785 device-sync-hub status
+API_URL=http://localhost:17402 AUTH_URL=http://localhost:15785 device-sync-hub status
 
 # Upload a file
 device-sync-hub upload photo.jpg
@@ -81,6 +85,12 @@ device-sync-hub upload-text "$(pbpaste)" --clipboard
 
 # List all synced items
 device-sync-hub list
+
+# Filter items by type
+device-sync-hub list --filter file
+
+# Search for specific content
+device-sync-hub list --search "meeting notes"
 
 # Download an item
 device-sync-hub download a1b2c3d4-e5f6-7890-abcd-ef1234567890
@@ -97,7 +107,7 @@ To access from devices outside your local network:
 
 1. **Setup secure tunnel** (you handle this part)
    - Use ngrok, Cloudflare Tunnel, or similar
-   - Point to `localhost:37181` (UI) and `localhost:17564` (API)
+   - Point to dynamic ports from `vrooli scenario status device-sync-hub` (e.g. UI: 37155, API: 17402)
 
 2. **Access from mobile device**
    - Visit your tunnel URL in mobile browser
@@ -114,8 +124,8 @@ To access from devices outside your local network:
 
 ### Services
 
-- **API Server** (Port 3300): Node.js/Express with WebSocket support
-- **Web UI** (Port 3301): Mobile-first responsive interface  
+- **API Server**: Go-based API with WebSocket support (dynamic port allocation)
+- **Web UI**: Mobile-first responsive interface (dynamic port allocation)
 - **CLI Tool**: Full-featured command-line interface
 - **Database**: PostgreSQL for metadata and user sessions
 - **Authentication**: scenario-authenticator integration
@@ -142,19 +152,21 @@ CLI Tool ←→ API Server
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `API_PORT` | 3300 | API server port |
-| `UI_PORT` | 3301 | Web UI port |
-| `AUTH_SERVICE_URL` | http://localhost:3250 | Authentication service URL |
+| `API_PORT` | Dynamic | API server port (allocated by lifecycle system) |
+| `UI_PORT` | Dynamic | Web UI port (allocated by lifecycle system) |
+| `AUTH_SERVICE_URL` | http://localhost:15785 | Authentication service URL |
 | `STORAGE_PATH` | ./data/files | File storage directory |
 | `MAX_FILE_SIZE` | 10485760 | Maximum file size (10MB) |
 | `DEFAULT_EXPIRY_HOURS` | 24 | Default item expiration time |
 
+**Note**: Ports are dynamically allocated. Use `vrooli scenario status device-sync-hub` to see current ports.
+
 ### Settings
 
-Configurable via web interface or API:
-- **File Size Limit**: 1MB - 100MB (default: 10MB)
-- **Expiration Time**: 1 hour - 1 week (default: 24 hours)
-- **Thumbnail Size**: Image thumbnail pixel size (default: 200px)
+**Note**: Settings are read-only and configured via environment variables for security.
+- **File Size Limit**: 1MB - 100MB (default: 10MB) - Set via `MAX_FILE_SIZE`
+- **Expiration Time**: 1 hour - 1 week (default: 24 hours) - Set via `DEFAULT_EXPIRY_HOURS`
+- **Thumbnail Size**: Image thumbnail pixel size (default: 200px) - Set via `THUMBNAIL_SIZE`
 
 ## 💡 Usage Examples
 
@@ -201,7 +213,9 @@ Other scenarios can integrate with Device Sync Hub:
 ### Upload via API
 
 ```javascript
-const response = await fetch('http://localhost:3300/api/v1/sync/upload', {
+// Get API URL from scenario status
+const apiUrl = 'http://localhost:17402'; // Use actual port from status
+const response = await fetch(`${apiUrl}/api/v1/sync/upload`, {
   method: 'POST',
   headers: {
     'Authorization': `Bearer ${authToken}`
@@ -210,10 +224,34 @@ const response = await fetch('http://localhost:3300/api/v1/sync/upload', {
 });
 ```
 
+### List Items with Filters
+
+```javascript
+// Get API URL from scenario status
+const apiUrl = 'http://localhost:17402'; // Use actual port from status
+
+// Filter by type
+const files = await fetch(`${apiUrl}/api/v1/sync/items?type=file`, {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+});
+
+// Search for content
+const results = await fetch(`${apiUrl}/api/v1/sync/items?search=meeting`, {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+});
+
+// Combine filters
+const filtered = await fetch(`${apiUrl}/api/v1/sync/items?type=text&search=important`, {
+  headers: { 'Authorization': `Bearer ${authToken}` }
+});
+```
+
 ### WebSocket Connection
 
 ```javascript
-const ws = new WebSocket('ws://localhost:3300/api/v1/sync/websocket');
+// Get API URL from scenario status
+const apiUrl = 'ws://localhost:17402'; // Use actual port from status
+const ws = new WebSocket(`${apiUrl}/api/v1/sync/websocket`);
 
 ws.onopen = () => {
   ws.send(JSON.stringify({
@@ -239,8 +277,9 @@ vrooli scenario test device-sync-hub
 
 # Test specific components
 device-sync-hub status --json
-curl -f http://localhost:3300/health
-curl -f http://localhost:3301/
+# Use actual ports from status output
+curl -f http://localhost:17402/health  # API health check
+curl -f http://localhost:37155/  # UI accessibility
 ```
 
 ## 📊 Monitoring
@@ -293,8 +332,8 @@ Device Sync Hub enables these future scenarios:
 # Check service status
 device-sync-hub status --verbose
 
-# Test API connectivity
-curl http://localhost:3300/health
+# Test API connectivity (use actual port from status)
+curl http://localhost:17402/health
 
 # Check authentication
 device-sync-hub login
@@ -302,14 +341,14 @@ device-sync-hub login
 
 ### WebSocket Problems
 
-1. Check firewall settings for ports 3300-3301
+1. Check firewall settings for dynamically allocated ports (see `vrooli scenario status`)
 2. Verify WebSocket support in browser (all modern browsers support it)
 3. Check browser console for connection errors
 
 ### Mobile Access Issues
 
 1. Ensure mobile device is on same network
-2. Use IP address instead of localhost: `http://192.168.1.100:3301`
+2. Use IP address instead of localhost: `http://192.168.1.100:37155` (use actual UI port)
 3. Check HTTPS requirements (some features need secure context)
 
 ### File Upload Failures

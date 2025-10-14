@@ -18,5 +18,7 @@
   "author": "Vrooli Recommendation Engine",
   "license": "MIT",
   "devDependencies": {},
-  "dependencies": {}
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  }
 }

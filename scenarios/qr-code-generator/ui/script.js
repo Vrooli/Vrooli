@@ -1,3 +1,23 @@
+import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+(function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window.parent === window || window.__qrCodeGeneratorBridgeInitialized) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[QRCodeGenerator] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'qr-code-generator' });
+    window.__qrCodeGeneratorBridgeInitialized = true;
+})();
+
 // QR Code Generator JavaScript
 let API_URL = '';
 let currentQRData = null;

@@ -1,3 +1,27 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_FLAG = '__dateNightPlannerBridgeInitialized';
+
+function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window.parent === window || window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[DateNightPlanner] Unable to parse parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'date-night-planner' });
+    window[BRIDGE_FLAG] = true;
+}
+
+bootstrapIframeBridge();
+
 // Date Night Planner - Main Application JavaScript
 
 let config = {

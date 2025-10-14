@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Download } from 'lucide-react';
 
-const API_PORT = process.env.API_PORT || '20100';
-
 function CompoundInterestCalculator() {
   const [inputs, setInputs] = useState({
     principal: 10000,
@@ -27,7 +25,7 @@ function CompoundInterestCalculator() {
     setError(null);
     
     try {
-      const response = await fetch(`http://localhost:${API_PORT}/api/v1/calculate/compound-interest`, {
+      const response = await fetch('/api/v1/calculate/compound-interest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(inputs)

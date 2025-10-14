@@ -1,3 +1,23 @@
+import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+(function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window.parent === window || window.__promptInjectionBridgeInitialized) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[PromptInjectionArena] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'prompt-injection-arena' });
+    window.__promptInjectionBridgeInitialized = true;
+})();
+
 // Prompt Injection Arena - Professional Security Research Platform
 // JavaScript Application Logic
 

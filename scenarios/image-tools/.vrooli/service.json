@@ -134,6 +134,15 @@
    },
     "lifecycle": {
       "version": "2.0.0",
+      "health": {
+        "endpoints": {
+          "api": "/health",
+          "ui": "/health"
+        },
+        "checks": {
+          "timeout": 5
+        }
+      },
       "setup": {
         "description": "Initialize Image Tools",
         "condition": {
@@ -141,7 +150,7 @@
             {
               "type": "binaries",
               "targets": [
-                "image-tools-api"
+                "api/image-tools-api"
               ]
             },
              {
@@ -179,7 +188,7 @@
        "steps": [
           {
             "name": "start-api",
-             "run": "cd api && PORT=${API_PORT} ./image-tools-api",
+             "run": "cd api && PORT=${API_PORT} MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin} MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin} MINIO_ENDPOINT=${MINIO_ENDPOINT:-localhost:9100} ./image-tools-api",
             "description": "Start Go API server in background",
             "background": true,
             "condition": {
@@ -196,6 +205,16 @@
            "name": "show-urls",
            "run": "echo \"🖼️ Image Tools running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: image-tools --help\"",
            "description": "Display all running service URLs"
+         }
+       ]
+     },
+     "test": {
+       "description": "Run comprehensive test suite",
+       "steps": [
+         {
+           "name": "run-tests",
+           "run": "./test/run-tests.sh",
+           "description": "Execute all test phases"
          }
        ]
      }

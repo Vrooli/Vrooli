@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 import App from './App'
 import './index.css'
 
@@ -55,6 +56,10 @@ class ErrorBoundary extends React.Component {
 
     return this.props.children
   }
+}
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+  initIframeBridgeChild({ appId: 'symbol-search' })
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(

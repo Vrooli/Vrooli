@@ -1,3 +1,21 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_STATE_KEY = '__imageGenerationBridgeInitialized';
+
+if (typeof window !== 'undefined' && window.parent !== window && !window[BRIDGE_STATE_KEY]) {
+    try {
+        let parentOrigin;
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+
+        initIframeBridgeChild({ parentOrigin, appId: 'image-generation-pipeline' });
+        window[BRIDGE_STATE_KEY] = true;
+    } catch (error) {
+        console.warn('[image-generation-pipeline] iframe bridge bootstrap skipped', error);
+    }
+}
+
 /**
  * Enterprise Image Generation Pipeline
  * Creative Gallery-Style UI JavaScript

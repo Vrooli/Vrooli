@@ -18,7 +18,8 @@
     "axios": "^1.6.2",
     "lucide-react": "^0.294.0",
     "recharts": "^2.8.0",
-    "framer-motion": "^10.16.16"
+    "framer-motion": "^10.16.16",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

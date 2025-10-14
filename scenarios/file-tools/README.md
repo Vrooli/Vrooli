@@ -4,7 +4,9 @@
 
 ## 🎯 Overview
 
-File Tools provides a complete file management solution with compression, archiving, splitting/merging, metadata extraction, and intelligent organization capabilities. It serves as the foundation for all file operations within the Vrooli ecosystem.
+File Tools provides a complete file management solution with compression, archiving, splitting/merging, metadata extraction, and intelligent organization capabilities. It serves as the **foundation for all file operations** within the Vrooli ecosystem.
+
+**🚀 Integration Ready**: File-tools eliminates the need for scenarios to implement custom file operations. See the [Integration Guide](INTEGRATION_GUIDE.md) for how to replace custom compression, duplicate detection, and metadata extraction with production-ready API calls.
 
 ## ✨ Features
 
@@ -63,10 +65,10 @@ file-tools merge "video.mp4.part.*" reconstructed.mp4
 
 ```bash
 # Health check
-curl http://localhost:8080/health
+curl http://localhost:${API_PORT}/health
 
 # Compress files
-curl -X POST http://localhost:8080/api/v1/files/compress \
+curl -X POST http://localhost:${API_PORT}/api/v1/files/compress \
   -H "Content-Type: application/json" \
   -d '{
     "files": ["file1.txt", "file2.txt"],
@@ -75,10 +77,10 @@ curl -X POST http://localhost:8080/api/v1/files/compress \
   }'
 
 # Get file metadata
-curl http://localhost:8080/api/v1/files/metadata/path%2Fto%2Ffile.txt
+curl http://localhost:${API_PORT}/api/v1/files/metadata/path%2Fto%2Ffile.txt
 
 # Calculate checksum
-curl -X POST http://localhost:8080/api/v1/files/checksum \
+curl -X POST http://localhost:${API_PORT}/api/v1/files/checksum \
   -H "Content-Type: application/json" \
   -d '{
     "files": ["important.dat"],
@@ -89,7 +91,7 @@ curl -X POST http://localhost:8080/api/v1/files/checksum \
 ## 🏗️ Architecture
 
 ### Components
-- **API Server** - Go-based REST API (port 8080)
+- **API Server** - Go-based REST API (dynamically allocated port via ${API_PORT})
 - **CLI Tool** - Bash-based command-line interface
 - **Storage** - PostgreSQL for metadata, MinIO for files, Redis for caching
 
@@ -165,7 +167,7 @@ cd cli && bats cli-tests.bats
 ### CLI Configuration
 ```bash
 # Set API base URL
-file-tools config set api_base http://localhost:8080
+file-tools config set api_base http://localhost:${API_PORT}
 
 # Set authentication token
 file-tools config set api_token your-token-here
@@ -176,15 +178,39 @@ file-tools config list
 
 ### Environment Variables
 ```bash
-export API_PORT=8080
+# API_PORT is automatically assigned by Vrooli (typically 15000-19999 range)
 export DATABASE_URL="postgres://user:pass@localhost:5432/file_tools"
 export REDIS_URL="redis://localhost:6379"
 export MINIO_ENDPOINT="localhost:9000"
 ```
 
-## 📝 Examples
+## 📝 Examples & Integration
 
-### Batch Compression
+### 🚀 Ready-to-Use Integration Examples
+
+**Want to replace custom file operations in your scenario?** Check out the **[examples directory](examples/)** for copy-paste ready code:
+
+- **[replace-tar-compression.sh](examples/replace-tar-compression.sh)** - Drop-in replacement for tar commands (data-backup-manager, document-manager)
+- **[duplicate-detection-photos.sh](examples/duplicate-detection-photos.sh)** - Hash-based duplicate detection (smart-file-photo-manager)
+- **[golang-integration.go](examples/golang-integration.go)** - Complete Go API client with type-safe structs (all Go scenarios)
+
+**Each example shows**:
+- ✅ Before/after comparison
+- ✅ Expected benefits (30% storage reduction, 100% accurate duplicates, etc.)
+- ✅ Integration steps for your scenario
+- ✅ Working code you can copy directly
+
+**Quick start**:
+```bash
+cd examples
+./replace-tar-compression.sh  # See compression comparison
+./duplicate-detection-photos.sh  # See duplicate detection
+go run golang-integration.go  # Go API client demo
+```
+
+See **[examples/README.md](examples/README.md)** for complete integration guide.
+
+### Basic CLI Examples
 ```bash
 # Compress all PDFs in a directory
 file-tools compress *.pdf -o documents.zip
@@ -193,7 +219,7 @@ file-tools compress *.pdf -o documents.zip
 file-tools compress /data/logs/ -f gzip -o logs.tar.gz
 ```
 
-### File Organization
+### File Organization Examples
 ```bash
 # Get metadata for multiple files
 for file in *.jpg; do
@@ -216,21 +242,44 @@ file-tools merge "largefile.dat.part.*" restored.dat
 file-tools checksum largefile.dat restored.dat
 ```
 
-## 🤝 Integration
+## 🤝 Cross-Scenario Integration
 
-File Tools integrates seamlessly with other Vrooli scenarios:
+File Tools is **production-ready** and provides value to multiple scenarios:
 
-- **document-management-system** - File operations and organization
-- **backup-automation-platform** - Deduplication and compression
-- **digital-asset-manager** - Metadata extraction and categorization
-- **storage-analytics-platform** - Usage analysis and optimization
+### High-Priority Integration Opportunities
+
+**🎯 data-backup-manager** - Replace custom tar compression with file-tools API
+- Expected benefit: 30% storage reduction, standardized compression, built-in integrity verification
+- Integration: Replace `tar -czf` with `/api/v1/files/compress` + `/api/v1/files/checksum`
+
+**🎯 smart-file-photo-manager** - Add professional duplicate detection and metadata extraction
+- Expected benefit: Production-grade photo management without reimplementing file operations
+- Integration: Use `/api/v1/files/duplicates/detect` + `/api/v1/files/metadata/extract`
+
+**🎯 document-manager** - Leverage file operations and smart organization
+- Expected benefit: Enterprise document management capabilities
+- Integration: Use `/api/v1/files/organize` + `/api/v1/files/relationships/map`
+
+**🎯 crypto-tools** - Integrate compression before encryption
+- Expected benefit: Smaller encrypted files, efficient distributed storage
+- Integration: Use `/api/v1/files/compress` + `/api/v1/files/split` workflows
+
+### Complete Integration Guide
+
+👉 **See [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md) for:**
+- Step-by-step integration instructions
+- Common integration patterns with code examples
+- API endpoint reference
+- Performance considerations
+- Troubleshooting guide
 
 ## 📚 Documentation
 
-- [API Documentation](docs/api.md)
-- [CLI Reference](docs/cli.md)
-- [Integration Guide](docs/integration.md)
-- [Performance Tuning](docs/performance.md)
+- [Integration Guide](INTEGRATION_GUIDE.md) - Complete guide for integrating file-tools into your scenario
+- [Adoption Roadmap](ADOPTION_ROADMAP.md) - Strategic plan for cross-scenario adoption
+- [Integration Examples](examples/README.md) - Copy-paste ready code examples
+- [PRD](PRD.md) - Product requirements and capabilities
+- [PROBLEMS.md](PROBLEMS.md) - Issue tracking and improvement history
 
 ## 🛠️ Development
 
@@ -270,6 +319,18 @@ golangci-lint run
 - **Efficiency Gain**: 10x faster file operations vs manual processing
 - **Market Differentiator**: AI-powered organization unique in market
 
+## 🔒 Security Notes
+
+### Hash Algorithm Support
+
+File Tools supports MD5, SHA-1, and SHA-256 hash algorithms for checksum verification. While MD5 and SHA-1 are considered cryptographically weak for security purposes, they are intentionally supported for:
+
+- **Legacy Compatibility**: Verifying files against existing MD5/SHA1 checksums
+- **File Integrity**: Detecting file corruption (not cryptographic security)
+- **Standards Compliance**: Matching checksums in file manifests and downloads
+
+**For security-critical operations**, always use SHA-256 or stronger algorithms. The default algorithm is SHA-256 when not specified.
+
 ## 🆘 Troubleshooting
 
 ### API Not Starting
@@ -281,7 +342,7 @@ vrooli scenario logs file-tools --step start-api
 psql postgres://localhost:5433/file_tools
 
 # Check port availability
-lsof -i :8080
+lsof -i :${API_PORT}
 ```
 
 ### CLI Not Working
@@ -312,6 +373,6 @@ Contributions welcome! Please read our [Contributing Guide](../../CONTRIBUTING.m
 
 ---
 
-**Version**: 1.0.0  
-**Status**: Production Ready  
-**Last Updated**: 2025-09-24
+**Version**: 1.2.0
+**Status**: Production Ready
+**Last Updated**: 2025-10-12

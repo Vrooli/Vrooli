@@ -207,7 +207,7 @@ class SyncApiClient {
   async getHealthStatus() {
     try {
       const response = await fetch(`${this.apiUrl}/health`);
-      
+
       if (!response.ok) {
         throw new Error(`Health check failed: HTTP ${response.status}`);
       }
@@ -217,6 +217,17 @@ class SyncApiClient {
       console.error('Health check failed:', error);
       throw error;
     }
+  }
+
+  // Get settings and statistics
+  async getSettings() {
+    const response = await this.request('/api/v1/sync/settings');
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch settings: HTTP ${response.status}`);
+    }
+
+    return await response.json();
   }
 }
 

@@ -4,7 +4,8 @@
 set -euo pipefail
 
 API_BASE="${API_BASE:-http://localhost:15468}"
-API_TOKEN="${API_TOKEN:-API_TOKEN_PLACEHOLDER}"
+# Use FILE_TOOLS_API_TOKEN env var, or fall back to config value, or use test token
+API_TOKEN="${API_TOKEN:-${FILE_TOOLS_API_TOKEN:-file-tools-test-token}}"
 
 # Colors for output
 RED='\033[0;31m'

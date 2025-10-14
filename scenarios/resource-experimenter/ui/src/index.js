@@ -4,7 +4,17 @@ import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
 import './index.css';
 import App from './App';
 
-if (typeof window !== 'undefined' && window.parent !== window && !window.__resourceExperimenterBridgeInitialized) {
+const BRIDGE_STATE_KEY = '__resourceExperimenterBridgeInitialized';
+
+function initializeIframeBridge() {
+  if (!(typeof window !== 'undefined' && window.parent !== window)) {
+    return;
+  }
+
+  if (window[BRIDGE_STATE_KEY]) {
+    return;
+  }
+
   let parentOrigin;
   try {
     if (document.referrer) {
@@ -15,7 +25,15 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__resou
   }
 
   initIframeBridgeChild({ parentOrigin, appId: 'resource-experimenter' });
-  window.__resourceExperimenterBridgeInitialized = true;
+  window[BRIDGE_STATE_KEY] = true;
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initializeIframeBridge();
+  } else {
+    document.addEventListener('DOMContentLoaded', initializeIframeBridge, { once: true });
+  }
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

@@ -19,10 +19,11 @@
   "author": "Vrooli AI",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "cors": "^2.8.5",
-    "ws": "^8.13.0",
-    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+    "express": "^4.18.2",
+    "react-markdown": "^10.1.0",
+    "ws": "^8.13.0"
   },
   "engines": {
     "node": ">=16.0.0"

@@ -15,7 +15,7 @@ func TestHealthCheckComprehensive(t *testing.T) {
 	server := setupTestServer()
 
 	t.Run("HealthCheckAllFields", func(t *testing.T) {
-		resp, body, err := makeHTTPRequest(server.app, "GET", "/api/v1/health", nil, nil)
+		resp, body, err := makeHTTPRequest(server.app, "GET", "/health", nil, nil)
 		if err != nil {
 			t.Fatalf("Failed: %v", err)
 		}
@@ -110,7 +110,7 @@ func TestAllEndpoints(t *testing.T) {
 		path   string
 		desc   string
 	}{
-		{"GET", "/api/v1/health", "Health check"},
+		{"GET", "/health", "Health check"},
 		{"GET", "/api/v1/plugins", "List plugins"},
 		{"GET", "/api/v1/presets", "List presets"},
 		{"GET", "/api/v1/presets/web-optimized", "Get specific preset"},

@@ -170,13 +170,13 @@ func (b *TestScenarioBuilder) Build() []ErrorTestPattern {
 
 // PerformanceTestPattern defines performance testing scenarios
 type PerformanceTestPattern struct {
-	Name           string
-	Description    string
-	MaxDuration    time.Duration
-	Setup          func(t *testing.T) interface{}
-	Execute        func(t *testing.T, setupData interface{}) time.Duration
-	Validate       func(t *testing.T, duration time.Duration, setupData interface{})
-	Cleanup        func(setupData interface{})
+	Name        string
+	Description string
+	MaxDuration time.Duration
+	Setup       func(t *testing.T) interface{}
+	Execute     func(t *testing.T, setupData interface{}) time.Duration
+	Validate    func(t *testing.T, duration time.Duration, setupData interface{})
+	Cleanup     func(setupData interface{})
 }
 
 // PerformanceTestBuilder fluent interface for building performance tests

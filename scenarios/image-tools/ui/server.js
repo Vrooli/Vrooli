@@ -4,8 +4,33 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = process.env.UI_PORT || process.env.PORT || 35000;
-const API_PORT = process.env.API_PORT || 8080;
+// Environment variable validation
+function getRequiredEnv(name, fallbackName = null) {
+  const value = process.env[name] || (fallbackName && process.env[fallbackName]);
+  if (!value) {
+    console.error(`ERROR: Required environment variable ${name}${fallbackName ? ` or ${fallbackName}` : ''} is not set`);
+    console.error('Please set the environment variable and try again.');
+    process.exit(1);
+  }
+  return value;
+}
+
+function validatePort(port, varName) {
+  const portNum = parseInt(port, 10);
+  if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+    console.error(`ERROR: Invalid port number for ${varName}: ${port}`);
+    console.error('Port must be a number between 1 and 65535');
+    process.exit(1);
+  }
+  return portNum;
+}
+
+// Validate and get environment variables
+const UI_PORT_RAW = getRequiredEnv('UI_PORT', 'PORT');
+const API_PORT_RAW = getRequiredEnv('API_PORT');
+
+const PORT = validatePort(UI_PORT_RAW, 'UI_PORT');
+const API_PORT = validatePort(API_PORT_RAW, 'API_PORT');
 
 const MIME_TYPES = {
   '.html': 'text/html',

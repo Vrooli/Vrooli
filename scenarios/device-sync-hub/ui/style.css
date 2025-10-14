@@ -801,6 +801,34 @@ svg {
   color: white;
 }
 
+/* Usage statistics */
+.stats-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xs) 0;
+  border-bottom: 1px solid rgb(0 0 0 / 0.05);
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+}
+
+.stat-value {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.stat-value.warning {
+  color: var(--warning-color);
+}
+
 /* Toast notifications */
 .toast-container {
   position: fixed;

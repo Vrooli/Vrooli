@@ -23,17 +23,17 @@ type MinIOStorage struct {
 func NewMinIOStorage() (StorageService, error) {
 	endpoint := os.Getenv("MINIO_ENDPOINT")
 	if endpoint == "" {
-		endpoint = "localhost:9100"
+		return nil, fmt.Errorf("MINIO_ENDPOINT environment variable is required")
 	}
-	
+
 	accessKey := os.Getenv("MINIO_ACCESS_KEY")
 	if accessKey == "" {
-		accessKey = "minioadmin"
+		return nil, fmt.Errorf("MINIO_ACCESS_KEY environment variable is required")
 	}
-	
+
 	secretKey := os.Getenv("MINIO_SECRET_KEY")
 	if secretKey == "" {
-		secretKey = "minioadmin"
+		return nil, fmt.Errorf("MINIO_SECRET_KEY environment variable is required")
 	}
 	
 	useSSL := os.Getenv("MINIO_USE_SSL") == "true"

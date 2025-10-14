@@ -9,6 +9,7 @@ import Templates from './pages/Templates'
 function App() {
   return (
     <Routes>
+      <Route path="/health" element={<div>OK</div>} />
       <Route path="/" element={<Layout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />

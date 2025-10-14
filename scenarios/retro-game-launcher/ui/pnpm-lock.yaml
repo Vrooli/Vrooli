@@ -23,6 +23,9 @@ importers:
       react-scripts:
         specifier: 5.0.1
         version: 5.0.1(@babel/plugin-syntax-flow@7.27.1(@babel/core@7.28.4))(@babel/plugin-transform-react-jsx@7.27.1(@babel/core@7.28.4))(@types/babel__core@7.20.5)(eslint@8.57.1)(react@18.3.1)(type-fest@0.21.3)(typescript@4.9.5)
+      '@vrooli/iframe-bridge':
+        specifier: file:../../../packages/iframe-bridge
+        version: file:../../../packages/iframe-bridge
     devDependencies:
       autoprefixer:
         specifier: ^10.4.16
@@ -35,6 +38,9 @@ importers:
         version: 3.4.17
 
 packages:
+
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
+    resolution: {directory: ../../../packages/iframe-bridge, type: directory}
 
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
@@ -5443,6 +5449,8 @@ packages:
     engines: {node: '>=10'}
 
 snapshots:
+
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 
   '@alloc/quick-lru@5.2.0': {}
 
