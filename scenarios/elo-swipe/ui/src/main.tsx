@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { initIframeBridgeChild } from '@vrooli/iframe-bridge';
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
 import App from './App';
 import './styles/global.css';
 
@@ -13,10 +13,8 @@ declare global {
 
 declare const __API_URL__: string | undefined;
 
-if (typeof window !== 'undefined') {
-  window.__API_URL__ = typeof __API_URL__ === 'string' ? __API_URL__ : window.__API_URL__;
-
-  if (window.parent !== window && !window.__eloSwipeBridgeInitialized) {
+if (typeof window !== 'undefined' && window.parent !== window) {
+  if (!window.__eloSwipeBridgeInitialized) {
     let parentOrigin: string | undefined;
     try {
       if (document.referrer) {
@@ -29,6 +27,10 @@ if (typeof window !== 'undefined') {
     initIframeBridgeChild({ parentOrigin, appId: 'elo-swipe' });
     window.__eloSwipeBridgeInitialized = true;
   }
+}
+
+if (typeof window !== 'undefined') {
+  window.__API_URL__ = typeof __API_URL__ === 'string' ? __API_URL__ : window.__API_URL__;
 }
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

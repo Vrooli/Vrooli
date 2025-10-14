@@ -1,4 +1,28 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
 // Scenario Surfer - Main Application Logic
+
+const bootstrapIframeBridge = () => {
+    if (window.__scenarioSurferBridgeInitialized) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[ScenarioSurfer] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ appId: 'scenario-surfer', parentOrigin });
+    window.__scenarioSurferBridgeInitialized = true;
+};
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+    bootstrapIframeBridge();
+}
 
 class ScenarioSurfer {
     constructor() {

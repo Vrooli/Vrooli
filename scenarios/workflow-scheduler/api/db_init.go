@@ -100,8 +100,8 @@ func createMinimalSchema(db *sql.DB) error {
 		next_execution_at TIMESTAMP WITH TIME ZONE
 	);
 	
-	-- Create executions table
-	CREATE TABLE IF NOT EXISTS executions (
+	-- Create schedule_executions table (separate from n8n workflow executions)
+	CREATE TABLE IF NOT EXISTS schedule_executions (
 		id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 		schedule_id UUID REFERENCES schedules(id) ON DELETE CASCADE,
 		scheduled_time TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -118,12 +118,12 @@ func createMinimalSchema(db *sql.DB) error {
 		triggered_by VARCHAR(255),
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 	);
-	
+
 	-- Create indexes for performance
 	CREATE INDEX IF NOT EXISTS idx_schedules_enabled ON schedules(enabled);
 	CREATE INDEX IF NOT EXISTS idx_schedules_next_execution ON schedules(next_execution_at);
-	CREATE INDEX IF NOT EXISTS idx_executions_schedule_id ON executions(schedule_id);
-	CREATE INDEX IF NOT EXISTS idx_executions_status ON executions(status);
+	CREATE INDEX IF NOT EXISTS idx_schedule_executions_schedule_id ON schedule_executions(schedule_id);
+	CREATE INDEX IF NOT EXISTS idx_schedule_executions_status ON schedule_executions(status);
 	
 	-- Create cron_presets table
 	CREATE TABLE IF NOT EXISTS cron_presets (

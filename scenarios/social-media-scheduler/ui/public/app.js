@@ -1,3 +1,17 @@
+// Ensure iframe bridge setup before bootstrapping the React bundle
+(function initializeIframeBridge() {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    if (window.__socialMediaSchedulerBridgeInitialized) {
+        return;
+    }
+    if (window.parent !== window && typeof window.initIframeBridgeChild === 'function') {
+        window.initIframeBridgeChild({ appId: 'social-media-scheduler-ui' });
+        window.__socialMediaSchedulerBridgeInitialized = true;
+    }
+})();
+
 // Social Media Scheduler React Application
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 

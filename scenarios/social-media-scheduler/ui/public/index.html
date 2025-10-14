@@ -191,6 +191,14 @@
     <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/index.min.js"></script>
     
     <!-- Main Application -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "/vendor/@vrooli/iframe-bridge/iframeBridgeChild.js"
+        }
+      }
+    </script>
+    <script type="module" src="/bridge-init.js"></script>
     <script type="text/babel" src="/app.js"></script>
     
     <!-- Remove loading screen when app is ready -->

@@ -124,6 +124,30 @@
   },
     "lifecycle": {
       "version": "2.0.0",
+      "health": {
+        "endpoints": {
+          "api": "/health",
+          "ui": "/health"
+        },
+        "checks": [
+          {
+            "name": "api_endpoint",
+            "type": "http",
+            "target": "http://localhost:${API_PORT}/health",
+            "timeout": 5,
+            "interval": 10,
+            "critical": true
+          },
+          {
+            "name": "ui_endpoint",
+            "type": "http",
+            "target": "http://localhost:${UI_PORT}/health",
+            "timeout": 5,
+            "interval": 10,
+            "critical": false
+          }
+        ]
+      },
       "setup": {
         "description": "Initialize Email Triage",
         "condition": {
@@ -131,7 +155,7 @@
             {
               "type": "binaries",
               "targets": [
-                "email-triage-api"
+                "api/email-triage-api"
               ]
             },
              {
@@ -203,7 +227,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "cd test && bash test.sh",
+          "run": "cd test && DEV_MODE=true API_PORT=${API_PORT} UI_PORT=${UI_PORT} bash test.sh",
           "description": "Execute phased test suite"
         }
       ]

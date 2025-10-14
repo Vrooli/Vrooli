@@ -12,7 +12,14 @@ class ApiClient {
         'Content-Type': 'application/json',
       },
     })
-    
+
+    const previewTokenFromEnv = (import.meta.env.VITE_PREVIEW_ACCESS_TOKEN || '').trim()
+    const previewToken = previewTokenFromEnv || (import.meta.env.PROD ? 'graph-studio-preview-token' : '')
+
+    if (previewToken) {
+      this.client.defaults.headers.common['X-Preview-Token'] = previewToken
+    }
+
     // Request interceptor
     this.client.interceptors.request.use(
       (config) => {

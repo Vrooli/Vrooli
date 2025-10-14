@@ -25,10 +25,11 @@ type TestDB struct {
 
 // setupTestDB creates a test database connection
 func setupTestDB(t *testing.T) *TestDB {
-	// Use test database URL from environment or default
+	// TEST_DATABASE_URL is required for database tests
 	dbURL := os.Getenv("TEST_DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/email_triage_test?sslmode=disable"
+		t.Skip("Skipping test: TEST_DATABASE_URL not set")
+		return nil
 	}
 
 	db, err := sql.Open("postgres", dbURL)

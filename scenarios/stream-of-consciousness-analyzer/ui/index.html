@@ -759,6 +759,14 @@
         <div class="loading-spinner"></div>
     </div>
 
-    <script src="script.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+    <script type="module" src="bridge-init.js"></script>
+    <script src="script.js" defer></script>
 </body>
 </html>

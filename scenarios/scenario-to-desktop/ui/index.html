@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scenario to Desktop - Desktop App Generator</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
     <style>
         * {
             margin: 0;
@@ -494,7 +501,31 @@
         </p>
     </div>
 
-    <script>
+    <script type="module">
+        import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+        const bootstrapIframeBridge = () => {
+            if (window.__scenarioToDesktopBridgeInitialized) {
+                return;
+            }
+
+            let parentOrigin;
+            try {
+                if (document.referrer) {
+                    parentOrigin = new URL(document.referrer).origin;
+                }
+            } catch (error) {
+                console.warn('[ScenarioToDesktop] Unable to determine parent origin for iframe bridge', error);
+            }
+
+            initIframeBridgeChild({ appId: 'scenario-to-desktop', parentOrigin });
+            window.__scenarioToDesktopBridgeInitialized = true;
+        };
+
+        if (typeof window !== 'undefined' && window.parent !== window) {
+            bootstrapIframeBridge();
+        }
+
         // Configuration
         const API_BASE_URL = 'http://localhost:3202';
         const POLL_INTERVAL = 2000; // 2 seconds

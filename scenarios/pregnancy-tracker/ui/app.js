@@ -1,3 +1,23 @@
+import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+(function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window.parent === window || window.__pregnancyTrackerBridgeInitialized) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[PregnancyTracker] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'pregnancy-tracker' });
+    window.__pregnancyTrackerBridgeInitialized = true;
+})();
+
 // Pregnancy Tracker - Main Application JavaScript
 
 // Configuration

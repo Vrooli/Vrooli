@@ -1,0 +1,48 @@
+# Build artifacts
+api/idea-generator-api
+api/test-build
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test and coverage files
+api/coverage.html
+api/coverage.txt
+api/coverage.out
+coverage/
+*.test
+*.out
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Dependencies
+node_modules/
+vendor/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

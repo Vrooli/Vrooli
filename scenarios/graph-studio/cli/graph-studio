@@ -7,6 +7,8 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SCENARIO_NAME="graph-studio"
 VERSION="1.0.0"
 
@@ -32,19 +34,51 @@ get_api_url() {
     echo "http://localhost:${api_port}"
 }
 
+# Discover preview access token so CLI requests integrate with secured API deployments
+get_preview_token() {
+    if [[ -n "${PREVIEW_ACCESS_TOKEN:-}" ]]; then
+        echo "${PREVIEW_ACCESS_TOKEN}"
+        return
+    fi
+    if [[ -n "${GRAPH_STUDIO_PREVIEW_TOKEN:-}" ]]; then
+        echo "${GRAPH_STUDIO_PREVIEW_TOKEN}"
+        return
+    fi
+    if [[ -n "${VITE_PREVIEW_ACCESS_TOKEN:-}" ]]; then
+        echo "${VITE_PREVIEW_ACCESS_TOKEN}"
+        return
+    fi
+
+    local token_file="${SCENARIO_ROOT}/tmp/preview-token"
+    if [[ -f "$token_file" ]]; then
+        local token
+        token=$(head -n 1 "$token_file" | tr -d '\r\n ')
+        if [[ -n "$token" ]]; then
+            echo "$token"
+        fi
+    fi
+}
+
 # Make API request
 api_request() {
     local method="$1"
     local endpoint="$2"
     local data="${3:-}"
     local api_url
-    
+    local preview_token
+    local header_args=()
+
     api_url=$(get_api_url)
-    
+    preview_token=$(get_preview_token)
+    if [[ -n "$preview_token" ]]; then
+        header_args+=(-H "X-Preview-Token: ${preview_token}")
+    fi
+
     if [[ "$method" == "GET" ]]; then
-        curl -s "${api_url}${endpoint}"
+        curl -s "${header_args[@]}" "${api_url}${endpoint}"
     else
         curl -s -X "$method" \
+             "${header_args[@]}" \
              -H "Content-Type: application/json" \
              ${data:+-d "$data"} \
              "${api_url}${endpoint}"

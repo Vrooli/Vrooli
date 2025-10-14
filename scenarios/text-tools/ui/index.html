@@ -12,6 +12,13 @@
     <!-- External dependencies -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
 </head>
 <body>
     <div class="app-container">
@@ -74,6 +81,6 @@
     <script src="js/modules/pipeline-module.js"></script>
     
     <!-- Main Application -->
-    <script src="js/app-main.js"></script>
+    <script type="module" src="js/app-main.js"></script>
 </body>
 </html>

@@ -1,3 +1,29 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_FLAG = '__morningVisionWalkBridgeInitialized';
+
+function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    if (window.parent !== window) {
+        const options = { appId: 'morning-vision-walk' };
+        try {
+            if (document.referrer) {
+                options.parentOrigin = new URL(document.referrer).origin;
+            }
+        } catch (error) {
+            console.warn('[MorningVisionWalk] Unable to determine parent origin for iframe bridge', error);
+        }
+
+        initIframeBridgeChild(options);
+        window[BRIDGE_FLAG] = true;
+    }
+}
+
+bootstrapIframeBridge();
+
 // Morning Vision Walk - Interactive JavaScript
 const API_URL = window.API_URL || 'http://localhost:8900';
 

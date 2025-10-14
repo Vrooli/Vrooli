@@ -1324,6 +1324,21 @@
         </div>
     </div>
 
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+    <script type="module">
+      import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+      if (typeof window !== 'undefined') {
+        window.initIframeBridgeChild = window.initIframeBridgeChild || initIframeBridgeChild;
+      }
+    </script>
+    <script src="app.js"></script>
     <script>
         let API_BASE = '';
         let apiUrl = '';
@@ -1446,13 +1461,41 @@
                 }
             } catch (error) {
                 addLog(`Failed to get config: ${error.message}`, 'error');
-                
-                // Fallback to environment-based guessing
+
+                // Prefer the proxy metadata injected by App Monitor when available
+                const proxyInfo = window.__APP_MONITOR_PROXY_INFO__;
+                const proxyApiEntry = Array.isArray(proxyInfo?.ports)
+                    ? proxyInfo.ports.find(entry => {
+                        const aliases = Array.isArray(entry.aliases)
+                            ? entry.aliases.map(alias => alias.toLowerCase())
+                            : [];
+                        const label = (entry.label || entry.slug || '').toLowerCase();
+                        return (
+                            aliases.includes('api_port') ||
+                            aliases.includes('api') ||
+                            aliases.includes('backend') ||
+                            label.includes('api')
+                        );
+                    })
+                    : null;
+
+                if (proxyApiEntry?.path) {
+                    const normalizedPath = proxyApiEntry.path.replace(/\/$/, '');
+                    const proxiedApiUrl = `${window.location.origin}${normalizedPath}`;
+                    apiUrl = proxiedApiUrl;
+                    API_BASE = `${proxiedApiUrl}/api/v1`;
+
+                    addLog(`Using proxy API URL: ${apiUrl}`, 'success');
+                    document.getElementById('apiEndpoint').textContent = `${apiUrl} (proxied)`;
+                    return;
+                }
+
+                // Fallback to environment-based guessing for standalone usage
                 const uiPort = window.location.port || '37116';
                 const guessedApiPort = uiPort.replace('3', '1');
                 apiUrl = `http://localhost:${guessedApiPort}`;
                 API_BASE = `${apiUrl}/api/v1`;
-                
+
                 addLog(`Using fallback API URL: ${apiUrl}`, 'warn');
                 document.getElementById('apiEndpoint').textContent = `${apiUrl} (fallback)`;
             }
@@ -1957,6 +2000,14 @@
         }
         
         async function openScenarioInNewTab(scenarioId) {
+            const proxyInfo = window.__APP_MONITOR_PROXY_INFO__;
+            if (proxyInfo) {
+                const baseUrl = `${window.location.origin}/apps/${encodeURIComponent(scenarioId)}`;
+                window.open(baseUrl, '_blank');
+                addLog(`Opening ${scenarioId} through proxy at ${baseUrl}`, 'info');
+                return;
+            }
+
             // Fetch the actual port for the scenario
             try {
                 const response = await fetch(`${API_BASE}/scenarios/${scenarioId}/port?type=UI_PORT`);

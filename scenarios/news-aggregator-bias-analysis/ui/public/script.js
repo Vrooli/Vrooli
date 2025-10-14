@@ -1,3 +1,29 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_FLAG = '__newsAggregatorBridgeInitialized';
+
+function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    if (window.parent !== window) {
+        const options = { appId: 'news-aggregator-bias-analysis' };
+        try {
+            if (document.referrer) {
+                options.parentOrigin = new URL(document.referrer).origin;
+            }
+        } catch (error) {
+            console.warn('[NewsAggregator] Unable to determine parent origin for iframe bridge', error);
+        }
+
+        initIframeBridgeChild(options);
+        window[BRIDGE_FLAG] = true;
+    }
+}
+
+bootstrapIframeBridge();
+
 // News Aggregator Bias Analysis - Enhanced Interactive UI
 const API_BASE = 'http://localhost:9300';
 const N8N_BASE = 'http://localhost:5678';

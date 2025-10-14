@@ -13,6 +13,7 @@
     "eject": "react-scripts eject"
   },
   "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "http-proxy-middleware": "^2.0.6",

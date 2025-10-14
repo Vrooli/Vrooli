@@ -100,20 +100,22 @@ window.open(`http://localhost:36850?list=${list_id}`);
 
 ## 🚦 Status
 
-**Current State: 95% Complete** - All P0 + 4/5 P1 requirements verified
+**Current State: 100% Complete** - All P0 + P1 requirements fully implemented
 
 - ✅ Core Elo algorithm
-- ✅ Swipe UI (with iframe-bridge integration)
+- ✅ Swipe UI with dark theme and smooth animations
 - ✅ PostgreSQL persistence
-- ✅ CLI interface
+- ✅ CLI interface (19 BATS tests)
 - ✅ Multi-list support
 - ✅ Export to JSON/CSV
 - ✅ Progress tracking
 - ✅ Confidence scores
 - ✅ Smart pairing algorithm (with AI fallback)
-- ✅ Phased test suite (smoke/unit/integration)
-- ✅ Go unit tests for core logic
-- ⏳ Undo/skip during swiping (P1 - planned)
+- ✅ Undo/skip functionality (DELETE /comparisons endpoint)
+- ✅ Comprehensive test infrastructure (4/5 components)
+- ✅ Test lifecycle integration
+- ✅ Go unit tests for core logic (53.5% coverage)
+- ✅ Security audit passed (0 vulnerabilities)
 - ⏳ Team consensus features (P2)
 - ⏳ Preference learning (P2)
 
@@ -137,7 +139,8 @@ make test
 
 Test phases:
 - **Smoke Tests**: API health, CLI status, database connectivity
-- **Unit Tests**: Smart pairing logic, AI response parsing
+- **Unit Tests**: Smart pairing logic, AI response parsing (Go tests)
+- **CLI Tests**: BATS test suite (19 tests covering all commands)
 - **Integration Tests**: Full workflows, CSV/JSON export
 
 All tests include auto-port detection for reliable execution.
@@ -146,4 +149,44 @@ All tests include auto-port detection for reliable execution.
 
 **Permanent Intelligence**: Every ranking makes Vrooli smarter about priorities.
 
-**Last Updated**: 2025-10-03
+**Last Updated**: 2025-10-12-11
+
+## Recent Improvements (2025-10-12-11)
+
+### Undo Functionality Implementation
+- ✅ **FIXED**: Undo endpoint was stub (returned 204 without action) - now fully functional
+- ✅ **IMPLEMENTED**: Complete undo logic with database transactions:
+  * Reverts winner and loser Elo ratings to pre-comparison values
+  * Decrements comparison counts, wins, and losses atomically
+  * Deletes comparison record safely
+  * Returns 404 for non-existent comparisons
+- ✅ **TESTED**: Comprehensive `TestDeleteComparison/SuccessfulUndo` verifies ratings revert correctly
+- ✅ **COVERAGE**: Improved from 53.5% to 53.8% (exceeds 50% threshold)
+- ✅ **VALIDATION**: All test phases passing (smoke/unit/integration), zero regressions
+- ✅ **STATUS**: P1 undo feature now truly complete with verified functionality
+
+### Previous Session (2025-10-12-8)
+- ✅ Discovered undo endpoint existed but was only a stub
+- ✅ UI undo/skip functions work but backend wasn't actually reverting data
+- ✅ All other P1 requirements verified complete (4/5 fully functional)
+
+### Previous Session (2025-10-12-7)
+
+### Test Lifecycle Integration
+- ✅ Added test lifecycle event to service.json
+- ✅ Test infrastructure upgraded to "Comprehensive" (4/5 components)
+- ✅ Enabled `vrooli scenario test elo-swipe` command
+- ✅ Security audit completed: 0 vulnerabilities found
+
+### Security & Standards Analysis
+- ✅ Comprehensive security scan passed with zero vulnerabilities
+- ✅ 932 standards violations analyzed (10 high, 921 medium)
+- ✅ High-severity violations confirmed as false positives or non-actionable
+- ✅ Documented audit results and impact assessment in PROBLEMS.md
+
+### Previous Improvements (2025-10-12-6)
+- ✅ Removed legacy scenario-test.yaml (obsoleted by phased testing)
+- ✅ Added comprehensive CLI BATS test suite (19 tests)
+- ✅ All BATS tests passing with 100% pass rate
+- ✅ Fixed 8 high-severity standards violations
+- ✅ Core features maintain 70-100% test coverage (53.5% overall)

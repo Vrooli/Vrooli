@@ -56,10 +56,12 @@ func main() {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Missing database configuration. Provide DATABASE_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+			log.Fatal("❌ Missing required database configuration. Provide DATABASE_URL or all required PostgreSQL environment variables")
 		}
+
+		// Don't log sensitive credentials
 		
 		databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
@@ -77,14 +79,13 @@ func main() {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 	
-	// Implement exponential backoff for database connection
+	// Implement exponential backoff for database connection with random jitter
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
@@ -92,16 +93,17 @@ func main() {
 			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
 			float64(baseDelay) * math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add RANDOM jitter to prevent thundering herd (using time-based randomness)
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		randomFactor := float64(time.Now().UnixNano() % 1000) / 1000.0 // Random 0.0-1.0
+		jitter := time.Duration(jitterRange * randomFactor)
 		actualDelay := delay + jitter
 		
 		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
@@ -144,9 +146,21 @@ func main() {
 	// Setup HTTP router
 	router := server.setupRoutes()
 	
-	// Configure CORS
+	// Configure CORS - allow UI port dynamically
+	uiPort := os.Getenv("UI_PORT")
+	var allowedOrigins []string
+	if uiPort != "" {
+		allowedOrigins = []string{
+			"http://localhost:" + uiPort,
+		}
+		log.Printf("✅ CORS configured for UI port: %s", uiPort)
+	} else {
+		log.Println("⚠️  UI_PORT not set, CORS disabled (API-only mode)")
+		allowedOrigins = []string{} // No origins allowed
+	}
+
 	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://localhost:3201", "http://localhost:3000"},
+		AllowedOrigins: allowedOrigins,
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
 		AllowCredentials: true,
@@ -285,14 +299,16 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 func (s *Server) healthCheck(w http.ResponseWriter, r *http.Request) {
 	health := models.HealthStatus{
 		Status:    "healthy",
+		Service:   "email-triage-api",
 		Timestamp: time.Now(),
+		Readiness: true,
 		Services: map[string]string{
 			"database": "connected",
 			"auth":     "available",
 			"qdrant":   "connected",
 		},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(health)
 }
@@ -415,8 +431,15 @@ func loadConfig() Config {
 	
 	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
 	if authServiceURL == "" {
-		authServiceURL = "http://localhost:8080" // Default for scenario-authenticator
-		log.Printf("⚠️  AUTH_SERVICE_URL not set, using default: %s", authServiceURL)
+		// Authentication service URL is required for production - fail if not set and not in DEV_MODE
+		if os.Getenv("DEV_MODE") != "true" {
+			log.Fatal("❌ Authentication service configuration is required (or set DEV_MODE=true for testing)")
+		}
+		// In DEV_MODE, use localhost default
+		authServiceURL = "http://localhost:8080"
+		log.Println("⚠️  Authentication service not configured, using DEV_MODE default")
+	} else {
+		log.Println("✅ Authentication service configured")
 	}
 	
 	mailServerURL := os.Getenv("MAIL_SERVER_URL")

@@ -204,6 +204,13 @@
             .stats { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
 </head>
 <body>
     <div class="container">
@@ -343,7 +350,33 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+        const BRIDGE_FLAG = '__notificationHubBridgeInitialized';
+
+        function bootstrapIframeBridge() {
+            if (typeof window === 'undefined' || window[BRIDGE_FLAG]) {
+                return;
+            }
+
+            if (window.parent !== window) {
+                const options = { appId: 'notification-hub' };
+                try {
+                    if (document.referrer) {
+                        options.parentOrigin = new URL(document.referrer).origin;
+                    }
+                } catch (error) {
+                    console.warn('[NotificationHub] Unable to determine parent origin for iframe bridge', error);
+                }
+
+                initIframeBridgeChild(options);
+                window[BRIDGE_FLAG] = true;
+            }
+        }
+
+        bootstrapIframeBridge();
+
         // Dashboard functionality
         async function loadDashboardStats() {
             try {
@@ -418,6 +451,12 @@
 
         // Load dashboard stats on page load
         document.addEventListener('DOMContentLoaded', loadDashboardStats);
+
+        // Expose modal helpers for inline handlers
+        window.showSendNotificationModal = showSendNotificationModal;
+        window.hideSendNotificationModal = hideSendNotificationModal;
+        window.sendTestNotification = sendTestNotification;
+        window.testNotification = testNotification;
     </script>
 </body>
 </html>

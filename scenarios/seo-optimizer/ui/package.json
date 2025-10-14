@@ -8,6 +8,7 @@
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
   },
   "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "cors": "^2.8.5",
     "express": "^4.21.2"
   },

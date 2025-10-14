@@ -4,7 +4,7 @@
       "name": "ideas",
       "config": {
         "vectors": {
-          "size": 1536,
+          "size": 768,
           "distance": "Cosine"
         },
         "optimizers_config": {
@@ -29,10 +29,10 @@
       }
     },
     {
-      "name": "documents", 
+      "name": "documents",
       "config": {
         "vectors": {
-          "size": 1536,
+          "size": 768,
           "distance": "Cosine"
         },
         "optimizers_config": {
@@ -59,7 +59,7 @@
       "name": "campaigns",
       "config": {
         "vectors": {
-          "size": 1536, 
+          "size": 768,
           "distance": "Cosine"
         },
         "optimizers_config": {
@@ -85,8 +85,8 @@
       "name": "chat_messages",
       "config": {
         "vectors": {
-          "size": 1536,
-          "distance": "Cosine" 
+          "size": 768,
+          "distance": "Cosine"
         },
         "optimizers_config": {
           "default_segment_number": 2,

@@ -115,8 +115,10 @@ type SearchResult struct {
 // HealthStatus represents system health information
 type HealthStatus struct {
 	Status    string            `json:"status"`
+	Service   string            `json:"service"`
 	Timestamp time.Time         `json:"timestamp"`
-	Services  map[string]string `json:"services"`
+	Readiness bool              `json:"readiness"`
+	Services  map[string]string `json:"services,omitempty"`
 }
 
 // APIError represents a standardized API error response

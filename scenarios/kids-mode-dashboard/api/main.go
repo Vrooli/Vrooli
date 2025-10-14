@@ -29,7 +29,8 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/api/v1/health", healthHandler)
+	// Health check at root level (required by orchestration)
+	http.HandleFunc("/health", healthHandler)
 	http.HandleFunc("/", dashboardHandler)
 	log.Println("Starting kids-mode-dashboard server on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

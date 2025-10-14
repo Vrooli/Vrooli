@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visited Tracker - Campaign Management</title>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+    <script type="module" src="bridge-init.js"></script>
     <style>
         :root {
             --bg-primary: #0d1117;

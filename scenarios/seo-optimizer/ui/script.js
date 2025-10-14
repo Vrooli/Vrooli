@@ -1,6 +1,19 @@
+// Ensure iframe bridge initialization when embedded in orchestrator preview
+(function initializeIframeBridge() {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    if (window.__seoOptimizerBridgeInitialized) {
+        return;
+    }
+    if (window.parent !== window && typeof window.initIframeBridgeChild === 'function') {
+        window.initIframeBridgeChild({ appId: 'seo-optimizer-ui' });
+        window.__seoOptimizerBridgeInitialized = true;
+    }
+})();
+
 // SEO Optimizer Frontend JavaScript
 const API_URL = `${window.location.protocol}//${window.location.host}`;
-
 // View Management
 const views = {
     audit: document.getElementById('audit-view'),

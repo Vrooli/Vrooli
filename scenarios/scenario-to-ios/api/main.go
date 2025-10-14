@@ -27,7 +27,13 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	s := &Server{router: http.NewServeMux()}
+
+	// Health check at root level (required for lifecycle system)
+	s.router.HandleFunc("/health", s.handleHealth)
+
+	// Health check (also available under API prefix)
 	s.router.HandleFunc("/api/v1/health", s.handleHealth)
+
 	log.Println("Starting server on :8080")
 	http.ListenAndServe(":8080", s.router)
 }

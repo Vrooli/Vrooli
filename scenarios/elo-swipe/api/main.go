@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -68,9 +69,9 @@ type Progress struct {
 }
 
 type CreateListRequest struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Items       []ItemInput     `json:"items"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Items       []ItemInput `json:"items"`
 }
 
 type ItemInput struct {
@@ -108,7 +109,7 @@ func main() {
 	}
 
 	app := &App{}
-	
+
 	// Database configuration - support both POSTGRES_URL and individual components
 	postgresURL := os.Getenv("POSTGRES_URL")
 	if postgresURL == "" {
@@ -118,80 +119,83 @@ func main() {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all database environment variables (POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_DB, and password)")
 		}
-		
+
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
-	
+
 	var err error
 	app.DB, err = sql.Open("postgres", postgresURL)
 	if err != nil {
 		log.Fatal("Failed to open database connection:", err)
 	}
 	defer app.DB.Close()
-	
+
 	// Set connection pool settings
 	app.DB.SetMaxOpenConns(25)
 	app.DB.SetMaxIdleConns(5)
 	app.DB.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Implement exponential backoff for database connection
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📆 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = app.DB.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add random jitter to prevent thundering herd (up to 25% of delay)
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(rand.Float64() * jitterRange)
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	// Initialize SmartPairing
 	app.SmartPairing = NewSmartPairing(app.DB)
-	
+
 	// Setup routes
 	router := mux.NewRouter()
-	
+
+	// Root-level health endpoint for ecosystem monitoring
+	router.HandleFunc("/health", app.HealthCheck).Methods("GET")
+
 	// API routes
 	api := router.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/health", app.HealthCheck).Methods("GET")
@@ -202,27 +206,27 @@ func main() {
 	api.HandleFunc("/lists/{id}/rankings", app.GetRankings).Methods("GET")
 	api.HandleFunc("/comparisons", app.CreateComparison).Methods("POST")
 	api.HandleFunc("/comparisons/{id}", app.DeleteComparison).Methods("DELETE")
-	
+
 	// Smart Pairing routes
 	api.HandleFunc("/lists/{id}/smart-pairing", app.GenerateSmartPairing).Methods("POST")
 	api.HandleFunc("/lists/{id}/smart-pairing/queue", app.GetPairingQueue).Methods("GET")
 	api.HandleFunc("/lists/{id}/smart-pairing/refresh", app.RefreshPairingQueue).Methods("POST")
-	
+
 	// CORS
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
 	})
-	
+
 	handler := c.Handler(router)
-	
+
 	// Get port from environment - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
-	
+
 	log.Printf("Elo Swipe API server starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
@@ -230,7 +234,40 @@ func main() {
 // getEnv removed to prevent hardcoded defaults
 
 func (app *App) HealthCheck(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
+	// Check database connectivity
+	dbConnected := true
+	var dbLatency float64
+	dbStart := time.Now()
+	err := app.DB.Ping()
+	if err == nil {
+		dbLatency = float64(time.Since(dbStart).Milliseconds())
+	} else {
+		dbConnected = false
+	}
+
+	// Build health response per schema
+	status := "healthy"
+	if !dbConnected {
+		status = "degraded"
+	}
+
+	healthResponse := map[string]interface{}{
+		"status":    status,
+		"service":   "elo-swipe-api",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"readiness": dbConnected,
+		"version":   "1.0.0",
+		"dependencies": map[string]interface{}{
+			"database": map[string]interface{}{
+				"connected":  dbConnected,
+				"latency_ms": dbLatency,
+				"error":      nil,
+			},
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(healthResponse)
 }
 
 func (app *App) GetLists(w http.ResponseWriter, r *http.Request) {
@@ -242,14 +279,14 @@ func (app *App) GetLists(w http.ResponseWriter, r *http.Request) {
 		GROUP BY l.id
 		ORDER BY l.updated_at DESC
 	`
-	
+
 	rows, err := app.DB.Query(query)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	lists := []List{}
 	for rows.Next() {
 		var list List
@@ -265,7 +302,7 @@ func (app *App) GetLists(w http.ResponseWriter, r *http.Request) {
 		}
 		lists = append(lists, list)
 	}
-	
+
 	json.NewEncoder(w).Encode(lists)
 }
 
@@ -275,7 +312,7 @@ func (app *App) CreateList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	// Start transaction
 	tx, err := app.DB.Begin()
 	if err != nil {
@@ -283,7 +320,7 @@ func (app *App) CreateList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	
+
 	// Create list
 	listID := uuid.New().String()
 	_, err = tx.Exec(`
@@ -294,7 +331,7 @@ func (app *App) CreateList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Add items
 	for _, item := range req.Items {
 		itemID := uuid.New().String()
@@ -307,20 +344,20 @@ func (app *App) CreateList(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	
+
 	// Commit transaction
 	if err = tx.Commit(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Return response
 	response := map[string]interface{}{
 		"list_id":        listID,
 		"item_count":     len(req.Items),
 		"comparison_url": fmt.Sprintf("/swipe?list=%s", listID),
 	}
-	
+
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
 }
@@ -356,16 +393,16 @@ func (app *App) GetList(w http.ResponseWriter, r *http.Request) {
 func (app *App) GetNextComparison(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	listID := vars["id"]
-	
+
 	// Try to get next comparison from the database function
 	var itemAID, itemBID string
 	var priority float64
-	
+
 	err := app.DB.QueryRow(`
 		SELECT item_a_id, item_b_id, priority
 		FROM elo_swipe.get_next_comparison($1)
 	`, listID).Scan(&itemAID, &itemBID, &priority)
-	
+
 	if err == sql.ErrNoRows {
 		http.Error(w, "No more comparisons needed", http.StatusNoContent)
 		return
@@ -385,7 +422,7 @@ func (app *App) GetNextComparison(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer rows.Close()
-		
+
 		items := []*Item{}
 		for rows.Next() {
 			var item Item
@@ -396,42 +433,42 @@ func (app *App) GetNextComparison(w http.ResponseWriter, r *http.Request) {
 			}
 			items = append(items, &item)
 		}
-		
+
 		if len(items) < 2 {
 			http.Error(w, "Not enough items to compare", http.StatusNoContent)
 			return
 		}
-		
+
 		itemAID = items[0].ID
 		itemBID = items[1].ID
 	}
-	
+
 	// Get full item details
 	itemA, err := app.getItem(itemAID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	itemB, err := app.getItem(itemBID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Get progress
 	progress, err := app.getProgress(listID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	response := NextComparison{
 		ItemA:    itemA,
 		ItemB:    itemB,
 		Progress: progress,
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -441,22 +478,22 @@ func (app *App) CreateComparison(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	// Get current ratings
 	winnerRating, loserRating, err := app.getRatings(req.WinnerID, req.LoserID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Calculate new ratings using Elo formula
 	kFactor := 32.0
 	expectedWinner := 1.0 / (1.0 + math.Pow(10, (loserRating-winnerRating)/400.0))
 	expectedLoser := 1.0 - expectedWinner
-	
+
 	newWinnerRating := winnerRating + kFactor*(1.0-expectedWinner)
 	newLoserRating := loserRating + kFactor*(0.0-expectedLoser)
-	
+
 	// Start transaction
 	tx, err := app.DB.Begin()
 	if err != nil {
@@ -464,7 +501,7 @@ func (app *App) CreateComparison(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	
+
 	// Record comparison
 	comparisonID := uuid.New().String()
 	_, err = tx.Exec(`
@@ -478,7 +515,7 @@ func (app *App) CreateComparison(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Update winner
 	_, err = tx.Exec(`
 		UPDATE elo_swipe.items
@@ -492,7 +529,7 @@ func (app *App) CreateComparison(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Update loser
 	_, err = tx.Exec(`
 		UPDATE elo_swipe.items
@@ -506,13 +543,13 @@ func (app *App) CreateComparison(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Commit transaction
 	if err = tx.Commit(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Return comparison details
 	comparison := Comparison{
 		ID:                 comparisonID,
@@ -525,18 +562,85 @@ func (app *App) CreateComparison(w http.ResponseWriter, r *http.Request) {
 		LoserRatingAfter:   newLoserRating,
 		Timestamp:          time.Now(),
 	}
-	
+
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(comparison)
 }
 
 func (app *App) DeleteComparison(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	_ = vars["id"] // comparisonID - TODO: implement undo logic
-	
-	// TODO: Implement undo logic (revert ratings)
-	// For now, just mark as deleted or remove
-	
+	comparisonID := vars["id"]
+
+	// Start transaction to ensure atomicity
+	tx, err := app.DB.Begin()
+	if err != nil {
+		http.Error(w, "Failed to start transaction", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	// Get comparison details before deletion
+	var winnerID, loserID string
+	var winnerBefore, loserBefore float64
+	err = tx.QueryRow(`
+		SELECT winner_id, loser_id, winner_rating_before, loser_rating_before
+		FROM elo_swipe.comparisons
+		WHERE id = $1
+	`, comparisonID).Scan(&winnerID, &loserID, &winnerBefore, &loserBefore)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Comparison not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to retrieve comparison", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Revert winner rating
+	_, err = tx.Exec(`
+		UPDATE elo_swipe.items
+		SET elo_rating = $1,
+		    comparison_count = GREATEST(comparison_count - 1, 0),
+		    wins = GREATEST(wins - 1, 0),
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`, winnerBefore, winnerID)
+	if err != nil {
+		http.Error(w, "Failed to revert winner rating", http.StatusInternalServerError)
+		return
+	}
+
+	// Revert loser rating
+	_, err = tx.Exec(`
+		UPDATE elo_swipe.items
+		SET elo_rating = $1,
+		    comparison_count = GREATEST(comparison_count - 1, 0),
+		    losses = GREATEST(losses - 1, 0),
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`, loserBefore, loserID)
+	if err != nil {
+		http.Error(w, "Failed to revert loser rating", http.StatusInternalServerError)
+		return
+	}
+
+	// Delete the comparison record
+	_, err = tx.Exec(`
+		DELETE FROM elo_swipe.comparisons
+		WHERE id = $1
+	`, comparisonID)
+	if err != nil {
+		http.Error(w, "Failed to delete comparison", http.StatusInternalServerError)
+		return
+	}
+
+	// Commit transaction
+	if err = tx.Commit(); err != nil {
+		http.Error(w, "Failed to commit transaction", http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -544,21 +648,21 @@ func (app *App) GetRankings(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	listID := vars["id"]
 	format := r.URL.Query().Get("format")
-	
+
 	query := `
 		SELECT content, elo_rating, confidence_score
 		FROM elo_swipe.items
 		WHERE list_id = $1
 		ORDER BY elo_rating DESC
 	`
-	
+
 	rows, err := app.DB.Query(query, listID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	rankings := []RankedItem{}
 	rank := 1
 	for rows.Next() {
@@ -572,7 +676,7 @@ func (app *App) GetRankings(w http.ResponseWriter, r *http.Request) {
 		rankings = append(rankings, item)
 		rank++
 	}
-	
+
 	// Handle different formats
 	switch format {
 	case "csv":
@@ -580,10 +684,10 @@ func (app *App) GetRankings(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"rankings_%s.csv\"", listID))
 		writer := csv.NewWriter(w)
 		defer writer.Flush()
-		
+
 		// Write header
 		writer.Write([]string{"Rank", "Item", "Elo Rating", "Confidence"})
-		
+
 		// Write data
 		for _, item := range rankings {
 			itemJSON, _ := json.Marshal(item.Item)
@@ -594,14 +698,14 @@ func (app *App) GetRankings(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("%.2f", item.Confidence),
 			})
 		}
-		
+
 	case "json", "":
 		response := Rankings{
 			Rankings: rankings,
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-		
+
 	default:
 		http.Error(w, "Unsupported format. Use ?format=json or ?format=csv", http.StatusBadRequest)
 	}
@@ -616,7 +720,7 @@ func (app *App) getItem(itemID string) (*Item, error) {
 		WHERE id = $1
 	`, itemID).Scan(&item.ID, &item.ListID, &item.Content, &item.EloRating,
 		&item.ComparisonCount, &item.Wins, &item.Losses, &item.Confidence)
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -625,48 +729,48 @@ func (app *App) getItem(itemID string) (*Item, error) {
 
 func (app *App) getRatings(id1, id2 string) (float64, float64, error) {
 	var rating1, rating2 float64
-	
+
 	err := app.DB.QueryRow(`
 		SELECT elo_rating FROM elo_swipe.items WHERE id = $1
 	`, id1).Scan(&rating1)
 	if err != nil {
 		return 0, 0, err
 	}
-	
+
 	err = app.DB.QueryRow(`
 		SELECT elo_rating FROM elo_swipe.items WHERE id = $1
 	`, id2).Scan(&rating2)
 	if err != nil {
 		return 0, 0, err
 	}
-	
+
 	return rating1, rating2, nil
 }
 
 func (app *App) getProgress(listID string) (Progress, error) {
 	var itemCount, comparisonCount int
-	
+
 	err := app.DB.QueryRow(`
 		SELECT COUNT(*) FROM elo_swipe.items WHERE list_id = $1
 	`, listID).Scan(&itemCount)
 	if err != nil {
 		return Progress{}, err
 	}
-	
+
 	err = app.DB.QueryRow(`
 		SELECT COUNT(*) FROM elo_swipe.comparisons WHERE list_id = $1
 	`, listID).Scan(&comparisonCount)
 	if err != nil {
 		return Progress{}, err
 	}
-	
+
 	// Total possible comparisons is n*(n-1)/2
 	// totalPossible := itemCount * (itemCount - 1) / 2
-	
+
 	// But we don't need all comparisons for good rankings
 	// Use n*log(n) as a reasonable target
 	recommendedComparisons := int(float64(itemCount) * math.Log(float64(itemCount+1)) * 2)
-	
+
 	return Progress{
 		Completed: comparisonCount,
 		Total:     recommendedComparisons,

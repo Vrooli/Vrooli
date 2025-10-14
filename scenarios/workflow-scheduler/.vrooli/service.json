@@ -62,13 +62,22 @@
     "health": {
       "description": "Workflow Scheduler health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
@@ -85,8 +94,8 @@
             {
               "type": "binaries",
               "targets": [
-                "workflow-scheduler-api",
-                "workflow-scheduler"
+                "api/workflow-scheduler-api",
+                "cli/workflow-scheduler"
               ]
             },
            {
@@ -195,7 +204,7 @@
         },
         {
           "name": "test-cron-validation",
-          "run": "curl -sf 'http://localhost:$API_PORT/api/cron/validate?expression=0%209%20*%20*%20*'",
+          "run": "curl -sf \"http://localhost:$API_PORT/api/cron/validate?expression=0%209%20*%20*%20*\"",
           "description": "Test cron expression validation"
         },
         {

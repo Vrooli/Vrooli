@@ -1,3 +1,19 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+if (typeof window !== 'undefined' && window.parent !== window && !window.__personalRelationshipBridgeInitialized) {
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[PersonalRelationshipManager] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'personal-relationship-manager' });
+    window.__personalRelationshipBridgeInitialized = true;
+}
+
 // API Configuration
 const API_BASE_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:39001/api' 

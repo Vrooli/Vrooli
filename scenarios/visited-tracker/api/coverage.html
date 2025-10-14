@@ -55,7 +55,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">visited-tracker-api/main.go (79.7%)</option>
+				<option value="file0">visited-tracker-api/main.go (80.6%)</option>
 				
 				</select>
 			</div>
@@ -436,7 +436,7 @@ func calculateStalenessScore(file *TrackedFile) float64 <span class="cov8" title
         
         // Estimate modifications (simplified: assume 1 mod per week if modified after visit)
         modificationsEstimate := 0.0
-        if file.LastModified.After(*file.LastVisited) </span><span class="cov0" title="0">{
+        if file.LastModified.After(*file.LastVisited) </span><span class="cov8" title="1">{
                 modificationsEstimate = math.Max(1.0, math.Floor(daysSinceModified/7.0))
         }</span>
         
@@ -734,7 +734,7 @@ func createCampaignHandler(w http.ResponseWriter, r *http.Request) <span class="
                 StructureSnapshots: []StructureSnapshot{},
         }
         
-        if campaign.Metadata == nil </span><span class="cov0" title="0">{
+        if campaign.Metadata == nil </span><span class="cov8" title="1">{
                 campaign.Metadata = make(map[string]interface{})
         }</span>
         
@@ -807,15 +807,15 @@ func getCampaignHandler(w http.ResponseWriter, r *http.Request) <span class="cov
         
         totalFiles := len(campaign.TrackedFiles)
         visitedFiles := 0
-        for _, file := range campaign.TrackedFiles </span><span class="cov0" title="0">{
-                if !file.Deleted &amp;&amp; file.VisitCount &gt; 0 </span><span class="cov0" title="0">{
+        for _, file := range campaign.TrackedFiles </span><span class="cov8" title="1">{
+                if !file.Deleted &amp;&amp; file.VisitCount &gt; 0 </span><span class="cov8" title="1">{
                         visitedFiles++
                 }</span>
         }
         
         <span class="cov8" title="1">campaign.TotalFiles = totalFiles
         campaign.VisitedFiles = visitedFiles
-        if totalFiles &gt; 0 </span><span class="cov0" title="0">{
+        if totalFiles &gt; 0 </span><span class="cov8" title="1">{
                 campaign.CoveragePercent = float64(visitedFiles) / float64(totalFiles) * 100.0
         }</span>
         

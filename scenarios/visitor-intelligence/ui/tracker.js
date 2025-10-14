@@ -1,3 +1,23 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+(function bootstrapVisitorIntelligenceBridge() {
+    if (typeof window === 'undefined' || window.parent === window || window.__visitorIntelligenceBridgeInitialized) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[VisitorIntelligence] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'visitor-intelligence' });
+    window.__visitorIntelligenceBridgeInitialized = true;
+})();
+
 /**
  * Vrooli Visitor Intelligence Tracker
  * Privacy-first visitor identification and behavioral tracking

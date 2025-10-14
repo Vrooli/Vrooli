@@ -269,10 +269,11 @@ func (a *App) Run() {
 // Health check endpoint
 func (a *App) healthCheck(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
-		"status":  "healthy",
-		"service": "workflow-scheduler",
-		"version": "1.0.0",
-		"time":    time.Now().UTC(),
+		"status":    "healthy",
+		"service":   "workflow-scheduler",
+		"version":   "1.0.0",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"readiness": true,
 	}
 	respondJSON(w, http.StatusOK, response)
 }
@@ -625,10 +626,10 @@ func (a *App) triggerSchedule(w http.ResponseWriter, r *http.Request) {
 // Get all executions
 func (a *App) getExecutions(w http.ResponseWriter, r *http.Request) {
 	rows, err := a.DB.Query(`
-		SELECT e.id, e.schedule_id, s.name, e.scheduled_time, 
+		SELECT e.id::text, e.schedule_id::text, s.name, e.scheduled_time,
 		       e.start_time, e.end_time, e.duration_ms, e.status,
 		       e.response_code, e.is_manual_trigger
-		FROM executions e
+		FROM schedule_executions e
 		JOIN schedules s ON e.schedule_id = s.id
 		ORDER BY e.scheduled_time DESC
 		LIMIT 100
@@ -691,9 +692,9 @@ func (a *App) getScheduleExecutions(w http.ResponseWriter, r *http.Request) {
 	scheduleID := vars["id"]
 	
 	rows, err := a.DB.Query(`
-		SELECT id, scheduled_time, start_time, end_time, 
+		SELECT id, scheduled_time, start_time, end_time,
 		       duration_ms, status, response_code, error_message
-		FROM executions
+		FROM schedule_executions
 		WHERE schedule_id = $1
 		ORDER BY scheduled_time DESC
 		LIMIT 50
@@ -756,7 +757,7 @@ func (a *App) getExecution(w http.ResponseWriter, r *http.Request) {
 		SELECT id, schedule_id, scheduled_time, start_time, end_time,
 		       duration_ms, status, attempt_count, response_code,
 		       response_body, error_message, is_manual_trigger, is_catch_up
-		FROM executions WHERE id = $1
+		FROM schedule_executions WHERE id = $1
 	`, id).Scan(
 		&e.ID, &e.ScheduleID, &e.ScheduledTime, &startTime, &endTime,
 		&durationMs, &e.Status, &e.AttemptCount, &responseCode,
@@ -894,9 +895,9 @@ func (a *App) getDashboardStats(w http.ResponseWriter, r *http.Request) {
 	a.DB.QueryRow("SELECT COUNT(*) FROM schedules WHERE status = 'active' AND enabled = true").Scan(&stats.ActiveSchedules)
 	
 	// Get execution counts
-	a.DB.QueryRow("SELECT COUNT(*) FROM executions").Scan(&stats.TotalExecutions)
-	a.DB.QueryRow("SELECT COUNT(*) FROM executions WHERE status = 'success'").Scan(&stats.SuccessfulExecutions)
-	a.DB.QueryRow("SELECT COUNT(*) FROM executions WHERE status = 'failed'").Scan(&stats.FailedExecutions)
+	a.DB.QueryRow("SELECT COUNT(*) FROM schedule_executions").Scan(&stats.TotalExecutions)
+	a.DB.QueryRow("SELECT COUNT(*) FROM schedule_executions WHERE status = 'success'").Scan(&stats.SuccessfulExecutions)
+	a.DB.QueryRow("SELECT COUNT(*) FROM schedule_executions WHERE status = 'failed'").Scan(&stats.FailedExecutions)
 	
 	// Get average success rate
 	a.DB.QueryRow("SELECT AVG(success_rate) FROM schedule_metrics").Scan(&stats.AvgSuccessRate)
@@ -1065,9 +1066,10 @@ func (a *App) logAuditEvent(scheduleID, action, user, ipWithPort string) {
 		scheduleIDParam = scheduleID
 	}
 
-	// Convert empty IP to NULL for database compatibility
+	// Convert empty IP or localhost references to NULL for database compatibility
 	var ipParam interface{}
-	if ip == "" {
+	if ip == "" || ip == "::1" || ip == "127.0.0.1" {
+		// Store NULL for localhost to avoid INET type errors
 		ipParam = nil
 	} else {
 		ipParam = ip
@@ -1078,7 +1080,8 @@ func (a *App) logAuditEvent(scheduleID, action, user, ipWithPort string) {
 		VALUES ($1, $2, $3, $4)
 	`, scheduleIDParam, action, user, ipParam)
 	if err != nil {
-		log.Printf("Failed to log audit event: %v", err)
+		log.Printf("Warning: Could not log audit event: %v (IP: %s)", err, ipWithPort)
+		// Continue execution - audit logging should not break the API
 	}
 }
 

@@ -1,5 +1,11 @@
 // Token Economy - Wallet Application
 
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+    initIframeBridgeChild({ appId: 'token-economy-ui' })
+}
+
 const API_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:11080/api/v1' 
     : '/api/v1';

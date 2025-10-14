@@ -5,6 +5,19 @@ const Store = require('electron-store');
 const axios = require('axios');
 const fs = require('fs').promises;
 const os = require('os');
+const { initIframeBridgeChild } = require('@vrooli/iframe-bridge/child');
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+  let parentOrigin;
+  try {
+    if (typeof document !== 'undefined' && document.referrer) {
+      parentOrigin = new URL(document.referrer).origin;
+    }
+  } catch (error) {
+    console.warn('[vrooli-assistant] Unable to determine parent origin for iframe bridge', error);
+  }
+  initIframeBridgeChild({ appId: 'vrooli-assistant', parentOrigin });
+}
 
 // Initialize persistent store
 const store = new Store();

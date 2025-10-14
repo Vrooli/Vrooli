@@ -1,3 +1,23 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+(function bootstrapVrooliAssistantBridge() {
+  if (typeof window === 'undefined' || window.parent === window || window.__vrooliAssistantBridgeInitialized) {
+    return;
+  }
+
+  let parentOrigin;
+  try {
+    if (document.referrer) {
+      parentOrigin = new URL(document.referrer).origin;
+    }
+  } catch (error) {
+    console.warn('[VrooliAssistant] Unable to determine parent origin for iframe bridge', error);
+  }
+
+  initIframeBridgeChild({ parentOrigin, appId: 'vrooli-assistant' });
+  window.__vrooliAssistantBridgeInitialized = true;
+})();
+
 // Renderer process script for overlay UI
 
 let currentScreenshot = null;
@@ -181,3 +201,10 @@ if (textarea) {
     textarea.style.borderColor = '';
   });
 }
+
+// Expose functions used by inline event handlers after module conversion
+window.captureScreenshot = captureScreenshot;
+window.submitIssue = submitIssue;
+window.hideOverlay = hideOverlay;
+window.openHistory = openHistory;
+window.openSettings = openSettings;

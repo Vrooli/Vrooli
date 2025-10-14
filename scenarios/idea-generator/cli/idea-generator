@@ -4,7 +4,13 @@
 set -euo pipefail
 
 # Configuration
-API_BASE_URL="${IDEA_GENERATOR_API_URL:-http://localhost:8500}"
+# Try to get the actual port from the running service
+if command -v vrooli >/dev/null 2>&1; then
+    API_PORT=$(vrooli scenario status idea-generator --json 2>/dev/null | jq -r '.ports.API_PORT // "15204"' 2>/dev/null || echo "15204")
+else
+    API_PORT="15204"
+fi
+API_BASE_URL="${IDEA_GENERATOR_API_URL:-http://localhost:${API_PORT}}"
 WINDMILL_URL="${WINDMILL_URL:-http://localhost:5681}"
 N8N_URL="${N8N_URL:-http://localhost:5678}"
 
@@ -85,9 +91,9 @@ show_status() {
 # List campaigns
 list_campaigns() {
     log_info "Fetching campaigns..."
-    
+
     if check_api; then
-        local response=$(curl -s "$API_BASE_URL/campaigns")
+        local response=$(curl -s "$API_BASE_URL/api/campaigns")
         echo "$response" | jq '.' 2>/dev/null || echo "$response"
     else
         return 1
@@ -97,9 +103,9 @@ list_campaigns() {
 # List ideas
 list_ideas() {
     log_info "Fetching ideas..."
-    
+
     if check_api; then
-        local response=$(curl -s "$API_BASE_URL/ideas")
+        local response=$(curl -s "$API_BASE_URL/api/ideas")
         echo "$response" | jq '.' 2>/dev/null || echo "$response"
     else
         return 1
@@ -109,9 +115,9 @@ list_ideas() {
 # List workflows
 list_workflows() {
     log_info "Fetching workflows..."
-    
+
     if check_api; then
-        local response=$(curl -s "$API_BASE_URL/workflows")
+        local response=$(curl -s "$API_BASE_URL/api/workflows")
         echo "$response" | jq '.' 2>/dev/null || echo "$response"
     else
         return 1

@@ -7,9 +7,29 @@ set -euo pipefail
 
 echo "🩺 Testing Email Triage health endpoints..."
 
-# Get API port from environment, service.json, or use default
-if [ -z "$API_PORT" ]; then
-    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Always detect the scenario name from our location first
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Extract scenario name from the path
+if [[ "$SCRIPT_DIR" =~ /scenarios/([^/]+)/ ]]; then
+    SCENARIO_NAME="${BASH_REMATCH[1]}"
+else
+    # Fallback: try to determine from directory structure
+    SCENARIO_NAME=$(basename "$(dirname "$(dirname "$SCRIPT_DIR")")" 2>/dev/null || echo "")
+fi
+
+# Always try to detect the port for THIS scenario from vrooli CLI
+# This overrides any inherited API_PORT environment variable
+if [ -n "$SCENARIO_NAME" ] && command -v vrooli >/dev/null 2>&1; then
+    DETECTED_PORT=$(vrooli scenario status "$SCENARIO_NAME" --json 2>/dev/null | jq -r '.scenario_data.allocated_ports.API_PORT // empty' 2>/dev/null)
+    if [ -n "$DETECTED_PORT" ]; then
+        API_PORT="$DETECTED_PORT"
+    fi
+fi
+
+# Fall back to environment variable if detection failed
+if [ -z "${API_PORT:-}" ]; then
+    # Fall back to service.json or default
     SERVICE_JSON="$(dirname "$(dirname "$SCRIPT_DIR")")/.vrooli/service.json"
     if [ -f "$SERVICE_JSON" ] && command -v jq >/dev/null 2>&1; then
         API_PORT=$(jq -r '.endpoints.api // "http://localhost:19528"' "$SERVICE_JSON" | sed 's/.*://')
@@ -93,9 +113,14 @@ else
     ((FAILURES++))
 fi
 
-# Test CLI health command
+# Test CLI health command (try PATH first, then direct path)
 echo -n "  Testing CLI health command... "
-if email-triage status >/dev/null 2>&1; then
+CLI_CMD="email-triage"
+if ! command -v email-triage >/dev/null 2>&1; then
+    CLI_CMD="$HOME/.vrooli/bin/email-triage"
+fi
+
+if $CLI_CMD status >/dev/null 2>&1; then
     echo -e "${GREEN}✓${NC}"
 else
     echo -e "${RED}✗${NC}"

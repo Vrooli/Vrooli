@@ -50,20 +50,25 @@ INSERT INTO notification_channels (name, channel_type, enabled, min_severity) VA
 ('Critical Alerts', 'webhook', true, 'critical');
 
 -- Insert example schedules (disabled by default for safety)
-INSERT INTO schedules (
-    name, 
-    description, 
-    cron_expression, 
-    timezone,
-    target_type,
-    target_url,
-    status,
-    enabled,
-    overlap_policy,
-    tags,
-    owner,
-    priority
-) VALUES
+-- Check if sample schedules already exist before inserting
+DO $$
+BEGIN
+    -- Only insert sample schedules if none exist
+    IF NOT EXISTS (SELECT 1 FROM schedules WHERE owner IN ('system', 'analytics-team', 'ops-team', 'docs-team', 'ml-team') AND name LIKE '%Health Check%' OR name LIKE '%Daily Report%') THEN
+        INSERT INTO schedules (
+            name,
+            description,
+            cron_expression,
+            timezone,
+            target_type,
+            target_url,
+            status,
+            enabled,
+            overlap_policy,
+            tags,
+            owner,
+            priority
+        ) VALUES
 (
     'System Health Check',
     'Regular health check of all Vrooli services',
@@ -175,7 +180,13 @@ INSERT INTO schedules (
     ARRAY['monitoring', 'resources', 'alerts'],
     'ops-team',
     9
-);
+        );
+
+        RAISE NOTICE 'Sample schedules inserted successfully';
+    ELSE
+        RAISE NOTICE 'Sample schedules already exist, skipping insert';
+    END IF;
+END $$;
 
 -- Insert sample execution history for demonstration
 -- (Only for the System Health Check schedule)

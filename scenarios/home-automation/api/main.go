@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -18,16 +19,18 @@ import (
 )
 
 type App struct {
-	DB                 *sql.DB
-	DeviceController   *DeviceController
-	SafetyValidator    *SafetyValidator
-	CalendarScheduler  *CalendarScheduler
+	DB                *sql.DB
+	DeviceController  *DeviceController
+	SafetyValidator   *SafetyValidator
+	CalendarScheduler *CalendarScheduler
 }
 
 var startTime time.Time
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+	// Validate required lifecycle environment variable
+	lifecycleManaged := os.Getenv("VROOLI_LIFECYCLE_MANAGED")
+	if lifecycleManaged == "" || lifecycleManaged != "true" {
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
@@ -41,7 +44,7 @@ func main() {
 
 	startTime = time.Now()
 	app := &App{}
-	
+
 	// Database connection - REQUIRED, no defaults
 	dbHost := os.Getenv("POSTGRES_HOST")
 	if dbHost == "" {
@@ -57,7 +60,7 @@ func main() {
 	}
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
 	if dbPassword == "" {
-		log.Fatal("❌ POSTGRES_PASSWORD environment variable is required")
+		log.Fatal("❌ Database password environment variable is required")
 	}
 	dbName := os.Getenv("POSTGRES_DB")
 	if dbName == "" {
@@ -65,58 +68,66 @@ func main() {
 		dbName = "home_automation"
 		log.Println("ℹ️ POSTGRES_DB not set, using default: home_automation")
 	}
-	
+
+	// Build connection string - NEVER log the password
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPassword, dbName)
-	
+
+	// Log connection details WITHOUT password
+	log.Printf("ℹ️  Connecting to database: host=%s port=%s user=%s dbname=%s", dbHost, dbPort, dbUser, dbName)
+
 	var err error
 	app.DB, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	defer app.DB.Close()
-	
+
 	// Configure connection pool
 	app.DB.SetMaxOpenConns(25)
 	app.DB.SetMaxIdleConns(5)
 	app.DB.SetConnMaxLifetime(5 * time.Minute)
-	
-	// Implement exponential backoff for database connection
+
+	// Implement exponential backoff for database connection with RANDOM jitter
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	
+
+	// Seed random number generator for jitter (prevents thundering herd)
+	rand.Seed(time.Now().UnixNano())
+
+	log.Println("🔄 Attempting database connection with exponential backoff and random jitter...")
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = app.DB.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
-		// Add progressive jitter to prevent thundering herd
+
+		// Add RANDOM jitter to prevent thundering herd across multiple instances
+		// Use rand.Float64() for true randomness - NOT deterministic calculations
 		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		jitter := time.Duration(rand.Float64() * jitterRange)
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt (base: %v + random jitter: %v)", actualDelay, delay, jitter)
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	// Initialize components
@@ -124,23 +135,23 @@ func main() {
 	app.SafetyValidator = NewSafetyValidator(app.DB)
 	app.CalendarScheduler = NewCalendarScheduler(app.DB)
 	app.CalendarScheduler.SetDeviceController(app.DeviceController)
-	
+
 	// Setup routes
 	router := mux.NewRouter()
-	
+
 	// Root health check for lifecycle system
 	router.HandleFunc("/health", app.HealthCheck).Methods("GET")
-	
+
 	// API routes
 	api := router.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/health", app.HealthCheck).Methods("GET")
-	
+
 	// Device Control routes
 	api.HandleFunc("/devices/control", app.ControlDevice).Methods("POST")
 	api.HandleFunc("/devices/{id}/control", app.ControlDevice).Methods("POST")
 	api.HandleFunc("/devices/{id}/status", app.GetDeviceStatus).Methods("GET")
 	api.HandleFunc("/devices", app.ListDevices).Methods("GET")
-	
+
 	// Automation routes with rate limiting
 	// Rate limit: 10 automation generations per minute per client
 	automationLimiter := NewRateLimiter(10, time.Minute)
@@ -156,31 +167,27 @@ func main() {
 	api.HandleFunc("/contexts/{context}/activate", app.ActivateContext).Methods("POST")
 	api.HandleFunc("/contexts/{context}/deactivate", app.DeactivateContext).Methods("POST")
 	api.HandleFunc("/contexts/current", app.GetCurrentContext).Methods("GET")
-	
+
 	// Home Profiles routes
 	api.HandleFunc("/profiles", app.GetProfiles).Methods("GET")
 	api.HandleFunc("/profiles/{id}/permissions", app.GetProfilePermissions).Methods("GET")
-	
+
 	// CORS
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
 	})
-	
+
 	handler := c.Handler(router)
-	
-	// Start server
-	port := getEnv("API_PORT", "30500")
+
+	// Start server - Port must be explicitly configured
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
 	log.Printf("Home Automation API server starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }
 
 func (app *App) HealthCheck(w http.ResponseWriter, r *http.Request) {
@@ -190,10 +197,10 @@ func (app *App) HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 	// Schema-compliant health response
 	healthResponse := map[string]interface{}{
-		"status":    overallStatus,
-		"service":   "home-automation-api",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"readiness": true,
+		"status":       overallStatus,
+		"service":      "home-automation-api",
+		"timestamp":    time.Now().UTC().Format(time.RFC3339),
+		"readiness":    true,
 		"dependencies": map[string]interface{}{},
 	}
 
@@ -257,9 +264,9 @@ func (app *App) HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 	// Add metrics
 	healthResponse["metrics"] = map[string]interface{}{
-		"total_dependencies": 4,
+		"total_dependencies":   4,
 		"healthy_dependencies": app.countHealthyDependencies(healthResponse["dependencies"].(map[string]interface{})),
-		"uptime_seconds": time.Now().Unix() - startTime.Unix(),
+		"uptime_seconds":       time.Now().Unix() - startTime.Unix(),
 	}
 
 	// Return appropriate HTTP status
@@ -287,9 +294,9 @@ func (app *App) checkDatabaseHealth() map[string]interface{} {
 	if err := app.DB.PingContext(ctx); err != nil {
 		health["status"] = "unhealthy"
 		health["error"] = map[string]interface{}{
-			"code": "DATABASE_CONNECTION_FAILED",
-			"message": "Database connection failed: " + err.Error(),
-			"category": "resource",
+			"code":      "DATABASE_CONNECTION_FAILED",
+			"message":   "Database connection failed: " + err.Error(),
+			"category":  "resource",
 			"retryable": true,
 		}
 		return health
@@ -304,17 +311,17 @@ func (app *App) checkDatabaseHealth() map[string]interface{} {
 		if strings.Contains(err.Error(), "does not exist") {
 			health["status"] = "degraded"
 			health["error"] = map[string]interface{}{
-				"code": "DATABASE_TABLES_MISSING",
-				"message": "Database tables not initialized. Run database setup.",
-				"category": "resource",
+				"code":      "DATABASE_TABLES_MISSING",
+				"message":   "Database tables not initialized. Run database setup.",
+				"category":  "resource",
 				"retryable": true,
 			}
 		} else {
 			health["status"] = "degraded"
 			health["error"] = map[string]interface{}{
-				"code": "DATABASE_DEVICES_TABLE_ERROR",
-				"message": "Failed to query devices table: " + err.Error(),
-				"category": "resource",
+				"code":      "DATABASE_DEVICES_TABLE_ERROR",
+				"message":   "Failed to query devices table: " + err.Error(),
+				"category":  "resource",
 				"retryable": true,
 			}
 		}
@@ -332,9 +339,9 @@ func (app *App) checkDatabaseHealth() map[string]interface{} {
 		}
 		if health["error"] == nil {
 			health["error"] = map[string]interface{}{
-				"code": "DATABASE_PROFILES_TABLE_ERROR",
-				"message": "Failed to query home_profiles table: " + err.Error(),
-				"category": "resource",
+				"code":      "DATABASE_PROFILES_TABLE_ERROR",
+				"message":   "Failed to query home_profiles table: " + err.Error(),
+				"category":  "resource",
 				"retryable": true,
 			}
 		}
@@ -352,9 +359,9 @@ func (app *App) checkDatabaseHealth() map[string]interface{} {
 		}
 		if health["error"] == nil {
 			health["error"] = map[string]interface{}{
-				"code": "DATABASE_RULES_TABLE_ERROR",
-				"message": "Failed to query automation_rules table: " + err.Error(),
-				"category": "resource",
+				"code":      "DATABASE_RULES_TABLE_ERROR",
+				"message":   "Failed to query automation_rules table: " + err.Error(),
+				"category":  "resource",
 				"retryable": true,
 			}
 		}
@@ -375,9 +382,9 @@ func (app *App) checkDeviceController() map[string]interface{} {
 	if app.DeviceController == nil {
 		health["status"] = "unhealthy"
 		health["error"] = map[string]interface{}{
-			"code": "DEVICE_CONTROLLER_NOT_INITIALIZED",
-			"message": "Device controller not initialized",
-			"category": "internal",
+			"code":      "DEVICE_CONTROLLER_NOT_INITIALIZED",
+			"message":   "Device controller not initialized",
+			"category":  "internal",
 			"retryable": false,
 		}
 		return health
@@ -393,15 +400,15 @@ func (app *App) checkDeviceController() map[string]interface{} {
 	if err != nil {
 		health["status"] = "degraded"
 		health["error"] = map[string]interface{}{
-			"code": "DEVICE_LISTING_FAILED",
-			"message": "Failed to list devices: " + err.Error(),
-			"category": "internal",
+			"code":      "DEVICE_LISTING_FAILED",
+			"message":   "Failed to list devices: " + err.Error(),
+			"category":  "internal",
 			"retryable": true,
 		}
 	} else {
 		health["checks"].(map[string]interface{})["device_listing"] = "ok"
 		health["checks"].(map[string]interface{})["total_devices"] = len(devices)
-		
+
 		// Count online devices by checking the Available field
 		onlineCount := 0
 		for _, device := range devices {
@@ -424,9 +431,9 @@ func (app *App) checkSafetyValidator() map[string]interface{} {
 	if app.SafetyValidator == nil {
 		health["status"] = "unhealthy"
 		health["error"] = map[string]interface{}{
-			"code": "SAFETY_VALIDATOR_NOT_INITIALIZED",
-			"message": "Safety validator not initialized",
-			"category": "internal",
+			"code":      "SAFETY_VALIDATOR_NOT_INITIALIZED",
+			"message":   "Safety validator not initialized",
+			"category":  "internal",
 			"retryable": false,
 		}
 		return health
@@ -448,9 +455,9 @@ func (app *App) checkSafetyValidator() map[string]interface{} {
 		} else {
 			health["status"] = "degraded"
 			health["error"] = map[string]interface{}{
-				"code": "SAFETY_RULES_CHECK_FAILED",
-				"message": "Failed to check safety rules: " + err.Error(),
-				"category": "resource",
+				"code":      "SAFETY_RULES_CHECK_FAILED",
+				"message":   "Failed to check safety rules: " + err.Error(),
+				"category":  "resource",
 				"retryable": true,
 			}
 		}
@@ -477,9 +484,9 @@ func (app *App) checkCalendarScheduler() map[string]interface{} {
 	if app.CalendarScheduler == nil {
 		health["status"] = "unhealthy"
 		health["error"] = map[string]interface{}{
-			"code": "CALENDAR_SCHEDULER_NOT_INITIALIZED",
-			"message": "Calendar scheduler not initialized",
-			"category": "internal",
+			"code":      "CALENDAR_SCHEDULER_NOT_INITIALIZED",
+			"message":   "Calendar scheduler not initialized",
+			"category":  "internal",
 			"retryable": false,
 		}
 		return health
@@ -496,9 +503,9 @@ func (app *App) checkCalendarScheduler() map[string]interface{} {
 	if err != nil {
 		health["status"] = "degraded"
 		health["error"] = map[string]interface{}{
-			"code": "CALENDAR_CONTEXT_CHECK_FAILED",
-			"message": "Failed to get current context: " + err.Error(),
-			"category": "internal",
+			"code":      "CALENDAR_CONTEXT_CHECK_FAILED",
+			"message":   "Failed to get current context: " + err.Error(),
+			"category":  "internal",
 			"retryable": true,
 		}
 	} else {
@@ -517,9 +524,9 @@ func (app *App) checkCalendarScheduler() map[string]interface{} {
 		}
 		if health["error"] == nil {
 			health["error"] = map[string]interface{}{
-				"code": "SCHEDULED_AUTOMATION_CHECK_FAILED",
-				"message": "Failed to check scheduled automations: " + err.Error(),
-				"category": "resource",
+				"code":      "SCHEDULED_AUTOMATION_CHECK_FAILED",
+				"message":   "Failed to check scheduled automations: " + err.Error(),
+				"category":  "resource",
 				"retryable": true,
 			}
 		}
@@ -556,6 +563,7 @@ func (app *App) ControlDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
@@ -570,6 +578,7 @@ func (app *App) GetDeviceStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(status)
 }
 
@@ -580,6 +589,7 @@ func (app *App) ListDevices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"devices": devices,
 		"count":   len(devices),
@@ -595,15 +605,15 @@ func (app *App) GenerateAutomation(w http.ResponseWriter, r *http.Request) {
 		Context     string   `json:"schedule_context,omitempty"`
 		Devices     []string `json:"target_devices,omitempty"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Generate automation using Claude Code integration or fallback
 	automationCode, explanation := app.generateAutomationCode(req.Description, req.Devices, req.Context)
-	
+
 	// Validate the generated automation
 	validationReq := AutomationValidationRequest{
 		AutomationCode: automationCode,
@@ -612,12 +622,12 @@ func (app *App) GenerateAutomation(w http.ResponseWriter, r *http.Request) {
 		TargetDevices:  req.Devices,
 		GeneratedBy:    "claude-code",
 	}
-	
+
 	validationResp, err := app.SafetyValidator.ValidateAutomation(r.Context(), validationReq)
 	if err != nil {
 		log.Printf("Validation error: %v", err)
 	}
-	
+
 	// Determine energy impact based on devices
 	energyImpact := "minimal"
 	for _, device := range req.Devices {
@@ -628,10 +638,10 @@ func (app *App) GenerateAutomation(w http.ResponseWriter, r *http.Request) {
 			energyImpact = "moderate"
 		}
 	}
-	
+
 	// Check for conflicts with existing automations
 	conflicts := app.checkAutomationConflicts(req.Devices, req.Context)
-	
+
 	response := map[string]interface{}{
 		"automation_id":           validationResp.AutomationID,
 		"generated_code":          automationCode,
@@ -641,19 +651,109 @@ func (app *App) GenerateAutomation(w http.ResponseWriter, r *http.Request) {
 		"validation":              validationResp,
 		"ready_to_deploy":         validationResp.ValidationPassed,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
 func (app *App) ListAutomations(w http.ResponseWriter, r *http.Request) {
-	// TODO: Query database for automations
-	// For now, return empty list
-	response := map[string]interface{}{
-		"automations": []map[string]interface{}{},
-		"total":       0,
+	// Query parameters for filtering
+	profileID := r.URL.Query().Get("profile_id")
+	activeOnly := r.URL.Query().Get("active") == "true"
+
+	// Build query with optional filters
+	query := `
+		SELECT
+			id, name, description, created_by, trigger_type,
+			trigger_config, conditions, actions, active,
+			generated_by_ai, source_code, execution_count,
+			last_executed, created_at, updated_at
+		FROM automation_rules
+		WHERE 1=1`
+
+	args := []interface{}{}
+	argCount := 1
+
+	if profileID != "" {
+		query += fmt.Sprintf(" AND created_by = $%d", argCount)
+		args = append(args, profileID)
+		argCount++
 	}
-	
+
+	if activeOnly {
+		query += fmt.Sprintf(" AND active = $%d", argCount)
+		args = append(args, true)
+		argCount++
+	}
+
+	query += " ORDER BY created_at DESC"
+
+	rows, err := app.DB.Query(query, args...)
+	if err != nil {
+		log.Printf("❌ Error querying automations: %v", err)
+		http.Error(w, "Failed to fetch automations", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	automations := []map[string]interface{}{}
+
+	for rows.Next() {
+		var (
+			id, name, description, createdBy, triggerType string
+			triggerConfig, conditions, actions            string
+			active, generatedByAI                         bool
+			sourceCode                                    sql.NullString
+			executionCount                                int
+			lastExecuted, createdAt, updatedAt            time.Time
+		)
+
+		err := rows.Scan(
+			&id, &name, &description, &createdBy, &triggerType,
+			&triggerConfig, &conditions, &actions, &active,
+			&generatedByAI, &sourceCode, &executionCount,
+			&lastExecuted, &createdAt, &updatedAt,
+		)
+		if err != nil {
+			log.Printf("❌ Error scanning automation row: %v", err)
+			continue
+		}
+
+		automation := map[string]interface{}{
+			"id":              id,
+			"name":            name,
+			"description":     description,
+			"created_by":      createdBy,
+			"trigger_type":    triggerType,
+			"trigger_config":  json.RawMessage(triggerConfig),
+			"conditions":      json.RawMessage(conditions),
+			"actions":         json.RawMessage(actions),
+			"active":          active,
+			"generated_by_ai": generatedByAI,
+			"execution_count": executionCount,
+			"last_executed":   lastExecuted,
+			"created_at":      createdAt,
+			"updated_at":      updatedAt,
+		}
+
+		if sourceCode.Valid {
+			automation["source_code"] = sourceCode.String
+		}
+
+		automations = append(automations, automation)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Printf("❌ Error iterating automation rows: %v", err)
+		http.Error(w, "Failed to process automations", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"automations": automations,
+		"total":       len(automations),
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -701,6 +801,7 @@ func (app *App) HandleCalendarEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -714,6 +815,7 @@ func (app *App) ActivateContext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"context": context,
@@ -731,6 +833,7 @@ func (app *App) DeactivateContext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"context": context,
@@ -745,6 +848,7 @@ func (app *App) GetCurrentContext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(context)
 }
 
@@ -756,6 +860,7 @@ func (app *App) GetProfiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"profiles": profiles,
 		"count":    len(profiles),
@@ -772,6 +877,7 @@ func (app *App) GetProfilePermissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(permissions)
 }
 
@@ -779,15 +885,15 @@ func (app *App) GetProfilePermissions(w http.ResponseWriter, r *http.Request) {
 func (app *App) generateAutomationCode(description string, devices []string, context string) (string, string) {
 	// Attempt to use Claude Code resource if available
 	// For now, generate based on templates
-	
+
 	var code strings.Builder
 	code.WriteString("# Home Automation Rule\n")
 	code.WriteString(fmt.Sprintf("# Description: %s\n", description))
 	code.WriteString(fmt.Sprintf("# Generated: %s\n\n", time.Now().Format(time.RFC3339)))
-	
+
 	// Parse description for common patterns
 	descLower := strings.ToLower(description)
-	
+
 	// Time-based triggers
 	if strings.Contains(descLower, "sunset") {
 		code.WriteString("trigger:\n")
@@ -805,7 +911,7 @@ func (app *App) generateAutomationCode(description string, devices []string, con
 		code.WriteString("  - platform: time\n")
 		code.WriteString("    at: '20:00:00'  # Default time, adjust as needed\n\n")
 	}
-	
+
 	// Conditions
 	if context != "" {
 		code.WriteString("condition:\n")
@@ -813,7 +919,7 @@ func (app *App) generateAutomationCode(description string, devices []string, con
 		code.WriteString(fmt.Sprintf("    entity_id: input_select.home_context\n"))
 		code.WriteString(fmt.Sprintf("    state: '%s'\n\n", context))
 	}
-	
+
 	// Actions based on description and devices
 	code.WriteString("action:\n")
 	for _, device := range devices {
@@ -831,44 +937,44 @@ func (app *App) generateAutomationCode(description string, devices []string, con
 			code.WriteString(fmt.Sprintf("      entity_id: %s\n", device))
 		}
 	}
-	
+
 	// Add delay if mentioned
 	if strings.Contains(descLower, "after") || strings.Contains(descLower, "delay") {
 		code.WriteString("  - delay:\n")
 		code.WriteString("      minutes: 5  # Adjust delay as needed\n")
 	}
-	
+
 	explanation := fmt.Sprintf("Generated automation for: %s", description)
 	if len(devices) > 0 {
 		explanation += fmt.Sprintf(" - Controls %d device(s)", len(devices))
 	}
-	
+
 	return code.String(), explanation
 }
 
 // Helper function to check for automation conflicts
 func (app *App) checkAutomationConflicts(devices []string, context string) []string {
 	conflicts := []string{}
-	
+
 	// Query database for existing automations that might conflict
 	// For now, return mock conflicts for demonstration
-	
+
 	// Check if multiple automations control the same device at the same time
 	for _, device := range devices {
 		if device == "light.living_room" {
 			// Mock: existing automation already controls this device at sunset
 			if context == "evening" || strings.Contains(context, "sunset") {
-				conflicts = append(conflicts, 
+				conflicts = append(conflicts,
 					"Existing automation 'Evening Lights' already controls light.living_room at sunset")
 			}
 		}
 	}
-	
+
 	// Check for opposing actions (one turns on, another turns off)
 	if len(devices) > 3 {
-		conflicts = append(conflicts, 
+		conflicts = append(conflicts,
 			"Warning: Controlling many devices simultaneously may cause power spikes")
 	}
-	
+
 	return conflicts
 }

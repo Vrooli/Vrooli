@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visitor Intelligence Example</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -147,7 +154,7 @@
     </div>
 
     <!-- Include the visitor intelligence tracker -->
-    <script src="tracker.js" data-scenario="visitor-intelligence-demo"></script>
+    <script type="module" src="tracker.js" data-scenario="visitor-intelligence-demo"></script>
     
     <script>
         function testClick(buttonType) {

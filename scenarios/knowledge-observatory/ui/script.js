@@ -1,3 +1,15 @@
+const iframeParentOrigin = (() => {
+    try {
+        return document.referrer ? new URL(document.referrer).origin : undefined;
+    } catch (error) {
+        return undefined;
+    }
+})();
+
+if (typeof window !== 'undefined' && window.parent !== window && typeof window.initIframeBridgeChild === 'function') {
+    window.initIframeBridgeChild({ appId: 'knowledge-observatory', parentOrigin: iframeParentOrigin });
+}
+
 const API_URL = window.location.hostname === 'localhost' 
     ? `http://localhost:20270`
     : '/api';

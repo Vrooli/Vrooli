@@ -1,3 +1,19 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+if (typeof window !== 'undefined' && window.parent !== window && !window.__personalDigitalTwinBridgeInitialized) {
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[PersonalDigitalTwin] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'personal-digital-twin' });
+    window.__personalDigitalTwinBridgeInitialized = true;
+}
+
 // Matrix rain effect
 const canvas = document.getElementById('matrix-rain');
 const ctx = canvas.getContext('2d');

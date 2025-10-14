@@ -15,7 +15,8 @@
     "react-dom": "^18.2.0",
     "framer-motion": "^11.0.0",
     "lucide-react": "^0.316.0",
-    "clsx": "^2.1.0"
+    "clsx": "^2.1.0",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   },
   "devDependencies": {
     "@types/react": "^18.2.48",

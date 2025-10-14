@@ -1,7 +1,12 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const { initIframeBridgeChild } = require('@vrooli/iframe-bridge/child');
 require('dotenv').config();
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+  initIframeBridgeChild({ appId: 'token-economy-ui' });
+}
 
 const app = express();
 const PORT = process.env.PORT_TOKEN_ECONOMY_UI || 11081;

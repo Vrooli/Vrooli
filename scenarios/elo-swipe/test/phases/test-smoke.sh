@@ -27,7 +27,17 @@ fi
 
 # Test 2: CLI availability
 echo -n "✓ CLI status check... "
-if API_PORT=$API_PORT VROOLI_LIFECYCLE_MANAGED=true elo-swipe status &>/dev/null; then
+# Try to find elo-swipe in common locations
+CLI_PATH=""
+if command -v elo-swipe &>/dev/null; then
+    CLI_PATH="elo-swipe"
+elif [ -x "$HOME/.vrooli/bin/elo-swipe" ]; then
+    CLI_PATH="$HOME/.vrooli/bin/elo-swipe"
+elif [ -x "../cli/elo-swipe" ]; then
+    CLI_PATH="../cli/elo-swipe"
+fi
+
+if [ -n "$CLI_PATH" ] && API_PORT=$API_PORT VROOLI_LIFECYCLE_MANAGED=true $CLI_PATH status &>/dev/null; then
     echo "PASS"
 else
     echo "FAIL"

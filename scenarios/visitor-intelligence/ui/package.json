@@ -17,6 +17,9 @@
   ],
   "author": "Vrooli",
   "license": "MIT",
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
   "devDependencies": {
     "terser": "^5.19.2"
   }

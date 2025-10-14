@@ -1,5 +1,3 @@
-// +build testing
-
 package main
 
 import (
@@ -12,6 +10,172 @@ import (
 
 	"github.com/google/uuid"
 )
+
+// TestGenerateIdeasValidation tests input validation for idea generation
+func TestGenerateIdeasValidation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestEnvironment(t)
+	defer env.Cleanup()
+
+	processor := NewIdeaProcessor(env.DB)
+	ctx := context.Background()
+
+	t.Run("MissingCampaignID", func(t *testing.T) {
+		req := GenerateIdeasRequest{
+			CampaignID: "",
+			Prompt:     "Test prompt",
+			Count:      1,
+		}
+		resp := processor.GenerateIdeas(ctx, req)
+		if resp.Success {
+			t.Error("Expected failure for missing campaign ID")
+		}
+		if !strings.Contains(resp.Error, "Campaign ID is required") {
+			t.Errorf("Expected campaign ID error, got: %s", resp.Error)
+		}
+	})
+
+	t.Run("InvalidCount", func(t *testing.T) {
+		req := GenerateIdeasRequest{
+			CampaignID: uuid.New().String(),
+			Prompt:     "Test prompt",
+			Count:      0,
+		}
+		resp := processor.GenerateIdeas(ctx, req)
+		if resp.Success {
+			t.Error("Expected failure for invalid count")
+		}
+		if !strings.Contains(resp.Error, "between 1 and 10") {
+			t.Errorf("Expected count error, got: %s", resp.Error)
+		}
+	})
+
+	t.Run("CountTooHigh", func(t *testing.T) {
+		req := GenerateIdeasRequest{
+			CampaignID: uuid.New().String(),
+			Prompt:     "Test prompt",
+			Count:      15,
+		}
+		resp := processor.GenerateIdeas(ctx, req)
+		if resp.Success {
+			t.Error("Expected failure for count too high")
+		}
+		if !strings.Contains(resp.Error, "between 1 and 10") {
+			t.Errorf("Expected count error, got: %s", resp.Error)
+		}
+	})
+
+	t.Run("CampaignNotFound", func(t *testing.T) {
+		nonExistentID := uuid.New().String()
+		req := GenerateIdeasRequest{
+			CampaignID: nonExistentID,
+			Prompt:     "Test prompt",
+			Count:      1,
+		}
+		resp := processor.GenerateIdeas(ctx, req)
+		if resp.Success {
+			t.Error("Expected failure for non-existent campaign")
+		}
+		if !strings.Contains(resp.Error, "not found") {
+			t.Errorf("Expected not found error, got: %s", resp.Error)
+		}
+	})
+}
+
+// TestSemanticSearchValidation tests input validation for semantic search
+func TestSemanticSearchValidation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestEnvironment(t)
+	defer env.Cleanup()
+
+	processor := NewIdeaProcessor(env.DB)
+	ctx := context.Background()
+
+	t.Run("EmptyQuery", func(t *testing.T) {
+		req := SemanticSearchRequest{
+			Query: "",
+			Limit: 10,
+		}
+		_, err := processor.SemanticSearch(ctx, req)
+		if err == nil {
+			t.Error("Expected error for empty query")
+		}
+		if !strings.Contains(err.Error(), "cannot be empty") {
+			t.Errorf("Expected empty query error, got: %v", err)
+		}
+	})
+}
+
+// TestRefineIdeaValidation tests input validation for idea refinement
+func TestRefineIdeaValidation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestEnvironment(t)
+	defer env.Cleanup()
+
+	processor := NewIdeaProcessor(env.DB)
+	ctx := context.Background()
+
+	t.Run("MissingIdeaID", func(t *testing.T) {
+		req := RefinementRequest{
+			IdeaID:     "",
+			Refinement: "Make it better",
+		}
+		err := processor.RefineIdea(ctx, req)
+		if err == nil {
+			t.Error("Expected error for missing idea ID")
+		}
+		if !strings.Contains(err.Error(), "required") {
+			t.Errorf("Expected required error, got: %v", err)
+		}
+	})
+
+	t.Run("EmptyRefinement", func(t *testing.T) {
+		req := RefinementRequest{
+			IdeaID:     uuid.New().String(),
+			Refinement: "",
+		}
+		err := processor.RefineIdea(ctx, req)
+		if err == nil {
+			t.Error("Expected error for empty refinement")
+		}
+		if !strings.Contains(err.Error(), "cannot be empty") {
+			t.Errorf("Expected empty refinement error, got: %v", err)
+		}
+	})
+
+	t.Run("RefinementTooLong", func(t *testing.T) {
+		longText := strings.Repeat("a", 2001)
+		req := RefinementRequest{
+			IdeaID:     uuid.New().String(),
+			Refinement: longText,
+		}
+		err := processor.RefineIdea(ctx, req)
+		if err == nil {
+			t.Error("Expected error for refinement too long")
+		}
+		if !strings.Contains(err.Error(), "too long") {
+			t.Errorf("Expected too long error, got: %v", err)
+		}
+	})
+}
 
 // TestNewIdeaProcessor tests IdeaProcessor initialization
 func TestNewIdeaProcessor(t *testing.T) {
@@ -401,10 +565,10 @@ func TestStoreIdea(t *testing.T) {
 		ctx := context.Background()
 		ideaID := uuid.New().String()
 		idea := GeneratedIdea{
-			Title:              "Test Idea",
-			Description:        "Test Description",
-			Category:           "innovation",
-			Tags:               []string{"test", "demo"},
+			Title:               "Test Idea",
+			Description:         "Test Description",
+			Category:            "innovation",
+			Tags:                []string{"test", "demo"},
 			ImplementationNotes: "Test notes",
 		}
 

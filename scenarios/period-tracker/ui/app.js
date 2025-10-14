@@ -1,3 +1,19 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+if (typeof window !== 'undefined' && window.parent !== window && !window.__periodTrackerBridgeInitialized) {
+  let parentOrigin;
+  try {
+    if (document.referrer) {
+      parentOrigin = new URL(document.referrer).origin;
+    }
+  } catch (error) {
+    console.warn('[PeriodTracker] Unable to determine parent origin for iframe bridge', error);
+  }
+
+  initIframeBridgeChild({ parentOrigin, appId: 'period-tracker' });
+  window.__periodTrackerBridgeInitialized = true;
+}
+
 // Period Tracker UI - Privacy-First JavaScript Application
 // All data processing happens locally with encrypted API communication
 

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 	"time"
+
+	"github.com/DATA-DOG/go-sqlmock"
 )
 
 // TestDatabaseConfig tests database configuration
@@ -165,6 +167,61 @@ func TestInitializePlugins(t *testing.T) {
 			t.Errorf("Expected no error from InitializePlugins, got: %v", err)
 		}
 	})
+}
+
+func TestGetPluginsFromDBStoresIndependentEntries(t *testing.T) {
+	api := NewAPI()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create sqlmock: %v", err)
+	}
+	defer db.Close()
+
+	rows := sqlmock.NewRows([]string{"id", "name", "category", "description", "formats", "enabled", "priority", "metadata"}).
+		AddRow("mind-maps", "Mind Maps", "diagrams", "Mind mapping support", `[]`, true, 1, `{}`).
+		AddRow("bpmn", "BPMN", "workflows", "Workflow automation", `[]`, false, 2, `{"version":"2.0"}`)
+
+	mock.ExpectQuery("(?s)SELECT id, name, category, description, formats, enabled, priority, metadata\\s+FROM plugins").
+		WillReturnRows(rows)
+
+	if err := api.getPluginsFromDB(db); err != nil {
+		t.Fatalf("getPluginsFromDB error: %v", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+
+	if len(api.plugins) != 2 {
+		t.Fatalf("expected 2 plugins loaded, got %d", len(api.plugins))
+	}
+
+	mind := api.plugins["mind-maps"]
+	bpmn := api.plugins["bpmn"]
+
+	if mind == nil || bpmn == nil {
+		t.Fatalf("expected both mind-maps and bpmn plugins to be loaded, got mind=%v bpmn=%v", mind, bpmn)
+	}
+
+	if mind == bpmn {
+		t.Fatalf("expected plugins to be distinct pointers")
+	}
+
+	if !mind.Enabled {
+		t.Errorf("expected mind-maps plugin to be enabled")
+	}
+
+	if bpmn.Enabled {
+		t.Errorf("expected bpmn plugin to remain disabled")
+	}
+
+	if mind.Name != "Mind Maps" {
+		t.Errorf("unexpected mind-maps plugin name: %s", mind.Name)
+	}
+
+	if bpmn.Name != "BPMN" {
+		t.Errorf("unexpected bpmn plugin name: %s", bpmn.Name)
+	}
 }
 
 // TestMonitorConnection tests the connection monitoring (basic structure test)

@@ -9,8 +9,17 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const PORT = process.env.HOME_AUTOMATION_UI_PORT || 3351;
-const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${process.env.HOME_AUTOMATION_API_PORT || 3350}`;
+// CRITICAL: Port must be explicitly configured through lifecycle system
+// No defaults allowed to prevent port conflicts and configuration errors
+if (!process.env.UI_PORT) {
+    console.error('❌ UI_PORT environment variable is required');
+    console.error('   This service must be started through the Vrooli lifecycle system');
+    console.error('   Use: vrooli scenario start home-automation');
+    process.exit(1);
+}
+
+const PORT = process.env.UI_PORT;
+const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${process.env.API_PORT || 'NOTSET'}`;
 const startTime = new Date();
 
 // Middleware
@@ -327,18 +336,9 @@ function checkWebSocketServer() {
     health.checks.server_initialized = true;
     health.checks.active_connections = wss.clients.size;
 
-    // Check if WebSocket server is listening
-    if (wss.readyState !== WebSocket.CONNECTING && wss.readyState !== WebSocket.OPEN) {
-        health.status = 'degraded';
-        health.error = {
-            code: 'WEBSOCKET_SERVER_NOT_READY',
-            message: `WebSocket server not ready, state: ${wss.readyState}`,
-            category: 'internal',
-            retryable: true
-        };
-    } else {
-        health.checks.server_ready = true;
-    }
+    // WebSocket.Server doesn't have readyState - it's always ready once initialized
+    // Individual clients have readyState, but the server itself is either initialized or not
+    health.checks.server_ready = true;
 
     return health;
 }

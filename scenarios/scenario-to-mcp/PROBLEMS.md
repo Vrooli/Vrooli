@@ -92,12 +92,77 @@ Also updated default API_PORT to match actual allocation (17961 vs 3290).
 - Full CLI functionality restored
 - Comprehensive test coverage added
 
-## Remaining P0 Gap
+## Issues Fixed (2025-10-05)
 
-**One-click MCP Addition**: The UI dashboard and API endpoints are in place, but the actual Claude-code agent spawning integration is not yet implemented in the `/mcp/add` endpoint. This is the final P0 requirement.
+### 5. Session ID Type Mismatch in Add MCP Endpoint
+**Symptom**: POST `/api/v1/mcp/add` returned "Failed to create session" error
 
-**Next Steps**:
-1. Implement agent spawning logic in `handleAddMCP`
-2. Add agent session tracking to database
-3. Test end-to-end MCP addition flow
-4. Verify generated MCP servers work correctly
+**Root Cause**: The code was generating string session IDs (`mcp-session-1234567890`) but the database schema expected UUIDs for the `agent_sessions.id` column.
+
+**Solution**: Modified session creation to use database-generated UUIDs:
+```go
+var sessionID string
+err := s.db.QueryRow(`
+    INSERT INTO mcp.agent_sessions (scenario_name, agent_type, status, start_time)
+    VALUES ($1, 'claude-code', 'pending', NOW())
+    RETURNING id::text
+`, req.ScenarioName).Scan(&sessionID)
+```
+
+**Files Modified**:
+- `api/main.go:227-233`
+
+**Validation**:
+```bash
+curl -X POST http://localhost:17961/api/v1/mcp/add \
+  -H "Content-Type: application/json" \
+  -d '{"scenario_name": "test-scenario", "agent_config": {"auto_detect": true}}'
+# Returns: {"success":true,"agent_session_id":"f3119ae5-438d-4dc6-9cbe-7ed8586b9303",...}
+```
+
+---
+
+### 6. CLI Symlink Path Resolution Bug
+**Symptom**: When installed as symlink in `~/.vrooli/bin/`, CLI commands failed with "cd: /home/user/.vrooli/lib: No such file or directory"
+
+**Root Cause**: The original path resolution used `${BASH_SOURCE[0]}` which points to the symlink location, not the actual script location. This caused `SCENARIO_DIR` to resolve to `~/.vrooli` instead of the actual scenario directory.
+
+**Solution**: Added proper symlink resolution:
+```bash
+# Resolve symlinks to get the actual script location
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_PATH" ]; do
+    SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+    SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+    [[ $SCRIPT_PATH != /* ]] && SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+SCENARIO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+```
+
+**Files Modified**:
+- `cli/scenario-to-mcp:8-17`
+
+**Validation**:
+```bash
+scenario-to-mcp list --json | jq length
+# Returns: 134 (successful scan of all scenarios)
+```
+
+---
+
+### 7. CLI Test Checking for Non-existent Command
+**Symptom**: BATS test "CLI help includes all commands" failed with error on line 209
+
+**Root Cause**: Test was checking for "check" command in help output, but the CLI doesn't have a "check" command - it has "test" instead.
+
+**Solution**: Updated test assertion to check for correct command:
+```bash
+# Before: [[ "$output" =~ "check" ]]
+# After:  [[ "$output" =~ "test" ]]
+```
+
+**Files Modified**:
+- `cli/scenario-to-mcp.bats:209`
+
+**Validation**: All 25 BATS tests now passing

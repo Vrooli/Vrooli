@@ -3,17 +3,66 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT;
+
+// Validate required environment variables
+const PORT = process.env.UI_PORT;
 const API_PORT = process.env.API_PORT;
 
+if (!PORT || !API_PORT) {
+    console.error('❌ Missing required environment variables');
+    if (!PORT) console.error('   - UI_PORT is required');
+    if (!API_PORT) console.error('   - API_PORT is required');
+    process.exit(1);
+}
 
-// Health check endpoint for orchestrator
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy',
-        scenario: 'invoice-generator',
-        port: PORT,
-        timestamp: new Date().toISOString()
+
+// Health check endpoint for orchestrator (schema-compliant)
+app.get('/health', async (req, res) => {
+    const apiUrl = `http://localhost:${API_PORT}/health`;
+    let apiConnected = false;
+    let apiLatency = null;
+    let apiError = null;
+
+    // Test API connectivity
+    const startTime = Date.now();
+    try {
+        const response = await fetch(apiUrl, { timeout: 2000 });
+        if (response.ok) {
+            apiConnected = true;
+            apiLatency = Date.now() - startTime;
+        } else {
+            apiError = {
+                code: 'API_UNHEALTHY',
+                message: `API returned status ${response.status}`,
+                category: 'resource',
+                retryable: true
+            };
+        }
+    } catch (error) {
+        apiError = {
+            code: error.code || 'CONNECTION_FAILED',
+            message: error.message || 'Failed to connect to API',
+            category: 'network',
+            retryable: true
+        };
+    }
+
+    // Overall status based on API connectivity
+    const status = apiConnected ? 'healthy' : 'degraded';
+    const readiness = apiConnected; // UI is ready only if API is reachable
+
+    res.json({
+        status: status,
+        service: 'invoice-generator-ui',
+        timestamp: new Date().toISOString(),
+        readiness: readiness,
+        api_connectivity: {
+            connected: apiConnected,
+            api_url: apiUrl,
+            last_check: new Date().toISOString(),
+            error: apiError,
+            latency_ms: apiLatency
+        }
     });
 });
 

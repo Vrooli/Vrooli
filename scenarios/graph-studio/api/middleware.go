@@ -2,8 +2,16 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"database/sql"
+	"fmt"
 	"log"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,6 +19,8 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/time/rate"
 )
+
+var previewTokenFallbackOnce sync.Once
 
 // DatabaseMiddleware injects database connection into context
 func DatabaseMiddleware(db *sql.DB) gin.HandlerFunc {
@@ -143,9 +153,8 @@ func getUserID(c *gin.Context) string {
 // SecurityHeadersMiddleware adds security headers to all responses
 func SecurityHeadersMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Prevent clickjacking attacks
+		// Prevent clickjacking attacks in legacy browsers
 		c.Header("X-Frame-Options", "DENY")
-
 		// Prevent MIME type sniffing
 		c.Header("X-Content-Type-Options", "nosniff")
 
@@ -155,14 +164,268 @@ func SecurityHeadersMiddleware() gin.HandlerFunc {
 		// Referrer policy
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 
-		// Content Security Policy
-		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'")
+		frameAncestors := allowedFrameAncestors()
+		csp := fmt.Sprintf(
+			"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors %s",
+			strings.Join(frameAncestors, " "),
+		)
+		c.Header("Content-Security-Policy", csp)
 
 		// Permissions Policy (formerly Feature-Policy)
 		c.Header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
 
 		c.Next()
 	}
+}
+
+func allowedFrameAncestors() []string {
+	defaults := []string{"'self'", "http://localhost:*", "http://127.0.0.1:*", "http://[::1]:*"}
+	extra := strings.Fields(os.Getenv("FRAME_ANCESTORS"))
+	seen := make(map[string]struct{}, len(defaults)+len(extra))
+	allow := make([]string, 0, len(defaults)+len(extra))
+	for _, candidate := range append(defaults, extra...) {
+		trimmed := strings.TrimSpace(candidate)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		allow = append(allow, trimmed)
+	}
+	return allow
+}
+
+// PreviewAccessMiddleware requires a valid preview token for all API requests when configured.
+func PreviewAccessMiddleware() gin.HandlerFunc {
+	tokens, requireToken := resolvePreviewTokens()
+	if len(tokens) == 0 {
+		if !requireToken {
+			return func(c *gin.Context) {
+				c.Next()
+			}
+		}
+
+		return func(c *gin.Context) {
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, ErrorResponse{
+				Error:   "Preview token not configured",
+				Details: "Graph Studio preview requires PREVIEW_ACCESS_TOKEN (or compatible) to be set before serving requests.",
+			})
+		}
+	}
+
+	return func(c *gin.Context) {
+		if c.Request.Method == http.MethodOptions {
+			c.Next()
+			return
+		}
+
+		if isLocalHealthRequest(c.Request) {
+			c.Next()
+			return
+		}
+
+		provided := strings.TrimSpace(c.GetHeader("X-Preview-Token"))
+		if provided == "" {
+			if cookie, err := c.Cookie("preview_token"); err == nil {
+				provided = strings.TrimSpace(cookie)
+			}
+		}
+
+		if !matchesPreviewToken(provided, tokens) {
+			c.AbortWithStatusJSON(http.StatusForbidden, ErrorResponse{
+				Error:   "Preview access denied",
+				Details: "Graph Studio API requires a valid preview token (X-Preview-Token header or preview_token cookie).",
+			})
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func resolvePreviewTokens() ([]string, bool) {
+	requireToken := isLifecycleManaged()
+	envKeys := []string{
+		"PREVIEW_ACCESS_TOKEN",
+		"GRAPH_STUDIO_PREVIEW_TOKEN",
+		"VITE_PREVIEW_ACCESS_TOKEN",
+		"APP_MONITOR_PREVIEW_TOKEN",
+		"APP_MONITOR_PREVIEW_TOKENS",
+	}
+
+	unique := make(map[string]struct{})
+	for _, key := range envKeys {
+		value := strings.TrimSpace(os.Getenv(key))
+		if value == "" {
+			continue
+		}
+		for _, segment := range strings.Split(value, ",") {
+			trimmed := strings.TrimSpace(segment)
+			if trimmed == "" {
+				continue
+			}
+			unique[trimmed] = struct{}{}
+		}
+	}
+
+	for _, path := range previewTokenFileCandidates() {
+		for _, token := range readPreviewTokensFromFile(path) {
+			unique[token] = struct{}{}
+		}
+	}
+
+	if len(unique) == 0 {
+		if requireToken {
+			previewTokenFallbackOnce.Do(func() {
+				log.Printf("Preview access: managed lifecycle detected but no preview token configured (set PREVIEW_ACCESS_TOKEN or APP_MONITOR_PREVIEW_TOKEN)")
+			})
+		}
+		return nil, requireToken
+	}
+
+	tokens := make([]string, 0, len(unique))
+	for token := range unique {
+		tokens = append(tokens, token)
+	}
+	sort.Strings(tokens)
+	return tokens, requireToken
+}
+
+func previewTokenFileCandidates() []string {
+	candidates := make([]string, 0, 5)
+	for _, key := range []string{"PREVIEW_TOKEN_FILE", "APP_MONITOR_PREVIEW_TOKEN_FILE", "GRAPH_STUDIO_PREVIEW_TOKEN_FILE"} {
+		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+			candidates = append(candidates, value)
+		}
+	}
+
+	if root := strings.TrimSpace(os.Getenv("SCENARIO_ROOT")); root != "" {
+		candidates = append(candidates, filepath.Join(root, "tmp", "preview-token"))
+	}
+
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		scenarioRoot := filepath.Clean(filepath.Join(exeDir, ".."))
+		candidates = append(candidates,
+			filepath.Join(scenarioRoot, "tmp", "preview-token"),
+			filepath.Join(exeDir, "preview-token"),
+		)
+	}
+
+	return dedupeStrings(candidates)
+}
+
+func readPreviewTokensFromFile(path string) []string {
+	if path == "" {
+		return nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	lines := strings.Split(string(data), "\n")
+	tokens := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		tokens = append(tokens, trimmed)
+	}
+	return tokens
+}
+
+func dedupeStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		cleaned := strings.TrimSpace(value)
+		if cleaned == "" {
+			continue
+		}
+		if _, exists := seen[cleaned]; exists {
+			continue
+		}
+		seen[cleaned] = struct{}{}
+		result = append(result, cleaned)
+	}
+	return result
+}
+
+func isLifecycleManaged() bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv("VROOLI_LIFECYCLE_MANAGED")))
+	switch value {
+	case "true", "1", "yes", "on":
+		return true
+	}
+
+	lifecycle := strings.TrimSpace(strings.ToLower(os.Getenv("VROOLI_LIFECYCLE")))
+	switch lifecycle {
+	case "active", "preview", "managed", "production", "staging":
+		return true
+	}
+
+	for _, key := range []string{
+		"SCENARIO_NAME",
+		"VROOLI_SCENARIO",
+		"VROOLI_SCENARIO_NAME",
+		"APP_MONITOR_SCENARIO",
+	} {
+		if strings.TrimSpace(os.Getenv(key)) != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func matchesPreviewToken(provided string, tokens []string) bool {
+	if provided == "" {
+		return false
+	}
+	for _, token := range tokens {
+		if subtle.ConstantTimeCompare([]byte(provided), []byte(token)) == 1 {
+			return true
+		}
+	}
+	return false
+}
+
+func isLocalHealthRequest(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	if r.Method != http.MethodGet {
+		return false
+	}
+	switch r.URL.Path {
+	case "/health", "/health/detailed":
+	default:
+		return false
+	}
+
+	remoteHost := strings.TrimSpace(r.RemoteAddr)
+	if remoteHost == "" {
+		return false
+	}
+	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
+		remoteHost = strings.Split(forwarded, ",")[0]
+	}
+
+	host := remoteHost
+	if strings.Contains(remoteHost, ":") {
+		if h, _, err := net.SplitHostPort(remoteHost); err == nil {
+			host = h
+		}
+	}
+
+	ip := net.ParseIP(strings.TrimSpace(host))
+	if ip == nil {
+		return false
+	}
+	return ip.IsLoopback()
 }
 
 // RequestSizeLimitMiddleware limits the size of incoming requests

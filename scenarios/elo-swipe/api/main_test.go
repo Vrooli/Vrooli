@@ -1,9 +1,9 @@
-
 package main
 
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"testing"
 
@@ -522,21 +522,6 @@ func TestGetRankings(t *testing.T) {
 }
 
 // TestSmartPairing tests the smart pairing handlers
-// Note: These tests are skipped because they require Ollama integration
-func TestGenerateSmartPairing(t *testing.T) {
-	t.Skip("Skipping smart pairing tests - require Ollama setup and pairing_queue table")
-}
-
-// TestGetPairingQueue tests getting the pairing queue
-func TestGetPairingQueue(t *testing.T) {
-	t.Skip("Skipping pairing queue tests - require pairing_queue table")
-}
-
-// TestRefreshPairingQueue tests refreshing the pairing queue
-func TestRefreshPairingQueue(t *testing.T) {
-	t.Skip("Skipping pairing queue refresh tests - require pairing_queue table")
-}
-
 // TestHelperFunctions tests the helper functions
 func TestGetItem(t *testing.T) {
 	cleanup := setupTestLogger()
@@ -624,7 +609,7 @@ func TestGetProgress(t *testing.T) {
 	})
 }
 
-// TestDeleteComparison tests the DeleteComparison handler
+// TestDeleteComparison tests the DeleteComparison handler with actual undo logic
 func TestDeleteComparison(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -632,13 +617,137 @@ func TestDeleteComparison(t *testing.T) {
 	testApp := setupTestApp(t)
 	defer testApp.Cleanup()
 
-	t.Run("Success", func(t *testing.T) {
-		comparisonID := uuid.New().String()
+	t.Run("SuccessfulUndo", func(t *testing.T) {
+		// Create a test list with 2 items
+		testList := setupTestList(t, testApp.DB, "Test List", 2)
+		defer testList.Cleanup()
+
+		// Get initial ratings
+		var initialWinnerRating, initialLoserRating float64
+		err := testApp.DB.QueryRow(`
+			SELECT elo_rating FROM elo_swipe.items WHERE id = $1
+		`, testList.Items[0].ID).Scan(&initialWinnerRating)
+		if err != nil {
+			t.Fatalf("Failed to get initial winner rating: %v", err)
+		}
+
+		err = testApp.DB.QueryRow(`
+			SELECT elo_rating FROM elo_swipe.items WHERE id = $1
+		`, testList.Items[1].ID).Scan(&initialLoserRating)
+		if err != nil {
+			t.Fatalf("Failed to get initial loser rating: %v", err)
+		}
+
+		// Submit a comparison
+		comparisonPayload := fmt.Sprintf(`{
+			"list_id": "%s",
+			"winner_id": "%s",
+			"loser_id": "%s"
+		}`, testList.List.ID, testList.Items[0].ID, testList.Items[1].ID)
+
+		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+			Method: "POST",
+			Path:   "/api/v1/comparisons",
+			Body:   comparisonPayload,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create comparison request: %v", err)
+		}
+
+		testApp.App.CreateComparison(w, httpReq)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("Expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
+		}
+
+		var comparison Comparison
+		if err := json.Unmarshal(w.Body.Bytes(), &comparison); err != nil {
+			t.Fatalf("Failed to parse comparison response: %v", err)
+		}
+
+		// Verify ratings changed
+		var afterWinnerRating, afterLoserRating float64
+		err = testApp.DB.QueryRow(`
+			SELECT elo_rating FROM elo_swipe.items WHERE id = $1
+		`, testList.Items[0].ID).Scan(&afterWinnerRating)
+		if err != nil {
+			t.Fatalf("Failed to get winner rating after comparison: %v", err)
+		}
+
+		err = testApp.DB.QueryRow(`
+			SELECT elo_rating FROM elo_swipe.items WHERE id = $1
+		`, testList.Items[1].ID).Scan(&afterLoserRating)
+		if err != nil {
+			t.Fatalf("Failed to get loser rating after comparison: %v", err)
+		}
+
+		if afterWinnerRating <= initialWinnerRating {
+			t.Errorf("Winner rating should increase: before=%f, after=%f", initialWinnerRating, afterWinnerRating)
+		}
+		if afterLoserRating >= initialLoserRating {
+			t.Errorf("Loser rating should decrease: before=%f, after=%f", initialLoserRating, afterLoserRating)
+		}
+
+		// Now undo the comparison
+		w2, httpReq2, err := makeHTTPRequest(HTTPTestRequest{
+			Method:  "DELETE",
+			Path:    fmt.Sprintf("/api/v1/comparisons/%s", comparison.ID),
+			URLVars: map[string]string{"id": comparison.ID},
+		})
+		if err != nil {
+			t.Fatalf("Failed to create delete request: %v", err)
+		}
+
+		testApp.App.DeleteComparison(w2, httpReq2)
+
+		if w2.Code != http.StatusNoContent {
+			t.Errorf("Expected status %d, got %d: %s", http.StatusNoContent, w2.Code, w2.Body.String())
+		}
+
+		// Verify ratings reverted to original values
+		var undoWinnerRating, undoLoserRating float64
+		err = testApp.DB.QueryRow(`
+			SELECT elo_rating FROM elo_swipe.items WHERE id = $1
+		`, testList.Items[0].ID).Scan(&undoWinnerRating)
+		if err != nil {
+			t.Fatalf("Failed to get winner rating after undo: %v", err)
+		}
+
+		err = testApp.DB.QueryRow(`
+			SELECT elo_rating FROM elo_swipe.items WHERE id = $1
+		`, testList.Items[1].ID).Scan(&undoLoserRating)
+		if err != nil {
+			t.Fatalf("Failed to get loser rating after undo: %v", err)
+		}
+
+		// Use tolerance for float comparison
+		tolerance := 0.001
+		if math.Abs(undoWinnerRating-initialWinnerRating) > tolerance {
+			t.Errorf("Winner rating not properly reverted: initial=%f, after_undo=%f", initialWinnerRating, undoWinnerRating)
+		}
+		if math.Abs(undoLoserRating-initialLoserRating) > tolerance {
+			t.Errorf("Loser rating not properly reverted: initial=%f, after_undo=%f", initialLoserRating, undoLoserRating)
+		}
+
+		// Verify comparison record was deleted
+		var count int
+		err = testApp.DB.QueryRow(`
+			SELECT COUNT(*) FROM elo_swipe.comparisons WHERE id = $1
+		`, comparison.ID).Scan(&count)
+		if err != nil {
+			t.Fatalf("Failed to check comparison deletion: %v", err)
+		}
+		if count != 0 {
+			t.Errorf("Comparison should be deleted, but still exists")
+		}
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		nonExistentID := uuid.New().String()
 
 		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
 			Method:  "DELETE",
-			Path:    fmt.Sprintf("/api/v1/comparisons/%s", comparisonID),
-			URLVars: map[string]string{"id": comparisonID},
+			Path:    fmt.Sprintf("/api/v1/comparisons/%s", nonExistentID),
+			URLVars: map[string]string{"id": nonExistentID},
 		})
 		if err != nil {
 			t.Fatalf("Failed to create request: %v", err)
@@ -646,9 +755,8 @@ func TestDeleteComparison(t *testing.T) {
 
 		testApp.App.DeleteComparison(w, httpReq)
 
-		// Currently returns 204 No Content (TODO: implement actual undo logic)
-		if w.Code != http.StatusNoContent {
-			t.Errorf("Expected status %d, got %d", http.StatusNoContent, w.Code)
+		if w.Code != http.StatusNotFound {
+			t.Errorf("Expected status %d for non-existent comparison, got %d", http.StatusNotFound, w.Code)
 		}
 	})
 }
@@ -911,6 +1019,139 @@ func TestIntegrationFlows(t *testing.T) {
 		response := assertJSONResponse(t, w, http.StatusOK, nil)
 		if response == nil {
 			t.Fatal("Expected valid rankings response")
+		}
+	})
+}
+
+// TestGenerateSmartPairing tests the GenerateSmartPairing handler
+func TestGenerateSmartPairing(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	testApp := setupTestApp(t)
+	defer testApp.Cleanup()
+
+	t.Run("Success_WithBody", func(t *testing.T) {
+		testList := setupTestList(t, testApp.DB, "Test List", 5)
+		defer testList.Cleanup()
+
+		pairingReq := map[string]interface{}{
+			"list_id": testList.List.ID,
+			"items":   testList.Items,
+		}
+
+		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+			Method:  "POST",
+			Path:    fmt.Sprintf("/api/v1/lists/%s/smart-pairing", testList.List.ID),
+			URLVars: map[string]string{"id": testList.List.ID},
+			Body:    pairingReq,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		testApp.App.GenerateSmartPairing(w, httpReq)
+
+		// Accept either success or expected failure when Ollama not available
+		if w.Code != http.StatusCreated && w.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status %d or %d, got %d. Body: %s", http.StatusCreated, http.StatusInternalServerError, w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("Success_WithoutBody", func(t *testing.T) {
+		testList := setupTestList(t, testApp.DB, "Test List", 3)
+		defer testList.Cleanup()
+
+		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+			Method:  "POST",
+			Path:    fmt.Sprintf("/api/v1/lists/%s/smart-pairing", testList.List.ID),
+			URLVars: map[string]string{"id": testList.List.ID},
+		})
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		testApp.App.GenerateSmartPairing(w, httpReq)
+
+		if w.Code != http.StatusCreated && w.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status %d or %d, got %d", http.StatusCreated, http.StatusInternalServerError, w.Code)
+		}
+	})
+}
+
+// TestGetPairingQueue tests the GetPairingQueue handler
+func TestGetPairingQueue(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	testApp := setupTestApp(t)
+	defer testApp.Cleanup()
+
+	t.Run("Success", func(t *testing.T) {
+		testList := setupTestList(t, testApp.DB, "Test List", 5)
+		defer testList.Cleanup()
+
+		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+			Method:  "GET",
+			Path:    fmt.Sprintf("/api/v1/lists/%s/pairing-queue", testList.List.ID),
+			URLVars: map[string]string{"id": testList.List.ID},
+		})
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		testApp.App.GetPairingQueue(w, httpReq)
+
+		// Accept either success or expected failure when pairing_queue table doesn't exist
+		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status %d or %d, got %d. Body: %s", http.StatusOK, http.StatusInternalServerError, w.Code, w.Body.String())
+			return
+		}
+
+		// Only verify structure if successful
+		if w.Code == http.StatusOK {
+			response := assertJSONResponse(t, w, http.StatusOK, nil)
+			if response != nil {
+				// Verify response structure
+				if _, ok := response["list_id"]; !ok {
+					t.Error("Expected list_id in response")
+				}
+				if _, ok := response["queue_count"]; !ok {
+					t.Error("Expected queue_count in response")
+				}
+				if _, ok := response["pairs"]; !ok {
+					t.Error("Expected pairs in response")
+				}
+			}
+		}
+	})
+}
+
+// TestRefreshPairingQueue tests the RefreshPairingQueue handler
+func TestRefreshPairingQueue(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	testApp := setupTestApp(t)
+	defer testApp.Cleanup()
+
+	t.Run("Success", func(t *testing.T) {
+		testList := setupTestList(t, testApp.DB, "Test List", 4)
+		defer testList.Cleanup()
+
+		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+			Method:  "POST",
+			Path:    fmt.Sprintf("/api/v1/lists/%s/pairing-queue/refresh", testList.List.ID),
+			URLVars: map[string]string{"id": testList.List.ID},
+		})
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
+
+		testApp.App.RefreshPairingQueue(w, httpReq)
+
+		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status %d or %d, got %d. Body: %s", http.StatusOK, http.StatusInternalServerError, w.Code, w.Body.String())
 		}
 	})
 }

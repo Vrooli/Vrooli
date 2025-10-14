@@ -1,3 +1,23 @@
+import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
+
+(function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window.parent === window || window.__pickerWheelBridgeInitialized) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[PickerWheel] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'picker-wheel' });
+    window.__pickerWheelBridgeInitialized = true;
+})();
+
 // Picker Wheel - Interactive Script
 
 const API_BASE = `${window.location.protocol}//${window.location.host}/api`;

@@ -14,6 +14,7 @@ app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.static('public'));
+app.use('/node_modules', express.static(path.join(__dirname, 'node_modules')));
 
 // Health check endpoint
 app.get('/health', (req, res) => {

@@ -5,13 +5,14 @@
 #
 # Usage:
 #   make       - Show help
-#   make run   - Start this scenario
+#   make start - Start this scenario
+#   make run   - Start this scenario (alias)
 #   make stop  - Stop this scenario
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -38,6 +39,8 @@ help: ## Show this help message
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
 	@echo "    Always use 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
+
+start: run ## Start this scenario
 
 run: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"

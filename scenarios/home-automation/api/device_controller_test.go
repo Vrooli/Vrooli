@@ -175,12 +175,12 @@ func TestCheckPermissions(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name         string
-		userID       string
-		profileID    string
-		deviceID     string
-		shouldAllow  bool
-		shouldError  bool
+		name        string
+		userID      string
+		profileID   string
+		deviceID    string
+		shouldAllow bool
+		shouldError bool
 	}{
 		{
 			name:        "Admin user has full access",

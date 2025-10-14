@@ -189,8 +189,10 @@ func main() {
 	// Setup routes
 	router := mux.NewRouter()
 
+	// Health check at root level (required by orchestration)
+	router.HandleFunc("/health", healthCheck).Methods("GET")
+
 	// API routes
-	router.HandleFunc("/api/health", healthCheck).Methods("GET")
 	router.HandleFunc("/api/meals", getMeals).Methods("GET")
 	router.HandleFunc("/api/meals", createMeal).Methods("POST")
 	router.HandleFunc("/api/meals/today", getTodaysMeals).Methods("GET")

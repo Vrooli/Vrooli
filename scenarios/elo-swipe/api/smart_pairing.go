@@ -16,8 +16,8 @@ type SmartPairing struct {
 }
 
 type PairingRequest struct {
-	ListID string      `json:"list_id"`
-	Items  []PairItem  `json:"items"`
+	ListID string     `json:"list_id"`
+	Items  []PairItem `json:"items"`
 }
 
 type PairItem struct {
@@ -26,16 +26,16 @@ type PairItem struct {
 }
 
 type PairingResponse struct {
-	Success        bool               `json:"success"`
-	PairsSuggested int                `json:"pairs_suggested"`
-	Message        string             `json:"message"`
-	SuggestedPairs []SuggestedPair    `json:"suggested_pairs,omitempty"`
+	Success        bool            `json:"success"`
+	PairsSuggested int             `json:"pairs_suggested"`
+	Message        string          `json:"message"`
+	SuggestedPairs []SuggestedPair `json:"suggested_pairs,omitempty"`
 }
 
 type SuggestedPair struct {
-	ItemAID         string  `json:"item_a_id"`
-	ItemBID         string  `json:"item_b_id"`
-	Priority        float64 `json:"priority"`
+	ItemAID          string  `json:"item_a_id"`
+	ItemBID          string  `json:"item_b_id"`
+	Priority         float64 `json:"priority"`
 	UncertaintyScore float64 `json:"uncertainty_score"`
 }
 
@@ -103,7 +103,7 @@ Return a JSON object with 'suggested_pairs' array, each containing 'item_a_id', 
 
 func (sp *SmartPairing) callOllamaGenerate(ctx context.Context, prompt, model, taskType string) (string, error) {
 	cmd := exec.CommandContext(ctx, "bash", "/vrooli/cli/vrooli", "resource", "ollama", "generate", prompt, "--model", model, "--type", taskType, "--quiet")
-	
+
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -123,7 +123,7 @@ func (sp *SmartPairing) parseAIResponse(response string) ([]SuggestedPair, error
 	// Clean response and extract JSON
 	cleanResponse := strings.TrimSpace(response)
 	cleanResponse = regexp.MustCompile("```json\\n?|```\\n?").ReplaceAllString(cleanResponse, "")
-	
+
 	// Try to find JSON object
 	jsonMatch := regexp.MustCompile(`\{[\s\S]*\}`).FindString(cleanResponse)
 	if jsonMatch == "" {
@@ -149,7 +149,7 @@ func (sp *SmartPairing) parseAIResponse(response string) ([]SuggestedPair, error
 
 func (sp *SmartPairing) generateFallbackPairs(items []PairItem) []SuggestedPair {
 	var pairs []SuggestedPair
-	
+
 	if len(items) >= 2 {
 		pair := SuggestedPair{
 			ItemAID:          items[0].ID,
@@ -166,7 +166,7 @@ func (sp *SmartPairing) generateFallbackPairs(items []PairItem) []SuggestedPair 
 			if i == 0 && j == 1 {
 				continue // Already added this pair
 			}
-			
+
 			pair := SuggestedPair{
 				ItemAID:          items[i].ID,
 				ItemBID:          items[j].ID,
@@ -238,7 +238,7 @@ func (sp *SmartPairing) GetQueuedPairs(ctx context.Context, listID string, limit
 
 func (sp *SmartPairing) ClearQueue(ctx context.Context, listID string) error {
 	query := `DELETE FROM elo_swipe.pairing_queue WHERE list_id = $1`
-	
+
 	_, err := sp.db.Exec(query, listID)
 	if err != nil {
 		return fmt.Errorf("failed to clear pairing queue: %w", err)

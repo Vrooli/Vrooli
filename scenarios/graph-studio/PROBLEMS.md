@@ -107,7 +107,7 @@ _No active issues. All P0 requirements complete with comprehensive security, ful
 
 **What was implemented**:
 1. ✅ **SecurityHeadersMiddleware**: 7 critical security headers
-   - X-Frame-Options: DENY (prevents clickjacking)
+   - CSP frame-ancestors allowlist (blocks untrusted frames while allowing App Monitor preview)
    - X-Content-Type-Options: nosniff (prevents MIME sniffing)
    - X-XSS-Protection: 1; mode=block (enables browser XSS protection)
    - Content-Security-Policy: strict policy preventing XSS attacks

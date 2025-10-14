@@ -18,11 +18,22 @@ const VERSION = "1.0.0"
 var apiURL string
 
 func init() {
+	// Try multiple port environment variables in order of preference.
+	// No default fallback - we fail fast if none are set (required for lifecycle management).
 	apiPort := os.Getenv("API_PORT")
 	if apiPort == "" {
-		// Default to the actual running port
-		apiPort = "19302"
+		apiPort = os.Getenv("SCENARIO_API_PORT")
 	}
+	if apiPort == "" {
+		apiPort = os.Getenv("ELO_SWIPE_API_PORT")
+	}
+
+	// Fail fast if no port configured - prevents dangerous port conflicts
+	if apiPort == "" {
+		fmt.Fprintf(os.Stderr, "❌ API_PORT environment variable not set. This CLI must be run through the Vrooli lifecycle system.\n")
+		os.Exit(1)
+	}
+
 	apiURL = fmt.Sprintf("http://localhost:%s/api/v1", apiPort)
 }
 

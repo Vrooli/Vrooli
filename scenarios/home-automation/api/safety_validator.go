@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"time"
@@ -26,14 +27,14 @@ type AutomationValidationRequest struct {
 }
 
 type AutomationValidationResponse struct {
-	AutomationID        string             `json:"automation_id"`
-	ValidationPassed    bool               `json:"validation_passed"`
-	SecurityValidation  SecurityValidation `json:"security_validation"`
+	AutomationID         string               `json:"automation_id"`
+	ValidationPassed     bool                 `json:"validation_passed"`
+	SecurityValidation   SecurityValidation   `json:"security_validation"`
 	PermissionValidation PermissionValidation `json:"permission_validation"`
-	LogicValidation     LogicValidation    `json:"logic_validation"`
-	OverallRiskLevel    string             `json:"overall_risk_level"`
-	Recommendations     []string           `json:"recommendations,omitempty"`
-	ValidationTimestamp string             `json:"validation_timestamp"`
+	LogicValidation      LogicValidation      `json:"logic_validation"`
+	OverallRiskLevel     string               `json:"overall_risk_level"`
+	Recommendations      []string             `json:"recommendations,omitempty"`
+	ValidationTimestamp  string               `json:"validation_timestamp"`
 }
 
 type SecurityValidation struct {
@@ -44,18 +45,18 @@ type SecurityValidation struct {
 }
 
 type SecurityIssue struct {
-	Type        string `json:"type"`
-	Pattern     string `json:"pattern,omitempty"`
-	Severity    string `json:"severity"`
-	Message     string `json:"message"`
-	DeviceID    string `json:"device_id,omitempty"`
-	Action      string `json:"action,omitempty"`
+	Type     string `json:"type"`
+	Pattern  string `json:"pattern,omitempty"`
+	Severity string `json:"severity"`
+	Message  string `json:"message"`
+	DeviceID string `json:"device_id,omitempty"`
+	Action   string `json:"action,omitempty"`
 }
 
 type PermissionValidation struct {
-	Passed            bool                   `json:"passed"`
-	PermissionIssues  []PermissionIssue      `json:"permission_issues"`
-	UserPermissions   UserPermissions        `json:"user_permissions"`
+	Passed           bool              `json:"passed"`
+	PermissionIssues []PermissionIssue `json:"permission_issues"`
+	UserPermissions  UserPermissions   `json:"user_permissions"`
 }
 
 type PermissionIssue struct {
@@ -66,18 +67,18 @@ type PermissionIssue struct {
 }
 
 type UserPermissions struct {
-	CanCreate        bool `json:"can_create"`
-	AllowedDevices   int  `json:"allowed_devices"`
-	AutomationCount  int  `json:"automation_count"`
-	AutomationLimit  int  `json:"automation_limit"`
+	CanCreate       bool `json:"can_create"`
+	AllowedDevices  int  `json:"allowed_devices"`
+	AutomationCount int  `json:"automation_count"`
+	AutomationLimit int  `json:"automation_limit"`
 }
 
 type LogicValidation struct {
-	Passed              bool               `json:"passed"`
-	LogicIssues         []LogicIssue       `json:"logic_issues"`
-	Suggestions         []LogicSuggestion  `json:"suggestions"`
-	DeviceCompatibility string             `json:"device_compatibility"`
-	ScheduleSafety      string             `json:"schedule_safety"`
+	Passed              bool              `json:"passed"`
+	LogicIssues         []LogicIssue      `json:"logic_issues"`
+	Suggestions         []LogicSuggestion `json:"suggestions"`
+	DeviceCompatibility string            `json:"device_compatibility"`
+	ScheduleSafety      string            `json:"schedule_safety"`
 }
 
 type LogicIssue struct {
@@ -94,10 +95,10 @@ type LogicSuggestion struct {
 }
 
 type SafetyStatus struct {
-	AutomationID   string `json:"automation_id"`
-	CurrentStatus  string `json:"current_status"`
-	RiskLevel      string `json:"risk_level"`
-	LastValidated  string `json:"last_validated"`
+	AutomationID   string                       `json:"automation_id"`
+	CurrentStatus  string                       `json:"current_status"`
+	RiskLevel      string                       `json:"risk_level"`
+	LastValidated  string                       `json:"last_validated"`
 	ValidationInfo AutomationValidationResponse `json:"validation_info"`
 }
 
@@ -135,20 +136,20 @@ func (sv *SafetyValidator) ValidateAutomation(ctx context.Context, req Automatio
 	recommendations := sv.generateRecommendations(securityValidation, logicValidation)
 
 	response := &AutomationValidationResponse{
-		AutomationID:        req.AutomationID,
-		ValidationPassed:    validationPassed,
-		SecurityValidation:  securityValidation,
+		AutomationID:         req.AutomationID,
+		ValidationPassed:     validationPassed,
+		SecurityValidation:   securityValidation,
 		PermissionValidation: permissionValidation,
-		LogicValidation:     logicValidation,
-		OverallRiskLevel:    riskLevel,
-		Recommendations:     recommendations,
-		ValidationTimestamp: time.Now().Format(time.RFC3339),
+		LogicValidation:      logicValidation,
+		OverallRiskLevel:     riskLevel,
+		Recommendations:      recommendations,
+		ValidationTimestamp:  time.Now().Format(time.RFC3339),
 	}
 
 	// Store validation result
 	if err := sv.storeValidationResult(ctx, response); err != nil {
 		// Log error but don't fail the validation
-		fmt.Printf("Failed to store validation result: %v\n", err)
+		log.Printf("Failed to store validation result: %v", err)
 	}
 
 	return response, nil
@@ -160,18 +161,18 @@ func (sv *SafetyValidator) validateSecurity(code, description string) SecurityVa
 
 	// Dangerous command patterns
 	dangerousPatterns := map[string]*regexp.Regexp{
-		"file_deletion":      regexp.MustCompile(`rm\s+-rf`),
+		"file_deletion":       regexp.MustCompile(`rm\s+-rf`),
 		"elevated_privileges": regexp.MustCompile(`sudo\s+`),
-		"code_execution":     regexp.MustCompile(`exec\s*\(`),
-		"system_calls":       regexp.MustCompile(`system\s*\(`),
-		"dynamic_evaluation": regexp.MustCompile(`eval\s*\(`),
-		"variable_injection": regexp.MustCompile(`\$\{.*\}`),
-		"file_operations":    regexp.MustCompile(`\bopen\s*\(`),
-		"process_spawning":   regexp.MustCompile(`import\s+subprocess`),
-		"os_commands":        regexp.MustCompile(`os\.system`),
-		"shell_execution":    regexp.MustCompile(`shell=True`),
-		"network_requests":   regexp.MustCompile(`curl\s+|wget\s+`),
-		"remote_access":      regexp.MustCompile(`ssh\s+`),
+		"code_execution":      regexp.MustCompile(`exec\s*\(`),
+		"system_calls":        regexp.MustCompile(`system\s*\(`),
+		"dynamic_evaluation":  regexp.MustCompile(`eval\s*\(`),
+		"variable_injection":  regexp.MustCompile(`\$\{.*\}`),
+		"file_operations":     regexp.MustCompile(`\bopen\s*\(`),
+		"process_spawning":    regexp.MustCompile(`import\s+subprocess`),
+		"os_commands":         regexp.MustCompile(`os\.system`),
+		"shell_execution":     regexp.MustCompile(`shell=True`),
+		"network_requests":    regexp.MustCompile(`curl\s+|wget\s+`),
+		"remote_access":       regexp.MustCompile(`ssh\s+`),
 		"credential_handling": regexp.MustCompile(`password|secret|api[_\-]?key`),
 	}
 
@@ -216,11 +217,11 @@ func (sv *SafetyValidator) validateSecurity(code, description string) SecurityVa
 
 	// Device safety checks
 	unsafeDevicePatterns := map[string]*regexp.Regexp{
-		"unlock_doors":       regexp.MustCompile(`lock.*unlock`),
-		"disable_security":   regexp.MustCompile(`security.*disable`),
-		"disable_alarms":     regexp.MustCompile(`alarm.*off`),
-		"dangerous_temp":     regexp.MustCompile(`temp.*[89]\d|temp.*100`),
-		"max_brightness":     regexp.MustCompile(`bright.*100`),
+		"unlock_doors":     regexp.MustCompile(`lock.*unlock`),
+		"disable_security": regexp.MustCompile(`security.*disable`),
+		"disable_alarms":   regexp.MustCompile(`alarm.*off`),
+		"dangerous_temp":   regexp.MustCompile(`temp.*[89]\d|temp.*100`),
+		"max_brightness":   regexp.MustCompile(`bright.*100`),
 	}
 
 	combinedText := strings.ToLower(description + " " + code)
@@ -237,7 +238,7 @@ func (sv *SafetyValidator) validateSecurity(code, description string) SecurityVa
 
 	// Time-based safety
 	timePatterns := map[string]*regexp.Regexp{
-		"every_second":  regexp.MustCompile(`every\s+(second|1\s*sec)`),
+		"every_second": regexp.MustCompile(`every\s+(second|1\s*sec)`),
 		"too_frequent": regexp.MustCompile(`every\s+[1-9]\s*(second|sec)`),
 	}
 
@@ -279,22 +280,22 @@ func (sv *SafetyValidator) validatePermissions(ctx context.Context, req Automati
 	// Mock user permissions - in real implementation, query database
 	mockUserPermissions := map[string]UserPermissions{
 		"550e8400-e29b-41d4-a716-446655440001": {
-			CanCreate:        true,
-			AllowedDevices:   999, // Admin can control all devices
-			AutomationCount:  5,
-			AutomationLimit:  50,
+			CanCreate:       true,
+			AllowedDevices:  999, // Admin can control all devices
+			AutomationCount: 5,
+			AutomationLimit: 50,
 		},
 		"550e8400-e29b-41d4-a716-446655440002": {
-			CanCreate:        false, // Family member cannot create automations
-			AllowedDevices:   3,
-			AutomationCount:  0,
-			AutomationLimit:  0,
+			CanCreate:       false, // Family member cannot create automations
+			AllowedDevices:  3,
+			AutomationCount: 0,
+			AutomationLimit: 0,
 		},
 		"550e8400-e29b-41d4-a716-446655440003": {
-			CanCreate:        false, // Kid cannot create automations
-			AllowedDevices:   1,
-			AutomationCount:  0,
-			AutomationLimit:  0,
+			CanCreate:       false, // Kid cannot create automations
+			AllowedDevices:  1,
+			AutomationCount: 0,
+			AutomationLimit: 0,
 		},
 	}
 
@@ -331,7 +332,7 @@ func (sv *SafetyValidator) validatePermissions(ctx context.Context, req Automati
 				break
 			}
 		}
-		
+
 		if !canControl {
 			permissionIssues = append(permissionIssues, PermissionIssue{
 				Type:     "device_permission_denied",
@@ -532,7 +533,7 @@ func (sv *SafetyValidator) storeValidationResult(ctx context.Context, response *
 	}
 
 	resultJSON, _ := json.Marshal(response)
-	
+
 	query := `
 		INSERT INTO home_automation.automation_validations 
 		(automation_id, validation_result, validation_passed, risk_level, created_at)
@@ -543,7 +544,7 @@ func (sv *SafetyValidator) storeValidationResult(ctx context.Context, response *
 		risk_level = EXCLUDED.risk_level,
 		updated_at = CURRENT_TIMESTAMP
 	`
-	
+
 	_, err := sv.db.Exec(query, response.AutomationID, resultJSON, response.ValidationPassed, response.OverallRiskLevel)
 	return err
 }
@@ -571,12 +572,12 @@ func (sv *SafetyValidator) GetSafetyStatus(ctx context.Context, automationID str
 		ORDER BY created_at DESC
 		LIMIT 1
 	`
-	
+
 	var resultJSON []byte
 	var validationPassed bool
 	var riskLevel string
 	var createdAt time.Time
-	
+
 	err := sv.db.QueryRow(query, automationID).Scan(&resultJSON, &validationPassed, &riskLevel, &createdAt)
 	if err != nil {
 		return nil, fmt.Errorf("safety status not found: %w", err)

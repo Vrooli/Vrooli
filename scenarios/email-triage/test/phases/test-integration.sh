@@ -7,13 +7,17 @@ set -euo pipefail
 
 echo "🔗 Testing Email Triage integrations..."
 
-# Configuration - Get API port from environment, service.json, or use default
+# Configuration - Get API port from environment or vrooli status
 if [ -z "$API_PORT" ]; then
-    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-    SERVICE_JSON="$(dirname "$(dirname "$SCRIPT_DIR")")/.vrooli/service.json"
-    if [ -f "$SERVICE_JSON" ] && command -v jq >/dev/null 2>&1; then
-        API_PORT=$(jq -r '.endpoints.api // "http://localhost:19528"' "$SERVICE_JSON" | sed 's/.*://')
-    else
+    # Try to get running port from vrooli status
+    if command -v vrooli >/dev/null 2>&1; then
+        SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+        SCENARIO_NAME=$(basename "$(dirname "$(dirname "$SCRIPT_DIR")")")
+        API_PORT=$(vrooli scenario status "$SCENARIO_NAME" --json 2>/dev/null | jq -r '.scenario_data.allocated_ports.API_PORT // empty' 2>/dev/null || echo "")
+    fi
+
+    # Fallback to default if still not found
+    if [ -z "$API_PORT" ]; then
         API_PORT=19528
     fi
 fi
@@ -117,17 +121,22 @@ else
     ((FAILURES++))
 fi
 
-# Test CLI integration
+# Test CLI integration (determine CLI path first)
 echo -e "\nTesting CLI integration:"
+CLI_CMD="email-triage"
+if ! command -v email-triage >/dev/null 2>&1; then
+    CLI_CMD="$HOME/.vrooli/bin/email-triage"
+fi
+
 commands=(
-    "email-triage status"
-    "email-triage --version"
-    "email-triage help"
+    "status"
+    "--version"
+    "help"
 )
 
-for cmd in "${commands[@]}"; do
-    echo -n "  Testing: $cmd... "
-    if $cmd >/dev/null 2>&1; then
+for subcmd in "${commands[@]}"; do
+    echo -n "  Testing: email-triage $subcmd... "
+    if $CLI_CMD $subcmd >/dev/null 2>&1; then
         echo -e "${GREEN}✓${NC}"
     else
         echo -e "${RED}✗${NC}"

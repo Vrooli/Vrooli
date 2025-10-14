@@ -288,3 +288,12 @@ func (pt *PerformanceTimer) AssertMaxDuration(t *testing.T, max time.Duration, o
 		t.Errorf("%s took %v, expected < %v", operation, elapsed, max)
 	}
 }
+
+// getEnv retrieves an environment variable or returns a default value
+func getEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}

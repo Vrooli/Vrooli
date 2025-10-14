@@ -87,6 +87,7 @@ func main() {
 	// Add middleware
 	router.Use(ErrorHandlerMiddleware())
 	router.Use(SecurityHeadersMiddleware())
+	router.Use(PreviewAccessMiddleware())
 	router.Use(RateLimitMiddleware(50, 100))                 // 50 req/sec, burst of 100
 	router.Use(RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10 MB limit
 	router.Use(RequestIDMiddleware())
@@ -113,7 +114,7 @@ func main() {
 		corsConfig.AllowOrigins = strings.Split(allowedOrigins, ",")
 	}
 
-	corsConfig.AllowHeaders = append(corsConfig.AllowHeaders, "Authorization", "X-User-ID", "X-Request-ID")
+	corsConfig.AllowHeaders = append(corsConfig.AllowHeaders, "Authorization", "X-User-ID", "X-Request-ID", "X-Preview-Token")
 	router.Use(cors.New(corsConfig))
 
 	// Health check

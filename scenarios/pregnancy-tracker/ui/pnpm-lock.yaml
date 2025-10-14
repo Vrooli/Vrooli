@@ -6,4 +6,13 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    dependencies:
+      '@vrooli/iframe-bridge':
+        specifier: file:../../../packages/iframe-bridge
+        version: file:../../../packages/iframe-bridge
+
+packages:
+
+  ../../../packages/iframe-bridge:
+    resolution: {directory: ../../../packages/iframe-bridge, type: directory}

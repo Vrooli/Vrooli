@@ -504,6 +504,11 @@ func TestGenerateAutomationEndpoint(t *testing.T) {
 func TestListAutomationsEndpoint(t *testing.T) {
 	app := setupTestApp(t)
 
+	// Skip if we don't have a DB connection for this test
+	if app.DB == nil {
+		t.Skip("Skipping automation listing test - requires database connection")
+	}
+
 	req, _ := http.NewRequest("GET", "/api/v1/automations", nil)
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(app.ListAutomations)

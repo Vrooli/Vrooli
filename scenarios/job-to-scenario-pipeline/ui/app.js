@@ -1,5 +1,17 @@
 // Job Pipeline Dashboard Application
 
+const iframeParentOrigin = (() => {
+    try {
+        return document.referrer ? new URL(document.referrer).origin : undefined;
+    } catch (error) {
+        return undefined;
+    }
+})();
+
+if (typeof window !== 'undefined' && window.parent !== window && typeof window.initIframeBridgeChild === 'function') {
+    window.initIframeBridgeChild({ appId: 'job-to-scenario-pipeline', parentOrigin: iframeParentOrigin });
+}
+
 const API_PORT = window.location.port || '15500';
 const API_BASE = `http://localhost:${API_PORT}/api/v1`;
 

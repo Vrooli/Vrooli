@@ -386,17 +386,58 @@
         </div>
     </div>
 
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "/vendor/iframe-bridge/iframeBridgeChild.js"
+            }
+        }
+    </script>
+    <script type="module" src="./bridge-init.js"></script>
     <script>
         // Configuration
-        const API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':' + (window.API_PORT || '8090');
-        
+        let API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':' + (window.API_PORT || '8090');
+
         // State
         let schedules = [];
         let metrics = {};
 
+        // Fetch API configuration from server
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    API_BASE_URL = config.apiUrl;
+                    console.log('✅ API configured:', API_BASE_URL);
+                    return;
+                }
+            } catch (error) {
+                console.warn('⚠️ Config endpoint failed, trying to detect API port...');
+            }
+
+            // Fallback: try common ports to find the API
+            const ports = [18445, 18446, 18447, 18090];
+            for (const port of ports) {
+                try {
+                    const testUrl = `http://localhost:${port}/health`;
+                    const response = await fetch(testUrl);
+                    if (response.ok) {
+                        API_BASE_URL = `http://localhost:${port}`;
+                        console.log('✅ API found at:', API_BASE_URL);
+                        return;
+                    }
+                } catch (e) {
+                    // Continue trying next port
+                }
+            }
+            console.warn('⚠️ Could not detect API, using default');
+        }
+
         // Initialize dashboard
         async function initDashboard() {
             try {
+                await loadConfig(); // Load API configuration first
                 await loadSchedules();
                 await loadMetrics();
                 await checkHealth();

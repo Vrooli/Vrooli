@@ -1,5 +1,3 @@
-// +build testing
-
 package main
 
 import (
@@ -8,7 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +30,7 @@ type TestLogger struct {
 func setupTestLogger() func() {
 	// Suppress logs during tests unless verbose mode is enabled
 	if os.Getenv("TEST_VERBOSE") != "1" {
-		log.SetOutput(ioutil.Discard)
+		log.SetOutput(io.Discard)
 		return func() {
 			log.SetOutput(os.Stderr)
 		}
@@ -53,7 +51,7 @@ type TestEnvironment struct {
 // setupTestEnvironment creates an isolated test environment with proper cleanup
 func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	// Create temporary directory
-	tempDir, err := ioutil.TempDir("", "idea-generator-test")
+	tempDir, err := os.MkdirTemp("", "idea-generator-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -74,14 +72,14 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	}
 
 	server := &ApiServer{
-		db:             db,
-		ideaProcessor:  processor,
-		windmillURL:    "http://localhost:5681",
-		postgresURL:    os.Getenv("TEST_POSTGRES_URL"),
-		qdrantURL:      "http://localhost:6333",
-		minioURL:       "http://localhost:9000",
-		redisURL:       "http://localhost:6379",
-		ollamaURL:      "http://localhost:11434",
+		db:              db,
+		ideaProcessor:   processor,
+		windmillURL:     "http://localhost:5681",
+		postgresURL:     os.Getenv("TEST_POSTGRES_URL"),
+		qdrantURL:       "http://localhost:6333",
+		minioURL:        "http://localhost:9000",
+		redisURL:        "http://localhost:6379",
+		ollamaURL:       "http://localhost:11434",
 		unstructuredURL: "http://localhost:11450",
 	}
 

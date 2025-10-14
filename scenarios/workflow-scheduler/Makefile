@@ -1,17 +1,20 @@
 # Scenario Makefile
-# 
+#
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
 # NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
 #
 # Usage:
-#   make       - Show help
-#   make run   - Start this scenario
-#   make stop  - Stop this scenario
-#   make test  - Run scenario tests
-#   make logs  - Show scenario logs
-#   make clean - Clean build artifacts
+#   make        - Show help and available commands
+#   make start  - Start this scenario through Vrooli lifecycle
+#   make run    - Alias for start
+#   make stop   - Stop this scenario gracefully
+#   make test   - Run scenario tests (API, CLI, integration)
+#   make logs   - Show recent scenario logs (last 50 lines)
+#   make clean  - Clean build artifacts and temporary files
+#   make fmt    - Format all code (Go + UI)
+#   make lint   - Lint all code (Go + UI)
 
-.PHONY: help run stop test logs status clean build dev
+.PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -36,12 +39,14 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-10s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
-	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
-	@echo "    Always use 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
-run: ## Start this scenario (uses Vrooli lifecycle)
+start: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME)
+
+run: start ## Alias for start
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
@@ -80,6 +85,26 @@ build: ## Build the scenario (if applicable)
 	else \
 		echo "$(YELLOW)No build needed for this scenario$(RESET)"; \
 	fi
+
+fmt: fmt-go fmt-ui ## Format all code (Go + UI)
+
+fmt-go: ## Format Go code
+	@echo "$(BLUE)🎨 Formatting Go code...$(RESET)"
+	@if [ -d api ]; then cd api && gofumpt -w . 2>/dev/null || gofmt -w . 2>/dev/null || echo "$(YELLOW)Go formatter not available$(RESET)"; fi
+
+fmt-ui: ## Format UI code
+	@echo "$(BLUE)🎨 Formatting UI code...$(RESET)"
+	@if [ -f ui/package.json ]; then cd ui && npm run format 2>/dev/null || echo "$(YELLOW)No format script in package.json$(RESET)"; fi
+
+lint: lint-go lint-ui ## Lint all code (Go + UI)
+
+lint-go: ## Lint Go code
+	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
+	@if [ -d api ]; then cd api && golangci-lint run 2>/dev/null || echo "$(YELLOW)golangci-lint not available$(RESET)"; fi
+
+lint-ui: ## Lint UI code
+	@echo "$(BLUE)🔍 Linting UI code...$(RESET)"
+	@if [ -f ui/package.json ]; then cd ui && npm run lint 2>/dev/null || echo "$(YELLOW)No lint script in package.json$(RESET)"; fi
 
 # Shortcuts
 r: run

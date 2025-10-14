@@ -71,9 +71,9 @@ else
     ((FAILURES++))
 fi
 
-# Check if CLI is installed
+# Check if CLI is installed (check both PATH and Vrooli bin directory)
 echo "  Checking CLI installation..."
-if command -v email-triage >/dev/null 2>&1; then
+if command -v email-triage >/dev/null 2>&1 || [[ -x "$HOME/.vrooli/bin/email-triage" ]]; then
     echo -e "    ${GREEN}✓${NC} CLI is installed"
 else
     echo -e "    ${RED}✗${NC} CLI not installed"

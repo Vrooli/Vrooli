@@ -1,5 +1,3 @@
-// +build testing
-
 package main
 
 import (
@@ -24,12 +22,12 @@ type ErrorTestPattern struct {
 
 // PerformanceTestPattern defines performance testing scenarios
 type PerformanceTestPattern struct {
-	Name           string
-	Description    string
-	MaxDuration    time.Duration
-	Setup          func(t *testing.T, env *TestEnvironment) interface{}
-	Execute        func(t *testing.T, env *TestEnvironment, setupData interface{}) time.Duration
-	Cleanup        func(setupData interface{})
+	Name        string
+	Description string
+	MaxDuration time.Duration
+	Setup       func(t *testing.T, env *TestEnvironment) interface{}
+	Execute     func(t *testing.T, env *TestEnvironment, setupData interface{}) time.Duration
+	Cleanup     func(setupData interface{})
 }
 
 // TestScenarioBuilder provides a fluent interface for building test scenarios
@@ -178,9 +176,9 @@ func generateTestSearchRequest() map[string]interface{} {
 // generateTestRefinementRequest generates a test refinement request
 func generateTestRefinementRequest(ideaID string) map[string]interface{} {
 	return map[string]interface{}{
-		"idea_id":     ideaID,
-		"refinement":  "Please improve this idea with more details",
-		"user_id":     uuid.New().String(),
+		"idea_id":    ideaID,
+		"refinement": "Please improve this idea with more details",
+		"user_id":    uuid.New().String(),
 	}
 }
 
@@ -327,14 +325,14 @@ func createBoundaryTestPatterns() []ErrorTestPattern {
 
 // ConcurrencyTestPattern defines concurrency testing scenarios
 type ConcurrencyTestPattern struct {
-	Name           string
-	Description    string
-	Concurrency    int
-	Iterations     int
-	Setup          func(t *testing.T, env *TestEnvironment) interface{}
-	Execute        func(t *testing.T, env *TestEnvironment, setupData interface{}, iteration int) error
-	Validate       func(t *testing.T, env *TestEnvironment, setupData interface{}, results []error)
-	Cleanup        func(setupData interface{})
+	Name        string
+	Description string
+	Concurrency int
+	Iterations  int
+	Setup       func(t *testing.T, env *TestEnvironment) interface{}
+	Execute     func(t *testing.T, env *TestEnvironment, setupData interface{}, iteration int) error
+	Validate    func(t *testing.T, env *TestEnvironment, setupData interface{}, results []error)
+	Cleanup     func(setupData interface{})
 }
 
 // createConcurrencyPatterns creates concurrency test patterns

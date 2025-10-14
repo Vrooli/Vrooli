@@ -7,13 +7,17 @@ set -euo pipefail
 
 echo "🔌 Testing Email Triage API endpoints..."
 
-# Configuration - Get API port from environment, service.json, or use default
+# Configuration - Get API port from environment or use vrooli status
 if [ -z "$API_PORT" ]; then
-    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-    SERVICE_JSON="$(dirname "$(dirname "$SCRIPT_DIR")")/.vrooli/service.json"
-    if [ -f "$SERVICE_JSON" ] && command -v jq >/dev/null 2>&1; then
-        API_PORT=$(jq -r '.endpoints.api // "http://localhost:19528"' "$SERVICE_JSON" | sed 's/.*://')
-    else
+    # Try to get running port from vrooli status
+    if command -v vrooli >/dev/null 2>&1; then
+        SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+        SCENARIO_NAME=$(basename "$(dirname "$(dirname "$SCRIPT_DIR")")")
+        API_PORT=$(vrooli scenario status "$SCENARIO_NAME" --json 2>/dev/null | jq -r '.scenario_data.allocated_ports.API_PORT // empty' 2>/dev/null || echo "")
+    fi
+
+    # Fallback to default if still not found
+    if [ -z "$API_PORT" ]; then
         API_PORT=19528
     fi
 fi
@@ -65,16 +69,25 @@ test_api "GET" "/health" 200 "Health check" || ((FAILURES++))
 test_api "GET" "/health/database" 200 "Database health" || ((FAILURES++))
 test_api "GET" "/health/qdrant" 200 "Qdrant health" || ((FAILURES++))
 
-# Test authenticated endpoints (should return 401 without auth)
+# Test authenticated endpoints (should return 401 without auth, unless DEV_MODE is true)
 echo -e "\nTesting authentication requirement:"
-test_api "GET" "/api/v1/accounts" 401 "Accounts list (no auth)" || ((FAILURES++))
-test_api "GET" "/api/v1/rules" 401 "Rules list (no auth)" || ((FAILURES++))
-test_api "GET" "/api/v1/emails/search?q=test" 401 "Email search (no auth)" || ((FAILURES++))
+if [[ "${DEV_MODE:-}" == "true" ]]; then
+    echo "  Note: DEV_MODE is enabled, auth checks bypassed"
+    test_api "GET" "/api/v1/accounts" 200 "Accounts list (dev mode)" || ((FAILURES++))
+    test_api "GET" "/api/v1/rules" 200 "Rules list (dev mode)" || ((FAILURES++))
+    test_api "GET" "/api/v1/emails/search?q=test" 200 "Email search (dev mode)" || ((FAILURES++))
+else
+    test_api "GET" "/api/v1/accounts" 401 "Accounts list (no auth)" || ((FAILURES++))
+    test_api "GET" "/api/v1/rules" 401 "Rules list (no auth)" || ((FAILURES++))
+    test_api "GET" "/api/v1/emails/search?q=test" 401 "Email search (no auth)" || ((FAILURES++))
+fi
 
-# Test with mock JWT token (should fail validation)
-echo -e "\nTesting with invalid token:"
-MOCK_TOKEN="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-test_api "GET" "/api/v1/accounts" 401 "Accounts with invalid token" "" "Authorization: $MOCK_TOKEN" || ((FAILURES++))
+# Test with mock JWT token (should fail validation unless in DEV_MODE)
+if [[ "${DEV_MODE:-}" != "true" ]]; then
+    echo -e "\nTesting with invalid token:"
+    MOCK_TOKEN="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    test_api "GET" "/api/v1/accounts" 401 "Accounts with invalid token" "" "Authorization: $MOCK_TOKEN" || ((FAILURES++))
+fi
 
 # Test API endpoints exist (even if auth fails)
 echo -e "\nVerifying API endpoints exist:"
@@ -87,7 +100,8 @@ endpoints=(
 
 for endpoint in "${endpoints[@]}"; do
     response=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}${endpoint}" 2>/dev/null || echo "000")
-    if [[ "$response" == "401" ]] || [[ "$response" == "200" ]]; then
+    # 200=OK, 400=Bad Request (endpoint exists, missing params), 401=Unauthorized (endpoint exists, needs auth)
+    if [[ "$response" == "200" ]] || [[ "$response" == "400" ]] || [[ "$response" == "401" ]]; then
         echo -e "  ${GREEN}✓${NC} $endpoint exists"
     else
         echo -e "  ${RED}✗${NC} $endpoint not found (status: $response)"

@@ -1,3 +1,23 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+(function bootstrapVrooliOrchestratorBridge() {
+    if (typeof window === 'undefined' || window.parent === window || window.__vrooliOrchestratorBridgeInitialized) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[VrooliOrchestrator] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'vrooli-orchestrator' });
+    window.__vrooliOrchestratorBridgeInitialized = true;
+})();
+
 // Vrooli Orchestrator Dashboard Application
 class OrchestratorDashboard {
     constructor() {

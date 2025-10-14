@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title>Vrooli Assistant</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+      }
+    }
+  </script>
   <style>
     * {
       margin: 0;
@@ -384,6 +391,6 @@
     <div style="color: #9ca3af; font-size: 12px; margin-top: 4px;">Agent spawned successfully</div>
   </div>
 
-  <script src="renderer.js"></script>
+  <script type="module" src="renderer.js"></script>
 </body>
 </html>

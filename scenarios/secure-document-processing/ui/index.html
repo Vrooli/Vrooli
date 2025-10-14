@@ -726,6 +726,14 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+    <script type="module" src="bridge-init.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>

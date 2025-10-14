@@ -204,7 +204,7 @@
             {
               "type": "binaries",
               "targets": [
-                "elo-swipe-api"
+                "api/elo-swipe-api"
               ]
             },
              {
@@ -271,6 +271,60 @@
            "run": "echo 'Elo Swipe running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: elo-swipe --help'",
            "description": "Display service access URLs"
          }
+      ]
+    },
+    "health": {
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api",
+          "type": "http",
+          "endpoint": "/api/v1/health",
+          "expected_status": 200,
+          "timeout": 5,
+          "interval": 10,
+          "critical": false
+        },
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "endpoint": "/health",
+          "expected_status": 200,
+          "timeout": 5,
+          "interval": 10,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "endpoint": "/health",
+          "expected_status": 200,
+          "port": "ui",
+          "timeout": 5,
+          "interval": 10,
+          "critical": true
+        },
+        {
+          "name": "database",
+          "type": "dependency",
+          "service": "postgres",
+          "critical": true
+        }
+      ]
+    },
+    "test": {
+      "description": "Run comprehensive test suite",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "./test/run-tests.sh",
+          "description": "Execute smoke, unit, and integration tests"
+        }
       ]
     }
   }

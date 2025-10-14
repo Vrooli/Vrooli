@@ -45,9 +45,12 @@ type ScheduleExecution struct {
 func NewScheduler(db *sql.DB) *Scheduler {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// Create cron parser with standard 5 fields (minute hour day month weekday)
+	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+
 	return &Scheduler{
 		db:         db,
-		cron:       cron.New(), // Standard 5-field cron (minute hour day month weekday)
+		cron:       cron.New(cron.WithParser(parser)), // Standard 5-field cron (minute hour day month weekday)
 		jobs:       make(map[string]cron.EntryID),
 		ctx:        ctx,
 		cancel:     cancel,
@@ -60,29 +63,31 @@ func NewScheduler(db *sql.DB) *Scheduler {
 // Start begins the scheduler
 func (s *Scheduler) Start() error {
 	log.Println("Starting workflow scheduler...")
-	
-	// Start worker pool for executing schedules
+
+	// Start worker pool for executing schedules (non-blocking goroutines)
+	log.Println("Starting execution workers...")
 	for i := 0; i < s.workers; i++ {
 		go s.executionWorker()
 	}
-	
-	// Load active schedules from database
+
+	// Load active schedules from database BEFORE starting cron
+	// This avoids race conditions with AddFunc while cron is running
+	log.Println("Loading schedules from database...")
 	if err := s.loadSchedules(); err != nil {
-		return fmt.Errorf("failed to load schedules: %w", err)
+		log.Printf("⚠️ Warning loading schedules: %v", err)
+		// Don't fail startup - continue with empty scheduler
 	}
-	
-	// Start the cron scheduler
+
+	// Start the cron scheduler (after jobs are added)
+	log.Println("Starting cron scheduler...")
 	s.cron.Start()
-	
-	// Start monitoring routine
+
+	// Start monitoring routines (all non-blocking, started after cron)
+	log.Println("Starting monitoring routines...")
 	go s.monitorRoutine()
-	
-	// Start missed schedule handler
 	go s.missedScheduleHandler()
-	
-	// Start retry handler
 	go s.retryHandler()
-	
+
 	log.Printf("Scheduler started with %d active schedules", len(s.jobs))
 	return nil
 }
@@ -106,12 +111,13 @@ func (s *Scheduler) Stop() {
 
 // loadSchedules loads all active schedules from the database
 func (s *Scheduler) loadSchedules() error {
+	log.Println("Checking if schedules table exists...")
 	// First check if the schedules table exists
 	var tableExists bool
 	checkQuery := `
 		SELECT EXISTS (
-			SELECT FROM information_schema.tables 
-			WHERE table_schema = 'public' 
+			SELECT FROM information_schema.tables
+			WHERE table_schema = 'public'
 			AND table_name = 'schedules'
 		)
 	`
@@ -120,24 +126,29 @@ func (s *Scheduler) loadSchedules() error {
 		log.Println("⚠️ Schedules table does not exist yet - starting with empty scheduler")
 		return nil
 	}
-	
+
+	log.Println("Querying for active schedules...")
 	query := `
-		SELECT id, name, cron_expression, timezone, target_type, target_url, 
+		SELECT id, name, cron_expression, timezone, target_type, target_url,
 		       target_workflow_id, target_method, target_headers, target_payload,
-		       enabled, overlap_policy, max_retries, retry_strategy, 
+		       enabled, overlap_policy, max_retries, retry_strategy,
 		       timeout_seconds, catch_up_missed, priority
 		FROM schedules
 		WHERE enabled = true AND status = 'active'
 	`
-	
+
 	rows, err := s.db.Query(query)
 	if err != nil {
 		log.Printf("⚠️ Error querying schedules: %v - starting with empty scheduler", err)
 		return nil
 	}
 	defer rows.Close()
-	
+
+	scheduleCount := 0
+	log.Println("Processing schedule rows...")
 	for rows.Next() {
+		scheduleCount++
+		log.Printf("Processing schedule #%d...", scheduleCount)
 		var schedule Schedule
 		var headers, payload []byte
 		var targetWorkflowID sql.NullString
@@ -167,40 +178,61 @@ func (s *Scheduler) loadSchedules() error {
 		if payload != nil {
 			json.Unmarshal(payload, &schedule.TargetPayload)
 		}
-		
+
+		log.Printf("Adding schedule '%s' to scheduler...", schedule.Name)
 		// Add to scheduler
 		if err := s.AddSchedule(&schedule); err != nil {
 			log.Printf("Failed to add schedule %s: %v", schedule.Name, err)
+		} else {
+			log.Printf("Successfully added schedule '%s'", schedule.Name)
 		}
 	}
-	
+
+	log.Printf("Loaded %d schedules from database", scheduleCount)
 	return nil
 }
 
 // AddSchedule adds a new schedule to the cron scheduler
 func (s *Scheduler) AddSchedule(schedule *Schedule) error {
+	log.Printf("AddSchedule: Attempting to add schedule '%s' with cron: '%s', timezone: '%s'",
+		schedule.Name, schedule.CronExpression, schedule.Timezone)
 	s.jobsMutex.Lock()
 	defer s.jobsMutex.Unlock()
-	
+
+	log.Printf("AddSchedule: Got mutex lock for schedule '%s'", schedule.Name)
+
 	// Remove existing schedule if present
 	if entryID, exists := s.jobs[schedule.ID]; exists {
+		log.Printf("AddSchedule: Removing existing entry for schedule '%s'", schedule.Name)
 		s.cron.Remove(entryID)
 	}
-	
-	// Create cron job
-	entryID, err := s.cron.AddFunc(schedule.CronExpression, func() {
+
+	// Build timezone-aware cron expression
+	cronExpr := schedule.CronExpression
+	if schedule.Timezone != "" && schedule.Timezone != "UTC" {
+		// Prepend CRON_TZ for timezone-aware scheduling
+		cronExpr = "CRON_TZ=" + schedule.Timezone + " " + schedule.CronExpression
+	}
+
+	log.Printf("AddSchedule: Calling cron.AddFunc for schedule '%s' with expression: '%s'", schedule.Name, cronExpr)
+	// Create cron job with timezone support
+	entryID, err := s.cron.AddFunc(cronExpr, func() {
 		s.executeSchedule(schedule.ID)
 	})
-	
+
+	log.Printf("AddSchedule: cron.AddFunc returned for schedule '%s', err: %v", schedule.Name, err)
+
 	if err != nil {
 		return fmt.Errorf("invalid cron expression: %w", err)
 	}
-	
+
 	s.jobs[schedule.ID] = entryID
-	
+
+	log.Printf("AddSchedule: Calling updateNextExecutionTime for schedule '%s'", schedule.Name)
 	// Calculate and update next execution time
 	s.updateNextExecutionTime(schedule.ID)
-	
+
+	log.Printf("AddSchedule: Successfully added schedule '%s' with timezone '%s'", schedule.Name, schedule.Timezone)
 	return nil
 }
 
@@ -223,13 +255,52 @@ func (s *Scheduler) executeSchedule(scheduleID string) {
 		log.Printf("Failed to fetch schedule %s: %v", scheduleID, err)
 		return
 	}
-	
-	// Check overlap policy
-	if schedule.OverlapPolicy == "skip" && s.isScheduleRunning(scheduleID) {
-		log.Printf("Skipping execution of %s - already running", schedule.Name)
-		return
+
+	// Handle overlap policies
+	isRunning := s.isScheduleRunning(scheduleID)
+
+	switch schedule.OverlapPolicy {
+	case "skip":
+		if isRunning {
+			log.Printf("Skipping execution of %s - already running (overlap policy: skip)", schedule.Name)
+			return
+		}
+	case "queue":
+		if isRunning {
+			log.Printf("Queueing execution of %s - waiting for previous to complete (overlap policy: queue)", schedule.Name)
+			// Wait for previous execution to complete before proceeding
+			// Poll every second up to the timeout duration
+			timeout := time.Duration(schedule.TimeoutSeconds) * time.Second
+			if timeout == 0 {
+				timeout = 5 * time.Minute // Default 5 minute timeout for queued executions
+			}
+			deadline := time.Now().Add(timeout)
+
+			for time.Now().Before(deadline) {
+				if !s.isScheduleRunning(scheduleID) {
+					log.Printf("Previous execution completed, proceeding with queued execution of %s", schedule.Name)
+					break
+				}
+				time.Sleep(1 * time.Second)
+			}
+
+			// If still running after timeout, skip this execution
+			if s.isScheduleRunning(scheduleID) {
+				log.Printf("Timeout waiting for previous execution of %s, skipping queued execution", schedule.Name)
+				return
+			}
+		}
+	case "allow":
+		// Allow concurrent executions - no check needed
+		log.Printf("Allowing concurrent execution of %s (overlap policy: allow)", schedule.Name)
+	default:
+		// Default to skip if policy not set
+		if isRunning {
+			log.Printf("Skipping execution of %s - already running (default overlap policy)", schedule.Name)
+			return
+		}
 	}
-	
+
 	// Queue execution
 	execution := &ScheduleExecution{
 		Schedule:      schedule,
@@ -239,7 +310,7 @@ func (s *Scheduler) executeSchedule(scheduleID string) {
 		IsCatchUp:     false,
 		TriggeredBy:   "scheduler",
 	}
-	
+
 	select {
 	case s.executions <- execution:
 		log.Printf("Queued execution for schedule: %s", schedule.Name)
@@ -710,14 +781,14 @@ func (s *Scheduler) updateScheduleMetrics(scheduleID string, success bool) {
 }
 
 func (s *Scheduler) updateNextExecutionTime(scheduleID string) {
-	s.jobsMutex.RLock()
+	// NOTE: This function must be called while holding s.jobsMutex lock (read or write)
+	// Do NOT acquire lock here to avoid deadlock
 	entryID, exists := s.jobs[scheduleID]
-	s.jobsMutex.RUnlock()
-	
+
 	if !exists {
 		return
 	}
-	
+
 	entry := s.cron.Entry(entryID)
 	if entry.ID != 0 {
 		nextTime := entry.Next

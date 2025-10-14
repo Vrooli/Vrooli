@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -39,12 +40,12 @@ type DeviceControlResponse struct {
 }
 
 type DeviceStatus struct {
-	DeviceID     string                 `json:"device_id"`
-	Name         string                 `json:"name"`
-	Type         string                 `json:"type"`
-	State        map[string]interface{} `json:"state"`
-	Available    bool                   `json:"available"`
-	LastUpdated  string                 `json:"last_updated"`
+	DeviceID    string                 `json:"device_id"`
+	Name        string                 `json:"name"`
+	Type        string                 `json:"type"`
+	State       map[string]interface{} `json:"state"`
+	Available   bool                   `json:"available"`
+	LastUpdated string                 `json:"last_updated"`
 }
 
 type Profile struct {
@@ -84,7 +85,7 @@ func (dc *DeviceController) ControlDevice(ctx context.Context, req DeviceControl
 	if err != nil {
 		return nil, fmt.Errorf("permission check failed: %w", err)
 	}
-	
+
 	if !hasPermission {
 		return &DeviceControlResponse{
 			Success:         false,
@@ -116,7 +117,7 @@ func (dc *DeviceController) ControlDevice(ctx context.Context, req DeviceControl
 	// Log execution
 	if err := dc.logExecution(ctx, req, result, requestID, true); err != nil {
 		// Log error but don't fail the request
-		fmt.Printf("Failed to log execution: %v\n", err)
+		log.Printf("Failed to log execution: %v", err)
 	}
 
 	return &DeviceControlResponse{
@@ -135,11 +136,11 @@ func (dc *DeviceController) validateControlRequest(req DeviceControlRequest) err
 	if req.DeviceID == "" {
 		return fmt.Errorf("device_id is required")
 	}
-	
+
 	if req.Action == "" {
 		return fmt.Errorf("action is required")
 	}
-	
+
 	if req.UserID == "" && req.ProfileID == "" {
 		return fmt.Errorf("user_id or profile_id is required")
 	}
@@ -152,10 +153,10 @@ func (dc *DeviceController) validateControlRequest(req DeviceControlRequest) err
 
 	// Validate action against allowed actions
 	allowedActions := []string{
-		"turn_on", "turn_off", "toggle", "set_brightness", 
+		"turn_on", "turn_off", "toggle", "set_brightness",
 		"set_temperature", "set_color", "activate", "refresh",
 	}
-	
+
 	actionAllowed := false
 	for _, allowed := range allowedActions {
 		if req.Action == allowed {
@@ -163,7 +164,7 @@ func (dc *DeviceController) validateControlRequest(req DeviceControlRequest) err
 			break
 		}
 	}
-	
+
 	if !actionAllowed {
 		return fmt.Errorf("invalid action: %s", req.Action)
 	}
@@ -176,11 +177,11 @@ func (dc *DeviceController) checkPermissions(ctx context.Context, userID, profil
 	// 1. Query scenario-authenticator for user details
 	// 2. Query home_profiles table for permissions
 	// 3. Check if user can control specific device
-	
+
 	mockPermissions := map[string][]string{
-		"550e8400-e29b-41d4-a716-446655440001": {"*"}, // Admin user
+		"550e8400-e29b-41d4-a716-446655440001": {"*"},                                                         // Admin user
 		"550e8400-e29b-41d4-a716-446655440002": {"light.living_room", "light.bedroom", "switch.coffee_maker"}, // Family member
-		"550e8400-e29b-41d4-a716-446655440003": {"light.bedroom_kid"}, // Kid user
+		"550e8400-e29b-41d4-a716-446655440003": {"light.bedroom_kid"},                                         // Kid user
 	}
 
 	userID = strings.TrimSpace(userID)
@@ -223,7 +224,7 @@ func (dc *DeviceController) executeHomeAssistantCommand(ctx context.Context, req
 	} else {
 		cmd = exec.CommandContext(ctx, "resource-home-assistant", "api-info")
 	}
-	
+
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -242,10 +243,10 @@ func (dc *DeviceController) executeHomeAssistantCommand(ctx context.Context, req
 func (dc *DeviceController) mockControlDevice(req *DeviceControlRequest) (*HACommandResult, error) {
 	// Mock device control for development
 	state := map[string]interface{}{}
-	
+
 	// Handle different device types and actions
 	deviceType := strings.Split(req.DeviceID, ".")[0]
-	
+
 	switch deviceType {
 	case "light":
 		switch req.Action {
@@ -288,27 +289,27 @@ func (dc *DeviceController) logExecution(ctx context.Context, req DeviceControlR
 	}
 
 	logEntry := map[string]interface{}{
-		"type":              "device_control",
-		"device_id":         req.DeviceID,
-		"action":            req.Action,
-		"user_id":           req.UserID,
-		"profile_id":        req.ProfileID,
-		"success":           success,
-		"timestamp":         time.Now().Format(time.RFC3339),
-		"request_id":        requestID,
-		"parameters":        req.Parameters,
-		"result_message":    result.Message,
+		"type":           "device_control",
+		"device_id":      req.DeviceID,
+		"action":         req.Action,
+		"user_id":        req.UserID,
+		"profile_id":     req.ProfileID,
+		"success":        success,
+		"timestamp":      time.Now().Format(time.RFC3339),
+		"request_id":     requestID,
+		"parameters":     req.Parameters,
+		"result_message": result.Message,
 	}
 
 	logJSON, _ := json.Marshal(logEntry)
-	
+
 	query := `
 		INSERT INTO home_automation.automation_executions 
 		(request_id, type, device_id, action, user_id, success, execution_data, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
 		ON CONFLICT (request_id) DO NOTHING
 	`
-	
+
 	_, err := dc.db.Exec(query, requestID, "device_control", req.DeviceID, req.Action, req.UserID, success, logJSON)
 	return err
 }
@@ -316,7 +317,7 @@ func (dc *DeviceController) logExecution(ctx context.Context, req DeviceControlR
 func (dc *DeviceController) GetDeviceStatus(ctx context.Context, deviceID string) (*DeviceStatus, error) {
 	// Try to execute Home Assistant status command
 	cmd := exec.CommandContext(ctx, "resource-home-assistant", "api-info")
-	
+
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 
@@ -353,7 +354,7 @@ func (dc *DeviceController) GetDeviceStatus(ctx context.Context, deviceID string
 func (dc *DeviceController) ListDevices(ctx context.Context) ([]DeviceStatus, error) {
 	// Try to execute Home Assistant list command
 	cmd := exec.CommandContext(ctx, "resource-home-assistant", "content", "list")
-	
+
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -368,7 +369,7 @@ func (dc *DeviceController) ListDevices(ctx context.Context) ([]DeviceStatus, er
 	// Parse output - try as JSON array first
 	var devices []DeviceStatus
 	output := stdout.String()
-	
+
 	if err := json.Unmarshal([]byte(output), &devices); err != nil {
 		// If parsing fails, return mock devices
 		return dc.getMockDevices(), nil
@@ -424,9 +425,9 @@ func (dc *DeviceController) GetProfiles(ctx context.Context) ([]Profile, error) 
 				Name: "Admin",
 				Type: "admin",
 				Permissions: map[string]interface{}{
-					"device_control": true,
+					"device_control":    true,
 					"automation_create": true,
-					"allowed_devices": []string{"*"},
+					"allowed_devices":   []string{"*"},
 				},
 				CreatedAt: time.Now().Format(time.RFC3339),
 			},
@@ -435,9 +436,9 @@ func (dc *DeviceController) GetProfiles(ctx context.Context) ([]Profile, error) 
 				Name: "Family Member",
 				Type: "family",
 				Permissions: map[string]interface{}{
-					"device_control": true,
+					"device_control":    true,
 					"automation_create": false,
-					"allowed_devices": []string{"light.living_room", "light.bedroom", "switch.coffee_maker"},
+					"allowed_devices":   []string{"light.living_room", "light.bedroom", "switch.coffee_maker"},
 				},
 				CreatedAt: time.Now().Format(time.RFC3339),
 			},
@@ -449,7 +450,7 @@ func (dc *DeviceController) GetProfiles(ctx context.Context) ([]Profile, error) 
 		FROM home_automation.home_profiles
 		ORDER BY created_at DESC
 	`
-	
+
 	rows, err := dc.db.Query(query)
 	if err != nil {
 		return nil, err
@@ -460,12 +461,12 @@ func (dc *DeviceController) GetProfiles(ctx context.Context) ([]Profile, error) 
 	for rows.Next() {
 		var profile Profile
 		var permissionsJSON []byte
-		
+
 		err := rows.Scan(&profile.ID, &profile.Name, &profile.Type, &permissionsJSON, &profile.CreatedAt)
 		if err != nil {
 			continue
 		}
-		
+
 		json.Unmarshal(permissionsJSON, &profile.Permissions)
 		profiles = append(profiles, profile)
 	}

@@ -6,7 +6,26 @@
 set -euo pipefail
 
 CLI_VERSION="1.0.0"
-API_BASE_URL="${EMAIL_TRIAGE_API_URL:-http://localhost:${API_PORT:-19548}}"
+
+# Detect API port from scenario status if vrooli CLI is available
+# Only run detection if EMAIL_TRIAGE_API_URL is not already set
+if [[ -z "${EMAIL_TRIAGE_API_URL:-}" ]]; then
+    detect_api_port() {
+        if command -v vrooli &> /dev/null; then
+            local detected_port=$(vrooli scenario status email-triage 2>/dev/null | grep "API_PORT:" | awk '{print $2}')
+            if [[ -n "$detected_port" ]]; then
+                echo "$detected_port"
+                return
+            fi
+        fi
+        echo "${API_PORT:-19548}"
+    }
+
+    DETECTED_API_PORT=$(detect_api_port)
+    API_BASE_URL="http://localhost:${DETECTED_API_PORT}"
+else
+    API_BASE_URL="${EMAIL_TRIAGE_API_URL}"
+fi
 CONFIG_DIR="${HOME}/.vrooli/email-triage"
 CONFIG_FILE="${CONFIG_DIR}/config.yaml"
 
@@ -34,10 +53,17 @@ EOF
 }
 
 # Load configuration
+# Only load from config file if not already set via environment
 load_config() {
     if [[ -f "$CONFIG_FILE" ]]; then
         # Simple YAML parsing for basic config
-        API_BASE_URL=$(grep "api_url:" "$CONFIG_FILE" | awk '{print $2}' || echo "$API_BASE_URL")
+        # Only override API_BASE_URL if EMAIL_TRIAGE_API_URL wasn't explicitly set
+        if [[ -z "${EMAIL_TRIAGE_API_URL:-}" ]]; then
+            local config_url=$(grep "api_url:" "$CONFIG_FILE" | awk '{print $2}' || echo "")
+            if [[ -n "$config_url" ]]; then
+                API_BASE_URL="$config_url"
+            fi
+        fi
         AUTH_TOKEN=$(grep "auth_token:" "$CONFIG_FILE" | awk '{print $2}' || echo "")
     fi
 }
@@ -48,22 +74,24 @@ api_request() {
     local endpoint="$2"
     local data="${3:-}"
     local content_type="${4:-application/json}"
-    
+
     local curl_args=()
-    curl_args+=(-s -X "$method")
+    curl_args+=(-s -f -X "$method")  # -f fails on HTTP errors
     curl_args+=(-H "Content-Type: $content_type")
-    
+
     if [[ -n "$AUTH_TOKEN" ]]; then
         curl_args+=(-H "Authorization: Bearer $AUTH_TOKEN")
     fi
-    
+
     if [[ -n "$data" ]]; then
         curl_args+=(-d "$data")
     fi
-    
+
     curl_args+=("${API_BASE_URL}${endpoint}")
-    
-    curl "${curl_args[@]}"
+
+    if ! curl "${curl_args[@]}" 2>/dev/null; then
+        return 1
+    fi
 }
 
 # Display help information
@@ -117,7 +145,7 @@ CONFIGURATION:
     Set EMAIL_TRIAGE_AUTH_TOKEN to provide authentication token
 
 EXAMPLES:
-    email-triage account add work@company.com mypassword123
+    email-triage account add work@company.com YOUR_PASSWORD_HERE
     email-triage rule create "Archive all newsletters and promotional emails"
     email-triage search "urgent meeting about quarterly budget"
     email-triage status --json
@@ -143,21 +171,29 @@ show_status() {
     if [[ "${1:-}" == "--json" ]]; then
         json_output=true
     fi
-    
+
     local status_response
-    status_response=$(api_request GET "/health" || echo '{"error":"API unavailable"}')
-    
+    if ! status_response=$(api_request GET "/health" 2>&1); then
+        status_response='{"error":"API unavailable"}'
+    fi
+
     if [[ "$json_output" == "true" ]]; then
         echo "$status_response"
+        if echo "$status_response" | grep -q '"error"'; then
+            return 1
+        fi
     else
         local status=$(echo "$status_response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
-        
+
         if [[ "$status" == "healthy" ]]; then
             echo -e "${GREEN}✓${NC} Email Triage API is ${GREEN}healthy${NC}"
         else
             echo -e "${RED}✗${NC} Email Triage API is ${RED}unhealthy${NC}"
+            echo "API URL: ${API_BASE_URL}"
+            echo "Configuration: ${CONFIG_FILE}"
+            return 1
         fi
-        
+
         echo "API URL: ${API_BASE_URL}"
         echo "Configuration: ${CONFIG_FILE}"
     fi
@@ -212,14 +248,19 @@ EOF
         "list")
             local response
             response=$(api_request GET "/api/v1/accounts")
-            
+
             if [[ "${1:-}" == "--json" ]]; then
                 echo "$response"
             else
                 echo "Email Accounts:"
-                echo "$response" | grep -o '"email_address":"[^"]*"' | cut -d'"' -f4 | while read -r email; do
-                    echo "  • $email"
-                done
+                local emails=$(echo "$response" | grep -o '"email_address":"[^"]*"' | cut -d'"' -f4 || true)
+                if [[ -n "$emails" ]]; then
+                    echo "$emails" | while read -r email; do
+                        echo "  • $email"
+                    done
+                else
+                    echo "  (No accounts configured)"
+                fi
             fi
             ;;
             
@@ -295,15 +336,20 @@ EOF
         "list")
             local response
             response=$(api_request GET "/api/v1/rules")
-            
+
             if [[ "${1:-}" == "--json" ]]; then
                 echo "$response"
             else
                 echo "Triage Rules:"
                 # Simplified parsing for display
-                echo "$response" | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | while read -r name; do
-                    echo "  • $name"
-                done
+                local names=$(echo "$response" | grep -o '"name":"[^"]*"' | cut -d'"' -f4 || true)
+                if [[ -n "$names" ]]; then
+                    echo "$names" | while read -r name; do
+                        echo "  • $name"
+                    done
+                else
+                    echo "  (No rules configured)"
+                fi
             fi
             ;;
             

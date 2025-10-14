@@ -1,5 +1,3 @@
-// +build testing
-
 package main
 
 import (
@@ -101,10 +99,10 @@ func TestAPIResponseTime(t *testing.T) {
 	defer campaign.Cleanup()
 
 	testCases := []struct {
-		name         string
-		endpoint     string
-		method       string
-		maxDuration  time.Duration
+		name        string
+		endpoint    string
+		method      string
+		maxDuration time.Duration
 	}{
 		{"Health", "/health", "GET", 100 * time.Millisecond},
 		{"Status", "/status", "GET", 100 * time.Millisecond},
@@ -419,10 +417,10 @@ func TestDatabaseOperationPerformance(t *testing.T) {
 		iterations := 100
 
 		idea := GeneratedIdea{
-			Title:              "Performance Test Idea",
-			Description:        "Testing storage performance",
-			Category:           "innovation",
-			Tags:               []string{"test", "performance", "benchmark"},
+			Title:               "Performance Test Idea",
+			Description:         "Testing storage performance",
+			Category:            "innovation",
+			Tags:                []string{"test", "performance", "benchmark"},
 			ImplementationNotes: "Performance testing notes",
 		}
 

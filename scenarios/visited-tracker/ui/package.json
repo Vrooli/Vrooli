@@ -9,6 +9,7 @@
     "test": "jest --runInBand --coverage --testTimeout=30000"
   },
   "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "express": "^4.18.2"
   },
   "keywords": [

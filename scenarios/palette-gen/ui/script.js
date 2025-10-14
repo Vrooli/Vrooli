@@ -1,3 +1,19 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+if (typeof window !== 'undefined' && window.parent !== window && !window.__paletteGenBridgeInitialized) {
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[PaletteGen] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'palette-gen' });
+    window.__paletteGenBridgeInitialized = true;
+}
+
 const API_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:8780' 
     : '/api';

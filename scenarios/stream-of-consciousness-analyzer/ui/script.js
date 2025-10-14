@@ -1,5 +1,18 @@
 // Stream of Consciousness Analyzer - Frontend Logic
 
+(function initializeIframeBridge() {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    if (window.__streamOfConsciousnessBridgeInitialized) {
+        return;
+    }
+    if (window.parent !== window && typeof window.initIframeBridgeChild === 'function') {
+        window.initIframeBridgeChild({ appId: 'stream-of-consciousness-analyzer-ui' });
+        window.__streamOfConsciousnessBridgeInitialized = true;
+    }
+})();
+
 const API_URL = window.API_URL || 'http://localhost:8700';
 
 // State management

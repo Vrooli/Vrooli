@@ -5,6 +5,22 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
+if (typeof window !== 'undefined' && window.parent !== window && !window.__GAME_DIALOG_BRIDGE_INITIALIZED) {
+    try {
+        const { initIframeBridgeChild } = require('@vrooli/iframe-bridge/child');
+
+        let parentOrigin;
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+
+        initIframeBridgeChild({ parentOrigin, appId: 'game-dialog-generator' });
+        window.__GAME_DIALOG_BRIDGE_INITIALIZED = true;
+    } catch (error) {
+        console.warn('[game-dialog-generator] iframe bridge bootstrap skipped', error);
+    }
+}
+
 // 🌿 Game Dialog Generator UI Server 🎮
 // Jungle Platformer Adventure Theme
 
@@ -67,6 +83,7 @@ const apiLimiter = rateLimit({
 app.use('/api', apiLimiter);
 
 // Serve static files
+app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Health check endpoint

@@ -49,6 +49,12 @@ func TestPerformanceListAutomations(t *testing.T) {
 	defer cleanup()
 
 	app := setupTestApp(t)
+
+	// Skip if we don't have a DB connection for this test
+	if app.DB == nil {
+		t.Skip("Skipping automation listing performance test - requires database connection")
+	}
+
 	timer := StartTimer()
 
 	for i := 0; i < 50; i++ {
@@ -72,6 +78,9 @@ func TestConcurrentHealthChecks(t *testing.T) {
 	defer cleanup()
 
 	app := setupTestApp(t)
+	if app.DB == nil {
+		t.Skip("Skipping concurrent health check test - requires database")
+	}
 
 	t.Run("Handles concurrent health checks", func(t *testing.T) {
 		var wg sync.WaitGroup
@@ -145,6 +154,9 @@ func TestMemoryLeaks(t *testing.T) {
 	defer cleanup()
 
 	app := setupTestApp(t)
+	if app.DB == nil {
+		t.Skip("Skipping memory leak test - requires database")
+	}
 
 	t.Run("No memory leaks in repeated requests", func(t *testing.T) {
 		// Run many requests to detect potential memory leaks

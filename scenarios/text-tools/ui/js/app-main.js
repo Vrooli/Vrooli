@@ -1,3 +1,17 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+    initIframeBridgeChild({ appId: 'text-tools-ui' })
+}
+
+const APIClient = window.APIClient
+const DiffModule = window.DiffModule
+const SearchModule = window.SearchModule
+const TransformModule = window.TransformModule
+const ExtractModule = window.ExtractModule
+const AnalyzeModule = window.AnalyzeModule
+const PipelineModule = window.PipelineModule
+
 // Main Application Controller
 class TextToolsApp {
     constructor() {

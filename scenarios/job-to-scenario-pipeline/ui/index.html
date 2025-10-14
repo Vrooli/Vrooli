@@ -124,6 +124,20 @@
         </div>
     </div>
 
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
+    <script type="module">
+      import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+      if (typeof window !== 'undefined') {
+        window.initIframeBridgeChild = window.initIframeBridgeChild || initIframeBridgeChild;
+      }
+    </script>
     <script src="app.js"></script>
 </body>
 </html>

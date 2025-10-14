@@ -111,7 +111,10 @@ func NewServer(port int) *Server {
 
 // setupRoutes configures all API routes
 func (s *Server) setupRoutes() {
-	// Health check
+	// Health check at root level (required for lifecycle system)
+	s.router.HandleFunc("/health", s.healthHandler).Methods("GET")
+
+	// Health check (also available under API prefix)
 	s.router.HandleFunc("/api/v1/health", s.healthHandler).Methods("GET")
 
 	// System status

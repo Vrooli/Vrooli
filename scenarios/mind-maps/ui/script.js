@@ -1,3 +1,29 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_FLAG = '__mindMapsBridgeInitialized';
+
+function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    if (window.parent !== window) {
+        const options = { appId: 'mind-maps' };
+        try {
+            if (document.referrer) {
+                options.parentOrigin = new URL(document.referrer).origin;
+            }
+        } catch (error) {
+            console.warn('[MindMaps] Unable to resolve parent origin for iframe bridge', error);
+        }
+
+        initIframeBridgeChild(options);
+        window[BRIDGE_FLAG] = true;
+    }
+}
+
+bootstrapIframeBridge();
+
 // Mind Maps - Interactive Knowledge Visualization
 class MindMapApp {
     constructor() {

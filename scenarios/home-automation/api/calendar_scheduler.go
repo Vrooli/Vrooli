@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -32,21 +33,21 @@ type EventData struct {
 }
 
 type CalendarEventResponse struct {
-	Success             bool                   `json:"success"`
-	EventID             string                 `json:"event_id"`
-	DetectedContext     string                 `json:"detected_context"`
-	ContextActivated    bool                   `json:"context_activated"`
-	DeviceChanges       []DeviceChange         `json:"device_changes,omitempty"`
-	Message             string                 `json:"message"`
-	ProcessingTimestamp string                 `json:"processing_timestamp"`
+	Success             bool           `json:"success"`
+	EventID             string         `json:"event_id"`
+	DetectedContext     string         `json:"detected_context"`
+	ContextActivated    bool           `json:"context_activated"`
+	DeviceChanges       []DeviceChange `json:"device_changes,omitempty"`
+	Message             string         `json:"message"`
+	ProcessingTimestamp string         `json:"processing_timestamp"`
 }
 
 type DeviceChange struct {
-	DeviceID    string                 `json:"device_id"`
-	Action      string                 `json:"action"`
-	Parameters  map[string]interface{} `json:"parameters,omitempty"`
-	Success     bool                   `json:"success"`
-	Message     string                 `json:"message,omitempty"`
+	DeviceID   string                 `json:"device_id"`
+	Action     string                 `json:"action"`
+	Parameters map[string]interface{} `json:"parameters,omitempty"`
+	Success    bool                   `json:"success"`
+	Message    string                 `json:"message,omitempty"`
 }
 
 type ContextConfig struct {
@@ -87,7 +88,7 @@ func (cs *CalendarScheduler) HandleCalendarEvent(ctx context.Context, req Calend
 
 	// Detect context from event
 	detectedContext := cs.detectContextFromEvent(req.EventData)
-	
+
 	var deviceChanges []DeviceChange
 	var contextActivated bool
 	var message string
@@ -100,13 +101,13 @@ func (cs *CalendarScheduler) HandleCalendarEvent(ctx context.Context, req Calend
 		if err != nil {
 			return nil, fmt.Errorf("failed to activate context: %w", err)
 		}
-		
+
 		// Apply context changes
 		changes, err := cs.applyContextChanges(ctx, detectedContext)
 		if err != nil {
 			return nil, fmt.Errorf("failed to apply context changes: %w", err)
 		}
-		
+
 		deviceChanges = changes
 		contextActivated = true
 		message = fmt.Sprintf("Context '%s' activated for event '%s'", detectedContext, req.EventData.Title)
@@ -117,7 +118,7 @@ func (cs *CalendarScheduler) HandleCalendarEvent(ctx context.Context, req Calend
 		if err != nil {
 			return nil, fmt.Errorf("failed to deactivate context: %w", err)
 		}
-		
+
 		contextActivated = false
 		message = fmt.Sprintf("Context '%s' deactivated for ended event '%s'", detectedContext, req.EventData.Title)
 
@@ -128,7 +129,7 @@ func (cs *CalendarScheduler) HandleCalendarEvent(ctx context.Context, req Calend
 	// Log the event processing
 	if err := cs.logCalendarEvent(ctx, req, detectedContext, contextActivated); err != nil {
 		// Log error but don't fail the request
-		fmt.Printf("Failed to log calendar event: %v\n", err)
+		log.Printf("Failed to log calendar event: %v", err)
 	}
 
 	return &CalendarEventResponse{
@@ -152,28 +153,28 @@ func (cs *CalendarScheduler) detectContextFromEvent(eventData EventData) string 
 		"work from home": "work_mode",
 		"home office":    "work_mode",
 		"zoom":           "focus_mode",
-		
+
 		// Entertainment contexts
-		"movie":       "entertainment_mode",
-		"tv":          "entertainment_mode",
-		"game":        "entertainment_mode",
-		"party":       "party_mode",
-		"netflix":     "entertainment_mode",
-		"streaming":   "entertainment_mode",
-		
+		"movie":     "entertainment_mode",
+		"tv":        "entertainment_mode",
+		"game":      "entertainment_mode",
+		"party":     "party_mode",
+		"netflix":   "entertainment_mode",
+		"streaming": "entertainment_mode",
+
 		// Sleep contexts
-		"bedtime":     "sleep_mode",
-		"nap":         "quiet_mode",
-		"sleep":       "sleep_mode",
-		"rest":        "quiet_mode",
-		
+		"bedtime": "sleep_mode",
+		"nap":     "quiet_mode",
+		"sleep":   "sleep_mode",
+		"rest":    "quiet_mode",
+
 		// Away contexts
 		"vacation":    "away_mode",
 		"trip":        "away_mode",
 		"out of town": "away_mode",
 		"travel":      "away_mode",
 		"away":        "away_mode",
-		
+
 		// Activity contexts
 		"cooking":   "kitchen_active_mode",
 		"dinner":    "dinner_mode",
@@ -204,8 +205,8 @@ func (cs *CalendarScheduler) getContextConfig(context string) ContextConfig {
 		"focus_mode": {
 			SceneID: "",
 			AutomationOverrides: map[string]map[string]interface{}{
-				"light.living_room": {"brightness": 90, "color": "white"},
-				"climate.thermostat": {"target_temp": 70},
+				"light.living_room":     {"brightness": 90, "color": "white"},
+				"climate.thermostat":    {"target_temp": 70},
 				"notification_settings": {"do_not_disturb": true},
 			},
 			Description: "Optimized for focused work with bright lighting",
@@ -213,7 +214,7 @@ func (cs *CalendarScheduler) getContextConfig(context string) ContextConfig {
 		"entertainment_mode": {
 			SceneID: "scene_movie_night",
 			AutomationOverrides: map[string]map[string]interface{}{
-				"light.living_room": {"brightness": 10, "color": "orange"},
+				"light.living_room":  {"brightness": 10, "color": "orange"},
 				"climate.thermostat": {"target_temp": 72},
 			},
 			Description: "Dim lights and comfortable temperature for entertainment",
@@ -222,26 +223,26 @@ func (cs *CalendarScheduler) getContextConfig(context string) ContextConfig {
 			SceneID: "scene_bedtime",
 			AutomationOverrides: map[string]map[string]interface{}{
 				"light.living_room": {"on": false},
-				"light.bedroom": {"brightness": 5, "color_temp": 450},
-				"lock.front_door": {"locked": true},
+				"light.bedroom":     {"brightness": 5, "color_temp": 450},
+				"lock.front_door":   {"locked": true},
 			},
 			Description: "Secure home and gentle lighting for sleep",
 		},
 		"away_mode": {
 			SceneID: "scene_away_mode",
 			AutomationOverrides: map[string]map[string]interface{}{
-				"security_mode": {"enabled": true},
+				"security_mode":      {"enabled": true},
 				"climate.thermostat": {"target_temp": 65},
-				"light.living_room": {"on": false},
-				"light.bedroom": {"on": false},
+				"light.living_room":  {"on": false},
+				"light.bedroom":      {"on": false},
 			},
 			Description: "Security and energy optimization when away",
 		},
 		"work_mode": {
 			SceneID: "",
 			AutomationOverrides: map[string]map[string]interface{}{
-				"light.living_room": {"brightness": 85},
-				"climate.thermostat": {"target_temp": 70},
+				"light.living_room":   {"brightness": 85},
+				"climate.thermostat":  {"target_temp": 70},
 				"switch.coffee_maker": {"on": true},
 			},
 			Description: "Work from home optimizations",
@@ -249,7 +250,7 @@ func (cs *CalendarScheduler) getContextConfig(context string) ContextConfig {
 		"kitchen_active_mode": {
 			SceneID: "",
 			AutomationOverrides: map[string]map[string]interface{}{
-				"light.kitchen": {"brightness": 95},
+				"light.kitchen":      {"brightness": 95},
 				"switch.exhaust_fan": {"on": true},
 			},
 			Description: "Optimal lighting and ventilation for cooking",
@@ -257,16 +258,16 @@ func (cs *CalendarScheduler) getContextConfig(context string) ContextConfig {
 		"morning_mode": {
 			SceneID: "",
 			AutomationOverrides: map[string]map[string]interface{}{
-				"light.bedroom": {"brightness": 60},
+				"light.bedroom":       {"brightness": 60},
 				"switch.coffee_maker": {"on": true},
-				"climate.thermostat": {"target_temp": 72},
+				"climate.thermostat":  {"target_temp": 72},
 			},
 			Description: "Gentle wake-up lighting and coffee preparation",
 		},
 		"party_mode": {
 			SceneID: "scene_party",
 			AutomationOverrides: map[string]map[string]interface{}{
-				"light.living_room": {"brightness": 80, "color": "rainbow"},
+				"light.living_room":  {"brightness": 80, "color": "rainbow"},
 				"climate.thermostat": {"target_temp": 68},
 			},
 			Description: "Festive lighting for entertaining",
@@ -311,7 +312,7 @@ func (cs *CalendarScheduler) applyContextChanges(ctx context.Context, contextNam
 			}
 
 			controlResp, err := cs.deviceController.ControlDevice(ctx, controlReq)
-			
+
 			deviceChange := DeviceChange{
 				DeviceID:   deviceID,
 				Action:     action,
@@ -349,22 +350,22 @@ func (cs *CalendarScheduler) determineActionFromSettings(settings map[string]int
 		}
 		return "turn_on"
 	}
-	
+
 	if locked, exists := settings["locked"]; exists {
 		if locked == true {
 			return "lock"
 		}
 		return "unlock"
 	}
-	
+
 	if _, exists := settings["brightness"]; exists {
 		return "set_brightness"
 	}
-	
+
 	if _, exists := settings["target_temp"]; exists {
 		return "set_temperature"
 	}
-	
+
 	if _, exists := settings["color"]; exists {
 		return "set_color"
 	}
@@ -376,7 +377,7 @@ func (cs *CalendarScheduler) determineActionFromSettings(settings map[string]int
 func (cs *CalendarScheduler) ActivateContext(ctx context.Context, contextName string) error {
 	if cs.db == nil {
 		// Just log for mock mode
-		fmt.Printf("Activating context: %s\n", contextName)
+		log.Printf("Activating context: %s", contextName)
 		return nil
 	}
 
@@ -388,7 +389,7 @@ func (cs *CalendarScheduler) ActivateContext(ctx context.Context, contextName st
 		activated_at = CURRENT_TIMESTAMP,
 		triggered_by = EXCLUDED.triggered_by
 	`
-	
+
 	_, err := cs.db.Exec(query, contextName)
 	return err
 }
@@ -396,13 +397,13 @@ func (cs *CalendarScheduler) ActivateContext(ctx context.Context, contextName st
 func (cs *CalendarScheduler) DeactivateContext(ctx context.Context, contextName string) error {
 	if cs.db == nil {
 		// Just log for mock mode
-		fmt.Printf("Deactivating context: %s\n", contextName)
+		log.Printf("Deactivating context: %s", contextName)
 		return nil
 	}
 
 	// Remove active context from database
 	query := `DELETE FROM home_automation.active_contexts WHERE context_name = $1`
-	
+
 	_, err := cs.db.Exec(query, contextName)
 	return err
 }
@@ -469,7 +470,7 @@ func (cs *CalendarScheduler) logCalendarEvent(ctx context.Context, req CalendarE
 	}
 
 	eventJSON, _ := json.Marshal(req)
-	
+
 	query := `
 		INSERT INTO home_automation.calendar_events 
 		(event_id, event_type, event_data, detected_context, context_activated, processed_at)
@@ -481,7 +482,7 @@ func (cs *CalendarScheduler) logCalendarEvent(ctx context.Context, req CalendarE
 		context_activated = EXCLUDED.context_activated,
 		processed_at = EXCLUDED.processed_at
 	`
-	
+
 	_, err := cs.db.Exec(query, req.EventID, req.EventType, eventJSON, detectedContext, contextActivated)
 	return err
 }

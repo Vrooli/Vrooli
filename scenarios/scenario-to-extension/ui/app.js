@@ -1,7 +1,24 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
 /**
  * Browser Extension Generator UI
  * Main application logic for the scenario-to-extension web interface
  */
+
+const BRIDGE_APP_ID = 'scenario-to-extension-ui';
+
+const bootstrapIframeBridge = () => {
+    if (window.__scenarioToExtensionBridgeInitialized) {
+        return;
+    }
+
+    initIframeBridgeChild({ appId: BRIDGE_APP_ID });
+    window.__scenarioToExtensionBridgeInitialized = true;
+};
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+    bootstrapIframeBridge();
+}
 
 // Configuration
 const CONFIG = {

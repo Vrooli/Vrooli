@@ -1,8 +1,125 @@
 package main
 
 import (
+	"context"
+	"strings"
 	"testing"
+
+	"github.com/google/uuid"
 )
+
+// TestInputValidation tests input validation logic without database
+func TestInputValidation(t *testing.T) {
+	// Mock processor with nil DB for validation-only tests
+	processor := &IdeaProcessor{
+		db:        nil,
+		ollamaURL: "http://localhost:11434",
+		qdrantURL: "http://localhost:6333",
+	}
+
+	ctx := context.Background()
+
+	t.Run("GenerateIdeas_MissingCampaignID", func(t *testing.T) {
+		req := GenerateIdeasRequest{
+			CampaignID: "",
+			Prompt:     "test",
+			Count:      1,
+		}
+		resp := processor.GenerateIdeas(ctx, req)
+		if resp.Success {
+			t.Error("Expected validation failure for empty campaign ID")
+		}
+		if !strings.Contains(resp.Error, "required") {
+			t.Errorf("Expected required error, got: %s", resp.Error)
+		}
+	})
+
+	t.Run("GenerateIdeas_CountTooLow", func(t *testing.T) {
+		req := GenerateIdeasRequest{
+			CampaignID: uuid.New().String(),
+			Prompt:     "test",
+			Count:      0,
+		}
+		resp := processor.GenerateIdeas(ctx, req)
+		if resp.Success {
+			t.Error("Expected validation failure for count 0")
+		}
+		if !strings.Contains(resp.Error, "between 1 and 10") {
+			t.Errorf("Expected count range error, got: %s", resp.Error)
+		}
+	})
+
+	t.Run("GenerateIdeas_CountTooHigh", func(t *testing.T) {
+		req := GenerateIdeasRequest{
+			CampaignID: uuid.New().String(),
+			Prompt:     "test",
+			Count:      11,
+		}
+		resp := processor.GenerateIdeas(ctx, req)
+		if resp.Success {
+			t.Error("Expected validation failure for count 11")
+		}
+		if !strings.Contains(resp.Error, "between 1 and 10") {
+			t.Errorf("Expected count range error, got: %s", resp.Error)
+		}
+	})
+
+	t.Run("SemanticSearch_EmptyQuery", func(t *testing.T) {
+		req := SemanticSearchRequest{
+			Query: "",
+			Limit: 10,
+		}
+		_, err := processor.SemanticSearch(ctx, req)
+		if err == nil {
+			t.Error("Expected validation error for empty query")
+		}
+		if !strings.Contains(err.Error(), "empty") {
+			t.Errorf("Expected empty query error, got: %v", err)
+		}
+	})
+
+	t.Run("RefineIdea_MissingID", func(t *testing.T) {
+		req := RefinementRequest{
+			IdeaID:     "",
+			Refinement: "test",
+		}
+		err := processor.RefineIdea(ctx, req)
+		if err == nil {
+			t.Error("Expected validation error for missing ID")
+		}
+		if !strings.Contains(err.Error(), "required") {
+			t.Errorf("Expected required error, got: %v", err)
+		}
+	})
+
+	t.Run("RefineIdea_EmptyRefinement", func(t *testing.T) {
+		req := RefinementRequest{
+			IdeaID:     uuid.New().String(),
+			Refinement: "",
+		}
+		err := processor.RefineIdea(ctx, req)
+		if err == nil {
+			t.Error("Expected validation error for empty refinement")
+		}
+		if !strings.Contains(err.Error(), "empty") {
+			t.Errorf("Expected empty error, got: %v", err)
+		}
+	})
+
+	t.Run("RefineIdea_TooLong", func(t *testing.T) {
+		req := RefinementRequest{
+			IdeaID:     uuid.New().String(),
+			Refinement: strings.Repeat("a", 2001),
+		}
+		err := processor.RefineIdea(ctx, req)
+		if err == nil {
+			t.Error("Expected validation error for too long refinement")
+		}
+		if !strings.Contains(err.Error(), "too long") {
+			t.Errorf("Expected too long error, got: %v", err)
+		}
+	})
+}
 
 // TestBasicFunctions tests basic utility functions without database
 func TestBasicFunctions(t *testing.T) {
@@ -99,10 +216,11 @@ func TestStructDefinitions(t *testing.T) {
 // TestHealthResponse tests health response structure
 func TestHealthResponse(t *testing.T) {
 	hr := HealthResponse{
-		Status:   "healthy",
-		Services: map[string]string{
-			"postgres": "healthy",
-			"redis":    "healthy",
+		Status:  "healthy",
+		Service: "idea-generator",
+		Dependencies: map[string]interface{}{
+			"postgres": map[string]interface{}{"status": "healthy"},
+			"redis":    map[string]interface{}{"status": "healthy"},
 		},
 	}
 
@@ -110,8 +228,8 @@ func TestHealthResponse(t *testing.T) {
 		t.Errorf("Expected status 'healthy', got '%s'", hr.Status)
 	}
 
-	if len(hr.Services) != 2 {
-		t.Errorf("Expected 2 services, got %d", len(hr.Services))
+	if len(hr.Dependencies) != 2 {
+		t.Errorf("Expected 2 dependencies, got %d", len(hr.Dependencies))
 	}
 }
 

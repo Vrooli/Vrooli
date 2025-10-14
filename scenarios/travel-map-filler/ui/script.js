@@ -1,3 +1,9 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+    initIframeBridgeChild({ appId: 'travel-map-filler-ui' })
+}
+
 // Travel Map Filler - Interactive Script
 
 const API_BASE = window.location.hostname === 'localhost' 

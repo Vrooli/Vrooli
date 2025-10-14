@@ -7,7 +7,7 @@ import (
 
 func TestGenerateFallbackPairs(t *testing.T) {
 	sp := NewSmartPairing(nil)
-	
+
 	tests := []struct {
 		name          string
 		items         []PairItem
@@ -50,7 +50,7 @@ func TestGenerateFallbackPairs(t *testing.T) {
 			if len(pairs) != tt.expectedPairs {
 				t.Errorf("generateFallbackPairs() got %d pairs, expected %d", len(pairs), tt.expectedPairs)
 			}
-			
+
 			// Verify no duplicate pairs
 			pairMap := make(map[string]bool)
 			for _, pair := range pairs {
@@ -59,7 +59,7 @@ func TestGenerateFallbackPairs(t *testing.T) {
 					t.Errorf("Found duplicate pair: %s", key)
 				}
 				pairMap[key] = true
-				
+
 				// Verify items are different
 				if pair.ItemAID == pair.ItemBID {
 					t.Errorf("Pair contains same item: %s", pair.ItemAID)
@@ -71,7 +71,7 @@ func TestGenerateFallbackPairs(t *testing.T) {
 
 func TestParseAIResponse(t *testing.T) {
 	sp := NewSmartPairing(nil)
-	
+
 	tests := []struct {
 		name        string
 		response    string
@@ -120,7 +120,7 @@ func TestParseAIResponse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pairs, err := sp.parseAIResponse(tt.response)
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("parseAIResponse() expected error but got none")

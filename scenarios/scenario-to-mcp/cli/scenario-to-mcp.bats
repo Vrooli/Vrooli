@@ -206,7 +206,7 @@ teardown() {
     # Should mention key commands
     [[ "$output" =~ "list" ]]
     [[ "$output" =~ "detect" ]]
-    [[ "$output" =~ "check" ]]
+    [[ "$output" =~ "test" ]]
 }
 
 @test "CLI help shows version information" {

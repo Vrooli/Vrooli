@@ -1,3 +1,23 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+(function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window.parent === window || window.__videoDownloaderBridgeInitialized) {
+        return;
+    }
+
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[VideoDownloader] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'video-downloader' });
+    window.__videoDownloaderBridgeInitialized = true;
+})();
+
 // Video Downloader - Client-side JavaScript
 
 const API_URL = window.location.hostname === 'localhost' 

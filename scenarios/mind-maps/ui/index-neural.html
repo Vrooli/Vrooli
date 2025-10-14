@@ -6,6 +6,13 @@
     <title>Neural Mind Maps - Synaptic Knowledge Network</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles-neural.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+            }
+        }
+    </script>
 </head>
 <body>
     <!-- Neural particle effect background -->
@@ -370,6 +377,6 @@
         <div class="loader-text">Initializing Neural Network...</div>
     </div>
 
-    <script src="script-neural.js"></script>
+    <script type="module" src="script-neural.js"></script>
 </body>
 </html>

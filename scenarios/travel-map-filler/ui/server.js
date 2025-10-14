@@ -1,6 +1,11 @@
 const express = require('express');
 const path = require('path');
+const { initIframeBridgeChild } = require('@vrooli/iframe-bridge/child');
 const app = express();
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+  initIframeBridgeChild({ appId: 'travel-map-filler-ui' });
+}
 
 const PORT = process.env.UI_PORT || process.env.PORT;
 

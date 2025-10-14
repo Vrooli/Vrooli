@@ -1,3 +1,29 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_FLAG = '__makeItVeganBridgeInitialized';
+
+function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    if (window.parent !== window) {
+        const options = { appId: 'make-it-vegan' };
+        try {
+            if (document.referrer) {
+                options.parentOrigin = new URL(document.referrer).origin;
+            }
+        } catch (error) {
+            console.warn('[MakeItVegan] Unable to determine parent origin for iframe bridge', error);
+        }
+
+        initIframeBridgeChild(options);
+        window[BRIDGE_FLAG] = true;
+    }
+}
+
+bootstrapIframeBridge();
+
 // API configuration - dynamically determine API base URL
 const API_BASE = (() => {
     // Check if API URL is provided via environment/config
@@ -474,3 +500,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAchievements();
     }
 });
+
+// Expose handlers for inline event bindings
+window.checkIngredients = checkIngredients;
+window.findAlternatives = findAlternatives;
+window.quickSwap = quickSwap;
+window.veganizeRecipe = veganizeRecipe;

@@ -1,3 +1,15 @@
+const iframeParentOrigin = (() => {
+    try {
+        return document.referrer ? new URL(document.referrer).origin : undefined;
+    } catch (error) {
+        return undefined;
+    }
+})();
+
+if (typeof window !== 'undefined' && window.parent !== window && typeof window.initIframeBridgeChild === 'function') {
+    window.initIframeBridgeChild({ appId: 'invoice-generator', parentOrigin: iframeParentOrigin });
+}
+
 // ACCOUNTING WIZARD '95 - System Core
 const API_PORT = window.API_PORT || 8100;
 const API_BASE = `http://localhost:${API_PORT}`;

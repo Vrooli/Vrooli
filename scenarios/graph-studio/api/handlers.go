@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -61,7 +62,7 @@ func (api *API) getPluginsFromDB(db *sql.DB) error {
 	defer rows.Close()
 
 	for rows.Next() {
-		var plugin Plugin
+		plugin := &Plugin{}
 		var formatsJSON, metadataJSON []byte
 
 		err := rows.Scan(
@@ -82,10 +83,12 @@ func (api *API) getPluginsFromDB(db *sql.DB) error {
 		if err := json.Unmarshal(metadataJSON, &plugin.Metadata); err != nil {
 			log.Printf("Error parsing metadata for plugin %s: %v", plugin.ID, err)
 			plugin.Metadata = make(map[string]interface{})
+		} else if plugin.Metadata == nil {
+			plugin.Metadata = make(map[string]interface{})
 		}
 
 		log.Printf("Loaded plugin: id=%s, name=%s, enabled=%v", plugin.ID, plugin.Name, plugin.Enabled)
-		api.plugins[plugin.ID] = &plugin
+		api.plugins[plugin.ID] = plugin
 	}
 
 	if err := rows.Err(); err != nil {
@@ -110,6 +113,20 @@ func (api *API) HealthCheck(c *gin.Context) {
 		return
 	}
 
+	// Ensure plugin registry is loaded so restart checks reflect real state
+	if len(api.plugins) == 0 {
+		if err := api.getPluginsFromDB(db); err != nil {
+			c.JSON(http.StatusServiceUnavailable, HealthResponse{
+				Status:    "degraded",
+				Version:   "1.0.0",
+				Timestamp: time.Now().Unix(),
+				Error:     "Failed to load plugins",
+				Details:   err.Error(),
+			})
+			return
+		}
+	}
+
 	// Count plugins
 	pluginCount := len(api.plugins)
 	enabledCount := 0
@@ -119,8 +136,13 @@ func (api *API) HealthCheck(c *gin.Context) {
 		}
 	}
 
+	status := "healthy"
+	if pluginCount == 0 || enabledCount == 0 {
+		status = "degraded"
+	}
+
 	c.JSON(http.StatusOK, HealthResponse{
-		Status:        "healthy",
+		Status:        status,
 		Version:       "1.0.0",
 		PluginsLoaded: pluginCount,
 		PluginsActive: enabledCount,
@@ -201,8 +223,23 @@ func (api *API) ListGraphs(c *gin.Context) {
 	graphType := c.Query("type")
 	tag := c.Query("tag")
 	search := c.Query("search")
-	limit := c.DefaultQuery("limit", "50")
-	offset := c.DefaultQuery("offset", "0")
+	limitParam := c.DefaultQuery("limit", "50")
+	offsetParam := c.DefaultQuery("offset", "0")
+
+	limit, err := strconv.Atoi(limitParam)
+	if err != nil || limit <= 0 {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid limit parameter"})
+		return
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	offset, err := strconv.Atoi(offsetParam)
+	if err != nil || offset < 0 {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid offset parameter"})
+		return
+	}
 
 	query := `
 		SELECT id, name, type, description, metadata, version,
@@ -285,8 +322,8 @@ func (api *API) ListGraphs(c *gin.Context) {
 	c.JSON(http.StatusOK, ListResponse{
 		Data:   graphs,
 		Total:  len(graphs),
-		Limit:  limit,
-		Offset: offset,
+		Limit:  strconv.Itoa(limit),
+		Offset: strconv.Itoa(offset),
 	})
 }
 
@@ -674,40 +711,84 @@ func (api *API) ValidateGraph(c *gin.Context) {
 	}
 
 	// Get plugin for validation
-	_, exists := api.plugins[graphType]
+	plugin, exists := api.plugins[graphType]
 	if !exists {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Unknown graph type"})
 		return
 	}
+	if !plugin.Enabled {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Graph type is disabled"})
+		return
+	}
 
-	// Perform validation based on graph type
+	result := api.computeValidationResult(graphType, data)
+
+	c.JSON(http.StatusOK, result)
+}
+
+// computeValidationResult evaluates stored graph data and returns a validation report.
+func (api *API) computeValidationResult(graphType string, data sql.NullString) ValidationResult {
 	result := ValidationResult{
 		Valid:    true,
 		Errors:   []string{},
 		Warnings: []string{},
 	}
 
-	// Basic validation
-	if !data.Valid || data.String == "" || data.String == "{}" {
-		result.Warnings = append(result.Warnings, "Graph data is empty")
+	if !data.Valid {
+		result.Errors = append(result.Errors, "Graph has no data to validate")
+		result.Valid = false
+		return result
 	}
 
-	// Type-specific validation
+	trimmed := strings.TrimSpace(data.String)
+	if trimmed == "" || trimmed == "{}" {
+		result.Errors = append(result.Errors, "Graph data is empty")
+		result.Valid = false
+		return result
+	}
+
+	validationErr := api.validator.validateGraphData(graphType, json.RawMessage(data.String))
+	if validationErr != nil {
+		result.Errors = append(result.Errors, formatValidationError(validationErr))
+		result.Valid = false
+		return result
+	}
+
+	api.appendValidationWarnings(graphType, trimmed, &result)
+	return result
+}
+
+func formatValidationError(err *ValidationError) string {
+	if err == nil {
+		return ""
+	}
+
+	message := err.Message
+	if err.Field != "" {
+		message = fmt.Sprintf("%s: %s", err.Field, err.Message)
+	}
+	if err.Value != "" {
+		message = fmt.Sprintf("%s (%s)", message, err.Value)
+	}
+	return message
+}
+
+func (api *API) appendValidationWarnings(graphType, data string, result *ValidationResult) {
 	switch graphType {
 	case "bpmn":
-		if !strings.Contains(data.String, "startEvent") {
+		lower := strings.ToLower(data)
+		if !strings.Contains(lower, "startevent") {
 			result.Warnings = append(result.Warnings, "BPMN diagram should have a start event")
 		}
-		if !strings.Contains(data.String, "endEvent") {
+		if !strings.Contains(lower, "endevent") {
 			result.Warnings = append(result.Warnings, "BPMN diagram should have an end event")
 		}
 	case "mind-maps":
-		if !strings.Contains(data.String, "root") && !strings.Contains(data.String, "central") {
+		lower := strings.ToLower(data)
+		if !strings.Contains(lower, "\"root\"") && !strings.Contains(lower, "\"central\"") {
 			result.Warnings = append(result.Warnings, "Mind map should have a root/central node")
 		}
 	}
-
-	c.JSON(http.StatusOK, result)
 }
 
 // ConvertGraph converts a graph to another format

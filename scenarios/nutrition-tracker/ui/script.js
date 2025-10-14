@@ -1,4 +1,20 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
 // Nutrition Tracker UI JavaScript
+
+if (typeof window !== 'undefined' && window.parent !== window && !window.__nutritionTrackerBridgeInitialized) {
+    let parentOrigin;
+    try {
+        if (document.referrer) {
+            parentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (error) {
+        console.warn('[NutritionTracker] Unable to determine parent origin for iframe bridge', error);
+    }
+
+    initIframeBridgeChild({ parentOrigin, appId: 'nutrition-tracker' });
+    window.__nutritionTrackerBridgeInitialized = true;
+}
 
 // API endpoints
 const API_BASE = 'http://localhost:8081/api';

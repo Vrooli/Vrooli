@@ -18,6 +18,27 @@ NC='\033[0m'
 # Test configuration
 export TEST_TIMEOUT="${TEST_TIMEOUT:-300}"
 export VERBOSE="${VERBOSE:-false}"
+export DEV_MODE="${DEV_MODE:-true}"  # Pass DEV_MODE to test phases
+
+# Get ports from scenario status (always read from status to ensure correct ports)
+if command -v vrooli >/dev/null 2>&1; then
+    SCENARIO_NAME=$(basename "$SCENARIO_DIR")
+    PORTS_JSON=$(vrooli scenario status "$SCENARIO_NAME" --json 2>/dev/null || echo '{}')
+
+    # Extract and export API_PORT
+    API_PORT_FROM_STATUS=$(echo "$PORTS_JSON" | jq -r '.scenario_data.allocated_ports.API_PORT // empty' 2>/dev/null || echo "")
+    if [ -n "$API_PORT_FROM_STATUS" ]; then
+        export API_PORT="$API_PORT_FROM_STATUS"
+        [ "${VERBOSE:-false}" = "true" ] && echo "ℹ️  Using API_PORT=$API_PORT from scenario status"
+    fi
+
+    # Extract and export UI_PORT
+    UI_PORT_FROM_STATUS=$(echo "$PORTS_JSON" | jq -r '.scenario_data.allocated_ports.UI_PORT // empty' 2>/dev/null || echo "")
+    if [ -n "$UI_PORT_FROM_STATUS" ]; then
+        export UI_PORT="$UI_PORT_FROM_STATUS"
+        [ "${VERBOSE:-false}" = "true" ] && echo "ℹ️  Using UI_PORT=$UI_PORT from scenario status"
+    fi
+fi
 
 # Test phases
 PHASES=(
@@ -66,7 +87,7 @@ PASSED_PHASES=0
 
 for phase in "${PHASES[@]}"; do
     if run_phase "$phase"; then
-        ((PASSED_PHASES++))
+        PASSED_PHASES=$((PASSED_PHASES + 1))
     fi
 done
 

@@ -71,12 +71,26 @@ graph-studio convert <graph-id> mermaid
 
 ## 🛠️ API Usage
 
+> **Secure Preview Access**
+>
+> When Graph Studio runs through the Vrooli lifecycle (including App Monitor previews), the API refuses direct requests unless a preview token is configured and supplied per request (via `X-Preview-Token` header or `preview_token` cookie). Set one of `PREVIEW_ACCESS_TOKEN`, `GRAPH_STUDIO_PREVIEW_TOKEN`, or `APP_MONITOR_PREVIEW_TOKEN` before starting the scenario; the CLI and web UI pick it up automatically. For manual requests, export the token before calling the API:
+>
+> ```bash
+> export PREVIEW_ACCESS_TOKEN="graph-studio-preview-token"
+> # Legacy automation still reads GRAPH_STUDIO_PREVIEW_TOKEN; keep them aligned if needed
+> export GRAPH_STUDIO_PREVIEW_TOKEN="$PREVIEW_ACCESS_TOKEN"
+> curl -H "X-Preview-Token: ${PREVIEW_ACCESS_TOKEN}" http://localhost:$API_PORT/health
+> ```
+>
+> In local development you can leave the token unset to disable the guard.
+
 ### Create a Graph
 ```bash
 # Get the API port dynamically
 API_PORT=$(vrooli scenario port graph-studio API_PORT)
 curl -X POST http://localhost:$API_PORT/api/v1/graphs \
   -H "Content-Type: application/json" \
+  -H "X-Preview-Token: ${PREVIEW_ACCESS_TOKEN}" \
   -d '{
     "name": "System Architecture",
     "type": "network-graphs",
@@ -91,16 +105,17 @@ curl -X POST http://localhost:$API_PORT/api/v1/graphs \
 ```bash
 # Search by keyword across name, description, and tags
 API_PORT=$(vrooli scenario port graph-studio API_PORT)
-curl "http://localhost:$API_PORT/api/v1/graphs?search=architecture"
+curl -H "X-Preview-Token: ${PREVIEW_ACCESS_TOKEN}" "http://localhost:$API_PORT/api/v1/graphs?search=architecture"
 
 # Combine search with filters
-curl "http://localhost:$API_PORT/api/v1/graphs?search=system&type=mind-maps"
+curl -H "X-Preview-Token: ${PREVIEW_ACCESS_TOKEN}" "http://localhost:$API_PORT/api/v1/graphs?search=system&type=mind-maps"
 ```
 
 ### Validate a Graph
 ```bash
 API_PORT=$(vrooli scenario port graph-studio API_PORT)
-curl -X POST http://localhost:$API_PORT/api/v1/graphs/{id}/validate
+curl -X POST http://localhost:$API_PORT/api/v1/graphs/{id}/validate \
+  -H "X-Preview-Token: ${PREVIEW_ACCESS_TOKEN}"
 ```
 
 ### Convert Format
@@ -108,6 +123,7 @@ curl -X POST http://localhost:$API_PORT/api/v1/graphs/{id}/validate
 API_PORT=$(vrooli scenario port graph-studio API_PORT)
 curl -X POST http://localhost:$API_PORT/api/v1/graphs/{id}/convert \
   -H "Content-Type: application/json" \
+  -H "X-Preview-Token: ${PREVIEW_ACCESS_TOKEN}" \
   -d '{"target_format": "mermaid"}'
 ```
 
@@ -116,6 +132,7 @@ curl -X POST http://localhost:$API_PORT/api/v1/graphs/{id}/convert \
 API_PORT=$(vrooli scenario port graph-studio API_PORT)
 curl -X POST http://localhost:$API_PORT/api/v1/graphs/{id}/render \
   -H "Content-Type: application/json" \
+  -H "X-Preview-Token: ${PREVIEW_ACCESS_TOKEN}" \
   -d '{"format": "svg"}'
 ```
 

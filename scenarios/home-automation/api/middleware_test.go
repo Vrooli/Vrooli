@@ -188,8 +188,9 @@ func TestRateLimitMiddleware(t *testing.T) {
 		rl := NewRateLimiter(5, time.Minute)
 
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("success"))
+			w.Write([]byte(`{"status":"success"}`))
 		})
 
 		middleware := rl.RateLimitMiddleware(handler)
@@ -204,8 +205,9 @@ func TestRateLimitMiddleware(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", rr.Code)
 		}
 
-		if rr.Body.String() != "success" {
-			t.Errorf("Expected 'success', got '%s'", rr.Body.String())
+		expectedBody := `{"status":"success"}`
+		if rr.Body.String() != expectedBody {
+			t.Errorf("Expected '%s', got '%s'", expectedBody, rr.Body.String())
 		}
 	})
 

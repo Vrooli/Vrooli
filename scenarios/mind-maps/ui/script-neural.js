@@ -1,3 +1,29 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+const BRIDGE_FLAG = '__mindMapsNeuralBridgeInitialized';
+
+function bootstrapIframeBridge() {
+    if (typeof window === 'undefined' || window[BRIDGE_FLAG]) {
+        return;
+    }
+
+    if (window.parent !== window) {
+        const options = { appId: 'mind-maps-neural' };
+        try {
+            if (document.referrer) {
+                options.parentOrigin = new URL(document.referrer).origin;
+            }
+        } catch (error) {
+            console.warn('[MindMapsNeural] Unable to determine parent origin for iframe bridge', error);
+        }
+
+        initIframeBridgeChild(options);
+        window[BRIDGE_FLAG] = true;
+    }
+}
+
+bootstrapIframeBridge();
+
 // Neural Mind Maps - Interactive Neural Network Visualization
 class NeuralMindMap {
     constructor() {

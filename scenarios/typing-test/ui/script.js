@@ -1,3 +1,9 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+    initIframeBridgeChild({ appId: 'typing-test-ui' })
+}
+
 // Typing Test Game Logic
 const API_URL = window.location.hostname === 'localhost' 
     ? `http://localhost:${window.location.port === '3200' ? '9200' : window.location.port.replace('3', '9')}`

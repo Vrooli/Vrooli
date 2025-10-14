@@ -96,10 +96,13 @@ func (s *Server) Initialize() error {
 }
 
 func (s *Server) setupRoutes() {
+	// Health check at root level (required for lifecycle system)
+	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+
 	// API routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
-	
-	// Health check
+
+	// Health check (also available under API prefix)
 	api.HandleFunc("/health", s.handleHealth).Methods("GET")
 	
 	// MCP endpoints
@@ -221,14 +224,13 @@ func (s *Server) handleAddMCP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate session ID
-	sessionID := fmt.Sprintf("mcp-session-%d", time.Now().Unix())
-	
-	// Store session in database
-	_, err := s.db.Exec(`
-		INSERT INTO mcp.agent_sessions (id, scenario_name, agent_type, status, start_time)
-		VALUES ($1, $2, 'claude-code', 'pending', NOW())
-	`, sessionID, req.ScenarioName)
+	// Generate session ID (database will use gen_random_uuid())
+	var sessionID string
+	err := s.db.QueryRow(`
+		INSERT INTO mcp.agent_sessions (scenario_name, agent_type, status, start_time)
+		VALUES ($1, 'claude-code', 'pending', NOW())
+		RETURNING id::text
+	`, req.ScenarioName).Scan(&sessionID)
 	
 	if err != nil {
 		s.sendError(w, "Failed to create session", http.StatusInternalServerError)

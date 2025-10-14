@@ -2,6 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const http = require('http');
+const { initIframeBridgeChild } = require('@vrooli/iframe-bridge/child');
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+  initIframeBridgeChild({ appId: 'typing-test-ui' });
+}
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;

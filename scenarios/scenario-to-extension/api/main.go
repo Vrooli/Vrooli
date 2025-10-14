@@ -120,7 +120,10 @@ func main() {
 
 	// Setup routes
 	r := mux.NewRouter()
-	
+
+	// Health check at root level (required for lifecycle system)
+	r.HandleFunc("/health", healthHandler).Methods("GET")
+
 	// API routes
 	api := r.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/health", healthHandler).Methods("GET")

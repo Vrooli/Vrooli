@@ -1,3 +1,19 @@
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+// Initialize the iframe bridge when embedded inside the orchestrator
+const bootstrapIframeBridge = () => {
+    if (window.__secureDocumentBridgeInitialized) {
+        return;
+    }
+
+    initIframeBridgeChild({ appId: 'secure-document-processing-ui' });
+    window.__secureDocumentBridgeInitialized = true;
+};
+
+if (typeof window !== 'undefined' && window.parent !== window) {
+    bootstrapIframeBridge();
+}
+
 // Global state
 let documentQueue = [];
 let processingJobs = [];
@@ -5,7 +21,6 @@ let auditEntries = [];
 
 // API Configuration
 const API_BASE = 'http://localhost:8090/api';
-
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();

@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vrooli Orchestrator - Profile Management</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+        }
+      }
+    </script>
     <style>
         * {
             margin: 0;
@@ -454,6 +461,6 @@
         </div>
     </div>
     
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
