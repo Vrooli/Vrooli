@@ -12,6 +12,41 @@ import { formatEventPayload } from './utils.js'
 
 let activeTabMutationHandler = null
 
+const MAX_TRANSCRIPT_BYTES = 1024 * 1024 // cap transcript cache to roughly 1 MiB per tab
+
+function estimateTranscriptEntryBytes(entry) {
+  if (!entry || typeof entry !== 'object') {
+    return 0
+  }
+  let size = 0
+  if (typeof entry.data === 'string') {
+    size += entry.data.length
+  }
+  if (typeof entry.message === 'string') {
+    size += entry.message.length
+  }
+  if (typeof entry.direction === 'string') {
+    size += entry.direction.length
+  }
+  return size
+}
+
+function trimTranscript(tab) {
+  if (!tab || !Array.isArray(tab.transcript)) {
+    return
+  }
+  if (!Number.isFinite(tab.transcriptByteSize)) {
+    tab.transcriptByteSize = tab.transcript.reduce((total, entry) => total + estimateTranscriptEntryBytes(entry), 0)
+  }
+  while ((tab.transcriptByteSize > MAX_TRANSCRIPT_BYTES || tab.transcript.length > 5000) && tab.transcript.length > 0) {
+    const removed = tab.transcript.shift()
+    tab.transcriptByteSize -= estimateTranscriptEntryBytes(removed)
+    if (tab.transcriptByteSize < 0) {
+      tab.transcriptByteSize = 0
+    }
+  }
+}
+
 export function configureEventFeed({ onActiveTabMutation } = {}) {
   activeTabMutationHandler = typeof onActiveTabMutation === 'function' ? onActiveTabMutation : null
 }
@@ -50,10 +85,13 @@ export function recordSuppressedEvent(tab, type) {
 
 export function recordTranscript(tab, entry) {
   if (!tab) return
-  tab.transcript.push(entry)
-  if (tab.transcript.length > 5000) {
-    tab.transcript.splice(0, tab.transcript.length - 5000)
+  const size = estimateTranscriptEntryBytes(entry)
+  if (!Number.isFinite(tab.transcriptByteSize)) {
+    tab.transcriptByteSize = 0
   }
+  tab.transcript.push(entry)
+  tab.transcriptByteSize += size
+  trimTranscript(tab)
   if (tab.id === state.activeTabId && activeTabMutationHandler) {
     activeTabMutationHandler('transcript-recorded')
   }

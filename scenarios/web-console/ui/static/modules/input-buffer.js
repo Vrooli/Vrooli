@@ -84,7 +84,7 @@ export function transmitInput(tab, value, meta = {}) {
 
   const seq = ensureInputSequence(tab, meta)
   const dataBytes = textEncoder.encode(normalized)
-  const sourceString = typeof tab.id === 'string' ? tab.id : ''
+  const sourceString = ''
   const sourceBytesFull = textEncoder.encode(sourceString)
   const sourceLen = Math.min(sourceBytesFull.length, 0xffff)
 

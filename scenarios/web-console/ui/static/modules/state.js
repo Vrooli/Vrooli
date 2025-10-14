@@ -169,8 +169,10 @@ export const TAB_LONG_PRESS_DELAY = 550
 export const terminalDefaults = {
   convertEol: true,
   cursorBlink: true,
+  rendererType: 'canvas',
   fontFamily: 'JetBrains Mono, SFMono-Regular, Menlo, monospace',
   fontSize: 14,
+  scrollback: 400,
   theme: {
     background: '#0f172a',
     foreground: '#e2e8f0',

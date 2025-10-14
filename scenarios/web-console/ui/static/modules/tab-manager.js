@@ -142,6 +142,16 @@ export function createTerminalTab({ focus = false, id = null, label = null, colo
   elements.terminalHost.appendChild(container)
 
   const term = new window.Terminal({ ...terminalDefaults })
+  if (typeof term.setOption === 'function') {
+    try {
+      term.setOption('rendererType', terminalDefaults.rendererType || 'canvas')
+      if (Number.isFinite(terminalDefaults.scrollback)) {
+        term.setOption('scrollback', terminalDefaults.scrollback)
+      }
+    } catch (error) {
+      console.warn('Unable to apply terminal renderer/scrollback options:', error)
+    }
+  }
   const fitAddon = new window.FitAddon.FitAddon()
   term.loadAddon(fitAddon)
   term.open(container)
@@ -172,6 +182,7 @@ export function createTerminalTab({ focus = false, id = null, label = null, colo
     lastReplayCount: 0,
     lastReplayTruncated: false,
     transcript: [],
+    transcriptByteSize: 0,
     events: [],
     suppressed: initialSuppressedState(),
     pendingWrites: [],

@@ -128,6 +128,7 @@ export async function startSession(tab, options = {}) {
     tab.wasDetached = false
     refreshTabButton(tab)
     tab.transcript = []
+    tab.transcriptByteSize = 0
     tab.events = []
     tab.suppressed = tab.suppressed || {}
     Object.keys(tab.suppressed).forEach((key) => {
@@ -318,6 +319,7 @@ export function connectWebSocket(tab, sessionId) {
   const url = buildWebSocketUrl(`/ws/sessions/${sessionId}/stream`)
   const previousSocket = tab.socket
   const socket = new WebSocket(url)
+  tab.inputSeq = 0
   tab.socket = socket
   tab.replayPending = true
   tab.replayComplete = false
