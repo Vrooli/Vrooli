@@ -6,6 +6,10 @@
 /**
  * Mobile toolbar state
  */
+const debugToolbar = typeof window !== 'undefined' &&
+  window.__WEB_CONSOLE_DEBUG__ &&
+  window.__WEB_CONSOLE_DEBUG__.toolbar === true
+
 const toolbarState = {
   visible: false,
   mode: 'floating', // 'disabled', 'floating', or 'top'
@@ -255,7 +259,9 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
     if (!isMobile && !debugModeActive) {
       // On desktop, toolbar should be disabled by default
       toolbar.classList.add('mode-disabled', 'hidden')
-      console.log(`Toolbar mode set to: disabled (desktop - use debug toggle to test)`)
+      if (debugToolbar) {
+        console.log('Toolbar mode set to: disabled (desktop - use debug toggle to test)')
+      }
       return
     }
 
@@ -281,13 +287,17 @@ export function initializeMobileToolbar(getActiveTabFn, sendKeyToTerminalFn) {
         break
     }
 
-    console.log(`Toolbar mode set to: ${mode}`)
+    if (debugToolbar) {
+      console.log(`Toolbar mode set to: ${mode}`)
+    }
   }
 
   setupMode(initialMode)
 
   const deviceType = isMobile ? 'mobile' : 'desktop'
-  console.log(`Mobile toolbar initialized with mode: ${initialMode} (${deviceType})`)
+  if (debugToolbar) {
+    console.log(`Mobile toolbar initialized with mode: ${initialMode} (${deviceType})`)
+  }
 
   return {
     show: () => showToolbar(toolbar),
@@ -322,7 +332,9 @@ function setupKeyboardDetection(toolbar) {
 
   if (window.visualViewport && isIOS) {
     // iOS-specific handling
-    console.log('[iOS Toolbar] Initializing iOS keyboard detection')
+    if (debugToolbar) {
+      console.log('[iOS Toolbar] Initializing iOS keyboard detection')
+    }
 
     // Keep position fixed for smoother behavior
     toolbar.style.position = 'fixed'
@@ -333,20 +345,22 @@ function setupKeyboardDetection(toolbar) {
       const keyboardVisible = keyboardHeight > 100
 
       // Enhanced debug logging
-      console.log('[iOS Toolbar] Update:', {
-        windowHeight: window.innerHeight,
-        windowWidth: window.innerWidth,
-        viewportHeight: viewport.height,
-        viewportWidth: viewport.width,
-        viewportOffsetTop: viewport.offsetTop,
-        viewportOffsetLeft: viewport.offsetLeft,
-        keyboardHeight,
-        keyboardVisible,
-        toolbarVisible: !toolbar.classList.contains('hidden'),
-        toolbarZIndex: window.getComputedStyle(toolbar).zIndex,
-        toolbarBottom: window.getComputedStyle(toolbar).bottom,
-        toolbarPosition: window.getComputedStyle(toolbar).position
-      })
+      if (debugToolbar) {
+        console.log('[iOS Toolbar] Update:', {
+          windowHeight: window.innerHeight,
+          windowWidth: window.innerWidth,
+          viewportHeight: viewport.height,
+          viewportWidth: viewport.width,
+          viewportOffsetTop: viewport.offsetTop,
+          viewportOffsetLeft: viewport.offsetLeft,
+          keyboardHeight,
+          keyboardVisible,
+          toolbarVisible: !toolbar.classList.contains('hidden'),
+          toolbarZIndex: window.getComputedStyle(toolbar).zIndex,
+          toolbarBottom: window.getComputedStyle(toolbar).bottom,
+          toolbarPosition: window.getComputedStyle(toolbar).position
+        })
+      }
 
       if (keyboardVisible) {
         // Position toolbar just above the keyboard
@@ -357,15 +371,19 @@ function setupKeyboardDetection(toolbar) {
         // Ensure highest z-index
         toolbar.style.zIndex = '2147483647' // Max z-index value
 
-        console.log('[iOS Toolbar] Positioning above keyboard:', {
-          bottom: `${keyboardHeight}px`,
-          zIndex: toolbar.style.zIndex
-        })
+        if (debugToolbar) {
+          console.log('[iOS Toolbar] Positioning above keyboard:', {
+            bottom: `${keyboardHeight}px`,
+            zIndex: toolbar.style.zIndex
+          })
+        }
 
         showToolbar(toolbar)
       } else {
         // Reset to bottom when keyboard is gone
-        console.log('[iOS Toolbar] Keyboard hidden, resetting to bottom')
+        if (debugToolbar) {
+          console.log('[iOS Toolbar] Keyboard hidden, resetting to bottom')
+        }
         toolbar.style.bottom = '0px'
         toolbar.style.top = 'auto'
         toolbar.style.zIndex = '9999'
@@ -380,7 +398,9 @@ function setupKeyboardDetection(toolbar) {
     // Also listen to focus events for immediate response
     const handleFocus = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.classList.contains('xterm-helper-textarea')) {
-        console.log('[iOS Toolbar] Input focused, checking keyboard state')
+        if (debugToolbar) {
+          console.log('[iOS Toolbar] Input focused, checking keyboard state')
+        }
         setTimeout(updateToolbarPosition, 100)
         setTimeout(updateToolbarPosition, 300)
         setTimeout(updateToolbarPosition, 500)
@@ -409,12 +429,14 @@ function setupKeyboardDetection(toolbar) {
       const keyboardHeight = window.innerHeight - viewport.height
       const keyboardVisible = keyboardHeight > 100
 
-      console.log('[Toolbar Detection] Viewport change:', {
-        windowHeight: window.innerHeight,
-        viewportHeight: viewport.height,
-        keyboardHeight,
-        keyboardVisible
-      })
+      if (debugToolbar) {
+        console.log('[Toolbar Detection] Viewport change:', {
+          windowHeight: window.innerHeight,
+          viewportHeight: viewport.height,
+          keyboardHeight,
+          keyboardVisible
+        })
+      }
 
       if (keyboardVisible) {
         toolbar.style.bottom = `${keyboardHeight}px`
@@ -431,7 +453,9 @@ function setupKeyboardDetection(toolbar) {
     // Also listen to focus events as a fallback detection method
     const handleFocus = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.classList.contains('xterm-helper-textarea')) {
-        console.log('[Toolbar Detection] Focus detected, forcing show')
+        if (debugToolbar) {
+          console.log('[Toolbar Detection] Focus detected, forcing show')
+        }
         // Force show toolbar when input is focused
         setTimeout(updateToolbarPosition, 100)
         setTimeout(updateToolbarPosition, 300)

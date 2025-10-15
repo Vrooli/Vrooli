@@ -71,6 +71,9 @@ import {
 } from './modules/event-feed.js'
 import { configureAIIntegration, initializeAIIntegration } from './modules/ai-integration.js'
 import { initializeIframeBridge } from './modules/bridge.js'
+import { proxyToApi } from './modules/utils.js'
+import { showToast } from './modules/notifications.js'
+import { initializeDiagnostics } from './modules/diagnostics.js'
 
 configureSessionService({
   onActiveTabNeedsUpdate: updateUI,
@@ -95,7 +98,9 @@ configureEventFeed({
 })
 
 configureSessionOverview({
-  updateSessionActions
+  updateSessionActions,
+  closeSessionById: handleSessionCloseFromOverview,
+  focusSessionTab
 })
 
 configureWorkspace({
@@ -118,6 +123,8 @@ initializeTabCustomizationUI()
 initializeShortcutButtons()
 initializeComposerUI()
 initializeAIIntegration()
+initializeDiagnostics()
+initializeResourceTimingGuard()
 
 applyDrawerState()
 updateDrawerIndicator()
@@ -129,7 +136,26 @@ startSessionOverviewWatcher()
 updateSessionActions()
 renderSessionOverview()
 updateUI()
-connectWorkspaceWebSocket()
+
+function initializeResourceTimingGuard() {
+  if (typeof performance === 'undefined') {
+    return
+  }
+  if (typeof performance.setResourceTimingBufferSize === 'function') {
+    try {
+      performance.setResourceTimingBufferSize(1)
+    } catch (error) {
+      console.warn('Unable to adjust resource timing buffer size:', error)
+    }
+  }
+  if (typeof performance.clearResourceTimings === 'function') {
+    try {
+      performance.clearResourceTimings()
+    } catch (error) {
+      console.warn('Unable to clear initial resource timings:', error)
+    }
+  }
+}
 
 function updateUI() {
   const tab = getActiveTab()
@@ -227,6 +253,52 @@ async function closeTab(tabId) {
   syncActiveTabState()
   updateSessionActions()
   renderSessionOverview()
+}
+
+async function handleSessionCloseFromOverview(sessionId) {
+  const trimmed = typeof sessionId === 'string' ? sessionId.trim() : ''
+  if (!trimmed) {
+    return false
+  }
+
+  const attached = state.tabs.find((entry) => entry.session && entry.session.id === trimmed)
+  if (attached) {
+    await closeTab(attached.id)
+    return true
+  }
+
+  try {
+    const response = await proxyToApi(`/api/v1/sessions/${encodeURIComponent(trimmed)}`, {
+      method: 'DELETE'
+    })
+
+    if (!response.ok && response.status !== 404) {
+      const text = await response.text()
+      const message = text || `API error (${response.status})`
+      throw new Error(message)
+    }
+
+    updateSessionActions()
+    queueSessionOverviewRefresh(250)
+    await showToast('Requested session sign out.', 'success', 2200)
+    return true
+  } catch (error) {
+    console.error('Failed to terminate session', error)
+    await showToast('Unable to sign out session. Check the console for details.', 'error', 3200)
+    return false
+  }
+}
+
+function focusSessionTab(tabId) {
+  const tab = findTab(tabId)
+  if (!tab) {
+    return
+  }
+  if (state.activeTabId !== tab.id) {
+    setActiveTab(tab.id)
+  } else {
+    tab.term?.focus()
+  }
 }
 
 function handleComposerSubmit({ tab, value, appendNewline }) {

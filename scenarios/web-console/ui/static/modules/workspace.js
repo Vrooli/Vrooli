@@ -18,9 +18,18 @@ import {
   setTabPhase,
   setTabSocketState
 } from './session-service.js'
+import { showToast } from './notifications.js'
 
 const workspaceCallbacks = {
   queueSessionOverviewRefresh: null
+}
+
+const debugWorkspace = typeof window !== 'undefined' &&
+  window.__WEB_CONSOLE_DEBUG__ &&
+  window.__WEB_CONSOLE_DEBUG__.workspace === true
+
+const workspaceAnomalyState = {
+  toastShown: false
 }
 
 export function configureWorkspace(options = {}) {
@@ -33,6 +42,108 @@ function queueSessionOverviewRefresh(delay = 0) {
   workspaceCallbacks.queueSessionOverviewRefresh?.(delay)
 }
 
+function sanitizeWorkspaceTabsFromServer(rawTabs) {
+  const duplicates = []
+  const invalid = []
+  const seen = new Set()
+  const sanitized = []
+
+  rawTabs.forEach((entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return
+    }
+    const id = typeof entry.id === 'string' ? entry.id.trim() : ''
+    if (!id) {
+      invalid.push(entry.id || '(missing)')
+      return
+    }
+    if (seen.has(id)) {
+      duplicates.push(id)
+      return
+    }
+    seen.add(id)
+    sanitized.push({
+      id,
+      label: entry.label || `Terminal ${sanitized.length + 1}`,
+      colorId: entry.colorId || 'sky',
+      order: sanitized.length,
+      sessionId: entry.sessionId || null
+    })
+  })
+
+  return {
+    tabs: sanitized,
+    duplicateIds: duplicates,
+    invalidIds: invalid
+  }
+}
+
+function pruneDuplicateLocalTabs() {
+  const seen = new Set()
+  const filtered = []
+  const removedIds = []
+
+  state.tabs.slice().forEach((tab) => {
+    if (!tab || typeof tab !== 'object' || typeof tab.id !== 'string') {
+      return
+    }
+    if (seen.has(tab.id)) {
+      removedIds.push(tab.id)
+      destroyTerminalTab(tab)
+      return
+    }
+    seen.add(tab.id)
+    filtered.push(tab)
+  })
+
+  state.tabs = filtered
+  if (removedIds.length > 0) {
+    renderTabs()
+  }
+  return { tabs: filtered, removedIds }
+}
+
+function reportWorkspaceAnomaly({ duplicateIds = [], invalidIds = [], localDuplicates = [] } = {}) {
+  if (!duplicateIds.length && !invalidIds.length && !localDuplicates.length) {
+    return
+  }
+
+  const parts = []
+  if (duplicateIds.length) {
+    parts.push(`duplicate tab IDs: ${duplicateIds.join(', ')}`)
+  }
+  if (invalidIds.length) {
+    parts.push(`invalid entries: ${invalidIds.join(', ')}`)
+  }
+  if (localDuplicates.length) {
+    parts.push(`pruned local duplicates: ${localDuplicates.join(', ')}`)
+  }
+
+  const summary = parts.join('; ')
+
+  if (debugWorkspace) {
+    console.warn('Workspace anomalies detected and repaired:', summary)
+  }
+
+  const activeTab = getActiveTab()
+  if (activeTab) {
+    appendEvent(activeTab, 'workspace-sanitized', {
+      summary,
+      duplicateIds,
+      invalidIds,
+      localDuplicates
+    })
+  }
+
+  if (!workspaceAnomalyState.toastShown) {
+    workspaceAnomalyState.toastShown = true
+    const maybePromise = showToast('Workspace layout was repaired to remove duplicate tabs.', 'warning', 4200)
+    if (maybePromise && typeof maybePromise.catch === 'function') {
+      maybePromise.catch(() => {})
+    }
+  }
+}
+
 export async function initializeWorkspace() {
   try {
     const response = await proxyToApi('/api/v1/workspace')
@@ -41,8 +152,32 @@ export async function initializeWorkspace() {
     }
     const workspace = await response.json()
 
-    if (workspace.tabs && workspace.tabs.length > 0) {
-      workspace.tabs.forEach((tabMeta) => {
+    const rawTabs = Array.isArray(workspace.tabs) ? workspace.tabs : []
+    const { tabs: sanitizedTabs, duplicateIds, invalidIds } = sanitizeWorkspaceTabsFromServer(rawTabs)
+    const { removedIds: localDuplicates } = pruneDuplicateLocalTabs()
+
+    if (duplicateIds.length > 0 || invalidIds.length > 0 || localDuplicates.length > 0) {
+      reportWorkspaceAnomaly({ duplicateIds, invalidIds, localDuplicates })
+    }
+
+    if (sanitizedTabs.length > 0) {
+      sanitizedTabs.forEach((tabMeta) => {
+        const existing = findTab(tabMeta.id)
+        if (existing) {
+          existing.label = tabMeta.label || existing.label
+          existing.colorId = tabMeta.colorId || existing.colorId
+          applyTabAppearance(existing)
+          refreshTabButton(existing)
+          if (tabMeta.sessionId && (!existing.session || existing.session.id !== tabMeta.sessionId)) {
+            reconnectSession(existing, tabMeta.sessionId).catch(() => {
+              if (debugWorkspace) {
+                console.log(`Session ${tabMeta.sessionId} no longer available for tab ${tabMeta.id}`)
+              }
+            })
+          }
+          return
+        }
+
         const tab = createTerminalTab({
           focus: false,
           id: tabMeta.id,
@@ -51,13 +186,20 @@ export async function initializeWorkspace() {
         })
         if (tab && tabMeta.sessionId) {
           reconnectSession(tab, tabMeta.sessionId).catch(() => {
-            console.log(`Session ${tabMeta.sessionId} no longer available for tab ${tabMeta.id}`)
+            if (debugWorkspace) {
+              console.log(`Session ${tabMeta.sessionId} no longer available for tab ${tabMeta.id}`)
+            }
           })
         }
       })
 
-      if (workspace.activeTabId) {
-        setActiveTab(workspace.activeTabId)
+      renderTabs()
+
+      const requestedActiveId = typeof workspace.activeTabId === 'string' ? workspace.activeTabId.trim() : ''
+      if (requestedActiveId && findTab(requestedActiveId)) {
+        setActiveTab(requestedActiveId)
+      } else if (sanitizedTabs[0]) {
+        setActiveTab(sanitizedTabs[0].id)
       }
     } else {
       const initialTab = createTerminalTab({ focus: true })
@@ -111,11 +253,22 @@ export async function deleteTabFromWorkspace(tabId) {
 }
 
 export function syncActiveTabState() {
+  const { tabs: uniqueTabs, removedIds } = pruneDuplicateLocalTabs()
+  if (removedIds.length > 0) {
+    reportWorkspaceAnomaly({ localDuplicates: removedIds })
+  }
+
+  let activeId = state.activeTabId
+  if (activeId && !uniqueTabs.some((tab) => tab.id === activeId)) {
+    activeId = uniqueTabs.length > 0 ? uniqueTabs[0].id : null
+    state.activeTabId = activeId
+  }
+
   proxyToApi('/api/v1/workspace', {
     method: 'PUT',
     json: {
-      activeTabId: state.activeTabId,
-      tabs: state.tabs.map((t, idx) => ({
+      activeTabId: activeId,
+      tabs: uniqueTabs.map((t, idx) => ({
         id: t.id,
         label: t.label,
         colorId: t.colorId,
@@ -129,8 +282,16 @@ export function syncActiveTabState() {
 }
 
 export function connectWorkspaceWebSocket() {
-  if (state.workspaceSocket && state.workspaceSocket.readyState === WebSocket.OPEN) {
-    return
+  if (state.workspaceSocket) {
+    const { readyState } = state.workspaceSocket
+    if (readyState === WebSocket.OPEN || readyState === WebSocket.CONNECTING) {
+      return
+    }
+    try {
+      state.workspaceSocket.close()
+    } catch (_error) {
+      // ignore close failures on stale sockets
+    }
   }
 
   const url = buildWebSocketUrl('/ws/workspace/stream')
@@ -138,7 +299,12 @@ export function connectWorkspaceWebSocket() {
   state.workspaceSocket = socket
 
   socket.addEventListener('open', () => {
-    console.log('Workspace WebSocket connected')
+    if (state.workspaceSocket !== socket) {
+      return
+    }
+    if (debugWorkspace) {
+      console.log('Workspace WebSocket connected')
+    }
     if (state.workspaceReconnectTimer) {
       clearTimeout(state.workspaceReconnectTimer)
       state.workspaceReconnectTimer = null
@@ -146,6 +312,9 @@ export function connectWorkspaceWebSocket() {
   })
 
   socket.addEventListener('message', async (event) => {
+    if (state.workspaceSocket !== socket) {
+      return
+    }
     try {
       let rawData = event.data
       if (rawData instanceof Blob) {
@@ -161,7 +330,9 @@ export function connectWorkspaceWebSocket() {
       }
 
       if (data.activeTabId !== undefined && data.tabs !== undefined) {
-        console.log('Received initial workspace state')
+        if (debugWorkspace) {
+          console.log('Received initial workspace state')
+        }
         return
       }
 
@@ -172,7 +343,12 @@ export function connectWorkspaceWebSocket() {
   })
 
   socket.addEventListener('close', () => {
-    console.log('Workspace WebSocket closed, reconnecting...')
+    if (state.workspaceSocket !== socket) {
+      return
+    }
+    if (debugWorkspace) {
+      console.log('Workspace WebSocket closed, reconnecting...')
+    }
     state.workspaceSocket = null
     if (!state.workspaceReconnectTimer) {
       state.workspaceReconnectTimer = setTimeout(() => {
@@ -182,6 +358,9 @@ export function connectWorkspaceWebSocket() {
   })
 
   socket.addEventListener('error', (error) => {
+    if (state.workspaceSocket !== socket) {
+      return
+    }
     console.error('Workspace WebSocket error:', error)
   })
 }
@@ -191,7 +370,9 @@ function handleWorkspaceEvent(event) {
 
   switch (event.type) {
     case 'workspace-full-update':
-      console.log('Full workspace update:', event.payload)
+      if (debugWorkspace) {
+        console.log('Full workspace update:', event.payload)
+      }
       break
     case 'tab-added':
       handleTabAdded(event.payload)
@@ -212,10 +393,14 @@ function handleWorkspaceEvent(event) {
       handleSessionDetached(event.payload)
       break
     case 'keyboard-toolbar-mode-changed':
-      console.log('Keyboard toolbar mode changed event (deprecated):', event.payload)
+      if (debugWorkspace) {
+        console.log('Keyboard toolbar mode changed event (deprecated):', event.payload)
+      }
       break
     default:
-      console.log('Unknown workspace event:', event.type)
+      if (debugWorkspace) {
+        console.log('Unknown workspace event:', event.type)
+      }
   }
 }
 

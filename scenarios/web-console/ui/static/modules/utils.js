@@ -8,6 +8,28 @@ const sharedTextEncoder = new TextEncoder()
 export const textDecoder = sharedTextDecoder
 export const textEncoder = sharedTextEncoder
 
+let resourceTimingCleanupTimer = null
+
+function scheduleResourceTimingCleanup() {
+  if (typeof window === 'undefined' || typeof performance === 'undefined') {
+    return
+  }
+  if (typeof performance.clearResourceTimings !== 'function') {
+    return
+  }
+  if (resourceTimingCleanupTimer) {
+    return
+  }
+  resourceTimingCleanupTimer = window.setTimeout(() => {
+    resourceTimingCleanupTimer = null
+    try {
+      performance.clearResourceTimings()
+    } catch (error) {
+      console.warn('Failed to clear resource timings:', error)
+    }
+  }, 15000)
+}
+
 export function proxyToApi(path, { method = 'GET', json, headers } = {}) {
   const targetPath = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? path : `/${path}`}`
   const requestInit = { method, headers: headers ? new Headers(headers) : new Headers() }
@@ -15,7 +37,9 @@ export function proxyToApi(path, { method = 'GET', json, headers } = {}) {
     requestInit.headers.set('Content-Type', 'application/json')
     requestInit.body = JSON.stringify(json)
   }
-  return fetch(targetPath, requestInit)
+  const request = fetch(targetPath, requestInit)
+  scheduleResourceTimingCleanup()
+  return request
 }
 
 export function buildWebSocketUrl(path) {

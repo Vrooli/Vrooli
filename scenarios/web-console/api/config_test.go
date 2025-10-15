@@ -110,8 +110,8 @@ func TestLoadConfig(t *testing.T) {
 		if cfg.idleTimeout != 5*time.Minute {
 			t.Errorf("Expected default idle timeout 5m, got %v", cfg.idleTimeout)
 		}
-		if cfg.maxConcurrent != 4 {
-			t.Errorf("Expected default max concurrent 4, got %d", cfg.maxConcurrent)
+		if cfg.maxConcurrent != 20 {
+			t.Errorf("Expected default max concurrent 20, got %d", cfg.maxConcurrent)
 		}
 		if cfg.enableProxyGuard != true {
 			t.Error("Expected proxy guard enabled by default")

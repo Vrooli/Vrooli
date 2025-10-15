@@ -58,7 +58,7 @@ func loadConfig() (config, error) {
 		idleTimeout:         parseDurationOrDefault(os.Getenv("WEB_CONSOLE_IDLE_TIMEOUT"), 5*time.Minute),
 		storagePath:         firstNonEmpty(os.Getenv("WEB_CONSOLE_STORAGE_PATH"), "data/sessions"),
 		enableProxyGuard:    parseBoolOrDefault(os.Getenv("WEB_CONSOLE_EXPECT_PROXY"), true),
-		maxConcurrent:       parseIntOrDefault(os.Getenv("WEB_CONSOLE_MAX_CONCURRENT"), 4),
+		maxConcurrent:       parseIntOrDefault(os.Getenv("WEB_CONSOLE_MAX_CONCURRENT"), 20),
 		panicKillGrace:      parseDurationOrDefault(os.Getenv("WEB_CONSOLE_PANIC_GRACE"), 3*time.Second),
 		readBufferSizeBytes: parseIntOrDefault(os.Getenv("WEB_CONSOLE_READ_BUFFER"), 4096),
 		defaultTTYRows:      parseIntOrDefault(os.Getenv("WEB_CONSOLE_TTY_ROWS"), 32),

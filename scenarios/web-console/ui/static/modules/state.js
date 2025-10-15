@@ -53,7 +53,7 @@ export const shortcutButtons = Array.from(document.querySelectorAll('[data-short
 
 export const debugFlags = (() => {
   if (typeof window === 'undefined') {
-    return Object.freeze({ inputTelemetry: false })
+    return Object.freeze({ inputTelemetry: false, metrics: false })
   }
 
   const globalDebug = window.__WEB_CONSOLE_DEBUG__ || {}
@@ -67,7 +67,8 @@ export const debugFlags = (() => {
   })()
 
   return Object.freeze({
-    inputTelemetry: Boolean(globalDebug.inputTelemetry || fromStorage.inputTelemetry)
+    inputTelemetry: Boolean(globalDebug.inputTelemetry || fromStorage.inputTelemetry),
+    metrics: Boolean(globalDebug.metrics || fromStorage.metrics)
   })
 })()
 

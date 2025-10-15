@@ -55,7 +55,7 @@ Every remote session becomes a reusable capability. Maintenance orchestrators, e
 |--------|--------|-------------|
 | Session bootstrap time | < 4s | API timing logs |
 | WebSocket latency | < 500ms p95 | Heartbeat telemetry |
-| Concurrent sessions | Baseline 4 | Supervisor metrics |
+| Concurrent sessions | Baseline 20 | Supervisor metrics |
 | Shortcut dispatch delay | < 1s from PTY ready | UI event timestamps |
 | Transcript durability | 100% persisted | Integration tests & crash sims |
 | Memory usage | < 250MB per session | `psutil`/cgroup statistics |

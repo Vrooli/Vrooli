@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -197,6 +198,11 @@ func handleUpdateWorkspace(w http.ResponseWriter, r *http.Request, ws *workspace
 		return
 	}
 	if err := ws.updateState(req.ActiveTabID, req.Tabs); err != nil {
+		var validationErr workspaceValidationError
+		if errors.As(err, &validationErr) {
+			writeJSONError(w, http.StatusBadRequest, validationErr.Error())
+			return
+		}
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -229,6 +235,11 @@ func handleCreateTab(w http.ResponseWriter, r *http.Request, ws *workspace) {
 		return
 	}
 	if err := ws.addTab(tab); err != nil {
+		var validationErr workspaceValidationError
+		if errors.As(err, &validationErr) {
+			writeJSONError(w, http.StatusBadRequest, validationErr.Error())
+			return
+		}
 		if strings.Contains(err.Error(), "already exists") {
 			writeJSONError(w, http.StatusConflict, err.Error())
 			return

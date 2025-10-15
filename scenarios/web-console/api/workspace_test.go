@@ -223,6 +223,62 @@ func TestWorkspaceBroadcast(t *testing.T) {
 	ws.unsubscribe(ch2)
 }
 
+func TestWorkspaceUpdateStateValidation(t *testing.T) {
+	tmpDir := t.TempDir()
+	storagePath := filepath.Join(tmpDir, "workspace.json")
+
+	ws, err := newWorkspace(storagePath)
+	if err != nil {
+		t.Fatalf("Failed to create workspace: %v", err)
+	}
+
+	// Valid update should trim IDs and normalise order
+	validTabs := []tabMeta{
+		{ID: " tab-1 ", Label: "One", ColorID: "sky", Order: 42},
+		{ID: "tab-2", Label: "Two", ColorID: "emerald", Order: 7},
+	}
+	if err := ws.updateState("tab-1", validTabs); err != nil {
+		t.Fatalf("Expected valid update to succeed, got error: %v", err)
+	}
+	ws.mu.RLock()
+	if ws.ActiveTabID != "tab-1" {
+		t.Fatalf("Expected active tab 'tab-1', got '%s'", ws.ActiveTabID)
+	}
+	if len(ws.Tabs) != 2 {
+		t.Fatalf("Expected 2 tabs, got %d", len(ws.Tabs))
+	}
+	if ws.Tabs[0].ID != "tab-1" || ws.Tabs[0].Order != 0 {
+		t.Errorf("Expected first tab to be order 0 with ID 'tab-1', got ID '%s' order %d", ws.Tabs[0].ID, ws.Tabs[0].Order)
+	}
+	if ws.Tabs[1].Order != 1 {
+		t.Errorf("Expected second tab order to be 1, got %d", ws.Tabs[1].Order)
+	}
+	ws.mu.RUnlock()
+
+	// Duplicate IDs should fail validation
+	duplicateTabs := []tabMeta{
+		{ID: "tab-dup", Label: "Dup", ColorID: "sky"},
+		{ID: "tab-dup", Label: "Dup2", ColorID: "emerald"},
+	}
+	err = ws.updateState("tab-dup", duplicateTabs)
+	if err == nil {
+		t.Fatal("Expected duplicate tab IDs to return validation error")
+	}
+	if _, ok := err.(workspaceValidationError); !ok {
+		t.Fatalf("Expected workspaceValidationError, got %T", err)
+	}
+
+	// Active tab must exist within payload
+	missingActiveTabs := []tabMeta{{ID: "tab-a"}}
+	err = ws.updateState("tab-missing", missingActiveTabs)
+	if err == nil {
+		t.Fatal("Expected missing active tab to return validation error")
+	}
+	if _, ok := err.(workspaceValidationError); !ok {
+		t.Fatalf("Expected workspaceValidationError for missing active tab, got %T", err)
+	}
+}
+
 func TestWorkspacePersistence(t *testing.T) {
 	tmpDir := t.TempDir()
 	storagePath := filepath.Join(tmpDir, "workspace.json")

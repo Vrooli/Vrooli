@@ -27,7 +27,6 @@ import { debugLog } from './debug.js'
 import { showToast } from './notifications.js'
 import {
   getActiveTab,
-  findTab,
   renderTabs,
   applyTabAppearance,
   getDetachedTabs,
@@ -646,16 +645,32 @@ export async function handleSignOutAllSessions() {
   const button = elements.signOutAllSessions
   if (!button || button.dataset.busy === 'true') return
 
-  const sessions = state.tabs.filter((tab) => tab.session && tab.phase !== 'closed')
-  if (sessions.length === 0) {
+  const attachedTabs = state.tabs.filter((tab) => tab.session && tab.phase !== 'closed')
+  const attachedSessionIds = new Set(attachedTabs.map((tab) => tab.session.id))
+  const apiSessions = Array.isArray(state.sessions.items) ? state.sessions.items : []
+  const detachedSessions = apiSessions.filter(
+    (session) => session && typeof session.id === 'string' && !attachedSessionIds.has(session.id)
+  )
+
+  const totalSessions = attachedTabs.length + detachedSessions.length
+  if (totalSessions === 0) {
     button.blur()
+    await showToast('No active sessions to sign out.', 'info', 2200)
     return
   }
 
-  const confirmMessage =
-    sessions.length === 1
-      ? 'Sign out the active session? This will close the terminal.'
-      : `Sign out all ${sessions.length} sessions? This will close every terminal.`
+  let confirmMessage
+  if (totalSessions === 1) {
+    confirmMessage = 'Sign out the active session? This will close the terminal.'
+  } else if (detachedSessions.length > 0 && attachedTabs.length > 0) {
+    confirmMessage = `Sign out all ${totalSessions} sessions? (${detachedSessions.length} detached)`
+  } else if (detachedSessions.length > 0) {
+    confirmMessage = detachedSessions.length === 1
+      ? 'Sign out the detached session? This will terminate the remote shell.'
+      : `Sign out all ${detachedSessions.length} detached sessions?`
+  } else {
+    confirmMessage = `Sign out all ${totalSessions} sessions? This will close every terminal.`
+  }
   if (!window.confirm(confirmMessage)) {
     return
   }
@@ -666,7 +681,7 @@ export async function handleSignOutAllSessions() {
   button.disabled = true
   button.textContent = 'Signing out…'
 
-  sessions.forEach((tab) => {
+  attachedTabs.forEach((tab) => {
     appendEvent(tab, 'session-stop-all-requested', { id: tab.session.id })
     setTabPhase(tab, 'closing')
     const socketOpen = tab.socket && tab.socket.readyState === WebSocket.OPEN
@@ -695,9 +710,9 @@ export async function handleSignOutAllSessions() {
     const eventPayload =
       payload && typeof payload === 'object'
         ? payload
-        : { status: 'terminating_all', terminated: sessions.length }
+        : { status: 'terminating_all', terminated: totalSessions }
 
-    sessions.forEach((tab) => {
+    attachedTabs.forEach((tab) => {
       appendEvent(tab, 'session-stop-all', eventPayload)
       if (tab.socket) {
         try {
@@ -708,13 +723,20 @@ export async function handleSignOutAllSessions() {
       }
     })
     queueSessionOverviewRefresh(250)
+
+    if (detachedSessions.length > 0 && totalSessions > attachedTabs.length) {
+      const message = detachedSessions.length === 1
+        ? 'Requested sign out for the detached session.'
+        : `Requested sign out for ${detachedSessions.length} detached sessions.`
+      await showToast(message, 'info', 2400)
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to sign out sessions'
     const activeTab = getActiveTab()
     if (activeTab) {
       showError(activeTab, message)
     }
-    sessions.forEach((tab) => {
+    attachedTabs.forEach((tab) => {
       appendEvent(tab, 'session-stop-all-error', error)
       if (tab.phase === 'closing') {
         setTabPhase(tab, tab.session ? 'running' : 'idle')
@@ -792,8 +814,11 @@ export function updateSessionActions() {
     if (signOutButton.dataset.busy === 'true') {
       signOutButton.disabled = true
     } else {
-      const hasActiveSessions = state.tabs.some((entry) => entry.session && entry.phase !== 'closed')
-      signOutButton.disabled = !hasActiveSessions
+      const hasLocalSessions = state.tabs.some((entry) => entry.session && entry.phase !== 'closed')
+      const remoteSessionCount = Array.isArray(state.sessions.items)
+        ? state.sessions.items.filter((session) => session && typeof session.id === 'string').length
+        : 0
+      signOutButton.disabled = !hasLocalSessions && remoteSessionCount === 0
     }
   }
 

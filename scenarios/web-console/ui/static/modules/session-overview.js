@@ -3,12 +3,18 @@ import { getDetachedTabs, getActiveTab } from './tab-manager.js'
 import { proxyToApi, formatRelativeTimestamp, formatAbsoluteTime } from './utils.js'
 
 let updateActionsCallback = null
+let closeSessionCallback = null
+let focusTabCallback = null
 const relativeTimeFormatter = typeof Intl !== 'undefined' && typeof Intl.RelativeTimeFormat === 'function'
   ? new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
   : null
+let listHandlersBound = false
 
-export function configureSessionOverview({ updateSessionActions } = {}) {
+export function configureSessionOverview({ updateSessionActions, closeSessionById, focusSessionTab } = {}) {
   updateActionsCallback = typeof updateSessionActions === 'function' ? updateSessionActions : null
+  closeSessionCallback = typeof closeSessionById === 'function' ? closeSessionById : null
+  focusTabCallback = typeof focusSessionTab === 'function' ? focusSessionTab : null
+  bindSessionOverviewEvents()
 }
 
 export function setSessionOverviewLoading(isLoading) {
@@ -131,9 +137,66 @@ if (typeof window !== 'undefined') {
   })
 }
 
+function bindSessionOverviewEvents() {
+  if (listHandlersBound) return
+  const listEl = elements.sessionOverviewList
+  if (!listEl) return
+  listEl.addEventListener('click', handleSessionOverviewClick)
+  listHandlersBound = true
+}
+
+function handleSessionOverviewClick(event) {
+  const target = event.target
+  if (!(target instanceof HTMLElement)) {
+    return
+  }
+
+  const closeButton = target.closest('button[data-session-close="true"]')
+  if (closeButton instanceof HTMLButtonElement) {
+    const sessionId = closeButton.dataset.sessionId || ''
+    if (!sessionId || closeButton.dataset.busy === 'true') {
+      event.stopPropagation()
+      event.preventDefault()
+      return
+    }
+
+    closeButton.dataset.busy = 'true'
+    closeButton.disabled = true
+    closeButton.setAttribute('aria-busy', 'true')
+
+    const maybePromise = closeSessionCallback ? closeSessionCallback(sessionId) : null
+    Promise.resolve(maybePromise).catch((error) => {
+      console.error('Failed to close session from overview:', error)
+    }).finally(() => {
+      if (closeButton.isConnected) {
+        delete closeButton.dataset.busy
+        closeButton.disabled = false
+        closeButton.removeAttribute('aria-busy')
+      }
+    })
+
+    event.stopPropagation()
+    event.preventDefault()
+    return
+  }
+
+  const item = target.closest('li[data-session-id]')
+  if (!(item instanceof HTMLElement)) {
+    return
+  }
+
+  const tabId = item.dataset.tabId || ''
+  if (!tabId || !focusTabCallback) {
+    return
+  }
+
+  focusTabCallback(tabId, item.dataset.sessionId || '')
+}
+
 export function renderSessionOverview() {
   const listEl = elements.sessionOverviewList
   if (!listEl) return
+  bindSessionOverviewEvents()
 
   const apiSessions = Array.isArray(state.sessions.items) ? state.sessions.items.slice() : []
   const sessionMap = new Map()
@@ -234,6 +297,8 @@ export function renderSessionOverview() {
         return
       }
 
+      li.dataset.sessionId = sessionId
+
       const idSpan = document.createElement('span')
       idSpan.className = 'session-overview-id'
       idSpan.textContent = sessionId.slice(0, 8)
@@ -248,13 +313,33 @@ export function renderSessionOverview() {
         li.dataset.sessionState = 'attached'
         const tabLabel = attachedTab.label || attachedTab.defaultLabel || attachedTab.id
         statusSpan.textContent = attachedTab.id === state.activeTabId ? 'Active tab' : `Attached (${tabLabel})`
+        li.dataset.tabId = attachedTab.id
+        li.classList.add('session-overview-clickable')
       } else {
         li.dataset.sessionState = 'orphaned'
         statusSpan.textContent = 'No tab attached'
         orphanCount += 1
+        li.removeAttribute('data-tab-id')
+        li.classList.remove('session-overview-clickable')
       }
 
-      header.appendChild(statusSpan)
+      const controls = document.createElement('div')
+      controls.className = 'session-overview-controls'
+      controls.appendChild(statusSpan)
+
+      const closeButton = document.createElement('button')
+      closeButton.type = 'button'
+      closeButton.className = 'session-overview-close'
+      closeButton.dataset.sessionClose = 'true'
+      closeButton.dataset.sessionId = sessionId
+      closeButton.setAttribute('aria-label', `Sign out session ${sessionId.slice(0, 8)}`)
+      closeButton.textContent = '\u00D7'
+      if (session.state === 'closed') {
+        closeButton.disabled = true
+      }
+      controls.appendChild(closeButton)
+
+      header.appendChild(controls)
       li.appendChild(header)
 
       if (session.command) {

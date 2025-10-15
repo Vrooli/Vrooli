@@ -5,20 +5,33 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
 
+type workspaceValidationError struct {
+	message string
+}
+
+func (e workspaceValidationError) Error() string {
+	return e.message
+}
+
+func newValidationError(format string, args ...any) error {
+	return workspaceValidationError{message: fmt.Sprintf(format, args...)}
+}
+
 // workspace represents the persisted layout and tab configuration
 type workspace struct {
-	mu                    sync.RWMutex
-	storagePath           string
-	ActiveTabID           string    `json:"activeTabId"`
-	Version               int64     `json:"version"`
-	Tabs                  []tabMeta `json:"tabs"`
-	KeyboardToolbarMode   string    `json:"keyboardToolbarMode,omitempty"` // "disabled", "floating", or "top"
-	broadcasters          map[chan workspaceEvent]struct{}
-	broadcasterMu         sync.RWMutex
+	mu                  sync.RWMutex
+	storagePath         string
+	ActiveTabID         string    `json:"activeTabId"`
+	Version             int64     `json:"version"`
+	Tabs                []tabMeta `json:"tabs"`
+	KeyboardToolbarMode string    `json:"keyboardToolbarMode,omitempty"` // "disabled", "floating", or "top"
+	broadcasters        map[chan workspaceEvent]struct{}
+	broadcasterMu       sync.RWMutex
 }
 
 // tabMeta represents a single tab's persistent state
@@ -59,9 +72,6 @@ func newWorkspace(storagePath string) (*workspace, error) {
 
 // load reads the workspace from disk
 func (ws *workspace) load() error {
-	ws.mu.Lock()
-	defer ws.mu.Unlock()
-
 	data, err := os.ReadFile(ws.storagePath)
 	if err != nil {
 		return err
@@ -78,11 +88,25 @@ func (ws *workspace) load() error {
 		return fmt.Errorf("parse workspace: %w", err)
 	}
 
+	ws.mu.Lock()
 	ws.ActiveTabID = loaded.ActiveTabID
 	ws.Version = loaded.Version
 	ws.Tabs = loaded.Tabs
 	if loaded.KeyboardToolbarMode != "" {
 		ws.KeyboardToolbarMode = loaded.KeyboardToolbarMode
+	}
+	ws.mu.Unlock()
+
+	updatedActive, sanitizedTabs, changed := sanitizeLoadedWorkspace(loaded.ActiveTabID, loaded.Tabs)
+	if changed {
+		ws.mu.Lock()
+		ws.ActiveTabID = updatedActive
+		ws.Tabs = sanitizedTabs
+		ws.mu.Unlock()
+		if err := ws.save(); err != nil {
+			return fmt.Errorf("repair workspace: %w", err)
+		}
+		fmt.Printf("[workspace] repaired persisted layout (deduped %d tabs)\n", len(loaded.Tabs)-len(sanitizedTabs))
 	}
 
 	return nil
@@ -149,9 +173,15 @@ func (ws *workspace) getState() ([]byte, error) {
 
 // updateState replaces the workspace state
 func (ws *workspace) updateState(activeTabID string, tabs []tabMeta) error {
+	normalizedActiveID := strings.TrimSpace(activeTabID)
+	normalizedTabs, err := validateWorkspaceTabs(normalizedActiveID, tabs)
+	if err != nil {
+		return err
+	}
+
 	ws.mu.Lock()
-	ws.ActiveTabID = activeTabID
-	ws.Tabs = tabs
+	ws.ActiveTabID = normalizedActiveID
+	ws.Tabs = normalizedTabs
 	ws.Version++
 	ws.mu.Unlock()
 
@@ -162,14 +192,14 @@ func (ws *workspace) updateState(activeTabID string, tabs []tabMeta) error {
 	ws.broadcast(workspaceEvent{
 		Type:      "workspace-full-update",
 		Timestamp: time.Now().UTC(),
-		Payload:   mustJSON(struct {
+		Payload: mustJSON(struct {
 			ActiveTabID string    `json:"activeTabId"`
 			Version     int64     `json:"version"`
 			Tabs        []tabMeta `json:"tabs"`
 		}{
-			ActiveTabID: activeTabID,
+			ActiveTabID: normalizedActiveID,
 			Version:     ws.Version,
-			Tabs:        tabs,
+			Tabs:        normalizedTabs,
 		}),
 	})
 
@@ -178,6 +208,10 @@ func (ws *workspace) updateState(activeTabID string, tabs []tabMeta) error {
 
 // addTab adds a new tab to the workspace
 func (ws *workspace) addTab(tab tabMeta) error {
+	tab.ID = strings.TrimSpace(tab.ID)
+	if tab.ID == "" {
+		return newValidationError("tab id is required")
+	}
 	ws.mu.Lock()
 	// Check for duplicate ID
 	for _, existingTab := range ws.Tabs {
@@ -202,6 +236,82 @@ func (ws *workspace) addTab(tab tabMeta) error {
 	})
 
 	return nil
+}
+
+func validateWorkspaceTabs(activeTabID string, tabs []tabMeta) ([]tabMeta, error) {
+	seen := make(map[string]struct{}, len(tabs))
+	normalized := make([]tabMeta, 0, len(tabs))
+
+	for _, tab := range tabs {
+		trimmedID := strings.TrimSpace(tab.ID)
+		if trimmedID == "" {
+			return nil, newValidationError("tab id is required")
+		}
+		if _, exists := seen[trimmedID]; exists {
+			return nil, newValidationError("duplicate tab id: %s", trimmedID)
+		}
+
+		seen[trimmedID] = struct{}{}
+		tab.ID = trimmedID
+		tab.Order = len(normalized)
+		normalized = append(normalized, tab)
+	}
+
+	if activeTabID != "" {
+		if _, ok := seen[activeTabID]; !ok {
+			return nil, newValidationError("active tab %s not present in workspace", activeTabID)
+		}
+	}
+
+	return normalized, nil
+}
+
+func sanitizeLoadedWorkspace(activeTabID string, tabs []tabMeta) (string, []tabMeta, bool) {
+	seen := make(map[string]struct{}, len(tabs))
+	sanitized := make([]tabMeta, 0, len(tabs))
+	changed := false
+
+	trimmedActive := strings.TrimSpace(activeTabID)
+
+	for _, tab := range tabs {
+		trimmedID := strings.TrimSpace(tab.ID)
+		if trimmedID == "" {
+			changed = true
+			continue
+		}
+		if _, exists := seen[trimmedID]; exists {
+			changed = true
+			continue
+		}
+		seen[trimmedID] = struct{}{}
+		if tab.ID != trimmedID {
+			changed = true
+		}
+		tab.ID = trimmedID
+		if tab.Order != len(sanitized) {
+			changed = true
+		}
+		tab.Order = len(sanitized)
+		sanitized = append(sanitized, tab)
+	}
+
+	if trimmedActive != "" {
+		if _, ok := seen[trimmedActive]; !ok {
+			trimmedActive = ""
+			changed = true
+		}
+	}
+
+	if trimmedActive == "" && len(sanitized) > 0 {
+		trimmedActive = sanitized[0].ID
+		changed = true
+	}
+
+	if trimmedActive != activeTabID {
+		changed = true
+	}
+
+	return trimmedActive, sanitized, changed
 }
 
 // updateTab modifies an existing tab
