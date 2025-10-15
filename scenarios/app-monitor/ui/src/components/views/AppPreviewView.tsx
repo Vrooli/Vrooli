@@ -65,9 +65,13 @@ const AppPreviewView = () => {
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [previewReloadToken, setPreviewReloadToken] = useState(0);
   const [previewOverlay, setPreviewOverlay] = useState<null | { type: 'restart' | 'waiting' | 'error'; message: string }>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLayoutFullscreen, setIsLayoutFullscreen] = useState(false);
   const [iframeLoadedAt, setIframeLoadedAt] = useState<number | null>(null);
   const [iframeLoadError, setIframeLoadError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const previewViewRef = useRef<HTMLDivElement | null>(null);
+  const [previewViewNode, setPreviewViewNode] = useState<HTMLDivElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
   const [proxyMetadata, setProxyMetadata] = useState<AppProxyMetadata | null>(null);
@@ -160,6 +164,58 @@ const AppPreviewView = () => {
       void loadApps();
     }
   }, [hasInitialized, loadApps, loadingInitial]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === previewViewRef.current);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    handleFullscreenChange();
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return () => {};
+    }
+
+    const className = 'app-preview-immersive';
+    const { body } = document;
+    if (isLayoutFullscreen) {
+      body.classList.add(className);
+    } else {
+      body.classList.remove(className);
+    }
+
+    return () => {
+      body.classList.remove(className);
+    };
+  }, [isLayoutFullscreen]);
+
+  useEffect(() => {
+    if (!isLayoutFullscreen) {
+      return () => {};
+    }
+
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsLayoutFullscreen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isLayoutFullscreen]);
 
   useEffect(() => {
     recordDebugEvent('preview-mount', {
@@ -1331,10 +1387,77 @@ const AppPreviewView = () => {
     setReportDialogOpen(false);
   }, []);
 
+  const handleToggleFullscreen = useCallback(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
 
+    const container = previewViewRef.current;
+    if (!container) {
+      return;
+    }
+
+    if (document.fullscreenElement === container) {
+      const exitFullscreen = typeof document.exitFullscreen === 'function'
+        ? document.exitFullscreen.bind(document)
+        : null;
+      if (exitFullscreen) {
+        exitFullscreen().catch(error => {
+          logger.error('Failed to exit fullscreen preview', error);
+        });
+      }
+      return;
+    }
+
+    if (isLayoutFullscreen) {
+      setIsLayoutFullscreen(false);
+      return;
+    }
+
+    const enterNativeFullscreen = () => {
+      if (typeof container.requestFullscreen === 'function') {
+        return container.requestFullscreen();
+      }
+      return Promise.reject(new Error('Fullscreen API unavailable'));
+    };
+
+    if (document.fullscreenElement && document.fullscreenElement !== container) {
+      const exitFullscreen = typeof document.exitFullscreen === 'function'
+        ? document.exitFullscreen.bind(document)
+        : null;
+      if (exitFullscreen) {
+        exitFullscreen()
+          .then(() => enterNativeFullscreen().catch(error => {
+            logger.error('Failed to enter fullscreen preview after releasing existing element', error);
+            setIsLayoutFullscreen(true);
+          }))
+          .catch(error => {
+            logger.error('Failed to switch fullscreen element', error);
+            setIsLayoutFullscreen(true);
+          });
+        return;
+      }
+      setIsLayoutFullscreen(true);
+      return;
+    }
+
+    enterNativeFullscreen()
+      .catch(error => {
+        logger.error('Fullscreen API unavailable or failed; falling back to immersive layout', error);
+        setIsLayoutFullscreen(true);
+      });
+  }, [isLayoutFullscreen, logger]);
+
+  const isFullView = isFullscreen || isLayoutFullscreen;
 
   return (
-    <div className="app-preview-view">
+    <div
+      className={clsx('app-preview-view', isLayoutFullscreen && 'app-preview-view--immersive')}
+      ref={node => {
+        previewViewRef.current = node;
+        setPreviewViewNode(node);
+      }}
+    >
       <AppPreviewToolbar
         canGoBack={canGoBack}
         canGoForward={canGoForward}
@@ -1363,6 +1486,9 @@ const AppPreviewView = () => {
         onViewLogs={handleViewLogs}
         onReportIssue={handleOpenReportDialog}
         appStatusLabel={appStatusLabel}
+        isFullView={isFullView}
+        onToggleFullView={handleToggleFullscreen}
+        menuPortalContainer={previewViewNode}
       />
 
       {bridgeIssueMessage && !bridgeMessageDismissed && (

@@ -5,6 +5,37 @@
   min-height: 0;
 }
 
+.app-preview-view--immersive {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2400;
+  background: var(--matrix-bg, #01130c);
+}
+
+.app-preview-view--immersive .preview-iframe-container {
+  flex: 1;
+}
+
+body.app-preview-immersive {
+  overflow: hidden;
+}
+
+body.app-preview-immersive .main-header,
+body.app-preview-immersive .sidebar,
+body.app-preview-immersive .sidebar-backdrop {
+  display: none !important;
+}
+
+body.app-preview-immersive .dashboard {
+  min-height: 100vh;
+}
+
+body.app-preview-immersive .main-content {
+  padding: 0 !important;
+}
+
 .spinning {
   animation: preview-spin 1s linear infinite;
 }

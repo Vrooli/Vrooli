@@ -10,6 +10,8 @@ import {
   ExternalLink,
   Info,
   Loader2,
+  Maximize2,
+  Minimize2,
   Power,
   RefreshCw,
   RotateCcw,
@@ -51,6 +53,9 @@ export interface AppPreviewToolbarProps {
   onViewLogs: () => void;
   onReportIssue: () => void;
   appStatusLabel: string;
+  isFullView: boolean;
+  onToggleFullView: () => void;
+  menuPortalContainer: HTMLElement | null;
 }
 
 const AppPreviewToolbar = ({
@@ -81,6 +86,9 @@ const AppPreviewToolbar = ({
   onReportIssue,
   appStatusLabel,
   hasDetailsWarning,
+  isFullView,
+  onToggleFullView,
+  menuPortalContainer,
 }: AppPreviewToolbarProps) => {
   const [lifecycleMenuOpen, setLifecycleMenuOpen] = useState(false);
   const [devMenuOpen, setDevMenuOpen] = useState(false);
@@ -141,7 +149,10 @@ const AppPreviewToolbar = ({
     ? 'Application details (localhost references detected)'
     : 'Application details';
 
+  const fullscreenActionLabel = isFullView ? 'Exit full view' : 'Enter full view';
+
   const isBrowser = typeof document !== 'undefined';
+  const portalHost = isBrowser ? (menuPortalContainer ?? document.body) : null;
 
   useEffect(() => {
     if (lifecycleMenuOpen && lifecycleFirstItemRef.current) {
@@ -309,6 +320,11 @@ const AppPreviewToolbar = ({
     closeMenus();
   }, [closeMenus, onReportIssue]);
 
+  const handleToggleFullscreen = useCallback(() => {
+    onToggleFullView();
+    closeMenus();
+  }, [closeMenus, onToggleFullView]);
+
   return (
     <div className="preview-toolbar">
       <div className="preview-toolbar__group preview-toolbar__group--left">
@@ -435,7 +451,7 @@ const AppPreviewToolbar = ({
               <Power aria-hidden size={18} />
             )}
           </button>
-          {isBrowser && lifecycleMenuOpen && lifecycleMenuStyle && createPortal(
+          {portalHost && lifecycleMenuOpen && lifecycleMenuStyle && createPortal(
             <div
               className="preview-toolbar__menu-popover"
               role="menu"
@@ -468,7 +484,7 @@ const AppPreviewToolbar = ({
                 <span>{restartActionLabel}</span>
               </button>
             </div>,
-            document.body,
+            portalHost,
           )}
         </div>
         <div
@@ -492,7 +508,7 @@ const AppPreviewToolbar = ({
           >
             <Wrench aria-hidden size={18} />
           </button>
-          {isBrowser && devMenuOpen && devMenuStyle && createPortal(
+          {portalHost && devMenuOpen && devMenuStyle && createPortal(
             <div
               className="preview-toolbar__menu-popover"
               role="menu"
@@ -503,6 +519,20 @@ const AppPreviewToolbar = ({
                 type="button"
                 role="menuitem"
                 ref={devFirstItemRef}
+                className="preview-toolbar__menu-item"
+                onClick={handleToggleFullscreen}
+                disabled={!hasCurrentApp}
+              >
+                {isFullView ? (
+                  <Minimize2 aria-hidden size={16} />
+                ) : (
+                  <Maximize2 aria-hidden size={16} />
+                )}
+                <span>{fullscreenActionLabel}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
                 className="preview-toolbar__menu-item"
                 onClick={handleViewLogs}
                 disabled={!hasCurrentApp}
@@ -521,7 +551,7 @@ const AppPreviewToolbar = ({
                 <span>Report an issue</span>
               </button>
             </div>,
-            document.body,
+            portalHost,
           )}
         </div>
       </div>
