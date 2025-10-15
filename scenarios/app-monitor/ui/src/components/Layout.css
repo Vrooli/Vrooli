@@ -123,11 +123,9 @@
 }
 
 .history-menu__panel {
-  position: absolute;
-  top: calc(100% + 0.6rem);
-  right: 0;
+  position: fixed;
   min-width: 260px;
-  max-width: min(320px, 80vw);
+  max-width: min(320px, calc(100vw - 24px));
   max-height: 340px;
   padding: 0.75rem;
   border-radius: 10px;
@@ -136,7 +134,7 @@
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(6px);
   overflow: hidden;
-  z-index: 30;
+  z-index: 1200;
 }
 
 .history-menu__header {
@@ -204,14 +202,6 @@
 
 .history-menu__item:focus-visible {
   box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.25);
-}
-
-@media (max-width: 640px) {
-  .history-menu__panel {
-    right: auto;
-    left: 0;
-    min-width: min(280px, 85vw);
-  }
 }
 
 .status-bar {
@@ -291,6 +281,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  position: relative;
 }
 
 .sidebar.collapsed {
@@ -387,7 +378,9 @@
 }
 
 .quick-actions {
-  margin-top: 2rem;
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--matrix-border);
 }
 
 .action-btn {
@@ -475,7 +468,7 @@
     padding: 1.5rem 1rem;
     gap: 1.25rem;
     overflow-y: auto;
-    z-index: 30;
+    z-index: 2000;
   }
 
   .sidebar.mobile-open {
@@ -486,15 +479,15 @@
     width: min(280px, 90vw);
   }
 
-  .sidebar.collapsed .menu-section h3,
-  .sidebar.collapsed .quick-actions h3,
-  .sidebar.collapsed .menu-label,
-  .sidebar.collapsed .action-label {
+  .sidebar.mobile-open .menu-section h3,
+  .sidebar.mobile-open .quick-actions h3,
+  .sidebar.mobile-open .menu-label,
+  .sidebar.mobile-open .action-label {
     display: block;
   }
 
-  .sidebar.collapsed .menu-item,
-  .sidebar.collapsed .action-btn {
+  .sidebar.mobile-open .menu-item,
+  .sidebar.mobile-open .action-btn {
     justify-content: flex-start;
   }
 
@@ -509,7 +502,7 @@
     inset: 0;
     background: rgba(2, 8, 4, 0.65);
     cursor: pointer;
-    z-index: 25;
+    z-index: 1900;
   }
 
   .sidebar-backdrop:focus-visible {

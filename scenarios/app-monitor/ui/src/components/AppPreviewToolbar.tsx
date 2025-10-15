@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import type { ChangeEvent, CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import clsx from 'clsx';
 import {
   ArrowLeft,
@@ -16,6 +17,8 @@ import {
 } from 'lucide-react';
 
 import './AppPreviewToolbar.css';
+
+const MENU_OFFSET = 8;
 
 export type AppPreviewToolbarPendingAction = 'start' | 'stop' | 'restart' | null;
 
@@ -80,8 +83,58 @@ const AppPreviewToolbar = ({
   const [devMenuOpen, setDevMenuOpen] = useState(false);
   const lifecycleMenuRef = useRef<HTMLDivElement | null>(null);
   const devMenuRef = useRef<HTMLDivElement | null>(null);
+  const lifecycleButtonRef = useRef<HTMLButtonElement | null>(null);
+  const devButtonRef = useRef<HTMLButtonElement | null>(null);
+  const lifecyclePopoverRef = useRef<HTMLDivElement | null>(null);
+  const devPopoverRef = useRef<HTMLDivElement | null>(null);
   const lifecycleFirstItemRef = useRef<HTMLButtonElement | null>(null);
   const devFirstItemRef = useRef<HTMLButtonElement | null>(null);
+  const [lifecycleAnchorRect, setLifecycleAnchorRect] = useState<DOMRect | null>(null);
+  const [devAnchorRect, setDevAnchorRect] = useState<DOMRect | null>(null);
+
+  const updateLifecycleAnchor = useCallback(() => {
+    const button = lifecycleButtonRef.current;
+    if (!button) {
+      setLifecycleAnchorRect(null);
+      return;
+    }
+    setLifecycleAnchorRect(button.getBoundingClientRect());
+  }, []);
+
+  const updateDevAnchor = useCallback(() => {
+    const button = devButtonRef.current;
+    if (!button) {
+      setDevAnchorRect(null);
+      return;
+    }
+    setDevAnchorRect(button.getBoundingClientRect());
+  }, []);
+
+  const lifecycleMenuStyle = useMemo<CSSProperties | undefined>(() => {
+    if (!lifecycleAnchorRect) {
+      return undefined;
+    }
+
+    return {
+      top: `${Math.round(lifecycleAnchorRect.bottom + MENU_OFFSET)}px`,
+      left: `${Math.round(lifecycleAnchorRect.right)}px`,
+      transform: 'translateX(-100%)',
+    };
+  }, [lifecycleAnchorRect]);
+
+  const devMenuStyle = useMemo<CSSProperties | undefined>(() => {
+    if (!devAnchorRect) {
+      return undefined;
+    }
+
+    return {
+      top: `${Math.round(devAnchorRect.bottom + MENU_OFFSET)}px`,
+      left: `${Math.round(devAnchorRect.right)}px`,
+      transform: 'translateX(-100%)',
+    };
+  }, [devAnchorRect]);
+
+  const isBrowser = typeof document !== 'undefined';
 
   useEffect(() => {
     if (lifecycleMenuOpen && lifecycleFirstItemRef.current) {
@@ -96,6 +149,46 @@ const AppPreviewToolbar = ({
   }, [devMenuOpen]);
 
   useEffect(() => {
+    if (!lifecycleMenuOpen) {
+      return;
+    }
+
+    updateLifecycleAnchor();
+
+    const handleResizeOrScroll = () => {
+      updateLifecycleAnchor();
+    };
+
+    window.addEventListener('resize', handleResizeOrScroll);
+    window.addEventListener('scroll', handleResizeOrScroll, true);
+
+    return () => {
+      window.removeEventListener('resize', handleResizeOrScroll);
+      window.removeEventListener('scroll', handleResizeOrScroll, true);
+    };
+  }, [lifecycleMenuOpen, updateLifecycleAnchor]);
+
+  useEffect(() => {
+    if (!devMenuOpen) {
+      return;
+    }
+
+    updateDevAnchor();
+
+    const handleResizeOrScroll = () => {
+      updateDevAnchor();
+    };
+
+    window.addEventListener('resize', handleResizeOrScroll);
+    window.addEventListener('scroll', handleResizeOrScroll, true);
+
+    return () => {
+      window.removeEventListener('resize', handleResizeOrScroll);
+      window.removeEventListener('scroll', handleResizeOrScroll, true);
+    };
+  }, [devMenuOpen, updateDevAnchor]);
+
+  useEffect(() => {
     if (!lifecycleMenuOpen && !devMenuOpen) {
       return () => {};
     }
@@ -103,15 +196,31 @@ const AppPreviewToolbar = ({
     const handlePointerDown = (event: globalThis.MouseEvent | globalThis.TouchEvent) => {
       const target = event.target as Node | null;
       if (lifecycleMenuOpen) {
-        const menu = lifecycleMenuRef.current;
-        if (menu && !menu.contains(target)) {
+        const menuContainer = lifecycleMenuRef.current;
+        const popover = lifecyclePopoverRef.current;
+        const button = lifecycleButtonRef.current;
+        const isInside = Boolean(
+          (menuContainer && target && menuContainer.contains(target)) ||
+          (popover && target && popover.contains(target)) ||
+          (button && target && button.contains(target))
+        );
+        if (!isInside) {
           setLifecycleMenuOpen(false);
+          setLifecycleAnchorRect(null);
         }
       }
       if (devMenuOpen) {
-        const menu = devMenuRef.current;
-        if (menu && !menu.contains(target)) {
+        const menuContainer = devMenuRef.current;
+        const popover = devPopoverRef.current;
+        const button = devButtonRef.current;
+        const isInside = Boolean(
+          (menuContainer && target && menuContainer.contains(target)) ||
+          (popover && target && popover.contains(target)) ||
+          (button && target && button.contains(target))
+        );
+        if (!isInside) {
           setDevMenuOpen(false);
+          setDevAnchorRect(null);
         }
       }
     };
@@ -121,7 +230,9 @@ const AppPreviewToolbar = ({
         if (lifecycleMenuOpen || devMenuOpen) {
           event.stopPropagation();
           setLifecycleMenuOpen(false);
+          setLifecycleAnchorRect(null);
           setDevMenuOpen(false);
+          setDevAnchorRect(null);
         }
       }
     };
@@ -140,17 +251,37 @@ const AppPreviewToolbar = ({
   const closeMenus = useCallback(() => {
     setLifecycleMenuOpen(false);
     setDevMenuOpen(false);
+    setLifecycleAnchorRect(null);
+    setDevAnchorRect(null);
   }, []);
 
   const handleToggleLifecycleMenu = useCallback(() => {
-    setLifecycleMenuOpen(prev => !prev);
-    setDevMenuOpen(false);
-  }, []);
+    const next = !lifecycleMenuOpen;
+    setLifecycleMenuOpen(next);
+    if (next) {
+      updateLifecycleAnchor();
+    } else {
+      setLifecycleAnchorRect(null);
+    }
+    if (devMenuOpen) {
+      setDevMenuOpen(false);
+      setDevAnchorRect(null);
+    }
+  }, [devMenuOpen, lifecycleMenuOpen, updateLifecycleAnchor]);
 
   const handleToggleDevMenu = useCallback(() => {
-    setDevMenuOpen(prev => !prev);
-    setLifecycleMenuOpen(false);
-  }, []);
+    const next = !devMenuOpen;
+    setDevMenuOpen(next);
+    if (next) {
+      updateDevAnchor();
+    } else {
+      setDevAnchorRect(null);
+    }
+    if (lifecycleMenuOpen) {
+      setLifecycleMenuOpen(false);
+      setLifecycleAnchorRect(null);
+    }
+  }, [devMenuOpen, lifecycleMenuOpen, updateDevAnchor]);
 
   const handleLifecycleAction = useCallback((action: 'toggle' | 'restart') => {
     if (action === 'toggle') {
@@ -203,6 +334,16 @@ const AppPreviewToolbar = ({
           title={isRefreshing ? 'Refreshing...' : 'Refresh'}
         >
           <RefreshCw aria-hidden size={18} className={clsx({ spinning: isRefreshing })} />
+        </button>
+        <button
+          type="button"
+          className="preview-toolbar__icon-btn preview-toolbar__details-btn--mobile"
+          onClick={onOpenDetails}
+          disabled={!hasCurrentApp}
+          aria-label="Application details"
+          title="Application details"
+        >
+          <Info aria-hidden size={18} />
         </button>
       </div>
       <div className="preview-toolbar__title">
@@ -258,6 +399,7 @@ const AppPreviewToolbar = ({
               (pendingAction === 'start' || pendingAction === 'stop') && 'preview-toolbar__icon-btn--waiting',
               lifecycleMenuOpen && 'preview-toolbar__icon-btn--active',
             )}
+            ref={lifecycleButtonRef}
             onClick={handleToggleLifecycleMenu}
             disabled={!hasCurrentApp || actionInProgress}
             aria-haspopup="menu"
@@ -271,8 +413,13 @@ const AppPreviewToolbar = ({
               <Power aria-hidden size={18} />
             )}
           </button>
-          {lifecycleMenuOpen && (
-            <div className="preview-toolbar__menu-popover" role="menu">
+          {isBrowser && lifecycleMenuOpen && lifecycleMenuStyle && createPortal(
+            <div
+              className="preview-toolbar__menu-popover"
+              role="menu"
+              ref={lifecyclePopoverRef}
+              style={lifecycleMenuStyle}
+            >
               <button
                 type="button"
                 role="menuitem"
@@ -298,7 +445,8 @@ const AppPreviewToolbar = ({
                 )}
                 <span>{restartActionLabel}</span>
               </button>
-            </div>
+            </div>,
+            document.body,
           )}
         </div>
         <div
@@ -312,6 +460,7 @@ const AppPreviewToolbar = ({
               'preview-toolbar__icon-btn--dev',
               devMenuOpen && 'preview-toolbar__icon-btn--active',
             )}
+            ref={devButtonRef}
             onClick={handleToggleDevMenu}
             disabled={!hasCurrentApp}
             aria-haspopup="menu"
@@ -321,8 +470,13 @@ const AppPreviewToolbar = ({
           >
             <Wrench aria-hidden size={18} />
           </button>
-          {devMenuOpen && (
-            <div className="preview-toolbar__menu-popover" role="menu">
+          {isBrowser && devMenuOpen && devMenuStyle && createPortal(
+            <div
+              className="preview-toolbar__menu-popover"
+              role="menu"
+              ref={devPopoverRef}
+              style={devMenuStyle}
+            >
               <button
                 type="button"
                 role="menuitem"
@@ -344,7 +498,8 @@ const AppPreviewToolbar = ({
                 <Bug aria-hidden size={16} />
                 <span>Report an issue</span>
               </button>
-            </div>
+            </div>,
+            document.body,
           )}
         </div>
       </div>

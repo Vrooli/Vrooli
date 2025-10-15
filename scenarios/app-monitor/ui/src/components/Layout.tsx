@@ -1,5 +1,6 @@
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import type { LucideIcon } from 'lucide-react';
@@ -43,6 +44,8 @@ const formatSecondsToDuration = (seconds: number): string => {
 };
 
 const HISTORY_LIMIT = 8;
+const HISTORY_MENU_OFFSET = 10;
+const HISTORY_MENU_MARGIN = 12;
 
 const parseTimestampValue = (value?: string | null): number | null => {
   if (!value) {
@@ -161,6 +164,51 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   const historyButtonRef = useRef<HTMLButtonElement | null>(null);
   const historyMenuRef = useRef<HTMLDivElement | null>(null);
   const historyItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [historyMenuCoords, setHistoryMenuCoords] = useState<{ top: number; left: number } | null>(null);
+  const isBrowser = typeof document !== 'undefined';
+
+  const updateHistoryMenuPosition = useCallback(() => {
+    if (!isBrowser) {
+      return;
+    }
+
+    const button = historyButtonRef.current;
+    const menu = historyMenuRef.current;
+    if (!button || !menu) {
+      return;
+    }
+
+    const buttonRect = button.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const menuWidth = menuRect.width || menu.offsetWidth;
+    const viewportWidth = window.innerWidth;
+
+    const idealLeft = buttonRect.right - menuWidth;
+    const minLeft = HISTORY_MENU_MARGIN;
+    const maxLeft = Math.max(minLeft, viewportWidth - menuWidth - HISTORY_MENU_MARGIN);
+    const clampedLeft = Math.min(Math.max(idealLeft, minLeft), maxLeft);
+
+    const top = Math.round(buttonRect.bottom + HISTORY_MENU_OFFSET);
+    const left = Math.round(clampedLeft);
+
+    setHistoryMenuCoords({ top, left });
+  }, [isBrowser]);
+
+  const historyMenuStyle = useMemo<CSSProperties>(() => {
+    if (!historyMenuCoords) {
+      return {
+        top: '-9999px',
+        left: '-9999px',
+        visibility: 'hidden',
+      };
+    }
+
+    return {
+      top: `${historyMenuCoords.top}px`,
+      left: `${historyMenuCoords.left}px`,
+      visibility: 'visible',
+    };
+  }, [historyMenuCoords]);
   const recordRouteDebug = useCallback((event: string, detail?: Record<string, unknown>) => {
     try {
       const payload = {
@@ -422,6 +470,7 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   useEffect(() => {
     if (!shouldShowHistory && isHistoryMenuOpen) {
       setIsHistoryMenuOpen(false);
+      setHistoryMenuCoords(null);
     }
   }, [isHistoryMenuOpen, shouldShowHistory]);
 
@@ -446,12 +495,14 @@ export default function Layout({ children, isConnected }: LayoutProps) {
       }
 
       setIsHistoryMenuOpen(false);
+      setHistoryMenuCoords(null);
     };
 
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
         setIsHistoryMenuOpen(false);
+        setHistoryMenuCoords(null);
         historyButtonRef.current?.focus();
       }
     };
@@ -495,6 +546,7 @@ export default function Layout({ children, isConnected }: LayoutProps) {
 
   useEffect(() => {
     setIsHistoryMenuOpen(false);
+    setHistoryMenuCoords(null);
   }, [previewRouteInfo.identifier]);
 
   const toggleSidebar = () => {
@@ -595,6 +647,7 @@ export default function Layout({ children, isConnected }: LayoutProps) {
     const identifier = resolveAppIdentifier(app);
     setIsHistoryMenuOpen(false);
     setHistoryActiveIndex(null);
+    setHistoryMenuCoords(null);
 
     if (!identifier) {
       historyButtonRef.current?.focus();
@@ -640,6 +693,7 @@ export default function Layout({ children, isConnected }: LayoutProps) {
     if (event.key === 'Escape') {
       event.preventDefault();
       setIsHistoryMenuOpen(false);
+      setHistoryMenuCoords(null);
       historyButtonRef.current?.focus();
     }
   };
@@ -722,6 +776,30 @@ export default function Layout({ children, isConnected }: LayoutProps) {
     };
   }, [shouldTick]);
 
+  useEffect(() => {
+    if (!isHistoryMenuOpen) {
+      setHistoryMenuCoords(null);
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      updateHistoryMenuPosition();
+    });
+
+    const handleResizeOrScroll = () => {
+      updateHistoryMenuPosition();
+    };
+
+    window.addEventListener('resize', handleResizeOrScroll);
+    window.addEventListener('scroll', handleResizeOrScroll, true);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', handleResizeOrScroll);
+      window.removeEventListener('scroll', handleResizeOrScroll, true);
+    };
+  }, [isHistoryMenuOpen, recentApps.length, updateHistoryMenuPosition]);
+
   return (
     <>
       <header className="main-header">
@@ -763,12 +841,13 @@ export default function Layout({ children, isConnected }: LayoutProps) {
                     >
                       <History aria-hidden className="history-toggle__icon" />
                     </button>
-                    {isHistoryMenuOpen && (
+                    {isBrowser && isHistoryMenuOpen && createPortal(
                       <div
                         className="history-menu__panel"
                         role="menu"
                         aria-label="Recently viewed scenarios"
                         ref={historyMenuRef}
+                        style={historyMenuStyle}
                       >
                         <div className="history-menu__header">Recently viewed</div>
                         <ul className="history-menu__list">
@@ -810,7 +889,8 @@ export default function Layout({ children, isConnected }: LayoutProps) {
                             );
                           })}
                         </ul>
-                      </div>
+                      </div>,
+                      document.body,
                     )}
                   </div>
                 )}
