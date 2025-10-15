@@ -94,6 +94,30 @@ export interface ReportIssuePayload {
   networkCapturedAt?: string | null;
 }
 
+export interface ScenarioIssueSummary {
+  id: string;
+  title: string;
+  status: string;
+  priority?: string;
+  created_at?: string;
+  updated_at?: string;
+  reporter?: string;
+  issue_url?: string;
+}
+
+export interface ScenarioIssuesSummary {
+  scenario?: string;
+  app_id?: string;
+  issues?: ScenarioIssueSummary[];
+  open_count?: number;
+  active_count?: number;
+  total_count?: number;
+  tracker_url?: string;
+  last_fetched?: string;
+  from_cache?: boolean;
+  stale?: boolean;
+}
+
 // App Management
 export const appService = {
   // Get fast-loading summaries
@@ -125,6 +149,30 @@ export const appService = {
       return data?.data ?? null;
     } catch (error) {
       logger.error(`Failed to fetch app ${id}`, error);
+      return null;
+    }
+  },
+
+  async getScenarioIssues(appId: string): Promise<ScenarioIssuesSummary | null> {
+    const trimmed = appId.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    try {
+      const { data } = await api.get<ApiResponse<ScenarioIssuesSummary>>(
+        `/apps/${encodeURIComponent(trimmed)}/issues`,
+      );
+      if (data?.success === false) {
+        logger.warn('Issue tracker responded with error', data?.error || data?.message);
+        return null;
+      }
+      if (!data?.data) {
+        return null;
+      }
+      return data.data;
+    } catch (error) {
+      logger.error(`Failed to load existing issues for ${trimmed}`, error);
       return null;
     }
   },

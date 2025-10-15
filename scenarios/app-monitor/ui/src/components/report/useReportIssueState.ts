@@ -22,6 +22,7 @@ import type {
   ReportIssueConsoleLogEntry,
   ReportIssueNetworkEntry,
   ReportIssuePayload,
+  ScenarioIssueSummary,
 } from '@/services/api';
 import { logger } from '@/services/logger';
 import type { App, BridgeRuleReport } from '@/types';
@@ -134,6 +135,51 @@ interface ReportNetworkState {
   fetch: () => void;
 }
 
+type ExistingIssuesStateInternal = {
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  issues: ScenarioIssueSummary[];
+  openCount: number;
+  activeCount: number;
+  totalCount: number;
+  trackerUrl: string | null;
+  lastFetched: string | null;
+  stale: boolean;
+  error: string | null;
+  fromCache: boolean;
+  appId: string | null;
+};
+
+interface ReportExistingIssuesState {
+  status: ExistingIssuesStateInternal['status'];
+  issues: ScenarioIssueSummary[];
+  openCount: number;
+  activeCount: number;
+  totalCount: number;
+  trackerUrl: string | null;
+  lastFetched: string | null;
+  stale: boolean;
+  fromCache: boolean;
+  error: string | null;
+  refresh: () => void;
+}
+
+const createExistingIssuesState = (
+  overrides: Partial<ExistingIssuesStateInternal> = {},
+): ExistingIssuesStateInternal => ({
+  status: 'idle',
+  issues: [],
+  openCount: 0,
+  activeCount: 0,
+  totalCount: 0,
+  trackerUrl: null,
+  lastFetched: null,
+  stale: false,
+  error: null,
+  fromCache: false,
+  appId: null,
+  ...overrides,
+});
+
 interface DiagnosticsViolation {
   title: string;
   description?: string;
@@ -192,6 +238,7 @@ interface ReportIssueStateResult {
   logs: ReportLogsState;
   consoleLogs: ReportConsoleLogsState;
   network: ReportNetworkState;
+  existingIssues: ReportExistingIssuesState;
   diagnostics: ReportDiagnosticsState;
   screenshot: ReportScreenshotState;
   bridgeState: BridgePreviewState;
@@ -261,6 +308,7 @@ const useReportIssueState = ({
   const [reportNetworkExpanded, setReportNetworkExpanded] = useState(false);
   const [reportNetworkFetchedAt, setReportNetworkFetchedAt] = useState<number | null>(null);
   const [reportIncludeNetworkRequests, setReportIncludeNetworkRequests] = useState(true);
+  const [existingIssuesState, setExistingIssuesState] = useState<ExistingIssuesStateInternal>(() => createExistingIssuesState());
 
   const reportAppLogsFetchedForRef = useRef<string | null>(null);
   const reportConsoleLogsFetchedForRef = useRef<string | null>(null);
@@ -314,6 +362,76 @@ const useReportIssueState = ({
 
     return candidates[0];
   }, [app, appId]);
+
+  const fetchExistingIssues = useCallback(async () => {
+    const targetAppId = (app?.id ?? appId ?? '').trim();
+    if (!targetAppId) {
+      setExistingIssuesState(createExistingIssuesState());
+      return;
+    }
+
+    setExistingIssuesState(prev => {
+      const shouldReset = prev.appId !== targetAppId;
+      if (shouldReset) {
+        return createExistingIssuesState({
+          status: 'loading',
+          appId: targetAppId,
+        });
+      }
+
+      return {
+        ...prev,
+        status: 'loading',
+        error: null,
+        appId: targetAppId,
+      };
+    });
+
+    const summary = await appService.getScenarioIssues(targetAppId);
+    if (!summary) {
+      setExistingIssuesState(prev => {
+        if (prev.issues.length > 0) {
+          return {
+            ...prev,
+            status: 'ready',
+            stale: true,
+            error: 'Unable to refresh existing issues.',
+            appId: targetAppId,
+          };
+        }
+
+        return createExistingIssuesState({
+          status: 'error',
+          error: 'Unable to load existing issues.',
+          appId: targetAppId,
+        });
+      });
+      return;
+    }
+
+    const issues = Array.isArray(summary.issues) ? summary.issues : [];
+    const openCount = typeof summary.open_count === 'number'
+      ? summary.open_count
+      : issues.reduce((count, issue) => (issue.status?.toLowerCase() === 'open' ? count + 1 : count), 0);
+    const activeCount = typeof summary.active_count === 'number'
+      ? summary.active_count
+      : issues.reduce((count, issue) => (issue.status?.toLowerCase() === 'active' ? count + 1 : count), 0);
+    const totalCount = typeof summary.total_count === 'number' ? summary.total_count : issues.length;
+
+    setExistingIssuesState(createExistingIssuesState({
+      status: 'ready',
+      issues,
+      openCount,
+      activeCount,
+      totalCount,
+      trackerUrl: summary.tracker_url ?? null,
+      lastFetched: summary.last_fetched ?? null,
+      stale: Boolean(summary.stale),
+      fromCache: Boolean(summary.from_cache),
+      error: null,
+      appId: targetAppId,
+    }));
+  }, [app?.id, appId]);
 
   const fetchReportAppLogs = useCallback(async (options?: { force?: boolean }) => {
     const identifier = resolveReportLogIdentifier();
@@ -546,6 +664,10 @@ const useReportIssueState = ({
   const handleRefreshReportNetworkEvents = useCallback(() => {
     void fetchReportNetworkEvents({ force: true });
   }, [fetchReportNetworkEvents]);
+
+  const handleRefreshExistingIssues = useCallback(() => {
+    void fetchExistingIssues();
+  }, [fetchExistingIssues]);
 
   const handleReportMessageChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
     setReportMessage(event.target.value);
@@ -992,6 +1114,7 @@ const useReportIssueState = ({
     setReportNetworkExpanded(false);
     setReportNetworkFetchedAt(null);
     setReportIncludeNetworkRequests(true);
+    setExistingIssuesState(createExistingIssuesState());
     reportAppLogsFetchedForRef.current = null;
     reportConsoleLogsFetchedForRef.current = null;
     reportNetworkFetchedForRef.current = null;
@@ -1047,6 +1170,13 @@ const useReportIssueState = ({
     refreshDiagnostics,
     resetState,
   ]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    void fetchExistingIssues();
+  }, [fetchExistingIssues, isOpen]);
 
   const logsTruncated = useMemo(() => (
     typeof reportAppLogsTotal === 'number' && reportAppLogsTotal > reportAppLogs.length
@@ -1210,6 +1340,19 @@ const useReportIssueState = ({
       total: reportNetworkTotal,
       fetch: handleRefreshReportNetworkEvents,
     },
+    existingIssues: {
+      status: existingIssuesState.status,
+      issues: existingIssuesState.issues,
+      openCount: existingIssuesState.openCount,
+      activeCount: existingIssuesState.activeCount,
+      totalCount: existingIssuesState.totalCount,
+      trackerUrl: existingIssuesState.trackerUrl,
+      lastFetched: existingIssuesState.lastFetched,
+      stale: existingIssuesState.stale,
+      fromCache: existingIssuesState.fromCache,
+      error: existingIssuesState.error,
+      refresh: handleRefreshExistingIssues,
+    },
     diagnostics: {
       diagnosticsState,
       diagnosticsLoading,
@@ -1266,6 +1409,7 @@ export type {
   ReportScreenshotState,
   DiagnosticsViolation,
   BridgePreviewState,
+  ReportExistingIssuesState,
 };
 
 export {

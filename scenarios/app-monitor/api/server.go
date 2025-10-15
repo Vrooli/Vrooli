@@ -131,6 +131,7 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 		v1.POST("/apps/:id/stop", h.app.StopApp)
 		v1.POST("/apps/:id/restart", h.app.RestartApp)
 		v1.POST("/apps/:id/view", h.app.RecordAppView)
+		v1.GET("/apps/:id/issues", h.app.GetAppIssues)
 		v1.POST("/apps/:id/report", h.app.ReportAppIssue)
 		v1.GET("/apps/:id/diagnostics/iframe-bridge", h.app.CheckAppIframeBridge)
 		v1.GET("/apps/:id/diagnostics/localhost", h.app.CheckAppLocalhostUsage)

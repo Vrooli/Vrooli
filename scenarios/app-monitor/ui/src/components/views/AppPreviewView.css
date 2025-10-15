@@ -217,6 +217,128 @@ body.app-preview-immersive .main-content {
   opacity: 0.6;
 }
 
+.report-dialog__issues-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  background: rgba(0, 32, 32, 0.45);
+  color: rgba(224, 255, 249, 0.9);
+  box-shadow: 0 12px 25px rgba(0, 16, 32, 0.25);
+}
+
+.report-dialog__issues-alert--loading {
+  border-color: rgba(0, 176, 255, 0.45);
+  background: linear-gradient(135deg, rgba(0, 64, 96, 0.5), rgba(0, 32, 48, 0.4));
+  color: rgba(200, 240, 255, 0.9);
+}
+
+.report-dialog__issues-alert--warning {
+  border-color: rgba(255, 173, 0, 0.55);
+  background: linear-gradient(135deg, rgba(255, 173, 0, 0.18), rgba(64, 40, 0, 0.55));
+  color: rgba(255, 235, 204, 0.95);
+}
+
+.report-dialog__issues-alert--error {
+  border-color: rgba(255, 64, 64, 0.5);
+  background: linear-gradient(135deg, rgba(120, 0, 16, 0.6), rgba(64, 0, 12, 0.55));
+  color: rgba(255, 214, 214, 0.95);
+}
+
+.report-dialog__issues-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.report-dialog__bridge--stale {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.report-dialog__issues-panel {
+  gap: 0.65rem;
+}
+
+.report-dialog__issues-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 196, 0, 0.3);
+  background: rgba(64, 32, 0, 0.55);
+  color: rgba(255, 235, 204, 0.92);
+  box-shadow: 0 4px 14px rgba(32, 12, 0, 0.35);
+}
+
+.report-dialog__issues-entry-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.report-dialog__issues-entry-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.report-dialog__issues-entry-title--active {
+  color: rgba(255, 214, 146, 0.95);
+}
+
+.report-dialog__issues-entry-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(255, 196, 0, 0.28);
+  background: rgba(255, 196, 0, 0.22);
+  color: rgba(255, 226, 174, 0.96);
+  flex-shrink: 0;
+}
+
+.report-dialog__issues-entry-icon--active {
+  box-shadow: 0 0 0 1px rgba(255, 132, 0, 0.35);
+  background: rgba(255, 132, 0, 0.24);
+  color: rgba(255, 198, 144, 0.98);
+}
+
+.report-dialog__issues-entry-meta {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 235, 204, 0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-dialog__issues-link {
+  width: 1.95rem;
+  height: 1.95rem;
+}
+
+.report-dialog__issues-error {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .report-dialog__checkbox {
   display: flex;
   align-items: center;

@@ -1,10 +1,5 @@
-import type { RefObject } from 'react';
-import {
-  Bug,
-  ExternalLink,
-  Loader2,
-  X,
-} from 'lucide-react';
+import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
+import type { App } from '@/types';
 import type {
   BridgeLogEvent,
   BridgeLogLevel,
@@ -12,8 +7,25 @@ import type {
   BridgeNetworkEvent,
   BridgeNetworkStreamState,
 } from '@vrooli/iframe-bridge';
-import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
-import type { App } from '@/types';
+import clsx from 'clsx';
+import {
+  AlertTriangle,
+  Bug,
+  ChevronDown,
+  Circle,
+  CircleDot,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+  X,
+} from 'lucide-react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
 
 import ReportDiagnosticsPanel from './ReportDiagnosticsPanel';
 import ReportLogsSection from './ReportLogsSection';
@@ -67,6 +79,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     logs,
     consoleLogs,
     network,
+    existingIssues,
     diagnostics,
     screenshot,
   } = useReportIssueState(props);
@@ -81,6 +94,65 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     && canCaptureScreenshot
     && (screenshot.reportScreenshotLoading || !screenshot.reportScreenshotData)
   );
+
+  const existingIssuesLoading = existingIssues.status === 'loading';
+  const existingIssuesError = existingIssues.status === 'error';
+  const existingIssuesShouldWarn = existingIssues.status === 'ready'
+    && (existingIssues.openCount > 0 || existingIssues.activeCount > 0);
+  const existingIssuesErrorMessage = existingIssues.error ?? 'Unable to load existing issues.';
+  const relevantIssues = useMemo(
+    () => existingIssues.issues.filter(issue => {
+      const status = issue.status?.toLowerCase();
+      return status === 'open' || status === 'active';
+    }),
+    [existingIssues.issues],
+  );
+  const issuesToDisplay = existingIssuesShouldWarn
+    ? relevantIssues.slice(0, 4)
+    : relevantIssues.slice(0, 3);
+  const issueSummaryLabel = `Active issues exist for this app`;
+
+  let existingIssuesCheckedLabel: string | null = null;
+  if (existingIssues.lastFetched) {
+    const parsed = new Date(existingIssues.lastFetched);
+    if (!Number.isNaN(parsed.getTime())) {
+      existingIssuesCheckedLabel = parsed.toLocaleTimeString();
+    }
+  }
+
+  const existingIssuesMeta = existingIssues.stale
+    ? 'Snapshot may be out of date.'
+    : existingIssuesCheckedLabel
+      ? `Checked at ${existingIssuesCheckedLabel}${existingIssues.fromCache ? ' (cached)' : ''}`
+      : existingIssues.fromCache
+        ? 'Showing cached results.'
+        : null;
+  const [issuesCollapsed, setIssuesCollapsed] = useState(false);
+  const prevIssuesWarningRef = useRef(existingIssuesShouldWarn);
+  useEffect(() => {
+    if (!prevIssuesWarningRef.current && existingIssuesShouldWarn) {
+      setIssuesCollapsed(false);
+    }
+    prevIssuesWarningRef.current = existingIssuesShouldWarn;
+  }, [existingIssuesShouldWarn]);
+  const handleToggleIssuesCollapse = () => {
+    setIssuesCollapsed(prev => !prev);
+  };
+  const existingIssuesMetaLabel = useMemo(() => {
+    if (!existingIssuesShouldWarn) {
+      return existingIssuesMeta ?? null;
+    }
+
+    const parts: string[] = [];
+    if (existingIssuesMeta) {
+      parts.push(existingIssuesMeta);
+    }
+
+    return parts.join(' • ');
+  }, [
+    existingIssuesShouldWarn,
+    existingIssuesMeta,
+  ]);
 
   return (
     <div
@@ -147,6 +219,145 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
           <form className="report-dialog__form" onSubmit={form.handleSubmit}>
             <div className="report-dialog__layout">
               <div className="report-dialog__lane report-dialog__lane--primary">
+                {existingIssuesLoading && (
+                  <div className="report-dialog__issues-alert report-dialog__issues-alert--loading">
+                    <Loader2 aria-hidden size={16} className="spinning" />
+                    <span>Checking existing issues…</span>
+                  </div>
+                )}
+
+                {existingIssuesError && (
+                  <div className="report-dialog__issues-alert report-dialog__issues-alert--error">
+                    <AlertTriangle aria-hidden size={16} />
+                    <div className="report-dialog__issues-error">
+                      <p>{existingIssuesErrorMessage}</p>
+                      <button
+                        type="button"
+                        className="report-dialog__button report-dialog__button--ghost"
+                        onClick={existingIssues.refresh}
+                      >
+                        <RefreshCw aria-hidden size={14} />
+                        <span>Retry</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {existingIssuesShouldWarn && (
+                  <div
+                    className={clsx(
+                      'report-dialog__bridge',
+                      'report-dialog__bridge--warning',
+                      'report-dialog__issues-panel',
+                      existingIssues.stale && 'report-dialog__bridge--stale',
+                    )}
+                  >
+                    <div className="report-dialog__bridge-head">
+                      <AlertTriangle aria-hidden size={18} />
+                      <span>{issueSummaryLabel}</span>
+                      <div className="report-dialog__bridge-head-actions">
+                        <button
+                          type="button"
+                          className="report-dialog__bridge-icon"
+                          onClick={existingIssues.refresh}
+                          aria-label="Refresh matching issues"
+                          title="Refresh matching issues"
+                        >
+                          <RefreshCw aria-hidden size={16} />
+                        </button>
+                        {existingIssues.trackerUrl && (
+                          <button
+                            type="button"
+                            className="report-dialog__bridge-icon"
+                            onClick={() => {
+                              if (existingIssues.trackerUrl) {
+                                window.open(existingIssues.trackerUrl, '_blank', 'noopener,noreferrer');
+                              }
+                            }}
+                            aria-label="Open issue tracker"
+                            title="Open issue tracker"
+                          >
+                            <ExternalLink aria-hidden size={16} />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className={clsx(
+                            'report-dialog__bridge-toggle',
+                            issuesCollapsed && 'report-dialog__bridge-toggle--collapsed',
+                          )}
+                          onClick={handleToggleIssuesCollapse}
+                          aria-label={issuesCollapsed ? 'Expand issues list' : 'Collapse issues list'}
+                          aria-expanded={!issuesCollapsed}
+                        >
+                          <ChevronDown aria-hidden size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {existingIssuesMetaLabel && (
+                      <p className="report-dialog__bridge-meta">{existingIssuesMetaLabel}</p>
+                    )}
+
+                    {!issuesCollapsed && issuesToDisplay.length > 0 && (
+                      <ul className="report-dialog__issues-list">
+                        {issuesToDisplay.map((issue, index) => {
+                          const key = issue.id || issue.issue_url || issue.title || `issue-${index}`;
+                          const title = issue.title?.trim() || issue.id?.trim() || 'Unnamed issue';
+                          const normalizedStatus = issue.status?.toLowerCase();
+                          const statusText = normalizedStatus === 'active' ? 'Active issue' : 'Open issue';
+                          const StatusIcon = normalizedStatus === 'active' ? CircleDot : Circle;
+
+                          return (
+                            <li key={key} className="report-dialog__issues-entry">
+                              <div className="report-dialog__issues-entry-content">
+                                <span
+                                  className={clsx(
+                                    'report-dialog__issues-entry-title',
+                                    normalizedStatus === 'active' && 'report-dialog__issues-entry-title--active',
+                                  )}
+                                >
+                                  <span
+                                    className={clsx(
+                                      'report-dialog__issues-entry-icon',
+                                      normalizedStatus === 'active'
+                                        ? 'report-dialog__issues-entry-icon--active'
+                                        : 'report-dialog__issues-entry-icon--open',
+                                    )}
+                                    title={statusText}
+                                    aria-label={statusText}
+                                  >
+                                    <StatusIcon aria-hidden size={14} />
+                                  </span>
+                                  {title}
+                                </span>
+                                {issue.id && issue.id.trim() && issue.id.trim() !== title ? (
+                                  <span className="report-dialog__issues-entry-meta">{issue.id.trim()}</span>
+                                ) : null}
+                              </div>
+                              {issue.issue_url && (
+                                <button
+                                  type="button"
+                                  className="report-dialog__bridge-icon report-dialog__issues-link"
+                                  onClick={() => {
+                                    if (issue.issue_url) {
+                                      window.open(issue.issue_url, '_blank', 'noopener,noreferrer');
+                                    }
+                                  }}
+                                  aria-label="View issue"
+                                  title="View issue"
+                                >
+                                  <ExternalLink aria-hidden size={16} />
+                                </button>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
                 <label htmlFor="app-report-message" className="report-dialog__label">
                   Describe the issue
                 </label>

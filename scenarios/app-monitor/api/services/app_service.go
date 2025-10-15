@@ -35,8 +35,10 @@ type orchestratorCache struct {
 }
 
 const (
-	orchestratorCacheTTL = 60 * time.Second
-	partialCacheTTL      = 30 * time.Second
+	orchestratorCacheTTL   = 60 * time.Second
+	partialCacheTTL        = 30 * time.Second
+	issueTrackerCacheTTL   = 30 * time.Second
+	issueTrackerFetchLimit = 50
 )
 
 type viewStatsEntry struct {
@@ -47,12 +49,26 @@ type viewStatsEntry struct {
 	HasLast     bool
 }
 
+type issueCacheEntry struct {
+	issues      []AppIssueSummary
+	scenario    string
+	appID       string
+	trackerURL  string
+	fetchedAt   time.Time
+	openCount   int
+	activeCount int
+	totalCount  int
+}
+
 // AppService handles business logic for application management
 type AppService struct {
-	repo        repository.AppRepository
-	cache       *orchestratorCache
-	viewStatsMu sync.RWMutex
-	viewStats   map[string]*viewStatsEntry
+	repo          repository.AppRepository
+	cache         *orchestratorCache
+	viewStatsMu   sync.RWMutex
+	viewStats     map[string]*viewStatsEntry
+	issueCacheMu  sync.RWMutex
+	issueCache    map[string]*issueCacheEntry
+	issueCacheTTL time.Duration
 }
 
 var (
@@ -60,6 +76,7 @@ var (
 	ErrAppNotFound                   = errors.New("app not found")
 	ErrScenarioAuditorUnavailable    = errors.New("scenario-auditor unavailable")
 	ErrScenarioBridgeScenarioMissing = errors.New("scenario missing for bridge audit")
+	ErrIssueTrackerUnavailable       = errors.New("app-issue-tracker unavailable")
 )
 
 type BridgeRuleViolation struct {
@@ -97,6 +114,32 @@ type BridgeDiagnosticsReport struct {
 	Targets      []string              `json:"targets,omitempty"`
 	Violations   []BridgeRuleViolation `json:"violations"`
 	Results      []BridgeRuleReport    `json:"results"`
+}
+
+// AppIssueSummary represents a simplified issue entry from app-issue-tracker.
+type AppIssueSummary struct {
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	Status    string `json:"status"`
+	Priority  string `json:"priority,omitempty"`
+	CreatedAt string `json:"created_at,omitempty"`
+	UpdatedAt string `json:"updated_at,omitempty"`
+	Reporter  string `json:"reporter,omitempty"`
+	IssueURL  string `json:"issue_url,omitempty"`
+}
+
+// AppIssuesSummary provides aggregated issue information for an app/scenario.
+type AppIssuesSummary struct {
+	Scenario    string            `json:"scenario"`
+	AppID       string            `json:"app_id"`
+	Issues      []AppIssueSummary `json:"issues"`
+	OpenCount   int               `json:"open_count"`
+	ActiveCount int               `json:"active_count"`
+	TotalCount  int               `json:"total_count"`
+	TrackerURL  string            `json:"tracker_url,omitempty"`
+	LastFetched string            `json:"last_fetched"`
+	FromCache   bool              `json:"from_cache"`
+	Stale       bool              `json:"stale"`
 }
 
 type LocalhostUsageFinding struct {
@@ -141,9 +184,11 @@ var backgroundViewCommandRegex = regexp.MustCompile(`^View:\s+vrooli\s+scenario\
 // NewAppService creates a new app service
 func NewAppService(repo repository.AppRepository) *AppService {
 	return &AppService{
-		repo:      repo,
-		cache:     &orchestratorCache{},
-		viewStats: make(map[string]*viewStatsEntry),
+		repo:          repo,
+		cache:         &orchestratorCache{},
+		viewStats:     make(map[string]*viewStatsEntry),
+		issueCache:    make(map[string]*issueCacheEntry),
+		issueCacheTTL: issueTrackerCacheTTL,
 	}
 }
 
@@ -1533,6 +1578,240 @@ func valueOrDefault(value *int, fallback int) int {
 		return *value
 	}
 	return fallback
+}
+
+// ListScenarioIssues returns cached issue information for a scenario.
+func (s *AppService) ListScenarioIssues(ctx context.Context, appID string) (*AppIssuesSummary, error) {
+	id := strings.TrimSpace(appID)
+	if id == "" {
+		return nil, ErrAppIdentifierRequired
+	}
+
+	app, err := s.GetApp(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	scenarioName := strings.TrimSpace(app.ScenarioName)
+	if scenarioName == "" {
+		scenarioName = id
+	}
+
+	cacheKey := strings.ToLower(scenarioName)
+
+	s.issueCacheMu.RLock()
+	entry, cached := s.issueCache[cacheKey]
+	cacheFresh := cached && time.Since(entry.fetchedAt) < s.issueCacheTTL
+	s.issueCacheMu.RUnlock()
+
+	if cacheFresh {
+		return buildAppIssuesSummary(entry, true, false), nil
+	}
+
+	fetchedEntry, fetchErr := s.fetchScenarioIssues(ctx, id, scenarioName)
+	if fetchErr != nil {
+		if cached {
+			return buildAppIssuesSummary(entry, true, true), nil
+		}
+		return nil, fetchErr
+	}
+
+	s.issueCacheMu.Lock()
+	if s.issueCache == nil {
+		s.issueCache = make(map[string]*issueCacheEntry)
+	}
+	s.issueCache[cacheKey] = fetchedEntry
+	s.issueCacheMu.Unlock()
+
+	return buildAppIssuesSummary(fetchedEntry, false, false), nil
+}
+
+func (s *AppService) fetchScenarioIssues(ctx context.Context, appID, scenarioName string) (*issueCacheEntry, error) {
+	port, err := s.locateIssueTrackerAPIPort(ctx)
+	if err != nil {
+		return nil, ErrIssueTrackerUnavailable
+	}
+
+	query := url.Values{}
+	query.Set("limit", strconv.Itoa(issueTrackerFetchLimit))
+	query.Set("app_id", scenarioName)
+
+	endpoint := fmt.Sprintf("http://localhost:%d/api/v1/issues?%s", port, query.Encode())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query app-issue-tracker: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("app-issue-tracker returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(bodyBytes)))
+	}
+
+	var trackerResp issueTrackerAPIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&trackerResp); err != nil {
+		return nil, fmt.Errorf("failed to decode app-issue-tracker response: %w", err)
+	}
+
+	if !trackerResp.Success {
+		message := strings.TrimSpace(trackerResp.Error)
+		if message == "" {
+			message = strings.TrimSpace(trackerResp.Message)
+		}
+		if message == "" {
+			message = "app-issue-tracker rejected the request"
+		}
+		return nil, errors.New(message)
+	}
+
+	issueSummaries := parseIssueTrackerIssues(trackerResp.Data)
+	openCount := 0
+	activeCount := 0
+	for _, issue := range issueSummaries {
+		switch strings.ToLower(issue.Status) {
+		case "open":
+			openCount++
+		case "active":
+			activeCount++
+		}
+	}
+
+	totalCount := len(issueSummaries)
+
+	trackerURL := ""
+	var baseURL *url.URL
+	if uiPort, err := resolveScenarioPortViaCLI(ctx, "app-issue-tracker", "UI_PORT"); err == nil && uiPort > 0 {
+		base := &url.URL{Scheme: "http", Host: fmt.Sprintf("localhost:%d", uiPort), Path: "/"}
+		params := base.Query()
+		params.Set("app_id", scenarioName)
+		base.RawQuery = params.Encode()
+		trackerURL = base.String()
+		baseURL = base
+	}
+
+	if baseURL != nil {
+		for index, issue := range issueSummaries {
+			if issue.ID == "" {
+				continue
+			}
+			issueURL := *baseURL
+			values := issueURL.Query()
+			values.Set("issue", issue.ID)
+			issueURL.RawQuery = values.Encode()
+			issueSummaries[index].IssueURL = issueURL.String()
+		}
+	}
+
+	entry := &issueCacheEntry{
+		issues:      issueSummaries,
+		scenario:    scenarioName,
+		appID:       appID,
+		trackerURL:  trackerURL,
+		fetchedAt:   time.Now().UTC(),
+		openCount:   openCount,
+		activeCount: activeCount,
+		totalCount:  totalCount,
+	}
+
+	return entry, nil
+}
+
+func parseIssueTrackerIssues(data map[string]interface{}) []AppIssueSummary {
+	if data == nil {
+		return []AppIssueSummary{}
+	}
+
+	rawIssues, ok := data["issues"].([]interface{})
+	if !ok || len(rawIssues) == 0 {
+		return []AppIssueSummary{}
+	}
+
+	issues := make([]AppIssueSummary, 0, len(rawIssues))
+	for _, raw := range rawIssues {
+		issueMap, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		id := strings.TrimSpace(anyString(issueMap["id"]))
+		title := strings.TrimSpace(anyString(issueMap["title"]))
+		status := strings.TrimSpace(anyString(issueMap["status"]))
+		priority := strings.TrimSpace(anyString(issueMap["priority"]))
+
+		createdAt := ""
+		updatedAt := ""
+		if meta, ok := issueMap["metadata"].(map[string]interface{}); ok {
+			createdAt = strings.TrimSpace(anyString(meta["created_at"]))
+			updatedAt = strings.TrimSpace(anyString(meta["updated_at"]))
+		}
+
+		reporter := ""
+		if reporterMap, ok := issueMap["reporter"].(map[string]interface{}); ok {
+			reporter = strings.TrimSpace(anyString(reporterMap["name"]))
+			if reporter == "" {
+				reporter = strings.TrimSpace(anyString(reporterMap["email"]))
+			}
+		}
+
+		issues = append(issues, AppIssueSummary{
+			ID:        id,
+			Title:     title,
+			Status:    status,
+			Priority:  priority,
+			CreatedAt: createdAt,
+			UpdatedAt: updatedAt,
+			Reporter:  reporter,
+		})
+	}
+
+	return issues
+}
+
+func buildAppIssuesSummary(entry *issueCacheEntry, fromCache, stale bool) *AppIssuesSummary {
+	if entry == nil {
+		return &AppIssuesSummary{
+			Issues:      []AppIssueSummary{},
+			LastFetched: time.Now().UTC().Format(time.RFC3339),
+			FromCache:   fromCache,
+			Stale:       stale,
+		}
+	}
+
+	clonedIssues := append([]AppIssueSummary(nil), entry.issues...)
+
+	return &AppIssuesSummary{
+		Scenario:    entry.scenario,
+		AppID:       entry.appID,
+		Issues:      clonedIssues,
+		OpenCount:   entry.openCount,
+		ActiveCount: entry.activeCount,
+		TotalCount:  entry.totalCount,
+		TrackerURL:  entry.trackerURL,
+		LastFetched: entry.fetchedAt.Format(time.RFC3339),
+		FromCache:   fromCache,
+		Stale:       stale,
+	}
+}
+
+func anyString(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case fmt.Stringer:
+		return v.String()
+	case []byte:
+		return string(v)
+	case nil:
+		return ""
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 // IssueReportResult represents the outcome of forwarding an issue report

@@ -300,6 +300,35 @@ func (h *AppHandler) GetAppBackgroundLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, structuredLogs)
 }
 
+// GetAppIssues returns existing issues for an application from app-issue-tracker.
+func (h *AppHandler) GetAppIssues(c *gin.Context) {
+	id := c.Param("id")
+
+	issuesSummary, err := h.appService.ListScenarioIssues(c.Request.Context(), id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrAppNotFound):
+			status = http.StatusNotFound
+		case errors.Is(err, services.ErrIssueTrackerUnavailable):
+			status = http.StatusServiceUnavailable
+		}
+
+		c.JSON(status, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    issuesSummary,
+	})
+}
+
 // ReportAppIssue forwards an application issue report to the issue tracker scenario
 func (h *AppHandler) ReportAppIssue(c *gin.Context) {
 	appID := c.Param("id")
