@@ -220,12 +220,9 @@ async function closeTab(tabId) {
     closeTabCustomization()
   }
 
-  await stopSession(tab)
-
+  const sessionStopPromise = Promise.resolve(stopSession(tab))
   destroyTerminalTab(tab)
   state.tabs = state.tabs.filter((entry) => entry.id !== tabId)
-
-  await deleteTabFromWorkspace(tabId)
 
   let fallback = null
   if (state.activeTabId === tabId) {
@@ -253,6 +250,12 @@ async function closeTab(tabId) {
   syncActiveTabState()
   updateSessionActions()
   renderSessionOverview()
+
+  try {
+    await deleteTabFromWorkspace(tabId)
+  } finally {
+    await sessionStopPromise
+  }
 }
 
 async function handleSessionCloseFromOverview(sessionId) {

@@ -17,6 +17,10 @@ let terminalHandlers = {
   onResize: null,
   onData: null
 }
+const RANDOM_LABEL_ALPHABET = 'abcdefghijklmnopqrstuvwxyz'
+const RANDOM_LABEL_LENGTH = 3
+const RANDOM_LABEL_ATTEMPTS = 10
+const TAB_DEFAULT_LABEL_PREFIX = 'Term'
 const TAB_SESSION_STATE_META = {
   attached: {
     icon: null,
@@ -53,6 +57,47 @@ let callbacks = {
   onShortcut: null
 }
 let tabMenuCloseTimer = null
+
+function resolveCrypto() {
+  const candidate = typeof globalThis !== 'undefined' ? globalThis.crypto : null
+  if (candidate && typeof candidate.getRandomValues === 'function') {
+    return candidate
+  }
+  if (typeof window !== 'undefined' && window.crypto && typeof window.crypto.getRandomValues === 'function') {
+    return window.crypto
+  }
+  return null
+}
+
+function generateRandomLetters(length = RANDOM_LABEL_LENGTH) {
+  const alphabetLength = RANDOM_LABEL_ALPHABET.length
+  const buffer = []
+  const cryptoObj = resolveCrypto()
+  if (cryptoObj) {
+    const values = new Uint8Array(length)
+    cryptoObj.getRandomValues(values)
+    for (let index = 0; index < length; index += 1) {
+      buffer.push(RANDOM_LABEL_ALPHABET[values[index] % alphabetLength])
+    }
+  } else {
+    for (let index = 0; index < length; index += 1) {
+      const randomIndex = Math.floor(Math.random() * alphabetLength)
+      buffer.push(RANDOM_LABEL_ALPHABET[randomIndex])
+    }
+  }
+  return buffer.join('')
+}
+
+function generateDefaultTabLabel(existingLabels = new Set()) {
+  const labels = existingLabels instanceof Set ? existingLabels : new Set()
+  for (let attempt = 0; attempt < RANDOM_LABEL_ATTEMPTS; attempt += 1) {
+    const candidate = `${TAB_DEFAULT_LABEL_PREFIX} ${generateRandomLetters()}`
+    if (!labels.has(candidate)) {
+      return candidate
+    }
+  }
+  return `${TAB_DEFAULT_LABEL_PREFIX} ${generateRandomLetters()}`
+}
 
 export function configureTabManager(options = {}) {
   callbacks = {
@@ -131,8 +176,8 @@ export function createTerminalTab({ focus = false, id = null, label = null, colo
     id = `tab-${Date.now()}-${nextTabSequence()}`
   }
   if (!label) {
-    const seq = nextTabSequence()
-    label = `Terminal ${seq}`
+    const existingLabels = new Set(state.tabs.map((entry) => entry.label))
+    label = generateDefaultTabLabel(existingLabels)
   }
 
   const container = document.createElement('div')
@@ -358,6 +403,7 @@ export function renderTabs() {
       closeBtn.dataset.tabId = tab.id
       closeBtn.setAttribute('aria-label', `Close ${tab.label}`)
       closeBtn.textContent = '×'
+      closeBtn.disabled = false
       closeBtn.addEventListener('click', (event) => {
         event.stopPropagation()
         if (callbacks.onTabCloseRequested) {
@@ -403,7 +449,8 @@ export function renderTabs() {
     }
     if (tab.domClose) {
       tab.domClose.setAttribute('aria-label', `Close ${tab.label}`)
-      tab.domClose.disabled = state.tabs.length === 1
+      tab.domClose.disabled = false
+      tab.domClose.removeAttribute('disabled')
     }
     applyTabAppearance(tab)
     updateTabButtonState(tab)
@@ -730,7 +777,8 @@ function updateTabButtonState(tab) {
   tab.domButton.classList.toggle('tab-running', tab.phase === 'running')
   tab.domButton.classList.toggle('tab-error', tab.socketState === 'error')
   if (tab.domClose) {
-    tab.domClose.disabled = state.tabs.length === 1
+    tab.domClose.disabled = false
+    tab.domClose.removeAttribute('disabled')
   }
   updateTabSessionIndicator(tab)
   applyTabAppearance(tab)

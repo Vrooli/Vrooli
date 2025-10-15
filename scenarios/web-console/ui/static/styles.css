@@ -787,7 +787,7 @@ body {
   gap: 0.35rem;
   flex: 1;
   overflow-x: auto;
-  padding: 0.6rem 0.2rem 0.4rem 0;
+  padding: 0.6rem 0.5rem 0.4rem 0;
   scrollbar-width: thin;
   flex-wrap: nowrap;
 }
@@ -807,6 +807,7 @@ body {
   align-items: stretch;
   min-width: 0;
   z-index: 0;
+  flex: 0 0 auto;
 }
 
 .tab-item::before,
@@ -828,7 +829,7 @@ body {
   font-size: 0.9rem;
   letter-spacing: 0.01em;
   cursor: pointer;
-  min-width: 0;
+  min-width: 9.25rem;
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   --tab-color-border: rgba(148, 163, 184, 0.25);
   --tab-color-border-hover: rgba(148, 163, 184, 0.45);
@@ -838,6 +839,7 @@ body {
   --tab-color-glow: rgba(56, 189, 248, 0.35);
   --tab-color-label: var(--text-primary);
   border-color: var(--tab-color-border);
+  flex: 0 0 auto;
 }
 
 .tab-button::before {
@@ -983,6 +985,11 @@ body {
   align-items: flex-end;
   padding-bottom: 0.15rem;
   flex: 0 0 auto;
+  position: sticky;
+  right: 0;
+  padding-left: 0.25rem;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.95) 40%);
+  z-index: 2;
 }
 
 .tab-add {
@@ -999,6 +1006,7 @@ body {
   cursor: pointer;
   transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
   margin-left: 0.15rem;
+  flex-shrink: 0;
 }
 
 .tab-add:hover,
