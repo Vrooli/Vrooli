@@ -19,9 +19,10 @@ func (s *Server) exportIssuesHandler(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	priority := r.URL.Query().Get("priority")
 	issueType := r.URL.Query().Get("type")
+	appID := r.URL.Query().Get("app_id")
 
 	// Get all matching issues
-	issues, err := s.getAllIssues(status, priority, issueType, 1000)
+	issues, err := s.getAllIssues(status, priority, issueType, appID, 1000)
 	if err != nil {
 		log.Printf("Error getting issues for export: %v", err)
 		http.Error(w, "Failed to load issues", http.StatusInternalServerError)

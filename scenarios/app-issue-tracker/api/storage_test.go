@@ -132,7 +132,7 @@ func TestGetAllIssues(t *testing.T) {
 	}
 
 	// Get all issues
-	allIssues, err := env.Server.getAllIssues("", "", "", 0)
+	allIssues, err := env.Server.getAllIssues("", "", "", "", 0)
 	if err != nil {
 		t.Fatalf("Failed to get all issues: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestGetAllIssues(t *testing.T) {
 	}
 
 	// Filter by status
-	activeIssues, err := env.Server.getAllIssues("active", "", "", 0)
+	activeIssues, err := env.Server.getAllIssues("active", "", "", "", 0)
 	if err != nil {
 		t.Fatalf("Failed to get active issues: %v", err)
 	}
@@ -153,8 +153,19 @@ func TestGetAllIssues(t *testing.T) {
 		}
 	}
 
+	// Filter by priority
+	priorityIssues, err := env.Server.getAllIssues("", "medium", "", "", 0)
+	if err != nil {
+		t.Fatalf("Failed to get issues by priority: %v", err)
+	}
+	for _, issue := range priorityIssues {
+		if issue.Priority != "medium" {
+			t.Errorf("Expected priority 'medium', got %s", issue.Priority)
+		}
+	}
+
 	// Filter by app_id
-	appIssues, err := env.Server.getAllIssues("", "getall-app", "", 0)
+	appIssues, err := env.Server.getAllIssues("", "", "", "getall-app", 0)
 	if err != nil {
 		t.Fatalf("Failed to get app issues: %v", err)
 	}

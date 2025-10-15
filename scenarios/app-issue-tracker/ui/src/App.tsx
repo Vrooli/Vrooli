@@ -1157,8 +1157,11 @@ function App() {
         apps.add(issue.app);
       }
     });
+    if (appFilter !== 'all' && appFilter.trim()) {
+      apps.add(appFilter);
+    }
     return Array.from(apps).sort((first, second) => first.localeCompare(second));
-  }, [issues]);
+  }, [issues, appFilter]);
 
   const filteredIssues = useMemo(() => {
     return issues.filter((issue) => {
@@ -1183,7 +1186,13 @@ function App() {
   }, [issues, priorityFilter, appFilter, searchFilter]);
 
   useEffect(() => {
-    if (appFilter !== 'all' && !availableApps.includes(appFilter)) {
+    if (appFilter === 'all') {
+      return;
+    }
+    if (availableApps.length === 0) {
+      return;
+    }
+    if (!availableApps.includes(appFilter)) {
       setAppFilter('all');
     }
   }, [appFilter, availableApps]);
@@ -1212,10 +1221,26 @@ function App() {
       return;
     }
 
+    const params = new URLSearchParams(window.location.search);
+    const appParam = params.get('app_id');
+    if (appParam && appParam.trim()) {
+      setAppFilter(appParam.trim());
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     const handlePopState = () => {
-      const nextIssueId = getIssueIdFromLocation();
+      const params = new URLSearchParams(window.location.search);
+      const nextIssueId = params.get('issue');
+      const nextApp = params.get('app_id');
+
       setFocusedIssueId(nextIssueId);
       setIssueDetailOpen(Boolean(nextIssueId));
+      setAppFilter(nextApp && nextApp.trim() ? nextApp.trim() : 'all');
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -1499,10 +1524,16 @@ function App() {
       url.searchParams.delete('issue');
     }
 
+    if (appFilter && appFilter !== 'all') {
+      url.searchParams.set('app_id', appFilter);
+    } else {
+      url.searchParams.delete('app_id');
+    }
+
     const nextSearch = url.searchParams.toString();
     const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ''}${url.hash}`;
     window.history.replaceState({}, '', nextUrl);
-  }, [focusedIssueId]);
+  }, [appFilter, focusedIssueId]);
 
   useEffect(() => {
     setIssueDetailOpen(Boolean(focusedIssueId));

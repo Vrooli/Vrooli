@@ -325,7 +325,7 @@ func (s *Server) moveIssue(issueID, toFolder string) error {
 }
 
 // getAllIssues retrieves all issues with optional filters
-func (s *Server) getAllIssues(statusFilter, priorityFilter, typeFilter string, limit int) ([]Issue, error) {
+func (s *Server) getAllIssues(statusFilter, priorityFilter, typeFilter, appIDFilter string, limit int) ([]Issue, error) {
 	var allIssues []Issue
 
 	folders := []string{"open", "active", "completed", "failed", "archived"}
@@ -349,6 +349,9 @@ func (s *Server) getAllIssues(statusFilter, priorityFilter, typeFilter string, l
 			continue
 		}
 		if typeFilter != "" && issue.Type != typeFilter {
+			continue
+		}
+		if appIDFilter != "" && !strings.EqualFold(issue.AppID, appIDFilter) {
 			continue
 		}
 		filteredIssues = append(filteredIssues, issue)

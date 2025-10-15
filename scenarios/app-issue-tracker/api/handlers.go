@@ -42,6 +42,7 @@ func (s *Server) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	priority := r.URL.Query().Get("priority")
 	issueType := r.URL.Query().Get("type")
+	appID := r.URL.Query().Get("app_id")
 	limitStr := r.URL.Query().Get("limit")
 
 	limit := 20
@@ -51,7 +52,7 @@ func (s *Server) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	issues, err := s.getAllIssues(status, priority, issueType, limit)
+	issues, err := s.getAllIssues(status, priority, issueType, appID, limit)
 	if err != nil {
 		log.Printf("Error getting issues: %v", err)
 		http.Error(w, "Failed to load issues", http.StatusInternalServerError)
@@ -1251,7 +1252,7 @@ func (s *Server) getStatsHandler(w http.ResponseWriter, r *http.Request) {
 	// Count issues by status
 	var totalIssues, openIssues, inProgress, waiting, completedToday int
 
-	allIssues, _ := s.getAllIssues("", "", "", 0)
+	allIssues, _ := s.getAllIssues("", "", "", "", 0)
 	totalIssues = len(allIssues)
 
 	today := time.Now().UTC().Format("2006-01-02")
@@ -1353,7 +1354,7 @@ func (s *Server) triggerFixGenerationHandler(w http.ResponseWriter, r *http.Requ
 // getAppsHandler returns a list of applications with issue counts
 func (s *Server) getAppsHandler(w http.ResponseWriter, r *http.Request) {
 	// Count issues per app
-	allIssues, _ := s.getAllIssues("", "", "", 0)
+	allIssues, _ := s.getAllIssues("", "", "", "", 0)
 	appStats := make(map[string]struct {
 		total int
 		open  int
