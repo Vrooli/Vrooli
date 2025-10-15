@@ -72,6 +72,7 @@ export interface AppPreviewToolbarProps {
   historyAllApps: App[];
   historyShouldShow: boolean;
   onHistorySelect: (app: App) => void;
+  previewInteractionSignal: number;
 }
 
 const AppPreviewToolbar = ({
@@ -109,6 +110,7 @@ const AppPreviewToolbar = ({
   historyAllApps,
   historyShouldShow,
   onHistorySelect,
+  previewInteractionSignal,
 }: AppPreviewToolbarProps) => {
   const [lifecycleMenuOpen, setLifecycleMenuOpen] = useState(false);
   const [devMenuOpen, setDevMenuOpen] = useState(false);
@@ -266,6 +268,22 @@ const AppPreviewToolbar = ({
     const clampedY = Math.min(Math.max(y, FLOATING_MARGIN), maxY);
     return { x: clampedX, y: clampedY };
   }, []);
+
+  const computeBottomRightPosition = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    const toolbar = toolbarRef.current;
+    if (!toolbar) {
+      return null;
+    }
+
+    const rect = toolbar.getBoundingClientRect();
+    const desiredX = window.innerWidth - rect.width - FLOATING_MARGIN;
+    const desiredY = window.innerHeight - rect.height - FLOATING_MARGIN;
+    return clampPosition(desiredX, desiredY, { width: rect.width, height: rect.height });
+  }, [clampPosition]);
 
   useEffect(() => {
     if (lifecycleMenuOpen && lifecycleFirstItemRef.current) {
@@ -456,6 +474,11 @@ const AppPreviewToolbar = ({
       return;
     }
 
+    const initialPosition = computeBottomRightPosition();
+    if (initialPosition) {
+      setFloatingPosition(initialPosition);
+    }
+
     const handleResize = () => {
       const toolbar = toolbarRef.current;
       if (!toolbar) {
@@ -479,7 +502,7 @@ const AppPreviewToolbar = ({
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
     };
-  }, [clampPosition, isFullView]);
+  }, [clampPosition, computeBottomRightPosition, isFullView]);
 
   const closeMenus = useCallback(() => {
     setLifecycleMenuOpen(false);
@@ -492,6 +515,13 @@ const AppPreviewToolbar = ({
     setDevMenuStyle(undefined);
     setNavMenuStyle(undefined);
   }, []);
+
+  useEffect(() => {
+    if (previewInteractionSignal === 0) {
+      return;
+    }
+    closeMenus();
+  }, [closeMenus, previewInteractionSignal]);
 
   const handleToggleLifecycleMenu = useCallback(() => {
     const next = !lifecycleMenuOpen;
@@ -833,7 +863,9 @@ const AppPreviewToolbar = ({
                 containerClassName="preview-toolbar__history"
                 buttonClassName="preview-toolbar__icon-btn"
                 iconClassName="preview-toolbar__history-icon"
-                usePortal={false}
+                portalContainer={menuPortalContainer}
+                usePortal={Boolean(menuPortalContainer)}
+                closeSignal={previewInteractionSignal}
               />
             )}
           </>

@@ -132,6 +132,7 @@
   flex-direction: column;
   gap: 0.6rem;
   z-index: 1200;
+  transform-origin: top right;
 }
 
 .history-menu__header {

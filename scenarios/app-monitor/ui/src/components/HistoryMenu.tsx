@@ -13,6 +13,12 @@ import { parseTimestampValue, resolveAppIdentifier } from '@/utils/appPreview';
 const HISTORY_MENU_OFFSET = 10;
 const HISTORY_MENU_MARGIN = 12;
 
+const HIDDEN_MENU_STYLE: CSSProperties = {
+  top: '-9999px',
+  left: '-9999px',
+  visibility: 'hidden',
+};
+
 interface MenuItem {
   app: App;
   key: string;
@@ -107,6 +113,7 @@ interface HistoryMenuProps {
   portalContainer?: HTMLElement | null;
   onToggle?: (isOpen: boolean) => void;
   usePortal?: boolean;
+  closeSignal?: number;
 }
 
 export default function HistoryMenu({
@@ -120,10 +127,11 @@ export default function HistoryMenu({
   portalContainer,
   onToggle,
   usePortal = true,
+  closeSignal,
 }: HistoryMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>(HIDDEN_MENU_STYLE);
   const [searchQuery, setSearchQuery] = useState('');
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -133,12 +141,13 @@ export default function HistoryMenu({
   const fallbackKeyCounter = useRef(0);
   const isBrowser = typeof document !== 'undefined';
   const portalHost = portalContainer ?? (isBrowser ? document.body : null);
+  const closeSignalRef = useRef(closeSignal);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
   const closeMenu = useCallback(() => {
     setIsOpen(false);
-    setMenuCoords(null);
+    setMenuStyle(HIDDEN_MENU_STYLE);
     setActiveIndex(null);
     setSearchQuery('');
     onToggle?.(false);
@@ -227,48 +236,53 @@ export default function HistoryMenu({
   const hasAllSection = allItems.length > 0;
   const totalItems = flatItems.length;
 
-  const updateMenuPosition = useCallback(() => {
+  const updateMenuStyle = useCallback(() => {
     if (!isBrowser) {
       return;
     }
 
     const button = buttonRef.current;
-    const menu = menuRef.current;
-    if (!button || !menu) {
+    if (!button) {
+      setMenuStyle(HIDDEN_MENU_STYLE);
       return;
     }
 
-    const buttonRect = button.getBoundingClientRect();
-    const menuRect = menu.getBoundingClientRect();
-    const menuWidth = menuRect.width || menu.offsetWidth;
+    const anchorRect = button.getBoundingClientRect();
+    const menu = menuRef.current;
     const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const menuRect = menu?.getBoundingClientRect();
+    const menuHeight = menuRect?.height ?? 0;
+    const menuWidth = menuRect?.width ?? 0;
 
-    const idealLeft = buttonRect.right - menuWidth;
-    const minLeft = HISTORY_MENU_MARGIN;
-    const maxLeft = Math.max(minLeft, viewportWidth - menuWidth - HISTORY_MENU_MARGIN);
-    const clampedLeft = Math.min(Math.max(idealLeft, minLeft), maxLeft);
-
-    const top = Math.round(buttonRect.bottom + HISTORY_MENU_OFFSET);
-    const left = Math.round(clampedLeft);
-
-    setMenuCoords({ top, left });
-  }, [isBrowser]);
-
-  const menuStyle = useMemo<CSSProperties>(() => {
-    if (!menuCoords) {
-      return {
-        top: '-9999px',
-        left: '-9999px',
-        visibility: 'hidden',
-      };
+    let top = anchorRect.bottom + HISTORY_MENU_OFFSET;
+    if (Number.isFinite(viewportHeight)) {
+      const spaceBelow = viewportHeight - anchorRect.bottom - HISTORY_MENU_OFFSET;
+      const shouldPlaceBelow = menuHeight === 0
+        ? anchorRect.top + (anchorRect.height / 2) < viewportHeight / 2
+        : spaceBelow >= menuHeight + HISTORY_MENU_MARGIN;
+      if (!shouldPlaceBelow) {
+        top = anchorRect.top - HISTORY_MENU_OFFSET - menuHeight;
+      }
+      const maxTop = viewportHeight - HISTORY_MENU_MARGIN - menuHeight;
+      const minTop = HISTORY_MENU_MARGIN;
+      top = Math.min(Math.max(top, minTop), maxTop);
     }
 
-    return {
-      top: `${menuCoords.top}px`,
-      left: `${menuCoords.left}px`,
+    let left = anchorRect.right;
+    if (Number.isFinite(viewportWidth)) {
+      const maxLeft = viewportWidth - HISTORY_MENU_MARGIN;
+      const minLeft = menuWidth > 0 ? menuWidth + HISTORY_MENU_MARGIN : HISTORY_MENU_MARGIN;
+      left = Math.min(Math.max(left, minLeft), maxLeft);
+    }
+
+    setMenuStyle({
+      top: `${Math.round(top)}px`,
+      left: `${Math.round(left)}px`,
+      transform: 'translateX(-100%)',
       visibility: 'visible',
-    };
-  }, [menuCoords]);
+    });
+  }, [isBrowser]);
 
   useEffect(() => {
     if (!shouldShowHistory && isOpen) {
@@ -277,29 +291,62 @@ export default function HistoryMenu({
   }, [closeMenu, isOpen, shouldShowHistory]);
 
   useEffect(() => {
+    if (typeof closeSignal !== 'number') {
+      return;
+    }
+
+    if (closeSignalRef.current === closeSignal) {
+      return;
+    }
+
+    closeSignalRef.current = closeSignal;
+
+    if (isOpen) {
+      closeMenu();
+    }
+  }, [closeSignal, closeMenu, isOpen]);
+
+  useEffect(() => {
     if (!isOpen) {
-      setMenuCoords(null);
+      setMenuStyle(HIDDEN_MENU_STYLE);
       itemRefs.current = [];
       return;
     }
 
-    const frame = window.requestAnimationFrame(() => {
-      updateMenuPosition();
-    });
+    let animationFrame = 0;
+
+    const scheduleUpdate = () => {
+      if (typeof window === 'undefined') {
+        return;
+      }
+      animationFrame = window.requestAnimationFrame(() => {
+        updateMenuStyle();
+      });
+    };
+
+    scheduleUpdate();
 
     const handleResizeOrScroll = () => {
-      updateMenuPosition();
+      updateMenuStyle();
     };
 
     window.addEventListener('resize', handleResizeOrScroll);
     window.addEventListener('scroll', handleResizeOrScroll, true);
 
     return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener('resize', handleResizeOrScroll);
-      window.removeEventListener('scroll', handleResizeOrScroll, true);
+      if (typeof window !== 'undefined') {
+        window.cancelAnimationFrame(animationFrame);
+        window.removeEventListener('resize', handleResizeOrScroll);
+        window.removeEventListener('scroll', handleResizeOrScroll, true);
+      }
     };
-  }, [isOpen, totalItems, hasRecentSection, hasAllSection, updateMenuPosition]);
+  }, [isOpen, totalItems, hasRecentSection, hasAllSection, updateMenuStyle]);
+
+  useEffect(() => {
+    if (isOpen) {
+      updateMenuStyle();
+    }
+  }, [isOpen, normalizedQuery, updateMenuStyle]);
 
   useEffect(() => {
     if (!isOpen) {

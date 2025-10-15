@@ -80,6 +80,7 @@ const AppPreviewView = () => {
   const [pendingAction, setPendingAction] = useState<null | 'start' | 'stop' | 'restart'>(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [previewReloadToken, setPreviewReloadToken] = useState(0);
+  const [previewInteractionSignal, setPreviewInteractionSignal] = useState(0);
   const [previewOverlay, setPreviewOverlay] = useState<null | { type: 'restart' | 'waiting' | 'error'; message: string }>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLayoutFullscreen, setIsLayoutFullscreen] = useState(false);
@@ -161,20 +162,12 @@ const AppPreviewView = () => {
     return identifiers;
   }, [currentAppIdentifiers, historyRecentApps]);
 
-  const historyRemainingSlots = Math.max(0, HISTORY_MENU_LIMIT - historyRecentApps.length);
-
-  const historyAllApps = useMemo(() => {
-    if (historyRemainingSlots <= 0) {
-      return [] as App[];
-    }
-
-    return alphabetizedApps
-      .filter(app => {
-        const identifiers = collectAppIdentifiers(app);
-        return identifiers.every(identifier => !historyIdentifiersToExclude.has(identifier));
-      })
-      .slice(0, historyRemainingSlots);
-  }, [alphabetizedApps, historyIdentifiersToExclude, historyRemainingSlots]);
+  const historyAllApps = useMemo(() => (
+    alphabetizedApps.filter(app => {
+      const identifiers = collectAppIdentifiers(app);
+      return identifiers.every(identifier => !historyIdentifiersToExclude.has(identifier));
+    })
+  ), [alphabetizedApps, historyIdentifiersToExclude]);
 
   const historyShouldShow = useMemo(
     () => historyRecentApps.length > 0 || historyAllApps.length > 0,
@@ -306,6 +299,43 @@ const AppPreviewView = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isLayoutFullscreen]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleWindowBlur = () => {
+      setPreviewInteractionSignal(value => value + 1);
+    };
+
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const iframe = iframeRef.current;
+    if (!iframe) {
+      return;
+    }
+
+    const handlePointerDown = () => {
+      setPreviewInteractionSignal(value => value + 1);
+    };
+
+    iframe.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      iframe.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [previewReloadToken, previewUrl]);
 
   useEffect(() => {
     recordDebugEvent('preview-mount', {
@@ -1600,6 +1630,7 @@ const AppPreviewView = () => {
         historyAllApps={historyAllApps}
         historyShouldShow={historyShouldShow}
         onHistorySelect={handleHistorySelect}
+        previewInteractionSignal={previewInteractionSignal}
       />
 
       {bridgeIssueMessage && !bridgeMessageDismissed && (
