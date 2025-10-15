@@ -27,6 +27,7 @@ export default function AppModal({
   previewUrl,
 }: AppModalProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const fallbackPreviewUrl = useMemo(() => buildPreviewUrl(app) ?? null, [app]);
 
   if (!isOpen) return null;
 
@@ -85,7 +86,6 @@ export default function AppModal({
   const displayName = app.name || app.scenario_name || app.id;
   const subtitleChips = [app.scenario_name && app.scenario_name !== displayName ? app.scenario_name : null, app.id]
     .filter(Boolean) as string[];
-  const fallbackPreviewUrl = useMemo(() => buildPreviewUrl(app) ?? null, [app]);
   const currentUrl = previewUrl ?? fallbackPreviewUrl ?? (app.port_mappings?.UI_PORT ? `http://localhost:${app.port_mappings.UI_PORT}` : null);
 
   const handleOpenPreview = () => {

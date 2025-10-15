@@ -942,7 +942,6 @@ const useReportIssueState = ({
     diagnosticsReport,
     diagnosticsRuleResults,
     diagnosticsScannedFileCount,
-    diagnosticsViolations,
     diagnosticsWarnings,
   ]);
 

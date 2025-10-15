@@ -1,5 +1,39 @@
 import type { App } from '@/types';
 
+export const normalizeIdentifier = (value?: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.toLowerCase() : null;
+};
+
+export const collectAppIdentifiers = (app: App): string[] => {
+  return [app.id, app.scenario_name, app.name]
+    .map(normalizeIdentifier)
+    .filter((value): value is string => Boolean(value));
+};
+
+export const resolveAppIdentifier = (app: App): string | null => {
+  const candidates: Array<string | undefined> = [app.id, app.scenario_name, app.name];
+  const match = candidates.find(value => typeof value === 'string' && value.trim().length > 0);
+  return match ? match.trim() : null;
+};
+
+export const parseTimestampValue = (value?: string | null): number | null => {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return null;
+  }
+
+  return parsed;
+};
+
 const APP_PROXY_PREFIX = '/apps';
 
 export const normalizeStatus = (status?: string | null) => (status ?? '').toLowerCase();

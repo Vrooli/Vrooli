@@ -1,12 +1,11 @@
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
-  History,
   LayoutDashboard,
   PanelLeftClose,
   PanelLeftOpen,
@@ -16,9 +15,16 @@ import {
   Server,
 } from 'lucide-react';
 import { appService, resourceService, healthService } from '@/services/api';
-import { locateAppByIdentifier } from '@/utils/appPreview';
+import {
+  collectAppIdentifiers,
+  locateAppByIdentifier,
+  normalizeIdentifier,
+  parseTimestampValue,
+  resolveAppIdentifier,
+} from '@/utils/appPreview';
 import { useAppsStore } from '@/state/appsStore';
 import type { App } from '@/types';
+import HistoryMenu from './HistoryMenu';
 import './Layout.css';
 
 const OFFLINE_STATES = new Set(['unhealthy', 'offline', 'critical']);
@@ -43,103 +49,9 @@ const formatSecondsToDuration = (seconds: number): string => {
     .join(':');
 };
 
-const HISTORY_LIMIT = 8;
-const HISTORY_MENU_OFFSET = 10;
-const HISTORY_MENU_MARGIN = 12;
+const HISTORY_LIMIT = 16;
 const STATUS_POPOVER_OFFSET = 10;
 const STATUS_POPOVER_MARGIN = 12;
-
-const parseTimestampValue = (value?: string | null): number | null => {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) {
-    return null;
-  }
-
-  return parsed;
-};
-
-const formatRelativeViewed = (value?: string | null): string | null => {
-  const timestamp = parseTimestampValue(value);
-  if (timestamp === null) {
-    return null;
-  }
-
-  const diffMs = Date.now() - timestamp;
-  const diffSeconds = Math.floor(diffMs / 1000);
-
-  if (diffSeconds < 30) {
-    return 'Just now';
-  }
-  if (diffSeconds < 90) {
-    return '1 minute ago';
-  }
-
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  if (diffMinutes < 60) {
-    return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
-  }
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) {
-    return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-  }
-
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) {
-    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
-  }
-
-  const diffWeeks = Math.floor(diffDays / 7);
-  if (diffWeeks < 5) {
-    return `${diffWeeks} week${diffWeeks === 1 ? '' : 's'} ago`;
-  }
-
-  const diffMonths = Math.floor(diffDays / 30);
-  if (diffMonths < 12) {
-    return `${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`;
-  }
-
-  const diffYears = Math.floor(diffDays / 365);
-  return `${diffYears} year${diffYears === 1 ? '' : 's'} ago`;
-};
-
-const normalizeIdentifier = (value?: string | null): string | null => {
-  if (!value) {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed.toLowerCase() : null;
-};
-
-const collectAppIdentifiers = (app: App): string[] => {
-  return [app.id, app.scenario_name, app.name]
-    .map(normalizeIdentifier)
-    .filter((value): value is string => Boolean(value));
-};
-
-const formatViewCount = (value?: number): string | null => {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return null;
-  }
-
-  const count = Math.max(0, Math.floor(value));
-  if (count === 0) {
-    return null;
-  }
-
-  return `${count} view${count === 1 ? '' : 's'}`;
-};
-
-const resolveAppIdentifier = (app: App): string | null => {
-  const candidates: Array<string | undefined> = [app.id, app.scenario_name, app.name];
-  const match = candidates.find(value => typeof value === 'string' && value.trim().length > 0);
-  return match ? match.trim() : null;
-};
 
 interface LayoutProps {
   children: ReactNode;
@@ -158,63 +70,14 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [appsSearch, setAppsSearch] = useState('');
-  const [isHistoryMenuOpen, setIsHistoryMenuOpen] = useState(false);
-  const [historyActiveIndex, setHistoryActiveIndex] = useState<number | null>(null);
   const mobileViewportRef = useRef(false);
   const desktopCollapsedRef = useRef(true);
   const pollingRef = useRef(false);
-  const historyButtonRef = useRef<HTMLButtonElement | null>(null);
-  const historyMenuRef = useRef<HTMLDivElement | null>(null);
-  const historyItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const [historyMenuCoords, setHistoryMenuCoords] = useState<{ top: number; left: number } | null>(null);
   const isBrowser = typeof document !== 'undefined';
   const statusButtonRef = useRef<HTMLButtonElement | null>(null);
   const statusPopoverRef = useRef<HTMLDivElement | null>(null);
   const [statusPopoverCoords, setStatusPopoverCoords] = useState<{ top: number; left: number } | null>(null);
   const [isStatusPopoverOpen, setIsStatusPopoverOpen] = useState(false);
-
-  const updateHistoryMenuPosition = useCallback(() => {
-    if (!isBrowser) {
-      return;
-    }
-
-    const button = historyButtonRef.current;
-    const menu = historyMenuRef.current;
-    if (!button || !menu) {
-      return;
-    }
-
-    const buttonRect = button.getBoundingClientRect();
-    const menuRect = menu.getBoundingClientRect();
-    const menuWidth = menuRect.width || menu.offsetWidth;
-    const viewportWidth = window.innerWidth;
-
-    const idealLeft = buttonRect.right - menuWidth;
-    const minLeft = HISTORY_MENU_MARGIN;
-    const maxLeft = Math.max(minLeft, viewportWidth - menuWidth - HISTORY_MENU_MARGIN);
-    const clampedLeft = Math.min(Math.max(idealLeft, minLeft), maxLeft);
-
-    const top = Math.round(buttonRect.bottom + HISTORY_MENU_OFFSET);
-    const left = Math.round(clampedLeft);
-
-    setHistoryMenuCoords({ top, left });
-  }, [isBrowser]);
-
-  const historyMenuStyle = useMemo<CSSProperties>(() => {
-    if (!historyMenuCoords) {
-      return {
-        top: '-9999px',
-        left: '-9999px',
-        visibility: 'hidden',
-      };
-    }
-
-    return {
-      top: `${historyMenuCoords.top}px`,
-      left: `${historyMenuCoords.left}px`,
-      visibility: 'visible',
-    };
-  }, [historyMenuCoords]);
 
   const updateStatusPopoverPosition = useCallback(() => {
     if (!isBrowser) {
@@ -393,7 +256,37 @@ export default function Layout({ children, isConnected }: LayoutProps) {
       .slice(0, HISTORY_LIMIT);
   }, [apps, previewAppIdentifiers]);
 
-  const shouldShowHistory = (previewRouteInfo.isPreviewRoute || isAppsListRoute) && recentApps.length > 0;
+  const alphabetizedApps = useMemo(() => {
+    if (apps.length === 0) {
+      return [] as App[];
+    }
+
+    return [...apps].sort((a, b) => {
+      const aLabel = (resolveAppIdentifier(a) ?? '').toLowerCase();
+      const bLabel = (resolveAppIdentifier(b) ?? '').toLowerCase();
+
+      if (aLabel && bLabel) {
+        const byLabel = aLabel.localeCompare(bLabel);
+        if (byLabel !== 0) {
+          return byLabel;
+        }
+      }
+
+      const aId = (a.id ?? '').toLowerCase();
+      const bId = (b.id ?? '').toLowerCase();
+      if (aId && bId) {
+        const byId = aId.localeCompare(bId);
+        if (byId !== 0) {
+          return byId;
+        }
+      }
+
+      return 0;
+    });
+  }, [apps]);
+
+  const shouldShowHistory = (previewRouteInfo.isPreviewRoute || isAppsListRoute)
+    && (recentApps.length > 0 || alphabetizedApps.length > 0);
 
   // Fetch counts and system info
   useEffect(() => {
@@ -517,13 +410,6 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   }, [shouldShowOverlay]);
 
   useEffect(() => {
-    if (!shouldShowHistory && isHistoryMenuOpen) {
-      setIsHistoryMenuOpen(false);
-      setHistoryMenuCoords(null);
-    }
-  }, [isHistoryMenuOpen, shouldShowHistory]);
-
-  useEffect(() => {
     if (!isMobile && isStatusPopoverOpen) {
       setIsStatusPopoverOpen(false);
       setStatusPopoverCoords(null);
@@ -531,15 +417,8 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   }, [isMobile, isStatusPopoverOpen]);
 
   useEffect(() => {
-    if (!isHistoryMenuOpen && !isStatusPopoverOpen) {
-      if (!isHistoryMenuOpen) {
-        setHistoryActiveIndex(null);
-      }
+    if (!isStatusPopoverOpen) {
       return;
-    }
-
-    if (!isHistoryMenuOpen) {
-      setHistoryActiveIndex(null);
     }
 
     const handlePointer = (event: MouseEvent | TouchEvent) => {
@@ -548,52 +427,24 @@ export default function Layout({ children, isConnected }: LayoutProps) {
         return;
       }
 
-      if (isHistoryMenuOpen) {
-        if (historyButtonRef.current?.contains(target)) {
-          return;
-        }
-
-        if (historyMenuRef.current?.contains(target)) {
-          return;
-        }
+      if (statusButtonRef.current?.contains(target)) {
+        return;
       }
 
-      if (isStatusPopoverOpen) {
-        if (statusButtonRef.current?.contains(target)) {
-          return;
-        }
-
-        if (statusPopoverRef.current?.contains(target)) {
-          return;
-        }
+      if (statusPopoverRef.current?.contains(target)) {
+        return;
       }
 
-      if (isHistoryMenuOpen) {
-        setIsHistoryMenuOpen(false);
-        setHistoryMenuCoords(null);
-      }
-
-      if (isStatusPopoverOpen) {
-        setIsStatusPopoverOpen(false);
-        setStatusPopoverCoords(null);
-      }
+      setIsStatusPopoverOpen(false);
+      setStatusPopoverCoords(null);
     };
 
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-
-        if (isHistoryMenuOpen) {
-          setIsHistoryMenuOpen(false);
-          setHistoryMenuCoords(null);
-          historyButtonRef.current?.focus();
-        }
-
-        if (isStatusPopoverOpen) {
-          setIsStatusPopoverOpen(false);
-          setStatusPopoverCoords(null);
-          statusButtonRef.current?.focus();
-        }
+        setIsStatusPopoverOpen(false);
+        setStatusPopoverCoords(null);
+        statusButtonRef.current?.focus();
       }
     };
 
@@ -606,33 +457,7 @@ export default function Layout({ children, isConnected }: LayoutProps) {
       document.removeEventListener('touchstart', handlePointer);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [isHistoryMenuOpen, isStatusPopoverOpen]);
-
-  useEffect(() => {
-    if (!isHistoryMenuOpen || recentApps.length === 0) {
-      return;
-    }
-
-    historyItemRefs.current = historyItemRefs.current.slice(0, recentApps.length);
-
-    const targetIndex = historyActiveIndex !== null
-      ? Math.min(Math.max(historyActiveIndex, 0), recentApps.length - 1)
-      : 0;
-
-    const frame = window.requestAnimationFrame(() => {
-      const target = historyItemRefs.current[targetIndex] ?? historyItemRefs.current[0];
-      if (target) {
-        target.focus();
-        if (historyActiveIndex !== targetIndex) {
-          setHistoryActiveIndex(targetIndex);
-        }
-      }
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [historyActiveIndex, isHistoryMenuOpen, recentApps.length]);
+  }, [isStatusPopoverOpen]);
 
   useEffect(() => {
     if (!isStatusPopoverOpen) {
@@ -659,8 +484,6 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   }, [isStatusPopoverOpen, updateStatusPopoverPosition]);
 
   useEffect(() => {
-    setIsHistoryMenuOpen(false);
-    setHistoryMenuCoords(null);
     setIsStatusPopoverOpen(false);
     setStatusPopoverCoords(null);
   }, [previewRouteInfo.identifier]);
@@ -713,60 +536,9 @@ export default function Layout({ children, isConnected }: LayoutProps) {
     alert('Health check initiated');
   };
 
-  const focusHistoryItem = (index: number) => {
-    if (recentApps.length === 0) {
-      return;
-    }
-
-    const normalizedIndex = ((index % recentApps.length) + recentApps.length) % recentApps.length;
-    const target = historyItemRefs.current[normalizedIndex];
-    if (target) {
-      target.focus();
-      setHistoryActiveIndex(normalizedIndex);
-    }
-  };
-
-  const handleHistoryToggle = () => {
-    if (!shouldShowHistory) {
-      return;
-    }
-
-    setIsHistoryMenuOpen(prev => !prev);
-  };
-
-  const handleHistoryToggleKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    if (!shouldShowHistory) {
-      return;
-    }
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      setHistoryActiveIndex(0);
-      setIsHistoryMenuOpen(true);
-      return;
-    }
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      setHistoryActiveIndex(recentApps.length - 1);
-      setIsHistoryMenuOpen(true);
-      return;
-    }
-
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      setIsHistoryMenuOpen(prev => !prev);
-    }
-  };
-
-  const handleHistorySelect = (app: App) => {
+  const handleHistorySelect = useCallback((app: App) => {
     const identifier = resolveAppIdentifier(app);
-    setIsHistoryMenuOpen(false);
-    setHistoryActiveIndex(null);
-    setHistoryMenuCoords(null);
-
     if (!identifier) {
-      historyButtonRef.current?.focus();
       return;
     }
 
@@ -779,40 +551,7 @@ export default function Layout({ children, isConnected }: LayoutProps) {
       pathname: `/apps/${encodeURIComponent(identifier)}/preview`,
       search: location.search || undefined,
     });
-  };
-
-  const handleHistoryItemKeyDown = (index: number) => (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      focusHistoryItem(index + 1);
-      return;
-    }
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      focusHistoryItem(index - 1);
-      return;
-    }
-
-    if (event.key === 'Home') {
-      event.preventDefault();
-      focusHistoryItem(0);
-      return;
-    }
-
-    if (event.key === 'End') {
-      event.preventDefault();
-      focusHistoryItem(recentApps.length - 1);
-      return;
-    }
-
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      setIsHistoryMenuOpen(false);
-      setHistoryMenuCoords(null);
-      historyButtonRef.current?.focus();
-    }
-  };
+  }, [location.search, navigate, recordRouteDebug]);
 
   const headerTitle = useMemo(() => {
     if (previewRouteInfo.isPreviewRoute) {
@@ -892,30 +631,6 @@ export default function Layout({ children, isConnected }: LayoutProps) {
     };
   }, [shouldTick]);
 
-  useEffect(() => {
-    if (!isHistoryMenuOpen) {
-      setHistoryMenuCoords(null);
-      return;
-    }
-
-    const frame = window.requestAnimationFrame(() => {
-      updateHistoryMenuPosition();
-    });
-
-    const handleResizeOrScroll = () => {
-      updateHistoryMenuPosition();
-    };
-
-    window.addEventListener('resize', handleResizeOrScroll);
-    window.addEventListener('scroll', handleResizeOrScroll, true);
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener('resize', handleResizeOrScroll);
-      window.removeEventListener('scroll', handleResizeOrScroll, true);
-    };
-  }, [isHistoryMenuOpen, recentApps.length, updateHistoryMenuPosition]);
-
   return (
     <>
       <header className="main-header">
@@ -942,74 +657,12 @@ export default function Layout({ children, isConnected }: LayoutProps) {
                 >
                   {headerTitle}
                 </div>
-                {shouldShowHistory && (
-                  <div className="history-menu">
-                    <button
-                      type="button"
-                      ref={historyButtonRef}
-                      className="history-toggle"
-                      onClick={handleHistoryToggle}
-                      onKeyDown={handleHistoryToggleKeyDown}
-                      aria-haspopup="menu"
-                      aria-expanded={isHistoryMenuOpen}
-                      aria-label="Recently viewed scenarios"
-                      title="Recently viewed scenarios"
-                    >
-                      <History aria-hidden className="history-toggle__icon" />
-                    </button>
-                    {isBrowser && isHistoryMenuOpen && createPortal(
-                      <div
-                        className="history-menu__panel"
-                        role="menu"
-                        aria-label="Recently viewed scenarios"
-                        ref={historyMenuRef}
-                        style={historyMenuStyle}
-                      >
-                        <div className="history-menu__header">Recently viewed</div>
-                        <ul className="history-menu__list">
-                          {recentApps.map((app, index) => {
-                            const identifier = resolveAppIdentifier(app) ?? `recent-${index}`;
-                            const label = app.scenario_name || app.name || app.id || identifier;
-                            const relativeViewed = formatRelativeViewed(app.last_viewed_at);
-                            const viewCountValue = Number(app.view_count ?? 0);
-                            const viewCountLabel = Number.isFinite(viewCountValue)
-                              ? formatViewCount(viewCountValue)
-                              : null;
-
-                            return (
-                              <li key={identifier} role="none">
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  className={clsx('history-menu__item', {
-                                    'is-active': historyActiveIndex === index,
-                                  })}
-                                  ref={(element) => {
-                                    historyItemRefs.current[index] = element ?? null;
-                                  }}
-                                  onClick={() => handleHistorySelect(app)}
-                                  onKeyDown={handleHistoryItemKeyDown(index)}
-                                  aria-current={historyActiveIndex === index ? 'true' : undefined}
-                                >
-                                  <span className="history-menu__item-name">{label}</span>
-                                  <span className="history-menu__item-meta">
-                                    {relativeViewed && (
-                                      <span className="history-menu__item-meta-entry">{relativeViewed}</span>
-                                    )}
-                                    {viewCountLabel && (
-                                      <span className="history-menu__item-meta-entry">{viewCountLabel}</span>
-                                    )}
-                                  </span>
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>,
-                      document.body,
-                    )}
-                  </div>
-                )}
+                <HistoryMenu
+                  recentApps={recentApps}
+                  allApps={alphabetizedApps}
+                  shouldShowHistory={shouldShowHistory}
+                  onSelect={handleHistorySelect}
+                />
               </div>
             </div>
           </div>
