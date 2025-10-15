@@ -1,6 +1,8 @@
-import { useState, CSSProperties } from 'react';
+import { useMemo, useState } from 'react';
 import clsx from 'clsx';
+import { ExternalLink, Play, RotateCcw, ScrollText, Square } from 'lucide-react';
 import type { App, AppProxyMetadata, AppProxyPortInfo, LocalhostUsageReport } from '@/types';
+import { buildPreviewUrl } from '@/utils/appPreview';
 import './AppModal.css';
 
 interface AppModalProps {
@@ -11,9 +13,19 @@ interface AppModalProps {
   onViewLogs: (appId: string) => void;
   proxyMetadata?: AppProxyMetadata | null;
   localhostReport?: LocalhostUsageReport | null;
+  previewUrl?: string | null;
 }
 
-export default function AppModal({ app, isOpen, onClose, onAction, onViewLogs, proxyMetadata, localhostReport }: AppModalProps) {
+export default function AppModal({
+  app,
+  isOpen,
+  onClose,
+  onAction,
+  onViewLogs,
+  proxyMetadata,
+  localhostReport,
+  previewUrl,
+}: AppModalProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -55,16 +67,6 @@ export default function AppModal({ app, isOpen, onClose, onAction, onViewLogs, p
   const isRunning = ['running', 'healthy', 'degraded', 'unhealthy'].includes(app.status);
   const isStopped = app.status === 'stopped';
 
-  const compactValueStyle: CSSProperties = {
-    fontSize: '0.8rem',
-    letterSpacing: '0.07em',
-  };
-
-  const compactLabelStyle: CSSProperties = {
-    fontSize: '0.58rem',
-    letterSpacing: '0.08em',
-  };
-
   const handleAction = async (action: 'start' | 'stop' | 'restart') => {
     setActionLoading(action);
     try {
@@ -78,172 +80,218 @@ export default function AppModal({ app, isOpen, onClose, onAction, onViewLogs, p
     onViewLogs(app.id);
   };
 
+  const normalizedStatus = (app.status || 'unknown').toLowerCase();
+  const displayName = app.name || app.scenario_name || app.id;
+  const subtitleChips = [app.scenario_name && app.scenario_name !== displayName ? app.scenario_name : null, app.id]
+    .filter(Boolean) as string[];
+  const fallbackPreviewUrl = useMemo(() => buildPreviewUrl(app) ?? null, [app]);
+  const currentUrl = previewUrl ?? fallbackPreviewUrl ?? (app.port_mappings?.UI_PORT ? `http://localhost:${app.port_mappings.UI_PORT}` : null);
+
+  const handleOpenPreview = () => {
+    if (!currentUrl || typeof window === 'undefined') {
+      return;
+    }
+    window.open(currentUrl, '_blank', 'noopener,noreferrer');
+  };
   return (
     <div className={clsx('modal', { active: isOpen })} onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>{app.name}</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-        
-        <div className="modal-body">
-          <div className="app-details">
-            <div className="detail-row">
-              <span className="detail-label">STATUS:</span>
-              <span className={clsx('detail-value', `status-${app.status}`)}>
-                {app.status.toUpperCase()}
-                {app.health_status && app.health_status !== app.status && (
-                  <span className="detail-substatus">{app.health_status.toUpperCase()}</span>
-                )}
-              </span>
-            </div>
-            
-            <div className="detail-row">
-              <span className="detail-label" style={compactLabelStyle}>{primaryPortLabel}:</span>
-              <span className="detail-value port-number" style={compactValueStyle}>
-                {primaryPortValue}
-              </span>
-            </div>
-
-            {apiPort && (
-              <div className="detail-row">
-                <span className="detail-label" style={compactLabelStyle}>API_PORT:</span>
-                <span className="detail-value port-number" style={compactValueStyle}>{apiPort}</span>
+          <div className="modal-header__titles">
+            <h2>{displayName}</h2>
+            {subtitleChips.length > 0 && (
+              <div className="modal-header__meta">
+                {subtitleChips.map((chip) => (
+                  <span className="modal-header__chip" key={chip}>{chip}</span>
+                ))}
               </div>
             )}
-
-            <div className="detail-row">
-              <span className="detail-label" style={compactLabelStyle}>TYPE:</span>
-              <span className="detail-value" style={compactValueStyle}>
-                {typeLabel}
-              </span>
-            </div>
-
-            <div className="detail-row">
-              <span className="detail-label" style={compactLabelStyle}>UPTIME:</span>
-              <span className="detail-value" style={compactValueStyle}>
-                {uptime}
-              </span>
-            </div>
-
-            {runtime && (
-              <div className="detail-row">
-                <span className="detail-label" style={compactLabelStyle}>RUNTIME:</span>
-                <span className="detail-value" style={compactValueStyle}>{runtime}</span>
-              </div>
-            )}
-
-            {otherPorts.length > 0 && (
-              <div className="detail-row full-width">
-                <span className="detail-label">PORTS:</span>
-                <div className="detail-tags">
-                  {otherPorts.map((port) => (
-                    <span className="tag-chip" key={port.label}>
-                      {port.label}: {port.value}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {proxyRoutes.length > 0 && (
-              <div className="detail-row full-width">
-                <span className="detail-label">PROXY ROUTES:</span>
-                <div className="detail-tags">
-                  {proxyRoutes.map((route) => {
-                    const routeLabel = (route.label || route.slug || `PORT ${route.port}`).toUpperCase();
-                    return (
-                      <span className="tag-chip" key={`${route.path}-${routeLabel}`}>
-                        {routeLabel}: {route.path}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {showLocalhostDiagnostics && (
-              <div className="detail-row full-width">
-                <span className="detail-label">LOCALHOST:</span>
-                <div className="detail-description">
-                  {localhostFindings.length === 0 ? (
-                    <span>No hard-coded localhost references detected.</span>
-                  ) : (
-                    <ul>
-                      {localhostFindings.slice(0, 5).map((finding) => (
-                        <li key={`${finding.file_path}:${finding.line}`}>
-                          <code>{finding.file_path}:{finding.line}</code>
-                          {' '}
-                          {finding.pattern ? `(${finding.pattern}) ` : ''}
-                          {finding.snippet}
-                        </li>
-                      ))}
-                      {localhostFindings.length > 5 && (
-                        <li>…and {localhostFindings.length - 5} more occurrences</li>
-                      )}
-                    </ul>
-                  )}
-                  {localhostWarnings.length > 0 && (
-                    <ul>
-                      {localhostWarnings.map((warning, index) => (
-                        <li key={`localhost-warning-${index}`}>{warning}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {app.description && (
-              <div className="detail-row full-width">
-                <span className="detail-label">DESCRIPTION:</span>
-                <p className="detail-description">
-                  {app.description}
-                </p>
-              </div>
-            )}
-
-            {app.tags && app.tags.length > 0 && (
-              <div className="detail-row full-width">
-                <span className="detail-label">TAGS:</span>
-                <div className="detail-tags">
-                  {app.tags.map((tag) => (
-                    <span className="tag-chip" key={tag}>{tag}</span>
-                  ))}
-                </div>
+            {currentUrl && (
+              <div className="modal-header__url" title={currentUrl}>
+                <span className="modal-header__url-label">Preview URL</span>
+                <span className="modal-header__url-value">{currentUrl}</span>
               </div>
             )}
           </div>
+          <button className="modal-close" onClick={onClose} aria-label="Close">
+            ×
+          </button>
         </div>
-        
+
+        <div className="modal-body">
+          <section className="detail-section">
+            <h3 className="detail-section__title">Overview</h3>
+            <div className="detail-grid">
+              <div className="detail-card detail-card--status">
+                <span className="detail-card__label">Status</span>
+                <span className={clsx('detail-card__value', 'detail-card__value--status', `status-${normalizedStatus}`)}>
+                  {app.status ? app.status.toUpperCase() : 'UNKNOWN'}
+                  {app.health_status && app.health_status !== app.status && (
+                    <span className="detail-card__subvalue">{app.health_status.toUpperCase()}</span>
+                  )}
+                </span>
+              </div>
+
+              <div className="detail-card detail-card--mono">
+                <span className="detail-card__label">{primaryPortLabel}</span>
+                <span className="detail-card__value detail-card__value--mono">{primaryPortValue}</span>
+              </div>
+
+              {apiPort && (
+                <div className="detail-card detail-card--mono">
+                  <span className="detail-card__label">API Port</span>
+                  <span className="detail-card__value detail-card__value--mono">{apiPort}</span>
+                </div>
+              )}
+
+              <div className="detail-card">
+                <span className="detail-card__label">Type</span>
+                <span className="detail-card__value">{typeLabel}</span>
+              </div>
+
+              <div className="detail-card">
+                <span className="detail-card__label">Uptime</span>
+                <span className="detail-card__value">{uptime}</span>
+              </div>
+
+              {runtime && (
+                <div className="detail-card">
+                  <span className="detail-card__label">Runtime</span>
+                  <span className="detail-card__value">{runtime}</span>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {(otherPorts.length > 0 || proxyRoutes.length > 0) && (
+            <section className="detail-section">
+              <h3 className="detail-section__title">Ports & Routes</h3>
+              {otherPorts.length > 0 && (
+                <div className="detail-grid">
+                  {otherPorts.map((port) => (
+                    <div className="detail-card detail-card--mono" key={port.label}>
+                      <span className="detail-card__label">{port.label}</span>
+                      <span className="detail-card__value detail-card__value--mono">{port.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {proxyRoutes.length > 0 && (
+                <div className="detail-panel detail-panel--tags">
+                  <div className="tag-cloud" role="list">
+                    {proxyRoutes.map((route) => {
+                      const routeLabel = (route.label || route.slug || `PORT ${route.port}`).toUpperCase();
+                      return (
+                        <span className="tag-chip" role="listitem" key={`${route.path}-${routeLabel}`}>
+                          <span className="tag-chip__label">{routeLabel}</span>
+                          <span className="tag-chip__value">{route.path}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {showLocalhostDiagnostics && (
+            <section className="detail-section">
+              <h3 className="detail-section__title">Localhost Diagnostics</h3>
+              <div className="detail-panel detail-panel--list">
+                {localhostFindings.length === 0 ? (
+                  <p className="detail-panel__text">No hard-coded localhost references detected.</p>
+                ) : (
+                  <ul className="detail-list">
+                    {localhostFindings.slice(0, 6).map((finding) => (
+                      <li key={`${finding.file_path}:${finding.line}`}>
+                        <code>{finding.file_path}:{finding.line}</code>
+                        {finding.pattern ? ` (${finding.pattern})` : ''}
+                        <span className="detail-list__snippet">{finding.snippet}</span>
+                      </li>
+                    ))}
+                    {localhostFindings.length > 6 && (
+                      <li>…and {localhostFindings.length - 6} more occurrences</li>
+                    )}
+                  </ul>
+                )}
+                {localhostWarnings.length > 0 && (
+                  <ul className="detail-list detail-list--warnings">
+                    {localhostWarnings.map((warning, index) => (
+                      <li key={`localhost-warning-${index}`}>{warning}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </section>
+          )}
+
+          {app.description && (
+            <section className="detail-section">
+              <h3 className="detail-section__title">Description</h3>
+              <div className="detail-panel">
+                <p className="detail-panel__text">{app.description}</p>
+              </div>
+            </section>
+          )}
+
+          {app.tags && app.tags.length > 0 && (
+            <section className="detail-section">
+              <h3 className="detail-section__title">Tags</h3>
+              <div className="tag-cloud" role="list">
+                {app.tags.map((tag) => (
+                  <span className="tag-chip" role="listitem" key={tag}>{tag}</span>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
         <div className="modal-footer">
+          {!isRunning && (
+            <button
+              className={clsx('modal-btn', 'modal-btn--accent', { loading: actionLoading === 'start' })}
+              onClick={() => handleAction('start')}
+              disabled={actionLoading !== null}
+            >
+              <Play aria-hidden size={16} />
+              {actionLoading === 'start' ? 'Starting…' : 'Start'}
+            </button>
+          )}
+          {!isStopped && (
+            <button
+              className={clsx('modal-btn', 'modal-btn--danger', { loading: actionLoading === 'stop' })}
+              onClick={() => handleAction('stop')}
+              disabled={actionLoading !== null}
+            >
+              <Square aria-hidden size={16} />
+              {actionLoading === 'stop' ? 'Stopping…' : 'Stop'}
+            </button>
+          )}
           <button
-            className={clsx('modal-btn', { loading: actionLoading === 'start' })}
-            onClick={() => handleAction('start')}
-            disabled={isRunning || actionLoading !== null}
-          >
-            {actionLoading === 'start' ? 'STARTING...' : 'START'}
-          </button>
-          <button
-            className={clsx('modal-btn', { loading: actionLoading === 'stop' })}
-            onClick={() => handleAction('stop')}
-            disabled={isStopped || actionLoading !== null}
-          >
-            {actionLoading === 'stop' ? 'STOPPING...' : 'STOP'}
-          </button>
-          <button
-            className={clsx('modal-btn', { loading: actionLoading === 'restart' })}
+            className={clsx('modal-btn', 'modal-btn--neutral', { loading: actionLoading === 'restart' })}
             onClick={() => handleAction('restart')}
             disabled={actionLoading !== null}
           >
-            {actionLoading === 'restart' ? 'RESTARTING...' : 'RESTART'}
+            <RotateCcw aria-hidden size={16} />
+            {actionLoading === 'restart' ? 'Restarting…' : 'Restart'}
           </button>
           <button
-            className="modal-btn"
+            className={clsx('modal-btn', 'modal-btn--ghost')}
             onClick={handleViewLogs}
           >
-            VIEW LOGS
+            <ScrollText aria-hidden size={16} />
+            View Logs
           </button>
+          {currentUrl && (
+            <button
+              className={clsx('modal-btn', 'modal-btn--ghost')}
+              onClick={handleOpenPreview}
+            >
+              <ExternalLink aria-hidden size={16} />
+              Open Preview
+            </button>
+          )}
         </div>
       </div>
     </div>

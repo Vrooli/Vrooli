@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent, MouseEvent } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { ArrowLeft, ArrowRight, Bug, ExternalLink, Info, Loader2, Power, RefreshCw, RotateCcw, ScrollText, X } from 'lucide-react';
+import { Info, Loader2, X } from 'lucide-react';
 import { appService } from '@/services/api';
 import { useAppsStore } from '@/state/appsStore';
 import { logger } from '@/services/logger';
 import type { App, AppProxyMetadata, LocalhostUsageReport } from '@/types';
 import AppModal from '../AppModal';
+import AppPreviewToolbar from '../AppPreviewToolbar';
 import ReportIssueDialog from '../report/ReportIssueDialog';
 import { buildPreviewUrl, isRunningStatus, isStoppedStatus, locateAppByIdentifier } from '@/utils/appPreview';
 import { useIframeBridge } from '@/hooks/useIframeBridge';
@@ -715,7 +716,7 @@ const AppPreviewView = () => {
 
   const toggleActionLabel = isAppRunning ? 'Stop scenario' : 'Start scenario';
   const restartActionLabel = `Restart ${scenarioDisplayName}`;
-  const toggleTooltip = `${toggleActionLabel}${currentApp ? ` (${currentApp.id})` : ''}`;
+  const appStatusLabel = currentApp?.status ?? 'Unknown';
   const actionInProgress = pendingAction !== null;
 
   const bridgeIssueMessage = useMemo(() => {
@@ -1340,138 +1341,34 @@ const AppPreviewView = () => {
 
   return (
     <div className="app-preview-view">
-      <div className="preview-toolbar">
-        <div className="preview-toolbar__group preview-toolbar__group--left">
-          <button
-            type="button"
-            className="preview-toolbar__icon-btn"
-            onClick={handleGoBack}
-            disabled={!canGoBack}
-            aria-label={canGoBack ? 'Go back' : 'No previous page'}
-            title={canGoBack ? 'Go back' : 'No previous page'}
-          >
-            <ArrowLeft aria-hidden size={18} />
-          </button>
-          <button
-            type="button"
-            className="preview-toolbar__icon-btn"
-            onClick={handleGoForward}
-            disabled={!canGoForward}
-            aria-label={canGoForward ? 'Go forward' : 'No forward page'}
-            title={canGoForward ? 'Go forward' : 'No forward page'}
-          >
-            <ArrowRight aria-hidden size={18} />
-          </button>
-          <button
-            type="button"
-            className="preview-toolbar__icon-btn"
-            onClick={handleRefresh}
-            disabled={loading}
-            aria-label={loading ? 'Refreshing application status' : 'Refresh application'}
-            title={loading ? 'Refreshing…' : 'Refresh'}
-          >
-            <RefreshCw aria-hidden size={18} className={clsx({ spinning: loading })} />
-          </button>
-        </div>
-        <div className="preview-toolbar__title">
-          <div
-            className={clsx('preview-toolbar__url-wrapper', urlStatusClass)}
-            title={urlStatusTitle}
-          >
-            <button
-              type="button"
-              className="preview-toolbar__url-action-btn"
-              onClick={() => setModalOpen(true)}
-              disabled={!currentApp}
-              aria-label="Application details"
-              title="Application details"
-            >
-              <Info aria-hidden size={16} />
-            </button>
-            <input
-              type="text"
-              className="preview-toolbar__url-input"
-              value={previewUrlInput}
-              onChange={handleUrlInputChange}
-              onBlur={handleUrlInputBlur}
-              onKeyDown={handleUrlInputKeyDown}
-              placeholder="Enter preview URL"
-              aria-label="Preview URL"
-              autoComplete="off"
-              spellCheck={false}
-              inputMode="url"
-            />
-            <button
-              type="button"
-              className="preview-toolbar__url-action-btn"
-              onClick={handleOpenPreviewInNewTab}
-              disabled={!openPreviewTarget}
-              aria-label={openPreviewTarget ? 'Open preview in new tab' : 'Preview unavailable'}
-              title={openPreviewTarget ? 'Open in new tab' : 'Preview unavailable'}
-            >
-              <ExternalLink aria-hidden size={16} />
-            </button>
-          </div>
-        </div>
-        <div className="preview-toolbar__group preview-toolbar__group--right">
-          <button
-            type="button"
-            className={clsx(
-              'preview-toolbar__icon-btn',
-              isAppRunning && 'preview-toolbar__icon-btn--danger',
-              (pendingAction === 'start' || pendingAction === 'stop') && 'preview-toolbar__icon-btn--waiting',
-            )}
-            onClick={handleToggleApp}
-            disabled={!currentApp || actionInProgress}
-            aria-label={toggleTooltip}
-            title={toggleTooltip}
-          >
-            {(pendingAction === 'start' || pendingAction === 'stop') ? (
-              <Loader2 aria-hidden size={18} className="spinning" />
-            ) : (
-              <Power aria-hidden size={18} />
-            )}
-          </button>
-          <button
-            type="button"
-            className={clsx(
-              'preview-toolbar__icon-btn',
-              'preview-toolbar__icon-btn--secondary',
-              pendingAction === 'restart' && 'preview-toolbar__icon-btn--waiting',
-            )}
-            onClick={handleRestartApp}
-            disabled={!currentApp || !isAppRunning || actionInProgress}
-            aria-label={restartActionLabel}
-            title={restartActionLabel}
-          >
-            {pendingAction === 'restart' ? (
-              <Loader2 aria-hidden size={18} className="spinning" />
-            ) : (
-              <RotateCcw aria-hidden size={18} />
-            )}
-          </button>
-          <button
-            type="button"
-            className="preview-toolbar__icon-btn"
-            onClick={handleViewLogs}
-            disabled={!currentApp}
-            aria-label="View logs"
-            title="View logs"
-          >
-            <ScrollText aria-hidden size={18} />
-          </button>
-          <button
-            type="button"
-            className={clsx('preview-toolbar__icon-btn', 'preview-toolbar__icon-btn--report')}
-            onClick={handleOpenReportDialog}
-            disabled={!currentApp}
-            aria-label="Report an issue"
-            title="Report an issue"
-          >
-            <Bug aria-hidden size={18} />
-          </button>
-        </div>
-      </div>
+      <AppPreviewToolbar
+        canGoBack={canGoBack}
+        canGoForward={canGoForward}
+        onGoBack={handleGoBack}
+        onGoForward={handleGoForward}
+        onRefresh={handleRefresh}
+        isRefreshing={loading}
+        onOpenDetails={() => setModalOpen(true)}
+        previewUrlInput={previewUrlInput}
+        onPreviewUrlInputChange={handleUrlInputChange}
+        onPreviewUrlInputBlur={handleUrlInputBlur}
+        onPreviewUrlInputKeyDown={handleUrlInputKeyDown}
+        onOpenInNewTab={handleOpenPreviewInNewTab}
+        openPreviewTarget={openPreviewTarget}
+        urlStatusClass={urlStatusClass}
+        urlStatusTitle={urlStatusTitle}
+        hasCurrentApp={Boolean(currentApp)}
+        isAppRunning={isAppRunning}
+        pendingAction={pendingAction}
+        actionInProgress={actionInProgress}
+        toggleActionLabel={toggleActionLabel}
+        onToggleApp={handleToggleApp}
+        restartActionLabel={restartActionLabel}
+        onRestartApp={handleRestartApp}
+        onViewLogs={handleViewLogs}
+        onReportIssue={handleOpenReportDialog}
+        appStatusLabel={appStatusLabel}
+      />
 
       {bridgeIssueMessage && !bridgeMessageDismissed && (
         <div className="preview-status" role="status">
@@ -1550,6 +1447,7 @@ const AppPreviewView = () => {
           }}
           proxyMetadata={proxyMetadata}
           localhostReport={localhostReport}
+          previewUrl={activePreviewUrl || null}
         />
       )}
 
