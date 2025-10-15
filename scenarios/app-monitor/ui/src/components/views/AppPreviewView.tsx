@@ -73,7 +73,6 @@ const AppPreviewView = () => {
   const [proxyMetadata, setProxyMetadata] = useState<AppProxyMetadata | null>(null);
   const [localhostReport, setLocalhostReport] = useState<LocalhostUsageReport | null>(null);
   const [bridgeMessageDismissed, setBridgeMessageDismissed] = useState(false);
-  const [localhostMessageDismissed, setLocalhostMessageDismissed] = useState(false);
   const complianceRunRef = useRef(false);
   const initialPreviewUrlRef = useRef<string | null>(null);
   const restartMonitorRef = useRef<{ cancel: () => void } | null>(null);
@@ -598,12 +597,7 @@ const AppPreviewView = () => {
     }
     return null;
   }, [localhostReport]);
-
-  useEffect(() => {
-    if (localhostIssueMessage) {
-      setLocalhostMessageDismissed(false);
-    }
-  }, [localhostIssueMessage]);
+  const hasLocalhostWarning = Boolean(localhostIssueMessage);
 
   useEffect(() => {
     setIframeLoadedAt(null);
@@ -1357,6 +1351,7 @@ const AppPreviewView = () => {
         openPreviewTarget={openPreviewTarget}
         urlStatusClass={urlStatusClass}
         urlStatusTitle={urlStatusTitle}
+        hasDetailsWarning={hasLocalhostWarning}
         hasCurrentApp={Boolean(currentApp)}
         isAppRunning={isAppRunning}
         pendingAction={pendingAction}
@@ -1378,20 +1373,6 @@ const AppPreviewView = () => {
             className="preview-status__dismiss"
             onClick={() => setBridgeMessageDismissed(true)}
             aria-label="Dismiss bridge diagnostics message"
-          >
-            <X aria-hidden size={16} />
-          </button>
-        </div>
-      )}
-
-      {localhostIssueMessage && !localhostMessageDismissed && (
-        <div className="preview-status" role="status">
-          <span className="preview-status__message">{localhostIssueMessage}</span>
-          <button
-            type="button"
-            className="preview-status__dismiss"
-            onClick={() => setLocalhostMessageDismissed(true)}
-            aria-label="Dismiss localhost reference warning"
           >
             <X aria-hidden size={16} />
           </button>

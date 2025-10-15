@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { ChangeEvent, CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import clsx from 'clsx';
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Bug,
@@ -38,6 +39,7 @@ export interface AppPreviewToolbarProps {
   openPreviewTarget: string | null;
   urlStatusClass: string;
   urlStatusTitle: string;
+  hasDetailsWarning: boolean;
   hasCurrentApp: boolean;
   isAppRunning: boolean;
   pendingAction: AppPreviewToolbarPendingAction;
@@ -78,6 +80,7 @@ const AppPreviewToolbar = ({
   onViewLogs,
   onReportIssue,
   appStatusLabel,
+  hasDetailsWarning,
 }: AppPreviewToolbarProps) => {
   const [lifecycleMenuOpen, setLifecycleMenuOpen] = useState(false);
   const [devMenuOpen, setDevMenuOpen] = useState(false);
@@ -133,6 +136,10 @@ const AppPreviewToolbar = ({
       transform: 'translateX(-100%)',
     };
   }, [devAnchorRect]);
+
+  const detailsButtonLabel = hasDetailsWarning
+    ? 'Application details (localhost references detected)'
+    : 'Application details';
 
   const isBrowser = typeof document !== 'undefined';
 
@@ -337,13 +344,21 @@ const AppPreviewToolbar = ({
         </button>
         <button
           type="button"
-          className="preview-toolbar__icon-btn preview-toolbar__details-btn--mobile"
+          className={clsx(
+            'preview-toolbar__icon-btn',
+            'preview-toolbar__details-btn--mobile',
+            hasDetailsWarning && 'preview-toolbar__icon-btn--warning',
+          )}
           onClick={onOpenDetails}
           disabled={!hasCurrentApp}
-          aria-label="Application details"
-          title="Application details"
+          aria-label={detailsButtonLabel}
+          title={detailsButtonLabel}
         >
-          <Info aria-hidden size={18} />
+          {hasDetailsWarning ? (
+            <AlertTriangle aria-hidden size={18} />
+          ) : (
+            <Info aria-hidden size={18} />
+          )}
         </button>
       </div>
       <div className="preview-toolbar__title">
@@ -353,13 +368,20 @@ const AppPreviewToolbar = ({
         >
           <button
             type="button"
-            className="preview-toolbar__url-action-btn"
+            className={clsx(
+              'preview-toolbar__url-action-btn',
+              hasDetailsWarning && 'preview-toolbar__url-action-btn--warning',
+            )}
             onClick={onOpenDetails}
             disabled={!hasCurrentApp}
-            aria-label="Application details"
-            title="Application details"
+            aria-label={detailsButtonLabel}
+            title={detailsButtonLabel}
           >
-            <Info aria-hidden size={16} />
+            {hasDetailsWarning ? (
+              <AlertTriangle aria-hidden size={16} />
+            ) : (
+              <Info aria-hidden size={16} />
+            )}
           </button>
           <input
             type="text"

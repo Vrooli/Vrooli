@@ -2,7 +2,7 @@
 .main-header {
   background: linear-gradient(135deg, var(--matrix-dark) 0%, var(--matrix-card) 100%);
   border-bottom: 2px solid var(--matrix-green);
-  padding: 1rem 2rem;
+  padding: 0.5rem 1.5rem;
   position: relative;
   overflow: visible;
   z-index: 10;
@@ -16,12 +16,6 @@
   width: 100%;
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--matrix-green), transparent);
-  animation: scan 3s linear infinite;
-}
-
-@keyframes scan {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
 }
 
 .header-grid {
@@ -209,6 +203,10 @@
   justify-content: flex-end;
 }
 
+.status-chip-wrapper {
+  display: inline-flex;
+}
+
 .status-chip {
   display: inline-flex;
   flex-direction: row;
@@ -224,6 +222,26 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.status-chip--button {
+  appearance: none;
+  cursor: pointer;
+  background: rgba(0, 255, 65, 0.12);
+  border: 1px solid rgba(0, 255, 65, 0.45);
+  padding: 0.35rem 0.6rem;
+}
+
+.status-chip--button:hover,
+.status-chip--button:focus-visible {
+  background: rgba(0, 255, 65, 0.2);
+  border-color: rgba(0, 255, 65, 0.65);
+  outline: none;
+}
+
+.status-chip--active {
+  background: rgba(0, 255, 65, 0.25);
+  border-color: rgba(0, 255, 65, 0.8);
 }
 
 .status-chip.offline {
@@ -259,6 +277,50 @@
   color: var(--matrix-red);
 }
 
+.status-chip.offline.status-chip--button {
+  background: rgba(255, 65, 105, 0.16);
+  border-color: rgba(255, 65, 105, 0.45);
+  color: var(--matrix-red);
+}
+
+.status-chip.offline.status-chip--active {
+  background: rgba(255, 65, 105, 0.22);
+  border-color: rgba(255, 65, 105, 0.55);
+}
+
+.status-popover {
+  position: fixed;
+  min-width: 200px;
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 255, 65, 0.35);
+  background: rgba(8, 18, 12, 0.96);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  z-index: 2200;
+}
+
+.status-popover__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.85rem;
+}
+
+.status-popover__label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(0, 255, 65, 0.85);
+}
+
+.status-popover__value {
+  font-weight: 600;
+  color: var(--matrix-cyan);
+}
+
 /* Dashboard Layout */
 .dashboard {
   display: flex;
@@ -285,8 +347,10 @@
 }
 
 .sidebar.collapsed {
-  width: 80px;
+  width: 64px;
   overflow: hidden;
+  padding: 0.5rem;
+  gap: 1rem;
 }
 
 .sidebar.collapsed .menu-section h3,
@@ -442,7 +506,7 @@
   }
 
   .main-header {
-    padding: 1rem;
+    padding: 0.5rem 1rem;
   }
 
   .logo-text {
@@ -477,6 +541,8 @@
 
   .sidebar.collapsed {
     width: min(280px, 90vw);
+    padding: 0.5rem 1rem;
+    gap: 1.25rem;
   }
 
   .sidebar.mobile-open .menu-section h3,
@@ -511,6 +577,7 @@
 
   .header-title {
     max-width: 100%;
+    font-size: 1.2rem;
   }
 
   .sidebar-close {

@@ -46,6 +46,8 @@ const formatSecondsToDuration = (seconds: number): string => {
 const HISTORY_LIMIT = 8;
 const HISTORY_MENU_OFFSET = 10;
 const HISTORY_MENU_MARGIN = 12;
+const STATUS_POPOVER_OFFSET = 10;
+const STATUS_POPOVER_MARGIN = 12;
 
 const parseTimestampValue = (value?: string | null): number | null => {
   if (!value) {
@@ -166,6 +168,10 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   const historyItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [historyMenuCoords, setHistoryMenuCoords] = useState<{ top: number; left: number } | null>(null);
   const isBrowser = typeof document !== 'undefined';
+  const statusButtonRef = useRef<HTMLButtonElement | null>(null);
+  const statusPopoverRef = useRef<HTMLDivElement | null>(null);
+  const [statusPopoverCoords, setStatusPopoverCoords] = useState<{ top: number; left: number } | null>(null);
+  const [isStatusPopoverOpen, setIsStatusPopoverOpen] = useState(false);
 
   const updateHistoryMenuPosition = useCallback(() => {
     if (!isBrowser) {
@@ -209,6 +215,49 @@ export default function Layout({ children, isConnected }: LayoutProps) {
       visibility: 'visible',
     };
   }, [historyMenuCoords]);
+
+  const updateStatusPopoverPosition = useCallback(() => {
+    if (!isBrowser) {
+      return;
+    }
+
+    const button = statusButtonRef.current;
+    const popover = statusPopoverRef.current;
+    if (!button || !popover) {
+      return;
+    }
+
+    const buttonRect = button.getBoundingClientRect();
+    const popoverRect = popover.getBoundingClientRect();
+    const popoverWidth = popoverRect.width || popover.offsetWidth;
+    const viewportWidth = window.innerWidth;
+
+    const idealLeft = buttonRect.left;
+    const minLeft = STATUS_POPOVER_MARGIN;
+    const maxLeft = Math.max(minLeft, viewportWidth - popoverWidth - STATUS_POPOVER_MARGIN);
+    const clampedLeft = Math.min(Math.max(idealLeft, minLeft), maxLeft);
+
+    const top = Math.round(buttonRect.bottom + STATUS_POPOVER_OFFSET);
+    const left = Math.round(clampedLeft);
+
+    setStatusPopoverCoords({ top, left });
+  }, [isBrowser]);
+
+  const statusPopoverStyle = useMemo<CSSProperties>(() => {
+    if (!statusPopoverCoords) {
+      return {
+        top: '-9999px',
+        left: '-9999px',
+        visibility: 'hidden',
+      };
+    }
+
+    return {
+      top: `${statusPopoverCoords.top}px`,
+      left: `${statusPopoverCoords.left}px`,
+      visibility: 'visible',
+    };
+  }, [statusPopoverCoords]);
   const recordRouteDebug = useCallback((event: string, detail?: Record<string, unknown>) => {
     try {
       const payload = {
@@ -475,9 +524,22 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   }, [isHistoryMenuOpen, shouldShowHistory]);
 
   useEffect(() => {
+    if (!isMobile && isStatusPopoverOpen) {
+      setIsStatusPopoverOpen(false);
+      setStatusPopoverCoords(null);
+    }
+  }, [isMobile, isStatusPopoverOpen]);
+
+  useEffect(() => {
+    if (!isHistoryMenuOpen && !isStatusPopoverOpen) {
+      if (!isHistoryMenuOpen) {
+        setHistoryActiveIndex(null);
+      }
+      return;
+    }
+
     if (!isHistoryMenuOpen) {
       setHistoryActiveIndex(null);
-      return;
     }
 
     const handlePointer = (event: MouseEvent | TouchEvent) => {
@@ -486,24 +548,52 @@ export default function Layout({ children, isConnected }: LayoutProps) {
         return;
       }
 
-      if (historyButtonRef.current?.contains(target)) {
-        return;
+      if (isHistoryMenuOpen) {
+        if (historyButtonRef.current?.contains(target)) {
+          return;
+        }
+
+        if (historyMenuRef.current?.contains(target)) {
+          return;
+        }
       }
 
-      if (historyMenuRef.current?.contains(target)) {
-        return;
+      if (isStatusPopoverOpen) {
+        if (statusButtonRef.current?.contains(target)) {
+          return;
+        }
+
+        if (statusPopoverRef.current?.contains(target)) {
+          return;
+        }
       }
 
-      setIsHistoryMenuOpen(false);
-      setHistoryMenuCoords(null);
+      if (isHistoryMenuOpen) {
+        setIsHistoryMenuOpen(false);
+        setHistoryMenuCoords(null);
+      }
+
+      if (isStatusPopoverOpen) {
+        setIsStatusPopoverOpen(false);
+        setStatusPopoverCoords(null);
+      }
     };
 
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        setIsHistoryMenuOpen(false);
-        setHistoryMenuCoords(null);
-        historyButtonRef.current?.focus();
+
+        if (isHistoryMenuOpen) {
+          setIsHistoryMenuOpen(false);
+          setHistoryMenuCoords(null);
+          historyButtonRef.current?.focus();
+        }
+
+        if (isStatusPopoverOpen) {
+          setIsStatusPopoverOpen(false);
+          setStatusPopoverCoords(null);
+          statusButtonRef.current?.focus();
+        }
       }
     };
 
@@ -516,7 +606,7 @@ export default function Layout({ children, isConnected }: LayoutProps) {
       document.removeEventListener('touchstart', handlePointer);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [isHistoryMenuOpen]);
+  }, [isHistoryMenuOpen, isStatusPopoverOpen]);
 
   useEffect(() => {
     if (!isHistoryMenuOpen || recentApps.length === 0) {
@@ -545,8 +635,34 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   }, [historyActiveIndex, isHistoryMenuOpen, recentApps.length]);
 
   useEffect(() => {
+    if (!isStatusPopoverOpen) {
+      setStatusPopoverCoords(null);
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      updateStatusPopoverPosition();
+    });
+
+    const handleResizeOrScroll = () => {
+      updateStatusPopoverPosition();
+    };
+
+    window.addEventListener('resize', handleResizeOrScroll);
+    window.addEventListener('scroll', handleResizeOrScroll, true);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', handleResizeOrScroll);
+      window.removeEventListener('scroll', handleResizeOrScroll, true);
+    };
+  }, [isStatusPopoverOpen, updateStatusPopoverPosition]);
+
+  useEffect(() => {
     setIsHistoryMenuOpen(false);
     setHistoryMenuCoords(null);
+    setIsStatusPopoverOpen(false);
+    setStatusPopoverCoords(null);
   }, [previewRouteInfo.identifier]);
 
   const toggleSidebar = () => {
@@ -898,17 +1014,71 @@ export default function Layout({ children, isConnected }: LayoutProps) {
             </div>
           </div>
           <div className="status-bar">
-            <div
-              className={clsx('status-chip', { offline: !isSystemOnline })}
-              role="status"
-              aria-live="polite"
-            >
-              <span
-                className={clsx('status-indicator', isSystemOnline ? 'online' : 'offline')}
-                aria-hidden
-              />
-              <span className="status-text">{statusText}</span>
-            </div>
+            {isMobile ? (
+              <div className="status-chip-wrapper" role="status" aria-live="polite">
+                <button
+                  type="button"
+                  ref={statusButtonRef}
+                  className={clsx(
+                    'status-chip',
+                    'status-chip--button',
+                    { offline: !isSystemOnline, 'status-chip--active': isStatusPopoverOpen },
+                  )}
+                  aria-haspopup="dialog"
+                  aria-expanded={isStatusPopoverOpen}
+                  aria-label={isSystemOnline ? 'System status online. View uptime' : 'System status offline. View details'}
+                  onClick={() => {
+                    setIsStatusPopoverOpen(prev => {
+                      const next = !prev;
+                      if (next) {
+                        setTimeout(() => {
+                          updateStatusPopoverPosition();
+                        }, 0);
+                      } else {
+                        setStatusPopoverCoords(null);
+                      }
+                      return next;
+                    });
+                  }}
+                >
+                  <span
+                    className={clsx('status-indicator', isSystemOnline ? 'online' : 'offline')}
+                    aria-hidden
+                  />
+                </button>
+                {isBrowser && isStatusPopoverOpen && createPortal(
+                  <div
+                    className="status-popover"
+                    role="dialog"
+                    aria-label="System status details"
+                    ref={statusPopoverRef}
+                    style={statusPopoverStyle}
+                  >
+                    <div className="status-popover__row">
+                      <span className="status-popover__label">Status</span>
+                      <span className="status-popover__value">{isSystemOnline ? 'Online' : 'Offline'}</span>
+                    </div>
+                    <div className="status-popover__row">
+                      <span className="status-popover__label">Uptime</span>
+                      <span className="status-popover__value">{uptimeDisplay}</span>
+                    </div>
+                  </div>,
+                  document.body,
+                )}
+              </div>
+            ) : (
+              <div
+                className={clsx('status-chip', { offline: !isSystemOnline })}
+                role="status"
+                aria-live="polite"
+              >
+                <span
+                  className={clsx('status-indicator', isSystemOnline ? 'online' : 'offline')}
+                  aria-hidden
+                />
+                <span className="status-text">{statusText}</span>
+              </div>
+            )}
           </div>
         </div>
       </header>

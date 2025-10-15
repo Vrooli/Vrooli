@@ -59,6 +59,7 @@ export default function AppModal({
     : [];
   const localhostFindings = localhostReport?.findings ?? [];
   const localhostWarnings = localhostReport?.warnings ?? [];
+  const localhostFindingsCount = localhostFindings.length;
   const showLocalhostDiagnostics = Boolean(localhostReport);
 
   const uptime = app.uptime && app.uptime !== 'N/A' ? app.uptime : 'N/A';
@@ -199,7 +200,17 @@ export default function AppModal({
             <section className="detail-section">
               <h3 className="detail-section__title">Localhost Diagnostics</h3>
               <div className="detail-panel detail-panel--list">
-                {localhostFindings.length === 0 ? (
+                {localhostFindingsCount > 0 && (
+                  <div className="detail-panel__alert detail-panel__alert--warning">
+                    <span className="detail-panel__alert-title">
+                      {localhostFindingsCount} hard-coded localhost reference{localhostFindingsCount === 1 ? '' : 's'} detected
+                    </span>
+                    <p className="detail-panel__alert-message">
+                      Update requests to use the scenario proxy base so the preview remains accessible from other hosts.
+                    </p>
+                  </div>
+                )}
+                {localhostFindingsCount === 0 ? (
                   <p className="detail-panel__text">No hard-coded localhost references detected.</p>
                 ) : (
                   <ul className="detail-list">
