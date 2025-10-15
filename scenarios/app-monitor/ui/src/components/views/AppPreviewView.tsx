@@ -10,7 +10,15 @@ import type { App, AppProxyMetadata, LocalhostUsageReport } from '@/types';
 import AppModal from '../AppModal';
 import AppPreviewToolbar from '../AppPreviewToolbar';
 import ReportIssueDialog from '../report/ReportIssueDialog';
-import { buildPreviewUrl, isRunningStatus, isStoppedStatus, locateAppByIdentifier } from '@/utils/appPreview';
+import {
+  buildPreviewUrl,
+  collectAppIdentifiers,
+  isRunningStatus,
+  isStoppedStatus,
+  locateAppByIdentifier,
+  parseTimestampValue,
+  resolveAppIdentifier,
+} from '@/utils/appPreview';
 import { useIframeBridge } from '@/hooks/useIframeBridge';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import './AppPreviewView.css';
@@ -20,6 +28,7 @@ const PREVIEW_CONNECTING_LABEL = 'Connecting to preview...';
 const PREVIEW_TIMEOUT_MESSAGE = 'Preview did not respond. Ensure the application UI is running and reachable from App Monitor.';
 const PREVIEW_MIXED_CONTENT_MESSAGE = 'Preview blocked: browser refused to load HTTP content inside an HTTPS dashboard. Expose the UI through the tunnel hostname or enable HTTPS for the scenario.';
 const IOS_AUTOBACK_GUARD_MS = 15000;
+const HISTORY_MENU_LIMIT = 16;
 
 const AppPreviewView = () => {
   const apps = useAppsStore(state => state.apps);
@@ -27,6 +36,13 @@ const AppPreviewView = () => {
   const loadApps = useAppsStore(state => state.loadApps);
   const loadingInitial = useAppsStore(state => state.loadingInitial);
   const hasInitialized = useAppsStore(state => state.hasInitialized);
+  const alphabetizedApps = useMemo(() => {
+    return [...apps].sort((a, b) => {
+      const nameA = a.scenario_name ?? a.name ?? a.id ?? '';
+      const nameB = b.scenario_name ?? b.name ?? b.id ?? '';
+      return nameA.localeCompare(nameB);
+    });
+  }, [apps]);
   const navigate = useNavigate();
   const { appId } = useParams<{ appId: string }>();
   type PreviewLocationState = {
@@ -90,6 +106,80 @@ const AppPreviewView = () => {
   });
   const iosGuardedLocationKeyRef = useRef<string | null>(null);
   const lastStateSnapshotRef = useRef<string>('');
+
+  const currentAppIdentifiers = useMemo(() => (
+    currentApp ? collectAppIdentifiers(currentApp) : []
+  ), [currentApp]);
+
+  const historyRecentApps = useMemo(() => {
+    if (apps.length === 0) {
+      return [] as App[];
+    }
+
+    const excluded = new Set(currentAppIdentifiers);
+
+    return apps
+      .filter(app => {
+        const lastViewed = parseTimestampValue(app.last_viewed_at);
+        const viewCountRaw = Number(app.view_count ?? 0);
+        const viewCount = Number.isFinite(viewCountRaw) ? viewCountRaw : 0;
+        const hasHistory = lastViewed !== null || viewCount > 0;
+        if (!hasHistory) {
+          return false;
+        }
+
+        const identifiers = collectAppIdentifiers(app);
+        return identifiers.every(identifier => !excluded.has(identifier));
+      })
+      .sort((a, b) => {
+        const aTime = parseTimestampValue(a.last_viewed_at) ?? parseTimestampValue(a.updated_at) ?? 0;
+        const bTime = parseTimestampValue(b.last_viewed_at) ?? parseTimestampValue(b.updated_at) ?? 0;
+        if (aTime !== bTime) {
+          return bTime - aTime;
+        }
+
+        const aCountRaw = Number(a.view_count ?? 0);
+        const bCountRaw = Number(b.view_count ?? 0);
+        const aCount = Number.isFinite(aCountRaw) ? aCountRaw : 0;
+        const bCount = Number.isFinite(bCountRaw) ? bCountRaw : 0;
+        if (aCount !== bCount) {
+          return bCount - aCount;
+        }
+
+        const aLabel = (resolveAppIdentifier(a) ?? '').toLowerCase();
+        const bLabel = (resolveAppIdentifier(b) ?? '').toLowerCase();
+        return aLabel.localeCompare(bLabel);
+      })
+      .slice(0, HISTORY_MENU_LIMIT);
+  }, [apps, currentAppIdentifiers]);
+
+  const historyIdentifiersToExclude = useMemo(() => {
+    const identifiers = new Set(currentAppIdentifiers);
+    historyRecentApps.forEach(app => {
+      collectAppIdentifiers(app).forEach(id => identifiers.add(id));
+    });
+    return identifiers;
+  }, [currentAppIdentifiers, historyRecentApps]);
+
+  const historyRemainingSlots = Math.max(0, HISTORY_MENU_LIMIT - historyRecentApps.length);
+
+  const historyAllApps = useMemo(() => {
+    if (historyRemainingSlots <= 0) {
+      return [] as App[];
+    }
+
+    return alphabetizedApps
+      .filter(app => {
+        const identifiers = collectAppIdentifiers(app);
+        return identifiers.every(identifier => !historyIdentifiersToExclude.has(identifier));
+      })
+      .slice(0, historyRemainingSlots);
+  }, [alphabetizedApps, historyIdentifiersToExclude, historyRemainingSlots]);
+
+  const historyShouldShow = useMemo(
+    () => historyRecentApps.length > 0 || historyAllApps.length > 0,
+    [historyAllApps, historyRecentApps],
+  );
 
   const recordDebugEvent = useCallback((event: string, detail?: Record<string, unknown>) => {
     try {
@@ -1336,6 +1426,23 @@ const AppPreviewView = () => {
     }
   }, [currentApp, navigate, recordNavigateEvent, updatePreviewGuard]);
 
+  const handleHistorySelect = useCallback((app: App) => {
+    const identifier = resolveAppIdentifier(app);
+    if (!identifier) {
+      return;
+    }
+
+    recordNavigateEvent({
+      reason: 'toolbar-history-select',
+      targetPath: `/apps/${encodeURIComponent(identifier)}/preview`,
+    });
+
+    navigate({
+      pathname: `/apps/${encodeURIComponent(identifier)}/preview`,
+      search: location.search || undefined,
+    });
+  }, [location.search, navigate, recordNavigateEvent]);
+
   const handleIframeLoad = useCallback(() => {
     setIframeLoadError(null);
     setIframeLoadedAt(Date.now());
@@ -1489,6 +1596,10 @@ const AppPreviewView = () => {
         isFullView={isFullView}
         onToggleFullView={handleToggleFullscreen}
         menuPortalContainer={previewViewNode}
+        historyRecentApps={historyRecentApps}
+        historyAllApps={historyAllApps}
+        historyShouldShow={historyShouldShow}
+        onHistorySelect={handleHistorySelect}
       />
 
       {bridgeIssueMessage && !bridgeMessageDismissed && (

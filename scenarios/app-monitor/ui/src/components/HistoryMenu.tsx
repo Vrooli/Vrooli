@@ -101,9 +101,26 @@ interface HistoryMenuProps {
   allApps: App[];
   shouldShowHistory: boolean;
   onSelect(app: App): void;
+  containerClassName?: string;
+  buttonClassName?: string;
+  iconClassName?: string;
+  portalContainer?: HTMLElement | null;
+  onToggle?: (isOpen: boolean) => void;
+  usePortal?: boolean;
 }
 
-export default function HistoryMenu({ recentApps, allApps, shouldShowHistory, onSelect }: HistoryMenuProps) {
+export default function HistoryMenu({
+  recentApps,
+  allApps,
+  shouldShowHistory,
+  onSelect,
+  containerClassName,
+  buttonClassName,
+  iconClassName,
+  portalContainer,
+  onToggle,
+  usePortal = true,
+}: HistoryMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
@@ -115,8 +132,22 @@ export default function HistoryMenu({ recentApps, allApps, shouldShowHistory, on
   const fallbackKeyMap = useRef(new WeakMap<App, string>());
   const fallbackKeyCounter = useRef(0);
   const isBrowser = typeof document !== 'undefined';
+  const portalHost = portalContainer ?? (isBrowser ? document.body : null);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const closeMenu = useCallback(() => {
+    setIsOpen(false);
+    setMenuCoords(null);
+    setActiveIndex(null);
+    setSearchQuery('');
+    onToggle?.(false);
+  }, [onToggle]);
+
+  const openMenu = useCallback(() => {
+    setIsOpen(true);
+    onToggle?.(true);
+  }, [onToggle]);
 
   const getAppKey = useCallback((app: App): string => {
     const candidates: Array<string | undefined> = [
@@ -241,10 +272,9 @@ export default function HistoryMenu({ recentApps, allApps, shouldShowHistory, on
 
   useEffect(() => {
     if (!shouldShowHistory && isOpen) {
-      setIsOpen(false);
-      setSearchQuery('');
+      closeMenu();
     }
-  }, [isOpen, shouldShowHistory]);
+  }, [closeMenu, isOpen, shouldShowHistory]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -290,20 +320,14 @@ export default function HistoryMenu({ recentApps, allApps, shouldShowHistory, on
         return;
       }
 
-      setIsOpen(false);
-      setMenuCoords(null);
-      setActiveIndex(null);
-      setSearchQuery('');
+      closeMenu();
       buttonRef.current?.focus();
     };
 
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        setIsOpen(false);
-        setMenuCoords(null);
-        setActiveIndex(null);
-        setSearchQuery('');
+        closeMenu();
         buttonRef.current?.focus();
       }
     };
@@ -317,7 +341,7 @@ export default function HistoryMenu({ recentApps, allApps, shouldShowHistory, on
       document.removeEventListener('touchstart', handlePointer);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [isOpen]);
+  }, [closeMenu, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -374,15 +398,13 @@ export default function HistoryMenu({ recentApps, allApps, shouldShowHistory, on
       return;
     }
 
-    setIsOpen(prev => {
-      const next = !prev;
-      if (!next) {
-        setSearchQuery('');
-        setActiveIndex(null);
-      }
-      return next;
-    });
-  }, [shouldShowHistory]);
+    if (isOpen) {
+      closeMenu();
+      buttonRef.current?.focus();
+    } else {
+      openMenu();
+    }
+  }, [buttonRef, closeMenu, isOpen, openMenu, shouldShowHistory]);
 
   const handleToggleKeyDown = useCallback((event: ReactKeyboardEvent<HTMLButtonElement>) => {
     if (!shouldShowHistory) {
@@ -392,37 +414,36 @@ export default function HistoryMenu({ recentApps, allApps, shouldShowHistory, on
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       setActiveIndex(totalItems > 0 ? 0 : null);
-      setIsOpen(true);
+      if (!isOpen) {
+        openMenu();
+      }
       return;
     }
 
     if (event.key === 'ArrowUp') {
       event.preventDefault();
       setActiveIndex(totalItems > 0 ? totalItems - 1 : null);
-      setIsOpen(true);
+      if (!isOpen) {
+        openMenu();
+      }
       return;
     }
 
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      setIsOpen(prev => {
-        const next = !prev;
-        if (!next) {
-          setSearchQuery('');
-          setActiveIndex(null);
-        }
-        return next;
-      });
+      if (isOpen) {
+        closeMenu();
+        buttonRef.current?.focus();
+      } else {
+        openMenu();
+      }
     }
-  }, [shouldShowHistory, totalItems]);
+  }, [buttonRef, closeMenu, isOpen, openMenu, shouldShowHistory, totalItems]);
 
   const handleSelect = useCallback((app: App) => {
-    setIsOpen(false);
-    setMenuCoords(null);
-    setActiveIndex(null);
-    setSearchQuery('');
+    closeMenu();
     onSelect(app);
-  }, [onSelect]);
+  }, [closeMenu, onSelect]);
 
   const handleItemKeyDown = useCallback((index: number) => (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'ArrowDown') {
@@ -456,13 +477,10 @@ export default function HistoryMenu({ recentApps, allApps, shouldShowHistory, on
 
     if (event.key === 'Escape') {
       event.preventDefault();
-      setIsOpen(false);
-      setMenuCoords(null);
-      setActiveIndex(null);
-      setSearchQuery('');
+      closeMenu();
       buttonRef.current?.focus();
     }
-  }, [focusItem, totalItems]);
+  }, [buttonRef, closeMenu, focusItem, totalItems]);
 
   const handleSearchChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);
@@ -490,24 +508,132 @@ export default function HistoryMenu({ recentApps, allApps, shouldShowHistory, on
 
     if (event.key === 'Escape') {
       event.preventDefault();
-      setIsOpen(false);
-      setMenuCoords(null);
-      setActiveIndex(null);
-      setSearchQuery('');
+      closeMenu();
       buttonRef.current?.focus();
     }
-  }, [focusItem, totalItems]);
+  }, [buttonRef, closeMenu, focusItem, totalItems]);
 
   if (!shouldShowHistory) {
     return null;
   }
 
+  const panel = (
+    <div
+      className="history-menu__panel"
+      role="menu"
+      aria-label="App quick switcher"
+      ref={menuRef}
+      style={menuStyle}
+    >
+      <div className="history-menu__search">
+        <input
+          ref={searchInputRef}
+          className="history-menu__search-input"
+          type="search"
+          placeholder="Search apps"
+          value={searchQuery}
+          onChange={handleSearchChange}
+          onKeyDown={handleSearchKeyDown}
+          aria-label="Search apps"
+        />
+      </div>
+      <div className="history-menu__sections">
+        {hasRecentSection && (
+          <div className="history-menu__section" role="group" aria-label="Recently viewed">
+            <div className="history-menu__header">Recently viewed</div>
+            <ul className="history-menu__list" role="none">
+              {recentItems.map((item, indexInSection) => {
+                const flatIndex = indexInSection;
+                const { app } = item;
+                const label = getAppLabel(app);
+                const relativeViewed = formatRelativeViewed(app.last_viewed_at);
+                const viewCountRaw = Number(app.view_count ?? 0);
+                const viewCountLabel = Number.isFinite(viewCountRaw)
+                  ? formatViewCount(viewCountRaw)
+                  : null;
+
+                return (
+                  <li key={item.key} role="none">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={clsx('history-menu__item', {
+                        'is-active': activeIndex === flatIndex,
+                      })}
+                      ref={(element) => {
+                        itemRefs.current[flatIndex] = element ?? null;
+                      }}
+                      onClick={() => handleSelect(app)}
+                      onKeyDown={handleItemKeyDown(flatIndex)}
+                      aria-current={activeIndex === flatIndex ? 'true' : undefined}
+                    >
+                      <span className="history-menu__item-name">{label}</span>
+                      <span className="history-menu__item-meta">
+                        {relativeViewed && (
+                          <span className="history-menu__item-meta-entry">{relativeViewed}</span>
+                        )}
+                        {viewCountLabel && (
+                          <span className="history-menu__item-meta-entry">{viewCountLabel}</span>
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+        {hasAllSection && (
+          <div className="history-menu__section" role="group" aria-label="All apps">
+            <div className="history-menu__header">All apps</div>
+            <ul className="history-menu__list" role="none">
+              {allItems.map((item, indexInSection) => {
+                const flatIndex = indexInSection + recentItems.length;
+                const { app } = item;
+                const label = getAppLabel(app);
+
+                return (
+                  <li key={item.key} role="none">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={clsx('history-menu__item', {
+                        'is-active': activeIndex === flatIndex,
+                      })}
+                      ref={(element) => {
+                        itemRefs.current[flatIndex] = element ?? null;
+                      }}
+                      onClick={() => handleSelect(app)}
+                      onKeyDown={handleItemKeyDown(flatIndex)}
+                      aria-current={activeIndex === flatIndex ? 'true' : undefined}
+                    >
+                      <span className="history-menu__item-name">{label}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+        {!hasRecentSection && !hasAllSection && (
+          <div className="history-menu__empty" role="status" aria-live="polite">
+            No apps match your search.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderedPanel = usePortal
+    ? (portalHost && isOpen ? createPortal(panel, portalHost) : null)
+    : (isOpen ? panel : null);
+
   return (
-    <div className="history-menu">
+    <div className={clsx('history-menu', containerClassName)}>
       <button
         type="button"
         ref={buttonRef}
-        className="history-toggle"
+        className={clsx('history-toggle', buttonClassName)}
         onClick={handleToggle}
         onKeyDown={handleToggleKeyDown}
         aria-haspopup="menu"
@@ -515,115 +641,9 @@ export default function HistoryMenu({ recentApps, allApps, shouldShowHistory, on
         aria-label="Open app history menu"
         title="Open app history menu"
       >
-        <History aria-hidden className="history-toggle__icon" />
+        <History aria-hidden className={clsx('history-toggle__icon', iconClassName)} />
       </button>
-      {isBrowser && isOpen && createPortal(
-        <div
-          className="history-menu__panel"
-          role="menu"
-          aria-label="App quick switcher"
-          ref={menuRef}
-          style={menuStyle}
-        >
-          <div className="history-menu__search">
-            <input
-              ref={searchInputRef}
-              className="history-menu__search-input"
-              type="search"
-              placeholder="Search apps"
-              value={searchQuery}
-              onChange={handleSearchChange}
-              onKeyDown={handleSearchKeyDown}
-              aria-label="Search apps"
-            />
-          </div>
-          <div className="history-menu__sections">
-            {hasRecentSection && (
-              <div className="history-menu__section" role="group" aria-label="Recently viewed">
-                <div className="history-menu__header">Recently viewed</div>
-                <ul className="history-menu__list" role="none">
-                  {recentItems.map((item, indexInSection) => {
-                    const flatIndex = indexInSection;
-                    const { app } = item;
-                    const label = getAppLabel(app);
-                    const relativeViewed = formatRelativeViewed(app.last_viewed_at);
-                    const viewCountRaw = Number(app.view_count ?? 0);
-                    const viewCountLabel = Number.isFinite(viewCountRaw)
-                      ? formatViewCount(viewCountRaw)
-                      : null;
-
-                    return (
-                      <li key={item.key} role="none">
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className={clsx('history-menu__item', {
-                            'is-active': activeIndex === flatIndex,
-                          })}
-                          ref={(element) => {
-                            itemRefs.current[flatIndex] = element ?? null;
-                          }}
-                          onClick={() => handleSelect(app)}
-                          onKeyDown={handleItemKeyDown(flatIndex)}
-                          aria-current={activeIndex === flatIndex ? 'true' : undefined}
-                        >
-                          <span className="history-menu__item-name">{label}</span>
-                          <span className="history-menu__item-meta">
-                            {relativeViewed && (
-                              <span className="history-menu__item-meta-entry">{relativeViewed}</span>
-                            )}
-                            {viewCountLabel && (
-                              <span className="history-menu__item-meta-entry">{viewCountLabel}</span>
-                            )}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-            {hasAllSection && (
-              <div className="history-menu__section" role="group" aria-label="All apps">
-                <div className="history-menu__header">All apps</div>
-                <ul className="history-menu__list" role="none">
-                  {allItems.map((item, indexInSection) => {
-                    const flatIndex = indexInSection + recentItems.length;
-                    const { app } = item;
-                    const label = getAppLabel(app);
-
-                    return (
-                      <li key={item.key} role="none">
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className={clsx('history-menu__item', {
-                            'is-active': activeIndex === flatIndex,
-                          })}
-                          ref={(element) => {
-                            itemRefs.current[flatIndex] = element ?? null;
-                          }}
-                          onClick={() => handleSelect(app)}
-                          onKeyDown={handleItemKeyDown(flatIndex)}
-                          aria-current={activeIndex === flatIndex ? 'true' : undefined}
-                        >
-                          <span className="history-menu__item-name">{label}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-            {!hasRecentSection && !hasAllSection && (
-              <div className="history-menu__empty" role="status" aria-live="polite">
-                No apps match your search.
-              </div>
-            )}
-          </div>
-        </div>,
-        document.body,
-      )}
+      {renderedPanel}
     </div>
   );
 }

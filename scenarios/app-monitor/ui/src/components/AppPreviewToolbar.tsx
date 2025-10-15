@@ -26,6 +26,8 @@ import {
   ScrollText,
   Wrench,
 } from 'lucide-react';
+import type { App } from '@/types';
+import HistoryMenu from './HistoryMenu';
 
 import './AppPreviewToolbar.css';
 
@@ -66,6 +68,10 @@ export interface AppPreviewToolbarProps {
   isFullView: boolean;
   onToggleFullView: () => void;
   menuPortalContainer: HTMLElement | null;
+  historyRecentApps: App[];
+  historyAllApps: App[];
+  historyShouldShow: boolean;
+  onHistorySelect: (app: App) => void;
 }
 
 const AppPreviewToolbar = ({
@@ -99,6 +105,10 @@ const AppPreviewToolbar = ({
   isFullView,
   onToggleFullView,
   menuPortalContainer,
+  historyRecentApps,
+  historyAllApps,
+  historyShouldShow,
+  onHistorySelect,
 }: AppPreviewToolbarProps) => {
   const [lifecycleMenuOpen, setLifecycleMenuOpen] = useState(false);
   const [devMenuOpen, setDevMenuOpen] = useState(false);
@@ -590,6 +600,27 @@ const AppPreviewToolbar = ({
     closeMenus();
   }, [closeMenus, onToggleFullView]);
 
+  const handleHistorySelect = useCallback((app: App) => {
+    onHistorySelect(app);
+    closeMenus();
+  }, [closeMenus, onHistorySelect]);
+
+  const handleHistoryToggle = useCallback((isOpen: boolean) => {
+    if (!isOpen) {
+      return;
+    }
+
+    setLifecycleMenuOpen(false);
+    setLifecycleAnchorRect(null);
+    setLifecycleMenuStyle(undefined);
+    setDevMenuOpen(false);
+    setDevAnchorRect(null);
+    setDevMenuStyle(undefined);
+    setNavMenuOpen(false);
+    setNavAnchorRect(null);
+    setNavMenuStyle(undefined);
+  }, []);
+
   const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (!isFullView) {
       return;
@@ -728,68 +759,118 @@ const AppPreviewToolbar = ({
       onClickCapture={handleClickCapture}
     >
       <div className="preview-toolbar__group preview-toolbar__group--left">
-        <div
-          className={clsx('preview-toolbar__menu', navMenuOpen && 'preview-toolbar__menu--open')}
-          ref={navMenuRef}
-        >
-          <button
-            type="button"
-            className={clsx(
-              'preview-toolbar__icon-btn',
-              navMenuOpen && 'preview-toolbar__icon-btn--active',
-            )}
-            ref={navButtonRef}
-            onClick={handleToggleNavMenu}
-            disabled={!canGoBack && !canGoForward && isRefreshing}
-            aria-haspopup="menu"
-            aria-expanded={navMenuOpen}
-            aria-label="Navigation actions"
-            title="Navigation actions"
-          >
-            <Navigation2 aria-hidden size={18} />
-          </button>
-          {portalHost && navMenuOpen && navMenuStyle && createPortal(
+        {isFullView ? (
+          <>
             <div
-              className="preview-toolbar__menu-popover"
-              role="menu"
-              ref={navPopoverRef}
-              style={navMenuStyle}
+              className={clsx('preview-toolbar__menu', navMenuOpen && 'preview-toolbar__menu--open')}
+              ref={navMenuRef}
             >
               <button
                 type="button"
-                role="menuitem"
-                ref={navFirstItemRef}
-                className="preview-toolbar__menu-item"
-                onClick={() => handleNavAction('back')}
-                disabled={!canGoBack}
+                className={clsx(
+                  'preview-toolbar__icon-btn',
+                  navMenuOpen && 'preview-toolbar__icon-btn--active',
+                )}
+                ref={navButtonRef}
+                onClick={handleToggleNavMenu}
+                disabled={!canGoBack && !canGoForward && isRefreshing}
+                aria-haspopup="menu"
+                aria-expanded={navMenuOpen}
+                aria-label="Navigation actions"
+                title="Navigation actions"
               >
-                <ArrowLeft aria-hidden size={16} />
-                <span>Go back</span>
+                <Navigation2 aria-hidden size={18} />
               </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="preview-toolbar__menu-item"
-                onClick={() => handleNavAction('forward')}
-                disabled={!canGoForward}
-              >
-                <ArrowRight aria-hidden size={16} />
-                <span>Go forward</span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="preview-toolbar__menu-item"
-                onClick={() => handleNavAction('refresh')}
-                disabled={isRefreshing}
-              >
-                <RefreshCw aria-hidden size={16} className={clsx({ spinning: isRefreshing })} />
-                <span>Refresh</span>
-              </button>
-            </div>,
-            portalHost,
-          )}
-        </div>
+              {portalHost && navMenuOpen && navMenuStyle && createPortal(
+                <div
+                  className="preview-toolbar__menu-popover"
+                  role="menu"
+                  ref={navPopoverRef}
+                  style={navMenuStyle}
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    ref={navFirstItemRef}
+                    className="preview-toolbar__menu-item"
+                    onClick={() => handleNavAction('back')}
+                    disabled={!canGoBack}
+                  >
+                    <ArrowLeft aria-hidden size={16} />
+                    <span>Go back</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="preview-toolbar__menu-item"
+                    onClick={() => handleNavAction('forward')}
+                    disabled={!canGoForward}
+                  >
+                    <ArrowRight aria-hidden size={16} />
+                    <span>Go forward</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="preview-toolbar__menu-item"
+                    onClick={() => handleNavAction('refresh')}
+                    disabled={isRefreshing}
+                  >
+                    <RefreshCw aria-hidden size={16} className={clsx({ spinning: isRefreshing })} />
+                    <span>Refresh</span>
+                  </button>
+                </div>,
+                portalHost,
+              )}
+            </div>
+            {isFullView && historyShouldShow && (
+              <HistoryMenu
+                recentApps={historyRecentApps}
+                allApps={historyAllApps}
+                shouldShowHistory={historyShouldShow}
+                onSelect={handleHistorySelect}
+                onToggle={handleHistoryToggle}
+                containerClassName="preview-toolbar__history"
+                buttonClassName="preview-toolbar__icon-btn"
+                iconClassName="preview-toolbar__history-icon"
+                usePortal={false}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="preview-toolbar__icon-btn"
+              onClick={onGoBack}
+              disabled={!canGoBack}
+              aria-label={canGoBack ? 'Go back' : 'No previous page'}
+              title={canGoBack ? 'Go back' : 'No previous page'}
+            >
+              <ArrowLeft aria-hidden size={18} />
+            </button>
+            <button
+              type="button"
+              className="preview-toolbar__icon-btn"
+              onClick={onGoForward}
+              disabled={!canGoForward}
+              aria-label={canGoForward ? 'Go forward' : 'No forward page'}
+              title={canGoForward ? 'Go forward' : 'No forward page'}
+            >
+              <ArrowRight aria-hidden size={18} />
+            </button>
+            <button
+              type="button"
+              className={clsx('preview-toolbar__icon-btn', 'preview-toolbar__icon-btn--refresh')}
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              aria-label={isRefreshing ? 'Refreshing application status' : 'Refresh application'}
+              title={isRefreshing ? 'Refreshing...' : 'Refresh'}
+            >
+              <RefreshCw aria-hidden size={18} className={clsx({ spinning: isRefreshing })} />
+            </button>
+          </>
+        )}
         <button
           type="button"
           className={clsx(

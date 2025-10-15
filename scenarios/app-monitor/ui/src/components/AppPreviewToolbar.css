@@ -56,6 +56,27 @@
   display: none;
 }
 
+.preview-toolbar__history {
+  display: inline-flex;
+  position: relative;
+}
+
+.preview-toolbar__history .history-toggle {
+  padding: 0;
+  border-radius: 50%;
+}
+
+.preview-toolbar__history .history-toggle__icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.preview-toolbar__history .history-toggle.preview-toolbar__icon-btn[aria-expanded='true'] {
+  background: rgba(0, 176, 255, 0.35);
+  border-color: rgba(0, 176, 255, 0.6);
+  color: var(--matrix-bg);
+}
+
 .preview-toolbar__group {
   display: flex;
   align-items: center;
@@ -401,6 +422,7 @@
   transform-origin: top right;
 }
 
+
 .preview-toolbar__menu-item {
   display: inline-flex;
   align-items: center;
@@ -422,6 +444,7 @@
 .preview-toolbar__menu-item svg {
   flex-shrink: 0;
 }
+
 
 .preview-toolbar__menu-item:hover,
 .preview-toolbar__menu-item:focus-visible {
