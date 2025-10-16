@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/fs"
 	"io/ioutil"
-	"log"
 	"mime"
 	"os"
 	"path/filepath"
@@ -206,7 +205,7 @@ func (s *Server) loadIssuesFromFolder(folder string) ([]Issue, error) {
 		issueDir := filepath.Join(folderPath, entry.Name())
 		issue, err := s.loadIssueFromDir(issueDir)
 		if err != nil {
-			log.Printf("Warning: could not load issue from %s: %v", issueDir, err)
+			logWarn("Failed to load issue from disk", "path", issueDir, "error", err)
 			continue
 		}
 		issue.Status = folder
@@ -297,7 +296,7 @@ func (s *Server) moveIssue(issueID, toFolder string) error {
 	}
 
 	if _, statErr := os.Stat(targetDir); statErr == nil {
-		log.Printf("moveIssue: removing stale %s before moving issue %s", targetDir, issue.ID)
+		logWarn("Removing stale issue directory before move", "target_dir", targetDir, "issue_id", issue.ID)
 		if err := os.RemoveAll(targetDir); err != nil {
 			return fmt.Errorf("failed to clear existing target %s: %w", targetDir, err)
 		}
@@ -336,7 +335,7 @@ func (s *Server) getAllIssues(statusFilter, priorityFilter, typeFilter, appIDFil
 	for _, folder := range folders {
 		folderIssues, err := s.loadIssuesFromFolder(folder)
 		if err != nil {
-			log.Printf("Warning: Could not load issues from %s: %v", folder, err)
+			logWarn("Failed to load issues from folder", "folder", folder, "error", err)
 			continue
 		}
 		allIssues = append(allIssues, folderIssues...)

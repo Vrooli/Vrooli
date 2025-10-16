@@ -1,563 +1,347 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useWebSocket } from './hooks/useWebSocket';
-import type { WebSocketEvent } from './types/events';
-import { Brain, CircleAlert, Clock, Cog, Filter, LayoutDashboard, Loader2, Pause, Play, Plus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Brain, Cog, Filter, LayoutDashboard, Pause, Play, Plus } from 'lucide-react';
 import { IssuesBoard } from './pages/IssuesBoard';
 import { IssueDetailsModal } from './components/IssueDetailsModal';
 import { IssueBoardToolbar } from './components/IssueBoardToolbar';
 import { CreateIssueModal } from './components/CreateIssueModal';
 import { MetricsDialog } from './components/MetricsDialog';
 import { SettingsDialog } from './components/SettingsDialog';
-import { Snackbar, type SnackbarTone } from './components/Snackbar';
-import { AppSettings, type DisplaySettings, type Issue, type IssueStatus, type ProcessorSettings } from './data/sampleData';
-import './styles/app.css';
 import {
-  ApiIssue,
-  VALID_STATUSES,
-  buildDashboardStats,
-  normalizeStatus,
-  transformIssue,
-} from './utils/issues';
-import { apiJsonRequest, apiVoidRequest } from './utils/api';
-import { type CreateIssueInput, type CreateIssuePrefill, type PriorityFilterValue } from './types/issueCreation';
+  AppSettings,
+  type AgentSettings,
+  type DisplaySettings,
+  type Issue,
+  type IssueStatus,
+  type ProcessorSettings,
+} from './data/sampleData';
+import './styles/app.css';
+import { VALID_STATUSES } from './utils/issues';
+import { type CreateIssueInput, type CreateIssuePrefill } from './types/issueCreation';
 import { prepareFollowUpPrefill } from './utils/issueHelpers';
-import { useIssueTrackerData, type RateLimitStatusPayload } from './hooks/useIssueTrackerData';
+import { IssueTrackerDataProvider, useIssueTrackerData } from './hooks/useIssueTrackerData';
+import { useIssueFilters } from './hooks/useIssueFilters';
+import { useThemeClass } from './hooks/useThemeClass';
+import { useBodyScrollLock } from './hooks/useBodyScrollLock';
+import { useDialogState } from './hooks/useDialogState';
+import { useSearchParamSync } from './hooks/useSearchParamSync';
+import { useIssueFocus } from './hooks/useIssueFocus';
+import { SnackStackProvider, useSnackPublisher } from './notifications/SnackStackProvider';
+import type { SnackVariant } from './notifications/snackBus';
+import { resolveApiBase } from '@vrooli/api-base';
 
-const API_BASE_INPUT = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api/v1';
+declare const __API_PORT__: string | undefined;
+
+const FALLBACK_API_PORT =
+  typeof __API_PORT__ === 'string' && __API_PORT__.trim().length > 0 ? __API_PORT__ : '15000';
+
+const API_BASE_INPUT = resolveApiBase({
+  explicitUrl: import.meta.env.VITE_API_BASE_URL as string | undefined,
+  defaultPort: FALLBACK_API_PORT,
+  appendSuffix: true,
+});
 const API_BASE_URL = API_BASE_INPUT.endsWith('/') ? API_BASE_INPUT.slice(0, -1) : API_BASE_INPUT;
 const ISSUE_FETCH_LIMIT = 200;
+const SNACK_IDS = {
+  loading: 'snack:data-loading',
+  loadError: 'snack:data-error',
+  connection: 'snack:connection-status',
+  rateLimit: 'snack:rate-limit',
+};
 
-interface SnackbarState {
-  message: string;
-  tone: SnackbarTone;
-}
-function buildApiUrl(path: string): string {
-  return `${API_BASE_URL}${path}`;
-}
-
-function getIssueIdFromLocation(): string | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const value = params.get('issue');
-    if (!value) {
-      return null;
-    }
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  } catch (error) {
-    console.warn('[IssueTracker] Unable to parse issue id from URL', error);
-    return null;
-  }
+function IssueAppProviders({ children }: { children: ReactNode }) {
+  return (
+    <SnackStackProvider>
+      <SnackAwareIssueTracker>{children}</SnackAwareIssueTracker>
+    </SnackStackProvider>
+  );
 }
 
-// Navigation removed - single page app with dialogs
+function SnackAwareIssueTracker({ children }: { children: ReactNode }) {
+  const { publish } = useSnackPublisher();
 
-// URL routing simplified - only issues page with query params
+  const showSnackbar = useCallback(
+    (message: string, tone: SnackVariant = 'info') => {
+      publish({
+        message,
+        variant: tone,
+        durationMs: tone === 'error' ? 7000 : undefined,
+      });
+    },
+    [publish],
+  );
 
-function App() {
-  const isMountedRef = useRef(true);
-  const [metricsDialogOpen, setMetricsDialogOpen] = useState(false);
-  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
-  const [wsConnectionStatus, setWsConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
-  const [displaySettings, setDisplaySettings] = useState(AppSettings.display);
-  const [priorityFilter, setPriorityFilter] = useState<PriorityFilterValue>('all');
-  const [appFilter, setAppFilter] = useState<string>('all');
-  const [searchFilter, setSearchFilter] = useState<string>('');
+  return (
+    <IssueTrackerDataProvider
+      apiBaseUrl={API_BASE_URL}
+      issueFetchLimit={ISSUE_FETCH_LIMIT}
+      showSnackbar={showSnackbar}
+    >
+      {children}
+    </IssueTrackerDataProvider>
+  );
+}
+
+function AppContent() {
+  const { publish, dismiss } = useSnackPublisher();
+
+  const showSnack = useCallback(
+    (message: string, tone: SnackVariant = 'info') => {
+      publish({
+        message,
+        variant: tone,
+        durationMs: tone === 'error' ? 7000 : undefined,
+      });
+    },
+    [publish],
+  );
+
+  const {
+    open: metricsDialogOpen,
+    openDialog: openMetricsDialog,
+    closeDialog: closeMetricsDialog,
+  } = useDialogState(false);
+  const {
+    open: settingsDialogOpen,
+    openDialog: openSettingsDialog,
+    closeDialog: closeSettingsDialog,
+  } = useDialogState(false);
+  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(AppSettings.display);
   const [hiddenColumns, setHiddenColumns] = useState<IssueStatus[]>(['archived']);
-  const [createIssueOpen, setCreateIssueOpen] = useState(false);
+  const {
+    open: createIssueOpen,
+    openDialog: openCreateIssue,
+    closeDialog: closeCreateIssue,
+  } = useDialogState(false);
   const [createIssuePrefill, setCreateIssuePrefill] = useState<CreateIssuePrefill | null>(null);
-  const [issueDetailOpen, setIssueDetailOpen] = useState(false);
-  const [focusedIssueId, setFocusedIssueId] = useState<string | null>(() => getIssueIdFromLocation());
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
-  const [runningProcesses, setRunningProcesses] = useState<Map<string, { agent_id: string; start_time: string; duration?: string }>>(new Map());
+  const {
+    open: issueDetailOpen,
+    openDialog: openIssueDetail,
+    closeDialog: closeIssueDetail,
+    setOpen: setIssueDetailOpenState,
+  } = useDialogState(false);
+  const { getParam, getParams, setParams, subscribe } = useSearchParamSync();
+  const searchHelpers = useMemo(
+    () => ({
+      getParam,
+      setParams,
+      subscribe,
+    }),
+    [getParam, setParams, subscribe],
+  );
+  const {
+    open: filtersOpen,
+    openDialog: openFilters,
+    closeDialog: closeFilters,
+    toggleDialog: toggleFilters,
+  } = useDialogState(false);
   const [followUpLoadingId, setFollowUpLoadingId] = useState<string | null>(null);
-
-  const showSnackbar = useCallback((message: string, tone: SnackbarTone = 'info') => {
-    setSnackbar({ message, tone });
-  }, []);
 
   const {
     issues,
-    setIssues,
     dashboardStats,
-    setDashboardStats,
     loading,
     loadError,
-    processorError,
     processorSettings,
-    setProcessorSettings,
+    updateProcessorSettings,
     issuesProcessed,
     issuesRemaining,
     rateLimitStatus,
     agentSettings,
-    setAgentSettings,
+    updateAgentSettings,
     fetchAllData,
-    handleProcessorError,
     toggleProcessorActive,
-  } = useIssueTrackerData({
-    apiBaseUrl: API_BASE_URL,
-    issueFetchLimit: ISSUE_FETCH_LIMIT,
-    isMountedRef,
-    showSnackbar,
-  });
-
-  // WebSocket event handler
-  const handleWebSocketEvent = useCallback((event: WebSocketEvent) => {
-    switch (event.type) {
-      case 'issue.created':
-      case 'issue.updated': {
-        const updatedIssue = transformIssue(event.data.issue, { apiBaseUrl: API_BASE_URL });
-        setIssues(prev => {
-          const index = prev.findIndex(i => i.id === updatedIssue.id);
-          if (index >= 0) {
-            return prev.map((i, idx) => idx === index ? updatedIssue : i);
-          }
-          return [...prev, updatedIssue];
-        });
-        break;
-      }
-
-      case 'issue.status_changed': {
-        const { issue_id, new_status } = event.data;
-        setIssues(prev => prev.map(i =>
-          i.id === issue_id ? { ...i, status: normalizeStatus(new_status) } : i
-        ));
-        break;
-      }
-
-      case 'issue.deleted': {
-        const { issue_id } = event.data;
-        setIssues(prev => prev.filter(i => i.id !== issue_id));
-        if (focusedIssueId === issue_id) {
-          setFocusedIssueId(null);
-          setIssueDetailOpen(false);
-        }
-        break;
-      }
-
-      case 'agent.started': {
-        const { issue_id, agent_id, start_time } = event.data;
-        setRunningProcesses(prev => {
-          const next = new Map(prev);
-          next.set(issue_id, { agent_id, start_time });
-          return next;
-        });
-        break;
-      }
-
-      case 'agent.completed':
-      case 'agent.failed': {
-        const { issue_id } = event.data;
-        setRunningProcesses(prev => {
-          const next = new Map(prev);
-          next.delete(issue_id);
-          return next;
-        });
-        break;
-      }
-
-      default:
-        break;
-    }
-  }, [focusedIssueId]);
-
-  // WebSocket connection
-  const wsUrl = useMemo(() => {
-    if (typeof window === 'undefined') return '';
-
-    // If API_BASE_URL is absolute (starts with http/https), extract host from it
-    if (API_BASE_INPUT.startsWith('http://') || API_BASE_INPUT.startsWith('https://')) {
-      const url = new URL(API_BASE_INPUT);
-      const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-      const finalUrl = `${wsProtocol}//${url.host}${API_BASE_URL}/ws`;
-      console.log('[WebSocket] URL (absolute):', finalUrl);
-      return finalUrl;
-    }
-
-    // Check if we're behind a proxy/tunnel (non-localhost hostname)
-    const hostname = window.location.hostname;
-    const isProxied = hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.match(/^192\.168\./);
-
-    if (isProxied) {
-      // Use the proxy - Vite will forward WebSocket connections
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const finalUrl = `${wsProtocol}//${window.location.host}${API_BASE_URL}/ws`;
-      console.log('[WebSocket] URL (proxied):', finalUrl);
-      return finalUrl;
-    }
-
-    // For local development, connect directly to API port
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const apiPort = typeof __API_PORT__ !== 'undefined' ? __API_PORT__ : '8090';
-    const finalUrl = `${wsProtocol}//${hostname}:${apiPort}${API_BASE_URL}/ws`;
-    console.log('[WebSocket] URL (direct):', finalUrl);
-    return finalUrl;
-  }, []);
-
-  const { status: wsStatus, error: wsError } = useWebSocket({
-    url: wsUrl,
-    onEvent: handleWebSocketEvent,
-    enabled: typeof window !== 'undefined',
-  });
+    createIssue: createIssueAction,
+    deleteIssue: deleteIssueAction,
+    updateIssueStatus: updateIssueStatusAction,
+    runningProcesses,
+    connectionStatus,
+    websocketError,
+    reconnectAttempts,
+  } = useIssueTrackerData();
 
   useEffect(() => {
-    setWsConnectionStatus(wsStatus);
-  }, [wsStatus]);
+    if (loading) {
+      publish({
+        id: SNACK_IDS.loading,
+        message: 'Loading latest data…',
+        variant: 'loading',
+        autoDismiss: false,
+        dismissible: false,
+      });
+    } else {
+      dismiss(SNACK_IDS.loading);
+    }
+  }, [dismiss, loading, publish]);
 
   useEffect(() => {
-    if (wsError) {
-      console.error('[App] WebSocket error:', wsError);
+    if (!loadError) {
+      dismiss(SNACK_IDS.loadError);
+      return;
     }
-  }, [wsError]);
 
-  const selectedIssue = useMemo(() => {
-    return issues.find((issue) => issue.id === focusedIssueId) ?? null;
-  }, [issues, focusedIssueId]);
-
-  const updateStatsFromIssues = useCallback(
-    (nextIssues: Issue[]) => {
-      setDashboardStats(buildDashboardStats(nextIssues, null));
-    },
-    [],
-  );
-
-  const availableApps = useMemo(() => {
-    const apps = new Set<string>();
-    issues.forEach((issue) => {
-      if (issue.app) {
-        apps.add(issue.app);
-      }
+    publish({
+      id: SNACK_IDS.loadError,
+      message: loadError,
+      variant: 'error',
+      autoDismiss: false,
+      dismissible: true,
+      action: {
+        label: 'Retry',
+        handler: () => {
+          void fetchAllData();
+          dismiss(SNACK_IDS.loadError);
+        },
+      },
     });
-    if (appFilter !== 'all' && appFilter.trim()) {
-      apps.add(appFilter);
+  }, [dismiss, fetchAllData, loadError, publish]);
+
+  useEffect(() => {
+    if (connectionStatus === 'connected') {
+      dismiss(SNACK_IDS.connection);
+      return;
     }
-    return Array.from(apps).sort((first, second) => first.localeCompare(second));
-  }, [issues, appFilter]);
 
-  const filteredIssues = useMemo(() => {
-    return issues.filter((issue) => {
-      const matchesPriority = priorityFilter === 'all' || issue.priority === priorityFilter;
-      const matchesApp = appFilter === 'all' || issue.app === appFilter;
+    if (connectionStatus === 'connecting') {
+      publish({
+        id: SNACK_IDS.connection,
+        message: 'Connecting to live updates…',
+        variant: 'loading',
+        autoDismiss: false,
+        dismissible: false,
+      });
+      return;
+    }
 
-      let matchesSearch = true;
-      if (searchFilter.trim()) {
-        const query = searchFilter.toLowerCase();
-        matchesSearch =
-          issue.id.toLowerCase().includes(query) ||
-          issue.title.toLowerCase().includes(query) ||
-          issue.description.toLowerCase().includes(query) ||
-          issue.assignee.toLowerCase().includes(query) ||
-          issue.tags.some(tag => tag.toLowerCase().includes(query)) ||
-          (issue.reporterName?.toLowerCase().includes(query) ?? false) ||
-          (issue.reporterEmail?.toLowerCase().includes(query) ?? false);
-      }
+    if (connectionStatus === 'error') {
+      publish({
+        id: SNACK_IDS.connection,
+        message: 'Connection error - live updates unavailable',
+        variant: 'error',
+        autoDismiss: false,
+      });
+      return;
+    }
 
-      return matchesPriority && matchesApp && matchesSearch;
+    if (connectionStatus === 'disconnected' && reconnectAttempts > 0) {
+      publish({
+        id: SNACK_IDS.connection,
+        message: `Reconnecting to live updates (attempt ${reconnectAttempts + 1})…`,
+        variant: 'warning',
+        autoDismiss: false,
+      });
+      return;
+    }
+
+    dismiss(SNACK_IDS.connection);
+  }, [connectionStatus, dismiss, publish, reconnectAttempts]);
+
+  useEffect(() => {
+    const active = Boolean(rateLimitStatus?.rate_limited) && (rateLimitStatus?.seconds_until_reset ?? 0) > 0;
+    if (!active) {
+      dismiss(SNACK_IDS.rateLimit);
+      return;
+    }
+
+    const count = rateLimitStatus?.rate_limited_count ?? 0;
+    const secondsUntilReset = rateLimitStatus?.seconds_until_reset ?? 0;
+    const minutes = Math.floor(secondsUntilReset / 60);
+    const seconds = secondsUntilReset % 60;
+    const agentName = rateLimitStatus?.rate_limit_agent ? ` (${rateLimitStatus.rate_limit_agent})` : '';
+    const message = `Rate limit active (${count} issue${count === 1 ? '' : 's'} waiting) - resets in ${minutes}m ${seconds}s${agentName}`;
+
+    publish({
+      id: SNACK_IDS.rateLimit,
+      message,
+      variant: 'warning',
+      autoDismiss: false,
+      dismissible: false,
     });
-  }, [issues, priorityFilter, appFilter, searchFilter]);
+  }, [dismiss, publish, rateLimitStatus]);
+
+  const {
+    filteredIssues,
+    availableApps,
+    priorityFilter,
+    handlePriorityFilterChange,
+    appFilter,
+    handleAppFilterChange,
+    searchFilter,
+    handleSearchFilterChange,
+    activeFilterCount,
+    syncAppFilterFromParams,
+  } = useIssueFilters({ issues });
+
+  const fetchAllDataRef = useRef(fetchAllData);
 
   useEffect(() => {
-    if (appFilter === 'all') {
-      return;
-    }
-    if (availableApps.length === 0) {
-      return;
-    }
-    if (!availableApps.includes(appFilter)) {
-      setAppFilter('all');
-    }
-  }, [appFilter, availableApps]);
-
-  useEffect(() => {
-    if (!snackbar || typeof window === 'undefined') {
-      return;
-    }
-    const timeoutId = window.setTimeout(() => {
-      setSnackbar((current) => (current === snackbar ? null : current));
-    }, 5000);
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [snackbar]);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const params = new URLSearchParams(window.location.search);
-    const appParam = params.get('app_id');
-    if (appParam && appParam.trim()) {
-      setAppFilter(appParam.trim());
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const handlePopState = () => {
-      const params = new URLSearchParams(window.location.search);
-      const nextIssueId = params.get('issue');
-      const nextApp = params.get('app_id');
-
-      setFocusedIssueId(nextIssueId);
-      setIssueDetailOpen(Boolean(nextIssueId));
-      setAppFilter(nextApp && nextApp.trim() ? nextApp.trim() : 'all');
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
-
-  // Removed navigation initialization - single page app
-
-  useEffect(() => {
-    void fetchAllData();
+    fetchAllDataRef.current = fetchAllData;
   }, [fetchAllData]);
 
-  // Running processes duration calculation (updates every second for display)
   useEffect(() => {
-    const updateDurations = () => {
-      setRunningProcesses(prev => {
-        if (prev.size === 0) return prev;
-
-        const next = new Map(prev);
-        let changed = false;
-
-        for (const [issueId, proc] of next.entries()) {
-          const startTime = new Date(proc.start_time);
-          const now = new Date();
-          const durationMs = now.getTime() - startTime.getTime();
-          const seconds = Math.floor(durationMs / 1000);
-          const minutes = Math.floor(seconds / 60);
-          const hours = Math.floor(minutes / 60);
-
-          let duration = '';
-          if (hours > 0) {
-            duration = `${hours}h ${minutes % 60}m ${seconds % 60}s`;
-          } else if (minutes > 0) {
-            duration = `${minutes}m ${seconds % 60}s`;
-          } else {
-            duration = `${seconds}s`;
-          }
-
-          if (proc.duration !== duration) {
-            next.set(issueId, { ...proc, duration });
-            changed = true;
-          }
-        }
-
-        return changed ? next : prev;
-      });
-    };
-
-    const intervalId = setInterval(updateDurations, 1000);
-    return () => clearInterval(intervalId);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (!websocketError) {
       return;
     }
+    console.error('[App] WebSocket error:', websocketError);
+  }, [websocketError]);
 
-    const url = new URL(window.location.href);
-    if (focusedIssueId) {
-      url.searchParams.set('issue', focusedIssueId);
-    } else {
-      url.searchParams.delete('issue');
-    }
+  const {
+    focusedIssueId,
+    selectIssue,
+    clearFocus,
+    selectedIssue,
+  } = useIssueFocus({
+    issues,
+    search: searchHelpers,
+    onOpen: openIssueDetail,
+    onClose: closeIssueDetail,
+    setOpen: setIssueDetailOpenState,
+  });
 
-    if (appFilter && appFilter !== 'all') {
-      url.searchParams.set('app_id', appFilter);
-    } else {
-      url.searchParams.delete('app_id');
-    }
-
-    const nextSearch = url.searchParams.toString();
-    const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ''}${url.hash}`;
-    window.history.replaceState({}, '', nextUrl);
-  }, [appFilter, focusedIssueId]);
-
-  useEffect(() => {
-    setIssueDetailOpen(Boolean(focusedIssueId));
-  }, [focusedIssueId]);
+  const themeMode = displaySettings.theme === 'dark' ? 'dark' : 'light';
+  useThemeClass(themeMode);
+  useBodyScrollLock(createIssueOpen || (issueDetailOpen && Boolean(selectedIssue)));
 
   useEffect(() => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    const themeClass = displaySettings.theme === 'dark' ? 'dark' : 'light';
-    const body = document.body;
-    const root = document.documentElement;
-
-    body.classList.remove('light', 'dark');
-    body.classList.add(themeClass);
-
-    root.classList.remove('light', 'dark');
-    root.classList.add(themeClass);
-    root.style.setProperty('color-scheme', themeClass === 'dark' ? 'dark' : 'light');
-
-    return () => {
-      body.classList.remove(themeClass);
-      root.classList.remove(themeClass);
-    };
-  }, [displaySettings.theme]);
+    syncAppFilterFromParams(getParams());
+  }, [getParams, syncAppFilterFromParams]);
 
   useEffect(() => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    const originalOverflow = document.body.style.overflow;
-    if (createIssueOpen || (issueDetailOpen && selectedIssue)) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [createIssueOpen, issueDetailOpen, selectedIssue]);
-
-  useEffect(() => {
-    if (!focusedIssueId) {
-      return;
-    }
-
-    const issueExists = issues.some((issue) => issue.id === focusedIssueId);
-    if (!issueExists) {
-      return;
-    }
-
-    if (typeof window === 'undefined' || typeof document === 'undefined') {
-      return;
-    }
-
-    const element = document.querySelector<HTMLElement>(`[data-issue-id="${focusedIssueId}"]`);
-    if (element) {
-      element.focus({ preventScroll: true });
-      window.setTimeout(() => {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 50);
-    }
-  }, [focusedIssueId, issues]);
-
-  // Removed navigation sync - single page app
-
-  const createIssue = useCallback(
-    async (input: CreateIssueInput): Promise<string | null> => {
-      const payload = {
-        title: input.title.trim(),
-        description: input.description.trim() || input.title.trim(),
-        priority: input.priority.toLowerCase(),
-        status: input.status.toLowerCase(),
-        app_id: input.appId.trim() || 'unknown',
-        tags: input.tags,
-        reporter_name: input.reporterName?.trim(),
-        reporter_email: input.reporterEmail?.trim(),
-        artifacts: input.attachments.map((attachment) => ({
-          name: attachment.name,
-          category: attachment.category ?? 'attachment',
-          content: attachment.content,
-          encoding: attachment.encoding,
-          content_type: attachment.contentType,
-        })),
-      };
-
-      const responseBody = await apiJsonRequest<Record<string, unknown>>(buildApiUrl('/issues'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      await fetchAllData();
-      const responseData = (responseBody?.data ?? responseBody) as Record<string, unknown> | undefined;
-      const issueId = typeof responseData?.issue_id === 'string' ? (responseData.issue_id as string) : null;
-      return issueId;
-    },
-    [fetchAllData],
-  );
-
-  const deleteIssue = useCallback(async (issueId: string) => {
-    await apiVoidRequest(buildApiUrl(`/issues/${encodeURIComponent(issueId)}`), {
-      method: 'DELETE',
+    return subscribe((params) => {
+      syncAppFilterFromParams(params);
     });
+  }, [subscribe, syncAppFilterFromParams]);
+
+  useEffect(() => {
+    void fetchAllDataRef.current();
   }, []);
 
-  const updateIssueStatus = useCallback(
-    async (issueId: string, nextStatus: IssueStatus) => {
-      const responseBody = await apiJsonRequest<Record<string, unknown>>(buildApiUrl(`/issues/${encodeURIComponent(issueId)}`), {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: nextStatus }),
-      });
-      const responseData = (responseBody?.data ?? responseBody) as Record<string, unknown> | undefined;
-      const updatedIssue = (responseData?.issue ?? null) as ApiIssue | null;
-
-      setIssues((prev) => {
-        let nextIssues: Issue[];
-        if (updatedIssue) {
-          const transformed = transformIssue(updatedIssue, { apiBaseUrl: API_BASE_URL });
-          nextIssues = prev.map((issue) => (issue.id === issueId ? transformed : issue));
-        } else {
-          nextIssues = prev.map((issue) =>
-            issue.id === issueId
-              ? {
-                  ...issue,
-                  status: nextStatus,
-                }
-              : issue,
-          );
-        }
-        updateStatsFromIssues(nextIssues);
-        return nextIssues;
-      });
-    },
-    [updateStatsFromIssues],
-  );
+  useEffect(() => {
+    setParams((params) => {
+      if (appFilter && appFilter !== 'all') {
+        params.set('app_id', appFilter);
+      } else {
+        params.delete('app_id');
+      }
+    });
+  }, [appFilter, setParams]);
 
   const handleCreateIssue = useCallback(() => {
-    setFiltersOpen(false);
+    closeFilters();
     setCreateIssuePrefill(null);
-    setCreateIssueOpen(true);
-  }, []);
+    openCreateIssue();
+  }, [closeFilters, openCreateIssue]);
 
   const handleCreateIssueClose = useCallback(() => {
     setCreateIssuePrefill(null);
-    setCreateIssueOpen(false);
-  }, []);
+    closeCreateIssue();
+  }, [closeCreateIssue]);
 
-  const handleIssueSelect = useCallback((issueId: string) => {
-    setFocusedIssueId((current) => {
-      if (current === issueId) {
-        setIssueDetailOpen(false);
-        return null;
-      }
-      setIssueDetailOpen(true);
-      return issueId;
-    });
-  }, []);
+  const handleIssueSelect = useCallback(
+    (issueId: string) => {
+      selectIssue(issueId);
+    },
+    [selectIssue],
+  );
 
   const handleCreateFollowUp = useCallback(
     async (issue: Issue) => {
@@ -565,103 +349,70 @@ function App() {
       try {
         const prefill = await prepareFollowUpPrefill(issue);
         setCreateIssuePrefill(prefill);
-        setCreateIssueOpen(true);
+        openCreateIssue();
       } catch (error) {
         console.error('[IssueTracker] Failed to prepare follow-up issue', error);
         const message = error instanceof Error ? error.message : 'Failed to prepare follow-up issue.';
-        showSnackbar(message, 'error');
+        showSnack(message, 'error');
       } finally {
         setFollowUpLoadingId(null);
       }
     },
-    [showSnackbar],
+    [openCreateIssue, showSnack],
   );
 
   const handleSubmitNewIssue = useCallback(
     async (input: CreateIssueInput) => {
-      const newIssueId = await createIssue(input);
+      const newIssueId = await createIssueAction(input);
       if (newIssueId) {
-        setFocusedIssueId(newIssueId);
-        setIssueDetailOpen(true);
+        selectIssue(newIssueId);
       }
       setCreateIssuePrefill(null);
     },
-    [createIssue],
+    [createIssueAction, selectIssue],
   );
-
-  const handlePriorityFilterChange = useCallback((value: PriorityFilterValue) => {
-    setPriorityFilter(value);
-  }, []);
-
-  const handleAppFilterChange = useCallback((value: string) => {
-    setAppFilter(value);
-  }, []);
-
-  const handleSearchFilterChange = useCallback((value: string) => {
-    setSearchFilter(value);
-  }, []);
-
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (priorityFilter !== 'all') count++;
-    if (appFilter !== 'all') count++;
-    if (searchFilter.trim()) count++;
-    return count;
-  }, [priorityFilter, appFilter, searchFilter]);
 
   const handleIssueArchive = useCallback(
     async (issue: Issue) => {
       try {
-        await updateIssueStatus(issue.id, 'archived');
+        await updateIssueStatusAction(issue.id, 'archived');
       } catch (error) {
         console.error('Failed to archive issue', error);
-        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
-          window.alert('Failed to archive issue. Please try again.');
-        }
+        showSnack('Failed to archive issue. Please try again.', 'error');
       }
     },
-    [updateIssueStatus],
+    [showSnack, updateIssueStatusAction],
   );
 
   const handleIssueDelete = useCallback(
     async (issue: Issue) => {
       const issueId = issue.id;
       try {
-        await deleteIssue(issueId);
-        setIssues((prev) => {
-          const nextIssues = prev.filter((item) => item.id !== issueId);
-          updateStatsFromIssues(nextIssues);
-          return nextIssues;
-        });
+        await deleteIssueAction(issueId);
         if (focusedIssueId === issueId) {
-          setIssueDetailOpen(false);
-          setFocusedIssueId(null);
+          clearFocus();
         }
       } catch (error) {
         console.error('Failed to delete issue', error);
-        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
-          window.alert('Failed to delete issue. Please try again.');
-        }
+        showSnack('Failed to delete issue. Please try again.', 'error');
       }
     },
-    [deleteIssue, focusedIssueId, updateStatsFromIssues],
+    [clearFocus, deleteIssueAction, focusedIssueId, showSnack],
   );
 
   const handleIssueStatusChange = useCallback(
-    async (issueId: string, _fromStatus: IssueStatus, targetStatus: IssueStatus) => {
-      if (_fromStatus === targetStatus) {
+    async (issueId: string, fromStatus: IssueStatus, targetStatus: IssueStatus) => {
+      if (fromStatus === targetStatus) {
         return;
       }
       try {
-        await updateIssueStatus(issueId, targetStatus);
+        await updateIssueStatusAction(issueId, targetStatus);
       } catch (error) {
         console.error('Failed to update issue status', error);
-        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
-          window.alert('Failed to move issue. Please try again.');
-        }
+        showSnack('Failed to move issue. Please try again.', 'error');
       }
     },
-    [updateIssueStatus],
+    [showSnack, updateIssueStatusAction],
   );
 
   const handleHideColumn = useCallback((status: IssueStatus) => {
@@ -681,40 +432,46 @@ function App() {
   }, []);
 
   const handleIssueDetailClose = useCallback(() => {
-    setIssueDetailOpen(false);
-    setFocusedIssueId(null);
-  }, []);
+    clearFocus();
+  }, [clearFocus]);
 
   const handleOpenMetrics = useCallback(() => {
-    setMetricsDialogOpen(true);
-  }, []);
+    openMetricsDialog();
+  }, [openMetricsDialog]);
 
   const handleCloseMetrics = useCallback(() => {
-    setMetricsDialogOpen(false);
-  }, []);
+    closeMetricsDialog();
+  }, [closeMetricsDialog]);
 
   const handleOpenSettings = useCallback(() => {
-    setSettingsDialogOpen(true);
-  }, []);
+    openSettingsDialog();
+  }, [openSettingsDialog]);
 
   const handleCloseSettings = useCallback(() => {
-    setSettingsDialogOpen(false);
-  }, []);
+    closeSettingsDialog();
+  }, [closeSettingsDialog]);
 
   const handleMetricsOpenIssue = useCallback(
     (issueId: string) => {
-      setMetricsDialogOpen(false);
-      setFocusedIssueId(issueId);
-      setIssueDetailOpen(true);
+      closeMetricsDialog();
+      selectIssue(issueId);
     },
-    [],
+    [closeMetricsDialog, selectIssue],
   );
 
-  const processorSetter = (settings: ProcessorSettings) => {
-    setProcessorSettings(settings);
-  };
+  const handleProcessorSettingsChange = useCallback(
+    (settings: ProcessorSettings) => {
+      updateProcessorSettings(settings);
+    },
+    [updateProcessorSettings],
+  );
 
-  // Single page - always render issues board
+  const handleAgentSettingsChange = useCallback(
+    (settings: AgentSettings) => {
+      updateAgentSettings(settings);
+    },
+    [updateAgentSettings],
+  );
 
   const showIssueDetailModal = issueDetailOpen && selectedIssue;
 
@@ -722,38 +479,7 @@ function App() {
     <>
       <div className={`app-shell ${displaySettings.theme}`}>
         <div className="main-panel">
-          {wsConnectionStatus === 'connecting' && (
-            <div className="connection-banner connection-banner--connecting">
-              <Loader2 size={18} className="spin" style={{ marginRight: '8px' }} />
-              <span>Connecting to live updates...</span>
-            </div>
-          )}
-          {wsConnectionStatus === 'error' && (
-            <div className="connection-banner connection-banner--error">
-              <CircleAlert size={18} style={{ marginRight: '8px' }} />
-              <span>Connection error - live updates unavailable</span>
-            </div>
-          )}
-          {rateLimitStatus?.rate_limited && rateLimitStatus.seconds_until_reset > 0 && (
-            <div className="rate-limit-banner">
-              <Clock size={18} style={{ marginRight: '8px' }} />
-              <span>
-                Rate limit active ({rateLimitStatus.rate_limited_count} issue{rateLimitStatus.rate_limited_count !== 1 ? 's' : ''} waiting) - Resets in{' '}
-                {Math.floor(rateLimitStatus.seconds_until_reset / 60)}m {rateLimitStatus.seconds_until_reset % 60}s
-                {rateLimitStatus.rate_limit_agent && ` (${rateLimitStatus.rate_limit_agent})`}
-              </span>
-            </div>
-          )}
           <main className="page-container page-container--issues">
-            {loading && <div className="data-banner loading">Loading latest data…</div>}
-            {loadError && (
-              <div className="data-banner error">
-                <span>{loadError}</span>
-                <button type="button" onClick={() => void fetchAllData()}>
-                  Retry
-                </button>
-              </div>
-            )}
             <IssuesBoard
               issues={filteredIssues}
               focusedIssueId={focusedIssueId}
@@ -795,7 +521,7 @@ function App() {
                 <button
                   type="button"
                   className={`icon-button icon-button--filter ${filtersOpen ? 'is-active' : ''}`.trim()}
-                  onClick={() => setFiltersOpen((state) => !state)}
+                  onClick={toggleFilters}
                   aria-label="Toggle filters"
                   aria-expanded={filtersOpen}
                   style={{ position: 'relative' }}
@@ -825,7 +551,7 @@ function App() {
                 </button>
                 <IssueBoardToolbar
                   open={filtersOpen}
-                  onRequestClose={() => setFiltersOpen(false)}
+                  onRequestClose={closeFilters}
                   priorityFilter={priorityFilter}
                   onPriorityFilterChange={handlePriorityFilterChange}
                   appFilter={appFilter}
@@ -859,7 +585,7 @@ function App() {
           issue={selectedIssue}
           apiBaseUrl={API_BASE_URL}
           onClose={handleIssueDetailClose}
-          onStatusChange={updateIssueStatus}
+          onStatusChange={updateIssueStatusAction}
           onFollowUp={handleCreateFollowUp}
           followUpLoadingId={followUpLoadingId}
           validStatuses={VALID_STATUSES}
@@ -883,19 +609,24 @@ function App() {
           processor={processorSettings}
           agent={agentSettings}
           display={displaySettings}
-          onProcessorChange={processorSetter}
-          onAgentChange={setAgentSettings}
+          onProcessorChange={handleProcessorSettingsChange}
+          onAgentChange={handleAgentSettingsChange}
           onDisplayChange={setDisplaySettings}
           onClose={handleCloseSettings}
           issuesProcessed={issuesProcessed}
           issuesRemaining={issuesRemaining}
         />
       )}
-
-      {snackbar && (
-        <Snackbar message={snackbar.message} tone={snackbar.tone} onClose={() => setSnackbar(null)} />
-      )}
     </>
   );
 }
+
+function App() {
+  return (
+    <IssueAppProviders>
+      <AppContent />
+    </IssueAppProviders>
+  );
+}
+
 export default App;

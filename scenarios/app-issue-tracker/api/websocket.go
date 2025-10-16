@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -58,8 +57,9 @@ func (h *Hub) Run() {
 		case client := <-h.register:
 			h.mu.Lock()
 			h.clients[client] = true
+			current := len(h.clients)
 			h.mu.Unlock()
-			log.Printf("[WebSocket] Client registered, total clients: %d", len(h.clients))
+			logInfo("WebSocket client registered", "clients", current)
 
 		case client := <-h.unregister:
 			h.mu.Lock()
@@ -67,8 +67,9 @@ func (h *Hub) Run() {
 				delete(h.clients, client)
 				close(client.send)
 			}
+			current := len(h.clients)
 			h.mu.Unlock()
-			log.Printf("[WebSocket] Client unregistered, total clients: %d", len(h.clients))
+			logInfo("WebSocket client unregistered", "clients", current)
 
 		case event := <-h.broadcast:
 			h.mu.RLock()
@@ -82,7 +83,7 @@ func (h *Hub) Run() {
 			// Serialize event once
 			message, err := event.ToJSON()
 			if err != nil {
-				log.Printf("[WebSocket] Failed to serialize event: %v", err)
+				logErrorErr("Failed to serialize websocket event", err, "event_type", event.Type)
 				continue
 			}
 
@@ -90,16 +91,14 @@ func (h *Hub) Run() {
 			for client := range h.clients {
 				select {
 				case client.send <- message:
-					// Message sent successfully
 				default:
-					// Client's send buffer is full, disconnect them
 					h.mu.RUnlock()
 					h.mu.Lock()
 					close(client.send)
 					delete(h.clients, client)
 					h.mu.Unlock()
 					h.mu.RLock()
-					log.Printf("[WebSocket] Client send buffer full, disconnected")
+					logWarn("WebSocket client send buffer full - disconnecting")
 				}
 			}
 			h.mu.RUnlock()
@@ -111,9 +110,9 @@ func (h *Hub) Run() {
 func (h *Hub) Publish(event Event) {
 	select {
 	case h.broadcast <- event:
-		log.Printf("[WebSocket] Broadcasting event: %s", event.Type)
+		logDebug("Queued websocket event", "event_type", event.Type)
 	default:
-		log.Printf("[WebSocket] Broadcast channel full, event dropped: %s", event.Type)
+		logWarn("Websocket broadcast channel full", "event_type", event.Type)
 	}
 }
 
@@ -148,7 +147,7 @@ func (c *Client) readPump() {
 		_, _, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("[WebSocket] Unexpected close error: %v", err)
+				logWarn("Unexpected websocket close", "error", err)
 			}
 			break
 		}
@@ -212,7 +211,7 @@ var upgrader = websocket.Upgrader{
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("[WebSocket] Upgrade failed: %v", err)
+		logErrorErr("Websocket upgrade failed", err)
 		return
 	}
 

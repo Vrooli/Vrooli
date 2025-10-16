@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -24,7 +23,12 @@ func (s *Server) exportIssuesHandler(w http.ResponseWriter, r *http.Request) {
 	// Get all matching issues
 	issues, err := s.getAllIssues(status, priority, issueType, appID, 1000)
 	if err != nil {
-		log.Printf("Error getting issues for export: %v", err)
+		logErrorErr("Failed to load issues for export", err,
+			"status", status,
+			"priority", priority,
+			"type", issueType,
+			"app_id", appID,
+		)
 		http.Error(w, "Failed to load issues", http.StatusInternalServerError)
 		return
 	}

@@ -7,8 +7,35 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT || 4173;
-const API_PORT = process.env.API_PORT || 8090;
+
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `${name} environment variable is required. Run the scenario through the lifecycle system so configuration is injected automatically.`,
+    );
+  }
+  return value;
+}
+
+function parsePort(value, label) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    throw new Error(`${label} must be a positive integer (received: ${value})`);
+  }
+  return parsed;
+}
+
+function resolveUiPort() {
+  const raw = process.env.UI_PORT;
+  if (!raw) {
+    throw new Error('UI_PORT must be provided for the UI server.');
+  }
+  return parsePort(raw, 'UI_PORT');
+}
+
+const PORT = resolveUiPort();
+const API_PORT = parsePort(requireEnv('API_PORT'), 'API_PORT');
 
 function proxyToApi(req, res, upstreamPath) {
   const options = {

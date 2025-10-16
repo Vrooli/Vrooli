@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { ChevronDown, Eye, EyeOff, Filter, X } from 'lucide-react';
 import type { IssueStatus, Priority } from '../data/sampleData';
 import { Modal } from './Modal';
-import { columnMeta as issueColumnMeta } from '../pages/IssuesBoard';
+import { ISSUE_BOARD_COLUMNS, ISSUE_BOARD_STATUSES } from '../constants/board';
 import type { PriorityFilterValue } from '../types/issueCreation';
 
 export interface IssueBoardToolbarProps {
@@ -35,7 +35,7 @@ export function IssueBoardToolbar({
   onResetColumns,
 }: IssueBoardToolbarProps) {
   const hiddenSet = useMemo(() => new Set(hiddenColumns), [hiddenColumns]);
-  const statusOrder = useMemo(() => Object.keys(issueColumnMeta) as IssueStatus[], []);
+  const statusOrder = useMemo(() => ISSUE_BOARD_STATUSES, []);
 
   const handleClearFilters = () => {
     onPriorityFilterChange('all');
@@ -129,7 +129,7 @@ export function IssueBoardToolbar({
           </div>
           <div className="column-toggle-row">
             {statusOrder.map((status) => {
-              const meta = issueColumnMeta[status];
+              const meta = ISSUE_BOARD_COLUMNS[status];
               const hidden = hiddenSet.has(status);
               return (
                 <button

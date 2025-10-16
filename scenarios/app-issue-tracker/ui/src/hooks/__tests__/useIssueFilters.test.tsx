@@ -53,4 +53,24 @@ describe('useIssueFilters', () => {
     expect(result.current.appFilter).toBe(sampleIssues[1].app);
     expect(result.current.activeFilterCount).toBeGreaterThanOrEqual(1);
   });
+
+  it('retains selected app filter when no issues currently match', () => {
+    const { result, rerender } = renderHook(() => useIssueFilters({ issues: sampleIssues }));
+
+    const targetApp = sampleIssues[0].app;
+
+    act(() => {
+      result.current.handleAppFilterChange(targetApp);
+    });
+
+    expect(result.current.appFilter).toBe(targetApp);
+    expect(result.current.filteredIssues.every((issue) => issue.app === targetApp)).toBe(true);
+
+    const issuesWithoutTarget = sampleIssues.filter((issue) => issue.app !== targetApp);
+
+    rerender(() => useIssueFilters({ issues: issuesWithoutTarget }));
+
+    expect(result.current.appFilter).toBe(targetApp);
+    expect(result.current.filteredIssues).toHaveLength(0);
+  });
 });

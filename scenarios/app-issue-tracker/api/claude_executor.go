@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,8 +35,12 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	settings := GetAgentSettings()
 	const idleTimeout = 10 * time.Minute
 
-	log.Printf("Executing Claude Code for issue %s (prompt length: %d characters, timeout: %v)",
-		issueID, len(prompt), timeoutDuration)
+	logInfo(
+		"Executing Claude Code",
+		"issue_id", issueID,
+		"prompt_length", len(prompt),
+		"timeout", timeoutDuration,
+	)
 
 	// Create agent tag for tracking
 	agentTag := fmt.Sprintf("app-issue-tracker-%s", issueID)
@@ -56,7 +59,11 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		args = append(args, part)
 	}
 
-	log.Printf("Agent CLI command: %s %s", settings.CLICommand, strings.Join(args, " "))
+	logDebug(
+		"Prepared agent CLI command",
+		"command", settings.CLICommand,
+		"arguments", strings.Join(args, " "),
+	)
 
 	// Build command with context timeout
 	cmd := exec.CommandContext(ctx, settings.CLICommand, args...)
@@ -84,11 +91,11 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	}
 	defer func() {
 		if removeErr := os.RemoveAll(workspaceDir); removeErr != nil {
-			log.Printf("Warning: failed to clean Codex workspace %s: %v", workspaceDir, removeErr)
+			logWarn("Failed to clean Codex workspace", "workspace", workspaceDir, "error", removeErr)
 		}
 	}()
 
-	log.Printf("Codex workspace directory: %s", workspaceDir)
+	logDebug("Codex workspace directory prepared", "workspace", workspaceDir)
 
 	// Set environment variables (ecosystem-manager pattern)
 	skipPermissionsValue := "no"
@@ -122,8 +129,13 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	)
 	cmd.Env = env
 
-	log.Printf("Claude execution settings: MAX_TURNS=%d, ALLOWED_TOOLS=%s, SKIP_PERMISSIONS=%v, TIMEOUT=%ds",
-		settings.MaxTurns, settings.AllowedTools, settings.SkipPermissions, timeoutSeconds)
+	logInfo(
+		"Claude execution settings applied",
+		"max_turns", settings.MaxTurns,
+		"allowed_tools", settings.AllowedTools,
+		"skip_permissions", settings.SkipPermissions,
+		"timeout_seconds", timeoutSeconds,
+	)
 
 	// Pipe prompt via stdin
 	cmd.Stdin = strings.NewReader(prompt)
@@ -159,7 +171,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		}, err
 	}
 
-	log.Printf("Claude Code agent %s started (pid %d)", agentTag, cmd.Process.Pid)
+	logInfo("Claude Code agent started", "agent_tag", agentTag, "pid", cmd.Process.Pid)
 
 	// Stream output (like ecosystem-manager)
 	var stdoutBuilder, stderrBuilder, combinedBuilder strings.Builder
@@ -185,10 +197,18 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 					last := time.Unix(0, atomic.LoadInt64(&lastActivity))
 					if time.Since(last) >= idleTimeout {
 						idleTriggered.Store(true)
-						log.Printf("⚠️ Inactivity detected for issue %s (no output for %v) - terminating agent", issueID, idleTimeout)
+						logWarn(
+							"Idle timeout detected for Claude agent",
+							"issue_id", issueID,
+							"idle_timeout", idleTimeout,
+						)
 						if cmd.Process != nil {
 							if err := cmd.Process.Kill(); err != nil {
-								log.Printf("Warning: failed to kill idle agent process for issue %s: %v", issueID, err)
+								logWarn(
+									"Failed to terminate idle Claude agent",
+									"issue_id", issueID,
+									"error", err,
+								)
 							}
 						}
 						return
@@ -224,7 +244,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 			combinedMu.Unlock()
 		}
 		if scanErr := scanner.Err(); scanErr != nil && scanErr != io.EOF {
-			log.Printf("Error reading %s for issue %s: %v", stream, issueID, scanErr)
+			logWarn("Failed to read agent stream", "stream", stream, "issue_id", issueID, "error", scanErr)
 		}
 	}
 
@@ -286,8 +306,12 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	// Check for timeout (CRITICAL: ecosystem-manager pattern)
 	// Timeout takes precedence regardless of wait error
 	if ctxErr == context.DeadlineExceeded {
-		log.Printf("⏰ TIMEOUT: Issue %s execution exceeded %v limit (ran for %v)",
-			issueID, timeoutDuration, executionTime.Round(time.Second))
+		logWarn(
+			"Claude Code execution timed out",
+			"issue_id", issueID,
+			"timeout", timeoutDuration,
+			"execution_time", executionTime.Round(time.Second),
+		)
 		result := &ClaudeExecutionResult{
 			Success:         false,
 			Output:          combinedOutput,
@@ -303,7 +327,11 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 
 	// Check for max turns exceeded
 	if detectMaxTurnsExceeded(combinedOutput) {
-		log.Printf("Issue %s: MAX_TURNS limit reached (%d)", issueID, settings.MaxTurns)
+		logWarn(
+			"Claude max turns limit reached",
+			"issue_id", issueID,
+			"max_turns", settings.MaxTurns,
+		)
 		result := &ClaudeExecutionResult{
 			Success:          false,
 			Output:           combinedOutput,
@@ -327,7 +355,7 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		strings.Contains(lowerOutput, "429") ||
 		strings.Contains(lowerOutput, "too many requests") ||
 		strings.Contains(lowerOutput, "quota exceeded") {
-		log.Printf("Rate limit detected for issue %s", issueID)
+		logWarn("Rate limit detected during Claude execution", "issue_id", issueID)
 		// Note: Rate limit handling will be done by caller
 		result := &ClaudeExecutionResult{
 			Success:         false,
@@ -369,8 +397,11 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		}
 
 		if hasValidReport {
-			log.Printf("Issue %s: Agent exited with code %d but produced valid structured report - treating as success",
-				issueID, exitCode)
+			logInfo(
+				"Agent produced structured output despite non-zero exit",
+				"issue_id", issueID,
+				"exit_code", exitCode,
+			)
 			// Override failure - agent produced valid work despite non-zero exit
 			result := &ClaudeExecutionResult{
 				Success:         true,
@@ -385,7 +416,12 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		}
 
 		// Real failure - no valid output
-		log.Printf("Claude Code failed for issue %s with exit code %d", issueID, exitCode)
+		logError(
+			"Claude Code execution failed",
+			"issue_id", issueID,
+			"exit_code", exitCode,
+			"error", waitErr,
+		)
 		result := &ClaudeExecutionResult{
 			Success:         false,
 			Output:          combinedOutput,
@@ -400,8 +436,12 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	}
 
 	// Success case
-	log.Printf("Claude Code completed successfully for issue %s (output length: %d characters, time: %v)",
-		issueID, len(combinedOutput), executionTime.Round(time.Second))
+	logInfo(
+		"Claude Code execution completed",
+		"issue_id", issueID,
+		"output_length", len(combinedOutput),
+		"execution_time", executionTime.Round(time.Second),
+	)
 
 	result := &ClaudeExecutionResult{
 		Success:         true,
@@ -431,11 +471,11 @@ func (s *Server) completeClaudeResult(result *ClaudeExecutionResult, transcriptF
 	}
 
 	if err := ensureLastMessageFile(lastMessageFile, result.LastMessage); err != nil {
-		log.Printf("Warning: failed to persist last message fallback %s: %v", lastMessageFile, err)
+		logWarn("Failed to persist last message fallback", "path", lastMessageFile, "error", err)
 	}
 
 	if err := ensureTranscriptFile(transcriptFile, prompt, result.LastMessage, combinedOutput, settings); err != nil {
-		log.Printf("Warning: failed to persist transcript fallback %s: %v", transcriptFile, err)
+		logWarn("Failed to persist transcript fallback", "path", transcriptFile, "error", err)
 	}
 
 	return result

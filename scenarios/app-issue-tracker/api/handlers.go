@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"mime"
 	"net/http"
 	"net/url"
@@ -54,7 +53,12 @@ func (s *Server) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 
 	issues, err := s.getAllIssues(status, priority, issueType, appID, limit)
 	if err != nil {
-		log.Printf("Error getting issues: %v", err)
+		logErrorErr("Failed to load issues", err,
+			"status", status,
+			"priority", priority,
+			"type", issueType,
+			"app_id", appID,
+		)
 		http.Error(w, "Failed to load issues", http.StatusInternalServerError)
 		return
 	}
@@ -167,8 +171,12 @@ func (s *Server) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 	issue.Metadata.Extra = cloneStringMap(req.MetadataExtra)
 
 	issueDir := s.issueDir(targetStatus, issue.ID)
-	if err := os.MkdirAll(issueDir, 0755); err != nil {
-		log.Printf("Error preparing issue directory: %v", err)
+	if err := os.MkdirAll(issueDir, 0o755); err != nil {
+		logErrorErr("Failed to prepare issue directory", err,
+			"issue_id", issue.ID,
+			"status", targetStatus,
+			"path", issueDir,
+		)
 		http.Error(w, "Failed to prepare storage", http.StatusInternalServerError)
 		return
 	}
@@ -176,7 +184,7 @@ func (s *Server) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 	artifactPayloads := mergeCreateArtifacts(&req)
 	attachments, err := s.persistArtifacts(issueDir, artifactPayloads)
 	if err != nil {
-		log.Printf("Error storing artifacts: %v", err)
+		logErrorErr("Failed to store issue artifacts", err, "issue_id", issue.ID, "path", issueDir)
 		http.Error(w, "Failed to store artifacts", http.StatusInternalServerError)
 		return
 	}
@@ -185,7 +193,7 @@ func (s *Server) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := s.saveIssue(&issue, targetStatus); err != nil {
-		log.Printf("Error saving issue: %v", err)
+		logErrorErr("Failed to persist issue", err, "issue_id", issue.ID, "status", targetStatus)
 		http.Error(w, "Failed to create issue", http.StatusInternalServerError)
 		return
 	}
@@ -225,7 +233,7 @@ func (s *Server) getIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	issue, err := s.loadIssueFromDir(issueDir)
 	if err != nil {
-		log.Printf("Error loading issue %s: %v", issueID, err)
+		logErrorErr("Failed to load issue", err, "issue_id", issueID)
 		http.Error(w, "Failed to load issue", http.StatusInternalServerError)
 		return
 	}
@@ -285,7 +293,7 @@ func (s *Server) getIssueAttachmentHandler(w http.ResponseWriter, r *http.Reques
 
 	loadedIssue, err := s.loadIssueFromDir(issueDir)
 	if err != nil {
-		log.Printf("Failed to load issue metadata for attachment lookup: %v", err)
+		logErrorErr("Failed to load issue metadata for attachment lookup", err, "issue_id", issueID, "path", issueDir)
 	}
 
 	var contentType string
@@ -326,7 +334,7 @@ func (s *Server) getIssueAttachmentHandler(w http.ResponseWriter, r *http.Reques
 
 	file, err := os.Open(fsPath)
 	if err != nil {
-		log.Printf("Failed to open attachment %s for issue %s: %v", normalized, issueID, err)
+		logErrorErr("Failed to open attachment", err, "issue_id", issueID, "attachment", normalized)
 		http.Error(w, "Failed to open attachment", http.StatusInternalServerError)
 		return
 	}
@@ -363,7 +371,7 @@ func (s *Server) getIssueAgentConversationHandler(w http.ResponseWriter, r *http
 
 	issue, err := s.loadIssueFromDir(issueDir)
 	if err != nil {
-		log.Printf("Failed to load issue %s for transcript lookup: %v", issueID, err)
+		logErrorErr("Failed to load issue for transcript lookup", err, "issue_id", issueID)
 		http.Error(w, "Failed to load issue", http.StatusInternalServerError)
 		return
 	}
@@ -392,7 +400,7 @@ func (s *Server) getIssueAgentConversationHandler(w http.ResponseWriter, r *http
 				payload.LastMessage = strings.TrimSpace(string(data))
 			}
 		} else {
-			log.Printf("Issue %s: ignoring last message path %q: %v", issueID, trimmed, resolveErr)
+			logWarn("Invalid last message path", "issue_id", issueID, "path", trimmed, "error", resolveErr)
 		}
 	}
 
@@ -400,12 +408,12 @@ func (s *Server) getIssueAgentConversationHandler(w http.ResponseWriter, r *http
 	if transcriptRaw != "" {
 		resolvedPath, resolveErr := s.resolveAgentFilePath(transcriptRaw)
 		if resolveErr != nil {
-			log.Printf("Issue %s: transcript path rejected (%q): %v", issueID, transcriptRaw, resolveErr)
+			logWarn("Transcript path rejected", "issue_id", issueID, "path", transcriptRaw, "error", resolveErr)
 			payload.Available = false
 		} else {
 			metadata, prompt, entries, parseErr := parseAgentTranscript(resolvedPath, 750)
 			if parseErr != nil {
-				log.Printf("Issue %s: failed parsing transcript %s: %v", issueID, resolvedPath, parseErr)
+				logErrorErr("Failed to parse agent transcript", parseErr, "issue_id", issueID, "path", resolvedPath)
 				http.Error(w, "Failed to parse agent transcript", http.StatusInternalServerError)
 				return
 			}
@@ -429,7 +437,7 @@ func (s *Server) getIssueAgentConversationHandler(w http.ResponseWriter, r *http
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Failed to encode conversation response for issue %s: %v", issueID, err)
+		logErrorErr("Failed to encode conversation response", err, "issue_id", issueID)
 	}
 }
 
@@ -664,7 +672,7 @@ func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	issue, err := s.loadIssueFromDir(issueDir)
 	if err != nil {
-		log.Printf("Error loading issue %s: %v", issueID, err)
+		logErrorErr("Failed to load issue for update", err, "issue_id", issueID)
 		http.Error(w, "Failed to load issue", http.StatusInternalServerError)
 		return
 	}
@@ -674,7 +682,7 @@ func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
 	var req UpdateIssueRequest
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&req); err != nil {
-		log.Printf("Invalid update payload for issue %s: %v", issueID, err)
+		logErrorErr("Invalid update payload", err, "issue_id", issueID)
 		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
@@ -887,7 +895,12 @@ func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
 			targetStatus == "open"
 
 		if isBackwardsTransition {
-			log.Printf("Issue %s moved backwards from %s to %s - clearing investigation data", issueID, currentFolder, targetStatus)
+			logInfo(
+				"Issue status moved backwards, clearing investigation data",
+				"issue_id", issueID,
+				"from", currentFolder,
+				"to", targetStatus,
+			)
 			// Clear investigation fields
 			issue.Investigation.AgentID = ""
 			issue.Investigation.StartedAt = ""
@@ -933,17 +946,17 @@ func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Issue already exists in target status", http.StatusConflict)
 			return
 		} else if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
-			log.Printf("Failed to stat target directory for issue %s: %v", issueID, statErr)
+			logErrorErr("Failed to inspect target directory", statErr, "issue_id", issueID, "target_dir", targetDir)
 			http.Error(w, "Failed to move issue", http.StatusInternalServerError)
 			return
 		}
-		if err := os.MkdirAll(filepath.Dir(targetDir), 0755); err != nil {
-			log.Printf("Failed to prepare target directory for issue %s: %v", issueID, err)
+		if err := os.MkdirAll(filepath.Dir(targetDir), 0o755); err != nil {
+			logErrorErr("Failed to prepare target directory", err, "issue_id", issueID, "target_dir", targetDir)
 			http.Error(w, "Failed to move issue", http.StatusInternalServerError)
 			return
 		}
 		if err := os.Rename(issueDir, targetDir); err != nil {
-			log.Printf("Failed to move issue %s from %s to %s: %v", issueID, issueDir, targetDir, err)
+			logErrorErr("Failed to move issue between states", err, "issue_id", issueID, "from", issueDir, "to", targetDir)
 			http.Error(w, "Failed to move issue", http.StatusInternalServerError)
 			return
 		}
@@ -962,7 +975,7 @@ func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
 	if len(req.Artifacts) > 0 {
 		newAttachments, err := s.persistArtifacts(issueDir, req.Artifacts)
 		if err != nil {
-			log.Printf("Failed to store artifacts for issue %s: %v", issueID, err)
+			logErrorErr("Failed to store additional artifacts", err, "issue_id", issueID)
 			http.Error(w, "Failed to store artifacts", http.StatusInternalServerError)
 			return
 		}
@@ -974,7 +987,7 @@ func (s *Server) updateIssueHandler(w http.ResponseWriter, r *http.Request) {
 	issue.Status = currentFolder
 
 	if err := s.writeIssueMetadata(issueDir, issue); err != nil {
-		log.Printf("Failed to persist updated issue %s: %v", issueID, err)
+		logErrorErr("Failed to persist updated issue", err, "issue_id", issueID)
 		http.Error(w, "Failed to save issue", http.StatusInternalServerError)
 		return
 	}
@@ -1010,7 +1023,7 @@ func (s *Server) deleteIssueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := os.RemoveAll(issueDir); err != nil {
-		log.Printf("Failed to delete issue %s: %v", issueID, err)
+		logErrorErr("Failed to delete issue", err, "issue_id", issueID)
 		http.Error(w, "Failed to delete issue", http.StatusInternalServerError)
 		return
 	}
@@ -1139,7 +1152,7 @@ func (s *Server) previewInvestigationPromptHandler(w http.ResponseWriter, r *htt
 		}
 		issue, err = s.loadIssueFromDir(issueDir)
 		if err != nil {
-			log.Printf("Failed to load issue for prompt preview: %v", err)
+			logErrorErr("Failed to load issue for prompt preview", err, "issue_id", issueID)
 			http.Error(w, "Failed to load issue", http.StatusInternalServerError)
 			return
 		}
@@ -1185,7 +1198,7 @@ func (s *Server) previewInvestigationPromptHandler(w http.ResponseWriter, r *htt
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		log.Printf("Failed to encode prompt preview response: %v", err)
+		logErrorErr("Failed to encode prompt preview response", err, "issue_id", resp.IssueID)
 	}
 }
 
@@ -1221,7 +1234,7 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 
 	// Use the reusable triggerInvestigation method
 	if err := s.triggerInvestigation(req.IssueID, agentID, autoResolve); err != nil {
-		log.Printf("Failed to trigger investigation: %v", err)
+		logErrorErr("Failed to trigger investigation", err, "issue_id", req.IssueID, "agent_id", agentID)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -1401,14 +1414,14 @@ func (s *Server) getAgentSettingsHandler(w http.ResponseWriter, r *http.Request)
 	// Load settings from file
 	data, err := os.ReadFile(settingsPath)
 	if err != nil {
-		log.Printf("Failed to read agent settings: %v", err)
+		logErrorErr("Failed to read agent settings", err, "path", settingsPath)
 		http.Error(w, "Failed to load agent settings", http.StatusInternalServerError)
 		return
 	}
 
 	var settings map[string]interface{}
 	if err := json.Unmarshal(data, &settings); err != nil {
-		log.Printf("Failed to parse agent settings: %v", err)
+		logErrorErr("Failed to parse agent settings", err)
 		http.Error(w, "Failed to parse agent settings", http.StatusInternalServerError)
 		return
 	}
@@ -1456,14 +1469,14 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 	// Load current settings
 	data, err := os.ReadFile(settingsPath)
 	if err != nil {
-		log.Printf("Failed to read agent settings: %v", err)
+		logErrorErr("Failed to read agent settings", err, "path", settingsPath)
 		http.Error(w, "Failed to load agent settings", http.StatusInternalServerError)
 		return
 	}
 
 	var settings map[string]interface{}
 	if err := json.Unmarshal(data, &settings); err != nil {
-		log.Printf("Failed to parse agent settings: %v", err)
+		logErrorErr("Failed to parse agent settings", err)
 		http.Error(w, "Failed to parse agent settings", http.StatusInternalServerError)
 		return
 	}
@@ -1510,15 +1523,22 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 
 						if req.TimeoutSeconds != nil && *req.TimeoutSeconds > 0 {
 							opMap["timeout_seconds"] = *req.TimeoutSeconds
-							log.Printf("Updated timeout for %s/%s to %d seconds (%d minutes)", targetProvider, opKey, *req.TimeoutSeconds, *req.TimeoutSeconds/60)
+							logInfo(
+								"Updated agent timeout",
+								"provider", targetProvider,
+								"operation", opKey,
+								"timeout_seconds", *req.TimeoutSeconds,
+								"timeout_minutes", *req.TimeoutSeconds/60,
+							)
 						}
 						if req.MaxTurns != nil && *req.MaxTurns > 0 {
 							opMap["max_turns"] = *req.MaxTurns
-							log.Printf("Updated max_turns for %s/%s to %d", targetProvider, opKey, *req.MaxTurns)
+							logInfo("Updated agent max turns", "provider", targetProvider, "operation", opKey, "max_turns", *req.MaxTurns)
 						}
 						if req.AllowedTools != nil {
-							opMap["allowed_tools"] = strings.TrimSpace(*req.AllowedTools)
-							log.Printf("Updated allowed_tools for %s/%s to %s", targetProvider, opKey, strings.TrimSpace(*req.AllowedTools))
+							trimmed := strings.TrimSpace(*req.AllowedTools)
+							opMap["allowed_tools"] = trimmed
+							logInfo("Updated agent allowed tools", "provider", targetProvider, "operation", opKey, "allowed_tools", trimmed)
 						}
 					}
 				}
@@ -1529,13 +1549,13 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 	// Write back to file with proper formatting
 	updatedData, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
-		log.Printf("Failed to marshal agent settings: %v", err)
+		logErrorErr("Failed to marshal agent settings", err)
 		http.Error(w, "Failed to save agent settings", http.StatusInternalServerError)
 		return
 	}
 
-	if err := os.WriteFile(settingsPath, updatedData, 0644); err != nil {
-		log.Printf("Failed to write agent settings: %v", err)
+	if err := os.WriteFile(settingsPath, updatedData, 0o644); err != nil {
+		logErrorErr("Failed to write agent settings", err, "path", settingsPath)
 		http.Error(w, "Failed to save agent settings", http.StatusInternalServerError)
 		return
 	}
@@ -1543,7 +1563,7 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 	// CRITICAL: Reload settings into memory so changes take effect immediately
 	ReloadAgentSettings()
 
-	log.Printf("Agent settings updated and reloaded: provider=%s, auto_fallback=%v", targetProvider, req.AutoFallback)
+	logInfo("Agent settings updated", "provider", targetProvider, "auto_fallback", req.AutoFallback)
 
 	response := ApiResponse{
 		Success: true,

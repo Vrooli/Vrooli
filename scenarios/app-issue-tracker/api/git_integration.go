@@ -44,11 +44,21 @@ type GitIntegrationService struct {
 }
 
 // NewGitIntegrationService creates a new Git integration service
+
+func requiredEnvValue(key string) (string, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		return "", fmt.Errorf("%s is not set", key)
+	}
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "", fmt.Errorf("%s cannot be empty", key)
+	}
+	return trimmed, nil
+}
+
 func NewGitIntegrationService(configPath string) (*GitIntegrationService, error) {
 	config := &GitConfig{
-		Owner:      os.Getenv("GITHUB_OWNER"),
-		Repo:       os.Getenv("GITHUB_REPO"),
-		Token:      os.Getenv("GITHUB_TOKEN"),
 		BaseBranch: getEnv("GITHUB_BASE_BRANCH", "main"),
 	}
 
@@ -57,6 +67,32 @@ func NewGitIntegrationService(configPath string) (*GitIntegrationService, error)
 		if data, err := ioutil.ReadFile(configPath); err == nil {
 			json.Unmarshal(data, config)
 		}
+	}
+
+	missing := make([]string, 0, 3)
+	if strings.TrimSpace(config.Owner) == "" {
+		if owner, err := requiredEnvValue("GITHUB_OWNER"); err == nil {
+			config.Owner = owner
+		} else {
+			missing = append(missing, "GITHUB_OWNER")
+		}
+	}
+	if strings.TrimSpace(config.Repo) == "" {
+		if repo, err := requiredEnvValue("GITHUB_REPO"); err == nil {
+			config.Repo = repo
+		} else {
+			missing = append(missing, "GITHUB_REPO")
+		}
+	}
+	if strings.TrimSpace(config.Token) == "" {
+		if token, err := requiredEnvValue("GITHUB_TOKEN"); err == nil {
+			config.Token = token
+		} else {
+			missing = append(missing, "GITHUB_TOKEN")
+		}
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("missing GitHub configuration: %s", strings.Join(missing, ", "))
 	}
 
 	// Create working directory for Git operations
@@ -94,7 +130,7 @@ func (g *GitIntegrationService) CreatePullRequest(issue Issue, fixes []string) (
 	// Apply fixes
 	for _, fix := range fixes {
 		if err := g.applyFix(repoDir, fix); err != nil {
-			fmt.Printf("Warning: failed to apply fix: %v\n", err)
+			logWarn("Failed to apply generated fix", "error", err, "issue_id", issue.ID)
 		}
 	}
 
@@ -345,6 +381,7 @@ func (s *Server) gitPRHandler(w http.ResponseWriter, r *http.Request) {
 			Message: "No fixes available for this issue. Run investigation first.",
 		}
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
@@ -357,6 +394,7 @@ func (s *Server) gitPRHandler(w http.ResponseWriter, r *http.Request) {
 			Message: fmt.Sprintf("Failed to initialize Git service: %v", err),
 		}
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
@@ -369,6 +407,7 @@ func (s *Server) gitPRHandler(w http.ResponseWriter, r *http.Request) {
 			Message: fmt.Sprintf("Failed to create pull request: %v", err),
 		}
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
@@ -383,7 +422,7 @@ func (s *Server) gitPRHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Save updated issue
 	if _, err := s.saveIssue(issue, folder); err != nil {
-		fmt.Printf("Warning: Failed to update issue with PR info: %v\n", err)
+		logWarn("Failed to persist issue metadata after PR creation", "error", err, "issue_id", issueID)
 	}
 
 	response := ApiResponse{

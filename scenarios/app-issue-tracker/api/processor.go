@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 )
@@ -104,8 +103,14 @@ func (s *Server) updateProcessorHandler(w http.ResponseWriter, r *http.Request) 
 	s.updateProcessorState(req.Active, req.ConcurrentSlots, req.RefreshInterval, req.MaxIssues, req.MaxIssuesDisabled)
 	state := s.currentProcessorState()
 
-	log.Printf("Processor state updated: active=%v, slots=%d, interval=%d, max_issues=%d, max_issues_disabled=%v",
-		state.Active, state.ConcurrentSlots, state.RefreshInterval, state.MaxIssues, state.MaxIssuesDisabled)
+	logInfo(
+		"Processor state updated",
+		"active", state.Active,
+		"slots", state.ConcurrentSlots,
+		"interval_seconds", state.RefreshInterval,
+		"max_issues", state.MaxIssues,
+		"max_issues_disabled", state.MaxIssuesDisabled,
+	)
 
 	response := ApiResponse{
 		Success: true,
@@ -125,7 +130,7 @@ func (s *Server) resetIssueCounterHandler(w http.ResponseWriter, r *http.Request
 	s.issuesProcessedCount = 0
 	s.issuesProcessedMutex.Unlock()
 
-	log.Printf("Issue counter reset to 0")
+	logInfo("Processor issue counter reset")
 
 	response := ApiResponse{
 		Success: true,
@@ -153,7 +158,7 @@ func (s *Server) getRateLimitStatusHandler(w http.ResponseWriter, r *http.Reques
 	// Check waiting issues for rate limit info
 	waitingIssues, err := s.loadIssuesFromFolder("waiting")
 	if err != nil {
-		log.Printf("Error loading waiting issues: %v", err)
+		logErrorErr("Failed to load waiting issues", err)
 		waitingIssues = []Issue{}
 	}
 
@@ -174,7 +179,11 @@ func (s *Server) getRateLimitStatusHandler(w http.ResponseWriter, r *http.Reques
 
 		resetTime, err := time.Parse(time.RFC3339, resetTimeStr)
 		if err != nil {
-			log.Printf("Rate limit metadata for issue %s could not be parsed (%s) — clearing stale entry", issue.ID, resetTimeStr)
+			logWarn(
+				"Clearing stale rate limit metadata",
+				"issue_id", issue.ID,
+				"raw_reset_value", resetTimeStr,
+			)
 			issueDir, _, findErr := s.findIssueDirectory(issue.ID)
 			if findErr == nil {
 				if loaded, loadErr := s.loadIssueFromDir(issueDir); loadErr == nil {
@@ -199,9 +208,9 @@ func (s *Server) getRateLimitStatusHandler(w http.ResponseWriter, r *http.Reques
 		}
 
 		// Reset expired — opportunistically move the issue back to open
-		log.Printf("Processor: rate limit window elapsed for issue %s (via status endpoint), moving back to open", issue.ID)
+		logInfo("Rate limit window elapsed via status endpoint", "issue_id", issue.ID)
 		if err := s.moveIssue(issue.ID, "open"); err != nil {
-			log.Printf("Processor: failed to move issue %s back to open after rate limit expiry: %v", issue.ID, err)
+			logErrorErr("Failed to move issue back to open after rate limit expiry", err, "issue_id", issue.ID)
 		} else {
 			issueDir, _, findErr := s.findIssueDirectory(issue.ID)
 			if findErr == nil {
@@ -248,9 +257,9 @@ func (s *Server) registerRunningProcess(issueID, agentID, startTime string) {
 	// Defensive: ensure the issue is marked active while work is running.
 	if _, currentFolder, err := s.findIssueDirectory(issueID); err == nil && currentFolder != "active" {
 		if err := s.moveIssue(issueID, "active"); err != nil {
-			log.Printf("registerRunningProcess: failed to ensure issue %s is active: %v", issueID, err)
+			logErrorErr("Failed to mark running issue as active", err, "issue_id", issueID)
 		} else {
-			log.Printf("registerRunningProcess: normalized status for issue %s from %s to active", issueID, currentFolder)
+			logInfo("Normalized issue status for running process", "issue_id", issueID, "previous_status", currentFolder)
 		}
 	}
 
@@ -308,7 +317,7 @@ func (s *Server) getRunningProcessesHandler(w http.ResponseWriter, r *http.Reque
 
 // runProcessorLoop is the background goroutine that automatically processes open issues
 func (s *Server) runProcessorLoop() {
-	log.Println("Processor loop started")
+	logInfo("Processor loop started")
 
 	for {
 		state := s.currentProcessorState()
@@ -327,7 +336,7 @@ func (s *Server) runProcessorLoop() {
 				if resetTimeStr != "" {
 					resetTime, err := time.Parse(time.RFC3339, resetTimeStr)
 					if err == nil && time.Now().After(resetTime) {
-						log.Printf("Processor: Rate limit expired for issue %s, moving back to open", issue.ID)
+						logInfo("Rate limit expired for waiting issue", "issue_id", issue.ID)
 						s.moveIssue(issue.ID, "open")
 
 						// Clear rate limit metadata
@@ -348,7 +357,7 @@ func (s *Server) runProcessorLoop() {
 		// Load open issues
 		openIssues, err := s.loadIssuesFromFolder("open")
 		if err != nil {
-			log.Printf("Error loading open issues in processor loop: %v", err)
+			logErrorErr("Failed to load open issues during processor loop", err)
 			time.Sleep(time.Duration(state.RefreshInterval) * time.Second)
 			continue
 		}
@@ -369,8 +378,11 @@ func (s *Server) runProcessorLoop() {
 		// Calculate available slots
 		availableSlots := state.ConcurrentSlots - currentlyRunning
 		if availableSlots <= 0 {
-			log.Printf("Processor: All slots occupied (%d/%d), waiting for completion",
-				currentlyRunning, state.ConcurrentSlots)
+			logInfo(
+				"Processor waiting for available slots",
+				"running", currentlyRunning,
+				"slots", state.ConcurrentSlots,
+			)
 			time.Sleep(time.Duration(state.RefreshInterval) * time.Second)
 			continue
 		}
@@ -381,8 +393,13 @@ func (s *Server) runProcessorLoop() {
 			processCount = len(openIssues)
 		}
 
-		log.Printf("Processor: Found %d open issues, %d slots available (%d running), processing %d",
-			len(openIssues), availableSlots, currentlyRunning, processCount)
+		logInfo(
+			"Processor scheduling investigations",
+			"open_issues", len(openIssues),
+			"available_slots", availableSlots,
+			"running", currentlyRunning,
+			"scheduled", processCount,
+		)
 
 		// Update ProcessorState.CurrentlyRunning for API visibility
 		s.processorMutex.Lock()
@@ -395,9 +412,9 @@ func (s *Server) runProcessorLoop() {
 			agentID := "unified-resolver" // Default agent
 
 			if err := s.triggerInvestigation(issue.ID, agentID, true); err != nil {
-				log.Printf("Processor: Failed to trigger investigation for issue %s: %v", issue.ID, err)
+				logErrorErr("Failed to trigger investigation", err, "issue_id", issue.ID)
 			} else {
-				log.Printf("Processor: Triggered investigation for issue %s", issue.ID)
+				logInfo("Triggered investigation", "issue_id", issue.ID)
 			}
 		}
 

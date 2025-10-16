@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // QdrantSearchRequest represents a search request to Qdrant
@@ -57,6 +58,9 @@ func generateMockEmbedding(text string) []float64 {
 
 // performVectorSearch searches for similar issues using Qdrant
 func (s *Server) performVectorSearch(queryEmbedding []float64, limit int) ([]VectorSearchResult, error) {
+	if strings.TrimSpace(s.config.QdrantURL) == "" {
+		return nil, fmt.Errorf("vector search is not configured")
+	}
 	// Prepare search request
 	searchReq := QdrantSearchRequest{
 		Vector:      queryEmbedding,
@@ -123,6 +127,9 @@ func (s *Server) performVectorSearch(queryEmbedding []float64, limit int) ([]Vec
 
 // indexIssueInVectorStore adds or updates an issue in the vector store
 func (s *Server) indexIssueInVectorStore(issue Issue) error {
+	if strings.TrimSpace(s.config.QdrantURL) == "" {
+		return nil
+	}
 	// Generate embedding for the issue
 	text := fmt.Sprintf("%s %s %s", issue.Title, issue.Description, issue.Type)
 	embedding := generateMockEmbedding(text)
@@ -168,13 +175,13 @@ func (s *Server) indexIssueInVectorStore(issue Issue) error {
 	resp, err := client.Do(req)
 	if err != nil {
 		// Log error but don't fail the operation
-		fmt.Printf("Warning: Failed to index issue in vector store: %v\n", err)
+		logWarn("Failed to index issue in vector store", "error", err, "issue_id", issue.ID)
 		return nil
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Warning: Qdrant returned status %d when indexing issue\n", resp.StatusCode)
+		logWarn("Qdrant returned unexpected status while indexing issue", "status", resp.StatusCode, "issue_id", issue.ID)
 	}
 
 	return nil
@@ -182,6 +189,9 @@ func (s *Server) indexIssueInVectorStore(issue Issue) error {
 
 // createVectorCollection creates the issue_embeddings collection in Qdrant if it doesn't exist
 func (s *Server) createVectorCollection() error {
+	if strings.TrimSpace(s.config.QdrantURL) == "" {
+		return nil
+	}
 	// Check if collection exists
 	checkURL := fmt.Sprintf("%s/collections/issue_embeddings", s.config.QdrantURL)
 	resp, err := http.Get(checkURL)
@@ -252,6 +262,7 @@ func (s *Server) vectorSearchHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Fallback to text search if vector search fails
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
 		response := ApiResponse{
 			Success: false,
 			Message: fmt.Sprintf("Vector search failed, falling back to text search: %v", err),

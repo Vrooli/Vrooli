@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,7 +66,7 @@ func reloadAgentSettings() {
 	configPath := filepath.Join(scenarioRootPath, "initialization", "configuration", "agent-settings.json")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		log.Printf("Warning: Could not load agent-settings.json: %v (using defaults)", err)
+		logWarn("Could not load agent settings file", "path", configPath, "error", err)
 		return
 	}
 
@@ -88,7 +87,7 @@ func reloadAgentSettings() {
 	}
 
 	if err := json.Unmarshal(data, &config); err != nil {
-		log.Printf("Warning: Failed to parse agent-settings.json: %v (using defaults)", err)
+		logWarn("Failed to parse agent settings file", "path", configPath, "error", err)
 		return
 	}
 
@@ -104,7 +103,7 @@ func reloadAgentSettings() {
 
 	providerConfig, ok := config.Providers[provider]
 	if !ok {
-		log.Printf("Warning: Provider '%s' not found in agent-settings.json (using defaults)", provider)
+		logWarn("Provider missing from agent settings", "provider", provider)
 		return
 	}
 
@@ -122,7 +121,7 @@ func reloadAgentSettings() {
 		}
 		if command := strings.TrimSpace(investigateOp.Command); command != "" {
 			if parts, err := parseCommandParts(command); err != nil {
-				log.Printf("Warning: Failed to parse investigate command '%s': %v (using default)", command, err)
+				logWarn("Failed to parse investigate command", "raw_command", command, "error", err)
 			} else if len(parts) > 0 {
 				agentSettings.Command = parts
 			}
@@ -134,8 +133,15 @@ func reloadAgentSettings() {
 		agentSettings.CLICommand = providerConfig.CLICommand
 	}
 
-	log.Printf("Loaded agent settings: provider=%s, cli=%s, command=%v, max_turns=%d, timeout=%ds (%dmin)",
-		agentSettings.Provider, agentSettings.CLICommand, agentSettings.Command, agentSettings.MaxTurns, agentSettings.TimeoutSeconds, agentSettings.TimeoutSeconds/60)
+	logInfo(
+		"Agent settings loaded",
+		"provider", agentSettings.Provider,
+		"cli_command", agentSettings.CLICommand,
+		"command", strings.Join(agentSettings.Command, " "),
+		"max_turns", agentSettings.MaxTurns,
+		"timeout_seconds", agentSettings.TimeoutSeconds,
+		"timeout_minutes", agentSettings.TimeoutSeconds/60,
+	)
 }
 
 // GetAgentSettings returns current agent settings (thread-safe)

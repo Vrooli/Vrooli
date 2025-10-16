@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,23 +17,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// TestLogger provides controlled logging during tests
-type TestLogger struct {
-	originalLogger *log.Logger
-	cleanup        func()
-}
-
 // setupTestLogger initializes the global logger for testing
 func setupTestLogger() func() {
-	// Disable logging during tests unless explicitly enabled
-	originalFlags := log.Flags()
-	log.SetFlags(0)
-	log.SetOutput(io.Discard)
-
-	return func() {
-		log.SetFlags(originalFlags)
-		log.SetOutput(os.Stderr)
-	}
+	handler := slog.NewTextHandler(io.Discard, nil)
+	return withLogger(slog.New(handler))
 }
 
 // TestEnvironment manages isolated test environment
@@ -60,9 +47,10 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 	}
 
 	cfg := &Config{
-		IssuesDir:    issuesDir,
-		Port:         "0", // Use dynamic port for testing
-		QdrantURL:    "http://localhost:6333",
+		IssuesDir: issuesDir,
+		Port:      "0", // Use dynamic port for testing
+		// vrooli:env:optional - tests do not require vector search infrastructure
+		QdrantURL:    os.Getenv("QDRANT_URL"),
 		ScenarioRoot: tempDir,
 	}
 

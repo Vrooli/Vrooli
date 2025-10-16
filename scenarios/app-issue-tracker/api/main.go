@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -43,9 +42,14 @@ func loadConfig() *Config {
 		defaultIssuesDir = "./data/issues"
 	}
 
+	qdrantURL := strings.TrimSpace(os.Getenv("QDRANT_URL"))
+	if qdrantURL == "" {
+		logInfo("Qdrant URL not provided; semantic search disabled")
+	}
+
 	return &Config{
 		Port:         getEnv("API_PORT", getEnv("PORT", "")),
-		QdrantURL:    getEnv("QDRANT_URL", "http://localhost:6333"),
+		QdrantURL:    qdrantURL,
 		IssuesDir:    getEnv("ISSUES_DIR", defaultIssuesDir),
 		ScenarioRoot: scenarioRoot,
 	}
@@ -61,8 +65,13 @@ func getEnv(key, defaultValue string) string {
 
 // getVrooliRoot determines the Vrooli project root directory
 func getVrooliRoot() string {
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		return root
+	if root, ok := os.LookupEnv("VROOLI_ROOT"); ok {
+		trimmed := strings.TrimSpace(root)
+		if trimmed == "" {
+			logError("VROOLI_ROOT environment variable is set but empty")
+			os.Exit(1)
+		}
+		return trimmed
 	}
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
 	if out, err := cmd.Output(); err == nil {
@@ -90,7 +99,8 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 func main() {
 	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+	lifecycleManaged, ok := os.LookupEnv("VROOLI_LIFECYCLE_MANAGED")
+	if !ok || lifecycleManaged != "true" {
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
@@ -106,18 +116,19 @@ func main() {
 
 	// Load agent settings (ecosystem-manager pattern)
 	_ = LoadAgentSettings(config.ScenarioRoot)
-	log.Printf("Agent settings loaded successfully")
+	logInfo("Agent settings loaded", "scenario_root", config.ScenarioRoot)
 
 	// Ensure issues directory structure exists
 	folders := []string{"open", "active", "waiting", "completed", "failed", "templates"}
 	for _, folder := range folders {
 		folderPath := filepath.Join(config.IssuesDir, folder)
-		if err := os.MkdirAll(folderPath, 0755); err != nil {
-			log.Fatalf("Failed to create folder %s: %v", folder, err)
+		if err := os.MkdirAll(folderPath, 0o755); err != nil {
+			logErrorErr("Failed to ensure issue folder exists", err, "folder", folderPath)
+			os.Exit(1)
 		}
 	}
 
-	log.Printf("Using file-based storage at: %s", config.IssuesDir)
+	logInfo("Using file-based storage", "issues_dir", config.IssuesDir)
 
 	// Initialize WebSocket hub
 	hub := NewHub()
@@ -169,14 +180,14 @@ func main() {
 	// Apply CORS middleware
 	handler := corsMiddleware(r)
 
-	log.Printf("Starting File-Based App Issue Tracker API on port %s", config.Port)
-	log.Printf("Health check: http://localhost:%s/health", config.Port)
-	log.Printf("API base URL: http://localhost:%s/api/v1", config.Port)
-	log.Printf("Issues directory: %s", config.IssuesDir)
-	log.Printf("Scenario root: %s", config.ScenarioRoot)
-	log.Printf("Processor loop: Running (inactive by default)")
+	logInfo("Starting App Issue Tracker API", "port", config.Port)
+	logInfo("API health endpoint configured", "url", fmt.Sprintf("http://localhost:%s/health", config.Port))
+	logInfo("API base URL", "url", fmt.Sprintf("http://localhost:%s/api/v1", config.Port))
+	logInfo("Scenario configuration", "issues_dir", config.IssuesDir, "scenario_root", config.ScenarioRoot)
+	logInfo("Processor loop state", "active", false)
 
 	if err := http.ListenAndServe(":"+config.Port, handler); err != nil {
-		log.Fatal("Server failed to start:", err)
+		logErrorErr("Server failed to start", err, "port", config.Port)
+		os.Exit(1)
 	}
 }

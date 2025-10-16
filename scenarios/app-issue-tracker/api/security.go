@@ -256,6 +256,19 @@ func rateLimitMiddleware(limiter *RateLimiter) func(http.Handler) http.Handler {
 }
 
 // LoadSecurityConfig loads security configuration
+
+func splitAndTrimCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	var result []string
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
 func LoadSecurityConfig(path string) (*SecurityConfig, error) {
 	config := &SecurityConfig{
 		EnableAuth:     false,
@@ -265,16 +278,28 @@ func LoadSecurityConfig(path string) (*SecurityConfig, error) {
 	}
 
 	// Try to load from environment
-	if envAuth := os.Getenv("ENABLE_AUTH"); envAuth == "true" {
-		config.EnableAuth = true
+	if envAuth, ok := os.LookupEnv("ENABLE_AUTH"); ok {
+		config.EnableAuth = strings.EqualFold(strings.TrimSpace(envAuth), "true")
 	}
 
-	if envOrigins := os.Getenv("ALLOWED_ORIGINS"); envOrigins != "" {
-		config.AllowedOrigins = strings.Split(envOrigins, ",")
+	if envOrigins, ok := os.LookupEnv("ALLOWED_ORIGINS"); ok {
+		trimmed := strings.TrimSpace(envOrigins)
+		if trimmed == "" {
+			return nil, fmt.Errorf("ALLOWED_ORIGINS cannot be empty when set")
+		}
+		config.AllowedOrigins = splitAndTrimCSV(trimmed)
 	}
 
-	if envTokens := os.Getenv("API_TOKENS"); envTokens != "" {
-		config.APITokens = strings.Split(envTokens, ",")
+	if envTokens, ok := os.LookupEnv("API_TOKENS"); ok {
+		trimmed := strings.TrimSpace(envTokens)
+		if trimmed == "" {
+			return nil, fmt.Errorf("API_TOKENS cannot be empty when set")
+		}
+		config.APITokens = splitAndTrimCSV(trimmed)
+	}
+
+	if config.EnableAuth && len(config.APITokens) == 0 {
+		return nil, fmt.Errorf("API_TOKENS must be provided when ENABLE_AUTH is true")
 	}
 
 	// Try to load from file

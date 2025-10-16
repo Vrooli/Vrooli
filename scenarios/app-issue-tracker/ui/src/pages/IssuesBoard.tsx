@@ -1,8 +1,9 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import type { DragEvent, TouchEvent } from 'react';
-import { AlertTriangle, ArchiveRestore, CheckCircle2, CircleSlash, Construction, EyeOff } from 'lucide-react';
+import { EyeOff } from 'lucide-react';
 import { Issue, IssueStatus } from '../data/sampleData';
 import { IssueCard } from '../components/IssueCard';
+import { ISSUE_BOARD_COLUMNS, ISSUE_BOARD_STATUSES } from '../constants/board';
 
 interface IssuesBoardProps {
   issues: Issue[];
@@ -16,14 +17,6 @@ interface IssuesBoardProps {
   hiddenColumns?: IssueStatus[];
   onHideColumn?: (status: IssueStatus) => void;
 }
-
-export const columnMeta: Record<IssueStatus, { title: string; icon: React.ComponentType<{ size?: number }> }> = {
-  open: { title: 'Open', icon: AlertTriangle },
-  active: { title: 'Active', icon: Construction },
-  completed: { title: 'Completed', icon: CheckCircle2 },
-  failed: { title: 'Failed', icon: CircleSlash },
-  archived: { title: 'Archived', icon: ArchiveRestore },
-};
 
 export function IssuesBoard({
   issues,
@@ -113,13 +106,10 @@ export function IssuesBoard({
   }, []);
 
   const grouped = useMemo(() => {
-    const base: Record<IssueStatus, Issue[]> = {
-      open: [],
-      active: [],
-      completed: [],
-      failed: [],
-      archived: [],
-    };
+    const base = ISSUE_BOARD_STATUSES.reduce((acc, status) => {
+      acc[status] = [];
+      return acc;
+    }, {} as Record<IssueStatus, Issue[]>);
 
     issues.forEach((issue) => {
       base[issue.status] = [...base[issue.status], issue];
@@ -136,7 +126,7 @@ export function IssuesBoard({
 
   const hiddenSet = useMemo(() => new Set(hiddenColumns ?? []), [hiddenColumns]);
   const visibleStatuses = useMemo(
-    () => (Object.keys(columnMeta) as IssueStatus[]).filter((status) => !hiddenSet.has(status)),
+    () => ISSUE_BOARD_STATUSES.filter((status) => !hiddenSet.has(status)),
     [hiddenSet],
   );
 
@@ -461,7 +451,7 @@ export function IssuesBoard({
           </div>
         ) : (
           visibleStatuses.map((status) => {
-            const column = columnMeta[status];
+            const column = ISSUE_BOARD_COLUMNS[status];
             const ColumnIcon = column.icon;
             const columnIssues = grouped[status] ?? [];
             const columnClasses = ['kanban-column'];

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -165,13 +164,13 @@ func (s *Server) buildInvestigationPrompt(issue *Issue, issueDir, agentID, proje
 func (s *Server) failInvestigation(issueID, errorMsg, output string) {
 	issueDir, _, findErr := s.findIssueDirectory(issueID)
 	if findErr != nil {
-		log.Printf("Cannot locate issue %s to mark failed: %v", issueID, findErr)
+		logErrorErr("Cannot locate issue to mark investigation failed", findErr, "issue_id", issueID)
 		return
 	}
 
 	issue, loadErr := s.loadIssueFromDir(issueDir)
 	if loadErr != nil {
-		log.Printf("Cannot load issue %s to mark failed: %v", issueID, loadErr)
+		logErrorErr("Cannot load issue to mark investigation failed", loadErr, "issue_id", issueID)
 		return
 	}
 
@@ -192,7 +191,7 @@ func (s *Server) failInvestigation(issueID, errorMsg, output string) {
 	issue.Metadata.Extra["agent_last_status"] = "failed"
 
 	if err := s.writeIssueMetadata(issueDir, issue); err != nil {
-		log.Printf("Failed to save error for issue %s: %v", issueID, err)
+		logErrorErr("Failed to persist investigation failure state", err, "issue_id", issueID)
 	}
 
 	s.moveIssue(issueID, "failed")
@@ -308,7 +307,7 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		agentID = "unified-resolver"
 	}
 
-	log.Printf("Starting investigation for issue %s (agent: %s, auto-resolve: %v)", issueID, agentID, autoResolve)
+	logInfo("Starting investigation", "issue_id", issueID, "agent_id", agentID, "auto_resolve", autoResolve)
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	issue.Investigation.AgentID = agentID
@@ -332,13 +331,13 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 
 		issueDir, _, findErr := s.findIssueDirectory(issueID)
 		if findErr != nil {
-			log.Printf("Failed to find issue %s: %v", issueID, findErr)
+			logErrorErr("Investigation failed to locate issue", findErr, "issue_id", issueID)
 			return
 		}
 
 		issue, loadErr := s.loadIssueFromDir(issueDir)
 		if loadErr != nil {
-			log.Printf("Failed to load issue %s: %v", issueID, loadErr)
+			logErrorErr("Investigation failed to load issue", loadErr, "issue_id", issueID)
 			return
 		}
 
@@ -354,7 +353,7 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		result, err := s.executeClaudeCode(ctx, prompt, issueID, startTime, timeoutDuration)
 
 		if err != nil {
-			log.Printf("Failed to execute Claude Code for issue %s: %v", issueID, err)
+			logErrorErr("Claude execution error", err, "issue_id", issueID)
 			s.failInvestigation(issueID, fmt.Sprintf("Execution error: %v", err), "")
 			return
 		}
@@ -362,7 +361,7 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		if strings.Contains(result.Error, "RATE_LIMIT") {
 			isRateLimit, resetTime := detectRateLimit(result.Output)
 			if isRateLimit {
-				log.Printf("Rate limit detected for issue %s, moving to waiting status until %s", issueID, resetTime)
+				logWarn("Rate limit detected during investigation", "issue_id", issueID, "reset_time", resetTime)
 
 				issueDir, _, findErr := s.findIssueDirectory(issueID)
 				if findErr == nil {
@@ -383,7 +382,7 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		}
 
 		if !result.Success {
-			log.Printf("Investigation failed for issue %s: %s", issueID, result.Error)
+			logWarn("Investigation failed", "issue_id", issueID, "error", result.Error)
 
 			issueDir, _, findErr := s.findIssueDirectory(issueID)
 			if findErr == nil {
@@ -418,17 +417,17 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 			return
 		}
 
-		log.Printf("Investigation succeeded for issue %s (execution time: %v)", issueID, result.ExecutionTime.Round(time.Second))
+		logInfo("Investigation completed successfully", "issue_id", issueID, "execution_time", result.ExecutionTime.Round(time.Second))
 
 		issueDir, _, findErr2 := s.findIssueDirectory(issueID)
 		if findErr2 != nil {
-			log.Printf("Failed to locate issue %s after investigation: %v", issueID, findErr2)
+			logErrorErr("Failed to locate issue after investigation", findErr2, "issue_id", issueID)
 			return
 		}
 
 		issue, loadErr2 := s.loadIssueFromDir(issueDir)
 		if loadErr2 != nil {
-			log.Printf("Failed to reload issue %s: %v", issueID, loadErr2)
+			logErrorErr("Failed to reload issue after investigation", loadErr2, "issue_id", issueID)
 			return
 		}
 
@@ -465,17 +464,17 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		issue.Metadata.ResolvedAt = nowUTC.Format(time.RFC3339)
 
 		if saveErr := s.writeIssueMetadata(issueDir, issue); saveErr != nil {
-			log.Printf("Failed to save investigation results for issue %s: %v", issueID, saveErr)
+			logErrorErr("Failed to persist investigation results", saveErr, "issue_id", issueID)
 		}
 
 		if moveErr := s.moveIssue(issueID, "completed"); moveErr != nil {
-			log.Printf("Failed to move issue %s to completed: %v", issueID, moveErr)
+			logErrorErr("Failed to move issue to completed", moveErr, "issue_id", issueID)
 		}
 
-		log.Printf("Investigation completed successfully for issue %s", issueID)
+		logInfo("Investigation state persisted", "issue_id", issueID)
 
 		processedCount := s.incrementProcessedCount()
-		log.Printf("Processor: Successful investigations total=%d (max issues limit disabled)", processedCount)
+		logInfo("Processor successful investigations updated", "count", processedCount)
 
 		s.hub.Publish(NewEvent(EventAgentCompleted, AgentCompletedData{
 			IssueID:   issueID,

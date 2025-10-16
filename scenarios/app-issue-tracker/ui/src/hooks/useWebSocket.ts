@@ -82,7 +82,7 @@ export function useWebSocket({
 
       ws.onerror = (evt) => {
         if (!isMountedRef.current) return;
-        console.error('[WebSocket] Error:', evt);
+        console.warn('[WebSocket] Error:', evt);
         const errorObj = new Error('WebSocket connection error');
         setError(errorObj);
         setStatus('error');

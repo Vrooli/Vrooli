@@ -1,4 +1,4 @@
-# PRD: App Issue Tracker
+# Product Requirements Document: App Issue Tracker
 
 ## Executive Summary
 
@@ -7,6 +7,20 @@
 **Who**: Development teams, AI agents, and small organizations avoiding enterprise tools
 **Value**: $15K-30K per deployment through reduced resolution time and automated fixes
 **Priority**: Critical infrastructure for Vrooli ecosystem debugging
+
+## 🎯 Capability Definition
+
+- Holistic issue lifecycle management spanning creation, assignment, investigation, resolution, and archival
+- Hybrid human + AI workflow where unified-resolver automates diagnosis and remediation proposals
+- File-native storage pattern (YAML on disk) so every issue is version-controlled, portable, and auditable
+- Multi-surface access: REST API, responsive React UI, and CLI automation hooks for agent orchestrations
+
+## 💰 Value Proposition
+
+- $15K–30K per deployment via accelerated debugging and reduced SaaS licensing
+- 2× faster MTTR by coupling automated investigations with actionable remediation plans
+- Zero-database architecture lowers operating costs and simplifies customer onboarding
+- Reusable templates and exports turn postmortems into monetizable knowledge products
 
 ## Progress Tracking
 
@@ -77,6 +91,12 @@
 - [ ] **Multi-Agent Support**: Different AI agents for different issue types
 - [ ] **Webhook Integration**: Notify external systems on issue state changes
 
+## 🧬 Evolution Path
+- Phase 1: stabilize file-based backend and API (complete)
+- Phase 2: harden semantic search + Redis caching for large installations
+- Phase 3: introduce multi-agent orchestration with specialization per issue taxonomy
+- Phase 4: marketplace packaging so external teams can deploy via Vrooli scenario catalog
+
 ## 6. Non-Functional Requirements
 
 ### Performance
@@ -108,7 +128,7 @@
 - Git integration for version control
 - Docker support for containerized deployment
 
-## 7. Technical Architecture
+## 🏗️ Technical Architecture
 
 ### Components
 - **API Server**: Go-based REST API handling file I/O and business logic
@@ -129,13 +149,54 @@
 - Production: Docker containers or direct binary execution
 - Resources: Optional Redis/Qdrant for enhanced features
 
-## 8. Success Metrics
+## 📝 Implementation Notes
+- Go modules pinned via `go.mod`; use `gofmt`/`gofumpt` for formatting and `golangci-lint` for static analysis
+- UI relies on Vite dev server; production build uses `npm run build` with environment-injected API base URL
+- Scenario lifecycle caches transcripts under `tmp/codex`; cleanup runs post-execution to avoid disk bloat
+- Automated tests executed through `make test` leverage scenario harness and isolated temp directories
+
+## 🖥️ CLI Interface Contract
+
+- `app-issue-tracker create --title <text> --priority <level>` → scaffolds YAML issue with metadata prompts
+- `app-issue-tracker list [--status open|active|completed|failed]` → renders tabular view sourced from file store
+- `app-issue-tracker investigate --issue <id> [--agent unified-resolver] [--auto-resolve]` → dispatches investigation job
+- `app-issue-tracker export --format json|csv|markdown` → streams formatted report via `/api/v1/export`
+- `./issues/manage.sh <action>` → maintenance utilities (archive, search, reindex) used by scenario lifecycle scripts
+
+All commands honor `API_PORT`, `ISSUES_DIR`, and agent environment variables, failing fast when configuration is missing to protect automation correctness.
+
+## 🎨 Style and Branding Requirements
+- UI follows Vrooli dark theme primitives with accent colors driven by priority state (critical=red, high=orange, etc.)
+- Typography: Inter for headings, Roboto Mono for code/IDs, minimum 14px body text for accessibility
+- Components expose `data-testid` and ARIA attributes to support automated QA and screen readers
+- Snackbar and toast notifications adhere to 4-second auto-dismiss with manual close button for compliance
+
+## 📊 Success Metrics
 - 90% user satisfaction with issue creation speed
 - 70% issues resolved with AI assistance
 - <5% error rate in file operations
 - 100% test coverage for core functionality
 
-## 9. Risks and Mitigations
+## ✅ Validation Criteria
+- API `GET /health` returns `200` with `storage` field populated
+- `app-issue-tracker create` followed by `list` shows new issue in YAML store
+- Automated investigation writes transcript + last message artifacts and transitions issue to `completed`
+- `scenario-auditor scan app-issue-tracker --wait` reports zero high severity lifecycle violations after fixes
+
+## 🔄 Integration Requirements
+- **GitHub**: optional PR automation requires `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`; failures must surface descriptive HTTP 5xx responses
+- **Qdrant**: semantic search hooks enabled when `QDRANT_URL` resolves; scenario must degrade gracefully to keyword mode if unavailable
+- **Redis**: caching layer toggled via lifecycle resources; absence must not break base workflows
+- **Scenario Auditor**: lifecycle scripts ensure API + UI expose `/health` endpoints so cross-scenario monitors can probe status
+- **Agent Infrastructure**: depends on `resource-claude-code` CLI; agent settings reloadable via `/api/v1/agent/settings`
+
+## 🔄 Scenario Lifecycle Integration
+- `make start` → orchestrates API + UI via lifecycle, exporting URLs to console for operator visibility
+- `make test` → routes through shared scenario test harness ensuring API, CLI, and file structure remain healthy
+- `make stop` → gracefully terminates Go API and Vite UI processes, releasing ports back to orchestrator
+- Lifecycle health checks feed ecosystem-manager dashboards through `/health` endpoints and scenario metadata
+
+## 🚨 Risk Mitigation
 - **Risk**: YAML parsing errors – **Mitigation**: Schema validation + error recovery
 - **Risk**: Performance with large issue volumes – **Mitigation**: Indexing + caching
 - **Risk**: AI investigation inaccuracies – **Mitigation**: Human review workflow + feedback loop
@@ -147,3 +208,9 @@
 - AI Features: 2 weeks
 - Testing & Polish: 1 week
 - Total: 6 weeks
+
+## 🔗 References
+- docs/SECURITY_SETUP.md – hardening checklist and env var matrix
+- docs/context.md – platform overview and recursive intelligence vision
+- scenarios/app-issue-tracker/api/README.md – API endpoints and testing instructions
+- scenarios/app-issue-tracker/ui/README.md – UI development workflow and tooling
