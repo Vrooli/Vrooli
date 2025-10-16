@@ -279,6 +279,45 @@ func TestWorkspaceUpdateStateValidation(t *testing.T) {
 	}
 }
 
+func TestWorkspaceIdleTimeoutSettings(t *testing.T) {
+	tmpDir := t.TempDir()
+	storagePath := filepath.Join(tmpDir, "workspace.json")
+
+	ws, err := newWorkspace(storagePath)
+	if err != nil {
+		t.Fatalf("Failed to create workspace: %v", err)
+	}
+
+	ch := ws.subscribe()
+	defer ws.unsubscribe(ch)
+
+	if err := ws.setIdleTimeoutSeconds(600); err != nil {
+		t.Fatalf("Failed to set idle timeout: %v", err)
+	}
+
+	ws.mu.RLock()
+	if ws.IdleTimeoutSeconds != 600 {
+		t.Errorf("Expected stored idle timeout 600 seconds, got %d", ws.IdleTimeoutSeconds)
+	}
+	ws.mu.RUnlock()
+
+	select {
+	case event := <-ch:
+		if event.Type != "idle-timeout-changed" {
+			t.Fatalf("Expected idle-timeout-changed event, got '%s'", event.Type)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("Expected idle timeout change broadcast")
+	}
+
+	if err := ws.setIdleTimeoutSeconds(-1); err == nil {
+		t.Error("Expected validation error for negative idle timeout")
+	}
+	if err := ws.setIdleTimeoutSeconds(90000); err == nil {
+		t.Error("Expected validation error for excessive idle timeout")
+	}
+}
+
 func TestWorkspacePersistence(t *testing.T) {
 	tmpDir := t.TempDir()
 	storagePath := filepath.Join(tmpDir, "workspace.json")

@@ -55,8 +55,7 @@ type session struct {
 	clientsMu sync.Mutex
 	clients   map[*wsClient]struct{}
 
-	idleReset chan struct{}
-	ttlTimer  *time.Timer
+	ttlTimer *time.Timer
 
 	lastActivity atomic.Int64 // unix nano
 
@@ -97,7 +96,6 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 		cancel:              cancel,
 		done:                make(chan struct{}),
 		clients:             make(map[*wsClient]struct{}),
-		idleReset:           make(chan struct{}, 1),
 		readBuffer:          make([]byte, cfg.readBufferSizeBytes),
 		outputBuffer:        make([]outputPayload, 0, 500), // Keep last 500 chunks for better reconnect experience
 		outputBufferDropped: false,
@@ -194,7 +192,6 @@ func newSession(manager *sessionManager, cfg config, metrics *metricsRegistry, r
 		s.Close(reasonTTLExpired)
 	})
 
-	go s.watchIdle()
 	go s.streamOutput()
 	go s.waitForExit()
 
@@ -221,28 +218,6 @@ func (s *session) cleanupOnInitFailure() {
 	}
 	if s.transcriptFile != nil {
 		_ = s.transcriptFile.Close()
-	}
-}
-
-func (s *session) watchIdle() {
-	timer := time.NewTimer(s.cfg.idleTimeout)
-	defer timer.Stop()
-	for {
-		select {
-		case <-s.done:
-			return
-		case <-timer.C:
-			s.Close(reasonIdleTimeout)
-			return
-		case <-s.idleReset:
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
-			timer.Reset(s.cfg.idleTimeout)
-		}
 	}
 }
 
@@ -528,10 +503,10 @@ func (s *session) broadcast(msg websocketEnvelope) {
 }
 
 func (s *session) touch() {
-	s.lastActivity.Store(time.Now().UTC().UnixNano())
-	select {
-	case s.idleReset <- struct{}{}:
-	default:
+	now := time.Now().UTC()
+	s.lastActivity.Store(now.UnixNano())
+	if s.manager != nil {
+		s.manager.recordActivity()
 	}
 }
 

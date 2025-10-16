@@ -106,7 +106,7 @@ func TestHandlerEdgeCases(t *testing.T) {
 		})
 		w := httptest.NewRecorder()
 
-		handlePatchWorkspace(w, req, ws)
+		handlePatchWorkspace(w, req, ws, nil)
 
 		assertErrorResponse(t, w, http.StatusBadRequest, "")
 	})

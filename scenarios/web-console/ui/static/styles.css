@@ -434,6 +434,52 @@ body {
   font-size: 0.95rem;
 }
 
+/* Session timeout controls */
+.timeout-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.timeout-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.timeout-toggle input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--accent, #38bdf8);
+}
+
+.timeout-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.timeout-input label {
+  font-size: 0.9rem;
+  color: rgba(226, 232, 240, 0.8);
+}
+
+.timeout-input input[type="number"] {
+  width: 6rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background-color: rgba(15, 23, 42, 0.65);
+  color: var(--text-primary);
+}
+
+.timeout-input input[type="number"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .info-list {
   list-style: none;
   margin: 0;

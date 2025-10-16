@@ -149,6 +149,30 @@
           </section>
 
           <section class="panel">
+            <h2>Session Timeout</h2>
+            <div class="timeout-settings">
+              <label class="timeout-toggle">
+                <input type="checkbox" id="idleTimeoutToggle" />
+                <span>Enable idle timeout</span>
+              </label>
+              <div class="timeout-input" id="idleTimeoutInputGroup">
+                <label for="idleTimeoutMinutes">Timeout (minutes)</label>
+                <input
+                  type="number"
+                  id="idleTimeoutMinutes"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  min="1"
+                  max="1440"
+                  step="1"
+                  disabled
+                />
+              </div>
+              <p class="panel-note">Sessions stay alive while any tab is active.</p>
+            </div>
+          </section>
+
+          <section class="panel">
             <h2>Quick Commands</h2>
             <div class="quick-actions">
               <button class="btn btn-ghost" data-shortcut-id="codex" data-command="codex --yolo">

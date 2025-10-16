@@ -30,6 +30,7 @@ type workspace struct {
 	Version             int64     `json:"version"`
 	Tabs                []tabMeta `json:"tabs"`
 	KeyboardToolbarMode string    `json:"keyboardToolbarMode,omitempty"` // "disabled", "floating", or "top"
+	IdleTimeoutSeconds  int64     `json:"idleTimeoutSeconds,omitempty"`
 	broadcasters        map[chan workspaceEvent]struct{}
 	broadcasterMu       sync.RWMutex
 }
@@ -82,6 +83,7 @@ func (ws *workspace) load() error {
 		Version             int64     `json:"version"`
 		Tabs                []tabMeta `json:"tabs"`
 		KeyboardToolbarMode string    `json:"keyboardToolbarMode"`
+		IdleTimeoutSeconds  *int64    `json:"idleTimeoutSeconds"`
 	}
 
 	if err := json.Unmarshal(data, &loaded); err != nil {
@@ -94,6 +96,9 @@ func (ws *workspace) load() error {
 	ws.Tabs = loaded.Tabs
 	if loaded.KeyboardToolbarMode != "" {
 		ws.KeyboardToolbarMode = loaded.KeyboardToolbarMode
+	}
+	if loaded.IdleTimeoutSeconds != nil && *loaded.IdleTimeoutSeconds >= 0 {
+		ws.IdleTimeoutSeconds = *loaded.IdleTimeoutSeconds
 	}
 	ws.mu.Unlock()
 
@@ -120,11 +125,13 @@ func (ws *workspace) save() error {
 		Version             int64     `json:"version"`
 		Tabs                []tabMeta `json:"tabs"`
 		KeyboardToolbarMode string    `json:"keyboardToolbarMode,omitempty"`
+		IdleTimeoutSeconds  int64     `json:"idleTimeoutSeconds,omitempty"`
 	}{
 		ActiveTabID:         ws.ActiveTabID,
 		Version:             ws.Version,
 		Tabs:                append([]tabMeta{}, ws.Tabs...),
 		KeyboardToolbarMode: ws.KeyboardToolbarMode,
+		IdleTimeoutSeconds:  ws.IdleTimeoutSeconds,
 	}
 	ws.mu.RUnlock()
 
@@ -161,11 +168,13 @@ func (ws *workspace) getState() ([]byte, error) {
 		Version             int64     `json:"version"`
 		Tabs                []tabMeta `json:"tabs"`
 		KeyboardToolbarMode string    `json:"keyboardToolbarMode,omitempty"`
+		IdleTimeoutSeconds  int64     `json:"idleTimeoutSeconds,omitempty"`
 	}{
 		ActiveTabID:         ws.ActiveTabID,
 		Version:             ws.Version,
 		Tabs:                append([]tabMeta{}, ws.Tabs...),
 		KeyboardToolbarMode: ws.KeyboardToolbarMode,
+		IdleTimeoutSeconds:  ws.IdleTimeoutSeconds,
 	}
 
 	return json.Marshal(snapshot)
@@ -312,6 +321,47 @@ func sanitizeLoadedWorkspace(activeTabID string, tabs []tabMeta) (string, []tabM
 	}
 
 	return trimmedActive, sanitized, changed
+}
+
+func (ws *workspace) idleTimeoutDuration() time.Duration {
+	ws.mu.RLock()
+	seconds := ws.IdleTimeoutSeconds
+	ws.mu.RUnlock()
+	if seconds <= 0 {
+		return 0
+	}
+	return time.Duration(seconds) * time.Second
+}
+
+func (ws *workspace) setIdleTimeoutSeconds(seconds int64) error {
+	if seconds < 0 {
+		return newValidationError("idle timeout must be >= 0 seconds")
+	}
+	if seconds > 0 && seconds > int64(24*time.Hour/time.Second) {
+		return newValidationError("idle timeout must be <= 86400 seconds")
+	}
+	ws.mu.Lock()
+	if ws.IdleTimeoutSeconds == seconds {
+		ws.mu.Unlock()
+		return nil
+	}
+	ws.IdleTimeoutSeconds = seconds
+	ws.Version++
+	ws.mu.Unlock()
+
+	if err := ws.save(); err != nil {
+		return err
+	}
+
+	ws.broadcast(workspaceEvent{
+		Type:      "idle-timeout-changed",
+		Timestamp: time.Now().UTC(),
+		Payload: mustJSON(struct {
+			IdleTimeoutSeconds int64 `json:"idleTimeoutSeconds"`
+		}{IdleTimeoutSeconds: seconds}),
+	})
+
+	return nil
 }
 
 // updateTab modifies an existing tab

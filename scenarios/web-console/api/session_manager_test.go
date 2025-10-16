@@ -205,6 +205,43 @@ func TestSessionManagerDeleteSession(t *testing.T) {
 	})
 }
 
+func TestSessionManagerGlobalIdleTimeout(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	cfg := setupTestConfig(env.TempDir)
+	manager, _, _ := setupTestSessionManager(t, cfg)
+
+	manager.updateIdleTimeout(2 * time.Second)
+
+	s1 := createTestSession(t, manager, createSessionRequest{Command: "/bin/sleep", Args: []string{"5"}})
+	s2 := createTestSession(t, manager, createSessionRequest{Command: "/bin/sleep", Args: []string{"5"}})
+	defer cleanupSession(s1)
+	defer cleanupSession(s2)
+
+	// Activity in one session should keep all sessions alive
+	time.Sleep(1 * time.Second)
+	s1.touch()
+	time.Sleep(1500 * time.Millisecond)
+
+	if _, ok := manager.getSession(s2.id); !ok {
+		t.Fatal("Expected second session to remain active after global activity")
+	}
+
+	// Allow idle timeout window to elapse without activity
+	time.Sleep(3 * time.Second)
+
+	if _, ok := manager.getSession(s1.id); ok {
+		t.Error("Expected first session to be terminated by idle timeout")
+	}
+	if _, ok := manager.getSession(s2.id); ok {
+		t.Error("Expected second session to be terminated by idle timeout")
+	}
+}
+
 func TestSessionManagerDeleteAllSessions(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()

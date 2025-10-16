@@ -50,7 +50,7 @@ func setupTestConfig(tempDir string) config {
 		defaultCommand:      "/bin/echo",
 		defaultArgs:         []string{"test"},
 		sessionTTL:          30 * time.Minute,
-		idleTimeout:         5 * time.Minute,
+		idleTimeout:         0,
 		storagePath:         filepath.Join(tempDir, "sessions"),
 		enableProxyGuard:    false, // Disabled for testing
 		maxConcurrent:       4,
@@ -203,6 +203,7 @@ func setupTestSessionManager(t *testing.T, cfg config) (*sessionManager, *metric
 	metrics := newMetricsRegistry()
 	ws := setupTestWorkspace(t, cfg.storagePath)
 	manager := newSessionManager(cfg, metrics, ws)
+	manager.updateIdleTimeout(ws.idleTimeoutDuration())
 	return manager, metrics, ws
 }
 

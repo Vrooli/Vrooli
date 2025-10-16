@@ -34,6 +34,7 @@ func main() {
 
 	metrics := newMetricsRegistry()
 	manager := newSessionManager(cfg, metrics, ws)
+	manager.updateIdleTimeout(ws.idleTimeoutDuration())
 
 	mux := http.NewServeMux()
 	registerRoutes(mux, manager, metrics, ws)

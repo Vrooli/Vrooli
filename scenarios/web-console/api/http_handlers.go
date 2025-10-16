@@ -27,7 +27,7 @@ func registerRoutes(mux *http.ServeMux, manager *sessionManager, metrics *metric
 		case http.MethodPut:
 			handleUpdateWorkspace(w, r, ws)
 		case http.MethodPatch:
-			handlePatchWorkspace(w, r, ws)
+			handlePatchWorkspace(w, r, ws, manager)
 		default:
 			w.Header().Set("Allow", "GET, PUT, PATCH")
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -209,9 +209,10 @@ func handleUpdateWorkspace(w http.ResponseWriter, r *http.Request, ws *workspace
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
-func handlePatchWorkspace(w http.ResponseWriter, r *http.Request, ws *workspace) {
+func handlePatchWorkspace(w http.ResponseWriter, r *http.Request, ws *workspace, manager *sessionManager) {
 	var req struct {
 		KeyboardToolbarMode *string `json:"keyboardToolbarMode,omitempty"`
+		IdleTimeoutSeconds  *int64  `json:"idleTimeoutSeconds,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSONError(w, http.StatusBadRequest, "invalid payload")
@@ -222,6 +223,21 @@ func handlePatchWorkspace(w http.ResponseWriter, r *http.Request, ws *workspace)
 		if err := ws.setKeyboardToolbarMode(*req.KeyboardToolbarMode); err != nil {
 			writeJSONError(w, http.StatusBadRequest, err.Error())
 			return
+		}
+	}
+
+	if req.IdleTimeoutSeconds != nil {
+		if err := ws.setIdleTimeoutSeconds(*req.IdleTimeoutSeconds); err != nil {
+			var validationErr workspaceValidationError
+			if errors.As(err, &validationErr) {
+				writeJSONError(w, http.StatusBadRequest, validationErr.Error())
+				return
+			}
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if manager != nil {
+			manager.updateIdleTimeout(ws.idleTimeoutDuration())
 		}
 	}
 

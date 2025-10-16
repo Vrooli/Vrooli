@@ -9,19 +9,19 @@ import (
 func TestLoadConfig(t *testing.T) {
 	// Save original env vars
 	originalEnv := map[string]string{
-		"API_PORT":                      os.Getenv("API_PORT"),
-		"API_HOST":                      os.Getenv("API_HOST"),
-		"WEB_CONSOLE_DEFAULT_COMMAND":   os.Getenv("WEB_CONSOLE_DEFAULT_COMMAND"),
-		"WEB_CONSOLE_SESSION_TTL":       os.Getenv("WEB_CONSOLE_SESSION_TTL"),
-		"WEB_CONSOLE_IDLE_TIMEOUT":      os.Getenv("WEB_CONSOLE_IDLE_TIMEOUT"),
-		"WEB_CONSOLE_MAX_CONCURRENT":    os.Getenv("WEB_CONSOLE_MAX_CONCURRENT"),
-		"WEB_CONSOLE_EXPECT_PROXY":      os.Getenv("WEB_CONSOLE_EXPECT_PROXY"),
-		"WEB_CONSOLE_PANIC_GRACE":       os.Getenv("WEB_CONSOLE_PANIC_GRACE"),
-		"WEB_CONSOLE_READ_BUFFER":       os.Getenv("WEB_CONSOLE_READ_BUFFER"),
-		"WEB_CONSOLE_TTY_ROWS":          os.Getenv("WEB_CONSOLE_TTY_ROWS"),
-		"WEB_CONSOLE_TTY_COLS":          os.Getenv("WEB_CONSOLE_TTY_COLS"),
-		"WEB_CONSOLE_STORAGE_PATH":      os.Getenv("WEB_CONSOLE_STORAGE_PATH"),
-		"WEB_CONSOLE_WORKING_DIR":       os.Getenv("WEB_CONSOLE_WORKING_DIR"),
+		"API_PORT":                    os.Getenv("API_PORT"),
+		"API_HOST":                    os.Getenv("API_HOST"),
+		"WEB_CONSOLE_DEFAULT_COMMAND": os.Getenv("WEB_CONSOLE_DEFAULT_COMMAND"),
+		"WEB_CONSOLE_SESSION_TTL":     os.Getenv("WEB_CONSOLE_SESSION_TTL"),
+		"WEB_CONSOLE_IDLE_TIMEOUT":    os.Getenv("WEB_CONSOLE_IDLE_TIMEOUT"),
+		"WEB_CONSOLE_MAX_CONCURRENT":  os.Getenv("WEB_CONSOLE_MAX_CONCURRENT"),
+		"WEB_CONSOLE_EXPECT_PROXY":    os.Getenv("WEB_CONSOLE_EXPECT_PROXY"),
+		"WEB_CONSOLE_PANIC_GRACE":     os.Getenv("WEB_CONSOLE_PANIC_GRACE"),
+		"WEB_CONSOLE_READ_BUFFER":     os.Getenv("WEB_CONSOLE_READ_BUFFER"),
+		"WEB_CONSOLE_TTY_ROWS":        os.Getenv("WEB_CONSOLE_TTY_ROWS"),
+		"WEB_CONSOLE_TTY_COLS":        os.Getenv("WEB_CONSOLE_TTY_COLS"),
+		"WEB_CONSOLE_STORAGE_PATH":    os.Getenv("WEB_CONSOLE_STORAGE_PATH"),
+		"WEB_CONSOLE_WORKING_DIR":     os.Getenv("WEB_CONSOLE_WORKING_DIR"),
 	}
 
 	// Restore env vars after test
@@ -107,8 +107,8 @@ func TestLoadConfig(t *testing.T) {
 		if cfg.sessionTTL != 30*time.Minute {
 			t.Errorf("Expected default TTL 30m, got %v", cfg.sessionTTL)
 		}
-		if cfg.idleTimeout != 5*time.Minute {
-			t.Errorf("Expected default idle timeout 5m, got %v", cfg.idleTimeout)
+		if cfg.idleTimeout != 0 {
+			t.Errorf("Expected default idle timeout disabled, got %v", cfg.idleTimeout)
 		}
 		if cfg.maxConcurrent != 20 {
 			t.Errorf("Expected default max concurrent 20, got %d", cfg.maxConcurrent)

@@ -83,7 +83,7 @@ func TestHandleGetWorkspace(t *testing.T) {
 	defer env.Cleanup()
 
 	cfg := setupTestConfig(env.TempDir)
-	ws := setupTestWorkspace(t, cfg.storagePath)
+	_, _, ws := setupTestSessionManager(t, cfg)
 
 	t.Run("Success", func(t *testing.T) {
 		req := makeHTTPRequest(HTTPTestRequest{
@@ -111,7 +111,7 @@ func TestHandleUpdateWorkspace(t *testing.T) {
 	defer env.Cleanup()
 
 	cfg := setupTestConfig(env.TempDir)
-	ws := setupTestWorkspace(t, cfg.storagePath)
+	_, _, ws := setupTestSessionManager(t, cfg)
 
 	// Add a tab first
 	tab := TestData.CreateTabRequest("tab-1", "Test Tab", "sky")
@@ -160,7 +160,7 @@ func TestHandlePatchWorkspace(t *testing.T) {
 	defer env.Cleanup()
 
 	cfg := setupTestConfig(env.TempDir)
-	ws := setupTestWorkspace(t, cfg.storagePath)
+	manager, _, ws := setupTestSessionManager(t, cfg)
 
 	t.Run("Success", func(t *testing.T) {
 		mode := "floating"
@@ -174,7 +174,7 @@ func TestHandlePatchWorkspace(t *testing.T) {
 		})
 		w := httptest.NewRecorder()
 
-		handlePatchWorkspace(w, req, ws)
+		handlePatchWorkspace(w, req, ws, manager)
 
 		assertJSONResponse(t, w, http.StatusOK, map[string]interface{}{
 			"status": "updated",
@@ -193,7 +193,7 @@ func TestHandlePatchWorkspace(t *testing.T) {
 		})
 		w := httptest.NewRecorder()
 
-		handlePatchWorkspace(w, req, ws)
+		handlePatchWorkspace(w, req, ws, manager)
 
 		assertErrorResponse(t, w, http.StatusBadRequest, "")
 	})
@@ -206,9 +206,34 @@ func TestHandlePatchWorkspace(t *testing.T) {
 		})
 		w := httptest.NewRecorder()
 
-		handlePatchWorkspace(w, req, ws)
+		handlePatchWorkspace(w, req, ws, manager)
 
 		assertErrorResponse(t, w, http.StatusBadRequest, "invalid payload")
+	})
+
+	t.Run("IdleTimeoutUpdate", func(t *testing.T) {
+		reqBody := map[string]interface{}{
+			"idleTimeoutSeconds": 900,
+		}
+		req := makeHTTPRequest(HTTPTestRequest{
+			Method: http.MethodPatch,
+			Path:   "/api/v1/workspace",
+			Body:   reqBody,
+		})
+		w := httptest.NewRecorder()
+
+		handlePatchWorkspace(w, req, ws, manager)
+
+		assertJSONResponse(t, w, http.StatusOK, map[string]interface{}{
+			"status": "updated",
+		})
+
+		if got := ws.idleTimeoutDuration(); got != 15*time.Minute {
+			t.Fatalf("Expected idle timeout duration 15m, got %v", got)
+		}
+		if manager.getIdleTimeout() != 15*time.Minute {
+			t.Fatalf("Expected manager idle timeout 15m, got %v", manager.getIdleTimeout())
+		}
 	})
 }
 

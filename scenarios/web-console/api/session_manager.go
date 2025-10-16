@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 )
 
 type sessionManager struct {
@@ -15,16 +17,23 @@ type sessionManager struct {
 	mu       sync.RWMutex
 	sessions map[string]*session
 	slots    chan struct{}
+
+	idleTimeout    atomic.Int64
+	globalActivity atomic.Int64
 }
 
 func newSessionManager(cfg config, metrics *metricsRegistry, ws *workspace) *sessionManager {
-	return &sessionManager{
+	m := &sessionManager{
 		cfg:       cfg,
 		metrics:   metrics,
 		workspace: ws,
 		sessions:  make(map[string]*session),
 		slots:     make(chan struct{}, cfg.maxConcurrent),
 	}
+	m.idleTimeout.Store(int64(cfg.idleTimeout))
+	m.globalActivity.Store(time.Now().UTC().UnixNano())
+	go m.monitorGlobalIdle()
+	return m
 }
 
 func (m *sessionManager) createSession(req createSessionRequest) (*session, error) {
@@ -34,7 +43,9 @@ func (m *sessionManager) createSession(req createSessionRequest) (*session, erro
 		return nil, errors.New("session capacity reached")
 	}
 
-	s, err := newSession(m, m.cfg, m.metrics, req)
+	cfg := m.cfg
+	cfg.idleTimeout = m.getIdleTimeout()
+	s, err := newSession(m, cfg, m.metrics, req)
 	if err != nil {
 		m.releaseSlot()
 		return nil, err
@@ -46,6 +57,7 @@ func (m *sessionManager) createSession(req createSessionRequest) (*session, erro
 
 	m.metrics.activeSessions.Add(1)
 	m.metrics.totalSessions.Add(1)
+	m.recordActivity()
 
 	return s, nil
 }
@@ -90,6 +102,7 @@ func (m *sessionManager) onSessionClosed(s *session, _ closeReason) {
 	delete(m.sessions, s.id)
 	m.mu.Unlock()
 	m.releaseSlot()
+	m.recordActivity()
 
 	// Detach session from any tabs in workspace
 	if m.workspace != nil {
@@ -132,6 +145,46 @@ func (m *sessionManager) listSummaries() []sessionSummary {
 
 func (m *sessionManager) capacity() int {
 	return m.cfg.maxConcurrent
+}
+
+func (m *sessionManager) getIdleTimeout() time.Duration {
+	value := time.Duration(m.idleTimeout.Load())
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func (m *sessionManager) recordActivity() {
+	m.globalActivity.Store(time.Now().UTC().UnixNano())
+}
+
+func (m *sessionManager) updateIdleTimeout(d time.Duration) {
+	if d < 0 {
+		d = 0
+	}
+	m.idleTimeout.Store(int64(d))
+	m.recordActivity()
+}
+
+func (m *sessionManager) monitorGlobalIdle() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		timeout := m.getIdleTimeout()
+		if timeout <= 0 {
+			continue
+		}
+		last := time.Unix(0, m.globalActivity.Load()).UTC()
+		if time.Since(last) < timeout {
+			continue
+		}
+		if count := m.deleteAllSessions(reasonIdleTimeout); count > 0 {
+			m.recordActivity()
+		} else {
+			m.recordActivity()
+		}
+	}
 }
 
 func (m *sessionManager) makeProxyGuard(next http.Handler) http.Handler {

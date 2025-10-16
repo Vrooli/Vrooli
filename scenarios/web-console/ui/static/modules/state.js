@@ -46,7 +46,9 @@ export const elements = {
   composeTextarea: byId('composeTextarea'),
   composeAppendNewline: byId('composeAppendNewline'),
   composeCharCount: byId('composeCharCount'),
-  composeSend: byId('composeSend')
+  composeSend: byId('composeSend'),
+  idleTimeoutToggle: byId('idleTimeoutToggle'),
+  idleTimeoutMinutes: byId('idleTimeoutMinutes')
 }
 
 export const shortcutButtons = Array.from(document.querySelectorAll('[data-shortcut-id]'))
@@ -229,6 +231,12 @@ export const state = {
     refreshTimer: null,
     needsRefresh: false,
     capacity: null
+  },
+  workspace: {
+    loading: false,
+    idleTimeoutSeconds: 0,
+    updatingIdleTimeout: false,
+    idleControlsInitialized: false
   }
 }
 

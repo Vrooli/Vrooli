@@ -20,7 +20,6 @@ func TestHandleBinaryMessageWritesToPTY(t *testing.T) {
 
 	sess := &session{
 		ptyFile:      writeEnd,
-		idleReset:    make(chan struct{}, 1),
 		lastInputSeq: make(map[string]uint64),
 		metrics:      newMetricsRegistry(),
 	}
@@ -48,7 +47,6 @@ func TestHandleBinaryMessageWritesToPTY(t *testing.T) {
 
 func TestHandleBinaryMessageIgnoresInvalidFrames(t *testing.T) {
 	sess := &session{
-		idleReset:    make(chan struct{}, 1),
 		lastInputSeq: make(map[string]uint64),
 	}
 	client := &wsClient{session: sess}

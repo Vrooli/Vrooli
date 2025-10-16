@@ -39,6 +39,7 @@ import {
 } from './modules/session-overview.js'
 import {
   configureWorkspace,
+  initializeWorkspaceSettingsUI,
   initializeWorkspace,
   syncTabToWorkspace,
   deleteTabFromWorkspace,
@@ -131,6 +132,7 @@ updateDrawerIndicator()
 updateComposeFeedback()
 
 initializeEventListeners()
+initializeWorkspaceSettingsUI()
 initializeWorkspace()
 startSessionOverviewWatcher()
 updateSessionActions()

@@ -55,7 +55,7 @@ func loadConfig() (config, error) {
 		defaultCommand:      defaultCommand,
 		defaultArgs:         defaultArgs,
 		sessionTTL:          parseDurationOrDefault(os.Getenv("WEB_CONSOLE_SESSION_TTL"), 30*time.Minute),
-		idleTimeout:         parseDurationOrDefault(os.Getenv("WEB_CONSOLE_IDLE_TIMEOUT"), 5*time.Minute),
+		idleTimeout:         parseDurationOrDefault(os.Getenv("WEB_CONSOLE_IDLE_TIMEOUT"), 0),
 		storagePath:         firstNonEmpty(os.Getenv("WEB_CONSOLE_STORAGE_PATH"), "data/sessions"),
 		enableProxyGuard:    parseBoolOrDefault(os.Getenv("WEB_CONSOLE_EXPECT_PROXY"), true),
 		maxConcurrent:       parseIntOrDefault(os.Getenv("WEB_CONSOLE_MAX_CONCURRENT"), 20),
@@ -73,8 +73,8 @@ func loadConfig() (config, error) {
 	if c.sessionTTL <= 0 {
 		return config{}, errors.New("WEB_CONSOLE_SESSION_TTL must be > 0")
 	}
-	if c.idleTimeout <= 0 {
-		return config{}, errors.New("WEB_CONSOLE_IDLE_TIMEOUT must be > 0")
+	if c.idleTimeout < 0 {
+		return config{}, errors.New("WEB_CONSOLE_IDLE_TIMEOUT must be >= 0")
 	}
 	if c.maxConcurrent <= 0 {
 		return config{}, errors.New("WEB_CONSOLE_MAX_CONCURRENT must be > 0")

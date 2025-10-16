@@ -58,7 +58,6 @@ func TestSessionHandleOutputBufferManagement(t *testing.T) {
 		clients:          make(map[*wsClient]struct{}),
 		readBuffer:       make([]byte, 0),
 		lastInputSeq:     make(map[string]uint64),
-		idleReset:        make(chan struct{}, 1),
 		done:             make(chan struct{}),
 	}
 
