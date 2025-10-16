@@ -1,0 +1,197 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
+  "service": {
+    "name": "prd-control-tower",
+    "displayName": "PRD Control Tower",
+    "description": "Centralized management, validation, and publishing of Product Requirements Documents",
+    "version": "1.0.0",
+    "tags": ["documentation", "prd-management", "validation"]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "port": 18600,
+      "description": "PRD Control Tower API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 36300,
+      "description": "PRD Control Tower UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "description": "Draft metadata and audit results storage (uses shared vrooli database)"
+    },
+    "scenario-auditor": {
+      "type": "scenario-auditor",
+      "enabled": false,
+      "required": false,
+      "description": "PRD structure validation"
+    },
+    "resource-openrouter": {
+      "type": "resource-openrouter",
+      "enabled": false,
+      "required": false,
+      "description": "AI-assisted section generation"
+    },
+    "ecosystem-manager": {
+      "type": "ecosystem-manager",
+      "enabled": false,
+      "required": false,
+      "description": "New scenario creation workflow"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "PRD Control Tower health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "postgres",
+          "target": "vrooli",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize PRD Control Tower with database and storage",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/prd-control-tower-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "prd-control-tower"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o prd-control-tower-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "create-draft-directories",
+          "run": "mkdir -p data/prd-drafts/scenario data/prd-drafts/resource",
+          "description": "Create draft storage directories"
+        },
+        {
+          "name": "initialize-database",
+          "run": "if command -v psql &> /dev/null; then psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-vrooli} -d ${POSTGRES_DB:-vrooli} -f initialization/postgres/schema.sql 2>/dev/null || echo '⚠️  Database schema initialization skipped (psql connection failed - run schema manually via docker exec)'; else echo '⚠️  Database initialization skipped (psql not available - run: docker exec vrooli-postgres-main psql -U vrooli -d vrooli -f /path/to/schema.sql)'; fi",
+          "description": "Run schema in shared vrooli database (optional if using containerized DB)"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"🚀 PRD Control Tower initialized\" && echo \"  UI: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start PRD Control Tower services for development",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./prd-control-tower-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/prd-control-tower-api"
+          }
+        },
+        {
+          "name": "start-ui-health",
+          "run": "cd ui && node server.js",
+          "description": "Start UI health check server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "start-ui-dev",
+          "run": "cd ui && npm run dev",
+          "description": "Start UI development server (optional)",
+          "background": true,
+          "optional": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"🚀 PRD Control Tower running\" && echo \"  UI: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test PRD Control Tower functionality",
+      "steps": [
+        {
+          "name": "test-structure",
+          "run": "bash test/phases/test-structure.sh",
+          "description": "Validate project structure"
+        },
+        {
+          "name": "test-dependencies",
+          "run": "bash test/phases/test-dependencies.sh",
+          "description": "Check required dependencies"
+        },
+        {
+          "name": "test-integration",
+          "run": "bash test/phases/test-integration.sh",
+          "description": "Run integration tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop all services gracefully"
+    }
+  }
+}

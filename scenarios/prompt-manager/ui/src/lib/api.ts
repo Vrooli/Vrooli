@@ -1,11 +1,81 @@
-import type { 
-  Campaign, 
-  Prompt, 
-  PromptTestRequest, 
-  PromptTestResponse, 
+import type {
+  Campaign,
+  Prompt,
+  PromptTestRequest,
+  PromptTestResponse,
   SearchFilters,
-  ApiConfig 
+  ApiConfig
 } from '@/types'
+
+declare global {
+  interface Window {
+    __APP_MONITOR_PROXY_INFO__?: unknown
+  }
+}
+
+const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '15000'
+const LOOPBACK_DEFAULT = `http://127.0.0.1:${DEFAULT_API_PORT}`
+
+const isLocalHostname = (hostname?: string | null) => {
+  if (!hostname) return false
+  const normalized = hostname.toLowerCase()
+  return (
+    normalized === 'localhost' ||
+    normalized === '127.0.0.1' ||
+    normalized === '0.0.0.0' ||
+    normalized === '::1' ||
+    normalized === '[::1]'
+  )
+}
+
+const isLikelyProxiedPath = (pathname?: string | null) => {
+  if (!pathname) return false
+  return pathname.includes('/apps/') && pathname.includes('/proxy/')
+}
+
+const normalizeBaseUrl = (value: string) => value.replace(/\/+$/, '')
+
+const resolveSmartBaseUrl = (candidate?: string | null): string => {
+  const envUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim()
+  const explicit = candidate?.trim() || envUrl
+
+  if (explicit) {
+    const normalizedExplicit = normalizeBaseUrl(explicit)
+
+    if (typeof window !== 'undefined') {
+      const { hostname, origin, pathname } = window.location
+      const hasProxyBootstrap = typeof window.__APP_MONITOR_PROXY_INFO__ !== 'undefined'
+      const proxiedPath = isLikelyProxiedPath(pathname)
+      const isRemote = !isLocalHostname(hostname)
+
+      if (isRemote && !hasProxyBootstrap && !proxiedPath && /localhost|127\.0\.0\.1/i.test(normalizedExplicit)) {
+        return normalizeBaseUrl(origin)
+      }
+
+      if (hasProxyBootstrap || proxiedPath) {
+        return normalizedExplicit
+      }
+    }
+
+    return normalizedExplicit
+  }
+
+  if (typeof window !== 'undefined') {
+    const { hostname, origin, pathname } = window.location
+    const hasProxyBootstrap = typeof window.__APP_MONITOR_PROXY_INFO__ !== 'undefined'
+    const proxiedPath = isLikelyProxiedPath(pathname)
+
+    if (!hasProxyBootstrap && !proxiedPath && !isLocalHostname(hostname)) {
+      return normalizeBaseUrl(origin)
+    }
+
+    if (hasProxyBootstrap || proxiedPath) {
+      return LOOPBACK_DEFAULT
+    }
+  }
+
+  return LOOPBACK_DEFAULT
+}
 
 class ApiClient {
   private baseUrl: string = ''
@@ -18,11 +88,10 @@ class ApiClient {
     try {
       const response = await fetch('/api/config')
       const config: ApiConfig = await response.json()
-      this.baseUrl = config.apiUrl
+      this.baseUrl = resolveSmartBaseUrl(config.apiUrl)
     } catch (error) {
       console.error('Failed to fetch API config:', error)
-      // Fallback to environment or default
-      this.baseUrl = 'http://localhost:15000'
+      this.baseUrl = resolveSmartBaseUrl(null)
     }
   }
 
