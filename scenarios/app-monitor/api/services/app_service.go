@@ -197,6 +197,7 @@ const (
 	attachmentConsoleName    = "app-monitor-console.json"
 	attachmentNetworkName    = "app-monitor-network.json"
 	attachmentScreenshotName = "app-monitor-screenshot.png"
+	issueTrackerScenarioID   = "app-issue-tracker"
 )
 
 var (
@@ -1686,8 +1687,8 @@ func (s *AppService) fetchScenarioIssues(ctx context.Context, appID, scenarioNam
 
 	trackerURL := ""
 	var baseURL *url.URL
-	if uiPort, err := resolveScenarioPortViaCLI(ctx, "app-issue-tracker", "UI_PORT"); err == nil && uiPort > 0 {
-		base := &url.URL{Scheme: "http", Host: fmt.Sprintf("localhost:%d", uiPort), Path: "/"}
+	if uiPort, err := resolveScenarioPortViaCLI(ctx, issueTrackerScenarioID, "UI_PORT"); err == nil && uiPort > 0 {
+		base := &url.URL{Path: fmt.Sprintf("/apps/%s/proxy/", url.PathEscape(issueTrackerScenarioID))}
 		params := base.Query()
 		params.Set("app_id", scenarioName)
 		base.RawQuery = params.Encode()
@@ -2053,11 +2054,9 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	}
 
 	if result != nil && result.IssueID != "" {
-		if uiPort, err := resolveScenarioPortViaCLI(ctx, "app-issue-tracker", "UI_PORT"); err == nil && uiPort > 0 {
+		if uiPort, err := resolveScenarioPortViaCLI(ctx, issueTrackerScenarioID, "UI_PORT"); err == nil && uiPort > 0 {
 			u := url.URL{
-				Scheme: "http",
-				Host:   fmt.Sprintf("localhost:%d", uiPort),
-				Path:   "/",
+				Path: fmt.Sprintf("/apps/%s/proxy/", url.PathEscape(issueTrackerScenarioID)),
 			}
 			query := u.Query()
 			query.Set("issue", result.IssueID)
@@ -2506,7 +2505,7 @@ func (s *AppService) CheckLocalhostUsage(ctx context.Context, appID string) (*Lo
 }
 
 func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error) {
-	if port, err := resolveScenarioPortViaCLI(ctx, "app-issue-tracker", "API_PORT"); err == nil && port > 0 {
+	if port, err := resolveScenarioPortViaCLI(ctx, issueTrackerScenarioID, "API_PORT"); err == nil && port > 0 {
 		return port, nil
 	} else if err != nil {
 		fmt.Printf("Warning: failed to resolve app-issue-tracker port via CLI: %v\n", err)
@@ -2522,7 +2521,7 @@ func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error)
 		if name == "" {
 			name = strings.ToLower(strings.TrimSpace(candidate.ID))
 		}
-		if name != "app-issue-tracker" {
+		if name != issueTrackerScenarioID {
 			continue
 		}
 
