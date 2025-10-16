@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.17.0",
+    "@vrooli/api-base": "file:../../../packages/api-base",
     "axios": "^1.6.5",
     "clsx": "^2.1.0",
     "crypto-js": "^4.2.0",

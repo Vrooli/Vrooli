@@ -2,30 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Search, Database, Tag, DollarSign, AlertCircle, CheckCircle, XCircle, Plus, BookOpen, Settings, Globe, Key, Calendar, FileText, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import './App.css';
+import { resolveApiBase, buildApiUrl as composeApiUrl } from '@vrooli/api-base';
 
-const DEFAULT_API_BASE_URL = 'http://localhost:15100/api/v1';
+const DEFAULT_API_PORT = process.env.REACT_APP_API_PORT || '15100';
 
-const resolveApiBaseUrl = () => {
-  const raw = process.env.REACT_APP_API_URL;
-  if (!raw || typeof raw !== 'string') {
-    return DEFAULT_API_BASE_URL;
-  }
+const API_BASE_URL = resolveApiBase({
+  explicitUrl: process.env.REACT_APP_API_URL,
+  defaultPort: DEFAULT_API_PORT,
+  appendSuffix: true,
+});
 
-  const trimmed = raw.trim().replace(/\/+$/, '');
-  if (/\/api\/v\d+(?:\/|$)/i.test(trimmed)) {
-    return trimmed;
-  }
-
-  return `${trimmed}/api/v1`;
-};
-
-const API_BASE_URL = resolveApiBaseUrl();
-
-const buildApiUrl = (path) => {
-  const normalizedBase = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${normalizedBase}${normalizedPath}`;
-};
+const buildApiUrl = (path) => composeApiUrl(path, { baseUrl: API_BASE_URL });
 
 const normalizeApiSummary = (api) => {
   const score = typeof api?.relevance_score === 'number' ? api.relevance_score : 1;

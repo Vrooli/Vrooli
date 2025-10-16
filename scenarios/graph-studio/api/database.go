@@ -13,6 +13,7 @@ import (
 
 // DatabaseConfig holds database configuration
 type DatabaseConfig struct {
+	URL        string
 	Host       string
 	Port       string
 	User       string
@@ -23,8 +24,30 @@ type DatabaseConfig struct {
 
 // ConnectWithRetry establishes a database connection with exponential backoff
 func ConnectWithRetry(config DatabaseConfig) (*sql.DB, error) {
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.Host, config.Port, config.User, config.Password, config.Database)
+	dsn := config.URL
+
+	if dsn == "" {
+		// Fall back to individual components when URL is not provided
+		if config.Host == "" {
+			config.Host = "localhost"
+		}
+		if config.Port == "" {
+			config.Port = "5433"
+		}
+		if config.User == "" {
+			config.User = "vrooli"
+		}
+		if config.Database == "" {
+			config.Database = "graph_studio"
+		}
+
+		if config.Password == "" {
+			return nil, fmt.Errorf("database password is required when POSTGRES_URL is not set")
+		}
+
+		dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			config.Host, config.Port, config.User, config.Password, config.Database)
+	}
 
 	var db *sql.DB
 	var err error

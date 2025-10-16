@@ -1,5 +1,16 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
+
+const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '17000'
+
+const API_BASE_URL = resolveApiBase({
+  explicitUrl: import.meta.env.VITE_API_BASE_URL as string | undefined,
+  defaultPort: DEFAULT_API_PORT,
+  appendSuffix: false,
+})
+
+const buildApiUrlWithBase = (path: string) => buildApiUrl(path, { baseUrl: API_BASE_URL })
 import { Shield, Lock, Key, Hash, FileCheck, AlertCircle, CheckCircle } from 'lucide-react'
 
 interface HealthStatus {
@@ -24,7 +35,7 @@ function App() {
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const response = await axios.get<HealthStatus>('/api/health')
+        const response = await axios.get<HealthStatus>(buildApiUrlWithBase('/api/health'))
         setApiHealth(response.data)
         setError(null)
       } catch (err) {

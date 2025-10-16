@@ -13,9 +13,23 @@ import type {
   IssuesResponse,
   ScenarioConfig
 } from './types';
+import { resolveApiBase as resolveSmartApiBase } from '@vrooli/api-base';
+
+declare global {
+  interface Window {
+    __APP_MONITOR_PROXY_INFO__?: unknown;
+  }
+}
 
 const DEFAULT_REFRESH_MS = 30_000;
-const API_FALLBACK = '/api/v1';
+const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '15000';
+
+const resolveScenarioApiBase = (candidate?: string | null): string =>
+  resolveSmartApiBase({
+    explicitUrl: candidate ?? (import.meta.env.VITE_API_URL as string | undefined) ?? null,
+    defaultPort: DEFAULT_API_PORT,
+    appendSuffix: true,
+  });
 
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url, { credentials: 'same-origin' });
@@ -42,7 +56,7 @@ export default function App() {
   const [configLoaded, setConfigLoaded] = useState(false);
   const fetchingRef = useRef(false);
 
-  const apiBase = config?.apiUrl || API_FALLBACK;
+  const apiBase = useMemo(() => resolveScenarioApiBase(config?.apiUrl ?? null), [config?.apiUrl]);
   const refreshInterval = config?.refreshIntervalMs || DEFAULT_REFRESH_MS;
 
   useEffect(() => {
@@ -54,7 +68,7 @@ export default function App() {
         if (!cancelled) {
           setConfig({
             scenario: result.scenario || 'core-debugger',
-            apiUrl: result.apiUrl || API_FALLBACK,
+            apiUrl: result.apiUrl ?? null,
             apiPort: result.apiPort ?? null,
             refreshIntervalMs: result.refreshIntervalMs || DEFAULT_REFRESH_MS
           });
@@ -64,7 +78,7 @@ export default function App() {
         if (!cancelled) {
           setConfig({
             scenario: 'core-debugger',
-            apiUrl: API_FALLBACK,
+            apiUrl: null,
             apiPort: null,
             refreshIntervalMs: DEFAULT_REFRESH_MS
           });

@@ -1,7 +1,68 @@
 import axios from 'axios';
 
-// Get API base URL from environment or default to localhost
-const API_BASE_URL = import.meta.env.VITE_API_URL || `http://localhost:${import.meta.env.VITE_API_PORT || '8080'}`;
+declare global {
+  interface Window {
+    __APP_MONITOR_PROXY_INFO__?: unknown;
+  }
+}
+
+const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '8080';
+const LOOPBACK_DEFAULT = `http://127.0.0.1:${DEFAULT_API_PORT}`;
+
+const isLocalHostname = (hostname?: string | null) => {
+  if (!hostname) return false;
+  const normalized = hostname.toLowerCase();
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '0.0.0.0' || normalized === '::1' || normalized === '[::1]';
+};
+
+const isLikelyProxiedPath = (pathname?: string | null) => {
+  if (!pathname) return false;
+  return pathname.includes('/apps/') && pathname.includes('/proxy/');
+};
+
+const normalizeBase = (value: string) => value.replace(/\/+$/, '');
+
+const resolveApiBaseUrl = (): string => {
+  const explicit = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  if (explicit) {
+    const normalized = normalizeBase(explicit);
+
+    if (typeof window !== 'undefined') {
+      const { hostname, origin, pathname } = window.location;
+      const hasProxyBootstrap = typeof window.__APP_MONITOR_PROXY_INFO__ !== 'undefined';
+      const proxiedPath = isLikelyProxiedPath(pathname);
+      const isRemote = !isLocalHostname(hostname);
+
+      if (isRemote && !hasProxyBootstrap && !proxiedPath && /localhost|127\.0\.0\.1/i.test(normalized)) {
+        return normalizeBase(origin);
+      }
+
+      if (hasProxyBootstrap || proxiedPath) {
+        return normalized;
+      }
+    }
+
+    return normalized;
+  }
+
+  if (typeof window !== 'undefined') {
+    const { hostname, origin, pathname } = window.location;
+    const hasProxyBootstrap = typeof window.__APP_MONITOR_PROXY_INFO__ !== 'undefined';
+    const proxiedPath = isLikelyProxiedPath(pathname);
+
+    if (!hasProxyBootstrap && !proxiedPath && !isLocalHostname(hostname)) {
+      return normalizeBase(origin);
+    }
+
+    if (hasProxyBootstrap || proxiedPath) {
+      return LOOPBACK_DEFAULT;
+    }
+  }
+
+  return LOOPBACK_DEFAULT;
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 // Create axios instance with default configuration
 export const api = axios.create({

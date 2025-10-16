@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
+import { buildApiUrl } from '../../utils/apiBase';
 
 type MaintenanceState = 'active' | 'inactive' | string;
 
@@ -42,7 +43,7 @@ export const StatusIndicator = ({ fallbackOnline = true }: StatusIndicatorProps)
     try {
       setFetching(true);
       setError(null);
-      const response = await fetch('/health', {
+      const response = await fetch(buildApiUrl('/health'), {
         headers: {
           'Accept': 'application/json'
         }
@@ -75,7 +76,7 @@ export const StatusIndicator = ({ fallbackOnline = true }: StatusIndicatorProps)
     try {
       setIsToggling(true);
 
-      const response = await fetch('/api/maintenance/state', {
+      const response = await fetch(buildApiUrl('/api/maintenance/state'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

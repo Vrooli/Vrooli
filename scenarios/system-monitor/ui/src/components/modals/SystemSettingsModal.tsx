@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Save, RotateCcw, AlertTriangle, CheckCircle, Settings, Activity } from 'lucide-react';
+import { buildApiUrl } from '../../utils/apiBase';
 
 interface SystemSettingsModalProps {
   isOpen: boolean;
@@ -53,7 +54,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     setError(null);
     
     try {
-      const response = await fetch('/api/settings');
+      const response = await fetch(buildApiUrl('/api/settings'));
       const data: SettingsResponse = await response.json();
       
       if (data.success && data.settings) {
@@ -79,7 +80,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     setSuccessMessage(null);
     
     try {
-      const response = await fetch('/api/settings', {
+      const response = await fetch(buildApiUrl('/api/settings'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -117,7 +118,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     setSuccessMessage(null);
     
     try {
-      const response = await fetch('/api/settings/reset', {
+      const response = await fetch(buildApiUrl('/api/settings/reset'), {
         method: 'POST'
       });
       

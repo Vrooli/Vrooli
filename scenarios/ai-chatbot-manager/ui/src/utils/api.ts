@@ -2,6 +2,9 @@
  * API Configuration and Utilities
  * Handles dynamic API URL discovery for the AI Chatbot Manager
  */
+import { resolveApiBase } from '@vrooli/api-base';
+
+const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '15000';
 
 class APIClient {
   private baseURL: string | null = null;
@@ -24,12 +27,13 @@ class APIClient {
   private async resolveAPIBaseURL(): Promise<string> {
     const explicitUrl = import.meta.env.VITE_API_URL;
     if (explicitUrl) {
-      return explicitUrl;
+      return resolveApiBase({ explicitUrl, defaultPort: DEFAULT_API_PORT, appendSuffix: true });
     }
 
-    const explicitPort = import.meta.env.VITE_API_PORT;
+    const explicitPort = (import.meta.env.VITE_API_PORT as string | undefined)?.trim();
     if (explicitPort) {
-      return `http://localhost:${explicitPort}`;
+      const localhostUrl = `http://localhost:${explicitPort}`;
+      return resolveApiBase({ explicitUrl: localhostUrl, defaultPort: DEFAULT_API_PORT, appendSuffix: true });
     }
 
     try {
@@ -37,14 +41,14 @@ class APIClient {
       if (response.ok) {
         const config = (await response.json()) as { apiUrl?: string };
         if (config.apiUrl) {
-          return config.apiUrl;
+          return resolveApiBase({ explicitUrl: config.apiUrl, defaultPort: DEFAULT_API_PORT, appendSuffix: true });
         }
       }
     } catch (error) {
       console.warn('Failed to fetch /config from UI server', error);
     }
 
-    throw new Error('API URL not configured. Ensure the scenario is running through the Vrooli lifecycle system.');
+    return resolveApiBase({ defaultPort: DEFAULT_API_PORT, appendSuffix: true });
   }
 
   async request(endpoint: string, options: RequestInit = {}): Promise<Response> {

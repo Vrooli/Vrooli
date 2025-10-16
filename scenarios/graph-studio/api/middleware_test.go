@@ -79,6 +79,10 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 
 	t.Setenv("VROOLI_LIFECYCLE", "")
 	t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
+	t.Setenv("SCENARIO_MODE", "")
+	t.Setenv("VROOLI_PHASE", "")
+	t.Setenv("GRAPH_STUDIO_DISABLE_PREVIEW_GUARD", "")
+	t.Setenv("GRAPH_STUDIO_FORCE_PREVIEW_GUARD", "")
 
 	t.Run("no token configured", func(t *testing.T) {
 		t.Setenv("PREVIEW_ACCESS_TOKEN", "")
@@ -240,12 +244,8 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 		router.ServeHTTP(w, req)
 
-		if w.Code != http.StatusServiceUnavailable {
-			t.Fatalf("expected status 503 when managed lifecycle is missing token, got %d", w.Code)
-		}
-
-		if !strings.Contains(w.Body.String(), "Preview token not configured") {
-			t.Errorf("expected preview token error message, got %q", w.Body.String())
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected status 200 when managed lifecycle runs without configured token, got %d", w.Code)
 		}
 	})
 
@@ -280,6 +280,81 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 		}
 	})
 
+	t.Run("scenario mode implies managed lifecycle", func(t *testing.T) {
+		t.Setenv("PREVIEW_ACCESS_TOKEN", "")
+		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
+		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
+		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
+		t.Setenv("VROOLI_LIFECYCLE", "")
+		t.Setenv("SCENARIO_MODE", "true")
+
+		router := gin.New()
+		router.Use(PreviewAccessMiddleware())
+		router.GET("/test", func(c *gin.Context) {
+			c.String(http.StatusOK, "OK")
+		})
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected status 200 when scenario mode enabled without token, got %d", w.Code)
+		}
+	})
+
+	t.Run("disable guard env bypasses enforcement", func(t *testing.T) {
+		t.Setenv("PREVIEW_ACCESS_TOKEN", "")
+		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
+		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
+		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "true")
+		t.Setenv("GRAPH_STUDIO_DISABLE_PREVIEW_GUARD", "true")
+
+		router := gin.New()
+		router.Use(PreviewAccessMiddleware())
+		router.GET("/test", func(c *gin.Context) {
+			c.String(http.StatusOK, "OK")
+		})
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected status 200 when guard explicitly disabled, got %d", w.Code)
+		}
+	})
+
+	t.Run("force guard env enforces even without lifecycle", func(t *testing.T) {
+		t.Setenv("PREVIEW_ACCESS_TOKEN", "forced-token")
+		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
+		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
+		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
+		t.Setenv("VROOLI_LIFECYCLE", "")
+		t.Setenv("GRAPH_STUDIO_FORCE_PREVIEW_GUARD", "true")
+
+		router := gin.New()
+		router.Use(PreviewAccessMiddleware())
+		router.GET("/test", func(c *gin.Context) {
+			c.String(http.StatusOK, "OK")
+		})
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
+		router.ServeHTTP(w, req)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("expected status 403 when guard forced and header missing, got %d", w.Code)
+		}
+
+		w = httptest.NewRecorder()
+		req, _ = http.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("X-Preview-Token", "forced-token")
+		router.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected status 200 when guard forced and token provided, got %d", w.Code)
+		}
+	})
+
 	t.Run("scenario name implies managed lifecycle", func(t *testing.T) {
 		t.Setenv("PREVIEW_ACCESS_TOKEN", "")
 		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
@@ -297,12 +372,8 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 		router.ServeHTTP(w, req)
-		if w.Code != http.StatusServiceUnavailable {
-			t.Fatalf("expected status 503 when scenario name set but token missing, got %d", w.Code)
-		}
-
-		if !strings.Contains(w.Body.String(), "Preview token not configured") {
-			t.Errorf("expected preview token error message, got %q", w.Body.String())
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected status 200 when scenario name set but token missing, got %d", w.Code)
 		}
 	})
 

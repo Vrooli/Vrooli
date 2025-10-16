@@ -12,6 +12,7 @@
     "test": "echo 'UI tests require vitest installation: npm install' && exit 0"
   },
   "dependencies": {
+    "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "express": "^4.19.2",
     "lucide-react": "^0.441.0",

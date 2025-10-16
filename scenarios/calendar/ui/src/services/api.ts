@@ -8,13 +8,22 @@ import type {
   OptimizationResponse,
   User
 } from '@/types'
+import { resolveApiBase } from '@vrooli/api-base'
+
+const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '18000'
+
+const API_BASE_URL = resolveApiBase({
+  explicitUrl: import.meta.env.VITE_API_BASE_URL as string | undefined,
+  defaultPort: DEFAULT_API_PORT,
+  appendSuffix: true,
+})
 
 class CalendarAPI {
   private client: AxiosInstance
 
   constructor() {
     this.client = axios.create({
-      baseURL: '/api/v1',
+      baseURL: API_BASE_URL,
       headers: {
         'Content-Type': 'application/json'
       }

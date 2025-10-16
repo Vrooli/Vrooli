@@ -204,6 +204,14 @@ func parseCommentBlock(lines []string, info Info) Info {
 					info.Targets = append(info.Targets, t)
 				}
 			}
+		case strings.HasPrefix(line, "Enabled:"):
+			value := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(line, "Enabled:")))
+			switch value {
+			case "false", "disabled", "off":
+				info.Rule.Enabled = false
+			case "true", "enabled", "on":
+				info.Rule.Enabled = true
+			}
 		}
 	}
 

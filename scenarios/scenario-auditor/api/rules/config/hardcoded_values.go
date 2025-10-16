@@ -1,6 +1,7 @@
 package config
 
 import (
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -151,6 +152,10 @@ func CheckHardcodedValues(content []byte, filePath string) []Violation {
 	// Skip test files and migrations
 	if strings.HasSuffix(filePath, "_test.go") ||
 		strings.Contains(filePath, "migration") {
+		return violations
+	}
+
+	if shouldSkipHardcodedValuesFile(filePath) {
 		return violations
 	}
 
@@ -332,4 +337,31 @@ func CheckHardcodedValues(content []byte, filePath string) []Violation {
 	}
 
 	return violations
+}
+
+var hardcodedValuesLockfileBasenames = map[string]struct{}{
+	"package-lock.json": {},
+	"pnpm-lock.yaml":    {},
+	"yarn.lock":         {},
+	"bun.lockb":         {},
+	"Cargo.lock":        {},
+	"go.sum":            {},
+	"composer.lock":     {},
+	"Gemfile.lock":      {},
+	"Podfile.lock":      {},
+	"poetry.lock":       {},
+	"Pipfile.lock":      {},
+}
+
+func shouldSkipHardcodedValuesFile(filePath string) bool {
+	base := filepath.Base(filePath)
+	if _, ok := hardcodedValuesLockfileBasenames[base]; ok {
+		return true
+	}
+
+	if strings.Contains(filePath, "node_modules/") || strings.Contains(filePath, "vendor/") {
+		return true
+	}
+
+	return false
 }

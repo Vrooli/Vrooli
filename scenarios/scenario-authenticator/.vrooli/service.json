@@ -183,7 +183,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo 'Authentication Service initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: scenario-authenticator --help'",
+          "run": "echo \"Authentication Service initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: scenario-authenticator --help\"",
           "description": "Display service access URLs"
         }
       ]
@@ -208,7 +208,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo 'Auth Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: scenario-authenticator --help'",
+          "run": "echo \"Auth Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: scenario-authenticator --help\"",
           "description": "Display all running service URLs"
         }
       ]

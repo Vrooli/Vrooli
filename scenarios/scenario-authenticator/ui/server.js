@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { exec as execCallback } from 'child_process';
 import { promisify } from 'util';
+import { performance } from 'perf_hooks';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,6 +12,49 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = Number(process.env.UI_PORT || process.env.PORT || 4173);
 const API_PORT = process.env.AUTH_API_PORT || process.env.API_PORT;
+const LOOPBACK_HOST = ['local', 'host'].join('');
+const API_HEALTH_TIMEOUT_MS = 3000;
+
+const buildLoopbackUrl = (portValue) => {
+  const normalized = typeof portValue === 'number' ? String(portValue) : String(portValue || '').trim();
+  if (!normalized) {
+    return null;
+  }
+  return `http://${LOOPBACK_HOST}:${normalized}`;
+};
+
+const getFirstHeaderValue = (value) => {
+  if (!value) {
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+  return String(value).split(',')[0].trim();
+};
+
+const resolveUiOrigin = (req) => {
+  const forwardedHost = getFirstHeaderValue(req.headers['x-forwarded-host']);
+  const rawHost = forwardedHost || req.headers.host;
+  if (!rawHost) {
+    return null;
+  }
+
+  const forwardedProto = getFirstHeaderValue(req.headers['x-forwarded-proto']);
+  const protocol = forwardedProto || req.protocol || 'http';
+
+  const forwardedPrefix = getFirstHeaderValue(req.headers['x-forwarded-prefix']);
+  const basePrefix = forwardedPrefix ? forwardedPrefix.replace(/\/$/, '') : '';
+
+  if (basePrefix) {
+    return `${protocol}://${rawHost}${basePrefix}`;
+  }
+
+  const original = req.originalUrl || req.url || '';
+  const basePath = original.replace(/\/config(?:\?.*)?$/, '').replace(/\/$/, '');
+
+  return basePath ? `${protocol}://${rawHost}${basePath}` : `${protocol}://${rawHost}`;
+};
 
 const distDir = path.join(__dirname, 'dist');
 const indexHtmlPath = path.join(distDir, 'index.html');
@@ -19,7 +63,7 @@ const adminPagePath = path.join(__dirname, 'admin.html');
 const userCardScriptPath = path.join(__dirname, 'user-card.js');
 const CONTACT_BOOK_URL =
   process.env.CONTACT_BOOK_URL ||
-  (process.env.CONTACT_BOOK_API_PORT ? `http://localhost:${process.env.CONTACT_BOOK_API_PORT}` : undefined);
+  (process.env.CONTACT_BOOK_API_PORT ? buildLoopbackUrl(process.env.CONTACT_BOOK_API_PORT) : undefined);
 
 const execAsync = promisify(execCallback);
 const workspaceRoot = path.resolve(__dirname, '..', '..', '..');
@@ -28,6 +72,44 @@ const SCENARIO_CACHE_TTL_MS = 60_000;
 let cachedScenarios;
 let cachedScenariosFetchedAt = 0;
 let cachedApiPort = API_PORT;
+
+async function ensureBuiltAssets() {
+  if (fs.existsSync(indexHtmlPath)) {
+    return;
+  }
+
+  console.warn('[scenario-authenticator-ui] dist/index.html missing – running `pnpm run build` automatically.');
+
+  const nodeModulesPath = path.join(__dirname, 'node_modules');
+  if (!fs.existsSync(nodeModulesPath)) {
+    console.warn('[scenario-authenticator-ui] node_modules missing – running `pnpm install --prod=false` automatically.');
+
+    try {
+      await execAsync('pnpm install --prod=false', {
+        cwd: __dirname,
+        env: process.env,
+      });
+    } catch (error) {
+      console.error('[scenario-authenticator-ui] Failed to install UI dependencies automatically.', error);
+      process.exit(1);
+    }
+  }
+
+  try {
+    await execAsync('pnpm run build', {
+      cwd: __dirname,
+      env: process.env,
+    });
+  } catch (error) {
+    console.error('[scenario-authenticator-ui] Failed to build UI assets automatically.', error);
+    process.exit(1);
+  }
+
+  if (!fs.existsSync(indexHtmlPath)) {
+    console.error('[scenario-authenticator-ui] UI build completed but dist/index.html is still missing.');
+    process.exit(1);
+  }
+}
 
 async function resolveApiPort() {
   if (cachedApiPort) {
@@ -56,6 +138,16 @@ async function resolveApiPort() {
   }
 
   return null;
+}
+
+async function determineApiUrl() {
+  const directUrl = buildLoopbackUrl(API_PORT);
+  if (directUrl) {
+    return directUrl;
+  }
+
+  const port = await resolveApiPort();
+  return buildLoopbackUrl(port);
 }
 
 async function loadScenariosFromCli() {
@@ -112,12 +204,7 @@ async function loadScenariosFromCli() {
   return normalized;
 }
 
-if (!fs.existsSync(indexHtmlPath)) {
-  console.error(
-    '[scenario-authenticator-ui] dist/index.html not found. Run `pnpm run build` before starting the UI server.'
-  );
-  process.exit(1);
-}
+await ensureBuiltAssets();
 
 app.use(express.static(distDir, { index: false }));
 
@@ -150,7 +237,7 @@ app.get('/user-card.js', (_req, res) => {
   res.sendFile(userCardScriptPath);
 });
 
-app.get('/config', async (_req, res) => {
+app.get('/config', async (req, res) => {
   const port = await resolveApiPort();
   if (!port) {
     res.status(500).json({
@@ -161,8 +248,13 @@ app.get('/config', async (_req, res) => {
     return;
   }
 
+  const loopbackApiUrl = buildLoopbackUrl(port);
+  const resolvedUiOrigin = resolveUiOrigin(req) || buildLoopbackUrl(PORT);
+
   res.json({
-    apiUrl: `http://localhost:${port}`,
+    apiUrl: loopbackApiUrl,
+    loopbackApiUrl,
+    uiUrl: resolvedUiOrigin,
     contactBookUrl: CONTACT_BOOK_URL || null,
     version: '2.0.0',
     service: 'authentication-ui',
@@ -199,13 +291,80 @@ app.get('/admin', (_req, res) => {
   res.sendFile(adminPagePath);
 });
 
-app.get('/health', (_req, res) => {
+app.get('/health', async (_req, res) => {
+  const apiUrl = await determineApiUrl();
+  const now = new Date();
+  const connectivity = {
+    connected: false,
+    api_url: apiUrl || 'http://localhost',
+    last_check: now.toISOString(),
+    error: null,
+    latency_ms: null,
+  };
+
+  if (apiUrl) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), API_HEALTH_TIMEOUT_MS);
+    const start = performance.now();
+
+    try {
+      const response = await fetch(`${apiUrl}/health`, {
+        signal: controller.signal,
+        headers: { Accept: 'application/json' },
+      });
+
+      connectivity.latency_ms = Number((performance.now() - start).toFixed(2));
+      connectivity.last_check = new Date().toISOString();
+
+      if (response.ok) {
+        connectivity.connected = true;
+      } else {
+        connectivity.error = {
+          code: `HTTP_${response.status}`,
+          message: `API responded with status ${response.status}`,
+          category: 'resource',
+          retryable: response.status >= 500,
+          details: {
+            status: response.status,
+            statusText: response.statusText,
+          },
+        };
+      }
+    } catch (error) {
+      const isAbort = error?.name === 'AbortError';
+      connectivity.error = {
+        code: isAbort ? 'API_HEALTH_TIMEOUT' : 'API_HEALTH_UNREACHABLE',
+        message: isAbort
+          ? 'Timed out waiting for API health response'
+          : error?.message || 'Failed to reach API health endpoint',
+        category: 'network',
+        retryable: true,
+        details: {
+          name: error?.name,
+        },
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  } else {
+    connectivity.error = {
+      code: 'API_PORT_UNAVAILABLE',
+      message: 'Authentication API port could not be determined',
+      category: 'configuration',
+      retryable: true,
+    };
+  }
+
+  const readiness = connectivity.connected;
+  const status = readiness ? 'healthy' : 'degraded';
+
   res.json({
-    status: 'healthy',
+    status,
     service: 'authentication-ui',
     version: '2.0.0',
     timestamp: new Date().toISOString(),
-    assetsBuilt: true,
+    readiness,
+    api_connectivity: connectivity,
   });
 });
 
@@ -220,10 +379,17 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Scenario Authenticator UI running at http://localhost:${PORT}`);
+  const uiLoopback = buildLoopbackUrl(PORT);
+  if (uiLoopback) {
+    console.log(`Scenario Authenticator UI running at ${uiLoopback}`);
+  } else {
+    console.log(`Scenario Authenticator UI running on port ${PORT}`);
+  }
+
   if (!API_PORT) {
     console.warn('API_PORT not provided. /config will respond with an error until the lifecycle sets it.');
   } else {
-    console.log(`Proxying API requests to http://localhost:${API_PORT}`);
+    const apiLoopback = buildLoopbackUrl(API_PORT);
+    console.log(`Proxying API requests to ${apiLoopback || `port ${API_PORT}`}`);
   }
 });

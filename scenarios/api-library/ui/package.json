@@ -8,6 +8,7 @@
     "react-router-dom": "^6.20.0",
     "axios": "^1.6.2",
     "lucide-react": "^0.294.0",
+    "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   },
   "scripts": {

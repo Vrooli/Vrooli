@@ -23,6 +23,23 @@
       "postgres-storage"
     ]
   },
+  "environment": {
+    "PREVIEW_ACCESS_TOKEN": {
+      "description": "Preview token required by middleware for managed lifecycles",
+      "default": "graph-studio-preview-token",
+      "required": false
+    },
+    "GRAPH_STUDIO_PREVIEW_TOKEN": {
+      "description": "Graph Studio specific preview token alias",
+      "default": "graph-studio-preview-token",
+      "required": false
+    },
+    "GRAPH_STUDIO_DISABLE_PREVIEW_GUARD": {
+      "description": "Disable preview token guard for local development and automated tests",
+      "default": "true",
+      "required": false
+    }
+  },
    "ports": {
      "api": {
        "env_var": "API_PORT",
@@ -37,6 +54,7 @@
    },
   "resources": {
     "postgres": {
+      "enabled": true,
       "required": true,
       "purpose": "Store graph metadata, relationships, and versioning",
       "initialization": {
@@ -45,6 +63,7 @@
       }
     },
     "minio": {
+      "enabled": true,
       "required": true,
       "purpose": "Store large graph files and visualization assets",
       "initialization": {
@@ -52,16 +71,19 @@
       }
     },
     "redis": {
+      "enabled": false,
       "required": false,
       "purpose": "Cache frequently accessed graphs and session state",
       "fallback": "No caching, direct database queries"
     },
     "ollama": {
+      "enabled": false,
       "required": false,
       "purpose": "AI-powered graph suggestions and natural language queries",
       "fallback": "Disable AI features"
     },
     "qdrant": {
+      "enabled": false,
       "required": false,
       "purpose": "Vector search for semantic graph similarity",
       "fallback": "Keyword-based search only"
@@ -160,17 +182,7 @@
           "env": {
             "VROOLI_LIFECYCLE": "active",
             "API_PORT": "${API_PORT}",
-            "POSTGRES_HOST": "${resource.postgres.host}",
-            "POSTGRES_PORT": "${resource.postgres.port}",
-            "POSTGRES_USER": "${resource.postgres.user}",
-            "POSTGRES_PASSWORD": "${resource.postgres.password}",
             "POSTGRES_DB": "graph_studio",
-            "MINIO_ENDPOINT": "${resource.minio.endpoint}",
-            "MINIO_ACCESS_KEY": "${resource.minio.access_key}",
-            "MINIO_SECRET_KEY": "${resource.minio.secret_key}",
-            "REDIS_URL": "${resource.redis.url}",
-            "OLLAMA_URL": "${resource.ollama.url}",
-            "QDRANT_URL": "${resource.qdrant.url}",
             "LOG_LEVEL": "info",
             "CORS_ORIGINS": "http://localhost:${UI_PORT},http://127.0.0.1:${UI_PORT}",
             "MAX_GRAPH_SIZE": "10000",

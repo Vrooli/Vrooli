@@ -83,6 +83,8 @@ graph-studio convert <graph-id> mermaid
 > ```
 >
 > In local development you can leave the token unset to disable the guard.
+> When you need a temporary override, set `GRAPH_STUDIO_DISABLE_PREVIEW_GUARD=true` (bypass) or
+> `GRAPH_STUDIO_FORCE_PREVIEW_GUARD=true` (enforce even without lifecycle envs).
 
 ### Create a Graph
 ```bash

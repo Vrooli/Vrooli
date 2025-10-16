@@ -17,6 +17,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { resolveApiBase } from '@vrooli/api-base';
 
 type Tab = 'login' | 'register' | 'reset';
 type SnackbarType = 'success' | 'warning' | 'error' | 'info';
@@ -63,6 +64,64 @@ type SessionCheckState = 'unknown' | 'checking' | 'valid' | 'invalid';
 type RedirectOptions = {
   delayMs?: number;
   replace?: boolean;
+};
+
+const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '15837';
+const LOOPBACK_DEFAULT = `http://127.0.0.1:${DEFAULT_API_PORT}`;
+
+const isLocalHostname = (hostname?: string | null): boolean => {
+  if (!hostname) return false;
+  const normalized = hostname.toLowerCase();
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '0.0.0.0' || normalized === '::1' || normalized === '[::1]';
+};
+
+const isLikelyProxiedPath = (pathname?: string | null): boolean => {
+  if (!pathname) return false;
+  return pathname.includes('/apps/') && pathname.includes('/proxy/');
+};
+
+const normalizeBase = (value: string): string => value.replace(/\/+$/, '');
+
+const resolveApiBaseUrl = (candidate?: string | null): string => {
+  const envUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  const explicit = candidate?.trim() || envUrl;
+
+  if (explicit) {
+    const normalizedExplicit = normalizeBase(explicit);
+
+    if (typeof window !== 'undefined') {
+      const { hostname, origin, pathname } = window.location;
+      const hasProxyBootstrap = typeof window.__APP_MONITOR_PROXY_INFO__ !== 'undefined';
+      const proxiedPath = isLikelyProxiedPath(pathname);
+      const isRemote = !isLocalHostname(hostname);
+
+      if (isRemote && !hasProxyBootstrap && !proxiedPath && /localhost|127\.0\.0\.1/i.test(normalizedExplicit)) {
+        return normalizeBase(origin);
+      }
+
+      if (hasProxyBootstrap || proxiedPath) {
+        return normalizedExplicit;
+      }
+    }
+
+    return normalizedExplicit;
+  }
+
+  if (typeof window !== 'undefined') {
+    const { hostname, origin, pathname } = window.location;
+    const hasProxyBootstrap = typeof window.__APP_MONITOR_PROXY_INFO__ !== 'undefined';
+    const proxiedPath = isLikelyProxiedPath(pathname);
+
+    if (!hasProxyBootstrap && !proxiedPath && !isLocalHostname(hostname)) {
+      return normalizeBase(origin);
+    }
+
+    if (hasProxyBootstrap || proxiedPath) {
+      return LOOPBACK_DEFAULT;
+    }
+  }
+
+  return LOOPBACK_DEFAULT;
 };
 
 function getTabFromPath(pathname: string): Tab {
@@ -248,7 +307,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>(() =>
     getTabFromPath(typeof window !== 'undefined' ? window.location.pathname : '')
   );
-  const [apiUrl, setApiUrl] = useState('');
+  const [apiUrl, setApiUrl] = useState(() => resolveApiBaseUrl(null));
   const [configError, setConfigError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -495,7 +554,7 @@ export default function App() {
 
         const config = await response.json();
         if (!cancelled) {
-          setApiUrl(config.apiUrl);
+          setApiUrl(resolveApiBaseUrl(config.apiUrl));
           setConfigError(null);
         }
       } catch (error) {
@@ -503,7 +562,7 @@ export default function App() {
 
         const fallback = import.meta.env.VITE_API_URL as string | undefined;
         if (fallback && !cancelled) {
-          setApiUrl(fallback);
+          setApiUrl(resolveApiBaseUrl(fallback));
           setConfigError(null);
           return;
         }

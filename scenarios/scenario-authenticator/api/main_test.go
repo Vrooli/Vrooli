@@ -37,7 +37,7 @@ func TestHealthHandler(t *testing.T) {
 		handlers.HealthHandler(w, req)
 
 		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d", w.Code)
+			t.Fatalf("Expected status 200, got %d", w.Code)
 		}
 
 		var response map[string]interface{}
@@ -45,11 +45,45 @@ func TestHealthHandler(t *testing.T) {
 			t.Fatalf("Failed to parse response: %v", err)
 		}
 
-		// Check that status field exists and is a string
-		if status, ok := response["status"]; !ok {
-			t.Error("Expected 'status' field in response")
-		} else if _, isString := status.(string); !isString {
-			t.Errorf("Expected status to be a string, got %T", status)
+		if status, ok := response["status"].(string); !ok || status == "" {
+			t.Fatalf("Expected non-empty status string, got %v", response["status"])
+		}
+
+		if service, ok := response["service"].(string); !ok || service == "" {
+			t.Fatalf("Expected service identifier, got %v", response["service"])
+		}
+
+		if _, ok := response["timestamp"].(string); !ok {
+			t.Fatalf("Expected timestamp string, got %v", response["timestamp"])
+		}
+
+		if _, ok := response["readiness"].(bool); !ok {
+			t.Fatalf("Expected readiness boolean, got %v", response["readiness"])
+		}
+
+		dependencies, ok := response["dependencies"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("Expected dependencies object, got %v", response["dependencies"])
+		}
+
+		for _, key := range []string{"database", "redis"} {
+			dep, ok := dependencies[key].(map[string]interface{})
+			if !ok {
+				t.Fatalf("Expected %s dependency object, got %v", key, dependencies[key])
+			}
+
+			if _, ok := dep["connected"].(bool); !ok {
+				t.Fatalf("Expected %s.connected boolean, got %v", key, dep["connected"])
+			}
+		}
+
+		metrics, ok := response["metrics"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("Expected metrics object, got %v", response["metrics"])
+		}
+
+		if _, ok := metrics["goroutines"].(float64); !ok {
+			t.Fatalf("Expected metrics.goroutines number, got %v", metrics)
 		}
 	})
 }

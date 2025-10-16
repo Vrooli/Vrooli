@@ -8,9 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@vrooli/api-base':
+        specifier: file:../../../packages/api-base
+        version: file:../../../packages/api-base
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
-        version: link:../../../packages/iframe-bridge
+        version: file:../../../packages/iframe-bridge
       axios:
         specifier: ^1.6.2
         version: 1.12.2
@@ -1397,6 +1400,12 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+
+  '@vrooli/api-base@file:../../../packages/api-base':
+    resolution: {directory: ../../../packages/api-base, type: directory}
+
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
+    resolution: {directory: ../../../packages/iframe-bridge, type: directory}
 
   '@webassemblyjs/ast@1.14.1':
     resolution: {integrity: sha512-nuBEDgQfm1ccRp/8bCQrx1frohyufl4JlbMMZ4P1wpeOfDhF6FQkxZJ1b/e+PLwr6X1Nhw6OLme5usuBWYBvuQ==}
@@ -7277,6 +7286,10 @@ snapshots:
       eslint-visitor-keys: 3.4.3
 
   '@ungap/structured-clone@1.3.0': {}
+
+  '@vrooli/api-base@file:../../../packages/api-base': {}
+
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 
   '@webassemblyjs/ast@1.14.1':
     dependencies:

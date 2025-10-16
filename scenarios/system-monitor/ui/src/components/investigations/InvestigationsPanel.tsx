@@ -1,5 +1,6 @@
 import type { Investigation } from '../../types';
 import { LoadingSkeleton } from '../common/LoadingSkeleton';
+import { buildApiUrl } from '../../utils/apiBase';
 
 interface InvestigationsPanelProps {
   investigations: Investigation[];
@@ -9,7 +10,7 @@ interface InvestigationsPanelProps {
 export const InvestigationsPanel = ({ investigations, embedded = false }: InvestigationsPanelProps) => {
   const triggerInvestigation = async () => {
     try {
-      const response = await fetch('/api/investigations/trigger', {
+      const response = await fetch(buildApiUrl('/api/investigations/trigger'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

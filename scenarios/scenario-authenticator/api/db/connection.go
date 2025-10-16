@@ -81,27 +81,70 @@ func InitDB(dbURL string) error {
 	return nil
 }
 
-// InitRedis initializes the Redis connection
+// InitRedis initializes the Redis connection with resilience for slow-starting resources
 func InitRedis(redisURL string) error {
-	// Parse Redis URL to extract host:port
-	// Handle both formats: "redis://localhost:6380" and "localhost:6380"
-	addr := redisURL
-	if strings.HasPrefix(redisURL, "redis://") {
-		addr = strings.TrimPrefix(redisURL, "redis://")
+	if redisURL == "" {
+		return fmt.Errorf("redis URL is required")
 	}
 
-	RedisClient = redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: "",
-		DB:       0,
-	})
+	var (
+		opts *redis.Options
+		err  error
+	)
 
-	if err := RedisClient.Ping(Ctx).Err(); err != nil {
-		return fmt.Errorf("failed to connect to Redis: %w", err)
+	opts, err = redis.ParseURL(redisURL)
+	if err != nil {
+		addr := redisURL
+		if strings.HasPrefix(addr, "redis://") {
+			addr = strings.TrimPrefix(addr, "redis://")
+		}
+		if idx := strings.Index(addr, "/"); idx != -1 {
+			addr = addr[:idx]
+		}
+
+		opts = &redis.Options{
+			Addr:     addr,
+			Password: "",
+			DB:       0,
+		}
 	}
 
-	log.Println("[scenario-authenticator/redis] ✅ Redis connected successfully")
-	return nil
+	RedisClient = redis.NewClient(opts)
+
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 10 * time.Second
+
+	log.Println("[scenario-authenticator/redis] 🔄 Attempting Redis connection with exponential backoff...")
+
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = RedisClient.Ping(Ctx).Err()
+		if pingErr == nil {
+			log.Printf("[scenario-authenticator/redis] ✅ Redis connected successfully on attempt %d", attempt+1)
+			return nil
+		}
+
+		delay := time.Duration(math.Min(
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		jitterRange := float64(delay) * 0.25
+		var jitter time.Duration
+		if jitterRange > 0 {
+			jitter = time.Duration(time.Now().UnixNano() % int64(jitterRange))
+		}
+		actualDelay := delay + jitter
+
+		log.Printf("[scenario-authenticator/redis] ⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
+		log.Printf("[scenario-authenticator/redis] ⏳ Waiting %v before next attempt", actualDelay)
+
+		time.Sleep(actualDelay)
+	}
+
+	RedisClient.Close()
+	log.Printf("[scenario-authenticator/redis] ❌ Redis connection failed after %d attempts: %v", maxRetries, pingErr)
+	return fmt.Errorf("redis connection failed after %d attempts: %w", maxRetries, pingErr)
 }
 
 // Close closes database connections

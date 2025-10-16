@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Search, X, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import type { ProcessMonitorData } from '../../types';
+import { buildApiUrl } from '../../utils/apiBase';
 
 interface ProcessMonitorProps {
   data: ProcessMonitorData | null;
@@ -37,7 +38,7 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
     try {
       console.log(`Killing process ${confirmDialog.processName} (PID: ${confirmDialog.processPid})`);
       
-      const response = await fetch(`/api/processes/${confirmDialog.processPid}/kill`, { 
+      const response = await fetch(buildApiUrl(`/api/processes/${confirmDialog.processPid}/kill`), { 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

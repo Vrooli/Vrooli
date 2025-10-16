@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	rulespkg "scenario-auditor/rules"
 
@@ -49,14 +51,16 @@ type StandardsCheckResult struct {
 }
 
 const (
-	targetAPI         = "api"
-	targetMainGo      = "main_go"
-	targetUI          = "ui"
-	targetCLI         = "cli"
-	targetTest        = "test"
-	targetServiceJSON = "service_json"
-	targetMakefile    = "makefile"
-	targetStructure   = "structure"
+	targetAPI                 = "api"
+	targetMainGo              = "main_go"
+	targetUI                  = "ui"
+	targetCLI                 = "cli"
+	targetTest                = "test"
+	targetServiceJSON         = "service_json"
+	targetMakefile            = "makefile"
+	targetStructure           = "structure"
+	targetDocumentation       = "documentation"
+	maxStandardsFileSizeBytes = 1 << 20 // 1 MiB guardrail to avoid pathological inputs
 )
 
 var (
@@ -547,6 +551,18 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 			return nil
 		}
 
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+
+		if info.Size() > maxStandardsFileSizeBytes {
+			logger.Warn("Skipping large file during standards scan", map[string]interface{}{
+				"path": path,
+				"size": info.Size(),
+			})
+			return nil
+		}
+
 		scenarioName, scenarioRelative, targets := classifyFileTargets(path)
 		if scenarioName != "" && scenarioRelative != "" {
 			if info := ensureStructureScenario(scenarioName); info != nil {
@@ -563,6 +579,13 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 			logger.Error(fmt.Sprintf("Failed to read file %s", path), err)
 			return nil
 		}
+
+		if isBinaryContent(content) {
+			logger.Warn("Skipping binary file during standards scan", map[string]interface{}{"path": path})
+			return nil
+		}
+
+		contentStr := string(content)
 
 		if onFile != nil {
 			onFile(scenarioName, scenarioRelative)
@@ -582,7 +605,7 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 			default:
 			}
 
-			ruleViolations, execErr := rule.Check(string(content), path, scenarioName)
+			ruleViolations, execErr := rule.Check(contentStr, path, scenarioName)
 			if execErr != nil {
 				logger.Error(fmt.Sprintf("Rule %s execution failed on %s", rule.ID, path), execErr)
 				continue
@@ -706,6 +729,18 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 			return nil
 		}
 
+		if entry.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+
+		if entry.Size() > maxStandardsFileSizeBytes {
+			logger.Warn("Skipping large file during standards scan", map[string]interface{}{
+				"path": path,
+				"size": entry.Size(),
+			})
+			return nil
+		}
+
 		scn, relative, fileTargets := classifyFileTargets(path)
 		if scn == "" {
 			return nil
@@ -724,8 +759,10 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 			if _, ok := allowedTargets[target]; !ok {
 				continue
 			}
-			if ruleCategory == "structure" && target != targetStructure {
-				continue
+			if ruleCategory == "structure" {
+				if target != targetStructure && target != targetDocumentation {
+					continue
+				}
 			}
 			runRule = true
 			break
@@ -741,8 +778,15 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 			return nil
 		}
 
+		if isBinaryContent(content) {
+			logger.Warn("Skipping binary file during standards scan", map[string]interface{}{"path": path})
+			return nil
+		}
+
+		contentStr := string(content)
+
 		filesScanned++
-		ruleViolations, execErr := rule.Check(string(content), path, scenarioName)
+		ruleViolations, execErr := rule.Check(contentStr, path, scenarioName)
 		if execErr != nil {
 			logger.Error(fmt.Sprintf("Rule %s execution failed on %s", rule.ID, path), execErr)
 			return nil
@@ -900,6 +944,11 @@ func classifyFileTargets(fullPath string) (string, string, []string) {
 		return scenarioName, scenarioRelative, []string{targetServiceJSON}
 	}
 
+	base := filepath.Base(scenarioRelative)
+	if strings.HasSuffix(base, "-api") {
+		return scenarioName, scenarioRelative, nil
+	}
+
 	ext := strings.ToLower(filepath.Ext(scenarioRelative))
 	if ext != "" {
 		if _, ok := allowedExtensions[ext]; !ok {
@@ -910,6 +959,13 @@ func classifyFileTargets(fullPath string) (string, string, []string) {
 	var targets []string
 	if scenarioRelative == "Makefile" {
 		targets = append(targets, targetMakefile)
+	}
+	lowerRelative := strings.ToLower(scenarioRelative)
+	if strings.EqualFold(scenarioRelative, "PRD.md") || strings.EqualFold(scenarioRelative, "README.md") {
+		targets = append(targets, targetDocumentation)
+	}
+	if strings.HasPrefix(lowerRelative, "docs/") {
+		targets = append(targets, targetDocumentation)
 	}
 	if strings.HasPrefix(scenarioRelative, "api/") {
 		targets = append(targets, targetAPI)
@@ -962,6 +1018,18 @@ func toScenarioRelative(path string, scenarioName string) string {
 	}
 	relative := path[index+len(marker):]
 	return filepath.ToSlash(relative)
+}
+
+func isBinaryContent(content []byte) bool {
+	if len(content) == 0 {
+		return false
+	}
+
+	if bytes.IndexByte(content, 0) >= 0 {
+		return true
+	}
+
+	return !utf8.Valid(content)
 }
 
 func convertRuleViolationToStandards(rule RuleInfo, violation rulespkg.Violation, scenarioName, fallbackPath string) StandardsViolation {

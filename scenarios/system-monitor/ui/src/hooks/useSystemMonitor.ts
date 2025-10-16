@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { buildApiUrl } from '../utils/apiBase';
 import type {
   MetricsResponse,
   DetailedMetrics,
@@ -24,7 +25,6 @@ interface UseSystemMonitorReturn {
   refreshMetrics: () => void;
 }
 
-const API_BASE = '';  // Using Vite proxy, so same origin
 const DISK_HISTORY_LIMIT = 180;
 
 const appendHistoryPoint = (
@@ -63,9 +63,9 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<APIError | null>(null);
 
-  const handleApiCall = useCallback(async <T,>(url: string): Promise<T | null> => {
+const handleApiCall = useCallback(async <T,>(url: string): Promise<T | null> => {
     try {
-      const response = await fetch(`${API_BASE}${url}`);
+      const response = await fetch(buildApiUrl(url));
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -102,7 +102,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
 
   const checkHealth = useCallback(async (): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE}/health`);
+      const response = await fetch(buildApiUrl('/health'));
       return response.ok;
     } catch {
       return false;

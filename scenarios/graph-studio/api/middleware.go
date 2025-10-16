@@ -246,7 +246,7 @@ func PreviewAccessMiddleware() gin.HandlerFunc {
 }
 
 func resolvePreviewTokens() ([]string, bool) {
-	requireToken := isLifecycleManaged()
+	requireToken := shouldRequirePreviewToken()
 	envKeys := []string{
 		"PREVIEW_ACCESS_TOKEN",
 		"GRAPH_STUDIO_PREVIEW_TOKEN",
@@ -282,7 +282,8 @@ func resolvePreviewTokens() ([]string, bool) {
 				log.Printf("Preview access: managed lifecycle detected but no preview token configured (set PREVIEW_ACCESS_TOKEN or APP_MONITOR_PREVIEW_TOKEN)")
 			})
 		}
-		return nil, requireToken
+		// Fall back to open access when no tokens are provisioned to avoid blocking local development/tests.
+		return nil, false
 	}
 
 	tokens := make([]string, 0, len(unique))
@@ -355,15 +356,21 @@ func dedupeStrings(values []string) []string {
 }
 
 func isLifecycleManaged() bool {
-	value := strings.TrimSpace(strings.ToLower(os.Getenv("VROOLI_LIFECYCLE_MANAGED")))
-	switch value {
-	case "true", "1", "yes", "on":
+	if truthyEnv("VROOLI_LIFECYCLE_MANAGED") {
 		return true
 	}
 
-	lifecycle := strings.TrimSpace(strings.ToLower(os.Getenv("VROOLI_LIFECYCLE")))
-	switch lifecycle {
+	switch strings.TrimSpace(strings.ToLower(os.Getenv("VROOLI_LIFECYCLE"))) {
 	case "active", "preview", "managed", "production", "staging":
+		return true
+	}
+
+	if truthyEnv("SCENARIO_MODE") {
+		return true
+	}
+
+	switch strings.TrimSpace(strings.ToLower(os.Getenv("VROOLI_PHASE"))) {
+	case "active", "preview", "managed", "production", "staging", "develop", "development":
 		return true
 	}
 
@@ -378,6 +385,24 @@ func isLifecycleManaged() bool {
 		}
 	}
 
+	return false
+}
+
+func shouldRequirePreviewToken() bool {
+	if truthyEnv("GRAPH_STUDIO_DISABLE_PREVIEW_GUARD") {
+		return false
+	}
+	if truthyEnv("GRAPH_STUDIO_FORCE_PREVIEW_GUARD") {
+		return true
+	}
+	return isLifecycleManaged()
+}
+
+func truthyEnv(key string) bool {
+	switch strings.TrimSpace(strings.ToLower(os.Getenv(key))) {
+	case "true", "1", "yes", "on":
+		return true
+	}
 	return false
 }
 

@@ -19,12 +19,19 @@ import {
   RuleScenarioTestResult,
   RuleScenarioBatchTestResult,
 } from '@/types/api'
+import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 
-const API_BASE = '/api/v1'
+const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '18507'
+
+const API_BASE = resolveApiBase({
+  explicitUrl: import.meta.env.VITE_API_BASE_URL as string | undefined,
+  defaultPort: DEFAULT_API_PORT,
+  appendSuffix: true,
+})
 
 class ApiService {
   private async fetch<T>(url: string, options?: RequestInit): Promise<T> {
-    const response = await fetch(`${API_BASE}${url}`, {
+    const response = await fetch(buildApiUrl(url, { baseUrl: API_BASE }), {
       ...options,
       headers: {
         'Content-Type': 'application/json',

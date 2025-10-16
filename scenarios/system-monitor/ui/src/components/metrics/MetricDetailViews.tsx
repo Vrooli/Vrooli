@@ -13,6 +13,7 @@ import {
 import { ArrowLeft, Cpu, MemoryStick, Network, HardDrive, CircuitBoard } from 'lucide-react';
 
 import { ProcessMonitor } from '../monitoring/ProcessMonitor';
+import { buildApiUrl } from '../../utils/apiBase';
 import type {
   MetricsResponse,
   DetailedMetrics,
@@ -761,7 +762,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
           params.set('include_files', 'true');
         }
 
-        const response = await fetch(`/api/metrics/disk/details?${params.toString()}`, {
+        const response = await fetch(buildApiUrl(`/api/metrics/disk/details?${params.toString()}`), {
           signal: controller.signal
         });
         if (!response.ok) {

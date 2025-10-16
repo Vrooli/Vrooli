@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FileText, RefreshCw, Plus } from 'lucide-react';
 import type { InvestigationScript } from '../../types';
 import { LoadingSkeleton } from '../common/LoadingSkeleton';
+import { buildApiUrl } from '../../utils/apiBase';
 
 interface InvestigationScriptsPanelProps {
   onOpenScriptEditor: (script?: InvestigationScript, content?: string, mode?: 'create' | 'edit' | 'view') => void;
@@ -43,7 +44,7 @@ export const InvestigationScriptsPanel = ({
     setLoading(true);
     setErrorMessage(null);
     try {
-      const response = await fetch('/api/investigations/scripts');
+      const response = await fetch(buildApiUrl('/api/investigations/scripts'));
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}`);
       }
@@ -70,7 +71,7 @@ export const InvestigationScriptsPanel = ({
 
   const openScript = async (script: InvestigationScript) => {
     try {
-      const response = await fetch(`/api/investigations/scripts/${encodeURIComponent(script.id)}`);
+      const response = await fetch(buildApiUrl(`/api/investigations/scripts/${encodeURIComponent(script.id)}`));
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}`);
       }

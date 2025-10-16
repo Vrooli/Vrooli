@@ -87,6 +87,55 @@ func TestClassifyFileTargetsMakefile(t *testing.T) {
 	}
 }
 
+func TestClassifyFileTargetsPRD(t *testing.T) {
+	root := filepath.Join("/tmp", "project", "scenarios", "demo")
+	fullPath := filepath.Join(root, "PRD.md")
+	scenario, relative, targets := classifyFileTargets(fullPath)
+
+	if scenario != "demo" {
+		t.Fatalf("expected scenario demo, got %s", scenario)
+	}
+	if relative != "PRD.md" {
+		t.Fatalf("expected relative path PRD.md, got %s", relative)
+	}
+	if len(targets) != 1 || targets[0] != targetDocumentation {
+		t.Fatalf("expected targets [%s], got %v", targetDocumentation, targets)
+	}
+}
+
+func TestClassifyFileTargetsReadme(t *testing.T) {
+	root := filepath.Join("/tmp", "project", "scenarios", "demo")
+	fullPath := filepath.Join(root, "README.md")
+	scenario, relative, targets := classifyFileTargets(fullPath)
+
+	if scenario != "demo" {
+		t.Fatalf("expected scenario demo, got %s", scenario)
+	}
+	if relative != "README.md" {
+		t.Fatalf("expected relative path README.md, got %s", relative)
+	}
+	if len(targets) != 1 || targets[0] != targetDocumentation {
+		t.Fatalf("expected targets [%s], got %v", targetDocumentation, targets)
+	}
+}
+
+func TestClassifyFileTargetsDocsMarkdown(t *testing.T) {
+	root := filepath.Join("/tmp", "project", "scenarios", "demo")
+	fullPath := filepath.Join(root, "docs", "overview.md")
+	scenario, relative, targets := classifyFileTargets(fullPath)
+
+	if scenario != "demo" {
+		t.Fatalf("expected scenario demo, got %s", scenario)
+	}
+	expectedRel := filepath.ToSlash(filepath.Join("docs", "overview.md"))
+	if relative != expectedRel {
+		t.Fatalf("expected relative path %s, got %s", expectedRel, relative)
+	}
+	if len(targets) != 1 || targets[0] != targetDocumentation {
+		t.Fatalf("expected targets [%s], got %v", targetDocumentation, targets)
+	}
+}
+
 func TestPerformStandardsCheckRunsStructureRules(t *testing.T) {
 	tmp := t.TempDir()
 	root := filepath.Join(tmp, "project")
