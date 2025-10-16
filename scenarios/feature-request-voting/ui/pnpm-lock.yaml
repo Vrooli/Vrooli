@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@vrooli/iframe-bridge':
+        specifier: file:../../../packages/iframe-bridge
+        version: file:../../../packages/iframe-bridge
       axios:
         specifier: ^1.6.2
         version: 1.12.2
@@ -506,6 +509,9 @@ packages:
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
+
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
+    resolution: {directory: ../../../packages/iframe-bridge, type: directory}
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -2238,6 +2244,8 @@ snapshots:
       vite: 5.4.20
     transitivePeerDependencies:
       - supports-color
+
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 
   acorn-jsx@5.3.2(acorn@8.15.0):
     dependencies:

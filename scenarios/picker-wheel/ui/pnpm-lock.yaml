@@ -24,7 +24,7 @@ importers:
 
 packages:
 
-  ../../../packages/iframe-bridge:
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
 
   accepts@1.3.8:
@@ -421,6 +421,8 @@ packages:
     engines: {node: '>= 0.8'}
 
 snapshots:
+
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 
   accepts@1.3.8:
     dependencies:

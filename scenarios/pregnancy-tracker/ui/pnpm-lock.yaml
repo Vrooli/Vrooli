@@ -11,8 +11,22 @@ importers:
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge
+    devDependencies:
+      bats:
+        specifier: ^1.10.0
+        version: 1.12.0
 
 packages:
 
-  ../../../packages/iframe-bridge:
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
+
+  bats@1.12.0:
+    resolution: {integrity: sha512-1HTv2n+fjn3bmY9SNDgmzS6bjoKtVlSK2pIHON5aSA2xaqGkZFoCCWP46/G6jm9zZ7MCi84mD+3Byw4t3KGwBg==}
+    hasBin: true
+
+snapshots:
+
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
+
+  bats@1.12.0: {}
