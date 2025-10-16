@@ -15,8 +15,8 @@ The console keeps shell access, agent CLIs, and status tooling available whereve
 - Metrics endpoint surfaces session counters (`web_console_*`) alongside panic-stop and timeout data.
 
 ### Browser UI (Vanilla JS + Xterm)
-- **Offline-first design**: All vendor libraries (xterm.js, lucide icons, html2canvas) served from `ui/static/lib/` - no CDN dependencies.
-- Static assets served as plain files; no build tooling required.
+- **Offline-first design**: All vendor libraries (xterm.js, lucide icons, html2canvas) bundled locally under `ui/public/lib/` so the console never depends on CDNs.
+- Vite handles bundling and transpilation (targeting Safari 13+) to keep mobile Safari working even when modules use modern syntax.
 - Quick command panel issues pre-defined commands into the active terminal and queues them while a session boots.
 - **Automatic reconnection**: Detects WebSocket disconnects and reconnects to running sessions automatically.
 - **Heartbeat keepalive**: Sends heartbeat every 30 seconds to maintain connection when tab is inactive.
@@ -55,7 +55,7 @@ Commands queue if the shell is not ready yet and execute as soon as the PTY hand
 cd scenarios/web-console
 make setup
 ```
-This builds the Go API binary and creates the transcript directory. The UI is already static.
+This builds the Go API binary and creates the transcript directory. Install UI dependencies once (`pnpm install --filter web-console-ui`) and run `pnpm --filter web-console-ui run build` whenever you change the frontend so `ui/dist/` stays current.
 
 ### Development Lifecycle
 ```bash
@@ -101,7 +101,7 @@ make test  # runs go vet + targeted checks
 
 ## 🤝 Contributing Guidelines
 - Format Go with `gofumpt`, lint with `golangci-lint` before submitting patches.
-- Keep UI dependency-free (vanilla JS + CDN assets) unless there is a compelling reason otherwise.
+- Use the existing Vite pipeline for UI changes; keep third-party libraries vendored in `ui/public/lib/` to preserve offline capability.
 - Update documentation when shortcut commands or iframe contract changes.
 - Preserve the lifecycle guardrails: no direct binary launches outside `make`/`vrooli` wrappers.
 

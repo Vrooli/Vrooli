@@ -4,9 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Terminal Console</title>
-    <link rel="stylesheet" href="./lib/xterm.min.css" />
-    <link rel="stylesheet" href="./styles.css?v=__ASSET_VERSION__" />
-    <script src="./lib/lucide.min.js"></script>
+    <link rel="stylesheet" href="/lib/xterm.min.css" />
+    <script src="/lib/lucide.min.js" defer></script>
   </head>
   <body>
     <main class="page">
@@ -289,17 +288,16 @@
       </form>
     </div>
 
-    <script src="./lib/xterm.min.js"></script>
-    <script src="./lib/xterm-addon-fit.min.js"></script>
-    <script src="./lib/html2canvas.min.js"></script>
+    <script src="/lib/xterm.min.js"></script>
+    <script src="/lib/xterm-addon-fit.min.js"></script>
+    <script src="/lib/html2canvas.min.js"></script>
     <script>
-      // Initialize lucide icons after DOM is loaded
       document.addEventListener('DOMContentLoaded', () => {
         if (window.lucide) {
-          lucide.createIcons();
+          lucide.createIcons()
         }
-      });
+      })
     </script>
-    <script type="module" src="./app.js?v=__ASSET_VERSION__"></script>
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>

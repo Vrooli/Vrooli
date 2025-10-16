@@ -63,28 +63,28 @@ else
     testing::phase::add_error "❌ go.mod missing"
 fi
 
-# Check UI structure (static files)
+# Check UI structure (Vite project layout)
 echo "🔍 Validating UI structure..."
-if [ -f "ui/static/index.html" ]; then
+if [ -f "ui/index.html" ]; then
     log::success "✅ UI index.html found"
 else
-    testing::phase::add_error "❌ ui/static/index.html missing"
+    testing::phase::add_error "❌ ui/index.html missing"
 fi
 
-if [ -f "ui/static/app.js" ]; then
-    log::success "✅ UI app.js found"
+if [ -f "ui/src/main.js" ]; then
+    log::success "✅ UI main.js entry found"
 else
-    testing::phase::add_error "❌ ui/static/app.js missing"
+    testing::phase::add_error "❌ ui/src/main.js missing"
 fi
 
 # Check vendor libraries are local (offline-first requirement)
 echo "🔍 Checking offline-first vendor libraries..."
 vendor_libs=(
-    "ui/static/lib/xterm.js"
-    "ui/static/lib/xterm.css"
-    "ui/static/lib/xterm-addon-fit.js"
-    "ui/static/lib/lucide.min.js"
-    "ui/static/lib/html2canvas.min.js"
+    "ui/public/lib/xterm.min.js"
+    "ui/public/lib/xterm.min.css"
+    "ui/public/lib/xterm-addon-fit.min.js"
+    "ui/public/lib/lucide.min.js"
+    "ui/public/lib/html2canvas.min.js"
 )
 
 for lib in "${vendor_libs[@]}"; do

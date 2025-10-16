@@ -1,5 +1,5 @@
 import { createServer, request as httpRequest, STATUS_CODES } from 'http'
-import { createReadStream, existsSync, statSync } from 'fs'
+import { createReadStream, existsSync } from 'fs'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { WebSocketServer, WebSocket } from 'ws'
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const { UI_PORT, API_PORT, ASSET_VERSION } = process.env
+const { UI_PORT, API_PORT } = process.env
 
 if (!UI_PORT) {
   console.error('Web Console UI requires UI_PORT environment variable')
@@ -20,21 +20,8 @@ if (!API_PORT) {
   process.exit(1)
 }
 
-const staticRoot = path.join(__dirname, 'static')
-
-const assetVersion = (() => {
-  if (ASSET_VERSION && ASSET_VERSION.trim().length > 0) {
-    return ASSET_VERSION.trim()
-  }
-  try {
-    const bundleStat = statSync(path.join(staticRoot, 'app.js'))
-    const styleStat = statSync(path.join(staticRoot, 'styles.css'))
-    const newest = Math.max(bundleStat.mtimeMs, styleStat.mtimeMs)
-    return Math.floor(newest).toString(36)
-  } catch (_error) {
-    return Date.now().toString(36)
-  }
-})()
+const distRoot = path.join(__dirname, 'dist')
+const publicRoot = path.join(__dirname, 'public')
 
 const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
@@ -159,68 +146,84 @@ async function serveStatic(req, res) {
   const urlPath = (req.url || '/').split('?')[0]
   const safePath = urlPath === '/' ? '/index.html' : urlPath
   const normalized = path.normalize(safePath).replace(/^\.\.+/, '')
-  const filePath = path.join(staticRoot, normalized)
+  const candidatePaths = [
+    path.join(distRoot, normalized),
+    path.join(publicRoot, normalized)
+  ]
 
-  try {
-    const stat = await fs.stat(filePath)
-    if (stat.isDirectory()) {
-      return serveFallback(res)
-    }
+  for (const filePath of candidatePaths) {
+    try {
+      const stat = await fs.stat(filePath)
+      if (stat.isDirectory()) {
+        continue
+      }
 
-    if (path.basename(filePath) === 'index.html') {
-      const html = await fs.readFile(filePath, 'utf-8')
+      if (path.basename(filePath) === 'index.html') {
+        const html = await fs.readFile(filePath, 'utf-8')
+        res.setHeader('Content-Type', contentTypeFor(filePath))
+        res.setHeader('Cache-Control', cacheControlFor(filePath))
+        res.end(html)
+        return
+      }
+
       res.setHeader('Content-Type', contentTypeFor(filePath))
       res.setHeader('Cache-Control', cacheControlFor(filePath))
-      res.end(html.replace(/__ASSET_VERSION__/g, assetVersion))
-      return
-    }
-
-    res.setHeader('Content-Type', contentTypeFor(filePath))
-    res.setHeader('Cache-Control', cacheControlFor(filePath))
-    const stream = createReadStream(filePath)
-    stream.on('error', (err) => {
-      console.error('[static] stream error', err.message)
-      serveFallback(res).catch((fallbackError) => {
-        console.error('[static] fallback error', fallbackError.message)
-        if (!res.headersSent) {
-          res.statusCode = 500
-          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-          res.end(STATUS_CODES[500])
-        }
+      const stream = createReadStream(filePath)
+      stream.on('error', (err) => {
+        console.error('[static] stream error', err.message)
+        serveFallback(res).catch((fallbackError) => {
+          console.error('[static] fallback error', fallbackError.message)
+          if (!res.headersSent) {
+            res.statusCode = 500
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+            res.end(STATUS_CODES[500])
+          }
+        })
       })
-    })
-    stream.pipe(res)
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      await serveFallback(res)
-    } else {
-      console.error('[static] error', error.message)
-      res.statusCode = 500
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-      res.end(STATUS_CODES[500])
+      stream.pipe(res)
+      return
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        console.error('[static] error', error.message)
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end(STATUS_CODES[500])
+        return
+      }
     }
   }
+
+  await serveFallback(res)
 }
 
 async function serveFallback(res) {
-  const fallback = path.join(staticRoot, 'index.html')
-  if (existsSync(fallback)) {
+  const fallbackPaths = [
+    path.join(distRoot, 'index.html'),
+    path.join(publicRoot, 'index.html')
+  ]
+
+  for (const fallback of fallbackPaths) {
+    if (!existsSync(fallback)) {
+      continue
+    }
     try {
       const html = await fs.readFile(fallback, 'utf-8')
       res.setHeader('Content-Type', contentTypeFor(fallback))
       res.setHeader('Cache-Control', cacheControlFor(fallback))
-      res.end(html.replace(/__ASSET_VERSION__/g, assetVersion))
+      res.end(html)
+      return
     } catch (error) {
       console.error('[static] fallback read error', error.message)
       res.statusCode = 500
       res.setHeader('Content-Type', 'text/plain; charset=utf-8')
       res.end(STATUS_CODES[500])
+      return
     }
-  } else {
-    res.statusCode = 404
-    res.setHeader('Content-Type', 'text/plain')
-    res.end('Web Console UI assets not built yet.')
   }
+
+  res.statusCode = 404
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+  res.end('Web Console UI assets not built yet. Run the Vite build before starting the server.')
 }
 
 const httpServer = createServer((req, res) => {

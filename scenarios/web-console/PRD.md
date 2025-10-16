@@ -3,6 +3,8 @@
 ## Executive Summary
 Web Console modernizes the former "Codex Console" scenario into a generalized remote terminal that lives inside authenticated Vrooli experiences. Operators receive shell access, per-session command overrides, and shortcut buttons for high-value CLIs like Codex and Claude. The backend remains Go-based to align with Vrooli's preferred service stack, while the UI stays lightweight for iframe embedding. Authentication is deliberately omitted; parents must supply identity and policy enforcement before exposing the console.
 
+> **Implementation note:** The frontend now ships as a Vite project with the main entry at `ui/src/main.js` (previously `ui/static/app.js`) and vendored browser libraries under `ui/public/lib/`.
+
 **Revenue Opportunity:** $35K–$85K annual value by delivering mobile-ready shell access, faster on-call remediation, and reusable shortcut workflows (Codex, Claude, platform status) across the ecosystem.
 
 ## 🎯 Capability Definition
@@ -159,14 +161,14 @@ Every remote session becomes a reusable capability. Maintenance orchestrators, e
 ### 2025-10-04: Offline-First UI Dependencies
 **Issue**: UI was loading vendor libraries (xterm.js, lucide icons, html2canvas) from external CDNs (jsdelivr, unpkg), causing Cloudflare 502 errors when CDN access failed or was blocked. This broke the entire UI with cryptic error messages.
 
-**Solution**: Downloaded all vendor dependencies locally to `ui/static/lib/` directory:
+**Solution**: Downloaded all vendor dependencies locally to `ui/public/lib/` directory:
 - xterm@5.3.0 (JS + CSS)
 - xterm-addon-fit@0.7.0
 - lucide icons (547KB UMD bundle)
 - html2canvas@1.4.1
 
 **Changes**:
-- Created `ui/static/lib/` vendor directory
+- Created `ui/public/lib/` vendor directory
 - Downloaded all CDN dependencies locally (total ~1.1MB)
 - Updated `index.html` to reference local paths instead of CDN URLs
 - Verified UI renders correctly offline with all icons and terminal functionality intact

@@ -13,9 +13,11 @@
 
 When these CDN requests failed (due to network restrictions, CDN outages, or Cloudflare blocking), the entire UI broke with cryptic HTML error pages instead of user-friendly error messages.
 
+> **Implementation note:** After migrating to Vite, the frontend entry lives at `ui/src/main.js` and vendor bundles are stored in `ui/public/lib/`.
+
 **Solution**: Moved to offline-first architecture by downloading all vendor dependencies locally:
 
-1. **Created vendor directory**: `ui/static/lib/`
+1. **Created vendor directory**: `ui/public/lib/`
 2. **Downloaded dependencies locally** (~1.1MB total):
    - xterm@5.3.0 (JS + CSS)
    - xterm-addon-fit@0.7.0
@@ -23,7 +25,7 @@ When these CDN requests failed (due to network restrictions, CDN outages, or Clo
    - html2canvas@1.4.1
 3. **Updated index.html**: Changed all CDN URLs to local paths
    - Before: `<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>`
-   - After: `<script src="./lib/xterm.min.js"></script>`
+   - After: `<script src="/lib/xterm.min.js"></script>`
 
 **Impact**:
 - ✅ Console works reliably in offline/restricted network environments
@@ -56,7 +58,7 @@ The previous fix added basic terminal refresh on visibility change, but it had t
 
 **Enhanced Solution**:
 
-1. **Visibility Change Handler with Proper Sequencing** (ui/static/app.js:368-421):
+1. **Visibility Change Handler with Proper Sequencing** (ui/src/main.js:368-421):
    ```javascript
    // Wait 100ms for browser to fully restore canvas
    setTimeout(() => {
@@ -74,11 +76,11 @@ The previous fix added basic terminal refresh on visibility change, but it had t
    }, 100)
    ```
 
-2. **Enhanced Tab Focus Handler** (ui/static/app.js:699-717):
+2. **Enhanced Tab Focus Handler** (ui/src/main.js:699-717):
    - Added `term.write('')` before refresh to trigger render pipeline
    - Ensures content is visible when switching between tabs
 
-3. **Replay Completion Refresh** (ui/static/app.js:1779-1815):
+3. **Replay Completion Refresh** (ui/src/main.js:1779-1815):
    - Force terminal refresh after replay completes
    - Ensures reconnected sessions show content immediately
    - Uses same focus → write → refresh sequence
@@ -136,7 +138,7 @@ make start
 This prevents the blank screen while maintaining the ability to sync with actual session state when needed.
 
 **Changes**:
-- Added `hasEverConnected: false` flag to tab state (ui/static/app.js:507)
+- Added `hasEverConnected: false` flag to tab state (ui/src/main.js:507)
 - Modified `handleReplayPayload` to only reset terminal on first connection with non-empty buffer (app.js:1698-1708)
 - Set `hasEverConnected = true` after successful replay completion (app.js:1734)
 
@@ -179,7 +181,7 @@ make start
 
 **Solutions Implemented**:
 
-### Frontend (ui/static/app.js)
+### Frontend (ui/src/main.js)
 1. **Smart Reconnection Logic** (lines 1567-1609):
    - Distinguish between clean closes (codes 1000/1001) and unexpected disconnects
    - Automatically attempt reconnection after 1 second for unexpected disconnects
