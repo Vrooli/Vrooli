@@ -115,7 +115,7 @@
   background: rgba(5, 28, 32, 0.6);
   border: 1px solid rgba(0, 255, 255, 0.35);
   border-radius: 999px;
-  padding: 0.2rem 0.35rem;
+  padding: 0;
   box-shadow:
     inset 0 0 12px rgba(0, 255, 255, 0.08),
     0 0 12px rgba(0, 255, 255, 0.08);
@@ -390,15 +390,11 @@
 }
 
 .preview-toolbar__url-action-btn--warning {
-  border-color: rgba(255, 176, 0, 0.6);
   color: var(--matrix-yellow);
-  background: rgba(255, 176, 0, 0.14);
 }
 
 .preview-toolbar__url-action-btn--warning:hover:not(:disabled) {
-  background: rgba(255, 176, 0, 0.3);
-  color: var(--matrix-bg);
-  border-color: rgba(255, 176, 0, 0.75);
+  color: var(--matrix-yellow);
 }
 
 .preview-toolbar__menu {
