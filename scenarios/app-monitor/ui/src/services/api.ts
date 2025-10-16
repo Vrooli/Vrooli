@@ -12,10 +12,21 @@ import type {
   LocalhostUsageReport,
 } from '@/types';
 import { logger } from '@/services/logger';
+import { resolveApiBase, buildApiUrl } from '@vrooli/api-base';
+
+const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '15100';
+
+const API_BASE_URL = resolveApiBase({
+  explicitUrl: import.meta.env.VITE_API_BASE_URL as string | undefined,
+  defaultPort: DEFAULT_API_PORT,
+  appendSuffix: true,
+});
+
+const buildApiUrlWithBase = (path: string) => buildApiUrl(path, { baseUrl: API_BASE_URL });
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: API_BASE_URL,
   timeout: 35000, // 35s to accommodate 30s backend timeout for resource checks
   headers: {
     'Content-Type': 'application/json',
@@ -367,7 +378,7 @@ export const logService = {
 
   // Stream logs (returns EventSource)
   streamLogs(onMessage: (log: LogEntry) => void): EventSource {
-    const eventSource = new EventSource('/api/v1/logs/stream');
+    const eventSource = new EventSource(buildApiUrlWithBase('/logs/stream'));
     
     eventSource.onmessage = (event) => {
       try {

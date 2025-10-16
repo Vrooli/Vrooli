@@ -5,6 +5,7 @@ const WebSocket = require('ws');
 const http = require('http');
 const axios = require('axios');
 const net = require('net');
+const parse5 = require('parse5');
 require('dotenv').config();
 
 const app = express();
@@ -53,6 +54,7 @@ const API_BASE = `http://${LOOPBACK_HOST}:${API_PORT}`;
 const APP_PROXY_PREFIX = '/apps';
 const APP_PROXY_SEGMENT = 'proxy';
 const APP_PORTS_SEGMENT = 'ports';
+const APP_ASSET_SEGMENT = 'assets';
 const LOOPBACK_HOSTS = new Set([LOOPBACK_HOST, 'localhost', '::1', '[::1]', '0.0.0.0']);
 const LOOPBACK_HOST_ARRAY = Array.from(LOOPBACK_HOSTS);
 const PORT_LABEL_SANITIZE_REGEX = /[^a-z0-9]+/g;
@@ -186,12 +188,369 @@ const isProxiableRootAssetRequest = (path) => {
         return false;
     }
     if (path.startsWith(`${APP_PROXY_PREFIX}/`)) {
-        return false;
+        const assetPattern = new RegExp(`^${APP_PROXY_PREFIX}/[^/]+/(?:${APP_PORTS_SEGMENT}/[^/]+/)?${APP_PROXY_SEGMENT}/${APP_ASSET_SEGMENT}/`);
+        return assetPattern.test(path);
     }
     if (path.startsWith('/api/') || path.startsWith('/ws') || path === '/api' || path === '/ws') {
         return false;
     }
     return startsWithAssetPrefix(path) || hasAssetExtension(path);
+};
+
+const ensureTrailingSlash = (value = '/') => {
+    if (typeof value !== 'string' || value.length === 0) {
+        return '/';
+    }
+    return value.endsWith('/') ? value : `${value}/`;
+};
+
+const trimTrailingSlash = (value = '/') => {
+    if (typeof value !== 'string') {
+        return '';
+    }
+    return value.replace(/\/+$/, '');
+};
+
+const joinAssetNamespacePath = (assetNamespace, resourcePath) => {
+    if (typeof assetNamespace !== 'string' || typeof resourcePath !== 'string') {
+        return resourcePath;
+    }
+    if (!resourcePath.startsWith('/')) {
+        return resourcePath;
+    }
+    if (resourcePath.startsWith('//')) {
+        return resourcePath;
+    }
+    const normalizedNamespace = trimTrailingSlash(assetNamespace) || '/';
+    const normalizedResource = resourcePath.startsWith('/') ? resourcePath : `/${resourcePath}`;
+    return `${normalizedNamespace}${normalizedResource}`;
+};
+
+const shouldSkipAssetRewrite = (resourcePath, assetNamespace) => {
+    if (typeof resourcePath !== 'string') {
+        return true;
+    }
+    if (!resourcePath.startsWith('/')) {
+        return true;
+    }
+    if (resourcePath.startsWith('//')) {
+        return true;
+    }
+    const normalizedNamespace = trimTrailingSlash(assetNamespace || '');
+    if (normalizedNamespace && resourcePath.startsWith(`${normalizedNamespace}/`)) {
+        return true;
+    }
+    if (resourcePath.startsWith(`${APP_PROXY_PREFIX}/`)) {
+        return true;
+    }
+    return false;
+};
+
+const namespaceAssetPath = (resourcePath, assetNamespace) => {
+    if (shouldSkipAssetRewrite(resourcePath, assetNamespace)) {
+        return resourcePath;
+    }
+    return joinAssetNamespacePath(assetNamespace, resourcePath);
+};
+
+const rewriteHtmlAssetReferences = (html, assetNamespace, basePath) => {
+    if (typeof html !== 'string' || !assetNamespace) {
+        return html;
+    }
+
+    let document;
+    try {
+        document = parse5.parse(html);
+    } catch (error) {
+        return html;
+    }
+
+    let hasBaseTag = false;
+
+    const getAttr = (node, name) => {
+        if (!node || !Array.isArray(node.attrs)) {
+            return null;
+        }
+        const lowerName = name.toLowerCase();
+        return node.attrs.find((attr) => attr.name && attr.name.toLowerCase() === lowerName) || null;
+    };
+
+    const rewriteSimpleAttribute = (node, name) => {
+        const attr = getAttr(node, name);
+        if (!attr || typeof attr.value !== 'string' || attr.value.length === 0) {
+            return;
+        }
+        const rewritten = namespaceAssetPath(attr.value, assetNamespace);
+        if (rewritten !== attr.value) {
+            attr.value = rewritten;
+        }
+    };
+
+    const rewriteSrcsetAttribute = (node, name) => {
+        const attr = getAttr(node, name);
+        if (!attr || typeof attr.value !== 'string' || attr.value.length === 0) {
+            return;
+        }
+        const rewritten = attr.value
+            .split(',')
+            .map((part) => {
+                const trimmed = part.trim();
+                if (!trimmed) {
+                    return trimmed;
+                }
+                const match = trimmed.match(/^(\S+)(\s+.*)?$/);
+                if (!match) {
+                    return trimmed;
+                }
+                const urlPart = match[1];
+                const descriptor = match[2] || '';
+                const rewrittenUrl = namespaceAssetPath(urlPart, assetNamespace);
+                return `${rewrittenUrl}${descriptor}`;
+            })
+            .join(', ');
+        attr.value = rewritten;
+    };
+
+    const shouldRewriteLink = (node) => {
+        const relAttr = getAttr(node, 'rel');
+        if (!relAttr || typeof relAttr.value !== 'string') {
+            return false;
+        }
+        const tokens = relAttr.value
+            .split(/\s+/)
+            .map((token) => token.trim().toLowerCase())
+            .filter(Boolean);
+        if (tokens.length === 0) {
+            return false;
+        }
+        if (tokens.includes('stylesheet') || tokens.includes('modulepreload') || tokens.includes('preload')) {
+            return true;
+        }
+        if (tokens.includes('icon') || tokens.includes('shortcut') || tokens.includes('apple-touch-icon')) {
+            return true;
+        }
+        if (tokens.includes('manifest') || tokens.includes('prefetch')) {
+            return true;
+        }
+        return false;
+    };
+
+    const processNode = (node) => {
+        if (!node || typeof node !== 'object') {
+            return;
+        }
+
+        if (node.tagName) {
+            const tagName = node.tagName.toLowerCase();
+            if (tagName === 'base') {
+                hasBaseTag = true;
+            }
+
+            switch (tagName) {
+                case 'script':
+                    rewriteSimpleAttribute(node, 'src');
+                    rewriteSimpleAttribute(node, 'data-src');
+                    break;
+                case 'img':
+                case 'iframe':
+                case 'audio':
+                case 'embed':
+                    rewriteSimpleAttribute(node, 'src');
+                    rewriteSimpleAttribute(node, 'data-src');
+                    rewriteSrcsetAttribute(node, 'srcset');
+                    rewriteSrcsetAttribute(node, 'data-srcset');
+                    break;
+                case 'video':
+                    rewriteSimpleAttribute(node, 'src');
+                    rewriteSimpleAttribute(node, 'data-src');
+                    rewriteSimpleAttribute(node, 'poster');
+                    rewriteSrcsetAttribute(node, 'srcset');
+                    rewriteSrcsetAttribute(node, 'data-srcset');
+                    break;
+                case 'source':
+                case 'track':
+                    rewriteSimpleAttribute(node, 'src');
+                    rewriteSrcsetAttribute(node, 'srcset');
+                    rewriteSrcsetAttribute(node, 'data-srcset');
+                    break;
+                case 'object':
+                    rewriteSimpleAttribute(node, 'data');
+                    break;
+                case 'link':
+                    if (shouldRewriteLink(node)) {
+                        rewriteSimpleAttribute(node, 'href');
+                        rewriteSrcsetAttribute(node, 'imagesrcset');
+                    }
+                    break;
+                case 'use':
+                    rewriteSimpleAttribute(node, 'href');
+                    rewriteSimpleAttribute(node, 'xlink:href');
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        if (Array.isArray(node.childNodes)) {
+            node.childNodes.forEach(processNode);
+        }
+    };
+
+    processNode(document);
+
+    if (!hasBaseTag && basePath) {
+        const ensureHead = () => {
+            const findNode = (root, predicate) => {
+                if (!root || typeof root !== 'object') {
+                    return null;
+                }
+                if (predicate(root)) {
+                    return root;
+                }
+                if (Array.isArray(root.childNodes)) {
+                    for (const child of root.childNodes) {
+                        const found = findNode(child, predicate);
+                        if (found) {
+                            return found;
+                        }
+                    }
+                }
+                return null;
+            };
+
+            let headNode = findNode(document, (node) => node.tagName && node.tagName.toLowerCase() === 'head');
+            if (headNode) {
+                return headNode;
+            }
+            const htmlNode = findNode(document, (node) => node.tagName && node.tagName.toLowerCase() === 'html');
+            if (!htmlNode) {
+                return null;
+            }
+            if (!Array.isArray(htmlNode.childNodes)) {
+                htmlNode.childNodes = [];
+            }
+            headNode = {
+                nodeName: 'head',
+                tagName: 'head',
+                namespaceURI: htmlNode.namespaceURI || 'http://www.w3.org/1999/xhtml',
+                attrs: [],
+                childNodes: [],
+                parentNode: htmlNode,
+            };
+            htmlNode.childNodes.unshift(headNode);
+            return headNode;
+        };
+
+        const headNode = ensureHead();
+        if (headNode && Array.isArray(headNode.childNodes)) {
+            const baseNode = {
+                nodeName: 'base',
+                tagName: 'base',
+                namespaceURI: headNode.namespaceURI || 'http://www.w3.org/1999/xhtml',
+                attrs: [
+                    { name: 'data-app-monitor', value: 'asset-base' },
+                    { name: 'href', value: ensureTrailingSlash(basePath) },
+                ],
+                childNodes: [],
+                parentNode: headNode,
+            };
+            headNode.childNodes.unshift(baseNode);
+        } else {
+            const baseTag = `<base data-app-monitor="asset-base" href="${ensureTrailingSlash(basePath)}">`;
+            return `${baseTag}${html}`;
+        }
+    }
+
+    return parse5.serialize(document);
+};
+
+const rewriteJavascriptAssetReferences = (code, assetNamespace) => {
+    if (typeof code !== 'string' || !assetNamespace) {
+        return code;
+    }
+    let transformed = code.replace(/(from\s+["'])(\/(?!\/)[^"'\n\r]*)(["'])/g, (match, prefix, url, suffix) => {
+        return `${prefix}${namespaceAssetPath(url, assetNamespace)}${suffix}`;
+    });
+
+    transformed = transformed.replace(/(import\(\s*["'])(\/(?!\/)[^"']*)(["']\s*\))/g, (match, prefix, url, suffix) => {
+        return `${prefix}${namespaceAssetPath(url, assetNamespace)}${suffix}`;
+    });
+
+    return transformed;
+};
+
+const rewriteCssAssetReferences = (css, assetNamespace) => {
+    if (typeof css !== 'string' || !assetNamespace) {
+        return css;
+    }
+    let transformed = css.replace(/(url\(\s*["']?)(\/(?!\/)[^\)"']*)(["']?\s*\))/g, (match, prefix, url, suffix) => {
+        return `${prefix}${namespaceAssetPath(url, assetNamespace)}${suffix}`;
+    });
+    transformed = transformed.replace(/(@import\s+["'])(\/(?!\/)[^"']*)(["'])/g, (match, prefix, url, suffix) => {
+        return `${prefix}${namespaceAssetPath(url, assetNamespace)}${suffix}`;
+    });
+    return transformed;
+};
+
+const buildAssetNamespaceForEntry = (entry) => {
+    if (!entry || typeof entry !== 'object' || typeof entry.path !== 'string') {
+        return null;
+    }
+    const normalizedPath = trimTrailingSlash(entry.path);
+    return `${normalizedPath}/${APP_ASSET_SEGMENT}`;
+};
+
+const buildProxyVaryHeader = (headers = {}) => {
+    const varyValues = [];
+    const varyValue = headers['Vary'] ?? headers['vary'];
+    if (Array.isArray(varyValue)) {
+        for (const item of varyValue) {
+            if (typeof item === 'string') {
+                varyValues.push(item);
+            }
+        }
+    } else if (typeof varyValue === 'string') {
+        varyValues.push(varyValue);
+    }
+
+    const varySet = new Set();
+    for (const entry of varyValues) {
+        entry.split(',').map((part) => part.trim()).filter(Boolean).forEach((part) => varySet.add(part));
+    }
+    ['Referer', 'Cookie', 'X-App-Monitor-App'].forEach((part) => varySet.add(part));
+
+    return varySet.size > 0 ? Array.from(varySet).join(', ') : null;
+};
+
+const ensureProxyIdentityHeaders = (headers = {}, appId = null) => {
+    const next = { ...headers };
+    const varyHeader = buildProxyVaryHeader(headers);
+    if (varyHeader) {
+        next['Vary'] = varyHeader;
+        delete next.vary;
+    }
+    if (appId) {
+        next['X-App-Monitor-App'] = appId;
+    }
+    return next;
+};
+
+const ensureProxyCacheHeaders = (headers = {}, appId = null) => {
+    const next = ensureProxyIdentityHeaders(headers, appId);
+
+    delete next['cache-control'];
+    delete next['Cache-control'];
+    delete next['Cache-Control'];
+    delete next.pragma;
+    delete next.Pragma;
+    delete next.expires;
+    delete next.Expires;
+
+    next['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0';
+    next['Pragma'] = 'no-cache';
+    next['Expires'] = '0';
+
+    return next;
 };
 
 const parseNumericPort = (value) => {
@@ -630,6 +989,7 @@ const buildProxyBootstrapPayload = (state) => {
         label: entry.label,
         slug: entry.slug,
         path: entry.path,
+        assetNamespace: buildAssetNamespaceForEntry(entry),
         aliases: entry.aliases,
         source: entry.source,
         isPrimary: entry.isPrimary,
@@ -644,6 +1004,7 @@ const buildProxyBootstrapPayload = (state) => {
             label: state.primaryEntry.label,
             slug: state.primaryEntry.slug,
             path: state.primaryEntry.path,
+            assetNamespace: buildAssetNamespaceForEntry(state.primaryEntry),
             aliases: state.primaryEntry.aliases,
         },
         ports: payloadEntries,
@@ -1044,6 +1405,12 @@ const stripProxyPrefix = (fullPath) => {
     if (stripped === fullPath) {
         stripped = fullPath.replace(basePattern, '');
     }
+
+    if (stripped && stripped.startsWith(`/${APP_ASSET_SEGMENT}`)) {
+        const withoutAsset = stripped.slice(APP_ASSET_SEGMENT.length + 1) || '/';
+        stripped = withoutAsset.startsWith('/') ? withoutAsset : `/${withoutAsset}`;
+    }
+
     if (!stripped) {
         return '/';
     }
@@ -1507,10 +1874,13 @@ const proxyHttpRequest = async ({ req, res, appId, portKey, targetPath }) => {
             },
             (proxyRes) => {
                 recordProxyAffinityForRequest({ req, appId, targetPath: requestPath });
-                const rewrittenHeaders = rewriteResponseHeaders(proxyRes.headers, appId, port);
+                let rewrittenHeaders = rewriteResponseHeaders(proxyRes.headers, appId, port);
+                rewrittenHeaders = ensureProxyCacheHeaders(rewrittenHeaders, appId);
                 const contentTypeHeader = proxyRes.headers['content-type'] || proxyRes.headers['Content-Type'];
                 const shouldInjectBootstrap =
                     typeof contentTypeHeader === 'string' && /text\/html/i.test(contentTypeHeader);
+                const assetNamespace = buildAssetNamespaceForEntry(entry);
+                const basePath = entry?.path ?? state.primaryEntry?.path ?? null;
 
                 if (shouldInjectBootstrap) {
                     delete rewrittenHeaders['content-length'];
@@ -1538,23 +1908,26 @@ const proxyHttpRequest = async ({ req, res, appId, portKey, targetPath }) => {
                 proxyRes.on('end', () => {
                     try {
                         const bodyBuffer = Buffer.concat(chunks);
-                        const body = bodyBuffer.toString('utf8');
+                        let rendered = bodyBuffer.toString('utf8');
+                        if (assetNamespace) {
+                            rendered = rewriteHtmlAssetReferences(rendered, assetNamespace, basePath);
+                        }
                         const script = buildProxyBootstrapScript(state);
                         const scriptTag = `<script data-app-monitor="proxy-bootstrap">${script}</script>`;
 
-                        let injected = body;
-                        if (body.includes('</head>')) {
-                            injected = body.replace('</head>', `${scriptTag}</head>`);
-                        } else if (body.includes('<body')) {
-                            const bodyIndex = body.indexOf('<body');
-                            const closeIndex = body.indexOf('>', bodyIndex);
+                        let injected = rendered;
+                        if (rendered.includes('</head>')) {
+                            injected = rendered.replace('</head>', `${scriptTag}</head>`);
+                        } else if (rendered.includes('<body')) {
+                            const bodyIndex = rendered.indexOf('<body');
+                            const closeIndex = rendered.indexOf('>', bodyIndex);
                             if (closeIndex !== -1) {
-                                injected = `${body.slice(0, closeIndex + 1)}${scriptTag}${body.slice(closeIndex + 1)}`;
+                                injected = `${rendered.slice(0, closeIndex + 1)}${scriptTag}${rendered.slice(closeIndex + 1)}`;
                             } else {
-                                injected = `${scriptTag}${body}`;
+                                injected = `${scriptTag}${rendered}`;
                             }
                         } else {
-                            injected = `${scriptTag}${body}`;
+                            injected = `${scriptTag}${rendered}`;
                         }
 
                         res.send(injected);
@@ -1601,9 +1974,11 @@ const proxyStaticAssetRequest = async ({ req, res, appId, portKey }) => {
         return false;
     }
 
-    const { port } = target;
+    const { port, entry } = target;
     const sanitizedHeaders = sanitizeRequestHeaders(req.headers, port, req);
     sanitizedHeaders['accept-encoding'] = 'identity';
+    const assetNamespace = buildAssetNamespaceForEntry(entry);
+    const upstreamPath = stripProxyPrefix(req.originalUrl) || '/';
 
     return await new Promise((resolve) => {
         const upstreamReq = http.request(
@@ -1611,7 +1986,7 @@ const proxyStaticAssetRequest = async ({ req, res, appId, portKey }) => {
                 hostname: LOOPBACK_HOST,
                 port,
                 method: req.method,
-                path: req.originalUrl,
+                path: upstreamPath,
                 headers: sanitizedHeaders,
             },
             (upstreamRes) => {
@@ -1622,8 +1997,18 @@ const proxyStaticAssetRequest = async ({ req, res, appId, portKey }) => {
                     return;
                 }
 
-                recordProxyAffinityForRequest({ req, appId, targetPath: req.originalUrl });
-                const rewrittenHeaders = rewriteResponseHeaders(upstreamRes.headers, appId, port);
+                recordProxyAffinityForRequest({ req, appId, targetPath: upstreamPath });
+                let rewrittenHeaders = rewriteResponseHeaders(upstreamRes.headers, appId, port);
+                rewrittenHeaders = ensureProxyIdentityHeaders(rewrittenHeaders, appId);
+                const methodUpper = (req.method || 'GET').toUpperCase();
+                const isJavascript = typeof contentTypeHeader === 'string' && /(javascript|ecmascript)/i.test(contentTypeHeader);
+                const isStylesheet = typeof contentTypeHeader === 'string' && /text\/css/i.test(contentTypeHeader);
+                const shouldRewrite = methodUpper !== 'HEAD' && Boolean(assetNamespace) && (isJavascript || isStylesheet);
+
+                if (shouldRewrite) {
+                    delete rewrittenHeaders['content-length'];
+                    delete rewrittenHeaders['Content-Length'];
+                }
 
                 res.status(upstreamRes.statusCode ?? 200);
                 for (const [headerKey, headerValue] of Object.entries(rewrittenHeaders)) {
@@ -1633,8 +2018,32 @@ const proxyStaticAssetRequest = async ({ req, res, appId, portKey }) => {
                     res.setHeader(headerKey, headerValue);
                 }
 
-                upstreamRes.pipe(res);
-                upstreamRes.on('end', () => resolve(true));
+                if (!shouldRewrite) {
+                    upstreamRes.pipe(res);
+                    upstreamRes.on('end', () => resolve(true));
+                    return;
+                }
+
+                const chunks = [];
+                upstreamRes.on('data', (chunk) => {
+                    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+                });
+                upstreamRes.on('end', () => {
+                    const buffer = Buffer.concat(chunks);
+                    try {
+                        let content = buffer.toString('utf8');
+                        if (isJavascript) {
+                            content = rewriteJavascriptAssetReferences(content, assetNamespace);
+                        } else if (isStylesheet) {
+                            content = rewriteCssAssetReferences(content, assetNamespace);
+                        }
+                        res.send(content);
+                    } catch (error) {
+                        console.error('[APP PROXY] Asset rewrite failed:', error.message);
+                        res.send(buffer);
+                    }
+                    resolve(true);
+                });
             }
         );
 

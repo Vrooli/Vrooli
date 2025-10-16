@@ -202,7 +202,10 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                 <button
                   type="button"
                   className="report-dialog__button"
-                  onClick={() => window.open(result.issueUrl, '_blank', 'noopener,noreferrer')}
+                  onClick={() => {
+                    // Preserve Referer so the proxy can resolve shared asset paths for the external tab.
+                    window.open(result.issueUrl, '_blank', 'noopener');
+                  }}
                 >
                   <ExternalLink aria-hidden size={16} />
                   <span>Open in Issue Tracker</span>
@@ -275,7 +278,8 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                             className="report-dialog__bridge-icon"
                             onClick={() => {
                               if (existingIssues.trackerUrl) {
-                                window.open(existingIssues.trackerUrl, '_blank', 'noopener,noreferrer');
+                                // Keep Referer so proxy affinity still maps assets for the opened tracker view.
+                                window.open(existingIssues.trackerUrl, '_blank', 'noopener');
                               }
                             }}
                             aria-label="Open issue tracker"
@@ -345,7 +349,8 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                                   className="report-dialog__bridge-icon report-dialog__issues-link"
                                   onClick={() => {
                                     if (issue.issue_url) {
-                                      window.open(issue.issue_url, '_blank', 'noopener,noreferrer');
+                                      // Maintain Referer for consistent proxy routing when the issue opens externally.
+                                      window.open(issue.issue_url, '_blank', 'noopener');
                                     }
                                   }}
                                   aria-label="View issue"

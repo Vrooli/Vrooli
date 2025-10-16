@@ -1451,7 +1451,8 @@ const AppPreviewView = () => {
     }
 
     event.preventDefault();
-    window.open(target, '_blank', 'noopener,noreferrer');
+    // Keep the Referer header so the proxy can map shared asset URLs to the active scenario.
+    window.open(target, '_blank', 'noopener');
   }, [bridgeState.href, bridgeState.isSupported, previewUrl]);
 
   const handleViewLogs = useCallback(() => {

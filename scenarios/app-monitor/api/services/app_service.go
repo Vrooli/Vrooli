@@ -236,36 +236,21 @@ var (
 	}
 
 	localhostAllowedExtensions = map[string]struct{}{
-		"":        {}, // dotfiles without extension
-		".c":      {},
-		".cc":     {},
-		".cpp":    {},
+		".cjs":    {},
 		".css":    {},
-		".env":    {},
 		".go":     {},
+		".htm":    {},
 		".html":   {},
-		".ini":    {},
-		".java":   {},
 		".js":     {},
 		".jsx":    {},
-		".json":   {},
-		".md":     {},
+		".less":   {},
 		".mjs":    {},
-		".php":    {},
-		".py":     {},
-		".rb":     {},
-		".rs":     {},
+		".sass":   {},
 		".scss":   {},
-		".sh":     {},
-		".sql":    {},
 		".svelte": {},
-		".toml":   {},
 		".ts":     {},
 		".tsx":    {},
 		".vue":    {},
-		".yaml":   {},
-		".yml":    {},
-		".txt":    {},
 	}
 
 	maxLocalhostScanFileSize int64 = 1 << 20 // 1 MiB
@@ -2379,7 +2364,31 @@ func (s *AppService) CheckLocalhostUsage(ctx context.Context, appID string) (*Lo
 	warnings := make([]string, 0)
 	scannedFiles := 0
 
-	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+	scanTargets := make([]string, 0, 2)
+	for _, subdir := range []string{"api", "ui"} {
+		candidate := filepath.Join(root, subdir)
+		info, statErr := os.Stat(candidate)
+		if statErr != nil {
+			if !errors.Is(statErr, fs.ErrNotExist) {
+				warnings = append(warnings, fmt.Sprintf("failed to inspect %s/: %v", subdir, statErr))
+			}
+			continue
+		}
+		if !info.IsDir() {
+			warnings = append(warnings, fmt.Sprintf("%s exists but is not a directory; skipping", filepath.ToSlash(subdir)))
+			continue
+		}
+		scanTargets = append(scanTargets, candidate)
+	}
+
+	if len(scanTargets) == 0 {
+		warnings = append(warnings, "scenario has no api/ or ui/ directory; skipping filesystem scan")
+		report.Warnings = warnings
+		return report, nil
+	}
+
+	for _, scanRoot := range scanTargets {
+		err = filepath.WalkDir(scanRoot, func(path string, d fs.DirEntry, walkErr error) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -2419,18 +2428,7 @@ func (s *AppService) CheckLocalhostUsage(ctx context.Context, appID string) (*Lo
 
 		ext := strings.ToLower(filepath.Ext(d.Name()))
 		if _, ok := localhostAllowedExtensions[ext]; !ok {
-			if ext != "" {
-				return nil
-			}
-
-			switch name {
-			case "dockerfile", "makefile", "procfile":
-				// allow
-			default:
-				if !strings.HasPrefix(name, ".env") && !strings.HasPrefix(name, "env") {
-					return nil
-				}
-			}
+			return nil
 		}
 
 		file, err := os.Open(path)
@@ -2492,8 +2490,9 @@ func (s *AppService) CheckLocalhostUsage(ctx context.Context, appID string) (*Lo
 		return nil
 	})
 
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	report.Scanned = scannedFiles

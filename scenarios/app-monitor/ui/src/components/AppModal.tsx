@@ -213,7 +213,8 @@ export default function AppModal({
     if (!currentUrl || typeof window === 'undefined') {
       return;
     }
-    window.open(currentUrl, '_blank', 'noopener,noreferrer');
+    // Keep Referer intact so the app-monitor proxy routes shared assets to the correct scenario.
+    window.open(currentUrl, '_blank', 'noopener');
   }, [currentUrl]);
 
   const handleCopyPreviewUrl = useCallback(() => {
@@ -250,11 +251,12 @@ export default function AppModal({
             {currentUrl && (
               <div className="modal-header__url" title={currentUrl}>
                 <span className="modal-header__url-label">Preview URL</span>
+                {/* Omit noreferrer so Referer persists for proxy asset routing. */}
                 <a
                   className="modal-header__url-value"
                   href={currentUrl}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noopener"
                 >
                   {currentUrl}
                 </a>

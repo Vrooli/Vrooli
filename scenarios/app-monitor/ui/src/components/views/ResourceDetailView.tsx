@@ -102,8 +102,9 @@ const renderValue = (value: unknown, depth = 0): JSX.Element => {
       return <span className="kv-null">—</span>;
     }
     if (isUrl(trimmed)) {
+      // Omit noreferrer so external inspectors keep the Referer for proxy routing heuristics.
       return (
-        <a className="kv-link" href={trimmed} target="_blank" rel="noreferrer">
+        <a className="kv-link" href={trimmed} target="_blank" rel="noopener">
           {trimmed}
           <ExternalLink className="kv-link-icon" size={14} />
         </a>
