@@ -20,6 +20,7 @@ import {
   Navigation2,
   Maximize2,
   Minimize2,
+  MonitorSmartphone,
   Power,
   RefreshCw,
   RotateCcw,
@@ -67,6 +68,8 @@ export interface AppPreviewToolbarProps {
   appStatusLabel: string;
   isFullView: boolean;
   onToggleFullView: () => void;
+  isDeviceEmulationActive: boolean;
+  onToggleDeviceEmulation: () => void;
   menuPortalContainer: HTMLElement | null;
   historyRecentApps: App[];
   historyAllApps: App[];
@@ -105,6 +108,8 @@ const AppPreviewToolbar = ({
   hasDetailsWarning,
   isFullView,
   onToggleFullView,
+  isDeviceEmulationActive,
+  onToggleDeviceEmulation,
   menuPortalContainer,
   historyRecentApps,
   historyAllApps,
@@ -1074,6 +1079,16 @@ const AppPreviewToolbar = ({
                   <Maximize2 aria-hidden size={16} />
                 )}
                 <span>{fullscreenActionLabel}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="preview-toolbar__menu-item"
+                onClick={onToggleDeviceEmulation}
+                disabled={!hasCurrentApp}
+              >
+                <MonitorSmartphone aria-hidden size={16} />
+                <span>{isDeviceEmulationActive ? 'Hide device emulation toolbar' : 'Show device emulation toolbar'}</span>
               </button>
               <button
                 type="button"

@@ -21,6 +21,10 @@ import {
 } from '@/utils/appPreview';
 import { useIframeBridge } from '@/hooks/useIframeBridge';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
+import { useDeviceEmulation } from '@/hooks/useDeviceEmulation';
+import DeviceEmulationToolbar from '../device-emulation/DeviceEmulationToolbar';
+import DeviceEmulationViewport from '../device-emulation/DeviceEmulationViewport';
+import DeviceVisionFilterDefs from '../device-emulation/DeviceVisionFilterDefs';
 import './AppPreviewView.css';
 
 const PREVIEW_LOAD_TIMEOUT_MS = 6000;
@@ -29,7 +33,6 @@ const PREVIEW_TIMEOUT_MESSAGE = 'Preview did not respond. Ensure the application
 const PREVIEW_MIXED_CONTENT_MESSAGE = 'Preview blocked: browser refused to load HTTP content inside an HTTPS dashboard. Expose the UI through the tunnel hostname or enable HTTPS for the scenario.';
 const IOS_AUTOBACK_GUARD_MS = 15000;
 const HISTORY_MENU_LIMIT = 16;
-
 const AppPreviewView = () => {
   const apps = useAppsStore(state => state.apps);
   const setAppsState = useAppsStore(state => state.setAppsState);
@@ -90,6 +93,17 @@ const AppPreviewView = () => {
   const previewViewRef = useRef<HTMLDivElement | null>(null);
   const [previewViewNode, setPreviewViewNode] = useState<HTMLDivElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
+  const [previewContainerNode, setPreviewContainerNode] = useState<HTMLDivElement | null>(null);
+  const deviceEmulation = useDeviceEmulation({ container: previewContainerNode });
+  const {
+    isActive: isDeviceEmulationActive,
+    toggleActive: toggleDeviceEmulation,
+    toolbar: deviceToolbar,
+    viewport: deviceViewport,
+  } = deviceEmulation;
+  const currentAppIdentifiers = useMemo(() => (
+    currentApp ? collectAppIdentifiers(currentApp) : []
+  ), [currentApp]);
   const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
   const [proxyMetadata, setProxyMetadata] = useState<AppProxyMetadata | null>(null);
   const [localhostReport, setLocalhostReport] = useState<LocalhostUsageReport | null>(null);
@@ -107,11 +121,6 @@ const AppPreviewView = () => {
   });
   const iosGuardedLocationKeyRef = useRef<string | null>(null);
   const lastStateSnapshotRef = useRef<string>('');
-
-  const currentAppIdentifiers = useMemo(() => (
-    currentApp ? collectAppIdentifiers(currentApp) : []
-  ), [currentApp]);
-
   const historyRecentApps = useMemo(() => {
     if (apps.length === 0) {
       return [] as App[];
@@ -1595,6 +1604,7 @@ const AppPreviewView = () => {
         setPreviewViewNode(node);
       }}
     >
+      <DeviceVisionFilterDefs />
       <AppPreviewToolbar
         canGoBack={canGoBack}
         canGoForward={canGoForward}
@@ -1625,6 +1635,8 @@ const AppPreviewView = () => {
         appStatusLabel={appStatusLabel}
         isFullView={isFullView}
         onToggleFullView={handleToggleFullscreen}
+        isDeviceEmulationActive={isDeviceEmulationActive}
+        onToggleDeviceEmulation={toggleDeviceEmulation}
         menuPortalContainer={previewViewNode}
         historyRecentApps={historyRecentApps}
         historyAllApps={historyAllApps}
@@ -1647,18 +1659,41 @@ const AppPreviewView = () => {
         </div>
       )}
 
+      {isDeviceEmulationActive && <DeviceEmulationToolbar {...deviceToolbar} />}
+
       {previewUrl ? (
-        <div className="preview-iframe-container" ref={previewContainerRef}>
-          <iframe
-            key={previewReloadToken}
-            src={previewUrl}
-            title={`${currentApp?.name ?? 'Application'} preview`}
-            className="preview-iframe"
-            loading="lazy"
-            ref={iframeRef}
-            onLoad={handleIframeLoad}
-            onError={handleIframeError}
-          />
+        <div
+          className={clsx('preview-iframe-container', isDeviceEmulationActive && 'preview-iframe-container--emulated')}
+          ref={node => {
+            previewContainerRef.current = node;
+            setPreviewContainerNode(node);
+          }}
+        >
+          {isDeviceEmulationActive ? (
+            <DeviceEmulationViewport {...deviceViewport}>
+              <iframe
+                key={previewReloadToken}
+                src={previewUrl}
+                title={`${currentApp?.name ?? 'Application'} preview`}
+                className="preview-iframe"
+                loading="lazy"
+                ref={iframeRef}
+                onLoad={handleIframeLoad}
+                onError={handleIframeError}
+              />
+            </DeviceEmulationViewport>
+          ) : (
+            <iframe
+              key={previewReloadToken}
+              src={previewUrl}
+              title={`${currentApp?.name ?? 'Application'} preview`}
+              className="preview-iframe"
+              loading="lazy"
+              ref={iframeRef}
+              onLoad={handleIframeLoad}
+              onError={handleIframeError}
+            />
+          )}
           {previewOverlay && (
             <div
               className={clsx('preview-iframe-overlay', `preview-iframe-overlay--${previewOverlay.type}`)}
@@ -1728,5 +1763,6 @@ const AppPreviewView = () => {
     </div>
   );
 };
+
 
 export default AppPreviewView;
