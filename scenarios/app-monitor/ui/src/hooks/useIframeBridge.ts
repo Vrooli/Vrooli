@@ -6,6 +6,8 @@ import type {
   BridgeLogStreamState,
   BridgeNetworkStreamState,
   BridgeLogLevel,
+  BridgeScreenshotMode,
+  BridgeScreenshotOptions,
 } from '@vrooli/iframe-bridge';
 
 type BridgeHelloMessage = {
@@ -55,6 +57,8 @@ type BridgeScreenshotResultMessage = {
   width?: number;
   height?: number;
   note?: string;
+  mode?: BridgeScreenshotMode;
+  clip?: { x: number; y: number; width: number; height: number };
   error?: string;
 };
 
@@ -121,7 +125,7 @@ type BridgeParentToChildMessage =
   | { v: 1; t: 'NAV'; cmd: 'BACK' }
   | { v: 1; t: 'NAV'; cmd: 'FWD' }
   | { v: 1; t: 'PING'; ts: number }
-  | { v: 1; t: 'CAPTURE'; cmd: 'SCREENSHOT'; id: string; options?: { scale?: number } }
+  | { v: 1; t: 'CAPTURE'; cmd: 'SCREENSHOT'; id: string; options?: BridgeScreenshotOptions }
   | { v: 1; t: 'LOGS'; cmd: 'PULL'; requestId: string; options?: BridgeSnapshotRequestOptions }
   | { v: 1; t: 'LOGS'; cmd: 'SET'; enable?: boolean; streaming?: boolean; levels?: BridgeLogLevel[]; bufferSize?: number }
   | { v: 1; t: 'NETWORK'; cmd: 'PULL'; requestId: string; options?: BridgeSnapshotRequestOptions }
@@ -174,11 +178,13 @@ export interface UseIframeBridgeReturn {
   sendPing: () => boolean;
   runComplianceCheck: () => Promise<BridgeComplianceResult>;
   resetState: () => void;
-  requestScreenshot: (options?: { scale?: number }) => Promise<{
+  requestScreenshot: (options?: BridgeScreenshotOptions) => Promise<{
     data: string;
     width: number;
     height: number;
     note?: string;
+    mode?: BridgeScreenshotMode;
+    clip?: { x: number; y: number; width: number; height: number };
   }>;
   logState: BridgeLogStreamState | null;
   networkState: BridgeNetworkStreamState | null;
@@ -228,7 +234,14 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
   const readyReceivedRef = useRef(false);
   const effectiveOriginRef = useRef<string | null>(null);
   const pendingScreenshotRequestsRef = useRef(new Map<string, {
-    resolve: (value: { data: string; width: number; height: number; note?: string }) => void;
+    resolve: (value: {
+      data: string;
+      width: number;
+      height: number;
+      note?: string;
+      mode?: BridgeScreenshotMode;
+      clip?: { x: number; y: number; width: number; height: number };
+    }) => void;
     reject: (error: Error) => void;
     timeoutHandle: number;
   }>());
@@ -383,7 +396,14 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
           pendingScreenshotRequestsRef.current.delete(message.id);
           window.clearTimeout(pending.timeoutHandle);
           if (message.ok && typeof message.data === 'string' && typeof message.width === 'number' && typeof message.height === 'number') {
-            pending.resolve({ data: message.data, width: message.width, height: message.height, note: message.note });
+            pending.resolve({
+              data: message.data,
+              width: message.width,
+              height: message.height,
+              note: message.note,
+              mode: message.mode,
+              clip: message.clip,
+            });
           } else {
             pending.reject(new Error(message.error || 'screenshot-failed'));
           }
@@ -510,12 +530,14 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
   }, [postMessage]);
 
   const requestScreenshot = useCallback(
-    (options?: { scale?: number }) => {
+    (options?: BridgeScreenshotOptions) => {
       return new Promise<{
         data: string;
         width: number;
         height: number;
         note?: string;
+        mode?: BridgeScreenshotMode;
+        clip?: { x: number; y: number; width: number; height: number };
       }>((resolve, reject) => {
         const iframeWindow = iframeRef.current?.contentWindow;
         if (!iframeWindow) {
@@ -536,8 +558,8 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
         }, 7000);
 
         pendingScreenshotRequestsRef.current.set(id, { resolve, reject, timeoutHandle });
-
-        const sent = postMessage({ v: 1, t: 'CAPTURE', cmd: 'SCREENSHOT', id, options });
+        const payloadOptions: BridgeScreenshotOptions = { mode: 'viewport', ...(options ?? {}) };
+        const sent = postMessage({ v: 1, t: 'CAPTURE', cmd: 'SCREENSHOT', id, options: payloadOptions });
         if (!sent) {
           window.clearTimeout(timeoutHandle);
           pendingScreenshotRequestsRef.current.delete(id);

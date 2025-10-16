@@ -10,6 +10,13 @@ export type BridgeCapability =
 
 export type BridgeLogLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
 
+export type BridgeScreenshotMode = 'viewport' | 'full-page';
+
+export interface BridgeScreenshotOptions {
+  scale?: number;
+  mode?: BridgeScreenshotMode;
+}
+
 export interface BridgeLogEvent {
   seq: number;
   ts: number;
@@ -117,6 +124,13 @@ type NetworkSetCommand = {
   bufferSize?: number;
 };
 
+interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface RingBuffer<T> {
   push: (value: T) => void;
   values: () => T[];
@@ -209,6 +223,53 @@ const loadHtml2Canvas = (() => {
     return loader;
   };
 })();
+
+const clampClipToCanvas = (clip: Rect, canvasWidth: number, canvasHeight: number): Rect | null => {
+  const x = Math.min(Math.max(Math.round(clip.x), 0), canvasWidth);
+  const y = Math.min(Math.max(Math.round(clip.y), 0), canvasHeight);
+  const remainingWidth = canvasWidth - x;
+  const remainingHeight = canvasHeight - y;
+  if (remainingWidth <= 0 || remainingHeight <= 0) {
+    return null;
+  }
+  const width = Math.max(1, Math.min(Math.round(clip.width), remainingWidth));
+  const height = Math.max(1, Math.min(Math.round(clip.height), remainingHeight));
+  if (width <= 0 || height <= 0) {
+    return null;
+  }
+  return { x, y, width, height };
+};
+
+const scaleRect = (rect: Rect, factor: number): Rect => {
+  return {
+    x: rect.x * factor,
+    y: rect.y * factor,
+    width: rect.width * factor,
+    height: rect.height * factor,
+  };
+};
+
+const getViewportRect = (): Rect => {
+  const viewport = window.visualViewport;
+  if (viewport) {
+    const width = viewport.width > 0 ? viewport.width : window.innerWidth;
+    const height = viewport.height > 0 ? viewport.height : window.innerHeight;
+    return {
+      x: Math.max(0, viewport.pageLeft),
+      y: Math.max(0, viewport.pageTop),
+      width: Math.max(1, width || document.documentElement.clientWidth || document.body.clientWidth || 0),
+      height: Math.max(1, height || document.documentElement.clientHeight || document.body.clientHeight || 0),
+    };
+  }
+  const width = Math.max(1, window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth || 0);
+  const height = Math.max(1, window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight || 0);
+  return {
+    x: Math.max(0, window.scrollX),
+    y: Math.max(0, window.scrollY),
+    width,
+    height,
+  };
+};
 
 const inferParentOrigin = (): string | null => {
   try {
@@ -864,16 +925,88 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
       const capture = async () => {
         try {
           const html2canvas = await loadHtml2Canvas();
-          const target = document.documentElement as HTMLElement;
-          const scale = typeof message.options === 'object' && typeof message.options?.scale === 'number'
-            ? message.options.scale
+          const requestOptions = (typeof message.options === 'object' && message.options)
+            ? (message.options as BridgeScreenshotOptions)
+            : {};
+          const scale = typeof requestOptions.scale === 'number' && Number.isFinite(requestOptions.scale) && requestOptions.scale > 0
+            ? requestOptions.scale
             : window.devicePixelRatio || 1;
-          const canvas = await html2canvas(target, {
+          let captureMode: BridgeScreenshotMode = requestOptions.mode === 'full-page' ? 'full-page' : 'viewport';
+          const target = document.documentElement as HTMLElement;
+          const captureOptions: Record<string, unknown> = {
             scale,
             logging: false,
             useCORS: true,
-          });
-          const dataUrl = canvas.toDataURL('image/png');
+          };
+
+          let viewportRect: Rect | null = null;
+          if (captureMode === 'viewport') {
+            viewportRect = getViewportRect();
+            captureOptions.scrollX = viewportRect.x;
+            captureOptions.scrollY = viewportRect.y;
+            captureOptions.windowWidth = viewportRect.width;
+            captureOptions.windowHeight = viewportRect.height;
+            captureOptions.x = viewportRect.x;
+            captureOptions.y = viewportRect.y;
+            captureOptions.width = viewportRect.width;
+            captureOptions.height = viewportRect.height;
+          }
+
+          const canvas = await html2canvas(target, captureOptions);
+
+          let resultCanvas = canvas;
+          let note: string | undefined;
+          let clipMetadata: Rect | undefined;
+
+          if (captureMode === 'viewport') {
+            const effectiveViewport = viewportRect ?? getViewportRect();
+            const scaledClip = scaleRect(effectiveViewport, scale);
+            const clampedClip = clampClipToCanvas(scaledClip, canvas.width, canvas.height);
+
+            if (clampedClip) {
+              const requiresCrop =
+                clampedClip.x !== 0
+                || clampedClip.y !== 0
+                || clampedClip.width !== canvas.width
+                || clampedClip.height !== canvas.height;
+
+              clipMetadata = {
+                x: clampedClip.x / scale,
+                y: clampedClip.y / scale,
+                width: clampedClip.width / scale,
+                height: clampedClip.height / scale,
+              };
+
+              if (requiresCrop) {
+                const viewportCanvas = document.createElement('canvas');
+                viewportCanvas.width = clampedClip.width;
+                viewportCanvas.height = clampedClip.height;
+                const context = viewportCanvas.getContext('2d');
+                if (context) {
+                  context.drawImage(
+                    canvas,
+                    clampedClip.x,
+                    clampedClip.y,
+                    clampedClip.width,
+                    clampedClip.height,
+                    0,
+                    0,
+                    clampedClip.width,
+                    clampedClip.height,
+                  );
+                  resultCanvas = viewportCanvas;
+                  note = 'Captured the currently visible viewport.';
+                }
+              } else {
+                note = 'Captured the currently visible viewport.';
+              }
+            } else {
+              note = 'Unable to determine viewport bounds; captured the full page instead.';
+              captureMode = 'full-page';
+            }
+          }
+
+          const dataUrl = resultCanvas.toDataURL('image/png');
           const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
           post({
             v: 1,
@@ -881,8 +1014,11 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
             id: message.id,
             ok: true,
             data: base64,
-            width: canvas.width,
-            height: canvas.height,
+            width: resultCanvas.width,
+            height: resultCanvas.height,
+            note,
+            mode: captureMode,
+            clip: clipMetadata,
           });
         } catch (error) {
           post({

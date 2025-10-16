@@ -12,6 +12,8 @@ import type {
   BridgeLogStreamState,
   BridgeNetworkEvent,
   BridgeNetworkStreamState,
+  BridgeScreenshotMode,
+  BridgeScreenshotOptions,
 } from '@vrooli/iframe-bridge';
 
 import useIframeBridgeDiagnostics from '@/hooks/useIframeBridgeDiagnostics';
@@ -54,11 +56,13 @@ interface UseReportIssueStateParams {
   iframeRef: RefObject<HTMLIFrameElement | null>;
   isPreviewSameOrigin: boolean;
   bridgeSupportsScreenshot: boolean;
-  requestScreenshot: (options?: Record<string, unknown>) => Promise<{
+  requestScreenshot: (options?: BridgeScreenshotOptions) => Promise<{
     data: string;
     width: number;
     height: number;
     note?: string;
+    mode?: BridgeScreenshotMode;
+    clip?: { x: number; y: number; width: number; height: number };
   }>;
   bridgeState: BridgePreviewState;
   logState: BridgeLogStreamState | null;

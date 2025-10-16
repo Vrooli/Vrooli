@@ -6,6 +6,7 @@ import type {
   RefObject,
   SyntheticEvent,
 } from 'react';
+import type { BridgeScreenshotMode, BridgeScreenshotOptions } from '@vrooli/iframe-bridge';
 import type Logger from '@/services/logger';
 
 type Html2CanvasFn = (element: HTMLElement, options?: Record<string, unknown>) => Promise<HTMLCanvasElement>;
@@ -67,11 +68,13 @@ interface ScreenshotHookOptions {
   iframeRef: RefObject<HTMLIFrameElement | null>;
   isPreviewSameOrigin: boolean;
   bridgeSupportsScreenshot: boolean;
-  requestScreenshot: (options?: Record<string, unknown>) => Promise<{
+  requestScreenshot: (options?: BridgeScreenshotOptions) => Promise<{
     data: string;
     width: number;
     height: number;
     note?: string | null;
+    mode?: BridgeScreenshotMode;
+    clip?: { x: number; y: number; width: number; height: number };
   }>;
   logger: Logger;
 }
@@ -389,11 +392,15 @@ export function useReportScreenshot({
 
     if (bridgeSupportsScreenshot) {
       try {
-        const result = await requestScreenshot({ scale: window.devicePixelRatio || 1 });
+        const screenshotOptions: BridgeScreenshotOptions = {
+          scale: window.devicePixelRatio || 1,
+          mode: 'viewport',
+        };
+        const result = await requestScreenshot(screenshotOptions);
         setReportScreenshotOriginalData(result.data);
         setReportScreenshotData(result.data);
         setReportScreenshotOriginalDimensions({ width: result.width, height: result.height });
-        setReportScreenshotInfo(result.note ?? null);
+        setReportScreenshotInfo(result.note ?? (result.mode === 'viewport' ? 'Captured the currently visible viewport.' : null));
         handled = true;
       } catch (error) {
         logger.warn('Bridge screenshot capture failed, falling back to client capture', error);

@@ -8,6 +8,8 @@ export {
   type BridgeNetworkEvent,
   type BridgeNetworkStreamState,
   type BridgeLogLevel,
+  type BridgeScreenshotMode,
+  type BridgeScreenshotOptions,
   type LogCaptureOptions,
   type NetworkCaptureOptions,
 } from './iframeBridgeChild';

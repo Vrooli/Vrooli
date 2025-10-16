@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Database, Tag, DollarSign, AlertCircle, CheckCircle, XCircle, Plus, BookOpen, Settings, Globe, Key, Calendar, FileText } from 'lucide-react';
+import { Search, Database, Tag, DollarSign, AlertCircle, CheckCircle, XCircle, Plus, BookOpen, Settings, Globe, Key, Calendar, FileText, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import './App.css';
 
@@ -230,6 +230,50 @@ function App() {
     return <span className={`badge ${statusClasses[status] || 'badge-default'}`}>{status}</span>;
   };
 
+  const getAvatarInitials = (name = '') => {
+    if (!name || typeof name !== 'string') {
+      return 'API';
+    }
+
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return 'API';
+    }
+
+    const words = trimmed.split(/\s+/).filter(Boolean);
+    if (words.length === 1) {
+      const cleaned = words[0].replace(/[^a-zA-Z0-9]/g, '');
+      return (cleaned.slice(0, 2) || words[0].slice(0, 2)).toUpperCase();
+    }
+
+    const first = words[0][0] || '';
+    const second = words[1][0] || '';
+    const initials = `${first}${second}`.trim();
+    return (initials || trimmed.slice(0, 2)).toUpperCase();
+  };
+
+  const getHostname = (url) => {
+    if (!url || typeof url !== 'string') {
+      return null;
+    }
+
+    try {
+      const hostname = new URL(url).hostname;
+      return hostname.replace(/^www\./i, '');
+    } catch (err) {
+      const sanitized = url.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+      return sanitized ? sanitized : null;
+    }
+  };
+
+  const normalizeStatusClass = (status) => {
+    if (!status || typeof status !== 'string') {
+      return 'status-default';
+    }
+
+    return `status-${status.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  };
+
   return (
     <div className="app">
       <header className="header">
@@ -332,31 +376,72 @@ function App() {
                 </div>
                 <div className="results-grid">
                   {searchResults.map((api) => (
-                    <div 
-                      key={api.id} 
+                    <div
+                      key={api.id}
                       className="api-card"
                       onClick={() => fetchAPIDetails(api.id)}
-                  >
-                    <div className="api-card-header">
-                      <h3>{api.name}</h3>
-                      {api.configured && <CheckCircle className="configured-icon" />}
+                    >
+                      <div className="api-card-topline">
+                        <span className="category-chip">
+                          <Tag size={12} />
+                          {api.category || 'uncategorized'}
+                        </span>
+                        {api.configured && (
+                          <span className="configured-pill">
+                            <CheckCircle size={14} />
+                            Configured
+                          </span>
+                        )}
+                      </div>
+                      <div className="api-card-header">
+                        <div className="api-avatar" aria-hidden="true">
+                          {getAvatarInitials(api.name || api.provider)}
+                        </div>
+                        <div className="api-card-title">
+                          <h3>{api.name}</h3>
+                          <p className="api-provider">{api.provider}</p>
+                        </div>
+                        {api.status && (
+                          <div className={`api-status-chip ${normalizeStatusClass(api.status)}`}>
+                            <span className="status-dot" aria-hidden="true" />
+                            <span className="status-label">{api.status}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="api-card-quick-meta">
+                        <div className="quick-meta-item">
+                          <Key size={14} />
+                          <span>{api.auth_type || 'Auth TBD'}</span>
+                        </div>
+                        {getHostname(api.base_url) && (
+                          <div className="quick-meta-item">
+                            <Globe size={14} />
+                            <span>{getHostname(api.base_url)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="api-description">{api.description}</p>
+                      <div className="api-card-metrics">
+                        <div className="api-metric">
+                          <DollarSign size={14} />
+                          <span>{api.pricing_summary || 'Pricing not available'}</span>
+                        </div>
+                        <div className="api-metric match">
+                          <Sparkles size={14} />
+                          <span>{`Match ${Math.round(api.relevance_score * 100)}%`}</span>
+                        </div>
+                      </div>
+                      {Array.isArray(api.tags) && api.tags.length > 0 && (
+                        <div className="api-card-tags">
+                          {api.tags.slice(0, 3).map((tag, idx) => (
+                            <span key={`${api.id}-tag-${idx}`} className="api-tag">{tag}</span>
+                          ))}
+                          {api.tags.length > 3 && (
+                            <span className="api-tag more">+{api.tags.length - 3}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <p className="api-provider">{api.provider}</p>
-                    <p className="api-description">{api.description}</p>
-                    <div className="api-pricing">
-                      <DollarSign size={12} />
-                      <span>{api.pricing_summary || 'Pricing not available'}</span>
-                    </div>
-                    <div className="api-card-footer">
-                      <span className="category-tag">
-                        <Tag size={12} />
-                        {api.category || 'uncategorized'}
-                      </span>
-                      <span className="relevance-score">
-                        Match: {(api.relevance_score * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                  </div>
                   ))}
                 </div>
               </>
