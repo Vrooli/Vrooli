@@ -19,7 +19,131 @@ import {
   Brain
 } from 'lucide-react';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const DEFAULT_API_PORT = (process.env.REACT_APP_API_PORT && process.env.REACT_APP_API_PORT.trim()) || '8080';
+const LOOPBACK_DEFAULT = `http://127.0.0.1:${DEFAULT_API_PORT}`;
+
+const normalizeBase = (value = '') => value.replace(/\/+$/, '');
+const ensureLeadingSlash = (value = '') => (value.startsWith('/') ? value : `/${value}`);
+
+const isLocalHostname = (hostname) => {
+  if (!hostname) return false;
+  const normalized = hostname.toLowerCase();
+  return [
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+    '::1',
+    '[::1]'
+  ].includes(normalized);
+};
+
+const isLikelyProxiedPath = (pathname) => {
+  if (!pathname) return false;
+  return pathname.includes('/apps/') && pathname.includes('/proxy/');
+};
+
+const pickProxyCandidate = (info) => {
+  if (!info) return undefined;
+
+  const primary = info.primary || info.endpoint || info.target;
+  if (primary && typeof primary === 'object') {
+    const candidate = primary.url || primary.path || primary.target;
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  if (info.primary && typeof info.primary === 'string') {
+    return info.primary;
+  }
+
+  if (Array.isArray(info.endpoints)) {
+    for (const endpoint of info.endpoints) {
+      if (endpoint && typeof endpoint === 'object') {
+        const candidate = endpoint.url || endpoint.path || endpoint.target;
+        if (candidate) {
+          return candidate;
+        }
+      } else if (typeof endpoint === 'string' && endpoint.trim()) {
+        return endpoint;
+      }
+    }
+  }
+
+  if (typeof info === 'string' && info.trim()) {
+    return info;
+  }
+
+  return undefined;
+};
+
+const resolveProxyBase = () => {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  const proxyInfo = window.__APP_MONITOR_PROXY_INFO__ || window.__APP_MONITOR_PROXY_INDEX__;
+  const candidate = pickProxyCandidate(proxyInfo);
+  if (!candidate) {
+    return undefined;
+  }
+
+  if (/^https?:\/\//i.test(candidate)) {
+    return normalizeBase(candidate);
+  }
+
+  const origin = window.location && window.location.origin;
+  if (!origin) {
+    return undefined;
+  }
+
+  return normalizeBase(`${normalizeBase(origin)}${ensureLeadingSlash(candidate)}`);
+};
+
+const resolveApiBaseUrl = () => {
+  const explicit = (process.env.REACT_APP_API_URL || '').trim();
+
+  if (typeof window !== 'undefined') {
+    const proxyBase = resolveProxyBase();
+    if (proxyBase) {
+      return proxyBase;
+    }
+
+    const location = window.location || {};
+    const hostname = location.hostname;
+    const origin = location.origin;
+    const pathname = location.pathname;
+    const hasProxyBootstrap = typeof window.__APP_MONITOR_PROXY_INFO__ !== 'undefined';
+    const proxiedPath = isLikelyProxiedPath(pathname);
+    const remoteHost = hostname ? !isLocalHostname(hostname) : false;
+
+    if (explicit) {
+      const normalized = normalizeBase(explicit);
+
+      if (remoteHost && !hasProxyBootstrap && !proxiedPath && /localhost|127\.0\.0\.1/i.test(normalized)) {
+        return normalizeBase(origin || normalized);
+      }
+
+      return normalized;
+    }
+
+    if (remoteHost && !hasProxyBootstrap && !proxiedPath) {
+      return normalizeBase(origin || LOOPBACK_DEFAULT);
+    }
+  }
+
+  if (explicit) {
+    return normalizeBase(explicit);
+  }
+
+  return LOOPBACK_DEFAULT;
+};
+
+const buildApiUrl = (path) => {
+  const base = resolveApiBaseUrl();
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${normalizeBase(base)}${normalizedPath}`;
+};
 
 function App() {
   const [games, setGames] = useState([]);
@@ -55,7 +179,7 @@ function App() {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(`${API_URL}/api/games`);
+      const response = await axios.get(buildApiUrl('/api/games'));
       setGames(response.data || []);
     } catch (err) {
       setError('Failed to load games. Make sure the API is running.');
@@ -67,7 +191,7 @@ function App() {
 
   const fetchFeaturedGames = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/featured`);
+      const response = await axios.get(buildApiUrl('/api/featured'));
       setFeaturedGames(response.data || []);
     } catch (err) {
       console.error('Error fetching featured games:', err);
@@ -82,7 +206,7 @@ function App() {
     
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/api/search/games?q=${encodeURIComponent(query)}`);
+      const response = await axios.get(buildApiUrl('/api/search/games'), { params: { q: query } });
       setGames(response.data || []);
     } catch (err) {
       setError('Search failed. Please try again.');
@@ -99,7 +223,7 @@ function App() {
       setGeneratingGame(true);
       setError(null);
       
-      const response = await axios.post(`${API_URL}/api/generate`, {
+      const response = await axios.post(buildApiUrl('/api/generate'), {
         prompt: gamePrompt,
         engine: selectedEngine,
         tags: ['ai-generated', 'retro']
@@ -121,7 +245,7 @@ function App() {
 
   const playGame = async (gameId) => {
     try {
-      await axios.post(`${API_URL}/api/games/${gameId}/play`, {});
+      await axios.post(buildApiUrl(`/api/games/${gameId}/play`), {});
       // Update play count in local state
       setGames(games.map(game => 
         game.id === gameId 

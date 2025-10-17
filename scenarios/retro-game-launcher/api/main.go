@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -69,6 +71,495 @@ type HighScore struct {
 type APIServer struct {
 	db        *sql.DB
 	ollamaURL string
+}
+
+func (s *APIServer) ensureStarterContent(ctx context.Context) error {
+	if s == nil || s.db == nil {
+		return fmt.Errorf("server not initialized")
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	// Remove leftover placeholder games that shipped with early prototypes
+	cleanupQuery := `
+		DELETE FROM games
+		WHERE LOWER(title) LIKE 'create a simple test%'
+		   OR LOWER(prompt) LIKE 'create a simple test%'`
+
+	if _, err := s.db.ExecContext(ctx, cleanupQuery); err != nil {
+		return err
+	}
+
+	tagsColumnType, err := s.lookupColumnType(ctx, "games", "tags")
+	if err != nil {
+		// Default to ARRAY when the schema lookup fails (older test harnesses)
+		tagsColumnType = "ARRAY"
+	}
+
+	type starterGame struct {
+		Title       string
+		Prompt      string
+		Description string
+		Code        string
+		Engine      string
+		Tags        []string
+		PlayCount   int
+		Rating      float64
+	}
+
+	starterGames := []starterGame{
+		{
+			Title:       "Neon Snake",
+			Prompt:      "Create a neon-lit snake game with crunchy 8-bit sound effects and simple controls",
+			Description: "Guide a glowing snake through a synthwave grid, collecting energy pellets while avoiding your tail.",
+			Code: strings.TrimSpace(`
+const canvas = document.createElement('canvas');
+canvas.width = 420;
+canvas.height = 420;
+document.body.appendChild(canvas);
+const ctx = canvas.getContext('2d');
+
+let snake = [{ x: 10, y: 10 }];
+let direction = { x: 1, y: 0 };
+let food = { x: 5, y: 5 };
+let speed = 160;
+
+function drawBlock(x, y, color) {
+	ctx.fillStyle = color;
+	ctx.fillRect(x * 20, y * 20, 18, 18);
+}
+
+function update() {
+	const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+	snake.unshift(head);
+
+	if (head.x === food.x && head.y === food.y) {
+		food = { x: Math.floor(Math.random() * 21), y: Math.floor(Math.random() * 21) };
+	} else {
+		snake.pop();
+	}
+
+	const hitWall = head.x < 0 || head.y < 0 || head.x > 20 || head.y > 20;
+	const hitTail = snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y);
+
+	if (hitWall || hitTail) {
+		snake = [{ x: 10, y: 10 }];
+		direction = { x: 1, y: 0 };
+	}
+}
+
+function draw() {
+	ctx.fillStyle = '#080212';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.strokeStyle = '#1cf2ff';
+	ctx.strokeRect(0, 0, canvas.width, canvas.height);
+	drawBlock(food.x, food.y, '#ff00ff');
+	snake.forEach((segment, index) => {
+		const color = index === 0 ? '#00ff99' : '#00d16a';
+		drawBlock(segment.x, segment.y, color);
+	});
+}
+
+document.addEventListener('keydown', event => {
+	const keyMap = {
+		ArrowUp: { x: 0, y: -1 },
+		ArrowDown: { x: 0, y: 1 },
+		ArrowLeft: { x: -1, y: 0 },
+		ArrowRight: { x: 1, y: 0 }
+	};
+	const next = keyMap[event.key];
+	if (next && (next.x !== -direction.x || next.y !== -direction.y)) {
+		direction = next;
+	}
+});
+
+function loop() {
+	update();
+	draw();
+	setTimeout(() => requestAnimationFrame(loop), speed);
+}
+
+loop();
+`),
+			Engine:    "javascript",
+			Tags:      []string{"arcade", "snake", "classic"},
+			PlayCount: 384,
+			Rating:    4.7,
+		},
+		{
+			Title:       "Pixel Breaker",
+			Prompt:      "Build a brick breaker arcade game with neon particles and responsive paddle controls",
+			Description: "Bounce energy orbs to clear progressive waves of neon bricks and chase the global high score.",
+			Code: strings.TrimSpace(`
+const canvas = document.createElement('canvas');
+canvas.width = 640;
+canvas.height = 480;
+document.body.appendChild(canvas);
+const ctx = canvas.getContext('2d');
+
+const paddle = { x: 280, y: 440, w: 80, h: 16, speed: 8 };
+const ball = { x: 320, y: 320, vx: 4, vy: -4, r: 8 };
+const bricks = [];
+
+for (let row = 0; row < 5; row++) {
+	for (let col = 0; col < 10; col++) {
+		bricks.push({ x: 48 + col * 56, y: 60 + row * 28, w: 48, h: 20, alive: true });
+	}
+}
+
+function update() {
+	ball.x += ball.vx;
+	ball.y += ball.vy;
+
+	if (ball.x < ball.r || ball.x > canvas.width - ball.r) ball.vx *= -1;
+	if (ball.y < ball.r) ball.vy *= -1;
+
+	if (ball.y > canvas.height) {
+		ball.x = 320;
+		ball.y = 320;
+		ball.vx = 4;
+		ball.vy = -4;
+	}
+
+	if (ball.y + ball.r >= paddle.y && ball.x >= paddle.x && ball.x <= paddle.x + paddle.w) {
+		ball.vy *= -1;
+		ball.y = paddle.y - ball.r;
+	}
+
+	bricks.forEach(brick => {
+		if (!brick.alive) return;
+		const withinX = ball.x > brick.x && ball.x < brick.x + brick.w;
+		const withinY = ball.y - ball.r < brick.y + brick.h && ball.y + ball.r > brick.y;
+		if (withinX && withinY) {
+			brick.alive = false;
+			ball.vy *= -1;
+		}
+	});
+}
+
+function draw() {
+	ctx.fillStyle = '#08040c';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#0ff';
+	ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
+	ctx.fillStyle = '#f0f';
+	ctx.beginPath();
+	ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+	ctx.fill();
+
+	bricks.forEach(brick => {
+		if (!brick.alive) return;
+		ctx.fillStyle = '#ff0077';
+		ctx.fillRect(brick.x, brick.y, brick.w, brick.h);
+	});
+}
+
+document.addEventListener('mousemove', event => {
+	const rect = canvas.getBoundingClientRect();
+	paddle.x = Math.max(0, Math.min(canvas.width - paddle.w, event.clientX - rect.left - paddle.w / 2));
+});
+
+function loop() {
+	update();
+	draw();
+	requestAnimationFrame(loop);
+}
+
+loop();
+`),
+			Engine:    "javascript",
+			Tags:      []string{"arcade", "breakout", "neon"},
+			PlayCount: 256,
+			Rating:    4.6,
+		},
+		{
+			Title:       "Galactic Defender",
+			Prompt:      "Create a classic space shooter where players blast invading waves and collect power-ups",
+			Description: "Battle neon alien squadrons, upgrade your ship mid-flight, and survive escalating cosmic assaults.",
+			Code: strings.TrimSpace(`
+const canvas = document.createElement('canvas');
+canvas.width = 720;
+canvas.height = 480;
+document.body.appendChild(canvas);
+const ctx = canvas.getContext('2d');
+
+const ship = { x: 360, y: 420, w: 32, h: 32 };
+const lasers = [];
+const enemies = [];
+let tick = 0;
+
+function spawnWave() {
+	for (let i = 0; i < 8; i++) {
+		enemies.push({ x: 80 + i * 70, y: 60, w: 28, h: 18, vx: Math.sin(tick / 30 + i) * 2 });
+	}
+}
+
+function update() {
+	tick++;
+	ship.x = Math.max(16, Math.min(canvas.width - 48, ship.x));
+
+	lasers.forEach(laser => (laser.y -= 8));
+	for (let i = lasers.length - 1; i >= 0; i--) {
+		if (lasers[i].y < -20) lasers.splice(i, 1);
+	}
+
+	enemies.forEach(enemy => {
+		enemy.y += 0.3;
+		enemy.x += enemy.vx;
+	});
+
+	enemies.forEach(enemy => {
+		lasers.forEach(laser => {
+			const overlapX = Math.abs(laser.x - enemy.x) < 24;
+			const overlapY = Math.abs(laser.y - enemy.y) < 18;
+			if (!enemy.dead && !laser.dead && overlapX && overlapY) {
+				enemy.dead = true;
+				laser.dead = true;
+			}
+		});
+	});
+
+	for (let i = lasers.length - 1; i >= 0; i--) {
+		if (lasers[i].dead) lasers.splice(i, 1);
+	}
+	for (let i = enemies.length - 1; i >= 0; i--) {
+		if (enemies[i].dead) enemies.splice(i, 1);
+	}
+
+	if (tick % 240 === 0 || enemies.length === 0) {
+		spawnWave();
+	}
+}
+
+function draw() {
+	ctx.fillStyle = '#02030b';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	ctx.fillStyle = '#31f3ff';
+	ctx.fillRect(ship.x, ship.y, ship.w, ship.h);
+
+	ctx.fillStyle = '#ff2266';
+	lasers.forEach(laser => ctx.fillRect(laser.x, laser.y, 4, 12));
+
+	enemies.forEach(enemy => {
+		ctx.fillStyle = '#8f00ff';
+		ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
+	});
+}
+
+document.addEventListener('mousemove', event => {
+	const rect = canvas.getBoundingClientRect();
+	ship.x = event.clientX - rect.left - ship.w / 2;
+});
+
+document.addEventListener('click', () => {
+	lasers.push({ x: ship.x + ship.w / 2, y: ship.y });
+});
+
+function loop() {
+	update();
+	draw();
+	requestAnimationFrame(loop);
+}
+
+spawnWave();
+loop();
+`),
+			Engine:    "javascript",
+			Tags:      []string{"shooter", "space", "retro"},
+			PlayCount: 512,
+			Rating:    4.8,
+		},
+		{
+			Title:       "Turbo Tunnels",
+			Prompt:      "Design a top-down hover bike racer dodging tunnels and collecting boost orbs",
+			Description: "Dash through endless neon tunnels, weaving through obstacles and chaining boosts for max velocity.",
+			Code: strings.TrimSpace(`
+const canvas = document.createElement('canvas');
+canvas.width = 800;
+canvas.height = 480;
+document.body.appendChild(canvas);
+const ctx = canvas.getContext('2d');
+
+const bike = { x: 400, y: 380, vx: 0 };
+const obstacles = [];
+let distance = 0;
+
+function spawnObstacle() {
+	const width = 160 + Math.random() * 200;
+	const gap = Math.random() * (canvas.width - width);
+	obstacles.push({ gapStart: gap, gapWidth: width, y: -40 });
+}
+
+function update() {
+	distance += 1;
+	bike.x += bike.vx;
+	bike.x = Math.max(40, Math.min(canvas.width - 40, bike.x));
+
+	obstacles.forEach(obstacle => {
+		obstacle.y += 6;
+		if (obstacle.y > canvas.height + 40) obstacle.remove = true;
+	});
+
+	obstacles.forEach(obstacle => {
+		const colliding = obstacle.y > bike.y - 12 && obstacle.y < bike.y + 12;
+		const outsideGap = bike.x < obstacle.gapStart || bike.x > obstacle.gapStart + obstacle.gapWidth;
+		if (colliding && outsideGap) {
+			distance = 0;
+			bike.x = 400;
+			bike.vx = 0;
+			obstacles.length = 0;
+		}
+	});
+
+	for (let i = obstacles.length - 1; i >= 0; i--) {
+		if (obstacles[i].remove) obstacles.splice(i, 1);
+	}
+
+	if (distance % 45 === 0) spawnObstacle();
+}
+
+function draw() {
+	ctx.fillStyle = '#05031a';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	ctx.strokeStyle = '#ff007a';
+	ctx.lineWidth = 4;
+	ctx.beginPath();
+	ctx.moveTo(canvas.width / 2 - 40, 0);
+	ctx.lineTo(canvas.width / 2 - 80, canvas.height);
+	ctx.moveTo(canvas.width / 2 + 40, 0);
+	ctx.lineTo(canvas.width / 2 + 80, canvas.height);
+	ctx.stroke();
+
+	ctx.fillStyle = '#00f0ff';
+	ctx.beginPath();
+	ctx.arc(bike.x, bike.y, 18, 0, Math.PI * 2);
+	ctx.fill();
+
+	ctx.fillStyle = '#ffef11';
+	obstacles.forEach(obstacle => {
+		ctx.fillRect(0, obstacle.y, obstacle.gapStart, 24);
+		ctx.fillRect(obstacle.gapStart + obstacle.gapWidth, obstacle.y, canvas.width - obstacle.gapStart - obstacle.gapWidth, 24);
+	});
+
+	ctx.fillStyle = '#0ff';
+	ctx.font = '18px monospace';
+	ctx.fillText('Distance: ' + distance, 24, 36);
+}
+
+document.addEventListener('keydown', event => {
+	if (event.key === 'ArrowLeft') bike.vx = -6;
+	if (event.key === 'ArrowRight') bike.vx = 6;
+});
+
+document.addEventListener('keyup', event => {
+	if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') bike.vx = 0;
+});
+
+function loop() {
+	update();
+	draw();
+	requestAnimationFrame(loop);
+}
+
+loop();
+`),
+			Engine:    "javascript",
+			Tags:      []string{"racing", "endless", "synthwave"},
+			PlayCount: 298,
+			Rating:    4.5,
+		},
+	}
+
+	for _, game := range starterGames {
+		var exists bool
+		err := s.db.QueryRowContext(ctx,
+			`SELECT EXISTS(SELECT 1 FROM games WHERE LOWER(title) = LOWER($1))`,
+			game.Title,
+		).Scan(&exists)
+		if err != nil {
+			return err
+		}
+
+		if exists {
+			continue
+		}
+
+		tagsValue, err := prepareTagsValue(game.Tags, tagsColumnType)
+		if err != nil {
+			return err
+		}
+
+		now := time.Now()
+		_, err = s.db.ExecContext(ctx, `
+			INSERT INTO games (
+				id, title, prompt, description, code, engine,
+				author_id, play_count, rating, tags, created_at, updated_at, published
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true)
+		`,
+			uuid.New().String(),
+			game.Title,
+			game.Prompt,
+			game.Description,
+			game.Code,
+			game.Engine,
+			nil,
+			game.PlayCount,
+			game.Rating,
+			tagsValue,
+			now,
+			now,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *APIServer) lookupColumnType(ctx context.Context, table, column string) (string, error) {
+	var dataType sql.NullString
+	err := s.db.QueryRowContext(ctx, `
+		SELECT data_type
+		FROM information_schema.columns
+		WHERE LOWER(table_name) = LOWER($1)
+		  AND LOWER(column_name) = LOWER($2)
+		LIMIT 1`, table, column).Scan(&dataType)
+	if err != nil {
+		return "", err
+	}
+
+	if !dataType.Valid {
+		return "", fmt.Errorf("column %s.%s not found", table, column)
+	}
+
+	return strings.ToUpper(dataType.String), nil
+}
+
+func prepareTagsValue(tags []string, columnType string) (interface{}, error) {
+	if strings.Contains(strings.ToUpper(columnType), "JSON") {
+		payload, err := json.Marshal(tags)
+		if err != nil {
+			return nil, err
+		}
+		return string(payload), nil
+	}
+
+	if len(tags) == 0 {
+		return "{}", nil
+	}
+
+	escaped := make([]string, len(tags))
+	for i, tag := range tags {
+		safe := strings.ReplaceAll(tag, "\"", "\\\"")
+		escaped[i] = "\"" + safe + "\""
+	}
+
+	return "{" + strings.Join(escaped, ",") + "}", nil
 }
 
 func main() {
@@ -176,6 +667,10 @@ func main() {
 	server := &APIServer{
 		db:        db,
 		ollamaURL: ollamaURL,
+	}
+
+	if err := server.ensureStarterContent(context.Background()); err != nil {
+		log.Printf("⚠️  Unable to ensure starter content: %v", err)
 	}
 
 	router := mux.NewRouter()

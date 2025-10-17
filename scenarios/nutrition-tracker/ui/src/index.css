@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  min-height: 100vh;
+  background-color: hsl(210 20% 98%);
+  color: hsl(222.2 47.4% 11.2%);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-image: linear-gradient(135deg, rgba(53, 181, 123, 0.08) 0%, rgba(15, 23, 42, 0.1) 100%);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(53, 181, 123, 0.18);
+  color: inherit;
+}
+
+.bg-hero-pattern {
+  position: relative;
+  overflow: hidden;
+}
+
+.bg-hero-pattern::before,
+.bg-hero-pattern::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  inset: -30%;
+  background: radial-gradient(circle at var(--x, 25%) var(--y, 25%), rgba(53, 181, 123, 0.18), transparent 55%);
+  filter: blur(35px);
+  opacity: 0.75;
+  z-index: 0;
+}
+
+.bg-hero-pattern::after {
+  --x: 70%;
+  --y: 70%;
+  background: radial-gradient(circle at var(--x) var(--y), rgba(15, 118, 110, 0.18), transparent 55%);
+}
+
+.card-surface {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.92));
+  backdrop-filter: blur(16px);
+}
+
+[data-radix-toast-viewport] {
+  z-index: 60;
+}

@@ -16,20 +16,7 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Animated Background Elements -->
-        <div class="background-elements">
-            <div class="bubble bubble-1"></div>
-            <div class="bubble bubble-2"></div>
-            <div class="bubble bubble-3"></div>
-            <div class="sparkle sparkle-1">✨</div>
-            <div class="sparkle sparkle-2">⭐</div>
-            <div class="sparkle sparkle-3">🌟</div>
-            <div class="floating-emoji emoji-1">🧹</div>
-            <div class="floating-emoji emoji-2">🧽</div>
-            <div class="floating-emoji emoji-3">🧺</div>
-        </div>
-
-        <!-- Header with User Stats -->
+        <!-- Header with Stats & Controls -->
         <header class="game-header">
             <div class="logo-section">
                 <div class="logo-icon">🏠</div>
@@ -39,58 +26,60 @@
                 </h1>
             </div>
 
-            <div class="user-stats">
-                <div class="stat-card level-card">
-                    <div class="stat-icon">🎖️</div>
-                    <div class="stat-info">
-                        <div class="stat-label">Level</div>
-                        <div class="stat-value" id="user-level">1</div>
+            <div class="header-right">
+                <div class="user-stats">
+                    <div class="stat-card level-card">
+                        <div class="stat-icon">🎖️</div>
+                        <div class="stat-info">
+                            <div class="stat-label">Level</div>
+                            <div class="stat-value" id="user-level">1</div>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="stat-card points-card">
-                    <div class="stat-icon">💎</div>
-                    <div class="stat-info">
-                        <div class="stat-label">Points</div>
-                        <div class="stat-value" id="user-points">0</div>
+
+                    <div class="stat-card points-card">
+                        <div class="stat-icon">💎</div>
+                        <div class="stat-info">
+                            <div class="stat-label">Points</div>
+                            <div class="stat-value" id="user-points">0</div>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="stat-card streak-card">
-                    <div class="stat-icon">🔥</div>
-                    <div class="stat-info">
-                        <div class="stat-label">Streak</div>
-                        <div class="stat-value" id="user-streak">0</div>
+
+                    <div class="stat-card streak-card">
+                        <div class="stat-icon">🔥</div>
+                        <div class="stat-info">
+                            <div class="stat-label">Streak</div>
+                            <div class="stat-value" id="user-streak">0</div>
+                        </div>
+                    </div>
+
+                    <div class="user-avatar">
+                        <div class="avatar-emoji" id="user-avatar">🦸</div>
+                        <div class="level-badge" id="level-badge">1</div>
                     </div>
                 </div>
 
-                <div class="user-avatar">
-                    <div class="avatar-emoji" id="user-avatar">🦸</div>
-                    <div class="level-badge" id="level-badge">1</div>
+                <div class="header-controls">
+                    <div class="power-ups-container" id="power-ups">
+                        <div class="power-up-badge" data-type="doubleXP" title="2x XP Boost">
+                            ⚡
+                            <span class="power-up-count" id="doubleXP-count">0</span>
+                        </div>
+                        <div class="power-up-badge" data-type="timeFreeze" title="Time Freeze">
+                            ⏰
+                            <span class="power-up-count" id="timeFreeze-count">0</span>
+                        </div>
+                        <div class="power-up-badge" data-type="helperBot" title="Helper Bot">
+                            🤖
+                            <span class="power-up-count" id="helperBot-count">0</span>
+                        </div>
+                    </div>
+
+                    <div class="sound-toggle" id="sound-toggle" role="button" aria-label="Toggle sound">
+                        <span id="sound-icon">🔊</span>
+                    </div>
                 </div>
             </div>
         </header>
-
-        <!-- Power-ups Container -->
-        <div class="power-ups-container" id="power-ups">
-            <div class="power-up-badge" data-type="doubleXP" title="2x XP Boost">
-                ⚡
-                <span class="power-up-count" id="doubleXP-count">0</span>
-            </div>
-            <div class="power-up-badge" data-type="timeFreeze" title="Time Freeze">
-                ⏰
-                <span class="power-up-count" id="timeFreeze-count">0</span>
-            </div>
-            <div class="power-up-badge" data-type="helperBot" title="Helper Bot">
-                🤖
-                <span class="power-up-count" id="helperBot-count">0</span>
-            </div>
-        </div>
-
-        <!-- Sound Toggle -->
-        <div class="sound-toggle" id="sound-toggle">
-            <span id="sound-icon">🔊</span>
-        </div>
 
         <!-- Main Content Area -->
         <div class="main-content">

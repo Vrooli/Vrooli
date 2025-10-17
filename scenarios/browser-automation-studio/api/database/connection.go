@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"time"
