@@ -112,6 +112,7 @@ function AppContent() {
     deleteIssue: deleteIssueAction,
     updateIssueStatus: updateIssueStatusAction,
     updateIssueDetails: updateIssueDetailsAction,
+    stopAgent,
     runningProcesses,
     connectionStatus,
     websocketError,
@@ -481,6 +482,13 @@ function AppContent() {
     clearFocus();
   }, [clearFocus]);
 
+  const handleStopAgent = useCallback(
+    (issueId: string) => {
+      void stopAgent(issueId);
+    },
+    [stopAgent],
+  );
+
   const handleOpenMetrics = useCallback(() => {
     openMetricsDialog();
   }, [openMetricsDialog]);
@@ -535,6 +543,7 @@ function AppContent() {
               onIssueDelete={handleIssueDelete}
               onIssueArchive={handleIssueArchive}
               onIssueDrop={handleIssueStatusChange}
+              onStopAgent={handleStopAgent}
               hiddenColumns={hiddenColumns}
               onHideColumn={handleHideColumn}
             />

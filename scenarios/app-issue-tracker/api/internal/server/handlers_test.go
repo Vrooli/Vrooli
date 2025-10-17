@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestSearchIssuesHandler tests the search functionality
@@ -348,6 +349,47 @@ func TestGetRunningProcessesHandler(t *testing.T) {
 
 	if _, ok := data["processes"]; !ok {
 		t.Error("Expected processes field in data")
+	}
+}
+
+func TestStopRunningProcessHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	issueID := "issue-stop-123"
+	env.Server.processor.RegisterRunningProcess(issueID, "agent-1", time.Now().UTC().Format(time.RFC3339), nil)
+
+	req := HTTPTestRequest{
+		Method:  http.MethodDelete,
+		Path:    fmt.Sprintf("/api/v1/processes/running/%s", issueID),
+		URLVars: map[string]string{"id": issueID},
+	}
+
+	w := makeHTTPRequest(env.Server.stopRunningProcessHandler, req)
+	resp := assertJSONResponse(t, w, http.StatusOK, map[string]interface{}{
+		"success": true,
+	})
+
+	if resp == nil {
+		return
+	}
+
+	data, ok := resp["data"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected data field in response")
+	}
+
+	if id, ok := data["issue_id"].(string); !ok || id != issueID {
+		t.Errorf("Expected issue_id %s in response, got %#v", issueID, data["issue_id"])
+	}
+
+	// Subsequent stop should return not found
+	w = makeHTTPRequest(env.Server.stopRunningProcessHandler, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404 for non-running issue, got %d", w.Code)
 	}
 }
 

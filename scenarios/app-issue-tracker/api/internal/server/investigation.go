@@ -310,8 +310,9 @@ func (s *Server) triggerInvestigation(issueID, agentID string, autoResolve bool)
 		return err
 	}
 
-	s.registerRunningProcess(issueID, agentID, startedAt)
-	go s.executeInvestigation(issueID, agentID, startedAt)
+	ctx, cancel := context.WithCancel(context.Background())
+	s.registerRunningProcess(issueID, agentID, startedAt, cancel)
+	go s.executeInvestigation(ctx, cancel, issueID, agentID, startedAt)
 
 	return nil
 }
@@ -340,7 +341,8 @@ func (s *Server) ensureIssueActive(issueID, currentFolder string) error {
 	return nil
 }
 
-func (s *Server) executeInvestigation(issueID, agentID, startedAt string) {
+func (s *Server) executeInvestigation(ctx context.Context, cancel context.CancelFunc, issueID, agentID, startedAt string) {
+	defer cancel()
 	defer s.unregisterRunningProcess(issueID)
 
 	issue, issueDir, _, loadErr := s.loadIssueWithStatus(issueID)
@@ -355,13 +357,18 @@ func (s *Server) executeInvestigation(issueID, agentID, startedAt string) {
 	timeoutDuration := time.Duration(settings.TimeoutSeconds) * time.Second
 	startTime := time.Now()
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
-	defer cancel()
+	timeoutCtx, timeoutCancel := context.WithTimeout(ctx, timeoutDuration)
+	defer timeoutCancel()
 
-	result, err := s.executeClaudeCode(ctx, prompt, issueID, startTime, timeoutDuration)
+	result, err := s.executeClaudeCode(timeoutCtx, prompt, issueID, startTime, timeoutDuration)
 	if err != nil {
 		LogErrorErr("Claude execution error", err, "issue_id", issueID)
 		s.failInvestigation(issueID, fmt.Sprintf("Execution error: %v", err), "")
+		return
+	}
+
+	if cancelled, reason := s.processor.cancellationInfo(issueID); cancelled {
+		s.handleInvestigationCancellation(issueID, agentID, reason)
 		return
 	}
 
@@ -375,6 +382,42 @@ func (s *Server) executeInvestigation(issueID, agentID, startedAt string) {
 	}
 
 	s.handleInvestigationSuccess(issueID, agentID, result)
+}
+
+func (s *Server) handleInvestigationCancellation(issueID, agentID, reason string) {
+	LogInfo("Investigation cancelled", "issue_id", issueID, "agent_id", agentID, "reason", reason)
+
+	issue, issueDir, _, loadErr := s.loadIssueWithStatus(issueID)
+	if loadErr == nil {
+		if issue.Metadata.Extra == nil {
+			issue.Metadata.Extra = make(map[string]string)
+		}
+		delete(issue.Metadata.Extra, "agent_last_error")
+		issue.Metadata.Extra["agent_last_status"] = "cancelled"
+		if strings.TrimSpace(reason) != "" {
+			issue.Metadata.Extra["agent_cancel_reason"] = reason
+		} else {
+			delete(issue.Metadata.Extra, "agent_cancel_reason")
+		}
+		issue.Metadata.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+		if err := s.writeIssueMetadata(issueDir, issue); err != nil {
+			LogWarn("Failed to persist cancellation metadata", "issue_id", issueID, "error", err)
+		}
+	} else {
+		LogWarn("Failed to reload issue during cancellation", "issue_id", issueID, "error", loadErr)
+	}
+
+	if err := s.moveIssue(issueID, "open"); err != nil {
+		LogWarn("Failed to move cancelled issue to open", "issue_id", issueID, "error", err)
+	}
+
+	s.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
+		IssueID:   issueID,
+		AgentID:   agentID,
+		Success:   false,
+		EndTime:   time.Now(),
+		NewStatus: "open",
+	}))
 }
 
 func (s *Server) handleInvestigationRateLimit(issueID, agentID string, result *ClaudeExecutionResult) bool {
@@ -399,7 +442,18 @@ func (s *Server) handleInvestigationRateLimit(issueID, agentID string, result *C
 		s.writeIssueMetadata(issueDir, issue)
 	}
 
-	s.moveIssue(issueID, "open")
+	if err := s.moveIssue(issueID, "failed"); err != nil {
+		LogWarn("Failed to move rate-limited issue to failed status", "issue_id", issueID, "error", err)
+	} else {
+		s.hub.Publish(NewEvent(EventAgentFailed, AgentCompletedData{
+			IssueID:   issueID,
+			AgentID:   agentID,
+			Success:   false,
+			EndTime:   time.Now(),
+			NewStatus: "failed",
+		}))
+	}
+
 	return true
 }
 

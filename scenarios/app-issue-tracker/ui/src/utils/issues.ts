@@ -87,6 +87,14 @@ export function buildApiUrl(baseUrl: string, path: string): string {
   return `${normalizedBase}${path}`;
 }
 
+function isLoopbackHost(hostname: string | null): boolean {
+  if (!hostname) {
+    return false;
+  }
+  const value = hostname.toLowerCase();
+  return value === 'localhost' || value === '127.0.0.1' || value === '0.0.0.0' || value === '::1' || value === '[::1]';
+}
+
 export function buildAttachmentUrl(baseUrl: string, issueId: string, attachmentPath: string): string {
   const safeIssueId = encodeURIComponent(issueId);
   const segments = attachmentPath
@@ -94,7 +102,36 @@ export function buildAttachmentUrl(baseUrl: string, issueId: string, attachmentP
     .filter((segment) => segment.length > 0)
     .map((segment) => encodeURIComponent(segment));
   const normalized = segments.join('/');
-  return buildApiUrl(baseUrl, `/issues/${safeIssueId}/attachments/${normalized}`);
+  const relativePath = `/issues/${safeIssueId}/attachments/${normalized}`;
+  const rawUrl = buildApiUrl(baseUrl, relativePath);
+
+  if (typeof window === 'undefined' || !window.location) {
+    return rawUrl;
+  }
+
+  try {
+    const resolved = new URL(rawUrl, window.location.origin);
+    const targetHost = resolved.hostname;
+    const currentHost = window.location.hostname;
+
+    if (isLoopbackHost(targetHost) && currentHost && !isLoopbackHost(currentHost)) {
+      const origin = window.location.origin.replace(/\/$/, '');
+      const pathname = resolved.pathname.startsWith('/') ? resolved.pathname : `/${resolved.pathname}`;
+      const search = resolved.search ?? '';
+      const hash = resolved.hash ?? '';
+      return `${origin}${pathname}${search}${hash}`;
+    }
+
+    return resolved.toString();
+  } catch (error) {
+    console.warn('[IssueTracker] Failed to normalize attachment URL', error);
+    if (window.location.origin) {
+      const origin = window.location.origin.replace(/\/$/, '');
+      const normalizedRelative = rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`;
+      return `${origin}${normalizedRelative}`;
+    }
+    return rawUrl;
+  }
 }
 
 export function normalizePriority(value?: string | null): Priority {

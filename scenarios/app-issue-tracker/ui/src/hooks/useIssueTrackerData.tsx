@@ -14,13 +14,16 @@ import {
   fetchProcessorState,
   fetchRateLimitStatus,
   fetchIssueStatuses,
+  fetchRunningProcesses,
   createIssue as createIssueRequest,
   deleteIssue as deleteIssueRequest,
   listIssues,
   updateIssueStatus as updateIssueStatusRequest,
   updateIssue as updateIssueRequest,
+  stopRunningProcess,
   type RateLimitStatusPayload,
   type IssueStatusMetadata,
+  type RunningProcessPayload,
 } from '../services/issues';
 export type { RateLimitStatusPayload } from '../services/issues';
 import {
@@ -40,6 +43,7 @@ import {
   useIssueRealtimeSync,
   type RunningProcessMap,
   type ConnectionStatus,
+  type RunningProcessSeed,
 } from './useIssueRealtimeSync';
 
 const DEFAULT_STATS: DashboardStats = {
@@ -89,6 +93,7 @@ interface IssueTrackerDataContextValue {
   updateIssueStatus: (issueId: string, nextStatus: IssueStatus) => Promise<void>;
   updateIssueDetails: (input: UpdateIssueInput) => Promise<void>;
   deleteIssue: (issueId: string) => Promise<void>;
+  stopAgent: (issueId: string) => Promise<void>;
   runningProcesses: RunningProcessMap;
   connectionStatus: ConnectionStatus;
   websocketError: Error | null;
@@ -111,6 +116,7 @@ export function IssueTrackerDataProvider({
   const [rateLimitStatus, setRateLimitStatus] = useState<RateLimitStatusPayload | null>(null);
   const [realtimeReady, setRealtimeReady] = useState(false);
   const [statusCatalog, setStatusCatalog] = useState<IssueStatusMetadata[]>(DEFAULT_STATUS_CATALOG);
+  const [initialRunningProcesses, setInitialRunningProcesses] = useState<RunningProcessSeed | null>(null);
 
   const validStatuses = useMemo<IssueStatus[]>(
     () => statusCatalog.map((status) => status.id as IssueStatus),
@@ -198,9 +204,11 @@ export function IssueTrackerDataProvider({
       setLoadError(null);
       clearProcessorError();
       setRealtimeReady(false);
+      setInitialRunningProcesses(null);
     }
 
     let mappedIssues: Issue[] = [];
+    let runningProcessesSnapshot: RunningProcessPayload[] = [];
 
     try {
       const rawIssues = await listIssues(apiBaseUrl, issueFetchLimit);
@@ -225,9 +233,20 @@ export function IssueTrackerDataProvider({
       console.warn('Failed to load stats', error);
     }
 
+    try {
+      runningProcessesSnapshot = await fetchRunningProcesses(apiBaseUrl);
+    } catch (error) {
+      console.warn('Failed to load running processes', error);
+      runningProcessesSnapshot = [];
+    }
+
     if (isMountedRef.current) {
       lastStatsFromApiRef.current = statsFromApi;
       updateIssuesState(() => mappedIssues, { invalidateRemoteStats: false });
+      setInitialRunningProcesses({
+        processes: runningProcessesSnapshot,
+        version: Date.now(),
+      });
       setRealtimeReady(true);
     }
 
@@ -284,6 +303,7 @@ export function IssueTrackerDataProvider({
     setRateLimitStatus,
     reportProcessorError,
     enabled: realtimeReady,
+    initialRunningProcesses,
   });
 
   const contextValue = useMemo<IssueTrackerDataContextValue>(
@@ -358,6 +378,15 @@ export function IssueTrackerDataProvider({
         updateIssuesState((previous) => previous.filter((issue) => issue.id !== issueId));
         removeProcess(issueId);
       },
+      stopAgent: async (issueId: string) => {
+        try {
+          await stopRunningProcess(apiBaseUrl, issueId);
+          removeProcess(issueId);
+        } catch (error) {
+          console.error('Failed to stop running agent', error);
+          showSnackbar('Failed to stop agent. Please try again.', 'error');
+        }
+      },
       runningProcesses,
       connectionStatus,
       websocketError,
@@ -385,6 +414,7 @@ export function IssueTrackerDataProvider({
       updateIssuesState,
       removeProcess,
       apiBaseUrl,
+      showSnackbar,
     ],
   );
 

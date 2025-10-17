@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import type { Issue } from '../data/sampleData';
 import type { RateLimitStatusPayload } from '../services/issues';
 import { normalizeStatus, transformIssue } from '../utils/issues';
@@ -6,6 +6,11 @@ import type { WebSocketEvent } from '../types/events';
 import { useWebSocket, type ConnectionStatus } from './useWebSocket';
 
 export type RunningProcessMap = Map<string, { agent_id: string; start_time: string; duration?: string }>;
+
+export interface RunningProcessSeed {
+  processes: Array<{ issue_id: string; agent_id: string; start_time: string }>;
+  version: number;
+}
 
 interface UseIssueRealtimeSyncOptions {
   apiBaseUrl: string;
@@ -17,6 +22,7 @@ interface UseIssueRealtimeSyncOptions {
   setRateLimitStatus: Dispatch<SetStateAction<RateLimitStatusPayload | null>>;
   reportProcessorError: (message: string) => void;
   enabled?: boolean;
+  initialRunningProcesses?: RunningProcessSeed | null;
 }
 
 interface UseIssueRealtimeSyncResult {
@@ -28,6 +34,31 @@ interface UseIssueRealtimeSyncResult {
 }
 
 declare const __API_PORT__: string | undefined;
+
+function formatElapsedDuration(startTime: string): string | undefined {
+  const parsed = new Date(startTime);
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+
+  const now = new Date();
+  const durationMs = now.getTime() - parsed.getTime();
+  if (durationMs < 0) {
+    return undefined;
+  }
+
+  const seconds = Math.floor(durationMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+
+  if (hours > 0) {
+    return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds % 60}s`;
+  }
+  return `${seconds}s`;
+}
 
 function resolveWebSocketUrl(apiBaseUrl: string): string {
   if (typeof window === 'undefined') {
@@ -68,8 +99,41 @@ export function useIssueRealtimeSync({
   setRateLimitStatus,
   reportProcessorError,
   enabled = true,
+  initialRunningProcesses = null,
 }: UseIssueRealtimeSyncOptions): UseIssueRealtimeSyncResult {
   const [runningProcesses, setRunningProcesses] = useState<RunningProcessMap>(new Map());
+  const initialSeedVersionRef = useRef(0);
+
+  useEffect(() => {
+    if (!initialRunningProcesses) {
+      return;
+    }
+
+    if (initialRunningProcesses.version <= initialSeedVersionRef.current) {
+      return;
+    }
+
+    initialSeedVersionRef.current = initialRunningProcesses.version;
+
+    setRunningProcesses(() => {
+      if (!initialRunningProcesses.processes || initialRunningProcesses.processes.length === 0) {
+        return new Map();
+      }
+
+      const seeded = new Map<string, { agent_id: string; start_time: string; duration?: string }>();
+      initialRunningProcesses.processes.forEach((process) => {
+        if (!process || !process.issue_id) {
+          return;
+        }
+        seeded.set(process.issue_id, {
+          agent_id: process.agent_id,
+          start_time: process.start_time,
+          duration: formatElapsedDuration(process.start_time),
+        });
+      });
+      return seeded;
+    });
+  }, [initialRunningProcesses]);
 
   const websocketUrl = useMemo(() => {
     const base = resolveWebSocketUrl(apiBaseUrl);
@@ -212,22 +276,7 @@ export function useIssueRealtimeSync({
         let changed = false;
 
         for (const [issueId, process] of next.entries()) {
-          const startTime = new Date(process.start_time);
-          const now = new Date();
-          const durationMs = now.getTime() - startTime.getTime();
-          const seconds = Math.floor(durationMs / 1000);
-          const minutes = Math.floor(seconds / 60);
-          const hours = Math.floor(minutes / 60);
-
-          let duration: string;
-          if (hours > 0) {
-            duration = `${hours}h ${minutes % 60}m ${seconds % 60}s`;
-          } else if (minutes > 0) {
-            duration = `${minutes}m ${seconds % 60}s`;
-          } else {
-            duration = `${seconds}s`;
-          }
-
+          const duration = formatElapsedDuration(process.start_time);
           if (process.duration !== duration) {
             next.set(issueId, { ...process, duration });
             changed = true;

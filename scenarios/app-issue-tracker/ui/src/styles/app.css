@@ -1086,7 +1086,7 @@
   border-left: 4px solid var(--issue-accent-color);
   padding: 12px 14px;
   color: #0f172a;
-  cursor: grab;
+  cursor: pointer;
   box-shadow: 0 18px 36px rgba(15, 23, 42, 0.1);
   transition:
     transform 0.2s ease,
@@ -1102,10 +1102,6 @@
   border-color: rgba(148, 163, 184, 0.35);
   border-left-color: var(--issue-accent-color);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
-}
-
-.issue-card:active {
-  cursor: grabbing;
 }
 
 .issue-card.dragging {

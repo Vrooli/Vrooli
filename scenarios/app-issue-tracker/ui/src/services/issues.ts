@@ -28,6 +28,12 @@ export interface IssueStatusMetadata {
   label: string;
 }
 
+export interface RunningProcessPayload {
+  issue_id: string;
+  agent_id: string;
+  start_time: string;
+}
+
 export async function fetchIssueStatuses(baseUrl: string): Promise<IssueStatusMetadata[]> {
   return apiJsonRequest<IssueStatusMetadata[]>(buildApiUrl(baseUrl, '/metadata/statuses'), {
     selector: (payload) => {
@@ -50,6 +56,41 @@ export async function fetchIssueStatuses(baseUrl: string): Promise<IssueStatusMe
           } satisfies IssueStatusMetadata;
         })
         .filter((entry): entry is IssueStatusMetadata => Boolean(entry));
+    },
+    fallback: [],
+  });
+}
+
+export async function fetchRunningProcesses(baseUrl: string): Promise<RunningProcessPayload[]> {
+  return apiJsonRequest<RunningProcessPayload[]>(buildApiUrl(baseUrl, '/processes/running'), {
+    selector: (payload) => {
+      const rawProcesses = (payload as { data?: { processes?: Array<Record<string, unknown>> } } | null | undefined)
+        ?.data?.processes;
+      if (!Array.isArray(rawProcesses)) {
+        return [];
+      }
+
+      return rawProcesses
+        .map((item) => {
+          if (typeof item !== 'object' || item === null) {
+            return null;
+          }
+
+          const issueId = typeof item.issue_id === 'string' ? item.issue_id.trim() : '';
+          if (!issueId) {
+            return null;
+          }
+
+          const agentId = typeof item.agent_id === 'string' ? item.agent_id.trim() : 'unknown';
+          const startTime = typeof item.start_time === 'string' ? item.start_time.trim() : new Date().toISOString();
+
+          return {
+            issue_id: issueId,
+            agent_id: agentId || 'unknown',
+            start_time: startTime,
+          } satisfies RunningProcessPayload;
+        })
+        .filter((entry): entry is RunningProcessPayload => Boolean(entry));
     },
     fallback: [],
   });
@@ -93,6 +134,12 @@ export async function fetchProcessorState(baseUrl: string): Promise<ProcessorEnd
       data?.issues_remaining !== undefined ? (data.issues_remaining as number | string) : null,
     raw: response,
   };
+}
+
+export async function stopRunningProcess(baseUrl: string, issueId: string): Promise<void> {
+  await apiVoidRequest(buildApiUrl(baseUrl, `/processes/running/${encodeURIComponent(issueId)}`), {
+    method: 'DELETE',
+  });
 }
 
 export async function patchProcessorState(

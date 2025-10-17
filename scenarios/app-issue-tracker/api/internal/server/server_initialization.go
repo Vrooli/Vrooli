@@ -105,6 +105,7 @@ func NewServer(config *Config, opts ...Option) (*Server, http.Handler, error) {
 	v1.HandleFunc("/automation/processor/reset-counter", server.resetIssueCounterHandler).Methods("POST")
 	v1.HandleFunc("/rate-limit-status", server.getRateLimitStatusHandler).Methods("GET")
 	v1.HandleFunc("/processes/running", server.getRunningProcessesHandler).Methods("GET")
+	v1.HandleFunc("/processes/running/{id}", server.stopRunningProcessHandler).Methods("DELETE")
 
 	handler := corsMiddleware(r)
 

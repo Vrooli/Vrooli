@@ -82,21 +82,6 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 	transcriptFile := filepath.Join(transcriptDir, fmt.Sprintf("%s-%d-conversation.jsonl", fileSafeTag, timestamp))
 	lastMessageFile := filepath.Join(transcriptDir, fmt.Sprintf("%s-%d-last.txt", fileSafeTag, timestamp))
 
-	workspaceDir, err := os.MkdirTemp("", fmt.Sprintf("codex-%s-", fileSafeTag))
-	if err != nil {
-		return &ClaudeExecutionResult{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to create Codex workspace directory: %v", err),
-		}, err
-	}
-	defer func() {
-		if removeErr := os.RemoveAll(workspaceDir); removeErr != nil {
-			LogWarn("Failed to clean Codex workspace", "workspace", workspaceDir, "error", removeErr)
-		}
-	}()
-
-	LogDebug("Codex workspace directory prepared", "workspace", workspaceDir)
-
 	// Set environment variables (ecosystem-manager pattern)
 	skipPermissionsValue := "no"
 	if settings.SkipPermissions {
@@ -125,7 +110,6 @@ func (s *Server) executeClaudeCode(ctx context.Context, prompt string, issueID s
 		"CODEX_AGENT_TAG="+agentTag,
 		"CODEX_TRANSCRIPT_FILE="+transcriptFile,
 		"CODEX_LAST_MESSAGE_FILE="+lastMessageFile,
-		"CODEX_WORKSPACE="+workspaceDir,
 	)
 	cmd.Env = env
 

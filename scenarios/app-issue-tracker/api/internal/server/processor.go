@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 type AutomationProcessor struct {
@@ -19,16 +21,23 @@ type AutomationProcessor struct {
 	processedCount int
 
 	runningMu sync.RWMutex
-	running   map[string]*RunningProcess
+	running   map[string]*trackedProcess
 
 	loopMu     sync.Mutex
 	loopCancel context.CancelFunc
 }
 
+type trackedProcess struct {
+	info            *RunningProcess
+	cancel          context.CancelFunc
+	cancelRequested bool
+	cancelReason    string
+}
+
 func NewAutomationProcessor(host *Server) *AutomationProcessor {
 	p := &AutomationProcessor{
 		host:    host,
-		running: make(map[string]*RunningProcess),
+		running: make(map[string]*trackedProcess),
 	}
 	p.state = ProcessorState{
 		Active:            false,
@@ -87,16 +96,42 @@ func (p *AutomationProcessor) ProcessedCount() int {
 	return p.processedCount
 }
 
-func (p *AutomationProcessor) RegisterRunningProcess(issueID, agentID, startTime string) {
+func (p *AutomationProcessor) RegisterRunningProcess(issueID, agentID, startTime string, cancel context.CancelFunc) {
 	p.runningMu.Lock()
 	defer p.runningMu.Unlock()
-	p.running[issueID] = &RunningProcess{IssueID: issueID, AgentID: agentID, StartTime: startTime}
+
+	if existing, ok := p.running[issueID]; ok {
+		if existing.info == nil {
+			existing.info = &RunningProcess{}
+		}
+		existing.info.IssueID = issueID
+		existing.info.AgentID = agentID
+		existing.info.StartTime = startTime
+		if cancel != nil {
+			existing.cancel = cancel
+			existing.cancelRequested = false
+			existing.cancelReason = ""
+		}
+		p.updateRunningCountLocked()
+		return
+	}
+
+	p.running[issueID] = &trackedProcess{
+		info: &RunningProcess{
+			IssueID:   issueID,
+			AgentID:   agentID,
+			StartTime: startTime,
+		},
+		cancel: cancel,
+	}
+	p.updateRunningCountLocked()
 }
 
 func (p *AutomationProcessor) UnregisterRunningProcess(issueID string) {
 	p.runningMu.Lock()
 	defer p.runningMu.Unlock()
 	delete(p.running, issueID)
+	p.updateRunningCountLocked()
 }
 
 func (p *AutomationProcessor) IsRunning(issueID string) bool {
@@ -111,9 +146,48 @@ func (p *AutomationProcessor) RunningProcesses() []*RunningProcess {
 	defer p.runningMu.RUnlock()
 	out := make([]*RunningProcess, 0, len(p.running))
 	for _, proc := range p.running {
-		out = append(out, proc)
+		if proc.info != nil {
+			copyInfo := *proc.info
+			out = append(out, &copyInfo)
+		}
 	}
 	return out
+}
+
+func (p *AutomationProcessor) CancelRunningProcess(issueID, reason string) bool {
+	p.runningMu.Lock()
+	defer p.runningMu.Unlock()
+
+	proc, ok := p.running[issueID]
+	if !ok {
+		return false
+	}
+	if proc.cancelRequested {
+		return true
+	}
+	proc.cancelRequested = true
+	proc.cancelReason = reason
+	if proc.cancel != nil {
+		proc.cancel()
+	}
+	return true
+}
+
+func (p *AutomationProcessor) cancellationInfo(issueID string) (bool, string) {
+	p.runningMu.RLock()
+	defer p.runningMu.RUnlock()
+	proc, ok := p.running[issueID]
+	if !ok {
+		return false, ""
+	}
+	return proc.cancelRequested, proc.cancelReason
+}
+
+func (p *AutomationProcessor) updateRunningCountLocked() {
+	count := len(p.running)
+	p.stateMu.Lock()
+	p.state.CurrentlyRunning = count
+	p.stateMu.Unlock()
 }
 
 func (p *AutomationProcessor) Start(ctx context.Context) {
@@ -238,7 +312,7 @@ func (p *AutomationProcessor) scheduleInvestigations(openIssues []Issue, availab
 		}
 
 		startTime := time.Now().UTC().Format(time.RFC3339)
-		p.RegisterRunningProcess(issue.ID, agentID, startTime)
+		p.RegisterRunningProcess(issue.ID, agentID, startTime, nil)
 		scheduled++
 
 		sequence := currentlyRunning + scheduled
@@ -403,7 +477,34 @@ func (s *Server) getRunningProcessesHandler(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(response)
 }
 
-func (s *Server) registerRunningProcess(issueID, agentID, startTime string) {
+func (s *Server) stopRunningProcessHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	issueID := strings.TrimSpace(vars["id"])
+	if issueID == "" {
+		http.Error(w, "Issue ID is required", http.StatusBadRequest)
+		return
+	}
+
+	if !s.processor.CancelRunningProcess(issueID, "user_stop") {
+		http.Error(w, "Agent is not running for the specified issue", http.StatusNotFound)
+		return
+	}
+
+	LogInfo("Stop requested for running agent", "issue_id", issueID)
+
+	response := ApiResponse{
+		Success: true,
+		Message: "Agent stop requested",
+		Data: map[string]interface{}{
+			"issue_id": issueID,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) registerRunningProcess(issueID, agentID, startTime string, cancel context.CancelFunc) {
 	if _, currentFolder, err := s.findIssueDirectory(issueID); err == nil && currentFolder != "active" {
 		if err := s.moveIssue(issueID, "active"); err != nil {
 			LogErrorErr("Failed to mark running issue as active", err, "issue_id", issueID)
@@ -412,7 +513,7 @@ func (s *Server) registerRunningProcess(issueID, agentID, startTime string) {
 		}
 	}
 
-	s.processor.RegisterRunningProcess(issueID, agentID, startTime)
+	s.processor.RegisterRunningProcess(issueID, agentID, startTime, cancel)
 
 	startTimeParsed, _ := time.Parse(time.RFC3339, startTime)
 	s.hub.Publish(NewEvent(EventAgentStarted, AgentStartedData{
